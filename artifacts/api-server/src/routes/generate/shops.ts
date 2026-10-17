@@ -1187,7 +1187,10 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
     return;
   }
   if (marketSaleIsPaid(rows)) {
-    res.json({ status: "paid", paid: true, duplicate: true, sessionId, order: marketSaleReceipt(rows), ...marketSaleReceipt(rows) });
+    const receipt = marketSaleReceipt(rows);
+    /* The receipt itself carries status/paid — spreading it last is
+       the whole shape; no duplicate literals. */
+    res.json({ duplicate: true, sessionId, order: receipt, ...receipt });
     return;
   }
   let session;
@@ -1203,7 +1206,7 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   }
   if (session.payment_status !== "paid") {
     const receipt = marketSaleReceipt(rows);
-    res.json({ status: receipt.status, paid: false, sessionId, order: receipt, ...receipt });
+    res.json({ sessionId, order: receipt, ...receipt });
     return;
   }
   const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0);
@@ -1215,7 +1218,7 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   const { flipped, rows: after } = await markMarketSalePaid(sessionId);
   const receipt = marketSaleReceipt(after);
   logger.info({ sessionId, flipped }, "[storefronts] checkout verified — sale recorded");
-  res.json({ status: "paid", paid: true, duplicate: flipped === 0, sessionId, order: receipt, ...receipt });
+  res.json({ duplicate: flipped === 0, sessionId, order: receipt, ...receipt });
 });
 
 /* ── GET /api/storefronts/checkout/status?sessionId= — DB truth, read-only ─
