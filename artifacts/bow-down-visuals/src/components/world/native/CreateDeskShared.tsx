@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, Disc3, ListMusic, PenLine, Rocket, Scissors, Sparkles } from "lucide-react";
+import { BadgeCheck, ChevronDown, Disc3, ListMusic, Music, PenLine, Rocket, Scissors, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { jukeboxTrackIdOf } from "@/lib/world/create-desks";
 
@@ -136,6 +136,13 @@ export interface ResultChipsProps {
    *  when the host gave the panel no editor door. */
   onSendToEditor?: () => void;
   editorBusy?: boolean;
+  /** Publish to the creator's profile on the site's real rail
+   *  (POST /api/publish/track). Offered only when the desk holds a
+   *  publishable asset; once `published` is true the chip becomes
+   *  the settled state and can never fire a second publish. */
+  onPublish?: () => void;
+  publishBusy?: boolean;
+  published?: boolean;
   /** A published profile track id (`track:<uuid>`) — the only ids
    *  the room jukebox accepts. Anything else hides the chip. */
   jukeboxTrackId?: string | null;
@@ -171,6 +178,26 @@ export function ResultChips(props: ResultChipsProps) {
           className={goldChipCls}
         >
           <Scissors className="h-3.5 w-3.5" /> Send to the editor
+        </button>
+      ) : null}
+      {props.published ? (
+        <span
+          data-testid="world-create-chip-published"
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            isLight ? "border-emerald-700/40 text-emerald-800" : "border-emerald-400/40 text-emerald-300"
+          }`}
+        >
+          <BadgeCheck className="h-3.5 w-3.5" /> Published — live on your profile
+        </span>
+      ) : props.onPublish ? (
+        <button
+          type="button"
+          data-testid="world-create-chip-publish"
+          onClick={props.onPublish}
+          disabled={props.publishBusy}
+          className={goldChipCls}
+        >
+          <Rocket className="h-3.5 w-3.5" /> {props.publishBusy ? "Publishing…" : "Publish to my profile"}
         </button>
       ) : null}
       {trackId && props.onJukeboxAdd ? (
@@ -253,6 +280,96 @@ export function ImageResult({ url, title }: { url: string; title: string }) {
     <div data-testid="world-create-result-image" className="space-y-2">
       <p className="text-sm font-bold">{title}</p>
       <img src={url} alt={title} className="max-h-[320px] w-full rounded-xl object-contain" />
+    </div>
+  );
+}
+
+/* ─── The song desks' audio + publish reward rail (Ring 2, 2.1/2.2) ──
+   A song package is words until it has audio: this rail is the
+   site's own next step (GenerationResult's "Generate real audio")
+   docked under the result — the price on the button is the real
+   music-audio tier, the player appears only when audio truly
+   landed, and a failure says so with a retry. Publishing rides the
+   ResultChips publish chip beside it; once the server answers with
+   the track, PublishedReward below is the unlock moment. */
+
+export type SongAudioState = "idle" | "running" | "done" | "failed";
+
+export function SongAudioRail(props: {
+  isLight: boolean;
+  state: SongAudioState;
+  error: string | null;
+  audioUrl: string | null;
+  title: string;
+  costVisualBucs: number;
+  onMakeAudio: () => void;
+}) {
+  const { isLight } = props;
+  if (props.state === "done" && props.audioUrl) {
+    return (
+      <div className="mt-3">
+        <AudioResult url={props.audioUrl} title={props.title} />
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3 space-y-2">
+      <button
+        type="button"
+        data-testid="world-create-make-audio"
+        onClick={props.onMakeAudio}
+        disabled={props.state === "running"}
+        className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+      >
+        <Music className="h-4 w-4" />
+        {props.state === "running"
+          ? "Making the audio…"
+          : props.state === "failed"
+            ? `Make the audio again · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`
+            : `Make the audio · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`}
+      </button>
+      {props.state === "failed" && props.error ? (
+        <p data-testid="world-create-audio-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+          {props.error}
+        </p>
+      ) : (
+        <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+          The package becomes a real, playable song — saved to your library, ready to publish.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The publish unlock: shown ONLY after the publish rail answered
+ *  with the track (server truth — never on click, never on hope).
+ *  Gold reward card in the panel kit's language; the jukebox line
+ *  flips to its celebrated state only once the chip has actually
+ *  been fired from this card. */
+export function PublishedReward(props: {
+  isLight: boolean;
+  title: string;
+  jukeboxSent: boolean;
+}) {
+  const { isLight } = props;
+  return (
+    <div
+      data-testid="world-create-published-reward"
+      className={`mt-3 rounded-2xl border p-3 ${
+        isLight
+          ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
+          : "border-[#d4af37]/40 bg-gradient-to-b from-[#1a1408] to-[#0d0a04]"
+      }`}
+    >
+      <p className="flex items-center gap-2 text-sm font-black">
+        <Trophy className="h-4 w-4 shrink-0 text-[#d4af37]" />
+        Unlocked — &ldquo;{props.title}&rdquo; is live on your profile
+      </p>
+      <p className={`mt-1 text-[11px] leading-relaxed ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+        {props.jukeboxSent
+          ? "Sent to the jukebox — walk into the Music Hall and the whole room hears your song."
+          : "The win screen is the room hearing it: tap \u201CPut it on the jukebox\u201D above and your song rides the Music Hall jukebox."}
+      </p>
     </div>
   );
 }
