@@ -33,9 +33,16 @@ const QUEST_META: Record<string, { icon: typeof ImageIcon; href: string; titleKe
 export default function QuestsWidget({
   getToken,
   onBalanceChange,
+  inWorld = false,
 }: {
   getToken: () => Promise<string | null>;
   onBalanceChange?: () => void;
+  /** Rendered inside the palace's Quest Board: the "go do it"
+   *  action for an unfinished quest becomes an explicit transfer
+   *  (new tab — the walker stays in the room) instead of a
+   *  same-tab navigation out of /world. Claim, toggle and hide
+   *  behave identically everywhere. */
+  inWorld?: boolean;
 }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
@@ -198,11 +205,19 @@ export default function QuestsWidget({
                     {claiming === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}
                   </button>
                 ) : meta ? (
-                  <Link href={meta.href}>
-                    <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
-                      <ArrowUpRight className="h-4 w-4" />
-                    </span>
-                  </Link>
+                  inWorld ? (
+                    <a href={meta.href} target="_blank" rel="noopener noreferrer">
+                      <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
+                    </a>
+                  ) : (
+                    <Link href={meta.href}>
+                      <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  )
                 ) : null}
               </div>
             );

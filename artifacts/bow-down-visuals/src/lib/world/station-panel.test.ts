@@ -123,6 +123,52 @@ describe("resolveStationPanel — registry v2 resolution (pins b, d, e)", () => 
   });
 });
 
+describe("the Treasury — three customs, verified native (Lane 8)", () => {
+  const treasury: Record<string, string> = {
+    "daily-drop": "treasury-daily",
+    "shark-drops": "treasury-shark",
+    "quest-board": "treasury-quests",
+  };
+
+  it("every Treasury station resolves to its custom panel for members — never a page mount", () => {
+    for (const [id, customId] of Object.entries(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      expect(s.roomId, id).toBe("world:treasury");
+      const r = resolveStationPanel(s, false);
+      expect(r.type, id).toBe("custom");
+      if (r.type === "custom") expect(r.id, id).toBe(customId);
+    }
+  });
+
+  it("no Treasury panel path resolves to a page mount, for guests or members", () => {
+    for (const id of Object.keys(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      for (const isGuest of [false, true]) {
+        const r = resolveStationPanel(s, isGuest);
+        expect(["custom", "guest-pitch"], `${id} guest=${isGuest}`).toContain(r.type);
+        expect(r.type, id).not.toBe("page");
+        expect(r.type, id).not.toBe("native");
+        expect(r.type, id).not.toBe("stepthrough");
+      }
+    }
+  });
+
+  it("the Treasury customs carry no transfer target — they never auto-opened a page", () => {
+    for (const id of Object.keys(treasury)) {
+      expect(STATION_BY_ID.get(id)!.websitePath, id).toBeNull();
+      expect(STATION_BY_ID.get(id)!.membersOnly, id).toBe(true);
+    }
+  });
+
+  it("guests at the Treasury get the pitch, members the panels (pin e, Treasury cut)", () => {
+    for (const id of Object.keys(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      expect(resolveStationPanel(s, true).type, id).toBe("guest-pitch");
+      expect(resolveStationPanel(s, false).type, id).toBe("custom");
+    }
+  });
+});
+
 describe("splitPanelPath", () => {
   it("splits the Create house's panel deep links", () => {
     expect(splitPanelPath("/create?panel=song")).toEqual({
