@@ -667,6 +667,147 @@ describe("confirmBrandingFulfillment — already-confirmed guard", () => {
   });
 });
 
+describe("fulfillBrandingOrder — mixed orders split per provider (Stack-30 E3)", () => {
+  beforeEach(() => {
+    h.printkkConfigured.mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) }))
+    );
+    h.fulfillRugOrder.mockImplementation(async (...args: unknown[]) => {
+      const qty = args[4] as number;
+      return { orderId: `kk_${qty}`, designCode: `dc_${qty}` };
+    });
+  });
+
+  function mixedItems() {
+    return [
+      {
+        product: "rug",
+        color: "red",
+        size: "3x5 ft",
+        qty: 2,
+        unitPriceCents: 9900,
+        designUrl: "https://cdn.test/logo.png",
+      },
+      {
+        product: "tshirt",
+        color: "black",
+        size: "M",
+        qty: 1,
+        unitPriceCents: 2500,
+        designUrl: "https://cdn.test/design.png",
+      },
+    ];
+  }
+
+  it("happy path: rug goes to PrintKK, the rest to Printful as its own order; each side tracked in its own home", async () => {
+    seedOrder({ items: mixedItems(), total_cents: 9900 * 2 + 2500 });
+
+    const result = await fulfillBrandingOrder(ORDER_ID);
+    expect(result).toEqual({
+      provider: "mixed",
+      providerOrderId: "pf_100",
+      status: "pending_fulfillment",
+    });
+
+    // The rug reached PrintKK exactly once, with its own quantity.
+    expect(h.fulfillRugOrder).toHaveBeenCalledTimes(1);
+    expect((h.fulfillRugOrder.mock.calls[0] as unknown[])[4]).toBe(2);
+
+    // Printful was consulted for adoption, then submitted an order
+    // carrying ONLY the non-rug item — the rug never rides Printful.
+    expect(h.findExistingOrder).toHaveBeenCalledTimes(1);
+    expect(h.findExistingOrder).toHaveBeenCalledWith(ORDER_ID);
+    expect(h.submitOrder).toHaveBeenCalledTimes(1);
+    const pfItems = (h.submitOrder.mock.calls[0] as unknown[])[1] as Array<{ product: string; quantity: number }>;
+    expect(pfItems).toHaveLength(1);
+    expect(pfItems[0]).toMatchObject({ product: "tshirt", quantity: 1 });
+
+    // Tracking: the Printful side lives in the order-level columns (the
+    // webhook / refresh / confirm machinery keys on them), the PrintKK
+    // side per item in the items jsonb — the two single-provider homes.
+    const row = storedRow();
+    expect(row.provider).toBe("mixed");
+    expect(row.provider_order_id).toBe("pf_100");
+    expect(row.status).toBe("pending_fulfillment");
+    expect(row.items[0]?.providerOrderId).toBe("kk_2");
+    expect(row.items[0]?.designCode).toBe("dc_2");
+    expect(row.items[1]?.providerOrderId).toBeUndefined();
+
+    // A second delivery early-returns on the recorded Printful id —
+    // neither provider is asked again.
+    const second = await fulfillBrandingOrder(ORDER_ID);
+    expect(second).toEqual(result);
+    expect(h.fulfillRugOrder).toHaveBeenCalledTimes(1);
+    expect(h.submitOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it("PrintKK not configured: a mixed order rides Printful whole, rugs included (pre-split behavior, no regression)", async () => {
+    h.printkkConfigured.mockReturnValue(false);
+    seedOrder({ items: mixedItems(), total_cents: 9900 * 2 + 2500 });
+
+    const result = await fulfillBrandingOrder(ORDER_ID);
+    expect(result).toEqual({
+      provider: "printful",
+      providerOrderId: "pf_100",
+      status: "pending_fulfillment",
+    });
+    expect(h.fulfillRugOrder).not.toHaveBeenCalled();
+    expect(h.submitOrder).toHaveBeenCalledTimes(1);
+    const pfItems = (h.submitOrder.mock.calls[0] as unknown[])[1] as Array<{ product: string }>;
+    expect(pfItems.map((i) => i.product)).toEqual(["rug", "tshirt"]);
+    expect(storedRow().provider).toBe("printful");
+  });
+
+  it("Printful side fails after the rug was accepted: claim released, retry resumes the rug from jsonb and completes the split", async () => {
+    seedOrder({ items: mixedItems(), total_cents: 9900 * 2 + 2500 });
+    h.submitOrder.mockRejectedValueOnce(new Error("Printful API error 500: boom"));
+
+    await expect(fulfillBrandingOrder(ORDER_ID)).rejects.toThrow("Printful API error 500");
+    expect(h.fulfillRugOrder).toHaveBeenCalledTimes(1);
+    // The rug's provider id survived in the items jsonb and the claim
+    // was released (the failing provider accepted nothing new we can't
+    // recover: the Printful side is adopt-protected on the retry).
+    let row = storedRow();
+    expect(row.items[0]?.providerOrderId).toBe("kk_2");
+    expect(row.provider_order_id).toBeNull();
+
+    const retry = await fulfillBrandingOrder(ORDER_ID);
+    expect(retry).toEqual({
+      provider: "mixed",
+      providerOrderId: "pf_100",
+      status: "pending_fulfillment",
+    });
+    // The rug was never resubmitted (or re-paid at PrintKK).
+    expect(h.fulfillRugOrder).toHaveBeenCalledTimes(1);
+    expect(h.submitOrder).toHaveBeenCalledTimes(2);
+    row = storedRow();
+    expect(row.provider).toBe("mixed");
+    expect(row.provider_order_id).toBe("pf_100");
+  });
+
+  it("rug without a designUrl: fails before Printful is ever asked, so no orphan draft is created for an unfulfillable order", async () => {
+    const items = mixedItems();
+    delete (items[0] as { designUrl?: string }).designUrl;
+    seedOrder({ items, total_cents: 9900 * 2 + 2500 });
+
+    await expect(fulfillBrandingOrder(ORDER_ID)).rejects.toThrow(/Rug item missing designUrl/);
+    expect(h.fulfillRugOrder).not.toHaveBeenCalled();
+    expect(h.findExistingOrder).not.toHaveBeenCalled();
+    expect(h.submitOrder).not.toHaveBeenCalled();
+    expect(storedRow().provider_order_id).toBeNull();
+  });
+
+  it("confirm gate: a pending mixed order confirms its Printful draft (the money gate covers the split)", async () => {
+    seedOrder({ provider: "mixed", provider_order_id: "pf_9", status: "pending_fulfillment" });
+
+    await confirmBrandingFulfillment(ORDER_ID);
+    expect(h.confirmPrintfulOrder).toHaveBeenCalledTimes(1);
+    expect(h.confirmPrintfulOrder).toHaveBeenCalledWith("pf_9");
+  });
+});
+
 describe("refreshBrandingOrder — claim guard", () => {
   it("claim token is never sent to the provider; reports the stored status", async () => {
     seedOrder({ provider_order_id: `claim:in-flight:${Date.now()}`, status: "received" });

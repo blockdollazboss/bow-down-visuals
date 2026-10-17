@@ -129,6 +129,20 @@ export function normalizeHashtags(raw: string): string {
   return [...new Set(tags)].join(" ");
 }
 
+/**
+ * Release attribution (migration 0143) read TOLERANTLY. The API DTO
+ * exposes `releaseId: string | null` on scheduled posts (set only by
+ * the scheduler-from-release flow), but this reader accepts the field
+ * as it may arrive — absent on rows serialized before 0143, null on
+ * posts scheduled any other way — and yields the id only when it is
+ * actually a non-empty string. Kept structural (no ScheduledPostShape
+ * change) so surfaces can ask any post-shaped value.
+ */
+export function postReleaseId(post: ScheduledPostShape | Record<string, unknown>): string | null {
+  const v = (post as { releaseId?: unknown }).releaseId;
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
 /** Days (YYYY-MM-DD) for the visible month grid, including leading blanks. */
 export function monthGridDays(year: number, month: number): { date: string | null }[] {
   const first = new Date(year, month, 1);

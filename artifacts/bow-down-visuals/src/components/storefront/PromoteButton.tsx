@@ -8,13 +8,15 @@ import {
   emailPromoteHook, listDiscounts,
   type StoreProductDTO, type DiscountCodeDTO,
 } from "@/lib/storefront-api";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 
 /**
  * PromoteButton — the promote chain for every storefront product.
  *
  * One button, the whole promo machine:
  *  - Copy share link with the creator's ?ref=CODE (referral system)
- *  - Scheduler prefill (/scheduler?text=…) — schedule the drop post
+ *  - Scheduler prefill (buildSchedulerHref — the ?schedule=1&caption=
+ *    protocol the composer actually reads) — schedule the drop post
  *  - Social kit (/promote) — promo visuals for the product
  *  - Discount attach — pick a code, it rides along in the share text
  *  - Email-list broadcast — drafts a campaign via the EXISTING email-list
@@ -187,7 +189,7 @@ export default function PromoteButton({ product }: { product: StoreProductDTO })
           </button>
 
           <a
-            href={`/scheduler?text=${encodeURIComponent(shareText())}`}
+            href={buildSchedulerHref({ caption: shareText() })}
             className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs font-semibold text-white transition hover:border-primary/40"
           >
             <CalendarClock className="h-4 w-4 text-primary" />
@@ -195,7 +197,10 @@ export default function PromoteButton({ product }: { product: StoreProductDTO })
             <ExternalLink className="ml-auto h-3 w-3 text-white/30" />
           </a>
 
-          <Link href={`/promote?product=${product.id}`}>
+          {/* The promote page's one deep-link prefill is ?focus= (it
+              seeds the promo-copy focus line) — it has never read a
+              product param, so the product rides as the focus text. */}
+          <Link href={`/promote?focus=${encodeURIComponent(`${product.title} — ${product.price}`)}`}>
             <span className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs font-semibold text-white transition hover:border-primary/40">
               <Palette className="h-4 w-4 text-primary" />
               Make promo visuals

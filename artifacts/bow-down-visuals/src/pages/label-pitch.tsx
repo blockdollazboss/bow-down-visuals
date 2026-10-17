@@ -8,6 +8,7 @@ import {
   Rocket, CalendarClock,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SyncTab from "@/components/sync-pitch/SyncTab";
@@ -745,7 +746,7 @@ export default function LabelPitch() {
                     {t("labelPitch.distributeThisSong")}
                   </button>
                   <button
-                    onClick={() => setLocation(`/scheduler?caption=${encodeURIComponent(`New music: ${songTitle || kit.analysis.oneLiner || ""}`)}`)}
+                    onClick={() => setLocation(buildSchedulerHref({ caption: `New music: ${songTitle || kit.analysis.oneLiner || ""}` }))}
                     className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
                   >
                     <CalendarClock className="h-4 w-4" aria-hidden="true" />

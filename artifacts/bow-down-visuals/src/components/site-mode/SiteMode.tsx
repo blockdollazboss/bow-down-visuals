@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { Loader2, Link2Off, BadgeCheck } from "lucide-react";
 import { fetchPublicProfile, themeVars, type CreatorProfile } from "@/lib/artist-profiles";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ProfileSections, ProfileActions } from "@/components/artist/profile-sections";
 import { JsonLd } from "@/components/seo/json-ld";
 import { MAIN_SITE_URL, isMainAppHost, resolveSite } from "@/lib/domains";
@@ -93,6 +94,7 @@ export function PoweredByBadge() {
 
 /** The creator's full standalone site, rendered on their domain. */
 export function SiteMode({ slug }: { slug: string }) {
+  const isLight = useIsLightTheme();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -160,10 +162,19 @@ export function SiteMode({ slug }: { slug: string }) {
           },
         }}
       />
+      {/* Twin of the /artist/:slug root (pages/artist-public.tsx): the
+          profile's panels follow the SITE theme — themeVars' light
+          palette (ivory + bronze) when the visitor's theme is light,
+          the creator's own colorway in dark — and data-dark-lock +
+          ap-profile-root exempt the subtree from the light theme's
+          global class remaps (which would otherwise paint the site's
+          palace backdrop over the creator's ground). The creator's
+          banner art and on-art ink keep their colorway in both. */}
       <div
-        className="min-h-screen"
+        className="min-h-screen ap-profile-root"
+        data-dark-lock
         style={{
-          ...themeVars(profile.theme_config),
+          ...themeVars(profile.theme_config, isLight),
           backgroundColor: "var(--ap-bg)",
           color: "var(--ap-text)",
           fontFamily: "var(--ap-body-font)",

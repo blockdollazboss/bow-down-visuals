@@ -197,114 +197,98 @@ interface FulfillmentOutcome {
   trackingUrl: string | null;
 }
 
-/* Submit the (claimed) order to its provider. PrintKK rug orders persist
-   each item's provider id into the items jsonb the moment that item is
-   submitted, so a later attempt resumes after the last completed item
-   instead of resubmitting — and re-paying — the whole order. */
-async function submitToProvider(
+/* Submit an order's rug items to PrintKK (POD rugs). Each rug's
+   provider id is persisted into the items jsonb the moment that item
+   is submitted, so a later attempt resumes after the last completed
+   item instead of resubmitting — and re-paying — it. Operates on the
+   order's FULL items array (non-rug entries pass through untouched),
+   so the same per-item state serves rug-only and mixed orders alike.
+   Returns the working items copy plus the last rug's provider ids. */
+async function submitRugItems(
+  order: OrderRow,
+  claim: string
+): Promise<{ items: OrderRow["items"]; lastOrderId: string; lastDesignCode: string }> {
+  const items = order.items.map((i) => ({ ...i }));
+  let lastOrderId = "";
+  let lastDesignCode = "";
+  for (const [idx, rug] of items.entries()) {
+    if (rug.product !== "rug") continue;
+    if (rug.providerOrderId) {
+      // Already submitted by an earlier attempt — resume past it.
+      lastOrderId = rug.providerOrderId;
+      lastDesignCode = rug.designCode ?? "";
+      continue;
+    }
+    if (!rug.designUrl) {
+      throw new Error(`Rug item missing designUrl (logo) for order ${order.id}`);
+    }
+    // Download logo from R2/URL (stored value may be a storage ref)
+    const logoUrl = await refreshSupabaseStorageUrl(rug.designUrl);
+    const logoRes = await fetch(logoUrl);
+    if (!logoRes.ok) throw new Error(`Failed to download rug logo: ${rug.designUrl}`);
+    const logoBuffer = Buffer.from(await logoRes.arrayBuffer());
+    const fileName = `rug-logo-${order.id}.png`;
+
+    // Map size to PrintKK product (default to rectangle)
+    const rugProduct = PRINTKK_RUG_PRODUCTS.rectangle;
+
+    const [firstName, ...lastNameParts] = order.name.split(" ");
+    const result = await fulfillRugOrder(
+      logoBuffer,
+      fileName,
+      rugProduct.code,
+      rugProduct.printAreaCode,
+      rug.qty,
+      {
+        firstName: firstName || "Customer",
+        lastName: lastNameParts.join(" ") || "Customer",
+        phone: "",
+        email: order.email,
+        address1: order.address,
+        city: order.city,
+        state: order.state,
+        zip: order.zip,
+        country: "US",
+      }
+    );
+    items[idx] = { ...rug, providerOrderId: result.orderId, designCode: result.designCode };
+    lastOrderId = result.orderId;
+    lastDesignCode = result.designCode;
+
+    /* Per-item resume point: the rug is submitted AND paid at PrintKK,
+       so record its id immediately. If recording ultimately fails, the
+       provider has accepted work — surface ProviderWorkAcceptedError
+       so the caller holds the claim instead of releasing it. */
+    try {
+      await claimedWrite(
+        order.id,
+        () => sql`
+          UPDATE branding_orders
+          SET items = ${JSON.stringify(items)}::jsonb
+          WHERE id = ${order.id} AND provider_order_id = ${claim}
+          RETURNING id
+        `,
+        (row) => row.items[idx]?.providerOrderId === result.orderId,
+        "recording PrintKK item progress"
+      );
+    } catch (err) {
+      throw new ProviderWorkAcceptedError(
+        `PrintKK accepted rug item ${idx} of branding order ${order.id} (provider order ${result.orderId}) but its progress could not be recorded`,
+        { cause: err }
+      );
+    }
+  }
+  return { items, lastOrderId, lastDesignCode };
+}
+
+/* Submit a set of items to Printful as one provider order, adopting a
+   draft already bound to our order id instead of duplicating it. */
+async function submitItemsToPrintful(
   order: OrderRow,
   recipient: PrintfulRecipient,
-  claim: string
-): Promise<FulfillmentOutcome> {
-  /* Route rug items to PrintKK (POD rugs), everything else to Printful.
-     For MVP: if order is rug-only, use PrintKK exclusively. */
-  const rugItems = order.items.filter((i) => i.product === "rug");
-  const otherItems = order.items.filter((i) => i.product !== "rug");
-
-  if (rugItems.length > 0 && otherItems.length === 0 && printkkConfigured()) {
-    // Rug-only order → PrintKK (fulfill each rug item)
-    const items = order.items.map((i) => ({ ...i }));
-    let lastOrderId = "";
-    let lastDesignCode = "";
-    for (const [idx, rug] of items.entries()) {
-      if (rug.providerOrderId) {
-        // Already submitted by an earlier attempt — resume past it.
-        lastOrderId = rug.providerOrderId;
-        lastDesignCode = rug.designCode ?? "";
-        continue;
-      }
-      if (!rug.designUrl) {
-        throw new Error(`Rug item missing designUrl (logo) for order ${order.id}`);
-      }
-      // Download logo from R2/URL (stored value may be a storage ref)
-      const logoUrl = await refreshSupabaseStorageUrl(rug.designUrl);
-      const logoRes = await fetch(logoUrl);
-      if (!logoRes.ok) throw new Error(`Failed to download rug logo: ${rug.designUrl}`);
-      const logoBuffer = Buffer.from(await logoRes.arrayBuffer());
-      const fileName = `rug-logo-${order.id}.png`;
-
-      // Map size to PrintKK product (default to rectangle)
-      const rugProduct = PRINTKK_RUG_PRODUCTS.rectangle;
-
-      const [firstName, ...lastNameParts] = order.name.split(" ");
-      const result = await fulfillRugOrder(
-        logoBuffer,
-        fileName,
-        rugProduct.code,
-        rugProduct.printAreaCode,
-        rug.qty,
-        {
-          firstName: firstName || "Customer",
-          lastName: lastNameParts.join(" ") || "Customer",
-          phone: "",
-          email: order.email,
-          address1: order.address,
-          city: order.city,
-          state: order.state,
-          zip: order.zip,
-          country: "US",
-        }
-      );
-      items[idx] = { ...rug, providerOrderId: result.orderId, designCode: result.designCode };
-      lastOrderId = result.orderId;
-      lastDesignCode = result.designCode;
-
-      /* Per-item resume point: the rug is submitted AND paid at PrintKK,
-         so record its id immediately. If recording ultimately fails, the
-         provider has accepted work — surface ProviderWorkAcceptedError
-         so the caller holds the claim instead of releasing it. */
-      try {
-        await claimedWrite(
-          order.id,
-          () => sql`
-            UPDATE branding_orders
-            SET items = ${JSON.stringify(items)}::jsonb
-            WHERE id = ${order.id} AND provider_order_id = ${claim}
-            RETURNING id
-          `,
-          (row) => row.items[idx]?.providerOrderId === result.orderId,
-          "recording PrintKK item progress"
-        );
-      } catch (err) {
-        throw new ProviderWorkAcceptedError(
-          `PrintKK accepted rug item ${idx} of branding order ${order.id} (provider order ${result.orderId}) but its progress could not be recorded`,
-          { cause: err }
-        );
-      }
-    }
-
-    logger.info(
-      { orderId: order.id, provider: "printkk", providerOrderId: lastOrderId, designCode: lastDesignCode },
-      "[branding] rug order submitted to PrintKK"
-    );
-
-    /* Status vocabulary note: this used to write 'waitingForFulfillment',
-       which exists in neither the branding_orders status CHECK constraint
-       (migration 0013) nor BRANDING_ORDER_STATUSES — the write could never
-       land, itself a double-submit window. 'pending_fulfillment' is the
-       vocabulary's value for exactly this state (submitted to the
-       provider, awaiting fulfillment), the same status the Printful path
-       lands on via toOrderStatus('pending'). */
-    return {
-      provider: "printkk",
-      providerOrderId: lastOrderId,
-      status: "pending_fulfillment",
-      trackingNumber: null,
-      trackingUrl: null,
-    };
-  }
-
-  const items: PrintfulOrderItem[] = await Promise.all(order.items.map(async (i) => ({
+  sourceItems: OrderRow["items"]
+) {
+  const items: PrintfulOrderItem[] = await Promise.all(sourceItems.map(async (i) => ({
     product: i.product,
     size: i.size,
     color: i.color,
@@ -332,7 +316,73 @@ async function submitToProvider(
       "[branding] adopted the Printful order already bound to this order id — no duplicate submission"
     );
   }
-  const fulfillment = existing ?? (await submitOrder(recipient, items, order.id));
+  return existing ?? (await submitOrder(recipient, items, order.id));
+}
+
+/* Submit the (claimed) order to its provider(s), split per item kind:
+   rugs go to PrintKK, everything else to Printful. A rug-only order is
+   PrintKK-exclusive; a non-rug order is Printful-only; a MIXED order is
+   split — rugs first (each recorded in the items jsonb as it lands, so
+   a failure mid-split never re-pays a rug), then the remaining items as
+   their own Printful order. Each side is tracked the way its
+   single-provider path already tracks it: PrintKK per item in the
+   items jsonb, Printful in the order-level provider columns (so the
+   Printful webhook, refresh, and the confirm gate keep working on the
+   Printful side unchanged). provider reads "mixed" for a split order —
+   the order never claims to be a single-provider order. When PrintKK
+   is not configured, rugs ride Printful with everything else, exactly
+   as before the split existed. */
+async function submitToProvider(
+  order: OrderRow,
+  recipient: PrintfulRecipient,
+  claim: string
+): Promise<FulfillmentOutcome> {
+  const rugItems = order.items.filter((i) => i.product === "rug");
+  const otherItems = order.items.filter((i) => i.product !== "rug");
+
+  if (rugItems.length > 0 && printkkConfigured()) {
+    // Rugs → PrintKK (fulfill each rug item, per-item resume state).
+    const { lastOrderId, lastDesignCode } = await submitRugItems(order, claim);
+
+    if (otherItems.length === 0) {
+      // Rug-only order → PrintKK exclusively.
+      logger.info(
+        { orderId: order.id, provider: "printkk", providerOrderId: lastOrderId, designCode: lastDesignCode },
+        "[branding] rug order submitted to PrintKK"
+      );
+
+      /* Status vocabulary note: this used to write 'waitingForFulfillment',
+         which exists in neither the branding_orders status CHECK constraint
+         (migration 0013) nor BRANDING_ORDER_STATUSES — the write could never
+         land, itself a double-submit window. 'pending_fulfillment' is the
+         vocabulary's value for exactly this state (submitted to the
+         provider, awaiting fulfillment), the same status the Printful path
+         lands on via toOrderStatus('pending'). */
+      return {
+        provider: "printkk",
+        providerOrderId: lastOrderId,
+        status: "pending_fulfillment",
+        trackingNumber: null,
+        trackingUrl: null,
+      };
+    }
+
+    // Mixed order → the non-rug remainder is its own Printful order.
+    const fulfillment = await submitItemsToPrintful(order, recipient, otherItems);
+    logger.info(
+      { orderId: order.id, provider: "mixed", printkkOrderId: lastOrderId, providerOrderId: fulfillment.providerOrderId },
+      "[branding] mixed order split across providers: rugs to PrintKK, the rest to Printful"
+    );
+    return {
+      provider: "mixed",
+      providerOrderId: fulfillment.providerOrderId,
+      status: toOrderStatus(fulfillment.status),
+      trackingNumber: fulfillment.trackingNumber ?? null,
+      trackingUrl: fulfillment.trackingUrl ?? null,
+    };
+  }
+
+  const fulfillment = await submitItemsToPrintful(order, recipient, order.items);
 
   return {
     provider: fulfillmentMode(),
@@ -547,7 +597,11 @@ export async function confirmBrandingFulfillment(orderId: string): Promise<void>
     provider_order_id: string | null;
     status: string;
   } | undefined;
-  if (!row || row.provider !== "printful" || !row.provider_order_id) return;
+  /* 'mixed' orders carry their Printful side in the order-level
+     columns (the rugs ride per-item PrintKK state in the items jsonb),
+     so the confirm gate applies to them exactly as to printful orders:
+     their provider_order_id IS a Printful draft that needs confirming. */
+  if (!row || (row.provider !== "printful" && row.provider !== "mixed") || !row.provider_order_id) return;
   if (isClaimToken(row.provider_order_id)) {
     /* Submission still in flight — no provider order exists to confirm. */
     return;

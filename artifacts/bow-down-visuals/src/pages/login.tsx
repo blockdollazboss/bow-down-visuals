@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
 import { mediaUrl } from "@/lib/media-cdn";
+import { postLoginPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 export default function Login() {
@@ -63,9 +64,13 @@ export default function Login() {
     defaultValues: { email: "", password: "" },
   });
 
+  /* Post-login destination: a valid ?next= (sent by the pre-save and
+     unlock pages) wins; everyone else lands on the default. This also
+     covers the QR/passkey buttons — they reload the page on success,
+     and this effect is what fires once the session lands. */
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/choose-artist");
+      setLocation(postLoginPath(window.location.search));
     }
   }, [authLoading, user, setLocation]);
 
@@ -78,7 +83,7 @@ export default function Login() {
       setError(error);
       setLoading(false);
     } else {
-      setLocation("/choose-artist");
+      setLocation(postLoginPath(window.location.search));
     }
   }
 
