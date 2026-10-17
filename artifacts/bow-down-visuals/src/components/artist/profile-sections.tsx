@@ -3,8 +3,9 @@ import { Link } from "wouter";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
   Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
-  ExternalLink, MapPin,
+  ExternalLink, MapPin, Crown,
 } from "lucide-react";
+import { PROFILE_VISIT_WORLD_TEST_ID, VISIT_WORLD_LABEL, WORLD_ROUTE } from "@/lib/world-entry";
 import type {
   CreatorProfile, FeaturedMedia, ProfileSection, SeriesEntry,
   MerchItem, ProfileEventItem, SocialPostItem, ProfileMediaItem,
@@ -848,6 +849,18 @@ export function ProfileActions({ profile }: { profile: CreatorProfile }) {
           <Gift className="h-4 w-4" style={{ color: "var(--ap-primary)" }} /> Tip Jar
         </Link>
       )}
+      {/* The Reverse Door, contextual (owner, 2026-10-17): profiles carry
+          their own way into the World, beside Follow / Tip / Share. It
+          lands in the King's Hall — the shared room that exists today —
+          never a promised per-creator room. */}
+      <Link
+        href={WORLD_ROUTE}
+        data-testid={PROFILE_VISIT_WORLD_TEST_ID}
+        className="flex items-center gap-1.5 rounded-full border px-5 py-2 text-sm font-bold transition hover:scale-105"
+        style={{ borderColor: "var(--ap-border)", color: "var(--ap-text)" }}
+      >
+        <Crown className="h-4 w-4" style={{ color: "var(--ap-primary)" }} /> {VISIT_WORLD_LABEL}
+      </Link>
       <button
         onClick={() => void share()}
         aria-label="Share this profile"
