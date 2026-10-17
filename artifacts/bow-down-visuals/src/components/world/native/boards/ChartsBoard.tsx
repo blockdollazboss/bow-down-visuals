@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Check, Play, Plus } from "lucide-react";
+import { Check, Heart, ListPlus, Play, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   NativeBoard,
@@ -10,19 +10,24 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import {
+  chartTrackPlayInput,
+  chartVideoPlayInput,
   followStateFromResponse,
   followUrl,
   followRequest,
   jukeboxTrackId,
   normalizeChartCreators,
   normalizeChartTracks,
+  normalizeChartVideos,
   normalizeFollowStates,
   type ChartCreatorRow,
   type ChartTrackRow,
+  type ChartVideoRow,
 } from "@/lib/world/charts-board";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
-import { formatCount } from "@/lib/streaming";
+import { formatCount, toggleLike, type MediaKind } from "@/lib/streaming";
 import { formatMoney } from "@/components/discovery/cards";
+import type { ShelfPlayerController } from "@/components/world/native/ShelfPlayer";
 
 /* ─── ChartsBoard — The Charts as a palace board (NATIVE-PLAN §3.1) ──
    The Music Hall's charts desk, rebuilt in-world: climbing tracks
@@ -37,13 +42,17 @@ import { formatMoney } from "@/components/discovery/cards";
    freely (the station is open); Play and Follow are member acts —
    the jukebox client refuses guests outright, so guests are told,
    not handed dead buttons.
-   (When the Shelf lane's shared player lands, Play can re-point
-   at it here — this board's only playback call is onPlayTrack.) */
+   Ring 2 (2.27): every media row carries a Like on the media rails;
+   the Videos tab plays chart videos in-world on the Shelf player
+   (the host's shelfPlayer prop — the same one player the Booth
+   feeds), and tracks gain Play here / Queue next on that player
+   alongside the room-jukebox Play, which stays the shared moment. */
 
-type ChartsTab = "tracks" | "creators" | "rising" | "earners";
+type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners";
 
 const TABS: Array<{ key: ChartsTab; label: string }> = [
   { key: "tracks", label: "Tracks" },
+  { key: "videos", label: "Videos" },
   { key: "creators", label: "Creators" },
   { key: "rising", label: "Rising" },
   { key: "earners", label: "Earners" },
@@ -51,6 +60,7 @@ const TABS: Array<{ key: ChartsTab; label: string }> = [
 
 const TAB_TITLES: Record<ChartsTab, string> = {
   tracks: "Top tracks — this week",
+  videos: "Top videos — this week",
   creators: "Top creators — this week",
   rising: "Rising — gaining fastest this week",
   earners: "Rising earners — last 30 days",
@@ -68,18 +78,27 @@ export interface ChartsBoardProps {
   /** Put a track on the room's jukebox (the host's jukebox intent,
    *  fed the `track:<uuid>` catalog id — see charts-board.ts). */
   onPlayTrack: (trackId: string) => void;
+  /** The one in-world personal player (2.27): chart videos play on
+   *  it in-world, and chart tracks can play here / queue next on it.
+   *  Optional — without it the board keeps its jukebox + follow
+   *  shape exactly as Ring 1 shipped. */
+  shelfPlayer?: ShelfPlayerController;
 }
 
-export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: ChartsBoardProps) {
+export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shelfPlayer }: ChartsBoardProps) {
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<ChartsTab>("tracks");
   const [tracks, setTracks] = useState<ChartTrackRow[] | null>(null);
+  const [videos, setVideos] = useState<ChartVideoRow[] | null>(null);
   const [creators, setCreators] = useState<Partial<Record<ChartsTab, ChartCreatorRow[]>>>({});
   const [failedTab, setFailedTab] = useState<ChartsTab | null>(null);
   const [tick, setTick] = useState(0);
   const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
   const [followBusy, setFollowBusy] = useState<string | null>(null);
   const [queuedId, setQueuedId] = useState<string | null>(null);
+  const [likeStates, setLikeStates] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [likeBusy, setLikeBusy] = useState<string | null>(null);
+  const [shelfNote, setShelfNote] = useState<string | null>(null);
 
   const authHeaders = async (): Promise<Record<string, string>> => {
     const token = await getAccessToken().catch(() => null);
@@ -90,16 +109,20 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: Ch
      reloads the failed one). */
   useEffect(() => {
     let cancelled = false;
-    const loaded = tab === "tracks" ? tracks !== null : creators[tab] !== undefined;
+    const loaded =
+      tab === "tracks" ? tracks !== null : tab === "videos" ? videos !== null : creators[tab] !== undefined;
     if (loaded && failedTab !== tab) return;
     (async () => {
       try {
-        if (tab === "tracks") {
+        if (tab === "tracks" || tab === "videos") {
+          /* One payload carries both keys — the tracks and videos
+             tabs are two views of the same chart read. */
           const res = await fetch("/api/discovery/charts?window=week&limit=10");
           if (!res.ok) throw new Error("charts");
-          const rows = normalizeChartTracks(await res.json());
+          const payload = await res.json();
           if (!cancelled) {
-            setTracks(rows);
+            setTracks(normalizeChartTracks(payload));
+            setVideos(normalizeChartVideos(payload));
             setFailedTab(null);
           }
         } else {
@@ -180,6 +203,76 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: Ch
     setQueuedId(row.id);
   };
 
+  /* Per-row Like (2.27): the media like rails, keyed per kind+id so
+     a track and a video never share a heart. The server's count is
+     authoritative when it answers. */
+  const toggleRowLike = async (kind: MediaKind, id: string, startCount: number) => {
+    const key = `${kind}:${id}`;
+    if (likeBusy === key) return;
+    const current = likeStates[key] ?? { liked: false, count: startCount };
+    setLikeBusy(key);
+    try {
+      const res = await toggleLike(kind, id, current.liked, await authHeaders());
+      setLikeStates((prev) => ({
+        ...prev,
+        [key]: { liked: res.liked, count: res.count !== null ? res.count : current.count + (res.liked ? 1 : -1) },
+      }));
+    } catch {
+      /* the heart just doesn't flip — no toast spam in-world */
+    } finally {
+      setLikeBusy(null);
+    }
+  };
+
+  const likeButton = (kind: MediaKind, id: string, startCount: number) => {
+    const key = `${kind}:${id}`;
+    const state = likeStates[key] ?? { liked: false, count: startCount };
+    return (
+      <button
+        type="button"
+        data-testid="world-charts-like"
+        onClick={() => void toggleRowLike(kind, id, startCount)}
+        disabled={likeBusy === key}
+        className={
+          state.liked
+            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50"
+            : actionBtn
+        }
+      >
+        <Heart className={`h-3.5 w-3.5 ${state.liked ? "fill-[#d4af37] text-[#d4af37]" : ""}`} />
+        {formatCount(state.count)}
+      </button>
+    );
+  };
+
+  /* Play-here / queue-next on the Shelf player (2.27): chart rows
+     carry their stream URL, so no extra fetch stands between the
+     tap and the sound. Videos only ever play this way — the room
+     jukebox is audio-only. */
+  const playTrackHere = (row: ChartTrackRow) => {
+    if (!shelfPlayer) return;
+    const input = chartTrackPlayInput(row);
+    if (!input) return;
+    shelfPlayer.play(input);
+    setShelfNote(`“${row.title}” is playing on your player — just you, here in the hall.`);
+  };
+
+  const queueTrackNext = (row: ChartTrackRow) => {
+    if (!shelfPlayer) return;
+    const input = chartTrackPlayInput(row);
+    if (!input) return;
+    shelfPlayer.queueNext(input);
+    setShelfNote(`“${row.title}” is up next on your player.`);
+  };
+
+  const playVideoHere = (row: ChartVideoRow) => {
+    if (!shelfPlayer) return;
+    const input = chartVideoPlayInput(row);
+    if (!input) return;
+    shelfPlayer.play(input);
+    setShelfNote(`“${row.title}” is playing on your player — watch it right here in the hall.`);
+  };
+
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const tabBtn = (active: boolean) =>
     `rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
@@ -196,7 +289,8 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: Ch
   }`;
 
   const loading =
-    failedTab !== tab && (tab === "tracks" ? tracks === null : creators[tab] === undefined);
+    failedTab !== tab &&
+    (tab === "tracks" ? tracks === null : tab === "videos" ? videos === null : creators[tab] === undefined);
 
   return (
     <div className="space-y-3">
@@ -249,14 +343,77 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: Ch
                   highlighted={i === 0}
                   action={
                     isGuest ? undefined : (
-                      <button
-                        type="button"
-                        data-testid="world-charts-play"
-                        onClick={() => play(row)}
-                        className={actionBtn}
-                      >
-                        <Play className="h-3.5 w-3.5" /> Play
-                      </button>
+                      <>
+                        {likeButton("track", row.id, row.likeCount)}
+                        <button
+                          type="button"
+                          data-testid="world-charts-play"
+                          onClick={() => play(row)}
+                          className={actionBtn}
+                        >
+                          <Play className="h-3.5 w-3.5" /> Play
+                        </button>
+                        {shelfPlayer && chartTrackPlayInput(row) && (
+                          <button
+                            type="button"
+                            data-testid="world-charts-play-here"
+                            onClick={() => playTrackHere(row)}
+                            className={actionBtn}
+                          >
+                            <Play className="h-3.5 w-3.5" /> Play here
+                          </button>
+                        )}
+                        {shelfPlayer && chartTrackPlayInput(row) && (
+                          <button
+                            type="button"
+                            data-testid="world-charts-queue-next"
+                            onClick={() => queueTrackNext(row)}
+                            className={actionBtn}
+                          >
+                            <ListPlus className="h-3.5 w-3.5" /> Queue next
+                          </button>
+                        )}
+                      </>
+                    )
+                  }
+                />
+              ))
+            )
+          ) : tab === "videos" ? (
+            (videos ?? []).length === 0 ? (
+              <NativeEmptyState
+                isLight={isLight}
+                message="No videos are charting this week — yet."
+                detail="Publish a video and the first row is yours."
+              />
+            ) : (
+              (videos ?? []).map((row, i) => (
+                <NativeBoardRow
+                  key={row.id}
+                  isLight={isLight}
+                  title={`#${i + 1} ${row.title}`}
+                  detail={
+                    [row.creatorName, row.genre, row.durationSec ? fmtClock(row.durationSec) : null]
+                      .filter(Boolean)
+                      .join(" · ") || undefined
+                  }
+                  meta={`${formatCount(row.plays)} views`}
+                  highlighted={i === 0}
+                  action={
+                    isGuest ? undefined : (
+                      <>
+                        {likeButton("video", row.id, row.likeCount)}
+                        {shelfPlayer && chartVideoPlayInput(row) && (
+                          <button
+                            type="button"
+                            data-testid="world-charts-video-play"
+                            onClick={() => playVideoHere(row)}
+                            className={actionBtn}
+                          >
+                            <Play className="h-3.5 w-3.5" /> Watch here
+                          </button>
+                        )}
+                      </>
                     )
                   }
                 />
@@ -325,6 +482,11 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack }: Ch
       {queuedId && !jukeboxDenied && (
         <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
           On the room&rsquo;s jukebox — it plays for everyone in the Music Hall.
+        </p>
+      )}
+      {shelfNote && (
+        <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+          {shelfNote}
         </p>
       )}
       {jukeboxDenied && (

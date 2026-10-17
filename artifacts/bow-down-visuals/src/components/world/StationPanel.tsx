@@ -1104,6 +1104,7 @@ export default function StationPanel(props: StationPanelProps) {
                 isGuest={isGuest}
                 jukeboxDenied={props.jukeboxDenied}
                 onPlayTrack={props.onJukeboxAdd}
+                shelfPlayer={shelfPlayer}
               />
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
               <EarningsBoard isLight={isLight} />
