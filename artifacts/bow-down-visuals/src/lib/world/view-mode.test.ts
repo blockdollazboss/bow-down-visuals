@@ -9,6 +9,7 @@ import {
   loadViewMode,
   storeViewMode,
   toggledViewMode,
+  selfPlateVisible,
   WORLD_VIEW_STORAGE_KEY,
 } from "./view-mode";
 
@@ -24,6 +25,14 @@ describe("view mode", () => {
   it("toggles both ways", () => {
     expect(toggledViewMode("first")).toBe("third");
     expect(toggledViewMode("third")).toBe("first");
+  });
+
+  it("your own name plate never renders in third person", () => {
+    // Third person: the plate would billboard at the follow camera,
+    // detached from the figure — suppressed. First person keeps the
+    // standing behavior (the self rig is hidden there regardless).
+    expect(selfPlateVisible("third")).toBe(false);
+    expect(selfPlateVisible("first")).toBe(true);
   });
 
   it("round-trips through device memory; first person is the clean default", () => {

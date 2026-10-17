@@ -1064,7 +1064,12 @@ export default function WorldPage() {
       )}
 
       {/* ── Bottom bar: say + voice + VR ── */}
-      <footer className={`relative z-20 border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+      {/* pr-24: the site shell's floating button parks at the
+          viewport's bottom-right, over this footer's corner — the
+          reserved strip keeps the right-aligned controls (and the
+          trailing headset status line) from ever running under it
+          and truncating mid-word (owner's screenshot, 2026-10-16). */}
+      <footer className={`relative z-20 border-t py-3 pl-4 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}

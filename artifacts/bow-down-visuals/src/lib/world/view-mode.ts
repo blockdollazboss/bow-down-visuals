@@ -57,3 +57,14 @@ export function storeViewMode(mode: HallViewMode, storage: StorageLike | null = 
 export function toggledViewMode(mode: HallViewMode): HallViewMode {
   return mode === "first" ? "third" : "first";
 }
+
+/** Whether YOUR OWN name plate rides over your figure. In third
+ *  person the plate billboards straight at the follow camera and
+ *  hangs mid-view as a giant sign detached from your figure — you
+ *  know who you are, so it never renders there (owner's screenshot,
+ *  2026-10-16). Peers' plates are untouched in every view. First
+ *  person keeps today's behavior (the self figure — plate and all —
+ *  is stepped aside for the camera anyway). */
+export function selfPlateVisible(mode: HallViewMode): boolean {
+  return mode === "first";
+}

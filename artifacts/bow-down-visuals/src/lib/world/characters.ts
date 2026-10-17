@@ -45,6 +45,16 @@ export function normalizeVaultCharacters(payload: unknown): VaultCharacter[] {
   return out;
 }
 
+/** The monogram a portrait-less character wears in the picker: the
+ *  first letter or digit of its name, uppercased. The picker draws
+ *  it on a gold disc — a house placeholder, never a broken-image
+ *  glyph. Names are normalized non-empty upstream, but stay safe:
+ *  anything without a letter/digit gets the house mark "B". */
+export function characterMonogram(name: string): string {
+  const m = /[a-z0-9]/i.exec(name ?? "");
+  return m ? m[0].toUpperCase() : "B";
+}
+
 /* ── Device memory ────────────────────────────────────────────────────
    The pick is a device preference, not account data: it lives in
    localStorage so the hall greets you as your character next visit;

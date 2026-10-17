@@ -40,7 +40,8 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
-import type { HallViewMode } from "./view-mode";
+import { selfPlateVisible, type HallViewMode } from "./view-mode";
+import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import {
   coverTransform,
@@ -355,7 +356,12 @@ const DEFAULT_SPRITE_Y = 2.12;
 
 function buildCapsuleBody(tintHex: string): THREE.Group {
   const body = new THREE.Group();
-  const tint = new THREE.Color(tintHex);
+  /* The fallback figure is the HOUSE figure: the presence tint is
+   * anchored into the gold family (capsule-color) before it ever
+   * touches a material — raw, the coral/jade tints read as bare
+   * skin or candy under the hall lights. The head rides the same
+   * anchored gold, darkened: dark bronze under the gold visor. */
+  const tint = new THREE.Color(capsuleBodyHex(tintHex));
   const bodyMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.3 });
   const darkMat = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.6, metalness: 0.2 });
 
@@ -1925,6 +1931,11 @@ export class KingsHallScene {
       this.selfRig.group.position.set(this.rig.position.x, 0, this.rig.position.z);
       this.selfRig.group.rotation.y = this.yaw;
       this.selfRig.group.visible = !presenting && this.viewMode === "third";
+      // Your own name plate never hangs over your own third-person
+      // view — the billboard sits between the follow camera and your
+      // figure and reads as a giant floating sign (see view-mode's
+      // selfPlateVisible). Peers' plates are not touched.
+      this.selfRig.sprite.visible = selfPlateVisible(this.viewMode);
     }
     // The planar mirror rests while presenting — Reflector and XR
     // don't mix; the polished overlay carries the floor in a headset.
