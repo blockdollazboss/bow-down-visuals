@@ -25,3 +25,4 @@ export {
   type ShelfPlayerController,
 } from "./ShelfPlayer";
 export { ListeningBooth, type ListeningBoothProps } from "./ListeningBooth";
+export { ShopStand, type ShopStandProps } from "./ShopStands";

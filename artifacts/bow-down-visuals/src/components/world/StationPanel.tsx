@@ -27,6 +27,7 @@ import {
   TransferFooter,
   ListeningBooth,
   NowPlayingCard,
+  ShopStand,
   useShelfPlayer,
   type ShelfPlayerController,
 } from "@/components/world/native";
@@ -1150,7 +1151,9 @@ export default function StationPanel(props: StationPanelProps) {
         }
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            {resolution.pattern === "board" && station.id === "charts-desk" ? (
+            {resolution.pattern === "shop" ? (
+              <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
               <ChartsBoard
                 isLight={isLight}
                 isGuest={isGuest}
