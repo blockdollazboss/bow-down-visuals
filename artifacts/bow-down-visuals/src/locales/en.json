@@ -2789,7 +2789,8 @@
         "label": "Premium Detail",
         "blurb": "Maximum detail & richness"
       }
-    }
+    },
+    "useSong": "Use song"
   },
   "create-simple": {
     "e_g_a_song_about_grinding_for_ye": "e.g. A song about grinding for years before the breakthrough finally hits...",
@@ -6123,7 +6124,8 @@
     "variationBadge": "Variation {{n}}",
     "variationDetail": "{{count}} variation{{suffix}} · {{aspectRatio}}",
     "sendToVideoStudio": "Send to Video Studio",
-    "artworkModeLabel": "Artwork Pack"
+    "artworkModeLabel": "Artwork Pack",
+    "useAsThumbnail": "Use as thumbnail for…"
   },
   "thumbnailTest": {
     "analyzing": "Analyzing…",

@@ -36,6 +36,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useTranslation } from "react-i18next";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { CostBadge } from "@/components/CostBadge";
 
 interface GeneratedImage {
@@ -414,7 +415,7 @@ export function ThumbnailMakerModule() {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
-  const { addAsset } = useHubProject();
+  const { addAsset, latestOfKind } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();  const [mode, setMode] = useState<"simple" | "custom" | "artwork">("simple");
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
@@ -432,6 +433,12 @@ export function ThumbnailMakerModule() {
   /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
   const [attribution, setAttribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* "Use as thumbnail for…" target: the project's newest video/clip, when
+     one exists — the publish flow then opens with both the video AND this
+     thumbnail attached. Without one, /publish still takes the thumbnail
+     and the creator picks the video there (DE-8). */
+  const publishTargetVideo = latestOfKind("video") ?? latestOfKind("clip");
 
   /* Wave 8: AI Thumbnail A/B Tester — two AI alternates of the generated look. */
   const [abVariants, setAbVariants] = useState<Array<{ url: string; label: string; prompt: string }>>([]);
@@ -944,6 +951,20 @@ export function ThumbnailMakerModule() {
                     mediaType="image"
                     mediaUrl={selectedImage.url}
                     defaultTitle={`Thumbnail v${selectedImage.variation}`}
+                  />
+                  {/* The thumbnail attaches to the work: /publish accepts a
+                      thumbnail param — send it through the publish protocol
+                      instead of leaving it a download-only artifact (DE-8). */}
+                  <PublishToProfileButton
+                    type="video"
+                    category="video"
+                    videoUrl={publishTargetVideo?.url}
+                    title={publishTargetVideo ? (publishTargetVideo.meta?.["title"] ?? publishTargetVideo.label) : undefined}
+                    artworkUrl={selectedImage.url}
+                    from="/thumbnail-studio"
+                    fromLabel="Thumbnail Studio"
+                    label={t("thumbnailMaker.useAsThumbnail", { defaultValue: "Use as thumbnail for…" })}
+                    compact
                   />
                 </div>
               </div>
