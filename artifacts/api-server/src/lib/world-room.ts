@@ -73,6 +73,22 @@
  *                                            that landed in THIS room
  *                                            (members only, first-come;
  *                                            World Events, item 3.4)
+ *     { type: "moment.celebrate", kind }      ask the room to witness
+ *                                            a win: kind "quest" (a
+ *                                            quest reward I just
+ *                                            claimed) or "levelup"
+ *                                            (my Creator Level just
+ *                                            rose). The intent carries
+ *                                            NO facts — the server
+ *                                            verifies the win against
+ *                                            its own records before
+ *                                            anything is broadcast
+ *                                            (see peer.moment below);
+ *                                            an unverified intent is
+ *                                            dropped silently, and
+ *                                            guests' intents always
+ *                                            are (guests witness,
+ *                                            never star)
  *     { type: "admin.mute", peerId, muted }   host only: mute/unmute a
  *                                            member's voice server-side
  *     { type: "admin.remove", peerId }        host only: remove a
@@ -139,6 +155,37 @@
  *                                            (guests / no-drop /
  *                                            already-claimed /
  *                                            claimed-out / budget)
+ *     { type: "peer.moment", moment }         a win, witnessed by the
+ *                                            room (THE-GAME §5(a)):
+ *                                            moment.kind "quest" →
+ *                                            { peerId, name, questName,
+ *                                            rewardVb } — the quest +
+ *                                            reward read from the
+ *                                            server's own claim
+ *                                            record + QUEST_DEFS;
+ *                                            moment.kind "levelup" →
+ *                                            { peerId, name, stars } —
+ *                                            the new Creator Level,
+ *                                            read from the level
+ *                                            rails and deduped per
+ *                                            session. Wins are
+ *                                            public; the moment
+ *                                            carries NO balance and
+ *                                            NO progress detail.
+ *                                            SHAPE NOTE: `peer.moment`
+ *                                            is deliberately
+ *                                            announcement-shaped
+ *                                            ({ kind, peerId, name,
+ *                                            ... }) so the Ring 3
+ *                                            palace-wide announce
+ *                                            channel (THE-GAME §5(b))
+ *                                            can adopt/extend this
+ *                                            exact payload and carry
+ *                                            it past the room's walls
+ *                                            later — this lane does
+ *                                            NOT build that channel;
+ *                                            the moment speaks to
+ *                                            this room only
  *     { type: "peer.hostmute", peerId, muted }  the host muted/unmuted
  *                                            a member's voice
  *     { type: "admin.denied" }                a host action attempted
@@ -217,6 +264,15 @@ export interface WorldIdentity {
   displayName: string;
   avatarUrl: string | null;
   profileSlug: string | null;
+  /** The member's Creator Level stars (1–6), resolved by the route
+   *  layer at the door from the API's own level rails (the highest
+   *  level recorded in level_celebrations — the same record the
+   *  /api/retention/level-check endpoint reads — defaulting to 1,
+   *  the product's new-creator level, when nothing is recorded).
+   *  Never a client claim. Guests carry none. The stars live on the
+   *  peer record and render on the NAMEPLATE only (owner default,
+   *  THE-GAME §5 Q1) — never on the character art. */
+  stars?: number;
   /** Host authority, resolved by the route layer from the site's
    *  admin identity (ADMIN_EMAILS) at the handshake — a client can
    *  never claim it, and a guest is never an admin. */
@@ -459,6 +515,50 @@ export type WorldDropClaimer = (
   eventId: string,
 ) => Promise<{ ok: true } | { ok: false; reason: "budget" | "error" }>;
 
+/* ── Witnessed moments (THE-GAME §5(a)) ────────────────────────────
+ * Wins are public, progress is private (owner default, §5 Q3): when
+ * a member claims a quest reward or their Creator Level rises, the
+ * ROOM witnesses it — but only ever from the server's own records.
+ * The client's `moment.celebrate` intent is a bare ask carrying no
+ * facts; the two injected rails below are the only sources the
+ * broadcast is built from. */
+
+/** A quest claim the server recorded, recent enough to witness:
+ *  the quest's key, its display name and its VB reward (both from
+ *  QUEST_DEFS, via the route layer), and when the claim landed. */
+export interface WorldQuestClaimFact {
+  questKey: string;
+  questName: string;
+  rewardVb: number;
+  claimedAtMs: number;
+}
+
+/** Injected by the route layer: the member's most recent recorded
+ *  quest claim at or after `sinceMs` (quest_progress claimed rows),
+ *  or null when none stands. */
+export type WorldQuestClaimFinder = (
+  userId: string,
+  sinceMs: number,
+) => Promise<WorldQuestClaimFact | null>;
+
+/** Injected by the route layer: the member's CURRENT Creator Level
+ *  stars from the level rails (the same read that resolves the
+ *  identity's stars at the door), or null when no level is recorded
+ *  (the levelup verification then refuses — nothing to witness). */
+export type WorldStarsResolver = (userId: string) => Promise<number | null>;
+
+/** How fresh a quest claim must be for a celebrate intent to
+ *  witness it. The claim flow fires the intent the moment the claim
+ *  lands; two minutes leaves generous room for the round trip
+ *  without letting a stale claim be re-announced all evening. */
+export const MOMENT_QUEST_WINDOW_MS = 2 * 60_000;
+
+/** At most one witnessed moment per peer per this interval — the
+ *  room celebrates wins, it does not spam them. The slot is spent
+ *  by the ATTEMPT, verified or not, so a runaway client can't turn
+ *  the intent into a DB query pump either. */
+export const MOMENT_MIN_INTERVAL_MS = 3_000;
+
 /** The queue never grows past this — a runaway adder can't bury the
  *  room's evening under one person's catalog. */
 export const JUKEBOX_QUEUE_CAP = 20;
@@ -522,6 +622,12 @@ export interface WorldTransferState {
   character: WorldCharacterRef | null;
   voiceOff: boolean;
   voiceDeaf: boolean;
+  /** The session's witnessed-moment dedupe high-water mark: the
+   *  highest stars this peer's session has already announced. It
+   *  crosses doorways with the peer (the identity's `stars` rides
+   *  inside `identity` itself) so a transfer can never replay a
+   *  level-up the palace already witnessed. */
+  announcedStars: number;
 }
 
 export interface WorldPeerDto {
@@ -543,6 +649,10 @@ export interface WorldPeerDto {
   voiceDeaf: boolean;
   /** Host authority (resolved at the door; guests never). */
   admin: boolean;
+  /** The member's Creator Level stars (1–6) — present on members
+   *  only; guests carry no stars. Rendered on the nameplate beside
+   *  the name, never on the character art (THE-GAME §5 Q1). */
+  stars?: number;
   /** The host muted this member's voice server-side: out of the
    *  mesh, and voice.join is refused until the host unmutes. */
   hostMuted: boolean;
@@ -576,6 +686,22 @@ interface WorldPeer extends WorldIdentity {
    *  their own receipt time, which is close enough for an emote. */
   action: { id: WorldActionId; at: number } | null;
   lastActionAt: number;
+  /** Creator Level stars as the room currently states them (the
+   *  door-resolved identity value; a witnessed level-up restars it
+   *  in place so late joiners read the new rank). Undefined for
+   *  guests. */
+  stars: number | undefined;
+  /** The highest stars this peer's session has already witnessed
+   *  announced (levelup dedupe): seeded from the join stars, raised
+   *  by every levelup broadcast, carried across doorways. */
+  announcedStars: number;
+  /** The last moment.celebrate attempt (rate gate — see
+   *  MOMENT_MIN_INTERVAL_MS). */
+  lastMomentAt: number;
+  /** The last quest claim this session witnessed, keyed
+   *  `<questKey>@<claimedAtMs>` — one claim, one moment, even if
+   *  the intent is re-sent inside the freshness window. */
+  lastQuestMomentKey: string | null;
   x: number;
   y: number;
   z: number;
@@ -696,6 +822,8 @@ export class WorldRoom {
       resolveScreenVideo?: WorldScreenVideoResolver;
       resolveJukeboxTrack?: WorldJukeboxTrackResolver;
       claimWorldDrop?: WorldDropClaimer;
+      resolveStars?: WorldStarsResolver;
+      findRecentQuestClaim?: WorldQuestClaimFinder;
     } = {},
     opts: WorldRoomOptions = {},
   ) {
@@ -766,6 +894,10 @@ export class WorldRoom {
       voiceDeaf: peer.voiceDeaf,
       admin: peer.admin,
       hostMuted: peer.hostMuted,
+      /* Stars ride members only — the field is absent (not null)
+       * on guests, so an older client sees a byte-identical guest
+       * record and a member record differs only by the addition. */
+      ...(typeof peer.stars === "number" ? { stars: peer.stars } : {}),
       character: peer.character,
       action: peer.action?.id ?? null,
       x: peer.x,
@@ -796,6 +928,9 @@ export class WorldRoom {
       character?: WorldCharacterRef | null;
       voiceOff?: boolean;
       voiceDeaf?: boolean;
+      /** The session's levelup-announce high-water mark, carried
+       *  across a doorway (see WorldTransferState). */
+      announcedStars?: number;
       at?: { x: number; z: number; rotY?: number };
     },
   ): boolean {
@@ -815,6 +950,16 @@ export class WorldRoom {
 
     this.counter++;
     const peerId = carry?.peerId ?? `w${this.counter.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    /* Stars: members only, and only a sane 1–6 the door resolved —
+     * anything else (a guest, a malformed identity) carries none. */
+    const stars =
+      identity.userId !== null &&
+      typeof identity.stars === "number" &&
+      Number.isInteger(identity.stars) &&
+      identity.stars >= 1 &&
+      identity.stars <= 6
+        ? identity.stars
+        : undefined;
     /* Spawn in a loose arc at the room entrance so arrivals don't stack
      * inside each other. */
     const slot = this.counter % 10;
@@ -834,6 +979,13 @@ export class WorldRoom {
       characterSeq: 0,
       action: null,
       lastActionAt: 0,
+      stars,
+      /* The dedupe seed: a doorway carry keeps the session's mark;
+       * a fresh join seeds from the join stars themselves — the
+       * level you walked in with is never "news" to announce. */
+      announcedStars: carry?.announcedStars ?? stars ?? 0,
+      lastMomentAt: 0,
+      lastQuestMomentKey: null,
       x: at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1,
       y: 0,
       z: at ? at.z : this.spawnPoint.z,
@@ -887,11 +1039,16 @@ export class WorldRoom {
         avatarUrl: peer.avatarUrl,
         profileSlug: peer.profileSlug,
         admin: peer.admin,
+        /* The CURRENT stars (a level-up may have restarred the
+         * peer since the door) — the destination room's record
+         * starts from the rank the palace last stated. */
+        stars: peer.stars,
       },
       peerId: peer.peerId,
       character: peer.character,
       voiceOff: peer.voiceOff,
       voiceDeaf: peer.voiceDeaf,
+      announcedStars: peer.announcedStars,
     };
   }
 
@@ -1789,6 +1946,81 @@ export class WorldRoom {
             const claimant = this.peerForUserId(userId);
             if (claimant) this.send(claimant, { type: "drop.denied", reason: "error" });
           });
+        return;
+      }
+      case "moment.celebrate": {
+        /* Witness a win (THE-GAME §5(a)): the room hears that a
+         * quest was completed or a level rose — from the SERVER's
+         * records, never the intent, which carries no facts at all
+         * beyond the kind of win claimed. Guests witness, never
+         * star: their intents are dropped here, silently, exactly
+         * like their say frames. One moment per peer per
+         * MOMENT_MIN_INTERVAL_MS; the attempt spends the slot. */
+        if (peer.guest || !peer.userId) return;
+        if (now - peer.lastMomentAt < MOMENT_MIN_INTERVAL_MS) return;
+        peer.lastMomentAt = now;
+        const kind = frame["kind"];
+        if (kind === "quest") {
+          const findClaim = this.deps.findRecentQuestClaim;
+          if (!findClaim) return;
+          const userId = peer.userId;
+          void findClaim(userId, now - MOMENT_QUEST_WINDOW_MS)
+            .then((claim) => {
+              if (!claim) return; // no recorded claim — nothing to witness
+              if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
+              /* The room re-checks the window on its own clock: a
+               * finder that returns a stale claim anyway (a second
+               * source, a clock skew) never gets witnessed. */
+              if (claim.claimedAtMs < now - MOMENT_QUEST_WINDOW_MS) return;
+              const claimKey = `${claim.questKey}@${claim.claimedAtMs}`;
+              if (peer.lastQuestMomentKey === claimKey) return; // this claim already had its moment
+              peer.lastQuestMomentKey = claimKey;
+              this.hub.broadcast(this.roomId, {
+                type: "peer.moment",
+                moment: {
+                  kind: "quest",
+                  peerId: peer.peerId,
+                  name: peer.displayName,
+                  questName: claim.questName,
+                  rewardVb: claim.rewardVb,
+                },
+              });
+            })
+            .catch(() => undefined);
+          return;
+        }
+        if (kind === "levelup") {
+          const resolveStars = this.deps.resolveStars;
+          if (!resolveStars) return;
+          const userId = peer.userId;
+          void resolveStars(userId)
+            .then((stars) => {
+              if (typeof stars !== "number") return; // no level on record — nothing to witness
+              if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
+              /* Session dedupe: only an INCREASE over the highest
+               * stars this session has announced is news. A replay,
+               * a rejoin at the same level, or a stale read changes
+               * nothing and says nothing. */
+              if (stars <= peer.announcedStars) return;
+              peer.announcedStars = stars;
+              /* The restar lands on the peer record itself, so the
+               * room's snapshots (and a doorway transfer after it)
+               * carry the new rank; clients apply it live off this
+               * same broadcast. */
+              peer.stars = stars;
+              this.hub.broadcast(this.roomId, {
+                type: "peer.moment",
+                moment: {
+                  kind: "levelup",
+                  peerId: peer.peerId,
+                  name: peer.displayName,
+                  stars,
+                },
+              });
+            })
+            .catch(() => undefined);
+          return;
+        }
         return;
       }
       case "screen.reel": {

@@ -24,6 +24,11 @@ export const STREAK_MILESTONES = [
 /* ── Weekly quests: fixed, simple set. Reset every Monday (UTC). ───────── */
 export interface QuestDef {
   key: string;
+  /** Display name — mirrors the en locale quest titles
+   *  (retention.quest_*_title). The World room's witnessed-moment
+   *  broadcast (lib/world-room.ts) speaks this name from server
+   *  records, so it lives on the def, not in any client. */
+  name: string;
   target: number;
   reward: number;
   kinds: CreationKind[];
@@ -32,10 +37,10 @@ export interface QuestDef {
    Rebalanced 2026-10-11 per owner approval (option A: fit viral-sharer
    inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300. */
 export const QUEST_DEFS: QuestDef[] = [
-  { key: "make-thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
-  { key: "generate-song",  target: 1, reward: 80,  kinds: ["song"] },
-  { key: "export-video",   target: 1, reward: 120, kinds: ["export"] },
-  { key: "viral-sharer",   target: 3, reward: 60,  kinds: ["share"] },
+  { key: "make-thumbnail", name: "Make a thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
+  { key: "generate-song",  name: "Generate a song",  target: 1, reward: 80,  kinds: ["song"] },
+  { key: "export-video",   name: "Export a video",   target: 1, reward: 120, kinds: ["export"] },
+  { key: "viral-sharer",   name: "Viral Sharer",     target: 3, reward: 60,  kinds: ["share"] },
 ];
 
 function todayKey(): string {

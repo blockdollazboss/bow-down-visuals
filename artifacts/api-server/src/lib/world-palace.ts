@@ -158,7 +158,11 @@ export class WorldPalace {
       // one authority per piece of room programming. The drop-claim
       // rail is the exception: a drop spectacle can land in ANY
       // room, so every room carries the (injected, route-owned)
-      // claimer; the room itself decides who may claim.
+      // claimer; the room itself decides who may claim. The
+      // witnessed-moment rails (THE-GAME §5(a)) are palace-wide for
+      // the same reason: a quest completes in the room where it
+      // happened, so every room carries the stars resolver + the
+      // quest-claim finder and verifies moments for its own floor.
       const roomDeps =
         def.roomId === WORLD_ROOM_ID
           ? deps
@@ -166,8 +170,14 @@ export class WorldPalace {
             ? {
                 resolveJukeboxTrack: deps.resolveJukeboxTrack,
                 claimWorldDrop: deps.claimWorldDrop,
+                resolveStars: deps.resolveStars,
+                findRecentQuestClaim: deps.findRecentQuestClaim,
               }
-            : { claimWorldDrop: deps.claimWorldDrop };
+            : {
+                claimWorldDrop: deps.claimWorldDrop,
+                resolveStars: deps.resolveStars,
+                findRecentQuestClaim: deps.findRecentQuestClaim,
+              };
       const room = new WorldRoom(hub, roomDeps, { roomId, name, ...opts });
       room.onChange = () => this.broadcastDirectory();
       this.rooms.set(roomId, room);
@@ -315,6 +325,7 @@ export class WorldPalace {
       character: state.character,
       voiceOff: state.voiceOff,
       voiceDeaf: state.voiceDeaf,
+      announcedStars: state.announcedStars,
       at,
     });
     /* No explicit directory send to the walker: attach's onChange
