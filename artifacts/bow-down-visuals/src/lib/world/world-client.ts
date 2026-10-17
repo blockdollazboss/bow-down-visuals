@@ -38,6 +38,11 @@ export interface WorldCharacterRef {
   id: string;
   name: string;
   portraitUrl: string;
+  /** The character's set voice (0142, G4): the shaping profile the
+   *  server resolved from the vault row, or null when the character
+   *  has no set voice. Only ever applied to the SELF presence —
+   *  shaping is send-side, on the speaker's own client. */
+  voiceProfile?: import("./character-voice").StoredCharacterVoiceProfile | null;
 }
 
 export type { WorldActionId } from "./actions";

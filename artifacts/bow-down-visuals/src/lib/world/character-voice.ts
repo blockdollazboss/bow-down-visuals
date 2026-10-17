@@ -18,13 +18,14 @@
  * the hall dresses your figure from:
  *   male Palace Guard    → the deep guard profile
  *   female Palace Guard  → her profile
- *   a Creative Vault character → the NEUTRAL house profile. The
- *     vault rows carry a cloned voice for song generation (a voice
- *     id + a free-text style on artist_vaults), which is neither a
- *     set of shaping numbers nor anything this module may invent
- *     numbers from — so until a vault character carries a real
- *     shaping profile of its own, it sounds like its speaker,
- *     honestly labelled "yourself".
+ *   a Creative Vault character → ITS OWN stored shaping profile
+ *     (artist_vaults.voice_profile, migration 0142 / audit G4), which
+ *     the server resolves from the vault row and rides on the
+ *     presence's character ref. A vault character with NO profile
+ *     set → the NEUTRAL house profile: it sounds like its speaker,
+ *     honestly labelled "yourself". (The vault's cloned voice for
+ *     song generation is a different thing — a voice id for the
+ *     studio, not shaping numbers, and never converted into one.)
  *   no pick at all → you stand as the guard the hall deals you
  *     (figure.ts deals it deterministically), so you sound like
  *     that guard. The capsule is only that same guard's art still
@@ -176,6 +177,49 @@ export function isIdentityProfile(profile: CharacterVoiceProfile): boolean {
 
 /* ── Resolution: the character you stand as → its voice ───────────── */
 
+/** A shaping profile as stored on a vault row (and as the vault
+ *  editor writes it): the profile numbers without an id or label —
+ *  those come from the character itself. */
+export interface StoredCharacterVoiceProfile {
+  pitchSemitones: number;
+  formantRatio: number;
+  formantGainDb: number;
+  eq: CharacterVoiceEqBand[];
+}
+
+/** The stored form of a full profile (drop id/label). */
+export function storedFormOf(profile: CharacterVoiceProfile): StoredCharacterVoiceProfile {
+  return {
+    pitchSemitones: profile.pitchSemitones,
+    formantRatio: profile.formantRatio,
+    formantGainDb: profile.formantGainDb,
+    eq: profile.eq.map((b) => ({ ...b })),
+  };
+}
+
+/** The vault editor's Turbo presets (0142): Deep and Bright are the
+ *  house guards' proven numbers; Natural = no profile at all (null),
+ *  the character sounds like its speaker. */
+export const DEEP_VOICE_PRESET: StoredCharacterVoiceProfile = storedFormOf(GUARD_MALE_VOICE_PROFILE);
+export const BRIGHT_VOICE_PRESET: StoredCharacterVoiceProfile = storedFormOf(GUARD_FEMALE_VOICE_PROFILE);
+
+/** A stored profile realized for a character: its id and label come
+ *  from the character, so the hall says "You sound like {name}". */
+export function profileFromStored(
+  characterId: string,
+  characterName: string | null | undefined,
+  stored: StoredCharacterVoiceProfile,
+): CharacterVoiceProfile {
+  return {
+    id: `vault:${characterId}`,
+    label: characterName && characterName.trim() ? characterName.trim() : "your character",
+    pitchSemitones: stored.pitchSemitones,
+    formantRatio: stored.formantRatio,
+    formantGainDb: stored.formantGainDb,
+    eq: Array.isArray(stored.eq) ? stored.eq.map((b) => ({ ...b })) : [],
+  };
+}
+
 export interface CharacterVoiceResolutionInput {
   /** The presence's character id (self.character.id): a house guard
    *  id for a guard pick, the vault row id for a vault character,
@@ -185,6 +229,13 @@ export interface CharacterVoiceResolutionInput {
    *  from — the member's profile slug, else the presence id (the
    *  scene's own key: guardVariantForKey). */
   presenceKey: string | null | undefined;
+  /** The vault character's stored shaping profile, carried on the
+   *  presence's character ref from the server (0142, G4). Only
+   *  consulted for vault characters; guards keep their house
+   *  profiles. Null/absent = no set voice. */
+  storedProfile?: StoredCharacterVoiceProfile | null;
+  /** The character's name — the realized profile's label. */
+  characterName?: string | null;
 }
 
 /** Whose voice a presence speaks with. Mirrors figure resolution
@@ -195,8 +246,11 @@ export function resolveCharacterVoiceProfile(input: CharacterVoiceResolutionInpu
     const variant = houseGuardVariantForId(characterId);
     if (variant === "male") return GUARD_MALE_VOICE_PROFILE;
     if (variant === "female") return GUARD_FEMALE_VOICE_PROFILE;
-    /* A vault character: no stored shaping profile exists for it
-     * (see the header) — neutral, honestly. */
+    /* A vault character WITH a set voice speaks in it (0142, G4);
+     * without one it stays neutral, honestly. */
+    if (input.storedProfile) {
+      return profileFromStored(characterId, input.characterName, input.storedProfile);
+    }
     return NEUTRAL_VOICE_PROFILE;
   }
   if (input.presenceKey) {

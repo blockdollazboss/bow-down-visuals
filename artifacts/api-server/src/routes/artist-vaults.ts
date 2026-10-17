@@ -14,6 +14,7 @@ import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
 import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
+import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 
 
 const router = Router();
@@ -60,6 +61,10 @@ const ArtistVaultSchema = z.object({
   referenceImageUrl: z.string().optional().nullable(),
   referenceImagePath: z.string().optional().nullable(),
   consistencyPrompt: z.string().optional().nullable(),
+  /* World voice-shaping profile (0142, G4): raw JSON, sanitized by
+     sanitizeCharacterVoiceProfile before it is stored. Explicit null
+     clears the profile (the character sounds like its speaker again). */
+  voiceProfile: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 router.post("/artist-vaults", requireAuth, async (req, res) => {
@@ -101,6 +106,7 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
         reference_image_url: d.referenceImageUrl ?? null,
         reference_image_path: d.referenceImagePath ?? null,
         consistency_prompt: d.consistencyPrompt ?? null,
+        voice_profile: d.voiceProfile ? sanitizeCharacterVoiceProfile(d.voiceProfile) : null,
       })
       .returning({ id: artistVaultsTable.id });
 
@@ -190,6 +196,11 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       reference_image_url: d.referenceImageUrl ?? null,
       reference_image_path: d.referenceImagePath ?? null,
       consistency_prompt: d.consistencyPrompt ?? null,
+      /* Only touch the voice profile when the caller sent the field —
+         partial editors that don't know about it must not clear it. */
+      ...(d.voiceProfile !== undefined
+        ? { voice_profile: d.voiceProfile ? sanitizeCharacterVoiceProfile(d.voiceProfile) : null }
+        : {}),
       updated_at: new Date(),
     })
     .where(

@@ -46,6 +46,7 @@ import {
   type WorldStageLiveRef,
 } from "../lib/world-room";
 import { WorldPalace } from "../lib/world-palace";
+import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 
 const router = Router();
 
@@ -400,6 +401,7 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
         id: artistVaultsTable.id,
         name: artistVaultsTable.artist_name,
         portrait: artistVaultsTable.reference_image_url,
+        voiceProfile: artistVaultsTable.voice_profile,
       })
       .from(artistVaultsTable)
       .where(
@@ -422,6 +424,9 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
       id: row.id,
       name: (row.name ?? "Character").slice(0, 80),
       portraitUrl: portraitUrl.slice(0, 2048),
+      /* G4: the character's set voice rides the ref (sanitized — raw
+         JSONB is never trusted); unset stays null = neutral. */
+      voiceProfile: sanitizeCharacterVoiceProfile(row.voiceProfile),
     };
   } catch (err) {
     logger.warn({ err, userId }, "[world] vault character lookup failed — pick refused");
