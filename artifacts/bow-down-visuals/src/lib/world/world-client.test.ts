@@ -1532,3 +1532,82 @@ describe("session longevity — keepalive + the quiet reconnect", () => {
     expect(h.reconnectEvents).toEqual([true, false, true, false]);
   });
 });
+
+describe("stars + witnessed moments (THE-GAME §5(a))", () => {
+  it("welcome installs the peer records' stars — members carry them, guests don't", async () => {
+    const selfStars = { ...SELF, stars: 4 };
+    const otherStars = { ...OTHER, stars: 2 };
+    const { client } = await inside({ t: 0 }, selfStars, [otherStars]);
+    expect(client.self?.stars).toBe(4);
+    expect(client.peers.get("w-other")?.stars).toBe(2);
+  });
+
+  it("celebrate intents send bare moment.celebrate frames — no facts ride them", async () => {
+    const { client, socket } = await inside();
+    socket.sent = [];
+    client.celebrateQuest();
+    client.celebrateLevelup();
+    expect(socket.sent).toEqual([
+      { type: "moment.celebrate", kind: "quest" },
+      { type: "moment.celebrate", kind: "levelup" },
+    ]);
+  });
+
+  it("a guest client never sends a celebrate intent", async () => {
+    const guestSelf = { ...SELF, peerId: "w-guest", displayName: "Guest", guest: true, profileSlug: null };
+    const { client, socket } = await inside({ t: 0 }, guestSelf, []);
+    socket.sent = [];
+    client.celebrateQuest();
+    client.celebrateLevelup();
+    expect(socket.sent).toEqual([]);
+  });
+
+  it("a quest moment reaches onMoment with the server's content and lands as lastMoment", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: unknown[] = [];
+    client.onMoment = (m) => seen.push(m);
+    socket.receive({
+      type: "peer.moment",
+      moment: { kind: "quest", peerId: "w-other", name: "Other", questName: "Export a video", rewardVb: 120 },
+    });
+    expect(seen).toEqual([
+      { kind: "quest", peerId: "w-other", name: "Other", questName: "Export a video", rewardVb: 120 },
+    ]);
+    expect(client.lastMoment).toEqual(seen[0]);
+    /* A quest moment never restars anyone. */
+    expect(client.peers.get("w-other")?.stars).toBeUndefined();
+  });
+
+  it("a levelup moment restars the achiever's peer record — and my own record when it's me", async () => {
+    const { client, socket } = await inside({ t: 0 }, { ...SELF, stars: 2 }, [{ ...OTHER, stars: 1 }]);
+    const seen: unknown[] = [];
+    client.onMoment = (m) => seen.push(m);
+
+    socket.receive({
+      type: "peer.moment",
+      moment: { kind: "levelup", peerId: "w-other", name: "Other", stars: 5 },
+    });
+    expect(client.peers.get("w-other")?.stars).toBe(5);
+    expect(client.self?.stars).toBe(2);
+
+    socket.receive({
+      type: "peer.moment",
+      moment: { kind: "levelup", peerId: "w-self", name: "Me", stars: 3 },
+    });
+    expect(client.self?.stars).toBe(3);
+    expect(seen).toHaveLength(2);
+  });
+
+  it("malformed moments are not moments: no callback, no restar, no lastMoment", async () => {
+    const { client, socket } = await inside({ t: 0 }, { ...SELF, stars: 2 }, [OTHER]);
+    const seen: unknown[] = [];
+    client.onMoment = (m) => seen.push(m);
+    socket.receive({ type: "peer.moment", moment: { kind: "quest", peerId: "w-other", name: "Other", rewardVb: 120 } });
+    socket.receive({ type: "peer.moment", moment: { kind: "levelup", peerId: "w-other", name: "Other", stars: 99 } });
+    socket.receive({ type: "peer.moment", moment: { kind: "jackpot", peerId: "w-other", name: "Other" } });
+    socket.receive({ type: "peer.moment", moment: null });
+    expect(seen).toEqual([]);
+    expect(client.lastMoment).toBeNull();
+    expect(client.peers.get("w-other")?.stars).toBeUndefined();
+  });
+});
