@@ -40,7 +40,7 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
-import type { HallViewMode } from "./view-mode";
+import { selfPlateVisible, type HallViewMode } from "./view-mode";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import {
   coverTransform,
@@ -1925,6 +1925,11 @@ export class KingsHallScene {
       this.selfRig.group.position.set(this.rig.position.x, 0, this.rig.position.z);
       this.selfRig.group.rotation.y = this.yaw;
       this.selfRig.group.visible = !presenting && this.viewMode === "third";
+      // Your own name plate never hangs over your own third-person
+      // view — the billboard sits between the follow camera and your
+      // figure and reads as a giant floating sign (see view-mode's
+      // selfPlateVisible). Peers' plates are not touched.
+      this.selfRig.sprite.visible = selfPlateVisible(this.viewMode);
     }
     // The planar mirror rests while presenting — Reflector and XR
     // don't mix; the polished overlay carries the floor in a headset.
