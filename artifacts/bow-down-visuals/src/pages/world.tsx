@@ -1780,7 +1780,6 @@ export default function WorldPage() {
           isLight={isLight}
           isGuest={isGuest}
           onClose={() => setPanelTarget(null)}
-          onOpenPage={(path, title) => setPanelTarget({ kind: "page", path, title })}
           directory={directory}
           currentRoomId={roomId}
           jukebox={jukebox}

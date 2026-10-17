@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, Router, Route, Switch, useLocation } from "wouter";
+import { Link, Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import {
   X, Loader2, Crown, Users, Play, Pause, SkipForward, XCircle,
@@ -16,11 +16,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
 import {
-  splitPanelPath,
   resolveStationPanel,
   editorStepthroughSearch,
-  PANEL_ROUTE_PATHS,
-  type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import {
   CreateDeskPanel,
@@ -48,32 +45,26 @@ import QuestsWidget from "@/components/QuestsWidget";
    station NEVER mounts a website page component. Opening a station
    resolves through `resolveStationPanel` to exactly one of: the
    guest pitch (members-only door, guest walker), a native surface
-   (its pattern's instrument — the honest "being rebuilt"
-   placeholder until that pattern ships, framed by the standard
-   transfer footer), one of the six world-native custom panels, or
-   (the one heavy desk) the step-through. The in-panel router below
-   survives ONLY for bare-page targets handed to the host from
-   outside the station registry; it is unreachable from the
-   station-open path (a Front Row portrait now opens the in-world
-   Portrait Card, §3.4) and is deleted at the plan's Step 8. Guests
-   at a members-only door get the pitch and
-   the sign-in ask — sign-in itself deliberately lives on the site,
-   not in a 3D panel (the plan's phishing-hygiene refusal). */
+   (its pattern's instrument, framed by the standard transfer
+   footer), one of the six world-native custom panels, or (the one
+   heavy desk) the step-through. The old in-panel page router is
+   GONE (plan Step 8): no target, link, or custom panel can mount a
+   website page in here anymore — the website is reachable only
+   through the explicit transfer doors (the footer peek, the
+   standing switch in the world chrome). Guests at a members-only
+   door get the pitch and the sign-in ask — sign-in itself
+   deliberately lives on the site, not in a 3D panel (the plan's
+   phishing-hygiene refusal). */
 
-/** What the panel is showing: a station, or a bare page a custom
- *  panel sent the walker to (a Court portrait's profile). */
-export type StationPanelTarget =
-  | { kind: "station"; station: PalaceStation }
-  | { kind: "page"; path: string; title: string };
+/** What the panel is showing: a station. (The bare-page target
+ *  kind died with the in-panel router at Step 8.) */
+export type StationPanelTarget = { kind: "station"; station: PalaceStation };
 
 export interface StationPanelProps {
   target: StationPanelTarget;
   isLight: boolean;
   isGuest: boolean;
   onClose: () => void;
-  /** Open a bare page in the panel (legacy page targets only —
-   *  the Front Row's portraits open the Portrait Card in-world). */
-  onOpenPage: (path: string, title: string) => void;
   /* The Kingdom Board's data + the room the walker stands in. */
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
@@ -113,45 +104,11 @@ export interface StationPanelProps {
    gallery (the same public court the hall's stage honors read). */
 const KING_COURT_SLUG = "thy-cheat-code";
 
-/* ─── The in-panel router (LEGACY — plan Step 8 deletes this) ───────
-   The site's own pages, mounted under a memory-location router.
-   Registry v2: NO station opens through here anymore — stations
-   resolve natively (see the host below). This router remains only
-   for the bare-page target (`StationPanelTarget` kind "page") that
-   a custom panel can still point at — today, a Front Row portrait
-   opening a creator's profile — and the deeper links inside such
-   a page. The route set is the shared table in
-   lib/world/station-panel; anything beyond it lands on the honest
-   miss card. The record below is keyed by the table, so a path
-   added there without a page here won't compile. */
-const PANEL_PAGES: Record<PanelRoutePath, ReturnType<typeof lazy>> = {
-  "/messages": lazy(() => import("@/pages/messages")),
-  "/my-music": lazy(() => import("@/pages/my-music")),
-  "/charts": lazy(() => import("@/pages/discovery/charts")),
-  "/arcade": lazy(() => import("@/pages/arcade")),
-  "/party": lazy(() => import("@/pages/party")),
-  "/dashboard": lazy(() => import("@/pages/dashboard")),
-  "/create": lazy(() => import("@/pages/create")),
-  "/audio-studio": lazy(() => import("@/pages/audio-studio")),
-  "/thumbnail-studio": lazy(() => import("@/pages/thumbnail-studio")),
-  "/memberships": lazy(() => import("@/pages/memberships")),
-  "/branding-kit": lazy(() => import("@/pages/branding-kit")),
-  "/press-kit": lazy(() => import("@/pages/press-kit")),
-  "/storefronts": lazy(() => import("@/pages/storefronts")),
-  "/community": lazy(() => import("@/pages/community")),
-  "/promote": lazy(() => import("@/pages/promote")),
-  "/earnings": lazy(() => import("@/pages/earnings")),
-  "/post/:id": lazy(() => import("@/pages/post")),
-  "/track/:id": lazy(() => import("@/pages/stream/track")),
-  "/watch/:id": lazy(() => import("@/pages/stream/watch")),
-  "/shop/:slug": lazy(() => import("@/pages/shop")),
-  "/coach": lazy(() => import("@/pages/coach")),
-  "/my-projects": lazy(() => import("@/pages/my-projects")),
-  "/credit-history": lazy(() => import("@/pages/credit-history")),
-  "/distribute": lazy(() => import("@/pages/distribute")),
-  "/scheduler": lazy(() => import("@/pages/scheduler")),
-  "/artist/:slug": lazy(() => import("@/pages/artist-public")),
-};
+/* The step-through's editor surface — the ONE website workbench
+   the palace mounts, full-screen inside /world under the owner's
+   step-through ruling (never a panel page; see StepThroughEditor
+   below). The old in-panel page router (PANEL_PAGES + PanelRouter
+   + the miss card) was deleted at plan Step 8. */
 const PanelEditor = lazy(() => import("@/pages/video-editor"));
 
 /** A panel page that failed to load or render: said plainly, with
@@ -191,71 +148,6 @@ class PanelBoundary extends Component<
       </div>
     );
   }
-}
-
-function PanelMiss({ homePath, isLight }: { homePath: string; isLight: boolean }) {
-  const [path, setLocation] = useLocation();
-  return (
-    <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-      <DoorOpen className="h-7 w-7 text-[#d4af37]" />
-      <p className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-        That door isn&rsquo;t hung in the palace yet
-      </p>
-      <p className={`max-w-sm text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-        <span className="font-semibold">{path}</span> lives on the site — the palace&rsquo;s doors
-        reach the rooms off this one, and this path isn&rsquo;t among them yet.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => setLocation(homePath)}
-          className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
-        >
-          Back to this door
-        </button>
-        <a
-          href={path}
-          className={`rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
-        >
-          Open it on the site
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function PanelRouter({ initialPath, isLight }: { initialPath: string; isLight: boolean }) {
-  const loc = useMemo(() => {
-    const { pathname, search } = splitPanelPath(initialPath);
-    return memoryLocation({ path: pathname, searchPath: search });
-  }, [initialPath]);
-  const fallback = (
-    <div className="flex items-center justify-center gap-2 px-4 py-12">
-      <Loader2 className="h-5 w-5 animate-spin text-[#d4af37]" />
-      <span className={`text-sm font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        Opening the door…
-      </span>
-    </div>
-  );
-  return (
-    <Router hook={loc.hook}>
-      <PanelBoundary isLight={isLight} resetKey={initialPath}>
-        <Suspense fallback={fallback}>
-          <Switch>
-            {PANEL_ROUTE_PATHS.map((path) => {
-              const Page = PANEL_PAGES[path];
-              return (
-                <Route key={path} path={path}>
-                  <Page />
-                </Route>
-              );
-            })}
-            <Route><PanelMiss homePath={initialPath} isLight={isLight} /></Route>
-          </Switch>
-        </Suspense>
-      </PanelBoundary>
-    </Router>
-  );
 }
 
 /* The step-through editor, seeded with its deep link: inside the
@@ -1054,16 +946,15 @@ export default function StationPanel(props: StationPanelProps) {
     setBoardProjectId(null);
   }, [target]);
 
-  const name = target.kind === "station" ? target.station.name : target.title;
-  const tagline = target.kind === "station" ? target.station.tagline : null;
+  const name = target.station.name;
+  const tagline = target.station.tagline;
 
   /* Registry v2: a station target resolves ONCE, here, and every
      render below follows the resolution. Its union has no page
      variant — a station can never mount a website page component
-     again. Bare-page targets (kind "page") carry no resolution;
-     they are the legacy router's last job (see PanelRouter). */
-  const station = target.kind === "station" ? target.station : null;
-  const resolution = station ? resolveStationPanel(station, isGuest) : null;
+     again. */
+  const station = target.station;
+  const resolution = resolveStationPanel(station, isGuest);
 
   /* The step-through: the one heavy desk (the Visual Vibes editor)
      opens full-screen INSIDE /world — no new tab, no lost place;
@@ -1154,13 +1045,6 @@ export default function StationPanel(props: StationPanelProps) {
   }
 
   const body = (() => {
-    /* Bare-page targets are the legacy router's only remaining
-       caller — a custom panel (a Front Row portrait) pointed here.
-       No station target can reach this branch: station targets
-       carry a resolution, and the resolution union has no page. */
-    if (target.kind === "page") {
-      return <PanelRouter initialPath={target.path} isLight={isLight} />;
-    }
     if (!station || !resolution) return null;
     switch (resolution.type) {
       case "guest-pitch":

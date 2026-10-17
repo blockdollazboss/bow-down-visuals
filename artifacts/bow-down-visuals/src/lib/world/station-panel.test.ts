@@ -11,22 +11,20 @@
  * (e) members-only stations resolve to the guest pitch for guests,
  *     for every kind — and to their real surface for members.
  *
- * Kept working alongside: splitPanelPath (the legacy page-target
- * router's splitter), the editor step-through seeding
- * (newestEditorProjectId / editorStepthroughSearch), and the
- * legacy route table itself (panelRouteFor / PANEL_ROUTE_PATHS —
- * deleted at the plan's Step 8, still serving bare-page targets).
+ * Kept working alongside: the editor step-through seeding
+ * (newestEditorProjectId / editorStepthroughSearch). The legacy
+ * page-target router table (panelRouteFor / PANEL_ROUTE_PATHS /
+ * splitPanelPath) was deleted with the router at the plan's
+ * Step 8 — the pins below prove no station can resolve to a page
+ * mount, and the deleted names no longer exist to resolve to.
  */
 import { describe, it, expect } from "vitest";
 import {
-  splitPanelPath,
   stationGuestBlocked,
   resolveStationPanel,
   TRANSFER_BUTTON_LABEL,
   newestEditorProjectId,
   editorStepthroughSearch,
-  panelRouteFor,
-  PANEL_ROUTE_PATHS,
 } from "./station-panel";
 import { STATION_BY_ID, PALACE_STATIONS } from "./stations";
 
@@ -169,24 +167,6 @@ describe("the Treasury — three customs, verified native (Lane 8)", () => {
   });
 });
 
-describe("splitPanelPath", () => {
-  it("splits the Create house's panel deep links", () => {
-    expect(splitPanelPath("/create?panel=song")).toEqual({
-      pathname: "/create",
-      search: "panel=song",
-    });
-  });
-  it("splits the branding shop's tab link", () => {
-    expect(splitPanelPath("/branding-kit?tab=shop")).toEqual({
-      pathname: "/branding-kit",
-      search: "tab=shop",
-    });
-  });
-  it("leaves a bare path whole", () => {
-    expect(splitPanelPath("/arcade")).toEqual({ pathname: "/arcade", search: "" });
-  });
-});
-
 describe("newestEditorProjectId", () => {
   it("no projects → no deep link (the step-through opens fresh)", () => {
     expect(newestEditorProjectId([])).toBeNull();
@@ -228,72 +208,11 @@ describe("editorStepthroughSearch", () => {
   });
 });
 
-describe("panelRouteFor — the legacy page-target router's reach (Step 8 deletes this)", () => {
-  it("covers every native station's former website path (now its transfer target)", () => {
-    for (const s of PALACE_STATIONS) {
-      if (s.panel.kind !== "native" || !s.websitePath) continue;
-      const { pathname } = splitPanelPath(s.websitePath);
-      expect(panelRouteFor(pathname), s.id).not.toBeNull();
-    }
-  });
-
-  it("covers the hub destinations the panels' pages link to", () => {
-    for (const p of [
-      "/dashboard",
-      "/my-music",
-      "/charts",
-      "/community",
-      "/promote",
-      "/earnings",
-      "/memberships",
-      "/storefronts",
-      "/arcade",
-      "/party",
-      "/messages",
-      "/coach",
-      "/my-projects",
-      "/credit-history",
-      "/distribute",
-      "/scheduler",
-    ]) {
-      expect(panelRouteFor(p), p).toBe(p);
-    }
-  });
-
-  it("resolves the deep links: a post, a track, a watch page, a shop, a profile", () => {
-    expect(panelRouteFor("/post/42")).toBe("/post/:id");
-    expect(panelRouteFor("/track/abc-123")).toBe("/track/:id");
-    expect(panelRouteFor("/watch/xyz")).toBe("/watch/:id");
-    expect(panelRouteFor("/shop/some-handle")).toBe("/shop/:slug");
-    expect(panelRouteFor("/artist/thy-cheat-code")).toBe("/artist/:slug");
-  });
-
-  it("leaves the deliberately unhung doors to the miss card", () => {
-    for (const p of [
-      "/login",
-      "/signup",
-      "/settings",
-      "/video-editor",
-      "/shorts",
-      "/my-shop",
-      "/admin",
-      "/",
-      "/post", // missing its id
-      "/post/1/comments", // deeper than the door reaches
-      "/shop", // missing its slug
-    ]) {
-      expect(panelRouteFor(p), p).toBeNull();
-    }
-  });
-
-  it("the route table has no duplicates", () => {
-    expect(new Set(PANEL_ROUTE_PATHS).size).toBe(PANEL_ROUTE_PATHS.length);
-  });
-
-  it("the editor station is a step-through, not a panel route", () => {
+describe("the editor station's shape (the router that once excluded it is gone)", () => {
+  it("the editor station is a step-through, never a panel route", () => {
     const editor = STATION_BY_ID.get("visual-vibes-editor")!;
     expect(editor.panel.kind).toBe("stepthrough");
-    expect(panelRouteFor("/video-editor")).toBeNull();
+    expect(resolveStationPanel(editor, false).type).toBe("stepthrough");
   });
 });
 
