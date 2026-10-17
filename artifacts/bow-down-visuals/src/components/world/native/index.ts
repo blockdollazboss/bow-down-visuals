@@ -19,3 +19,9 @@ export {
   type CreateDeskRunnerProps,
 } from "./CreateDeskRunner";
 export { NativePlaceholder, type NativePlaceholderProps } from "./NativePlaceholder";
+export {
+  useShelfPlayer,
+  NowPlayingCard,
+  type ShelfPlayerController,
+} from "./ShelfPlayer";
+export { ListeningBooth, type ListeningBoothProps } from "./ListeningBooth";
