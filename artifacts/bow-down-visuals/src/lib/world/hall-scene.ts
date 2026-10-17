@@ -216,6 +216,7 @@ function namePlateKey(peer: WorldPeer, frontRow = false): string {
     peer.guest ? "guest" : "",
     peer.profileSlug ?? "",
     peer.voiceOff ? "off" : "",
+    peer.voiceDeaf ? "deaf" : "",
     frontRow ? "front-row" : "",
   ].join("|");
 }
@@ -260,6 +261,38 @@ function drawVoiceOffBadge(g: CanvasRenderingContext2D, cx: number, cy: number):
   g.restore();
 }
 
+/** A small deafened badge: gold-ringed disc, pale headphones, red
+ *  slash. Drawn on the name plate of a deafened peer — the hall's cue
+ *  that this person hears nobody right now (but is still IN voice,
+ *  unlike the voice-off badge's mic: not gone, just deafened). */
+function drawVoiceDeafBadge(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+  g.save();
+  g.beginPath();
+  g.arc(cx, cy, 22, 0, Math.PI * 2);
+  g.fillStyle = "rgba(10,8,6,0.78)";
+  g.fill();
+  g.lineWidth = 3;
+  g.strokeStyle = "rgba(232,200,106,0.9)";
+  g.stroke();
+  // The headphones: band arc over the top, a cup at each end.
+  g.strokeStyle = "#e8e2d4";
+  g.lineWidth = 3.4;
+  g.beginPath();
+  g.arc(cx, cy + 3, 11.5, Math.PI * 1.05, Math.PI * 1.95);
+  g.stroke();
+  g.fillStyle = "#e8e2d4";
+  g.fillRect(cx - 15.5, cy - 1, 6.5, 12);
+  g.fillRect(cx + 9, cy - 1, 6.5, 12);
+  // The slash.
+  g.strokeStyle = "#e0653f";
+  g.lineWidth = 4.5;
+  g.beginPath();
+  g.moveTo(cx - 14, cy + 13);
+  g.lineTo(cx + 14, cy - 13);
+  g.stroke();
+  g.restore();
+}
+
 function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 512;
@@ -275,21 +308,25 @@ function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTextu
   g.fillText(name, 256, 58);
   g.font = "600 34px system-ui, sans-serif";
   /* Voice-off outranks the slug on the sub-line: "this person can't
-   *  hear you" is the fact the hall needs at a glance. A Front Row
-   *  member (of the performer on stage) is named on the plate too —
-   *  the honor is visible, not just a brighter ring. */
+   *  hear you" is the fact the hall needs at a glance. Deafened is
+   *  next — same family of fact, different state (in voice, hearing
+   *  nobody). A Front Row member (of the performer on stage) is named
+   *  on the plate too — the honor is visible, not just a brighter ring. */
   const sub = peer.voiceOff
     ? "voice off"
-    : peer.guest
-      ? "guest"
-      : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
-          .filter(Boolean)
-          .join(" · ");
+    : peer.voiceDeaf
+      ? "deafened"
+      : peer.guest
+        ? "guest"
+        : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
+            .filter(Boolean)
+            .join(" · ");
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
-  g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.guest ? "#b8b0a0" : "#e8c86a";
+  g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.voiceDeaf ? "#a9c3d9" : peer.guest ? "#b8b0a0" : "#e8c86a";
   g.fillText(sub, 256, 112);
   if (peer.voiceOff) drawVoiceOffBadge(g, 470, 34);
+  else if (peer.voiceDeaf) drawVoiceDeafBadge(g, 470, 34);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -646,7 +683,7 @@ export class KingsHallScene {
   /** Gamepad edge state carried between polls (toggle buttons fire
    *  once per press). */
   private padEdges: GamepadEdges = IDLE_GAMEPAD_EDGES;
-  /** A controller's voice-toggle press (the page flips its switch). */
+  /** A controller's voice press (the page steps its voice mode). */
   onPadToggleVoice: (() => void) | null = null;
   /** A controller's view-toggle press (first/third person). */
   onPadToggleView: (() => void) | null = null;
