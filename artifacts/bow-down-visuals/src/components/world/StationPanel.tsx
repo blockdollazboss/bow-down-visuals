@@ -23,6 +23,8 @@ import {
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
+import { PortraitCard } from "@/components/world/native/PortraitCard";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -38,10 +40,11 @@ import QuestsWidget from "@/components/QuestsWidget";
    placeholder until that pattern ships, framed by the standard
    transfer footer), one of the six world-native custom panels, or
    (the one heavy desk) the step-through. The in-panel router below
-   survives ONLY for the bare-page target a custom panel can still
-   point at (a Front Row portrait → a creator profile); it is
-   unreachable from the station-open path and is deleted at the
-   plan's Step 8. Guests at a members-only door get the pitch and
+   survives ONLY for bare-page targets handed to the host from
+   outside the station registry; it is unreachable from the
+   station-open path (a Front Row portrait now opens the in-world
+   Portrait Card, §3.4) and is deleted at the plan's Step 8. Guests
+   at a members-only door get the pitch and
    the sign-in ask — sign-in itself deliberately lives on the site,
    not in a 3D panel (the plan's phishing-hygiene refusal). */
 
@@ -56,7 +59,8 @@ export interface StationPanelProps {
   isLight: boolean;
   isGuest: boolean;
   onClose: () => void;
-  /** Open a bare page in the panel (Court portraits → profiles). */
+  /** Open a bare page in the panel (legacy page targets only —
+   *  the Front Row's portraits open the Portrait Card in-world). */
   onOpenPage: (path: string, title: string) => void;
   /* The Kingdom Board's data + the room the walker stands in. */
   directory: PalaceDirectoryEntry[];
@@ -338,14 +342,33 @@ function KingdomBoard({
 
 function FrontRowGallery({
   isLight,
-  onOpenPage,
+  isGuest,
+  onPlayTrack,
 }: {
   isLight: boolean;
-  onOpenPage: (path: string, title: string) => void;
+  isGuest: boolean;
+  /** Portrait Card Play seam: the host's jukebox.add intent. */
+  onPlayTrack: (trackId: string) => void;
 }) {
   const [members, setMembers] = useState<CourtMember[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
+  /* The Portrait Card (NATIVE-PLAN §3.4): a portrait click opens the
+     creator's CARD in-world — never their profile page. The card
+     carries its own /artist/:slug transfer footer. */
+  const [selected, setSelected] = useState<CourtMember | null>(null);
+
+  if (selected) {
+    return (
+      <PortraitCard
+        member={selected}
+        isLight={isLight}
+        isGuest={isGuest}
+        onPlayTrack={onPlayTrack}
+        onBack={() => setSelected(null)}
+      />
+    );
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -400,7 +423,7 @@ function FrontRowGallery({
             key={m.profileId}
             type="button"
             data-testid="world-court-portrait"
-            onClick={() => onOpenPage(`/artist/${m.slug}`, m.displayName)}
+            onClick={() => setSelected(m)}
             className={`group flex flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 text-center transition ${
               isLight
                 ? "border-[#C9A84C]/50 bg-white/60 hover:border-[#7A5A12]"
@@ -425,14 +448,15 @@ function FrontRowGallery({
               <Crown className="h-3 w-3" /> Seat #{m.position}
             </span>
             <span className={`text-[11px] font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]/80"}`}>
-              Open their profile door →
+              See their card →
             </span>
           </button>
         ))}
       </div>
       <p className={`px-1 pt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         The King&rsquo;s Front Row — the honored creators, portrait by portrait. A portrait opens that
-        creator&rsquo;s real profile, right here in the palace.
+        creator&rsquo;s card, right here in the palace — their full profile waits on the card&rsquo;s
+        own website link, only if you choose it.
       </p>
     </div>
   );
@@ -1055,10 +1079,23 @@ export default function StationPanel(props: StationPanelProps) {
       case "guest-pitch":
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
-        /* The migration placeholder until this station's pattern
-           surface ships — honest, palace-voiced, and framed below
-           by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+        /* Pattern surfaces ship lane by lane; a station whose
+           surface has landed renders it here, the rest keep the
+           honest migration placeholder — both framed below by the
+           standard transfer footer (rendered once, by the host). */
+        if (resolution.pattern === "social") {
+          return (
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              {station.id === "post-office" ? (
+                <PostOfficeDesk isLight={isLight} />
+              ) : station.id === "community-hall" ? (
+                <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+              ) : (
+                <NativePlaceholder station={station} isLight={isLight} />
+              )}
+            </PanelBoundary>
+          );
+        }
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             <NativePlaceholder station={station} isLight={isLight} />
@@ -1071,7 +1108,13 @@ export default function StationPanel(props: StationPanelProps) {
               <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
             );
           case "front-row":
-            return <FrontRowGallery isLight={isLight} onOpenPage={props.onOpenPage} />;
+            return (
+              <FrontRowGallery
+                isLight={isLight}
+                isGuest={isGuest}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            );
           case "treasury-daily":
             return <TreasuryDaily isLight={isLight} />;
           case "treasury-shark":
