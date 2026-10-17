@@ -22,7 +22,7 @@ import {
   PANEL_ROUTE_PATHS,
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
-import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { CreateDeskPanel, NativePlaceholder, TransferFooter } from "@/components/world/native";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -73,6 +73,12 @@ export interface StationPanelProps {
    *  editor's location with ?project=<id> so it opens where they
    *  left off. Null (or still loading) → the editor opens fresh. */
   editorProjectId?: string | null;
+  /** The Create desks' Send-to-the-editor chip: step through to the
+   *  Visual Vibes editor station (the page swaps the panel target;
+   *  the step-through's newest-project seed resolves on open, and
+   *  the desk has just saved its result as that project). Optional —
+   *  hosts without an editor door simply don't offer the chip. */
+  onOpenEditorStation?: () => void;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -1055,13 +1061,24 @@ export default function StationPanel(props: StationPanelProps) {
       case "guest-pitch":
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
-        /* The migration placeholder until this station's pattern
-           surface ships — honest, palace-voiced, and framed below
-           by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+        /* A shipped pattern surface renders its instrument; a
+           pattern whose lane hasn't landed yet keeps the honest
+           migration placeholder — palace-voiced, and framed below
+           by the standard transfer footer. The frame and footer
+           stay either way. The Create Wing desks (§3.6) ship here:
+           pattern "create" dispatches by station id to the bench. */
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            <NativePlaceholder station={station} isLight={isLight} />
+            {resolution.pattern === "create" ? (
+              <CreateDeskPanel
+                station={station}
+                isLight={isLight}
+                onJukeboxAdd={props.onJukeboxAdd}
+                onOpenEditor={props.onOpenEditorStation}
+              />
+            ) : (
+              <NativePlaceholder station={station} isLight={isLight} />
+            )}
           </PanelBoundary>
         );
       case "custom":

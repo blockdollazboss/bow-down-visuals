@@ -19,3 +19,18 @@ export {
   type CreateDeskRunnerProps,
 } from "./CreateDeskRunner";
 export { NativePlaceholder, type NativePlaceholderProps } from "./NativePlaceholder";
+export { CreateDeskPanel, type CreateDeskPanelProps } from "./CreateDeskPanel";
+export {
+  SongDesk,
+  VideoDesk,
+  SongVideoDesk,
+  CoverArtDesk,
+  ThumbnailDesk,
+  type CreateDeskProps,
+} from "./CreateDesks";
+export { AudioDesk } from "./AudioDesk";
+export {
+  AdvancedExpander,
+  ResultChips,
+  type ResultChipsProps,
+} from "./CreateDeskShared";
