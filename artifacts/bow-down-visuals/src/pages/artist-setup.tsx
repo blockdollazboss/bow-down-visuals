@@ -427,16 +427,20 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
         </div>
       </div>
 
+      {/* Custom domains live in their own flow (claim + DNS verify) —
+          this used to be a write-only text field whose value the save
+          silently dropped (0142, DE-20). It now points at the real
+          domain settings instead of pretending to save. */}
       <div>
         <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Custom domain <span className="normal-case text-white/30">(optional)</span></label>
-        <input
-          value={profile.custom_domain ?? ""}
-          onChange={(e) => patch({ custom_domain: e.target.value.trim() || null })}
-          placeholder="you.com"
-          maxLength={120}
-          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none placeholder:text-white/30 focus:border-amber-400/60"
-        />
-        <p className="mt-1 text-xs text-white/40">Shares and badges point here first — your world, not ours.</p>
+        <Link
+          href="/creator/domains"
+          className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/70 outline-none transition hover:border-amber-400/60 hover:text-white"
+        >
+          <span>{profile.custom_domain ? profile.custom_domain : "Connect your own domain — you.com"}</span>
+          <ExternalLink className="h-4 w-4 shrink-0 text-white/40" />
+        </Link>
+        <p className="mt-1 text-xs text-white/40">Claim it and verify DNS there — once it's live, shares and badges point to your domain first.</p>
       </div>
 
       <div>

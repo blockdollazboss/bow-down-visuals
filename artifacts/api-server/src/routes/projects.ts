@@ -64,9 +64,9 @@ router.post("/projects", requireAuth, async (req, res) => {
   let { data: project, error } = await req.userSupabase!
     .from("projects")
     .insert(
-      d.hubProjectId !== undefined
+      (d.hubProjectId !== undefined
         ? { ...insertPayload, hub_project_id: d.hubProjectId }
-        : insertPayload,
+        : insertPayload) as never,
     )
     .select("id")
     .single();
@@ -119,11 +119,13 @@ router.get("/projects", requireAuth, async (req, res) => {
     .order("created_at", { ascending: false });
 
   if (error && isMissingHubColumn(error)) {
-    ({ data: projects, error } = await req.userSupabase!
+    const fallback = await req.userSupabase!
       .from("projects")
       .select(PROJECT_COLUMNS_BASE)
       .eq("user_id", req.userId)
-      .order("created_at", { ascending: false }));
+      .order("created_at", { ascending: false });
+    error = fallback.error;
+    projects = (fallback.data ?? []).map((row) => ({ ...row, hub_project_id: null })) as typeof projects;
   }
 
   if (error) {
@@ -153,12 +155,14 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
     .single();
 
   if (error && isMissingHubColumn(error)) {
-    ({ data: project, error } = await req.userSupabase!
+    const fallback = await req.userSupabase!
       .from("projects")
       .select(PROJECT_COLUMNS_BASE)
       .eq("id", id)
       .eq("user_id", req.userId)
-      .single());
+      .single();
+    error = fallback.error;
+    project = fallback.data ? { ...fallback.data, hub_project_id: null } : fallback.data;
   }
 
   if (error || !project) {
