@@ -30,9 +30,21 @@ import {
   shelfProgress,
   shelfPreviewComments,
   SHELF_COMMENT_PREVIEW_COUNT,
+  queueUpNext,
+  takeQueueNext,
+  removeFromQueue,
+  parseMyMusic,
+  playInputFromMyMusic,
+  parseShelfPlaylists,
+  playInputsFromPlaylist,
+  shelfEmbedCode,
+  parseDownloadMint,
+  downloadMintCopy,
+  shelfReceiptLine,
+  type ShelfPlayInput,
   type ShelfPurchase,
 } from "./shelf";
-import type { StreamTrack, StreamVideo } from "@/lib/streaming";
+import type { StreamPlaylist, StreamTrack, StreamVideo } from "@/lib/streaming";
 
 const purchase = (over: Partial<ShelfPurchase> = {}): ShelfPurchase => ({
   id: "sale-1",
@@ -199,6 +211,151 @@ describe("comment preview", () => {
     expect(preview).toHaveLength(SHELF_COMMENT_PREVIEW_COUNT);
     expect(hiddenCount).toBe(4);
     expect(shelfPreviewComments(comments.slice(0, 2)).hiddenCount).toBe(0);
+  });
+});
+
+const playInput = (over: Partial<ShelfPlayInput> = {}): ShelfPlayInput => ({
+  kind: "track",
+  id: "trk-1",
+  title: "Gold Standard",
+  artistName: "Thy Cheat Code",
+  artworkUrl: null,
+  src: "https://cdn.example.com/gold.mp3",
+  pagePath: "/track/trk-1",
+  likeCount: 0,
+  commentCount: 0,
+  ...over,
+});
+
+describe("the queue (2.12) — what's next, in order", () => {
+  it("queue-next puts the item at the front, and re-queueing moves it there without duplicating", () => {
+    const a = playInput({ id: "a" });
+    const b = playInput({ id: "b" });
+    const c = playInput({ id: "c" });
+    expect(queueUpNext([a, b], c).map((q) => q.id)).toEqual(["c", "a", "b"]);
+    expect(queueUpNext([a, b], b).map((q) => q.id)).toEqual(["b", "a"]);
+    // A video and a track with the same id are different items.
+    expect(queueUpNext([a], playInput({ id: "a", kind: "video" }))).toHaveLength(2);
+  });
+
+  it("taking the next item shifts the rest up; an empty queue takes nothing", () => {
+    const a = playInput({ id: "a" });
+    const b = playInput({ id: "b" });
+    const { next, rest } = takeQueueNext([a, b]);
+    expect(next?.id).toBe("a");
+    expect(rest.map((q) => q.id)).toEqual(["b"]);
+    expect(takeQueueNext([])).toEqual({ next: null, rest: [] });
+  });
+
+  it("removal matches on kind + id", () => {
+    const a = playInput({ id: "a" });
+    const av = playInput({ id: "a", kind: "video" });
+    expect(removeFromQueue([a, av], { kind: "track", id: "a" })).toEqual([av]);
+  });
+});
+
+describe("my music (2.14) — the owned-but-unpublished seam", () => {
+  it("parses the world DTO, drops rows that cannot play, and reads snake_case defensively", () => {
+    const rows = parseMyMusic({
+      tracks: [
+        { id: "d1", title: "Draft One", audioUrl: "https://cdn.example.com/d1.mp3", isPublished: false, likeCount: 1 },
+        { id: "d2", title: "Snake Row", audio_url: "https://cdn.example.com/d2.mp3", is_published: true },
+        { id: "d3", title: "No audio — dropped", isPublished: false },
+        { title: "No id — dropped", audioUrl: "https://cdn.example.com/x.mp3" },
+        "junk",
+      ],
+    });
+    expect(rows.map((r) => r.id)).toEqual(["d1", "d2"]);
+    expect(rows[0]!.isPublished).toBe(false);
+    expect(rows[1]!.isPublished).toBe(true);
+    expect(parseMyMusic(null)).toEqual([]);
+    expect(parseMyMusic({})).toEqual([]);
+  });
+
+  it("a draft becomes a play input flagged unpublished; a published one is not", () => {
+    const draft = parseMyMusic({
+      tracks: [{ id: "d1", title: "Draft", audioUrl: "https://cdn.example.com/d1.mp3", isPublished: false }],
+    })[0]!;
+    expect(playInputFromMyMusic(draft)).toMatchObject({
+      kind: "track",
+      id: "d1",
+      src: "https://cdn.example.com/d1.mp3",
+      unpublished: true,
+    });
+    const live = parseMyMusic({
+      tracks: [{ id: "d9", title: "Live", audioUrl: "https://cdn.example.com/d9.mp3", isPublished: true }],
+    })[0]!;
+    expect(playInputFromMyMusic(live)?.unpublished).toBe(false);
+  });
+});
+
+describe("playlists (2.12) — summaries and the resolved-items fold", () => {
+  it("summaries read item_count, fall back to items length, and drop id-less rows", () => {
+    const rows = parseShelfPlaylists({
+      playlists: [
+        { id: "pl1", title: "Late Night", cover_url: null, item_count: 4 },
+        { id: "pl2", title: "Counted By Items", items: [{ kind: "track", id: "a" }, { kind: "track", id: "b" }] },
+        { title: "no id — dropped" },
+      ],
+    });
+    expect(rows).toEqual([
+      { id: "pl1", title: "Late Night", coverUrl: null, itemCount: 4 },
+      { id: "pl2", title: "Counted By Items", coverUrl: null, itemCount: 2 },
+    ]);
+    expect(parseShelfPlaylists(null)).toEqual([]);
+  });
+
+  it("resolved items fold into play inputs in order, skipping unplayable media", () => {
+    const playlist = {
+      id: "pl1",
+      owner_profile_id: "prof-1",
+      title: "Mix",
+      description: null,
+      cover_url: null,
+      is_public: true,
+      items: [],
+      follower_count: 0,
+      resolved_items: [
+        { kind: "track", item: track() },
+        { kind: "track", item: track({ id: "silent", audio_url: "" }) },
+        { kind: "video", item: video() },
+      ],
+    } as unknown as StreamPlaylist;
+    const inputs = playInputsFromPlaylist(playlist);
+    expect(inputs.map((i) => `${i.kind}:${i.id}`)).toEqual(["track:trk-1", "video:vid-9"]);
+    expect(inputs[0]).toMatchObject({ pagePath: "/track/trk-1", profileId: "prof-1" });
+    expect(playInputsFromPlaylist({ ...playlist, resolved_items: undefined })).toEqual([]);
+  });
+});
+
+describe("embed + download mint + receipts (2.15 / 2.16)", () => {
+  it("the embed code matches the website player's iframe shape per kind", () => {
+    const trackCode = shelfEmbedCode(playInput(), "https://bowdownvisuals.com");
+    expect(trackCode).toContain('src="https://bowdownvisuals.com/embed/track/trk-1"');
+    expect(trackCode).toContain('width="420"');
+    expect(trackCode).toContain('height="200"');
+    const videoCode = shelfEmbedCode(playInput({ kind: "video", id: "vid-9" }), "https://bowdownvisuals.com");
+    expect(videoCode).toContain("/embed/video/vid-9");
+    expect(videoCode).toContain('width="560"');
+    expect(videoCode).toContain('height="360"');
+    expect(trackCode).not.toContain("ref=");
+  });
+
+  it("a mint payload parses, junk doesn't, and the copy states the burn honestly", () => {
+    const mint = parseDownloadMint({ token: "tok", url: "/api/store/download/tok", expiresAt: "2026-11-01T00:00:00.000Z", maxUses: 5 });
+    expect(mint).toMatchObject({ url: "/api/store/download/tok", maxUses: 5 });
+    expect(parseDownloadMint(null)).toBeNull();
+    expect(parseDownloadMint({})).toBeNull();
+    const copy = downloadMintCopy(mint!);
+    expect(copy).toContain("5 times");
+    expect(copy).toContain("one use is spent");
+  });
+
+  it("the receipt line carries the receipt id, the amount and the date", () => {
+    const line = shelfReceiptLine(purchase());
+    expect(line).toContain("Receipt cs_123");
+    expect(line).toContain("$5.00");
+    expect(line).toContain("2026");
   });
 });
 
