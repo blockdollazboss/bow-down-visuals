@@ -493,7 +493,7 @@ export default function RoyalSkeetGame({
         data-testid="skeet-canvas"
       />
       <div className="pointer-events-none absolute left-3 top-4 flex flex-wrap gap-2 text-xs font-bold">
-        <span className="rounded-full bg-black/60 px-3 py-1 text-[#f0d878]">
+        <span className={`rounded-full bg-black/60 px-3 py-1 ${light ? "text-[#7A5A12]" : "text-[#f0d878]"}`}>
           Score {hud.score.toLocaleString()}
         </span>
         <span className="rounded-full bg-black/60 px-3 py-1 text-white/85">
