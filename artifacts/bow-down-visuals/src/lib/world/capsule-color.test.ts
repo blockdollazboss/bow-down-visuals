@@ -35,8 +35,9 @@ describe("capsule body color", () => {
     for (const tint of PRESENCE_TINTS) {
       const out = hexToHsl(capsuleBodyHex(tint));
       expect(out, tint).not.toBeNull();
-      expect(out!.h, tint).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN);
-      expect(out!.h, tint).toBeLessThanOrEqual(CAPSULE_HUE_MAX);
+      // ±0.5°/±0.01: 8-bit hex storage quantizes the round-trip.
+      expect(out!.h, tint).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN - 0.5);
+      expect(out!.h, tint).toBeLessThanOrEqual(CAPSULE_HUE_MAX + 0.5);
       expect(out!.s, tint).toBeGreaterThanOrEqual(CAPSULE_SAT_MIN - 0.01);
       expect(out!.s, tint).toBeLessThanOrEqual(CAPSULE_SAT_MAX + 0.01);
       expect(out!.l, tint).toBeGreaterThanOrEqual(CAPSULE_LIGHT_MIN - 0.01);
@@ -48,7 +49,7 @@ describe("capsule body color", () => {
     const coral = hexToHsl("#ff9d7a")!;
     expect(coral.h).toBeLessThan(25); // skin-adjacent hue going in…
     const out = hexToHsl(capsuleBodyHex("#ff9d7a"))!;
-    expect(out.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN); // …gold coming out
+    expect(out.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN - 0.5); // …gold coming out
     expect(out.l).toBeLessThanOrEqual(CAPSULE_LIGHT_MAX);
   });
 
@@ -60,8 +61,8 @@ describe("capsule body color", () => {
 
   it("house gold stays house gold family, and the map is stable", () => {
     const out = capsuleBodyHex(HOUSE_GOLD_HEX);
-    expect(hexToHsl(out)!.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN);
-    expect(hexToHsl(out)!.h).toBeLessThanOrEqual(CAPSULE_HUE_MAX);
+    expect(hexToHsl(out)!.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN - 0.5);
+    expect(hexToHsl(out)!.h).toBeLessThanOrEqual(CAPSULE_HUE_MAX + 0.5);
     for (const tint of PRESENCE_TINTS) {
       expect(capsuleBodyHex(tint)).toBe(capsuleBodyHex(tint));
     }
@@ -71,7 +72,7 @@ describe("capsule body color", () => {
     expect(capsuleBodyHex("not-a-color")).toBe(HOUSE_GOLD_HEX);
     expect(capsuleBodyHex("")).toBe(HOUSE_GOLD_HEX);
     const grey = hexToHsl(capsuleBodyHex("#808080"))!;
-    expect(grey.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN);
+    expect(grey.h).toBeGreaterThanOrEqual(CAPSULE_HUE_MIN - 0.5);
     expect(grey.s).toBeGreaterThanOrEqual(CAPSULE_SAT_MIN - 0.01);
   });
 });
