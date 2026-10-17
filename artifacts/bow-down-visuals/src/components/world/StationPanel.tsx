@@ -22,7 +22,7 @@ import {
   PANEL_ROUTE_PATHS,
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
-import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { NativePlaceholder, ShopStand, TransferFooter } from "@/components/world/native";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -1055,13 +1055,18 @@ export default function StationPanel(props: StationPanelProps) {
       case "guest-pitch":
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
-        /* The migration placeholder until this station's pattern
-           surface ships — honest, palace-voiced, and framed below
-           by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+        /* A shipped pattern surface renders its instrument; until
+           a station's pattern ships, the migration placeholder —
+           honest, palace-voiced, framed below by the standard
+           transfer footer. Pattern lanes swap this one branch's
+           contents; the frame and footer stay. */
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            <NativePlaceholder station={station} isLight={isLight} />
+            {resolution.pattern === "shop" ? (
+              <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
+            ) : (
+              <NativePlaceholder station={station} isLight={isLight} />
+            )}
           </PanelBoundary>
         );
       case "custom":

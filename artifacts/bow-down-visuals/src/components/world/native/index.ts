@@ -19,3 +19,4 @@ export {
   type CreateDeskRunnerProps,
 } from "./CreateDeskRunner";
 export { NativePlaceholder, type NativePlaceholderProps } from "./NativePlaceholder";
+export { ShopStand, type ShopStandProps } from "./ShopStands";
