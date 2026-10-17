@@ -107,8 +107,8 @@ async function get(path: string) {
 /* ─── Plausibility caps ──────────────────────────────────────────────── */
 
 describe("arcade score validation", () => {
-  it("caps are derived from construction: gallery 45s perfect round = 91 targets × 150", () => {
-    expect(maxPlausibleScore("gallery", 45_000)).toBe(91 * 150);
+  it("caps are derived from construction: skeet 45s perfect round = 91 targets × 150", () => {
+    expect(maxPlausibleScore("skeet", 45_000)).toBe(91 * 150);
   });
 
   it("runner cap grows with time and stays finite", () => {
@@ -126,7 +126,7 @@ describe("arcade score validation", () => {
 
   it("accepts an ordinary mid run", () => {
     expect(validateArcadeScore({ game: "runner", score: 640, durationMs: 48_000 }).ok).toBe(true);
-    expect(validateArcadeScore({ game: "gallery", score: 4_200, durationMs: 45_000 }).ok).toBe(true);
+    expect(validateArcadeScore({ game: "skeet", score: 4_200, durationMs: 45_000 }).ok).toBe(true);
   });
 
   it("rejects the billion-points printer instantly", () => {
@@ -137,7 +137,7 @@ describe("arcade score validation", () => {
   it("rejects too-short, over-long, and over-round durations", () => {
     expect(validateArcadeScore({ game: "runner", score: 10, durationMs: 500 }).ok).toBe(false);
     expect(validateArcadeScore({ game: "runner", score: 10, durationMs: 21 * 60_000 }).ok).toBe(false);
-    expect(validateArcadeScore({ game: "gallery", score: 100, durationMs: 52_000 }).ok).toBe(false);
+    expect(validateArcadeScore({ game: "skeet", score: 100, durationMs: 52_000 }).ok).toBe(false);
   });
 
   it("rejects malformed shapes", () => {
@@ -169,7 +169,7 @@ describe("POST /api/arcade/scores", () => {
   });
 
   it("rejects an impossible score and stores NOTHING", async () => {
-    const r = await post("/arcade/scores", { game: "gallery", score: 999_999, durationMs: 45_000 });
+    const r = await post("/arcade/scores", { game: "skeet", score: 999_999, durationMs: 45_000 });
     expect(r.status).toBe(400);
     expect(h.fake.store("arcadeScores").rows).toHaveLength(0);
   });
@@ -189,12 +189,12 @@ describe("POST /api/arcade/scores", () => {
 describe("GET /api/arcade/leaderboard", () => {
   it("ranks best-per-user with display names and a Creator fallback", async () => {
     h.fake.seed("arcadeScores", [
-      { id: "s1", userId: OTHER, game: "gallery", score: 3_000, durationMs: 45_000 },
-      { id: "s2", userId: OTHER, game: "gallery", score: 1_000, durationMs: 45_000 },
-      { id: "s3", userId: ME, game: "gallery", score: 2_000, durationMs: 45_000 },
-      { id: "s4", userId: THIRD, game: "gallery", score: 500, durationMs: 45_000 },
+      { id: "s1", userId: OTHER, game: "skeet", score: 3_000, durationMs: 45_000 },
+      { id: "s2", userId: OTHER, game: "skeet", score: 1_000, durationMs: 45_000 },
+      { id: "s3", userId: ME, game: "skeet", score: 2_000, durationMs: 45_000 },
+      { id: "s4", userId: THIRD, game: "skeet", score: 500, durationMs: 45_000 },
     ]);
-    const r = await get("/arcade/leaderboard?game=gallery");
+    const r = await get("/arcade/leaderboard?game=skeet");
     expect(r.status).toBe(200);
     expect(r.body.rows.map((x: any) => [x.rank, x.name, x.best, x.plays])).toEqual([
       [1, "Gold Fin Gary", 3_000, 2],
@@ -234,12 +234,12 @@ describe("GET /api/arcade/me", () => {
     h.fake.seed("arcadeScores", [
       { id: "s1", userId: ME, game: "runner", score: 450, durationMs: 35_000 },
       { id: "s2", userId: ME, game: "runner", score: 800, durationMs: 50_000 },
-      { id: "s3", userId: OTHER, game: "gallery", score: 9_999, durationMs: 45_000 },
+      { id: "s3", userId: OTHER, game: "skeet", score: 9_999, durationMs: 45_000 },
     ]);
     const r = await get("/arcade/me");
     expect(r.body.games).toEqual([
       { game: "runner", best: 800, plays: 2 },
-      { game: "gallery", best: null, plays: 0 },
+      { game: "skeet", best: null, plays: 0 },
     ]);
   });
 });

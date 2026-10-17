@@ -5,7 +5,7 @@
    game faster or more generous here, raise the server caps there too,
    or legitimate runs will start failing validation. */
 
-export type ArcadeGameId = "runner" | "gallery";
+export type ArcadeGameId = "runner" | "skeet";
 
 export interface ArcadeRunResult {
   game: ArcadeGameId;
@@ -43,36 +43,38 @@ export function runnerScore(distancePx: number, coins: number): number {
   return Math.floor(distancePx / RUNNER.pxPerPoint) + coins * RUNNER.coinPoints;
 }
 
-/* ── Shooter Gallery ─────────────────────────────────────────────────────
-   Fixed 45-second rounds. Targets spawn every 900ms at the start,
-   ramping down to 550ms by the end (server cap assumes a 500ms floor).
-   A hit scores 100 + 5 per streak step (streak bonus caps at +50);
-   a miss costs 25 and resets the streak. */
-export const GALLERY = {
+/* ── Royal Skeet ─────────────────────────────────────────────────────────
+   (Replaced the Shooter Gallery in the games upgrade — same scoring
+   contract, ported whole.) Fixed 45-second rounds. Gold plates launch
+   every 900ms at the start, ramping down to 550ms by the end (server
+   cap assumes a 500ms floor), and arc across the courtyard on real
+   trajectories. A hit scores 100 + 5 per streak step (streak bonus
+   caps at +50); a shot that hits nothing costs 25 and resets the
+   streak. Plates that fly past unbroken cost nothing. */
+export const SKEET = {
   width: 960,
   height: 540,
   roundMs: 45_000,
   spawnStartMs: 900,
   spawnEndMs: 550,
-  targetLifetimeMs: 1_300,
-  targetRadius: 46,
+  plateRadius: 46,
   baseHitPoints: 100,
   streakStepPoints: 5,
   streakBonusCapSteps: 10,
   missPenalty: 25,
 } as const;
 
-export function gallerySpawnIntervalMs(elapsedMs: number): number {
-  const t = Math.min(1, Math.max(0, elapsedMs / GALLERY.roundMs));
-  return GALLERY.spawnStartMs + (GALLERY.spawnEndMs - GALLERY.spawnStartMs) * t;
+export function skeetSpawnIntervalMs(elapsedMs: number): number {
+  const t = Math.min(1, Math.max(0, elapsedMs / SKEET.roundMs));
+  return SKEET.spawnStartMs + (SKEET.spawnEndMs - SKEET.spawnStartMs) * t;
 }
 
-export function galleryHitPoints(streak: number): number {
-  const steps = Math.min(Math.max(streak, 0), GALLERY.streakBonusCapSteps);
-  return GALLERY.baseHitPoints + steps * GALLERY.streakStepPoints;
+export function skeetHitPoints(streak: number): number {
+  const steps = Math.min(Math.max(streak, 0), SKEET.streakBonusCapSteps);
+  return SKEET.baseHitPoints + steps * SKEET.streakStepPoints;
 }
 
-export function galleryAccuracy(hits: number, shots: number): number {
+export function skeetAccuracy(hits: number, shots: number): number {
   if (shots <= 0) return 0;
   return Math.round((hits / shots) * 100);
 }
@@ -85,7 +87,7 @@ export function galleryAccuracy(hits: number, shots: number): number {
    throwaway runs don't burn the dice roll. */
 export const DROP_QUALIFYING_SCORE: Record<ArcadeGameId, number> = {
   runner: 250,
-  gallery: 1_500,
+  skeet: 1_500,
 };
 
 export const ARCADE_GAME_META: Record<
@@ -96,8 +98,8 @@ export const ARCADE_GAME_META: Record<
     title: "Shark King Endless Runner",
     tagline: "Ride the gold wave. Jump the crates, duck the banners, grab the Bucs.",
   },
-  gallery: {
-    title: "Shooter Gallery",
-    tagline: "45 seconds. Pop the gold fins, build your streak, don't spray.",
+  skeet: {
+    title: "Royal Skeet",
+    tagline: "Break the Plates — 45 seconds. Gold plates arc over the courtyard; shatter them mid-flight, build your streak, don't spray.",
   },
 };

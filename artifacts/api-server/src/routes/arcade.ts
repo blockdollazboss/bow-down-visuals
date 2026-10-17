@@ -17,7 +17,7 @@ const router = Router();
 
 /* ─── Arcade v1 (#6 owner's games pick) ───────────────────────────────────
    POST /api/arcade/scores        — submit a finished run (validated)
-   GET  /api/arcade/leaderboard   — ?game=runner|gallery, top 10 bests
+   GET  /api/arcade/leaderboard   — ?game=runner|skeet, top 10 bests
    GET  /api/arcade/me            — viewer's best + play count per game
 
    Scores are STATUS ONLY. No Visual Bucs are minted, moved, or promised

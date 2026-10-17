@@ -150,6 +150,9 @@ interface Room {
   seq: number;
   /* Match state */
   pool: PartyQuestion[];
+  /** Ids of every question actually asked this match — recorded at
+   *  the end as each player's "recently seen" set (see recentByUser). */
+  usedIds: Set<string>;
   totalRounds: number;
   roundIndex: number; // 0-based; -1 before start
   current: PartyQuestion | null;
@@ -218,6 +221,11 @@ export function placementsFor(standings: Player[], game: PartyGame): Map<string,
 export class PartyRooms {
   private rooms = new Map<string, Room>();
   private socketRoom = new Map<WsClientSocket, Room>();
+  /** Each player's most recent match's question ids (in-memory,
+   *  process-lifetime — matching the rooms themselves). Selection
+   *  avoids re-dealing what a seated player JUST saw, so back-to-back
+   *  matches at the same table don't repeat themselves. */
+  private recentByUser = new Map<string, Set<string>>();
   private peerCounter = 0;
   private readonly now: () => number;
   private readonly schedule: (fn: () => void, ms: number) => unknown;
@@ -263,6 +271,7 @@ export class PartyRooms {
       players: [],
       seq: 0,
       pool: [],
+      usedIds: new Set(),
       totalRounds: 0,
       roundIndex: -1,
       current: null,
@@ -475,7 +484,18 @@ export class PartyRooms {
 
   /* ── Match flow ────────────────────────────────────────────────────── */
 
+  /** Question ids the seated players saw in their most recent match —
+   *  the union selection should deal around when it can. */
+  private recentAvoidSet(room: Room): Set<string> {
+    const avoid = new Set<string>();
+    for (const p of room.players) {
+      for (const id of this.recentByUser.get(p.userId) ?? []) avoid.add(id);
+    }
+    return avoid;
+  }
+
   private startMatch(room: Room, roundsRaw: unknown, now: number): void {
+    room.usedIds = new Set();
     if (room.game === "duel") {
       room.totalRounds = PARTY_DUEL_MAX_ROUNDS;
       room.pool = shuffle(PARTY_QUESTIONS, this.rng);
@@ -485,7 +505,16 @@ export class PartyRooms {
           ? roundsRaw
           : 8;
       room.totalRounds = rounds;
-      room.pool = shuffle(PARTY_QUESTIONS, this.rng).slice(0, rounds);
+      // Deal from questions nobody at this table saw in their last
+      // match; only reach back into the seen pile if the fresh pile
+      // runs short (a tiny test bank, never the grown real one).
+      const avoid = this.recentAvoidSet(room);
+      const fresh = shuffle(PARTY_QUESTIONS.filter((q) => !avoid.has(q.id)), this.rng);
+      if (fresh.length < rounds) {
+        const seen = shuffle(PARTY_QUESTIONS.filter((q) => avoid.has(q.id)), this.rng);
+        fresh.push(...seen.slice(0, rounds - fresh.length));
+      }
+      room.pool = fresh.slice(0, rounds);
     }
     room.roundIndex = -1;
     for (const p of room.players) {
@@ -558,10 +587,14 @@ export class PartyRooms {
     this.clearTimer(room);
     let q = preset;
     if (!q) {
-      const used = new Set(room.pool.slice(0, room.roundIndex).map((x) => x.id));
+      const used = room.usedIds;
       const inCategory = PARTY_QUESTIONS.filter((x) => x.category === category && !used.has(x.id));
+      // Prefer questions the duelists didn't just see last match.
+      const avoid = this.recentAvoidSet(room);
+      const fresh = inCategory.filter((x) => !avoid.has(x.id));
+      const candidates = fresh.length > 0 ? fresh : inCategory;
       q =
-        inCategory[Math.floor(this.rng() * inCategory.length)] ??
+        candidates[Math.floor(this.rng() * candidates.length)] ??
         PARTY_QUESTIONS.find((x) => !used.has(x.id));
       if (!q) {
         this.finishMatch(room, true);
@@ -569,6 +602,7 @@ export class PartyRooms {
       }
       room.pool[room.roundIndex] = q;
     }
+    room.usedIds.add(q.id);
     room.current = q;
     room.answers = new Map();
     room.phase = "question";
@@ -645,6 +679,13 @@ export class PartyRooms {
 
   private finishMatch(room: Room, completed: boolean): void {
     this.clearTimer(room);
+    // Whatever was actually asked becomes each player's "recently
+    // seen" — win, lose, or host-ended early, they saw those questions.
+    if (room.usedIds.size > 0) {
+      for (const p of room.players) {
+        this.recentByUser.set(p.userId, new Set(room.usedIds));
+      }
+    }
     room.phase = "podium";
     const standings = sortStandings(room.players, room.game);
     const placements = placementsFor(standings, room.game);
