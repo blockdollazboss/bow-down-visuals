@@ -90,7 +90,7 @@ export interface WorldPeer {
   rotY: number;
 }
 
-export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed" | "removed";
+export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed" | "removed" | "replaced";
 
 /** The room this client stands in, as the server named it. */
 export interface PalaceRoomInfo {
@@ -289,16 +289,78 @@ export const WORLD_KEEPALIVE_INTERVAL_MS = 25_000;
  *  is not a quiet room, it's a corpse. */
 export const WORLD_LIVENESS_TIMEOUT_MS = 75_000;
 
-export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, token: string | null): string {
+export function defaultWorldSocketUrl(
+  loc: { protocol: string; host: string },
+  token: string | null,
+  guestId?: string | null,
+): string {
   const proto = loc.protocol === "https:" ? "wss:" : "ws:";
-  const q = token ? `?token=${encodeURIComponent(token)}` : "";
+  /* A member's account is their presence key — no guest id rides
+   * along. A guest carries their tab's session id so a rejoin
+   * (reload, reconnect) replaces its own lingering ghost peer on
+   * the server instead of stacking a second "Guest" beside it. */
+  const q = token
+    ? `?token=${encodeURIComponent(token)}`
+    : guestId
+      ? `?guest=${encodeURIComponent(guestId)}`
+      : "";
   return `${proto}//${loc.host}/api/world/ws${q}`;
+}
+
+/** Close code the server uses when this peer was replaced by its
+ *  own identity rejoining elsewhere (mirror of the server's
+ *  WORLD_REPLACED_CLOSE_CODE in lib/world-room.ts). Terminal like
+ *  the host's removal: no auto-reconnect — two tabs of one person
+ *  must never evict each other in a loop. */
+export const WORLD_REPLACED_CLOSE_CODE = 4414;
+
+const WORLD_GUEST_SESSION_KEY = "bdv.world.guestSession";
+const GUEST_ID_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** A fresh guest session id, in the charset the server accepts. */
+export function newWorldGuestSessionId(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return (
+    Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 10) +
+    Math.random().toString(36).slice(2, 10)
+  ).slice(0, 32);
+}
+
+let cachedGuestSessionId: string | null = null;
+
+/** This TAB's guest session id: minted once, kept in
+ *  sessionStorage so a reload of the same tab keeps the same id
+ *  (and replaces its ghost), while a new tab is a new guest.
+ *  Storage failures (private modes, odd embeds) fall back to a
+ *  memory-only id — rejoins within the page's life still replace,
+ *  which is the case that matters most. */
+export function worldGuestSessionId(): string {
+  if (cachedGuestSessionId) return cachedGuestSessionId;
+  try {
+    const stored = window.sessionStorage.getItem(WORLD_GUEST_SESSION_KEY);
+    if (stored && GUEST_ID_SHAPE.test(stored)) {
+      cachedGuestSessionId = stored;
+      return stored;
+    }
+  } catch {
+    /* storage unavailable — memory-only id below */
+  }
+  const id = newWorldGuestSessionId();
+  cachedGuestSessionId = id;
+  try {
+    window.sessionStorage.setItem(WORLD_GUEST_SESSION_KEY, id);
+  } catch {
+    /* memory-only — see above */
+  }
+  return id;
 }
 
 /** The page overlay for a client status — null means "you're inside,
  *  no overlay". Error and full are honest dead-ends with their own
  *  cards; closed (deliberate leave) shows nothing. */
-export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | "error" | "removed" | null {
+export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | "error" | "removed" | "replaced" | null {
   switch (status) {
     case "connecting":
       return "connecting";
@@ -308,6 +370,8 @@ export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | 
       return "error";
     case "removed":
       return "removed";
+    case "replaced":
+      return "replaced";
     default:
       return null;
   }
@@ -584,8 +648,18 @@ export class WorldClient {
     };
   }
 
-  private handleSocketClose(_ev: { code?: number }): void {
-    if (this.status === "full" || this.status === "removed") return; // already explained itself
+  private handleSocketClose(ev: { code?: number }): void {
+    /* Replaced by my own identity rejoining elsewhere: terminal,
+     * whatever the frame said or didn't say — the server sends a
+     * `replaced` frame first, but the close code alone must be
+     * enough, because a reconnect here would evict the newer
+     * copy and start a tab war. */
+    if (ev.code === WORLD_REPLACED_CLOSE_CODE) {
+      this.clearConnectTimers();
+      this.setStatus("replaced");
+      return;
+    }
+    if (this.status === "full" || this.status === "removed" || this.status === "replaced") return; // already explained itself
     if (this.inSequence && !this.everInside) {
       /* A close before this sequence's welcome — clean (1000/1005,
        * a draining server) or abnormal (1006, a killed handshake) —
@@ -1186,6 +1260,16 @@ export class WorldClient {
          * the status (and its honest card) must survive it. */
         this.clearConnectTimers();
         this.setStatus("removed");
+        return;
+      }
+      case "replaced": {
+        /* My own identity rejoined on a newer connection (another
+         * tab, another device): this copy steps aside. The close
+         * follows immediately; the status must survive it — and no
+         * reconnect may ever fire from here, or the two copies
+         * would evict each other forever. */
+        this.clearConnectTimers();
+        this.setStatus("replaced");
         return;
       }
       default:

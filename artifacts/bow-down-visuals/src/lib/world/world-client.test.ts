@@ -19,6 +19,9 @@ import {
   WorldClient,
   worldOverlay,
   defaultWorldSocketUrl,
+  worldGuestSessionId,
+  newWorldGuestSessionId,
+  WORLD_REPLACED_CLOSE_CODE,
   WORLD_CONNECT_MAX_ATTEMPTS,
   WORLD_FIRST_WELCOME_WATCHDOG_MS,
   WORLD_WELCOME_WATCHDOG_MS,
@@ -1404,5 +1407,100 @@ describe("session longevity — keepalive + the quiet reconnect", () => {
     h.sockets[2]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
     expect(h.client.status).toBe("inside");
     expect(h.reconnectEvents).toEqual([true, false, true, false]);
+  });
+});
+
+describe("presence truth — guest session id + the replaced state", () => {
+  const LOC = { protocol: "https:", host: "hall.test" };
+
+  it("the socket URL carries the guest id only for guests — a member's token stands alone", () => {
+    expect(defaultWorldSocketUrl(LOC, null, "tab-session-1")).toBe(
+      "wss://hall.test/api/world/ws?guest=tab-session-1",
+    );
+    const memberUrl = defaultWorldSocketUrl(LOC, "tok en", "tab-session-1");
+    expect(memberUrl.startsWith("wss://hall.test/api/world/ws?")).toBe(true);
+    expect(memberUrl).toContain("tok%20en"); // the token, encoded
+    expect(memberUrl).not.toContain("guest="); // members carry no guest id
+    expect(defaultWorldSocketUrl(LOC, null)).toBe("wss://hall.test/api/world/ws");
+    expect(defaultWorldSocketUrl(LOC, null, null)).toBe("wss://hall.test/api/world/ws");
+  });
+
+  it("the tab's guest session id is stable across calls and shaped for the server's gate", () => {
+    const a = worldGuestSessionId();
+    const b = worldGuestSessionId();
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  });
+
+  it("fresh guest ids are unique and in-shape", () => {
+    const a = newWorldGuestSessionId();
+    const b = newWorldGuestSessionId();
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(b).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  });
+
+  it("replaced flips status to replaced — and the 4414 close behind it can't stomp it", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    socket.receive({ type: "replaced" });
+    expect(client.status).toBe("replaced");
+    socket.onclose?.({ code: WORLD_REPLACED_CLOSE_CODE });
+    expect(client.status).toBe("replaced");
+    expect(worldOverlay(client.status)).toBe("replaced");
+    expect(worldOverlay("replaced")).toBe("replaced");
+  });
+
+  it("a bare 4414 close — frame lost on the way out — still lands on replaced, never on error or a reconnect", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    socket.onclose?.({ code: WORLD_REPLACED_CLOSE_CODE });
+    expect(client.status).toBe("replaced");
+  });
+
+  it("replaced is terminal: no keepalive, no quiet reconnect, no second socket — the tab war cannot start", async () => {
+    let nextId = 1;
+    const timers = new Map<number, { fn: () => void; ms: number }>();
+    const sockets: FakeSocket[] = [];
+    const statuses: WorldStatus[] = [];
+    const client = new WorldClient({
+      getAccessToken: async () => "token-abc",
+      socketUrl: (token) => `ws://hall/api/world/ws${token ? `?token=${token}` : ""}`,
+      openSocket: () => {
+        const s = new FakeSocket();
+        sockets.push(s);
+        return s;
+      },
+      now: () => 0,
+      setTimer: (fn, ms) => {
+        const id = nextId++;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      clearTimer: (handle) => {
+        timers.delete(handle as number);
+      },
+    });
+    client.onStatus = (s) => statuses.push(s);
+    await client.connect();
+    sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(timers.size).toBe(1); // the keepalive
+
+    sockets[0]!.receive({ type: "replaced" });
+    expect(client.status).toBe("replaced");
+    // The one pending keepalive tick fires into a non-inside
+    // status and dies without pinging or re-arming (the same
+    // self-termination the removed state relies on).
+    const pending = [...timers.values()];
+    expect(pending).toHaveLength(1);
+    timers.clear();
+    pending[0]!.fn();
+    expect(timers.size).toBe(0);
+    expect(sockets[0]!.sent.filter((f) => f.type === "ping")).toEqual([]);
+    sockets[0]!.onclose?.({ code: WORLD_REPLACED_CLOSE_CODE });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sockets).toHaveLength(1); // no reconnect socket ever opened
+    expect(client.reconnecting).toBe(false);
+    expect(statuses).not.toContain("error");
+    expect(client.status).toBe("replaced");
   });
 });

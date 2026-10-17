@@ -19,6 +19,7 @@ import {
   WorldClient,
   worldOverlay,
   defaultWorldSocketUrl,
+  worldGuestSessionId,
   fetchWorldDirectory,
   HALL_ROOM_ID,
   type WorldStatus,
@@ -770,7 +771,11 @@ export default function WorldPage() {
 
       const client = new WorldClient({
         getAccessToken,
-        socketUrl: (token) => defaultWorldSocketUrl(window.location, token),
+        /* Guests carry their tab's session id so a rejoin replaces
+         * its own ghost peer — one tab, one presence, an honest
+         * headcount. Members are keyed by their account instead. */
+        socketUrl: (token) =>
+          defaultWorldSocketUrl(window.location, token, token ? null : worldGuestSessionId()),
         openSocket: (url) => new WebSocket(url) as unknown as import("@/lib/world/world-client").WorldSocketLike,
       });
       clientRef.current = client;
@@ -1455,6 +1460,21 @@ export default function WorldPage() {
               <Link href="/go-live" className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 Back to Go Live
               </Link>
+            </div>
+          </div>
+        )}
+
+        {overlay === "replaced" && (
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
+              <Users className="mx-auto h-8 w-8 text-[#d4af37]" />
+              <h2 className="mt-3 text-lg font-black">You're in the World in another tab</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                This copy stepped aside — one person, one presence, so the headcount never lies. Want this tab instead? Walk back in here and the other copy will step aside.
+              </p>
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                <RotateCcw className="h-4 w-4" /> Re-enter here
+              </button>
             </div>
           </div>
         )}
