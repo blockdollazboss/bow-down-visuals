@@ -58,6 +58,19 @@ export interface AvatarSettings {
   character: "shark" | "mask" | "mic" | "upload";
   /** The uploaded picture (upload character only): URL or object URL. */
   imageUrl?: string;
+  /** Creative Vault link (stream-kit/avatar-vault.ts): when set, this
+   *  avatar IS that vault character — the studio resolves the row's
+   *  current portrait into `imageUrl` (the uploaded-picture rig) and
+   *  its name into `vaultName`, at pick time and again at studio
+   *  load, so a portrait edited in the vault reaches the stream.
+   *  The id is the same vault uuid the World and the studio picker
+   *  carry — and the id the character-voice resolver takes, so the
+   *  stream's voice layer can key the character's voice profile off
+   *  it later (noted, deliberately not built here). */
+  vaultId?: string;
+  /** The linked character's name as last resolved from its vault
+   *  row — display only; the row is the source of truth. */
+  vaultName?: string;
   /** Requested drive: face tracking, voice-only, or idle. The ladder
    *  (avatar-drive.ts) falls back honestly when a rung is missing. */
   drive: "face" | "voice" | "idle";

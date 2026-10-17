@@ -7,7 +7,7 @@
  * media URL). Editing happens on Preview; Program only changes on a
  * transition — that's the point of studio mode.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -31,6 +31,13 @@ import {
   type WidgetKind,
 } from "@/lib/stream-kit/scenes";
 import { AVATAR_CHARACTERS, type AvatarCharacterId } from "@/lib/stream-kit/avatar-rigs";
+import {
+  applyVaultCharacter,
+  refreshVaultAvatarSettings,
+  unlinkVaultCharacter,
+} from "@/lib/stream-kit/avatar-vault";
+import { fetchVaultCharacters, type VaultCharacter } from "@/lib/world/characters";
+import { useAuth } from "@/contexts/AuthContext";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildSourceContextItems } from "@/lib/studio-context-menu";
 
@@ -63,6 +70,7 @@ export default function SourcesPanel({
   onNotify: (msg: string) => void;
 }) {
   const scene = stage.previewScene();
+  const { getAccessToken } = useAuth();
   const [menu, setMenu] = useState<{ x: number; y: number; sourceId: string } | null>(null);
   const [addType, setAddType] = useState<SourceType>("text");
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -77,6 +85,46 @@ export default function SourcesPanel({
 
   const update = (source: SceneSource, patch: Partial<SceneSource>) =>
     stage.updateSource(scene.id, source.id, patch);
+
+  /* Creative Vault roster for the avatar picker — the same read the
+     studio picker and the World use. Fetched once, the first time an
+     avatar source is edited; [] means "loaded, none / unavailable"
+     and the stock characters below simply stand alone. */
+  const [vaultCharacters, setVaultCharacters] = useState<VaultCharacter[] | null>(null);
+  const vaultFetchStarted = useRef(false);
+  const editingAvatar = selected?.type === "avatar";
+  useEffect(() => {
+    if (!editingAvatar || vaultFetchStarted.current) return;
+    vaultFetchStarted.current = true;
+    let cancelled = false;
+    fetchVaultCharacters(getAccessToken)
+      .then((chars) => {
+        if (!cancelled) setVaultCharacters(chars);
+      })
+      .catch(() => {
+        if (!cancelled) setVaultCharacters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editingAvatar, getAccessToken]);
+
+  /* A vault-linked avatar re-resolves against the fresh roster the
+     moment it lands — a portrait edited in the vault reaches the
+     stream without re-picking the character. */
+  const selectedAvatar = selected?.type === "avatar" ? selected.avatar : undefined;
+  useEffect(() => {
+    if (!vaultCharacters || !selected || selected.type !== "avatar" || !selected.avatar) return;
+    const next = refreshVaultAvatarSettings(selected.avatar, vaultCharacters);
+    if (next) update(selected, { avatar: next });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    vaultCharacters,
+    selected?.id,
+    selectedAvatar?.vaultId,
+    selectedAvatar?.imageUrl,
+    selectedAvatar?.vaultName,
+  ]);
 
   const addSource = () => {
     const created = stage.addSource(scene.id, addType);
@@ -344,13 +392,75 @@ export default function SourcesPanel({
 
           {selected.type === "avatar" && selected.avatar && (
             <div className="space-y-2">
+              {vaultCharacters !== null && vaultCharacters.length > 0 && (
+                <div>
+                  <p className={`mb-1 text-[10px] font-semibold uppercase ${label}`}>
+                    Go live as your character
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {vaultCharacters.map((c) => {
+                      const linked = selected.avatar!.vaultId === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          disabled={!c.portraitUrl}
+                          onClick={() =>
+                            update(selected, { avatar: applyVaultCharacter(selected.avatar!, c) })
+                          }
+                          className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                            linked
+                              ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#8a6d1f] dark:text-[#e8cf8a]"
+                              : isLight
+                                ? "border-[#C9A84C]/30 text-[#6B5B36]"
+                                : "border-white/15 text-zinc-400"
+                          }`}
+                          data-testid={`avatar-vault-${c.id}`}
+                        >
+                          {c.portraitUrl ? (
+                            <img
+                              src={c.portraitUrl}
+                              alt=""
+                              className="h-5 w-5 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/20 text-[9px] font-black text-[#8a6d1f] dark:text-[#e8cf8a]">
+                              {c.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0 truncate">{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selected.avatar.vaultId ? (
+                    <p className={`mt-1 text-[11px] leading-snug ${label}`}>
+                      Streaming as{" "}
+                      <span className="font-semibold">{selected.avatar.vaultName}</span> — the
+                      portrait comes from your Creative Vault; edit it there and the stream
+                      picks it up.
+                    </p>
+                  ) : vaultCharacters.some((c) => !c.portraitUrl) ? (
+                    <p className={`mt-1 text-[11px] leading-snug ${label}`}>
+                      Characters without a portrait can't perform yet — add one in the Creative
+                      Vault.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-1.5">
                 {AVATAR_CHARACTERS.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() =>
-                      update(selected, { avatar: { ...selected.avatar!, character: c.id as AvatarCharacterId } })
+                      update(selected, {
+                        avatar: {
+                          ...unlinkVaultCharacter(selected.avatar!),
+                          character: c.id as AvatarCharacterId,
+                        },
+                      })
                     }
                     className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
                       selected.avatar!.character === c.id
@@ -370,7 +480,12 @@ export default function SourcesPanel({
                   <input
                     value={selected.avatar.imageUrl ?? ""}
                     onChange={(e) =>
-                      update(selected, { avatar: { ...selected.avatar!, imageUrl: e.target.value } })
+                      update(selected, {
+                        avatar: {
+                          ...unlinkVaultCharacter(selected.avatar!),
+                          imageUrl: e.target.value,
+                        },
+                      })
                     }
                     placeholder="Picture URL — or upload below (PNG with transparency reads best)"
                     className={inputCls}
@@ -384,7 +499,10 @@ export default function SourcesPanel({
                       const file = e.target.files?.[0];
                       if (file) {
                         update(selected, {
-                          avatar: { ...selected.avatar!, imageUrl: URL.createObjectURL(file) },
+                          avatar: {
+                            ...unlinkVaultCharacter(selected.avatar!),
+                            imageUrl: URL.createObjectURL(file),
+                          },
                         });
                         onNotify("Your picture is the character now.");
                       }
