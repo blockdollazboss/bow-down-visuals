@@ -1040,6 +1040,21 @@ export default function WorldPage() {
       bootPhase = false;
       const connectPromise = client.connect();
       await loadScreen();
+      /* Boot-lifecycle guard: if the effect was cleaned up while
+         the screen fetch was in flight, this boot is DEAD — its
+         cleanup already ran, reading the interval slots below as
+         still-null. Arming them now would leak all four forever,
+         ticking against a disposed scene, and the tail would go
+         on awaiting a dead client's connect promise. Disconnect
+         from the boot's own hand too (the cleanup disconnects via
+         clientRef; this makes the boot itself guarantee it), so
+         the client this boot started can never hold a socket past
+         the boot's end — and arm nothing. A live boot never sees
+         cancelled here, so entry behavior is unchanged. */
+      if (cancelled) {
+        client.disconnect();
+        return;
+      }
       screenPoll = setInterval(loadScreen, 45_000);
 
       /* Proximity voice follows the avatars. */

@@ -182,6 +182,10 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/catalog-vault/vault": { cost: 200, feature: "Catalog Vault — permanent release hosting" },
   "/api/shoutouts/ai-message": { cost: 100, feature: "Shoutout Message" },
   "/api/press-kit/generate": { cost: 300, feature: "Press Kit Generator" },
+  // Parameterized route — the :id segment is the kit id. getCreditCost
+  // matches literally, so this entry records the server charge in the
+  // registry; the press-kit page states the price in its own copy.
+  "/api/press-kit/:id/regenerate-bio": { cost: 100, feature: "Press Kit Bio Refresh" },
   "/api/press-release": { cost: 100, feature: "Press Release Generator" },
   "/api/gamers/ideas": { cost: 100, feature: "Gamer Content Ideas" },
   "/api/show-finder/pitch": { cost: 100, feature: "Show Pitch Draft" },
