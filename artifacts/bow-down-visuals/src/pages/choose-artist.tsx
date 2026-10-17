@@ -8,6 +8,7 @@ import { fetchMyProfile } from "@/lib/artist-profiles";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { SUBJECT_TYPE_META, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
+import { sortSpotlightVaults, splitSpotlightVaults } from "@/lib/spotlight";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
@@ -141,16 +142,10 @@ export default function ChooseArtist() {
   }
 
   /* Spotlight slots: user's drag-and-drop order wins (spotlight_order asc),
-     then most recent. Top 3 featured, max 10 total. */
-  const sortedVaults = [...vaults].sort((a, b) => {
-    const ao = a.spotlight_order ?? 0;
-    const bo = b.spotlight_order ?? 0;
-    if (ao !== bo) return ao - bo;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-  const featuredVaults = sortedVaults.slice(0, 3);
-  const remainingVaults = sortedVaults.slice(3, 10);
-  const hiddenCount = sortedVaults.length - 10;
+     then most recent. Top 3 featured; every other character stands in
+     the grid below — the full roster, no cap. */
+  const sortedVaults = sortSpotlightVaults(vaults);
+  const { featured: featuredVaults, remaining: remainingVaults } = splitSpotlightVaults(sortedVaults);
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -394,7 +389,7 @@ export default function ChooseArtist() {
             })}
             </div>
 
-            {/* Remaining artists (up to 7 more, max 10 total) */}
+            {/* Remaining artists — the full roster past the spotlight three */}
             {remainingVaults.length > 0 && (
               <>
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
@@ -466,11 +461,6 @@ export default function ChooseArtist() {
                   })}
                 </div>
               </>
-            )}
-            {hiddenCount > 0 && (
-              <p className="mb-6 text-center text-sm text-white/35">
-                {t("chooseArtist.hiddenCount", { count: hiddenCount })}
-              </p>
             )}
           </>
         )}
