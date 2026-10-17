@@ -1,6 +1,6 @@
 /**
  * market-sale.ts — the shared paid-flip for Marketplace (customer shop)
- * sales, migration 0144.
+ * sales, migration 0146.
  *
  * A card checkout through POST /api/storefronts/checkout writes its lines
  * into shop_events as event_type='pending_sale' BEFORE the Stripe session

@@ -1,4 +1,4 @@
--- 0144: Marketplace real card checkout (World Ring 2, item 2.26).
+-- 0146: Marketplace real card checkout (World Ring 2, item 2.26).
 -- POST /api/storefronts/checkout used to RECORD a sale in shop_events the
 -- moment the buyer clicked — no card was ever charged, yet analytics and
 -- earnings counted it as a sale. Now a checkout writes PENDING rows first

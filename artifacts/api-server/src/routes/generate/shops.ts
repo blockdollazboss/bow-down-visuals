@@ -942,7 +942,7 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
     LIMIT 100
   `);
   /* Pending checkouts are the seller's honest "not yet" list: shown
-     apart, never folded into the sales totals above (0144). */
+     apart, never folded into the sales totals above (0146). */
   const pending = await db.execute(sql`
     SELECT e.id, e.product_id, p.name AS product_name,
            e.amount_cents, e.platform_fee_cents,
@@ -973,7 +973,7 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
   });
 });
 
-/* ── POST /api/storefronts/checkout — real card checkout (0144) ───────────
+/* ── POST /api/storefronts/checkout — real card checkout (0146) ───────────
    The house pattern (tip-jar / shoutouts / memberships, over
    lib/stripe-checkout): the order is recorded FIRST as pending
    (shop_events event_type='pending_sale' — never counted as a sale),
