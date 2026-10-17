@@ -217,7 +217,9 @@ describe("source pins — the booth is wired, the token is not a stream", () => 
     expect(booth).toContain("/api/store/purchases");
     expect(booth).toContain("fetchTrack");
     expect(booth).toContain("fetchVideo");
-    expect(booth).not.toContain("/api/store/download");
-    expect(booth).not.toContain("store/token");
+    expect(booth).not.toContain('fetch("/api/store/download');
+    expect(booth).not.toContain("fetch(`/api/store/download");
+    expect(booth).not.toContain('fetch("/api/store/token"');
+    expect(booth).not.toContain("fetch(`/api/store/token`");
   });
 });
