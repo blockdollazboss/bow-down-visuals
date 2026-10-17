@@ -23,6 +23,7 @@ import {
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -1055,10 +1056,19 @@ export default function StationPanel(props: StationPanelProps) {
       case "guest-pitch":
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
-        /* The migration placeholder until this station's pattern
-           surface ships — honest, palace-voiced, and framed below
-           by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+        /* Pattern lanes swap the placeholder for their real
+           instrument as they ship; the frame and the transfer
+           footer below stay. The Game Rooms (§3.5) have shipped:
+           lobbies native, playing on the step-through class.
+           Every other pattern still shows the honest migration
+           placeholder until its lane lands. */
+        if (resolution.pattern === "games") {
+          return (
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              <GamesPanel stationId={station.id} isLight={isLight} />
+            </PanelBoundary>
+          );
+        }
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             <NativePlaceholder station={station} isLight={isLight} />
