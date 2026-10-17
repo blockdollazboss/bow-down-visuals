@@ -16,9 +16,16 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, desc, eq, isNull, or } from "drizzle-orm";
-import { db, artistVaultsTable, creatorProfilesTable, liveStreamsTable } from "@workspace/db";
+import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+import {
+  db,
+  artistVaultsTable,
+  creatorProfilesTable,
+  liveStreamsTable,
+  profileVideosTable,
+} from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { playbackUrlsFromWhip } from "../lib/cloudflare-stream";
 import { getUserActiveTeam } from "../lib/teams";
@@ -30,21 +37,33 @@ import {
   type AccessTokenVerifier,
   type WsClientSocket,
 } from "../lib/live-ws";
-import { WorldRoom, type WorldCharacterRef, type WorldIdentity } from "../lib/world-room";
+import {
+  WorldRoom,
+  type WorldCharacterRef,
+  type WorldIdentity,
+  type WorldScreenVideoRef,
+  type WorldStageLiveRef,
+} from "../lib/world-room";
 
 const router = Router();
 
 /* ── The big screen ─────────────────────────────────────────────────────── */
 
 export interface WorldScreenDto {
-  mode: "live" | "featured";
+  mode: "live" | "featured" | "video";
   title: string;
   creatorName: string | null;
   streamId: string | null;
   /** HLS playlist URL when live (same-origin proxy path or provider URL). */
   hlsUrl: string | null;
-  /** Plain video file URL when featured. */
+  /** Plain video file URL when featured or a watch-party file video. */
   videoUrl: string | null;
+  /** Who holds the stage while a show is on (null = ambient screen). */
+  stage: { name: string; slug: string | null } | null;
+  /** Watch-party videos: the shared playback state, position stamped
+   *  at response time — joiners start roughly where the room is. */
+  playback: { playing: boolean; positionSec: number } | null;
+  videoId: string | null;
 }
 
 /** The hall's featured reel when nothing is live: the King himself,
@@ -65,6 +84,9 @@ export function pickScreenContent(
       streamId: live.id,
       hlsUrl: live.hlsUrl,
       videoUrl: null,
+      stage: null,
+      playback: null,
+      videoId: null,
     };
   }
   return {
@@ -74,11 +96,93 @@ export function pickScreenContent(
     streamId: null,
     hlsUrl: null,
     videoUrl: WORLD_FEATURED_VIDEO_URL,
+    stage: null,
+    playback: null,
+    videoId: null,
   };
 }
 
+/** A stage video (watch party) as the screen DTO: the URL rides the
+ *  field matching its kind (file → videoUrl, HLS → hlsUrl), the
+ *  playback stamp rides along so a joiner starts where the room is. */
+export function stageVideoScreen(
+  video: WorldScreenVideoRef,
+  playback: { playing: boolean; positionSec: number },
+  holder: { name: string; slug: string | null },
+): WorldScreenDto {
+  return {
+    mode: "video",
+    title: video.title,
+    creatorName: video.creatorName,
+    streamId: null,
+    hlsUrl: video.mediaKind === "hls" ? video.url : null,
+    videoUrl: video.mediaKind === "file" ? video.url : null,
+    stage: holder,
+    playback,
+    videoId: video.id,
+  };
+}
+
+/** The live room, once the WS endpoint is mounted — the screen
+ *  endpoint reads the stage off it so HTTP and WS never disagree. */
+let activeWorldRoom: WorldRoom | null = null;
+
 router.get("/world/screen", publicApiLimiter, async (_req, res) => {
   try {
+    /* The stage outranks ambient programming: whoever holds it owns
+     * the screen. A stage video needs no DB at all — the room
+     * verified it at pick time and carries the playback stamp. */
+    const stage = activeWorldRoom?.screenBroadcast() ?? null;
+    if (stage?.holder) {
+      if (stage.mode === "video" && stage.video && stage.playback) {
+        res.json({
+          screen: refreshSupabaseStorageUrlsDeep(
+            stageVideoScreen(stage.video, stage.playback, stage.holder),
+          ),
+        });
+        return;
+      }
+      if (stage.mode === "reel") {
+        /* The holder parked the screen on the Reel on purpose. */
+        res.json({ screen: { ...pickScreenContent(null), stage: stage.holder } });
+        return;
+      }
+      if (stage.mode === "live" && stage.streamId) {
+        const [stageRow] = await db
+          .select()
+          .from(liveStreamsTable)
+          .where(and(eq(liveStreamsTable.id, stage.streamId), eq(liveStreamsTable.status, "live")))
+          .limit(1);
+        if (stageRow) {
+          const hlsUrl =
+            stageRow.provider === "own-server"
+              ? `/api/live-streams/${stageRow.id}/hls/playlist.m3u8`
+              : playbackUrlsFromWhip(stageRow.whip_url).hls_url;
+          if (hlsUrl) {
+            let creatorName: string | null = null;
+            try {
+              const [profile] = await db
+                .select({ displayName: creatorProfilesTable.displayName })
+                .from(creatorProfilesTable)
+                .where(eq(creatorProfilesTable.id, stageRow.profile_id))
+                .limit(1);
+              creatorName = profile?.displayName ?? null;
+            } catch {
+              /* the stream title still titles the screen honestly */
+            }
+            res.json({
+              screen: {
+                ...pickScreenContent({ id: stageRow.id, title: stageRow.title, creatorName, hlsUrl }),
+                stage: stage.holder,
+              },
+            });
+            return;
+          }
+        }
+        /* The stage stream ended at the source: fall through to the
+         * ambient screen rather than pointing the hall at a corpse. */
+      }
+    }
     const [row] = await db
       .select()
       .from(liveStreamsTable)
@@ -108,6 +212,115 @@ router.get("/world/screen", publicApiLimiter, async (_req, res) => {
   } catch (err) {
     logger.error({ err }, "[world] screen lookup failed");
     res.status(500).json({ error: "Couldn't load the hall's screen. Try again." });
+  }
+});
+
+/* ── The screen catalog ───────────────────────────────────────────
+ * What the stage remote can offer: the signed-in member's own
+ * published videos + stream replays first, then the public catalog.
+ * Ids only ever identify content — a pick is re-verified and its URL
+ * re-derived server-side when it reaches the room (the same rule as
+ * character picks: never trust a client-supplied URL). */
+export interface WorldScreenCatalogItem {
+  id: string;
+  title: string;
+  creatorName: string | null;
+  mediaKind: "file" | "hls";
+  durationSec: number;
+}
+
+function mediaKindOf(url: string): "file" | "hls" {
+  return /\.m3u8($|\?)/i.test(url) ? "hls" : "file";
+}
+
+function catalogVideoItem(
+  row: typeof profileVideosTable.$inferSelect,
+  creatorName: string | null,
+): WorldScreenCatalogItem {
+  return {
+    id: `video:${row.id}`,
+    title: row.title,
+    creatorName,
+    mediaKind: mediaKindOf(row.videoUrl),
+    durationSec: row.durationSec,
+  };
+}
+
+function catalogReplayItem(
+  row: typeof liveStreamsTable.$inferSelect,
+  creatorName: string | null,
+): WorldScreenCatalogItem {
+  return {
+    id: `replay:${row.id}`,
+    title: row.title,
+    creatorName,
+    mediaKind: mediaKindOf(row.vod_url ?? ""),
+    durationSec: 0,
+  };
+}
+
+router.get("/world/screen-catalog", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const [myProfile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+
+    const mine: WorldScreenCatalogItem[] = [];
+    if (myProfile) {
+      const myVideos = await db
+        .select()
+        .from(profileVideosTable)
+        .where(and(eq(profileVideosTable.profileId, myProfile.id), eq(profileVideosTable.isPublished, true)))
+        .orderBy(desc(profileVideosTable.createdAt))
+        .limit(20);
+      mine.push(...myVideos.filter((v) => v.videoUrl).map((v) => catalogVideoItem(v, myProfile.displayName)));
+      const myReplays = await db
+        .select()
+        .from(liveStreamsTable)
+        .where(and(eq(liveStreamsTable.user_id, userId), isNotNull(liveStreamsTable.vod_url)))
+        .orderBy(desc(liveStreamsTable.created_at))
+        .limit(10);
+      mine.push(...myReplays.filter((r) => r.vod_url).map((r) => catalogReplayItem(r, myProfile.displayName)));
+    }
+
+    const publicVideos = await db
+      .select({ video: profileVideosTable, creatorName: creatorProfilesTable.displayName })
+      .from(profileVideosTable)
+      .innerJoin(creatorProfilesTable, eq(profileVideosTable.profileId, creatorProfilesTable.id))
+      .where(
+        and(
+          eq(profileVideosTable.isPublished, true),
+          eq(creatorProfilesTable.isPublic, true),
+          myProfile ? ne(profileVideosTable.profileId, myProfile.id) : undefined,
+        ),
+      )
+      .orderBy(desc(profileVideosTable.createdAt))
+      .limit(20);
+    const publicReplays = await db
+      .select({ stream: liveStreamsTable, creatorName: creatorProfilesTable.displayName })
+      .from(liveStreamsTable)
+      .innerJoin(creatorProfilesTable, eq(liveStreamsTable.profile_id, creatorProfilesTable.id))
+      .where(
+        and(
+          isNotNull(liveStreamsTable.vod_url),
+          eq(creatorProfilesTable.isPublic, true),
+          ne(liveStreamsTable.user_id, userId),
+        ),
+      )
+      .orderBy(desc(liveStreamsTable.created_at))
+      .limit(10);
+
+    const pub: WorldScreenCatalogItem[] = [
+      ...publicVideos.filter((r) => r.video.videoUrl).map((r) => catalogVideoItem(r.video, r.creatorName)),
+      ...publicReplays.filter((r) => r.stream.vod_url).map((r) => catalogReplayItem(r.stream, r.creatorName)),
+    ];
+    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+  } catch (err) {
+    logger.error({ err }, "[world] screen catalog lookup failed");
+    res.status(500).json({ error: "Couldn't load the screen catalog. Try again." });
   }
 });
 
@@ -191,10 +404,138 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
   }
 }
 
+/** The site's host identity, resolved exactly the way the /api/admin
+ *  routes resolve it: the ADMIN_EMAILS list, case-insensitive. A
+ *  world admin is never a client claim — it is this check, at the
+ *  door, on the verified token's email. */
+export function isWorldAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const list = (process.env["ADMIN_EMAILS"] ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(email.trim().toLowerCase());
+}
+
+/** Stage-claim resolver: the stream must be the member's OWN and
+ *  truly live — anything else refuses the claim and the screen keeps
+ *  whatever it had. */
+async function resolveStageStream(userId: string, streamId: string): Promise<WorldStageLiveRef | null> {
+  try {
+    const [row] = await db
+      .select()
+      .from(liveStreamsTable)
+      .where(
+        and(
+          eq(liveStreamsTable.id, streamId),
+          eq(liveStreamsTable.user_id, userId),
+          eq(liveStreamsTable.status, "live"),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    let performerName = "Creator";
+    let performerSlug: string | null = null;
+    if (row.profile_id) {
+      const [profile] = await db
+        .select({ displayName: creatorProfilesTable.displayName, slug: creatorProfilesTable.slug })
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.id, row.profile_id))
+        .limit(1);
+      if (profile) {
+        performerName = profile.displayName;
+        performerSlug = profile.slug;
+      }
+    }
+    return { streamId: row.id, title: row.title, performerName, performerSlug };
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] stage stream lookup failed — claim refused");
+    return null;
+  }
+}
+
+/** Screen-video resolver: a catalog id (`video:<id>` for a published
+ *  profile video, `replay:<id>` for a stream replay) becomes a
+ *  playable ref only when the content is the member's own or sits on
+ *  a public profile. The URL is derived here, from the row — the
+ *  client never supplies one. */
+async function resolveScreenVideo(userId: string, videoId: string): Promise<WorldScreenVideoRef | null> {
+  try {
+    const sep = videoId.indexOf(":");
+    if (sep <= 0) return null;
+    const kind = videoId.slice(0, sep);
+    const id = videoId.slice(sep + 1);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    if (kind === "video") {
+      const [row] = await db
+        .select()
+        .from(profileVideosTable)
+        .where(and(eq(profileVideosTable.id, id), eq(profileVideosTable.isPublished, true)))
+        .limit(1);
+      if (!row?.videoUrl) return null;
+      const [profile] = await db
+        .select()
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.id, row.profileId))
+        .limit(1);
+      if (!profile || (profile.userId !== userId && !profile.isPublic)) return null;
+      const url = await refreshSupabaseStorageUrlsDeep(row.videoUrl);
+      if (typeof url !== "string" || !url) return null;
+      return {
+        id: videoId,
+        title: row.title.slice(0, 120),
+        url: url.slice(0, 2048),
+        mediaKind: mediaKindOf(url),
+        creatorName: profile.displayName,
+      };
+    }
+    if (kind === "replay") {
+      const [row] = await db
+        .select()
+        .from(liveStreamsTable)
+        .where(and(eq(liveStreamsTable.id, id), isNotNull(liveStreamsTable.vod_url)))
+        .limit(1);
+      if (!row?.vod_url) return null;
+      let creatorName: string | null = null;
+      let own = row.user_id === userId;
+      if (row.profile_id) {
+        const [profile] = await db
+          .select()
+          .from(creatorProfilesTable)
+          .where(eq(creatorProfilesTable.id, row.profile_id))
+          .limit(1);
+        if (profile) {
+          creatorName = profile.displayName;
+          own = own || profile.isPublic;
+        }
+      }
+      if (!own) return null;
+      const url = await refreshSupabaseStorageUrlsDeep(row.vod_url);
+      if (typeof url !== "string" || !url) return null;
+      return {
+        id: videoId,
+        title: row.title.slice(0, 120),
+        url: url.slice(0, 2048),
+        mediaKind: mediaKindOf(url),
+        creatorName,
+      };
+    }
+    return null;
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] screen video lookup failed — pick refused");
+    return null;
+  }
+}
+
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldRoom {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
-  const room = new WorldRoom(hub, { resolveCharacter: resolveVaultCharacter });
+  const room = new WorldRoom(hub, {
+    resolveCharacter: resolveVaultCharacter,
+    resolveStageStream,
+    resolveScreenVideo,
+  });
+  activeWorldRoom = room;
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
     const token = query.get("token");
@@ -213,6 +554,9 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     } else {
       identity = { userId: null, displayName: "Guest", avatarUrl: null, profileSlug: null };
     }
+    /* Host authority rides the verified token's email — resolved
+     * here, server-side, the same way the admin routes resolve it. */
+    identity = { ...identity, admin: auth ? isWorldAdminEmail(auth.email) : false };
 
     const client = socket as unknown as WsClientSocket;
     if (!room.attach(client, identity)) return; // room_full already sent

@@ -265,6 +265,37 @@ export function createBrowserPeerConnection(): RtcPeerConnectionLike {
  *  is shared and created lazily on first use (autoplay policies want a
  *  user gesture upstream — joining voice IS that gesture). */
 let sharedCtx: AudioContext | null = null;
+
+/** Your OWN voice level, tapped off your mic stream with the same
+ *  analyser + smoothing the remote sinks use — so your character's
+ *  lips move to your voice exactly the way everyone else's move to
+ *  theirs. Measurement only; nothing is recorded or sent twice (the
+ *  mesh already carries the audio). Muting disables the mic track,
+ *  and a disabled track reads as silence here too. */
+export function createLocalLevelTap(stream: unknown): { getLevel: () => number; dispose: () => void } {
+  const ctx = (sharedCtx ??= new AudioContext());
+  void ctx.resume().catch(() => undefined);
+  const source = ctx.createMediaStreamSource(stream as MediaStream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const samples = new Uint8Array(analyser.fftSize);
+  const tracker = new SpeechLevelTracker();
+  return {
+    getLevel() {
+      analyser.getByteTimeDomainData(samples);
+      return tracker.push(rmsFromTimeDomain(samples));
+    },
+    dispose() {
+      try {
+        source.disconnect();
+        analyser.disconnect();
+      } catch {
+        /* already torn down */
+      }
+    },
+  };
+}
 export function createBrowserVoiceSink(_peerId: string, stream: unknown): VoiceSink {
   const ctx = (sharedCtx ??= new AudioContext());
   void ctx.resume().catch(() => undefined);

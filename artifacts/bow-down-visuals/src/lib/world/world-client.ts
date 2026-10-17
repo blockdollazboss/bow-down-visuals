@@ -7,11 +7,13 @@
  *   out: move (throttled to ~10/s here AND on the server), say,
  *        character (walk in as a Creative Vault character — id only,
  *        the server verifies ownership and resolves the portrait),
- *        voice.join / voice.leave, voice.signal
+ *        voice.join / voice.leave, voice.off (the proximity-voice
+ *        switch — off means no sending, no hearing, mic released),
+ *        voice.signal
  *   in:  welcome (self + snapshot), peer.join / peer.move / peer.leave,
- *        peer.say, peer.character, voice.joined / voice.left /
- *        voice.state / voice.signal / voice.full / voice.denied,
- *        room_full
+ *        peer.say, peer.character, peer.voiceoff, voice.joined /
+ *        voice.left / voice.state / voice.signal / voice.full /
+ *        voice.denied, room_full
  * Guests (no session token, or a stale one the server couldn't verify)
  * arrive as guest peers: present and visible, no voice, no say — the
  * client hides those controls off `self.guest`, the server enforces it.
@@ -33,6 +35,17 @@ export interface WorldPeer {
   tint: string;
   guest: boolean;
   voice: boolean;
+  /** Proximity voice switched OFF for this peer: they neither send
+   *  nor hear voice. Distinct from `voice` (in the mesh right now) —
+   *  name plates mark the voice-off so nobody talks to a peer who
+   *  can't hear them. */
+  voiceOff: boolean;
+  /** Host authority, resolved by the server at the door (never a
+   *  client claim) — the hall shows host controls off this flag,
+   *  and the server re-verifies every host action anyway. */
+  admin: boolean;
+  /** The host muted this peer's voice server-side. */
+  hostMuted: boolean;
   character: WorldCharacterRef | null;
   x: number;
   y: number;
@@ -40,7 +53,26 @@ export interface WorldPeer {
   rotY: number;
 }
 
-export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed";
+export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed" | "removed";
+
+/** The stage + big-screen state, mirrored from the room: who holds
+ *  the stage, what's playing, and (for a watch-party video) the
+ *  shared playback position the server last stamped. */
+export interface WorldScreenState {
+  mode: "reel" | "live" | "video";
+  holder: { peerId: string; name: string; slug: string | null } | null;
+  title: string | null;
+  streamId: string | null;
+  video: {
+    id: string;
+    title: string;
+    url: string;
+    mediaKind: "file" | "hls";
+    creatorName: string | null;
+  } | null;
+  playback: { playing: boolean; positionSec: number } | null;
+  notice: string | null;
+}
 
 export interface WorldSocketLike {
   readyState: number;
@@ -68,7 +100,7 @@ export interface WorldSayEvent {
   body: string;
 }
 
-export type VoiceNotice = "full" | "denied-guest";
+export type VoiceNotice = "full" | "denied-guest" | "denied-host";
 
 const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
 
@@ -81,7 +113,7 @@ export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, t
 /** The page overlay for a client status — null means "you're inside,
  *  no overlay". Error and full are honest dead-ends with their own
  *  cards; closed (deliberate leave) shows nothing. */
-export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | "error" | null {
+export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | "error" | "removed" | null {
   switch (status) {
     case "connecting":
       return "connecting";
@@ -89,6 +121,8 @@ export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | 
       return "room-full";
     case "error":
       return "error";
+    case "removed":
+      return "removed";
     default:
       return null;
   }
@@ -99,18 +133,28 @@ export class WorldClient {
   self: WorldPeer | null = null;
   peers = new Map<string, WorldPeer>();
   voicePeerIds = new Set<string>();
+  /** The stage + screen, as the room last stated it (welcome, then
+   *  every `screen.state`). Null until the welcome lands. */
+  screen: WorldScreenState | null = null;
 
   /* Assignable handlers — the page wires scene + voice + chat log. */
   onStatus: ((status: WorldStatus) => void) | null = null;
   onPeerJoin: ((peer: WorldPeer) => void) | null = null;
   onPeerLeave: ((peerId: string) => void) | null = null;
   onPeerCharacter: ((peerId: string, character: WorldCharacterRef | null) => void) | null = null;
+  onPeerVoiceOff: ((peerId: string, off: boolean) => void) | null = null;
   onSay: ((ev: WorldSayEvent) => void) | null = null;
   onSignal: ((from: string, data: unknown) => void) | null = null;
   onVoiceState: ((voicePeerIds: string[]) => void) | null = null;
   onVoicePeerJoined: ((peerId: string) => void) | null = null;
   onVoicePeerLeft: ((peerId: string) => void) | null = null;
   onVoiceNotice: ((notice: VoiceNotice) => void) | null = null;
+  onScreen: ((screen: WorldScreenState) => void) | null = null;
+  /** A screen action was refused: someone else holds the stage. */
+  onScreenDenied: ((holderName: string | null) => void) | null = null;
+  /** The host muted/unmuted ME (self only) — the page shows the
+   *  honest notice and keeps me out of voice while it stands. */
+  onHostMuted: ((muted: boolean) => void) | null = null;
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
@@ -118,6 +162,10 @@ export class WorldClient {
    *  never chosen this session (send nothing); a string id or null
    *  (house avatar) is (re)sent the moment we're inside. */
   private characterWanted: string | null | undefined = undefined;
+  /** The voice switch as this client wants it. `undefined` = never
+   *  touched (the room default: voice available); a boolean is (re)sent
+   *  the moment we're inside, like a character pick. */
+  private voiceOffWanted: boolean | undefined = undefined;
   private readonly now: () => number;
 
   constructor(private deps: WorldClientDeps) {
@@ -144,7 +192,7 @@ export class WorldClient {
     this.socket = socket;
     socket.onmessage = (ev) => this.handleFrame(ev.data);
     socket.onclose = (ev) => {
-      if (this.status === "full") return; // room_full already explained itself
+      if (this.status === "full" || this.status === "removed") return; // already explained itself
       if (this.status === "inside" || this.status === "connecting") {
         this.setStatus(ev.code === 1000 || ev.code === 1005 ? "closed" : "error");
       }
@@ -199,9 +247,67 @@ export class WorldClient {
     this.send({ type: "character", characterId });
   }
 
+  /** Flip the proximity-voice switch. OFF is announced to the room
+   *  (the server drops us out of the mesh and flags the name plate);
+   *  the page pairs it with releasing the mic. Safe to call before
+   *  the welcome lands — the want is remembered and sent on entry.
+   *  Guests never send it: they have no voice to switch. */
+  setVoiceOff(off: boolean): void {
+    this.voiceOffWanted = off;
+    if (this.status !== "inside" || !this.self || this.self.guest) return;
+    this.send({ type: "voice.off", off });
+  }
+
   joinVoice(): void {
     if (this.status !== "inside" || this.isGuest) return;
     this.send({ type: "voice.join" });
+  }
+
+  /* ── The stage + screen ───────────────────────────────────────────
+   * One hand on the screen: the room enforces holder-or-host on every
+   * one of these; the sends here are plain intents. */
+
+  /** Take the stage with my live stream (id only — the server
+   *  verifies it's mine and truly live). */
+  takeStageLive(streamId: string): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "stage.live", streamId });
+  }
+
+  /** Take the stage with a catalog video — a watch party. */
+  playStageVideo(videoId: string): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "stage.video", videoId });
+  }
+
+  /** Park the screen on the King's Reel (the stage stays held). */
+  screenReel(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "screen.reel" });
+  }
+
+  /** Shared play/pause for the stage video, stamped by the server. */
+  screenPlayPause(playing: boolean, positionSec: number): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "screen.playpause", playing, positionSec });
+  }
+
+  /** End the show: release the stage + screen back to idle. */
+  endStage(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "stage.end" });
+  }
+
+  /* ── Host actions (the server re-verifies admin on every one) ── */
+
+  adminMute(peerId: string, muted: boolean): void {
+    if (this.status !== "inside" || !this.self?.admin) return;
+    this.send({ type: "admin.mute", peerId, muted });
+  }
+
+  adminRemove(peerId: string): void {
+    if (this.status !== "inside" || !this.self?.admin) return;
+    this.send({ type: "admin.remove", peerId });
   }
 
   leaveVoice(): void {
@@ -245,6 +351,9 @@ export class WorldClient {
       case "welcome": {
         const you = frame["you"] as WorldPeer;
         this.self = you;
+        if (frame["screen"] && typeof frame["screen"] === "object") {
+          this.screen = frame["screen"] as WorldScreenState;
+        }
         this.peers.clear();
         const snapshot = Array.isArray(frame["peers"]) ? (frame["peers"] as WorldPeer[]) : [];
         for (const peer of snapshot) {
@@ -255,6 +364,10 @@ export class WorldClient {
         // A pick made before the door opened applies on entry.
         if (this.characterWanted !== undefined && !you.guest) {
           this.send({ type: "character", characterId: this.characterWanted });
+        }
+        // So does a voice switch flipped before the door opened.
+        if (this.voiceOffWanted !== undefined && !you.guest) {
+          this.send({ type: "voice.off", off: this.voiceOffWanted });
         }
         return;
       }
@@ -270,6 +383,14 @@ export class WorldClient {
         const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
         if (target) target.character = character;
         this.onPeerCharacter?.(peerId, character);
+        return;
+      }
+      case "peer.voiceoff": {
+        const peerId = String(frame["peerId"]);
+        const off = frame["off"] === true;
+        const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+        if (target) target.voiceOff = off;
+        this.onPeerVoiceOff?.(peerId, off);
         return;
       }
       case "peer.join": {
@@ -338,7 +459,34 @@ export class WorldClient {
         return;
       }
       case "voice.denied": {
-        this.onVoiceNotice?.("denied-guest");
+        this.onVoiceNotice?.(frame["reason"] === "host" ? "denied-host" : "denied-guest");
+        return;
+      }
+      case "screen.state": {
+        if (frame["screen"] && typeof frame["screen"] === "object") {
+          this.screen = frame["screen"] as WorldScreenState;
+          this.onScreen?.(this.screen);
+        }
+        return;
+      }
+      case "screen.denied": {
+        this.onScreenDenied?.(
+          typeof frame["holderName"] === "string" ? frame["holderName"] : null,
+        );
+        return;
+      }
+      case "peer.hostmute": {
+        const peerId = String(frame["peerId"]);
+        const muted = frame["muted"] === true;
+        const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+        if (target) target.hostMuted = muted;
+        if (this.self && peerId === this.self.peerId) this.onHostMuted?.(muted);
+        return;
+      }
+      case "removed": {
+        /* The host removed me: the socket close follows immediately;
+         * the status (and its honest card) must survive it. */
+        this.setStatus("removed");
         return;
       }
       default:

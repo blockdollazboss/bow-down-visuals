@@ -50,6 +50,9 @@ const SELF = {
   tint: "#d4af37",
   guest: false,
   voice: false,
+  voiceOff: false,
+  admin: false,
+  hostMuted: false,
   character: null,
   x: 0,
   y: 0,
@@ -260,6 +263,47 @@ describe("vault characters — walk in as", () => {
   });
 });
 
+describe("the voice switch — setVoiceOff + peer.voiceoff", () => {
+  it("flips while inside go straight out; a flip made before entry rides the welcome", async () => {
+    const { client, socket } = makeClient();
+    client.setVoiceOff(true);
+    await client.connect();
+    expect(socket.sent.find((m) => m.type === "voice.off")).toBeUndefined();
+    socket.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(socket.sent).toContainEqual({ type: "voice.off", off: true });
+
+    client.setVoiceOff(false);
+    expect(socket.sent).toContainEqual({ type: "voice.off", off: false });
+  });
+
+  it("guests never send the switch — they have no voice to switch", async () => {
+    const guestSelf = { ...SELF, peerId: "w-guest", guest: true, displayName: "Guest" };
+    const { client, socket } = await inside({ t: 0 }, guestSelf);
+    client.setVoiceOff(true);
+    expect(socket.sent.find((m) => m.type === "voice.off")).toBeUndefined();
+  });
+
+  it("peer.voiceoff updates the roster (and self) and notifies for the name plates", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: Array<[string, boolean]> = [];
+    client.onPeerVoiceOff = (peerId, off) => seen.push([peerId, off]);
+
+    socket.receive({ type: "peer.voiceoff", peerId: "w-other", off: true });
+    expect(client.peers.get("w-other")?.voiceOff).toBe(true);
+    socket.receive({ type: "peer.voiceoff", peerId: "w-self", off: true });
+    expect(client.self?.voiceOff).toBe(true);
+    expect(seen).toEqual([
+      ["w-other", true],
+      ["w-self", true],
+    ]);
+  });
+
+  it("the welcome snapshot carries who's already voice-off", async () => {
+    const { client } = await inside({ t: 0 }, SELF, [{ ...OTHER, voiceOff: true }]);
+    expect(client.peers.get("w-other")?.voiceOff).toBe(true);
+  });
+});
+
 describe("worldOverlay — the page's honest states", () => {
   it("maps statuses to overlays", () => {
     expect(worldOverlay("connecting")).toBe("connecting");
@@ -267,5 +311,127 @@ describe("worldOverlay — the page's honest states", () => {
     expect(worldOverlay("error")).toBe("error");
     expect(worldOverlay("inside")).toBeNull();
     expect(worldOverlay("closed")).toBeNull();
+    expect(worldOverlay("removed")).toBe("removed");
+  });
+});
+
+describe("the stage + screen", () => {
+  const REEL = {
+    mode: "reel",
+    holder: null,
+    title: null,
+    streamId: null,
+    video: null,
+    playback: null,
+    notice: null,
+  };
+
+  it("the welcome installs the screen state (late joiners land on the show)", async () => {
+    const { client, socket } = makeClient();
+    await client.connect();
+    const live = {
+      ...REEL,
+      mode: "live",
+      holder: { peerId: "w-other", name: "Other", slug: "other" },
+      title: "Friday Set",
+      streamId: "stream-1",
+    };
+    socket.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [OTHER], screen: live });
+    expect(client.screen?.mode).toBe("live");
+    expect(client.screen?.holder?.name).toBe("Other");
+  });
+
+  it("screen.state updates the state and fires onScreen; screen.denied reaches its handler", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: string[] = [];
+    client.onScreen = (s) => seen.push(s.mode);
+    socket.receive({
+      type: "screen.state",
+      screen: {
+        ...REEL,
+        mode: "video",
+        holder: { peerId: "w-self", name: "Me", slug: "me" },
+        title: "My Video",
+        video: { id: "video:v1", title: "My Video", url: "https://x/v.mp4", mediaKind: "file", creatorName: "Me" },
+        playback: { playing: true, positionSec: 12 },
+      },
+    });
+    expect(client.screen?.mode).toBe("video");
+    expect(client.screen?.playback?.positionSec).toBe(12);
+    expect(seen).toEqual(["video"]);
+
+    const denied: Array<string | null> = [];
+    client.onScreenDenied = (name) => denied.push(name);
+    socket.receive({ type: "screen.denied", holderName: "Other" });
+    expect(denied).toEqual(["Other"]);
+  });
+
+  it("the remote's sends ride the wire with the right frames (members only)", async () => {
+    const { client, socket } = await inside();
+    client.takeStageLive("stream-9");
+    client.playStageVideo("video:v1");
+    client.screenReel();
+    client.screenPlayPause(false, 33);
+    client.endStage();
+    expect(socket.sent).toEqual([
+      { type: "stage.live", streamId: "stream-9" },
+      { type: "stage.video", videoId: "video:v1" },
+      { type: "screen.reel" },
+      { type: "screen.playpause", playing: false, positionSec: 33 },
+      { type: "stage.end" },
+    ]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true }, []);
+    guestRun.client.takeStageLive("stream-9");
+    guestRun.client.playStageVideo("video:v1");
+    guestRun.client.endStage();
+    expect(guestRun.socket.sent).toEqual([]);
+  });
+});
+
+describe("host actions", () => {
+  it("admin sends ride only for an admin self; the server re-checks anyway", async () => {
+    const plain = await inside({ t: 0 }, SELF, [OTHER]);
+    plain.client.adminMute("w-other", true);
+    plain.client.adminRemove("w-other");
+    expect(plain.socket.sent).toEqual([]);
+
+    const admin = await inside({ t: 0 }, { ...SELF, admin: true }, [OTHER]);
+    admin.client.adminMute("w-other", true);
+    admin.client.adminRemove("w-other");
+    expect(admin.socket.sent).toEqual([
+      { type: "admin.mute", peerId: "w-other", muted: true },
+      { type: "admin.remove", peerId: "w-other" },
+    ]);
+  });
+
+  it("peer.hostmute marks the roster; my own mute fires onHostMuted", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const mine: boolean[] = [];
+    client.onHostMuted = (m) => mine.push(m);
+    socket.receive({ type: "peer.hostmute", peerId: "w-other", muted: true });
+    expect(client.peers.get("w-other")?.hostMuted).toBe(true);
+    expect(mine).toEqual([]);
+    socket.receive({ type: "peer.hostmute", peerId: "w-self", muted: true });
+    expect(client.self?.hostMuted).toBe(true);
+    expect(mine).toEqual([true]);
+  });
+
+  it("a host-muted join refusal reads as denied-host, not denied-guest", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const notices: string[] = [];
+    client.onVoiceNotice = (n) => notices.push(n);
+    socket.receive({ type: "voice.denied", reason: "host" });
+    socket.receive({ type: "voice.denied", reason: "guests" });
+    expect(notices).toEqual(["denied-host", "denied-guest"]);
+  });
+
+  it("removed flips status to removed — and the close behind it can't stomp it", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    socket.receive({ type: "removed", reason: "host" });
+    expect(client.status).toBe("removed");
+    socket.onclose?.({ code: 4413 });
+    expect(client.status).toBe("removed");
+    expect(worldOverlay(client.status)).toBe("removed");
   });
 });

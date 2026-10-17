@@ -40,6 +40,7 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
+import type { HallViewMode } from "./view-mode";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import {
   coverTransform,
@@ -50,17 +51,40 @@ import {
   type MouthBox,
 } from "./lips";
 import { locatePortraitMouth } from "./portrait-mouth";
+import {
+  firstGamepad,
+  pollGamepad,
+  IDLE_GAMEPAD_EDGES,
+  type GamepadEdges,
+} from "./gamepad";
+import {
+  figureKindFor,
+  figureWidthForHeight,
+  defaultFigureCanvasSize,
+  defaultCharacterUrl,
+  DEFAULT_FIGURE_HEIGHT,
+  type DefaultArtState,
+} from "./figure";
 
 export interface HallScreenSource {
-  mode: "live" | "featured";
+  mode: "live" | "featured" | "video";
   videoUrl: string | null;
   hlsUrl: string | null;
+  /** Watch-party videos: the shared playback state from the room's
+   *  server stamp — start near positionSec, playing or paused. */
+  playing?: boolean;
+  startAtSec?: number;
 }
 
 const BOUNDS = { minX: -13.1, maxX: 13.1, minZ: -11.6, maxZ: 11.1 };
 const EYE_HEIGHT = 1.7;
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6;
+/* Third-person camera: behind and above your figure, clamped inside
+   the walls so the follow cam never leaves the room. */
+const THIRD_CAM_DISTANCE = 4.1;
+const THIRD_CAM_HEIGHT = 2.45;
+const CAM_CLAMP = { minX: -13.7, maxX: 13.7, minZ: -17.7, maxZ: 11.75 };
 
 const GOLD = 0xd4af37;
 const GOLD_DEEP = 0x8a6a1c;
@@ -183,7 +207,59 @@ function hazeTexture(): THREE.CanvasTexture {
   return hazeTex;
 }
 
-function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
+/** Everything the name plate shows — when any of it changes the
+ *  plate is redrawn (see upsertPeer's plate reconcile). */
+function namePlateKey(peer: WorldPeer, frontRow = false): string {
+  return [
+    peer.displayName,
+    peer.guest ? "guest" : "",
+    peer.profileSlug ?? "",
+    peer.voiceOff ? "off" : "",
+    frontRow ? "front-row" : "",
+  ].join("|");
+}
+
+/** A small muted-mic badge: gold-ringed disc, pale mic, red slash.
+ *  Drawn on the name plate of a voice-off peer — the hall's cue that
+ *  this person can't hear voice right now. */
+function drawVoiceOffBadge(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+  g.save();
+  g.beginPath();
+  g.arc(cx, cy, 22, 0, Math.PI * 2);
+  g.fillStyle = "rgba(10,8,6,0.78)";
+  g.fill();
+  g.lineWidth = 3;
+  g.strokeStyle = "rgba(232,200,106,0.9)";
+  g.stroke();
+  // The mic: capsule body + cradle arc + stem.
+  g.fillStyle = "#e8e2d4";
+  g.beginPath();
+  g.arc(cx, cy - 6, 5.5, Math.PI, 0);
+  g.fill();
+  g.fillRect(cx - 5.5, cy - 6, 11, 11);
+  g.beginPath();
+  g.arc(cx, cy + 5, 5.5, 0, Math.PI);
+  g.fill();
+  g.strokeStyle = "#e8e2d4";
+  g.lineWidth = 2.6;
+  g.beginPath();
+  g.arc(cx, cy - 1, 10, 0.15 * Math.PI, 0.85 * Math.PI);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(cx, cy + 9);
+  g.lineTo(cx, cy + 14);
+  g.stroke();
+  // The slash.
+  g.strokeStyle = "#e0653f";
+  g.lineWidth = 4.5;
+  g.beginPath();
+  g.moveTo(cx - 14, cy + 13);
+  g.lineTo(cx + 14, cy - 13);
+  g.stroke();
+  g.restore();
+}
+
+function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 144;
@@ -197,11 +273,22 @@ function nameSpriteTexture(peer: WorldPeer): THREE.CanvasTexture {
   g.fillStyle = "#ffffff";
   g.fillText(name, 256, 58);
   g.font = "600 34px system-ui, sans-serif";
-  const sub = peer.guest ? "guest" : peer.profileSlug ? `@${peer.profileSlug}` : "";
+  /* Voice-off outranks the slug on the sub-line: "this person can't
+   *  hear you" is the fact the hall needs at a glance. A Front Row
+   *  member (of the performer on stage) is named on the plate too —
+   *  the honor is visible, not just a brighter ring. */
+  const sub = peer.voiceOff
+    ? "voice off"
+    : peer.guest
+      ? "guest"
+      : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
+          .filter(Boolean)
+          .join(" · ");
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
-  g.fillStyle = peer.guest ? "#b8b0a0" : "#e8c86a";
+  g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.guest ? "#b8b0a0" : "#e8c86a";
   g.fillText(sub, 256, 112);
+  if (peer.voiceOff) drawVoiceOffBadge(g, 470, 34);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -230,6 +317,17 @@ interface AvatarRig {
   group: THREE.Group;
   body: THREE.Group;
   sprite: THREE.Sprite;
+  /** Standing as the house default figure (the palace guard) —
+   *  drives the idle sway and the art-landing trade-up. */
+  defaultFigure: boolean;
+  /** Per-figure phase so the hall doesn't sway in lockstep. */
+  swayPhase: number;
+  /** The floor ring (brightened + widened for Front Row members). */
+  ring: THREE.Mesh;
+  /** Whether the Front Row treatment is currently applied. */
+  frontRow: boolean;
+  /** Signature of what the name plate currently shows. */
+  plateKey: string;
   tint: string;
   target: { x: number; z: number; rotY: number };
   /** The character the standing figure currently shows (null = capsule). */
@@ -253,6 +351,7 @@ const PORTRAIT_PANEL_H = PORTRAIT_PANEL_W * (PORTRAIT_CANVAS_H / PORTRAIT_CANVAS
 const PORTRAIT_BASE_Y = 0.5; // easel height — the panel's bottom edge
 const PORTRAIT_SPRITE_Y = 2.18;
 const CAPSULE_SPRITE_Y = 2.3;
+const DEFAULT_SPRITE_Y = 2.12;
 
 function buildCapsuleBody(tintHex: string): THREE.Group {
   const body = new THREE.Group();
@@ -371,6 +470,77 @@ function buildPortraitFigure(image: HTMLImageElement, mouth: MouthBox | null): B
   return { body, portrait };
 }
 
+let shadowTex: THREE.CanvasTexture | null = null;
+function shadowTexture(): THREE.CanvasTexture {
+  if (!shadowTex) {
+    shadowTex = glowTexture([
+      [0, "rgba(0,0,0,0.44)"],
+      [0.55, "rgba(0,0,0,0.22)"],
+      [1, "rgba(0,0,0,0)"],
+    ]);
+  }
+  return shadowTex;
+}
+
+/** The house default figure: the King Shark palace guard, life-size,
+ *  standing on a soft floor shadow. Built on the portrait pipeline —
+ *  its own canvas per figure (lips are per-speaker), the art's aspect
+ *  preserved edge-to-edge (the canvas is sized to the art), and the
+ *  landmarked mouth driving lips exactly like a vault portrait. The
+ *  art is a full-body cut-out (transparent ground): the plane is
+ *  transparent so the guard himself stands in the hall, not a card. */
+function buildDefaultFigure(image: HTMLImageElement, mouth: MouthBox | null): BuiltFigure {
+  const srcW = image.naturalWidth || image.width;
+  const srcH = image.naturalHeight || image.height;
+  const aspect = srcW / srcH;
+  const size = defaultFigureCanvasSize(aspect);
+  const canvas = document.createElement("canvas");
+  canvas.width = size.w;
+  canvas.height = size.h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("default figure canvas has no 2d context");
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const portrait: PortraitState = {
+    canvas,
+    ctx,
+    texture,
+    image,
+    srcW,
+    srcH,
+    cover: coverTransform(srcW, srcH, size.w, size.h),
+    mouth,
+  };
+
+  const body = new THREE.Group();
+  const width = figureWidthForHeight(DEFAULT_FIGURE_HEIGHT, aspect);
+  const figure = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, DEFAULT_FIGURE_HEIGHT),
+    new THREE.MeshStandardMaterial({
+      map: texture,
+      transparent: true,
+      roughness: 0.6,
+      metalness: 0.05,
+      alphaTest: 0.02,
+    }),
+  );
+  figure.position.y = DEFAULT_FIGURE_HEIGHT / 2;
+  body.add(figure);
+  // The soft floor shadow — grounds the figure on the marble.
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 1.15),
+    new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.015;
+  shadow.renderOrder = 1;
+  body.add(shadow);
+
+  drawPortraitCanvas(portrait, 0);
+  return { body, portrait };
+}
+
 function buildAvatar(peer: WorldPeer): AvatarRig {
   const group = new THREE.Group();
 
@@ -398,6 +568,11 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     group,
     body,
     sprite,
+    defaultFigure: false,
+    swayPhase: Math.random() * Math.PI * 2,
+    ring,
+    frontRow: false,
+    plateKey: namePlateKey(peer),
     tint: peer.tint,
     target: { x: peer.x, z: peer.z, rotY: peer.rotY },
     characterId: null,
@@ -454,7 +629,21 @@ export class KingsHallScene {
   private rig = new THREE.Group();
   private clock = new THREE.Clock();
   private avatars = new Map<string, AvatarRig>();
+  /** Your own figure — built like any peer's (capsule or portrait
+   *  character) but glued to the walk rig and shown only to the
+   *  third-person camera. First person and XR hide it: in a headset
+   *  the XR camera rules stand, and a body at the camera's own spot
+   *  would fill the view. */
+  private selfRig: AvatarRig | null = null;
+  private viewMode: HallViewMode = "first";
   private keys = new Set<string>();
+  /** Gamepad edge state carried between polls (toggle buttons fire
+   *  once per press). */
+  private padEdges: GamepadEdges = IDLE_GAMEPAD_EDGES;
+  /** A controller's voice-toggle press (the page flips its switch). */
+  onPadToggleVoice: (() => void) | null = null;
+  /** A controller's view-toggle press (first/third person). */
+  onPadToggleView: (() => void) | null = null;
   private yaw = 0;
   private pitch = 0;
   private lookDrag: { id: number; lastX: number; lastY: number } | null = null;
@@ -465,6 +654,19 @@ export class KingsHallScene {
   private screenMaterial: THREE.MeshBasicMaterial;
   private hls: { destroy(): void } | null = null;
   private screenKey = "";
+  /** The performer's Front Row (profile slugs) while a show is on —
+   *  their figures wear the brighter ring + plate line. */
+  private frontRowSlugs = new Set<string>();
+  /** The honored seat arc before the stage, shown while a show runs. */
+  private stageSeats: THREE.Group | null = null;
+  /** The house default figure's art (the palace-guard slot): loaded
+   *  once per scene; "ready" trades every default presence up from
+   *  the capsule, "failed" leaves the capsule as the fallback. */
+  private defaultArt: { status: DefaultArtState; image: HTMLImageElement | null; mouth: MouthBox | null } = {
+    status: "pending",
+    image: null,
+    mouth: null,
+  };
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
@@ -503,6 +705,7 @@ export class KingsHallScene {
 
     this.screenMaterial = new THREE.MeshBasicMaterial({ map: screenIdleTexture() });
     this.applyLook(theme);
+    this.loadDefaultArt();
     this.bindControls();
     this.resize();
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -1299,7 +1502,79 @@ export class KingsHallScene {
       this.screenMaterial.map = this.videoTexture;
       this.screenMaterial.needsUpdate = true;
     }
-    void video.play().catch(() => undefined);
+    if (source.mode === "video") {
+      /* A watch party lands where the room already is: seek once the
+       * metadata lands, then honor the shared play/pause state. The
+       * position is approximate by design (the server stamps it). */
+      const startAt = source.startAtSec ?? 0;
+      const applyStart = () => this.setScreenPlayback(source.playing !== false, startAt);
+      if (video.readyState >= 1) applyStart();
+      else video.addEventListener("loadedmetadata", applyStart, { once: true });
+    } else {
+      void video.play().catch(() => undefined);
+    }
+  }
+
+  /** Shared play/pause for the screen's video, from the room's
+   *  server-stamped state. A drift beyond a couple of seconds snaps
+   *  to the stamped position; inside it, local playback just runs —
+   *  approximate sync is the v1 bar, honestly. */
+  setScreenPlayback(playing: boolean, positionSec: number): void {
+    const video = this.video;
+    if (!video) return;
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      if (Math.abs(video.currentTime - positionSec) > 2.5) {
+        try {
+          video.currentTime = Math.min(positionSec, Math.max(0, video.duration - 0.25));
+        } catch {
+          /* a seek racing metadata is harmless — the next stamp lands */
+        }
+      }
+    }
+    if (playing) void video.play().catch(() => undefined);
+    else video.pause();
+  }
+
+  /** The screen video's own position — the holder's pause action
+   *  stamps from here, so the anchor starts from what's on screen. */
+  screenPositionSec(): number {
+    return this.video?.currentTime ?? 0;
+  }
+
+  /** The performer's Front Row, by profile slug. Empty = no show. */
+  setFrontRowSlugs(slugs: ReadonlySet<string>): void {
+    this.frontRowSlugs = new Set(slugs);
+  }
+
+  /** The honored seat arc before the stage: flat gold rings on the
+   *  floor in a shallow arc facing the screen. Shown while a show
+   *  runs — a visual honor marking where the Front Row sits; nobody
+   *  is teleported, v1 keeps its promises light and true. Lives on
+   *  the scene root (not a look group) so a theme flip keeps it. */
+  setStageSeatsVisible(visible: boolean): void {
+    if (!this.stageSeats) {
+      const group = new THREE.Group();
+      for (let i = 0; i < 7; i++) {
+        const x = -6 + i * 2;
+        const seat = new THREE.Mesh(
+          new THREE.RingGeometry(0.36, 0.48, 40),
+          new THREE.MeshBasicMaterial({
+            color: GOLD,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        );
+        seat.rotation.x = -Math.PI / 2;
+        seat.position.set(x, 0.02, -9.6 + (Math.abs(x) / 6) * 1.1);
+        seat.renderOrder = 2;
+        group.add(seat);
+      }
+      this.stageSeats = group;
+      this.scene.add(group);
+    }
+    this.stageSeats.visible = visible;
   }
 
   /* ── Peers ── */
@@ -1308,6 +1583,7 @@ export class KingsHallScene {
     if (existing) {
       existing.target = { x: peer.x, z: peer.z, rotY: peer.rotY };
       this.reconcileFigure(existing, peer);
+      this.reconcilePlate(existing, peer);
       return;
     }
     const rig = buildAvatar(peer);
@@ -1316,19 +1592,55 @@ export class KingsHallScene {
     this.reconcileFigure(rig, peer);
   }
 
+  /** Keep the name plate matched to the peer: when what it shows
+   *  changes (a name settles, the voice switch flips), redraw the
+   *  sprite's texture in place — the sprite itself never moves. The
+   *  Front Row treatment (brighter, wider ring + plate line) rides
+   *  the same reconcile: it lands on the next 120 ms cadence after
+   *  setFrontRowSlugs, no special path. */
+  private reconcilePlate(rig: AvatarRig, peer: WorldPeer): void {
+    const frontRow = !!peer.profileSlug && this.frontRowSlugs.has(peer.profileSlug);
+    if (frontRow !== rig.frontRow) {
+      rig.frontRow = frontRow;
+      const mat = rig.ring.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = frontRow ? 1.6 : 0.5;
+      rig.ring.scale.setScalar(frontRow ? 1.3 : 1);
+    }
+    const key = namePlateKey(peer, frontRow);
+    if (key === rig.plateKey) return;
+    rig.plateKey = key;
+    const mat = rig.sprite.material as THREE.SpriteMaterial;
+    const old = mat.map;
+    mat.map = nameSpriteTexture(peer, frontRow);
+    mat.needsUpdate = true;
+    old?.dispose();
+  }
+
   /** Keep the standing figure matched to the peer's character: a new
-   *  pick starts the portrait load (the capsule keeps standing until
-   *  it lands), clearing the pick restores the capsule at once, and a
-   *  failed load leaves the capsule — requestedId stays set so the
-   *  120 ms upsert cadence never turns into a retry storm. */
+   *  pick starts the portrait load (the current figure keeps standing
+   *  until it lands), clearing the pick restores the house default at
+   *  once, and a failed load leaves what's standing — requestedId
+   *  stays set so the 120 ms upsert cadence never turns into a retry
+   *  storm. */
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
     const want = peer.character && peer.character.portraitUrl ? peer.character : null;
     const wantId = want?.id ?? null;
-    if (wantId === rig.requestedId) return;
+    if (wantId === rig.requestedId) {
+      /* No character change — the one drift left is the default art
+       * landing after this rig settled as a capsule: trade up. */
+      if (
+        wantId === null &&
+        !rig.portrait &&
+        figureKindFor(false, this.defaultArt.status) === "default"
+      ) {
+        this.swapToDefaultOrCapsule(rig);
+      }
+      return;
+    }
     rig.requestedId = wantId;
     const seq = ++rig.swapSeq;
     if (!want) {
-      this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
+      this.swapToDefaultOrCapsule(rig);
       return;
     }
     const img = new Image();
@@ -1339,20 +1651,76 @@ export class KingsHallScene {
         if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
         try {
           const built = buildPortraitFigure(img, mouth);
+          rig.defaultFigure = false;
           this.swapFigure(rig, built.body, built.portrait, wantId);
         } catch {
-          /* canvas unavailable — the capsule keeps standing */
+          /* canvas unavailable — the standing figure keeps standing */
         }
       });
     };
     img.onerror = () => {
       /* portrait unreachable (or not CORS-clean for WebGL): the
-         capsule keeps standing; no retry until the pick changes */
+         standing figure keeps standing; no retry until the pick
+         changes */
     };
     img.src = want.portraitUrl;
   }
 
-  private swapFigure(rig: AvatarRig, body: THREE.Group, portrait: PortraitState | null, characterId: string | null): void {
+  /** Stand the house default: the palace-guard figure once its art
+   *  has landed, the capsule until then (and forever, if the slot
+   *  file can't load — the documented fallback, same as a failed
+   *  portrait load). Every default figure builds its own canvas off
+   *  the one shared image, so lips stay per-speaker. */
+  private swapToDefaultOrCapsule(rig: AvatarRig): void {
+    if (this.defaultArt.status === "ready" && this.defaultArt.image) {
+      try {
+        const built = buildDefaultFigure(this.defaultArt.image, this.defaultArt.mouth);
+        rig.defaultFigure = true;
+        this.swapFigure(rig, built.body, built.portrait, null, DEFAULT_SPRITE_Y);
+        return;
+      } catch {
+        /* canvas unavailable — fall through to the capsule */
+      }
+    }
+    rig.defaultFigure = false;
+    this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
+  }
+
+  /** Load the default figure's art once for the whole scene (the
+   *  slot at public/world/default-character.png — approved art drops
+   *  in there, no code change) and landmark its mouth: the guard's
+   *  face is frontal, so his lips work like any portrait's. When it
+   *  lands, every capsule-by-default presence trades up. A missing
+   *  or unreadable slot leaves the capsule standing — the fallback,
+   *  never a broken figure. */
+  private loadDefaultArt(): void {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      void locatePortraitMouth(img).then((mouth) => {
+        if (this.disposed) return;
+        this.defaultArt = { status: "ready", image: img, mouth };
+        for (const rig of this.avatars.values()) {
+          if (rig.requestedId === null && !rig.portrait) this.swapToDefaultOrCapsule(rig);
+        }
+        if (this.selfRig && this.selfRig.requestedId === null && !this.selfRig.portrait) {
+          this.swapToDefaultOrCapsule(this.selfRig);
+        }
+      });
+    };
+    img.onerror = () => {
+      this.defaultArt = { status: "failed", image: null, mouth: null };
+    };
+    img.src = defaultCharacterUrl(import.meta.env.BASE_URL);
+  }
+
+  private swapFigure(
+    rig: AvatarRig,
+    body: THREE.Group,
+    portrait: PortraitState | null,
+    characterId: string | null,
+    spriteY?: number,
+  ): void {
     rig.group.remove(rig.body);
     if (rig.portrait) rig.portrait.texture.dispose();
     disposeObjectTree(rig.body);
@@ -1361,7 +1729,7 @@ export class KingsHallScene {
     rig.characterId = characterId;
     rig.speechTarget = 0;
     rig.speechShown = 0;
-    rig.sprite.position.y = portrait ? PORTRAIT_SPRITE_Y : CAPSULE_SPRITE_Y;
+    rig.sprite.position.y = spriteY ?? (portrait ? PORTRAIT_SPRITE_Y : CAPSULE_SPRITE_Y);
     rig.group.add(body);
   }
 
@@ -1390,6 +1758,51 @@ export class KingsHallScene {
 
   setSpawn(x: number, z: number): void {
     this.rig.position.set(clamp(x, BOUNDS.minX, BOUNDS.maxX), 0, clamp(z, BOUNDS.minZ, BOUNDS.maxZ));
+  }
+
+  /* ── Your own figure + camera ── */
+
+  /** First person (you are the camera) or third (the camera follows
+   *  behind your figure). Flat-screen only: while XR is presenting
+   *  the headset owns the camera whatever this says. */
+  setViewMode(mode: HallViewMode): void {
+    this.viewMode = mode;
+  }
+
+  get currentViewMode(): HallViewMode {
+    return this.viewMode;
+  }
+
+  /** Stand (or re-dress) your own figure from your presence peer —
+   *  the same reconcile every peer gets, so a character pick swaps
+   *  your figure the moment the room confirms it. Null = no figure
+   *  (not inside yet). */
+  setSelfFigure(peer: WorldPeer | null): void {
+    if (!peer) {
+      if (this.selfRig) {
+        this.scene.remove(this.selfRig.group);
+        if (this.selfRig.portrait) this.selfRig.portrait.texture.dispose();
+        disposeObjectTree(this.selfRig.group);
+        this.selfRig = null;
+      }
+      return;
+    }
+    if (!this.selfRig) {
+      const rig = buildAvatar(peer);
+      this.selfRig = rig;
+      this.scene.add(rig.group);
+      this.reconcileFigure(rig, peer);
+      return;
+    }
+    this.reconcileFigure(this.selfRig, peer);
+    this.reconcilePlate(this.selfRig, peer);
+  }
+
+  /** Your own voice level for your figure's lips — fed from your
+   *  mic the same way peers' levels are fed from their streams. */
+  setSelfSpeechLevel(level: number): void {
+    if (!this.selfRig || !this.selfRig.portrait) return;
+    this.selfRig.speechTarget = mouthOpennessForLevel(level);
   }
 
   localPose(): { x: number; z: number; rotY: number } {
@@ -1495,12 +1908,23 @@ export class KingsHallScene {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
 
-    if (this.renderer.xr.isPresenting) {
+    const presenting = this.renderer.xr.isPresenting;
+    if (presenting) {
       this.tickXrMove(dt);
     } else {
       this.tickFlatMove(dt);
       this.rig.rotation.y = this.yaw;
-      this.camera.rotation.x = this.pitch;
+      this.applyFlatCamera();
+    }
+
+    // Your own figure stands where you stand. Only the flat
+    // third-person camera ever sees it — first person is the camera,
+    // and in XR the headset's own camera rules stand (a body parked
+    // at the eye point would fill the view), so it steps aside.
+    if (this.selfRig) {
+      this.selfRig.group.position.set(this.rig.position.x, 0, this.rig.position.z);
+      this.selfRig.group.rotation.y = this.yaw;
+      this.selfRig.group.visible = !presenting && this.viewMode === "third";
     }
     // The planar mirror rests while presenting — Reflector and XR
     // don't mix; the polished overlay carries the floor in a headset.
@@ -1517,26 +1941,15 @@ export class KingsHallScene {
     // Character figures: the portrait panel billboards toward the
     // viewer (a portrait is a face — it should meet your eye, not the
     // walker's heading), and its lips track the speaker's voice.
-    if (this.avatars.size) {
+    // Your own figure gets the same treatment in third person.
+    if (this.avatars.size || this.selfRig?.portrait) {
       this.camera.getWorldPosition(SCRATCH_VEC);
       const nowMs = performance.now();
       for (const rig of this.avatars.values()) {
-        if (!rig.portrait) continue;
-        const faceYaw =
-          Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
-          rig.group.rotation.y;
-        rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
-
-        const opennessDiff = rig.speechTarget - rig.speechShown;
-        if (Math.abs(opennessDiff) > 0.002) {
-          rig.speechShown += opennessDiff * Math.min(1, dt * 20);
-          if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
-          // ~15 fps texture updates while the mouth is actually moving.
-          if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
-            rig.lastMouthDrawAt = nowMs;
-            drawPortraitCanvas(rig.portrait, rig.speechShown);
-          }
-        }
+        if (rig.portrait) this.updateFigure(rig, dt, nowMs);
+      }
+      if (this.selfRig?.portrait && this.selfRig.group.visible) {
+        this.updateFigure(this.selfRig, dt, nowMs);
       }
     }
 
@@ -1573,6 +1986,55 @@ export class KingsHallScene {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /** One figure's per-frame life: billboard the portrait toward the
+   *  camera (SCRATCH_VEC holds the camera's world position) and run
+   *  its lips toward the speaker's level. */
+  private updateFigure(rig: AvatarRig, dt: number, nowMs: number): void {
+    if (!rig.portrait) return;
+    const faceYaw =
+      Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
+      rig.group.rotation.y;
+    rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
+    /* The default figure breathes: a barely-there idle sway, phased
+     * per figure so the hall never moves in lockstep. */
+    if (rig.defaultFigure) {
+      rig.body.rotation.z = Math.sin(nowMs / 1500 + rig.swayPhase) * 0.018;
+    }
+
+    const opennessDiff = rig.speechTarget - rig.speechShown;
+    if (Math.abs(opennessDiff) > 0.002) {
+      rig.speechShown += opennessDiff * Math.min(1, dt * 20);
+      if (Math.abs(rig.speechTarget - rig.speechShown) <= 0.004) rig.speechShown = rig.speechTarget;
+      // ~15 fps texture updates while the mouth is actually moving.
+      if (nowMs - rig.lastMouthDrawAt >= 66 || rig.speechShown === rig.speechTarget) {
+        rig.lastMouthDrawAt = nowMs;
+        drawPortraitCanvas(rig.portrait, rig.speechShown);
+      }
+    }
+  }
+
+  /** The flat-screen camera. First person: at the rig's eye, pitch
+   *  is the look. Third person: pulled behind and above your figure
+   *  (which the tick makes visible), the pitch gentled so the figure
+   *  stays framed; the world spot is clamped inside the walls so
+   *  backing into a corner never pushes the camera out of the room.
+   *  Never called while XR presents — the headset owns the camera. */
+  private applyFlatCamera(): void {
+    if (this.viewMode === "third") {
+      this.rig.updateMatrixWorld();
+      SCRATCH_VEC.set(0, THIRD_CAM_HEIGHT, THIRD_CAM_DISTANCE);
+      this.rig.localToWorld(SCRATCH_VEC);
+      SCRATCH_VEC.x = clamp(SCRATCH_VEC.x, CAM_CLAMP.minX, CAM_CLAMP.maxX);
+      SCRATCH_VEC.z = clamp(SCRATCH_VEC.z, CAM_CLAMP.minZ, CAM_CLAMP.maxZ);
+      this.rig.worldToLocal(SCRATCH_VEC);
+      this.camera.position.copy(SCRATCH_VEC);
+      this.camera.rotation.x = this.pitch * 0.5 - 0.14;
+    } else {
+      this.camera.position.set(0, EYE_HEIGHT, 0);
+      this.camera.rotation.x = this.pitch;
+    }
+  }
+
   private moveRig(fwd: number, strafe: number, dt: number, speed: number, headingYaw: number): void {
     if (fwd === 0 && strafe === 0) return;
     const sin = Math.sin(headingYaw);
@@ -1595,12 +2057,33 @@ export class KingsHallScene {
       strafe += this.stick.dx;
       fwd += -this.stick.dy;
     }
+    let run = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    /* A paired controller (Bluetooth gamepads arrive as standard
+     * gamepads) merges in — it never replaces keyboard/mouse/touch,
+     * it adds to them: left stick walks, right stick looks with the
+     * same sign conventions as the mouse, RT/L3 hurries, and the two
+     * face-button toggles fire their page callbacks on the press
+     * edge. Flat-screen only: XR keeps its own controller rules in
+     * tickXrMove. */
+    const pads = typeof navigator !== "undefined" ? navigator.getGamepads?.() : null;
+    const pad = pads ? firstGamepad([...pads]) : null;
+    const polled = pollGamepad(pad, this.padEdges);
+    this.padEdges = polled.edges;
+    if (pad) {
+      const intent = polled.intent;
+      strafe += intent.moveX;
+      fwd += -intent.moveY;
+      this.yaw -= intent.lookX * 2.2 * dt;
+      this.pitch = clamp(this.pitch - intent.lookY * 2.2 * dt, -1.15, 1.15);
+      if (intent.sprint) run = true;
+      if (intent.toggleVoice) this.onPadToggleVoice?.();
+      if (intent.toggleView) this.onPadToggleView?.();
+    }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {
       fwd /= len;
       strafe /= len;
     }
-    const run = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
     this.moveRig(fwd, strafe, dt, run ? RUN_SPEED : WALK_SPEED, this.yaw);
   }
 
@@ -1639,6 +2122,7 @@ export class KingsHallScene {
       this.video.load();
     }
     for (const peerId of [...this.avatars.keys()]) this.removePeer(peerId);
+    this.setSelfFigure(null);
     if (this.lookGroup) {
       this.scene.remove(this.lookGroup);
       this.disposeLookGroup(this.lookGroup);
