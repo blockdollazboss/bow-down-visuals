@@ -1,79 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Access lock-down (Lane 4, audit §1.4 / §5.1): the sitemap lists ONLY
+     the static public set. The SEO/marketing/discovery family and every
+     locked app surface were removed — a sitemap URL that bounces to
+     /login is a soft-404 risk. Parameterized public routes
+     (/artist/:slug, /shop/:slug, /tips/:handle, media/funnel landings…)
+     are dynamic and were never listed here. Pinned by
+     src/lib/prerender-sitemap-lockdown.test.ts. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://bowdownvisuals.com/</loc></url>
-  <url><loc>https://bowdownvisuals.com/pricing</loc></url>
-  <url><loc>https://bowdownvisuals.com/beta-access</loc></url>
-  <url><loc>https://bowdownvisuals.com/contact</loc></url>
+  <url><loc>https://bowdownvisuals.com/charts</loc></url>
+  <url><loc>https://bowdownvisuals.com/shorts</loc></url>
+  <url><loc>https://bowdownvisuals.com/beats</loc></url>
+  <url><loc>https://bowdownvisuals.com/shoutouts</loc></url>
+  <url><loc>https://bowdownvisuals.com/memberships</loc></url>
+  <url><loc>https://bowdownvisuals.com/contests</loc></url>
+  <url><loc>https://bowdownvisuals.com/winners</loc></url>
   <url><loc>https://bowdownvisuals.com/terms</loc></url>
   <url><loc>https://bowdownvisuals.com/privacy</loc></url>
   <url><loc>https://bowdownvisuals.com/refund-policy</loc></url>
-  <url><loc>https://bowdownvisuals.com/templates</loc></url>
-  <url><loc>https://bowdownvisuals.com/templates/videos</loc></url>
-  <url><loc>https://bowdownvisuals.com/templates/thumbnails</loc></url>
-  <url><loc>https://bowdownvisuals.com/templates/hooks</loc></url>
-  <url><loc>https://bowdownvisuals.com/templates/captions</loc></url>
-  <url><loc>https://bowdownvisuals.com/showcase</loc></url>
-  <url><loc>https://bowdownvisuals.com/browse</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres</loc></url>
-  <url><loc>https://bowdownvisuals.com/charts</loc></url>
-  <url><loc>https://bowdownvisuals.com/features</loc></url>
-  <url><loc>https://bowdownvisuals.com/explore</loc></url>
-  <url><loc>https://bowdownvisuals.com/winners</loc></url>
-  <url><loc>https://bowdownvisuals.com/academy</loc></url>
-  <url><loc>https://bowdownvisuals.com/coach</loc></url>
-  <url><loc>https://bowdownvisuals.com/download</loc></url>
-  <url><loc>https://bowdownvisuals.com/extension</loc></url>
-  <url><loc>https://bowdownvisuals.com/for</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/educators</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/musicians</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/podcasters</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/streamers</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/tiktokers</loc></url>
-  <url><loc>https://bowdownvisuals.com/for/youtubers</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/country</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/edm</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/hip-hop</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/lofi</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/pop</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/rnb</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/rock</loc></url>
-  <url><loc>https://bowdownvisuals.com/genres/trap</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-caption-generator</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-clip-maker</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-hook-generator</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-music-video-maker</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-song-maker</loc></url>
-  <url><loc>https://bowdownvisuals.com/tools/ai-thumbnail-maker</loc></url>
-  <url><loc>https://bowdownvisuals.com/jewelry-shop</loc></url>
-  <url><loc>https://bowdownvisuals.com/tour</loc></url>
-  <url><loc>https://bowdownvisuals.com/hooks</loc></url>
-  <url><loc>https://bowdownvisuals.com/shorts</loc></url>
-  <url><loc>https://bowdownvisuals.com/trending</loc></url>
-  <url><loc>https://bowdownvisuals.com/promote</loc></url>
-  <url><loc>https://bowdownvisuals.com/remix</loc></url>
-  <url><loc>https://bowdownvisuals.com/setlist</loc></url>
-  <url><loc>https://bowdownvisuals.com/interview-prep</loc></url>
-  <url><loc>https://bowdownvisuals.com/brand-calculator</loc></url>
-  <url><loc>https://bowdownvisuals.com/creator-pricing</loc></url>
-  <url><loc>https://bowdownvisuals.com/branding-kit</loc></url>
-  <url><loc>https://bowdownvisuals.com/groups</loc></url>
-  <url><loc>https://bowdownvisuals.com/events</loc></url>
-  <url><loc>https://bowdownvisuals.com/brand-deals</loc></url>
-  <url><loc>https://bowdownvisuals.com/distribute</loc></url>
-  <url><loc>https://bowdownvisuals.com/tips</loc></url>
-  <url><loc>https://bowdownvisuals.com/beats</loc></url>
-  <url><loc>https://bowdownvisuals.com/memberships</loc></url>
-  <url><loc>https://bowdownvisuals.com/shoutouts</loc></url>
-  <url><loc>https://bowdownvisuals.com/referrals</loc></url>
-  <url><loc>https://bowdownvisuals.com/team</loc></url>
-  <url><loc>https://bowdownvisuals.com/press-kit</loc></url>
-  <url><loc>https://bowdownvisuals.com/email-list</loc></url>
-  <url><loc>https://bowdownvisuals.com/collabs</loc></url>
-  <url><loc>https://bowdownvisuals.com/contests</loc></url>
   <url><loc>https://bowdownvisuals.com/storefronts</loc></url>
-  <url><loc>https://bowdownvisuals.com/my-shop</loc></url>
-  <url><loc>https://bowdownvisuals.com/community</loc></url>
-  <url><loc>https://bowdownvisuals.com/copyright</loc></url>
-  <url><loc>https://bowdownvisuals.com/llc-guide</loc></url>
 </urlset>
