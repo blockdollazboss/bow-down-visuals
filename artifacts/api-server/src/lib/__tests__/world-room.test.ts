@@ -1057,3 +1057,30 @@ describe("avatar actions", () => {
     expect(a.sent.filter((m) => m.type === "peer.action")).toHaveLength(1);
   });
 });
+
+describe("session keepalive", () => {
+  it("answers a ping with a pong to the sender only — guests included, nothing broadcast", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const g = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(g, guest());
+    a.sent = [];
+    g.sent = [];
+
+    frame(g, room, { type: "ping" });
+    expect(g.sent).toEqual([{ type: "pong" }]);
+    expect(a.sent).toEqual([]); // the room hears nothing about it
+
+    frame(a, room, { type: "ping" });
+    expect(a.sent).toEqual([{ type: "pong" }]);
+    expect(g.sent).toEqual([{ type: "pong" }]); // unchanged
+  });
+
+  it("a ping from a socket the room never attached changes nothing", () => {
+    const room = new WorldRoom(new RoomHub());
+    const stranger = fakeSocket();
+    frame(stranger, room, { type: "ping" });
+    expect(stranger.sent).toEqual([]);
+  });
+});

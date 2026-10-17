@@ -22,6 +22,8 @@
  *                                            re-sending the toggle ends
  *                                            it; null stops now)
  *     { type: "say", body }                  room text (signed-in only)
+ *     { type: "ping" }                       the client's session
+ *                                            keepalive (see below)
  *     { type: "character", characterId }     walk in as a Creative Vault
  *                                            character (id only — the
  *                                            server resolves + verifies
@@ -118,6 +120,20 @@
  *     { type: "removed", reason } then close 4413 — the host removed
  *                                            this peer from the hall
  *     { type: "room_full", cap } then close 4429 when at presence cap
+ *     { type: "pong" }                       answer to the client's
+ *                                            keepalive ping
+ *
+ * The keepalive is an APPLICATION frame on purpose. The gateway's
+ * protocol-level ping (lib/live-ws.ts, every 30 s) never reaches the
+ * browser: the hosting router terminates control frames on its own
+ * leg (measured live, 2026-10-17 — six-minute guest sessions saw
+ * zero protocol pings while data frames flowed normally), so a lone
+ * guest standing still produces NO traffic on the browser's leg and
+ * the router reaps the "idle" socket inside a couple of minutes.
+ * The client's ping (every ~25 s while inside) and this pong are
+ * data frames: they cross every leg, keep the path warm, and give
+ * the client positive proof the path still carries frames — silence
+ * past its liveness window means the path is dead, not quiet.
  *
  * House rules baked in: presence cap 30 with an honest full state,
  * voice mesh cap 12 (a mesh beyond that melts phones), guests are
@@ -947,6 +963,14 @@ export class WorldRoom {
     }
 
     switch (frame["type"]) {
+      case "ping": {
+        /* Session keepalive: answered to the sender only — no
+         * state, no broadcast, no rate bookkeeping. See the
+         * protocol note at the top of this file for why this is an
+         * application frame and not the gateway's protocol ping. */
+        this.send(peer, { type: "pong" });
+        return;
+      }
       case "move": {
         if (now - peer.lastMoveAt < MOVE_MIN_INTERVAL_MS) return;
         peer.lastMoveAt = now;
