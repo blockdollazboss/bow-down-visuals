@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play, Loader2, Sparkles, Upload, Check, Download, CalendarClock } from "lucide-react";
@@ -135,7 +136,7 @@ export default function CoverInMotionPanel() {
               {t("coverInMotion.download", { defaultValue: "Download" })}
             </a>
             <a
-              href={`/scheduler?schedule=1&media=${encodeURIComponent(videoUrl)}&caption=${encodeURIComponent(t("coverInMotion.scheduleCaption", { defaultValue: "My cover visualizer" }))}`}
+              href={buildSchedulerHref({ caption: t("coverInMotion.scheduleCaption", { defaultValue: "My cover visualizer" }), media: videoUrl })}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
             >
               <CalendarClock className="h-4 w-4" />

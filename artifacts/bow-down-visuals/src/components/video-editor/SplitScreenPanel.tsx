@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { r2UploadFile } from "@/lib/r2-storage";
@@ -415,12 +416,12 @@ export default function SplitScreenPanel({
   }
 
   /* Scheduler handoff — the scheduler's deep-link protocol
-     (/scheduler?schedule=1&media=…&caption=…) auto-opens the composer
-     with the finished grid video pre-attached. */
+     (lib/scheduler-handoff) auto-opens the composer with the
+     finished grid video pre-attached. */
   function scheduleHandoff() {
     if (!resultUrl) return;
     const caption = t("splitScreen.scheduleCaption", { name: layout?.name ?? "" });
-    navigate(`/scheduler?schedule=1&media=${encodeURIComponent(resultUrl)}&caption=${encodeURIComponent(caption)}`);
+    navigate(buildSchedulerHref({ caption, media: resultUrl }));
   }
 
   /* "Make a reaction video" — the PiP layout IS the reaction-video look:

@@ -5,6 +5,7 @@ import {
   CalendarClock, Share2, FolderPlus, Image as ImageIcon,
 } from "lucide-react";
 import { useHubProject } from "@/lib/hub-project";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { downloadImage } from "@/lib/download-image";
@@ -138,13 +139,11 @@ export function PromoCardsPanel() {
   }
 
   function scheduleCard(card: PromoCard) {
-    const params = new URLSearchParams({
-      schedule: "1",
+    window.location.href = buildSchedulerHref({
       caption: caption || `${releaseTitle} — ${artistName}`,
       media: card.url,
-      platform: card.platforms.join(","),
+      platforms: card.platforms,
     });
-    window.location.href = `/scheduler?${params.toString()}`;
   }
 
   function addCardToAssets(card: PromoCard) {

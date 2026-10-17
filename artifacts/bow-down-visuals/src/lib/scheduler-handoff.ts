@@ -20,21 +20,31 @@ export function parseSchedulerMediaType(v: string | null | undefined): Scheduler
 }
 
 export interface SchedulerHandoff {
-  caption: string;
+  caption?: string;
   media?: string | null;
   mediaType?: SchedulerMediaType;
-  platforms?: SchedulerPlatformKey[];
+  /** Platform keys ride as plain strings — the composer validates
+   *  them against the keys it knows (instagram / tiktok / facebook)
+   *  and ignores the rest, exactly as it always has. */
+  platforms?: string[];
+  /** Carried for project-scoped views (the editor's post-export
+   *  handoff has always sent it); the composer itself doesn't read it. */
+  project?: string | null;
 }
 
 export function buildSchedulerHref(h: SchedulerHandoff): string {
   const q = new URLSearchParams();
   q.set("schedule", "1");
-  q.set("caption", h.caption);
+  /* Caption is optional in the protocol: media-only handoffs (the
+     caption suite's burned-caption exports) have never sent one, and
+     an absent param is how the composer sees "no prefill". */
+  if (h.caption) q.set("caption", h.caption);
   if (h.media) {
     q.set("media", h.media);
     q.set("mediaType", h.mediaType ?? "video");
   }
   if (h.platforms?.length) q.set("platform", h.platforms.join(","));
+  if (h.project) q.set("project", h.project);
   return `/scheduler?${q.toString()}`;
 }
 

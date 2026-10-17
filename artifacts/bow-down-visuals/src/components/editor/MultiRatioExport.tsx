@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -578,9 +579,11 @@ export function MultiRatioExportCard({
                             {t("videoEditor.multiRatio.toCaptions")}
                           </Link>
                           <Link
-                            href={`/scheduler?schedule=1&platform=${cfg.schedulePlatforms.join(",")}&media=${encodeURIComponent(r.url)}&caption=${encodeURIComponent(
-                              `${topic?.trim() ? topic.trim() + "\n\n" : ""}${t("videoEditor.multiRatio.defaultCaption", { platform: r.platformLabel })} ${shareLink(r.url)}`,
-                            )}`}
+                            href={buildSchedulerHref({
+                              caption: `${topic?.trim() ? topic.trim() + "\n\n" : ""}${t("videoEditor.multiRatio.defaultCaption", { platform: r.platformLabel })} ${shareLink(r.url)}`,
+                              media: r.url,
+                              platforms: cfg.schedulePlatforms,
+                            })}
                             className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/[0.12] transition-colors"
                           >
                             <CalendarClock className="h-3.5 w-3.5" />

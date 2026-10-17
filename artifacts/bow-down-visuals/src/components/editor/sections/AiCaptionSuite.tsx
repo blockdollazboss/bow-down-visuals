@@ -7,6 +7,7 @@ import {
   Ban, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
@@ -1062,7 +1063,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         </a>
                       </Button>
                       <Button type="button" variant="outline" size="sm" asChild>
-                        <a href={`/scheduler?schedule=1&media=${encodeURIComponent(burnResultUrl)}`}>
+                        <a href={buildSchedulerHref({ media: burnResultUrl })}>
                           <CalendarClock className="h-3.5 w-3.5 mr-1.5" />{t("captionSuite.handoffScheduler")}
                         </a>
                       </Button>
@@ -1217,7 +1218,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                           </a>
                         </Button>
                         <Button type="button" variant="outline" size="sm" asChild>
-                          <a href={`/scheduler?schedule=1&media=${encodeURIComponent(burnResultUrl)}`}>
+                          <a href={buildSchedulerHref({ media: burnResultUrl })}>
                             <CalendarClock className="h-3.5 w-3.5 mr-1.5" />{t("captionSuite.handoffScheduler")}
                           </a>
                         </Button>

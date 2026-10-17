@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, type LucideIcon } from "lucide-react";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
@@ -162,7 +163,7 @@ export default function Create() {
               <p className="text-xs text-white/50 mt-0.5">{socialTemplate.blurb}</p>
             </div>
             <Link
-              href={`/scheduler?schedule=1&caption=${encodeURIComponent(`${socialTemplate.emoji} ${socialTemplate.title} — ${socialTemplate.blurb}`)}`}
+              href={buildSchedulerHref({ caption: `${socialTemplate.emoji} ${socialTemplate.title} — ${socialTemplate.blurb}` })}
               className="rounded-full bg-[#c9a84c] text-black text-xs font-black px-4 py-2 hover:bg-[#e8c86a] transition shrink-0"
             >
               {t("create.draftSocialPost", { defaultValue: "Draft this post" })}

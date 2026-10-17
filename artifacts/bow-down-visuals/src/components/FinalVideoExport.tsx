@@ -6,6 +6,7 @@ import {
   SlidersHorizontal, Share2, CalendarClock,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
@@ -885,7 +886,7 @@ export function FinalVideoExport({
               <p className="text-xs font-bold text-white/70">Next steps — keep the momentum</p>
               <div className="flex flex-wrap gap-2">
                 <a
-                  href={`/scheduler?schedule=1&media=${encodeURIComponent(exportUrl)}&caption=${encodeURIComponent("Made with @bowdownvisuals 🔥")}`}
+                  href={buildSchedulerHref({ caption: "Made with @bowdownvisuals 🔥", media: exportUrl })}
                   className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                   data-testid="btn-handoff-schedule"
                 >
