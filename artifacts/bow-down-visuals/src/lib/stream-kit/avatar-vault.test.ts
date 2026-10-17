@@ -32,7 +32,7 @@ describe("the vault roster read (the picker's list)", () => {
     const payload = {
       vaults: [
         { id: "v-1", artist_name: "Shark King", reference_image_url: "https://img.example/king.png" },
-        { id: "v-2", artist_name: "Nova Vale", reference_image_url: "https://img.example/nova.png" },
+        { id: "v-2", artist_name: "Nova Vale", reference_image_url: "https://img.example/nova.png", reference_video_url: "https://img.example/nova-loop.mp4" },
         { id: "v-3", artist_name: "No Portrait Yet", reference_image_url: null },
       ],
     };
@@ -47,8 +47,13 @@ describe("the vault roster read (the picker's list)", () => {
       id: "v-1",
       name: "Shark King",
       portraitUrl: "https://img.example/king.png",
+      loopUrl: null,
     });
+    /* The loop lane's identity keying rides the same roster read: a
+       row's reference_video_url arrives as loopUrl. */
+    expect(chars[1]!.loopUrl).toBe("https://img.example/nova-loop.mp4");
     expect(chars[2]!.portraitUrl).toBeNull();
+    expect(chars[2]!.loopUrl).toBeNull();
   });
 });
 
