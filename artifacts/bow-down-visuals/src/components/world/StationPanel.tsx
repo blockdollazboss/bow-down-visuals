@@ -36,6 +36,7 @@ import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/nati
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
+import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -1224,6 +1225,12 @@ export default function StationPanel(props: StationPanelProps) {
               <EarningsBoard isLight={isLight} />
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+            ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
+              <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
+              <PressKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "promote-room" ? (
+              <PromoteDesk isLight={isLight} isGuest={isGuest} />
             ) : (
               <NativePlaceholder station={station} isLight={isLight} />
             )}

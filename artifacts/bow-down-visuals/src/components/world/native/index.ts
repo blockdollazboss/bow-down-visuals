@@ -41,3 +41,4 @@ export {
   ResultChips,
   type ResultChipsProps,
 } from "./CreateDeskShared";
+export { BrandingKitDesk, PressKitDesk, PromoteDesk } from "./BusinessDesks";
