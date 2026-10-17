@@ -1,17 +1,20 @@
 /**
- * The palace's doors (lib/world/stations) — the access layer's
- * registry. Pure data + proximity, pinned:
+ * The palace's doors (lib/world/stations) — registry v2. Pure data
+ * + proximity, pinned:
  * - every room of the palace has at least one door-station, and
  *   every station stands in a real room, ON that room's walkable
  *   floor (a prompt you can never reach is a broken promise);
  * - station ids are unique and every station carries a name, a
  *   one-line pitch, and a panel target;
- * - the brief's named doors all exist: the Front Row gallery, the
- *   Treasury's three rails (Daily Drop / Shark Drops / quests),
- *   the jukebox, the arcade cabinets + the marble table, the
- *   Create Wing desks (editor as the step-through, My Studio at
- *   the entrance), the Branding Atelier's three desks, and the
- *   Courtyard's four shopfronts;
+ * - REGISTRY V2 (NATIVE-PLAN §3.0): panel kinds are exactly
+ *   { native, custom, stepthrough } — "page" is retired, zero
+ *   stations auto-open a website page. The 20 former pull-ups are
+ *   native with the plan's pattern each; the six customs and the
+ *   editor step-through are byte-for-byte what they were;
+ * - every station's transfer target (`websitePath`) is the EXACT
+ *   string it used to auto-open, deep links included — the full
+ *   per-station table is asserted below. Customs carry null (they
+ *   never auto-opened a page);
  * - the prompt is proximity-honest: standing on a station offers
  *   THAT station, the nearest wins in an overlap, and open floor
  *   offers nothing.
@@ -36,45 +39,134 @@ describe("the station registry", () => {
     }
   });
 
-  it("ids are unique; every station is fully dressed (name, pitch, panel)", () => {
+  it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
+    expect(PALACE_STATIONS.length).toBe(27);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
       if (s.panel.kind === "custom") expect(s.panel.id.length, s.id).toBeGreaterThan(0);
-      else expect(s.panel.path.startsWith("/"), s.id).toBe(true);
+      if (s.panel.kind === "stepthrough") expect(s.panel.path.startsWith("/"), s.id).toBe(true);
+      if (s.panel.kind === "native") {
+        // A native station MUST carry its transfer target — the
+        // footer's href is the exact page it used to auto-open.
+        expect(s.websitePath, s.id).not.toBeNull();
+        expect(s.websitePath!.startsWith("/"), s.id).toBe(true);
+      }
       expect(STATION_BY_ID.get(s.id)).toBe(s);
     }
   });
 
-  it("the brief's named doors exist, in their rooms, with their panel kinds", () => {
-    const byId = (id: string) => STATION_BY_ID.get(id)!;
-    expect(byId("front-row-gallery").panel).toEqual({ kind: "custom", id: "front-row" });
-    expect(byId("front-row-gallery").roomId).toBe("world:royal-court");
-    for (const id of ["daily-drop", "shark-drops", "quest-board"]) {
-      expect(byId(id).roomId).toBe("world:treasury");
-      expect(byId(id).panel.kind).toBe("custom");
-      expect(byId(id).membersOnly).toBe(true);
+  it('panel kinds are exactly { native, custom, stepthrough } — zero "page" (pin a)', () => {
+    const kinds = new Set(PALACE_STATIONS.map((s) => s.panel.kind));
+    expect(kinds).toEqual(new Set(["native", "custom", "stepthrough"]));
+    for (const s of PALACE_STATIONS) {
+      expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
+      expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(byId("jukebox").roomId).toBe("world:music-hall");
-    expect(byId("jukebox").panel).toEqual({ kind: "custom", id: "jukebox" });
-    expect(byId("arcade-cabinets").panel).toEqual({ kind: "page", path: "/arcade" });
-    expect(byId("marble-table").panel).toEqual({ kind: "page", path: "/party" });
-    expect(byId("visual-vibes-editor").panel).toEqual({ kind: "stepthrough", path: "/video-editor" });
-    expect(byId("my-studio").roomId).toBe("world:create-wing");
-    expect(byId("song-desk").panel).toEqual({ kind: "page", path: "/create?panel=song" });
-    expect(byId("branding-kit-desk").panel).toEqual({ kind: "page", path: "/branding-kit" });
-    expect(byId("branding-shop-desk").panel).toEqual({ kind: "page", path: "/branding-kit?tab=shop" });
-    expect(byId("press-kit-desk").panel).toEqual({ kind: "page", path: "/press-kit" });
-    expect(byId("marketplace").panel).toEqual({ kind: "page", path: "/storefronts" });
-    expect(byId("community-hall").panel).toEqual({ kind: "page", path: "/community" });
-    expect(byId("promote-room").panel).toEqual({ kind: "page", path: "/promote" });
-    expect(byId("get-paid-room").panel).toEqual({ kind: "page", path: "/earnings" });
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(6);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
-  it("exactly one station is a step-through — the editor", () => {
+  it("each native station carries the plan's pattern (NATIVE-PLAN §3)", () => {
+    const patterns: Record<string, string> = {
+      "post-office": "social",
+      "listening-booth": "shelf",
+      "charts-desk": "board",
+      "arcade-cabinets": "games",
+      "marble-table": "games",
+      "my-studio": "board",
+      "song-desk": "create",
+      "video-desk": "create",
+      "song-video-desk": "create",
+      "cover-art-desk": "create",
+      "audio-desk": "create",
+      "thumbnail-desk": "create",
+      "crowns-desk": "shop",
+      "branding-kit-desk": "business",
+      "branding-shop-desk": "shop",
+      "press-kit-desk": "business",
+      marketplace: "shop",
+      "community-hall": "social",
+      "promote-room": "business",
+      "get-paid-room": "board",
+    };
+    expect(Object.keys(patterns).length).toBe(20);
+    for (const [id, pattern] of Object.entries(patterns)) {
+      expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
+    }
+  });
+
+  it("every station's transfer href is its exact former website path (pin c — the full table)", () => {
+    const table: Record<string, string | null> = {
+      "kingdom-board": null,
+      "post-office": "/messages",
+      jukebox: null,
+      "listening-booth": "/my-music",
+      "charts-desk": "/charts",
+      "arcade-cabinets": "/arcade",
+      "marble-table": "/party",
+      "my-studio": "/dashboard",
+      "visual-vibes-editor": "/video-editor",
+      "song-desk": "/create?panel=song",
+      "video-desk": "/create?panel=video",
+      "song-video-desk": "/create?panel=song-video",
+      "cover-art-desk": "/create?panel=coverart",
+      "audio-desk": "/audio-studio",
+      "thumbnail-desk": "/thumbnail-studio",
+      "daily-drop": null,
+      "shark-drops": null,
+      "quest-board": null,
+      "front-row-gallery": null,
+      "crowns-desk": "/memberships",
+      "branding-kit-desk": "/branding-kit",
+      "branding-shop-desk": "/branding-kit?tab=shop",
+      "press-kit-desk": "/press-kit",
+      marketplace: "/storefronts",
+      "community-hall": "/community",
+      "promote-room": "/promote",
+      "get-paid-room": "/earnings",
+    };
+    expect(Object.keys(table).length).toBe(PALACE_STATIONS.length);
+    for (const s of PALACE_STATIONS) {
+      expect(s.websitePath, s.id).toBe(table[s.id]);
+    }
+  });
+
+  it("the six customs are unchanged — same ids, same rooms (pin d)", () => {
+    const byId = (id: string) => STATION_BY_ID.get(id)!;
+    expect(byId("kingdom-board").panel).toEqual({ kind: "custom", id: "kingdom-board" });
+    expect(byId("jukebox").panel).toEqual({ kind: "custom", id: "jukebox" });
+    expect(byId("jukebox").roomId).toBe("world:music-hall");
+    expect(byId("front-row-gallery").panel).toEqual({ kind: "custom", id: "front-row" });
+    expect(byId("front-row-gallery").roomId).toBe("world:royal-court");
+    for (const [id, customId] of [
+      ["daily-drop", "treasury-daily"],
+      ["shark-drops", "treasury-shark"],
+      ["quest-board", "treasury-quests"],
+    ] as const) {
+      expect(byId(id).roomId).toBe("world:treasury");
+      expect(byId(id).panel).toEqual({ kind: "custom", id: customId });
+      expect(byId(id).membersOnly).toBe(true);
+    }
+  });
+
+  it("exactly one station is a step-through — the editor, unchanged (pin d)", () => {
     const stepthroughs = PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough");
     expect(stepthroughs.map((s) => s.id)).toEqual(["visual-vibes-editor"]);
+    expect(STATION_BY_ID.get("visual-vibes-editor")!.panel).toEqual({
+      kind: "stepthrough",
+      path: "/video-editor",
+    });
+  });
+
+  it("the brief's named doors exist, in their rooms", () => {
+    const byId = (id: string) => STATION_BY_ID.get(id)!;
+    expect(byId("my-studio").roomId).toBe("world:create-wing");
+    expect(byId("post-office").roomId).toBe("world:kings-hall");
+    expect(byId("marketplace").roomId).toBe("world:courtyard");
+    expect(byId("get-paid-room").roomId).toBe("world:courtyard");
   });
 });
 
