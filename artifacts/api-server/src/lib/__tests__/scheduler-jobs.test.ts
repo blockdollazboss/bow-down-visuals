@@ -315,6 +315,120 @@ describe("scheduler-jobs", () => {
   });
 });
 
+describe("Stack-30 C4 — platform × media-type incompatibility is permanent", () => {
+  it("an image post settles on the FIRST attempt: TikTok's permanent failure doesn't hold the post open for retries", async () => {
+    const { deps, updates, refunds } = makeDeps({
+      publishers: {
+        instagramImage: async () => ({ mediaId: "ig-img-1", permalink: "https://ig/p/img1" }),
+        facebookPhoto: async () => ({ photoId: "fb-photo-1", permalink: "https://fb/photo/1" }),
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1, // first attempt — the old code sent this back for two more futile passes
+      platforms: ["instagram", "tiktok", "facebook"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt", facebook: "acct-fb" },
+    });
+    await fireScheduledPost(post, deps);
+    /* No retry update at all — the post settled terminally. */
+    expect(updates.find((u) => u.patch.status === "scheduled")).toBeUndefined();
+    const terminal = updates.find((u) => u.patch.status === "posted");
+    expect(terminal).toBeDefined();
+    const byPlatform = new Map(terminal!.patch.results!.map((r) => [r.platform, r]));
+    expect(byPlatform.get("instagram")!.status).toBe("posted");
+    expect(byPlatform.get("facebook")!.status).toBe("posted");
+    const tt = byPlatform.get("tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBe(true);
+    expect(tt.error).toMatch(/TikTok posts need a video/);
+    expect(terminal!.patch.last_error).toContain("tiktok");
+    /* Partial success — delivered somewhere — is not refunded. */
+    expect(refunds).toHaveLength(0);
+  });
+
+  it("an image post aimed only at TikTok fails and refunds on the first attempt, not the third", async () => {
+    const { deps, updates, refunds } = makeDeps();
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1,
+      platforms: ["tiktok"] as SchedulerPlatform[],
+      account_ids: { tiktok: "acct-tt" },
+    });
+    await fireScheduledPost(post, deps);
+    expect(updates.find((u) => u.patch.status === "scheduled")).toBeUndefined();
+    const terminal = updates.find((u) => u.patch.status === "failed");
+    expect(terminal).toBeDefined();
+    expect(terminal!.patch.results![0]!.permanent).toBe(true);
+    expect(refunds).toEqual([{ userId: "user-1", amount: 1 }]);
+  });
+
+  it("a permanent failure is never re-fired on a retry pass driven by another platform's transient failure", async () => {
+    let igDown = true;
+    const ctx = makeDeps({
+      publishers: {
+        instagramImage: async () => {
+          if (igDown) throw new Error("Meta exploded");
+          return { mediaId: "ig-img-1", permalink: null };
+        },
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1,
+      platforms: ["instagram", "tiktok"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt" },
+    });
+    await fireScheduledPost(post, ctx.deps);
+    /* Pass 1: Instagram's transient failure holds the post open… */
+    const retry = ctx.updates.find((u) => u.patch.status === "scheduled");
+    expect(retry).toBeDefined();
+    expect(ctx.attemptCalls.failed).toBe(2); // instagram + tiktok each recorded one failed attempt
+
+    /* Pass 2 (the retry tick): the claimed row carries pass 1's
+       results; Instagram now delivers. */
+    igDown = false;
+    const retryPost = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 2,
+      platforms: ["instagram", "tiktok"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt" },
+      results: retry!.patch.results!,
+    });
+    await fireScheduledPost(retryPost, ctx.deps);
+    /* TikTok was NOT re-fired (no second failed attempt recorded for
+       it) and its stored permanent failure carried into the settle. */
+    expect(ctx.attemptCalls.failed).toBe(2);
+    const terminal = ctx.updates.filter((u) => u.patch.status === "posted").at(-1);
+    expect(terminal).toBeDefined();
+    const byPlatform = new Map(terminal!.patch.results!.map((r) => [r.platform, r]));
+    expect(byPlatform.get("instagram")!.status).toBe("posted");
+    const tt = byPlatform.get("tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBe(true);
+    expect(tt.error).toMatch(/TikTok posts need a video/);
+  });
+
+  it("a transient TikTok VIDEO failure is not classified permanent and still retries", async () => {
+    const failing = makeDeps({
+      publishers: {
+        tiktok: async () => { throw new Error("network down"); },
+      },
+    });
+    const post = makePost({ attempts: 1, platforms: ["tiktok"] as SchedulerPlatform[], account_ids: { tiktok: "acct-tt" } });
+    await fireScheduledPost(post, failing.deps);
+    const retry = failing.updates.find((u) => u.patch.status === "scheduled");
+    expect(retry).toBeDefined();
+    const tt = retry!.patch.results!.find((r) => r.platform === "tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBeUndefined();
+    expect(failing.refunds).toHaveLength(0);
+  });
+});
+
 describe("normalizePost / fullCaption", () => {
   it("parses stringified jsonb columns", () => {
     const row = { ...makePost(), platforms: '["facebook"]', account_ids: '{"facebook":"a1"}', results: "[]" } as unknown as ScheduledPost;

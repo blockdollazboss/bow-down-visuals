@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -59,9 +60,9 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
     `&hook=${encodeURIComponent(ctx.hook.slice(0, 600))}`;
 
   const schedulerCaption = `${ctx.hook}\n\n${ctx.idea}`.slice(0, 400);
-  /* Scheduler deep-link protocol: ?schedule=1&caption=… auto-opens the
-     composer with the caption prefilled. */
-  const schedulerHref = `/scheduler?schedule=1&caption=${encodeURIComponent(schedulerCaption)}`;
+  /* Scheduler deep-link protocol (lib/scheduler-handoff):
+     ?schedule=1&caption=… auto-opens the composer prefilled. */
+  const schedulerHref = buildSchedulerHref({ caption: schedulerCaption });
 
   function planText(withCredit: boolean): string {
     const lines = [

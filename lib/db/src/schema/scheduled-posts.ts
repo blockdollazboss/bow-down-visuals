@@ -54,6 +54,12 @@ export interface ScheduledPlatformResult {
   mediaId?: string;
   permalink?: string | null;
   error?: string;
+  /** Stack-30 C4: a failure that can never succeed on retry — the
+   *  platform cannot accept this post's media type at all (e.g. an
+   *  image post aimed at video-only TikTok). The scheduler worker
+   *  settles such a platform on the first attempt and never re-fires
+   *  it on later passes driven by other platforms' transient failures. */
+  permanent?: boolean;
 }
 
 /** AI best-time suggestion payload (stored for review, free to view). */

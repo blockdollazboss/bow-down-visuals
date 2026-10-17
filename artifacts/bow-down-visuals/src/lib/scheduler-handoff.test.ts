@@ -47,6 +47,33 @@ describe("buildSchedulerHref — the ?schedule=1 protocol", () => {
     );
     expect(q.get("platform")).toBe("tiktok,instagram");
   });
+
+  it("a media-only handoff sends no caption param (the caption suite's burned-caption exports never had one)", () => {
+    const href = buildSchedulerHref({ media: "https://cdn/burned.mp4" });
+    const q = new URLSearchParams(href.split("?")[1]);
+    expect(q.get("schedule")).toBe("1");
+    expect(q.get("media")).toBe("https://cdn/burned.mp4");
+    expect(q.get("mediaType")).toBe("video");
+    expect(q.get("caption")).toBeNull();
+  });
+
+  it("the project rides along when a handoff carries one (editor post-export), and only then", () => {
+    const withProject = new URLSearchParams(
+      buildSchedulerHref({ caption: "c", media: "https://cdn/v.mp4", project: "proj-9" }).split("?")[1],
+    );
+    expect(withProject.get("project")).toBe("proj-9");
+    const without = new URLSearchParams(
+      buildSchedulerHref({ caption: "c", media: "https://cdn/v.mp4" }).split("?")[1],
+    );
+    expect(without.get("project")).toBeNull();
+  });
+
+  it("platform keys pass through verbatim — the composer keeps the ones it knows (carousel's linkedin rides, then is filtered there)", () => {
+    const q = new URLSearchParams(
+      buildSchedulerHref({ caption: "c", platforms: ["instagram", "tiktok", "linkedin"] }).split("?")[1],
+    );
+    expect(q.get("platform")).toBe("instagram,tiktok,linkedin");
+  });
 });
 
 describe("parseSchedulerMediaType", () => {
@@ -126,5 +153,30 @@ describe("surface wiring (source)", () => {
     expect(songsSource).toContain("songAnnounceCaption");
     expect(songsSource).toContain("trackPageUrl(window.location.origin, s.id)");
     expect(songsSource).toContain("Announce");
+  });
+
+  /* Stack-30 C3: every composer handoff builds through the one
+     builder — no surface hand-rolls the ?schedule=1 query anymore. */
+  it("every handoff surface builds through buildSchedulerHref and none hand-rolls the protocol", () => {
+    const surfaces: Array<[string, string]> = [
+      ["../components/FinalVideoExport.tsx", "FinalVideoExport"],
+      ["../components/analytics-hub/intelligence/PlanReview.tsx", "PlanReview"],
+      ["../components/create/CoverInMotionPanel.tsx", "CoverInMotionPanel"],
+      ["../components/editor/MultiRatioExport.tsx", "MultiRatioExport"],
+      ["../components/editor/sections/AiCaptionSuite.tsx", "AiCaptionSuite"],
+      ["../components/editor/sections/ExportSection.tsx", "ExportSection"],
+      ["../components/video-editor/SplitScreenPanel.tsx", "SplitScreenPanel"],
+      ["../components/video-editor/TemplatesTabPanel.tsx", "TemplatesTabPanel"],
+      ["../components/hub/PromoCardsPanel.tsx", "PromoCardsPanel"],
+      ["../pages/create.tsx", "create page"],
+      ["../pages/carousel-maker.tsx", "carousel maker"],
+    ];
+    for (const [rel, label] of surfaces) {
+      const src = read(rel);
+      expect(src, `${label} should import the builder`).toContain("buildSchedulerHref");
+      expect(src, `${label} must not hand-roll the protocol query`).not.toMatch(
+        /\/scheduler\?schedule=1|schedule: "1"/,
+      );
+    }
   });
 });

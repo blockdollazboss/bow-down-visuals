@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultWatermarkUrl } from "@/lib/watermark";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
@@ -1060,9 +1061,13 @@ export function ExportSection({
 
       {/* ── Post-export handoffs: carry the project into Promote + Money ── */}
       {finalVideoUrl && (() => {
-        // Scheduler deep-link protocol: ?schedule=1&media=…&caption=… opens the
+        // Scheduler deep-link protocol (lib/scheduler-handoff): opens the
         // composer prefilled. project= is carried for project-scoped views.
-        const schedulerHref = `/scheduler?schedule=1&project=${encodeURIComponent(projectId)}&media=${encodeURIComponent(finalVideoUrl)}&caption=${encodeURIComponent(topic || "My video")}`;
+        const schedulerHref = buildSchedulerHref({
+          caption: topic || "My video",
+          media: finalVideoUrl,
+          project: projectId,
+        });
         const coverUrl = scenes.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? "";
         const distributeHref = `/distribute?title=${encodeURIComponent(topic || "My video")}${coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : ""}`;
         return (

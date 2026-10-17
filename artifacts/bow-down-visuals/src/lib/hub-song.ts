@@ -39,6 +39,13 @@ export function extractSongPackage(raw: string): SongPackage {
   };
 }
 
+/** The coverArtPrompt meta cap: a song package's art direction is
+ *  stored at up to this many characters, and the Cover Art desk's
+ *  mood input accepts exactly this many — the two must agree, or a
+ *  seeded prompt lands whole in state but can't be edited without
+ *  the input truncating it (Stack-30 C5). */
+export const COVER_ART_PROMPT_MAX = 600;
+
 export interface PushSongInput {
   artistName: string;
   songTitle: string;
@@ -74,7 +81,7 @@ export function pushSongPackageToProject(input: PushSongInput): void {
     ...(mood ? { mood } : {}),
     ...(pkg.hook ? { hook: pkg.hook.slice(0, 300) } : {}),
     ...(pkg.musicVideoIdea ? { musicVideoIdea: pkg.musicVideoIdea.slice(0, 600) } : {}),
-    ...(pkg.coverArtPrompt ? { coverArtPrompt: pkg.coverArtPrompt.slice(0, 600) } : {}),
+    ...(pkg.coverArtPrompt ? { coverArtPrompt: pkg.coverArtPrompt.slice(0, COVER_ART_PROMPT_MAX) } : {}),
   };
 
   // Lyrics travel as a script asset (data: URL) so Script Writer, Voiceover,

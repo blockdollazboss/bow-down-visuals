@@ -85,6 +85,10 @@ const extendMusicAudioSchema = z.object({
   vocalGender: z.string().optional(),
   songTitle: z.string().optional(),
   artistName: z.string().optional(),
+  /** The character the extension was made as — lands on the library
+   * row only when the vault is the caller's own (see Step 4 below),
+   * the same ownership rule the main generation path applies. */
+  artistVaultId: z.string().optional(),
 });
 
 router.post("/generate-music-audio", requireAuth, async (req, res) => {
@@ -446,6 +450,30 @@ async function crossfadeJoin(first: Buffer, second: Buffer): Promise<Buffer> {
   }
 }
 
+/** Best-effort duration (seconds) of an in-memory audio buffer, probed
+ * with ffprobe — used only for the extended song's library-row
+ * duration_sec metadata; any failure returns null and never fails
+ * the request. */
+async function probeBufferDurationSec(audio: Buffer): Promise<number | null> {
+  const id = randomUUID();
+  const probePath = join(tmpdir(), `${id}-probe.mp3`);
+  try {
+    await writeFile(probePath, audio);
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v", "error",
+      "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1",
+      probePath,
+    ], { timeout: 30_000 });
+    const d = Number(stdout.trim());
+    return Number.isFinite(d) && d > 0 ? d : null;
+  } catch {
+    return null;
+  } finally {
+    await unlink(probePath).catch(() => {});
+  }
+}
+
 router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
   const parsed = extendMusicAudioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -456,7 +484,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     return;
   }
   const { originalAudioUrl, originalPrompt, extendPrompt, extendSeconds, startSeconds,
-    lyrics, instrumental, vocalGender, songTitle, artistName } = parsed.data;
+    lyrics, instrumental, vocalGender, songTitle, artistName, artistVaultId } = parsed.data;
 
   if (!originalAudioUrl?.trim() || !extendPrompt?.trim()) {
     res.status(400).json({ error: "originalAudioUrl and extendPrompt are required." });
@@ -563,6 +591,75 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       }
       throw deductErr;
     }
+
+    // Step 4: Persist the extended song in the song library (source:
+    // "generated") — the same post-charge library save the main
+    // generation path makes (Step 3 there). Before this step existed,
+    // an extension lived ONLY in the generation-history tray: the song
+    // library, the distribution picker, remix-by-id and albums all
+    // read the songs table, so an extended song was invisible to every
+    // downstream feature.
+    // Idempotent per extend job: the row is keyed on the upload's
+    // storage path (audio_path is unique per extended file), so a
+    // retried completion finds the row it already wrote and reuses
+    // its id instead of duplicating the song.
+    let songId: string;
+    try {
+      // The character the extension was made as rides the row only
+      // when the vault is the caller's own — the same ownership rule
+      // the main path applies.
+      let ownedVaultId: string | null = null;
+      if (artistVaultId) {
+        const [vault] = await db
+          .select({ id: artistVaultsTable.id })
+          .from(artistVaultsTable)
+          .where(
+            and(
+              eq(artistVaultsTable.id, artistVaultId),
+              eq(artistVaultsTable.user_id, req.userId!),
+            ),
+          )
+          .limit(1);
+        if (vault) ownedVaultId = vault.id;
+      }
+      const audioPath = `${BUCKET}/${path}`;
+      const [existing] = await db
+        .select({ id: songsTable.id })
+        .from(songsTable)
+        .where(and(eq(songsTable.user_id, req.userId!), eq(songsTable.audio_path, audioPath)))
+        .limit(1);
+      if (existing) {
+        songId = existing.id;
+      } else {
+        const durationSec = await probeBufferDurationSec(joined);
+        const [song] = await db
+          .insert(songsTable)
+          .values({
+            user_id: req.userId!,
+            title: (songTitle ? `${songTitle} (Extended)` : "Untitled song").slice(0, 200),
+            audio_url: extendedUrl,
+            audio_path: audioPath,
+            source: "generated",
+            artist_vault_id: ownedVaultId,
+            duration_sec: durationSec != null ? String(Math.round(durationSec)) : null,
+          })
+          .returning();
+        songId = song!.id;
+      }
+    } catch (libErr) {
+      // Post-charge failure (the song-cover contract): refund in full
+      // and fail loudly rather than strand a paid extension outside
+      // the library it was promised to.
+      req.log.error({ err: libErr }, "generate-music-audio/extend: library save failed, refunding");
+      try {
+        await refundCredits(req.userId!, creditCost, { action: "Extend Audio — Refund" });
+      } catch (refundErr) {
+        req.log.error({ err: refundErr }, "generate-music-audio/extend: refund failed");
+      }
+      res.status(500).json({ error: "Could not save the extended song to your library. Your Visual Bucs were refunded." });
+      return;
+    }
+
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({
@@ -570,6 +667,10 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       storagePath: path,
       creditsRemaining: creditsAfter,
       genHistoryId,
+      /* The library row this extension was saved as, so the studio can
+         hand the extended song straight to Distribute / Remix / an
+         album without a library round-trip to find it. */
+      songId,
       /* The point the continuation was joined at; null = appended at the end. */
       extendedFromSeconds: startSec,
     });

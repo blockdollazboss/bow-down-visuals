@@ -34,6 +34,7 @@ const h = vi.hoisted(() => ({
     vaults: [] as Array<Record<string, unknown>>,
     charges: [] as Array<{ userId: string; cost: number }>,
     refunds: [] as Array<{ userId: string; amount: number }>,
+    failSongInsert: false,
   },
 }));
 
@@ -152,6 +153,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
       values: (obj: Record<string, unknown>) => ({
         returning: async () => {
           if (table !== songsTable) throw new Error("unexpected insert table");
+          if (state.failSongInsert) throw new Error("library insert failed (test toggle)");
           const row: Record<string, unknown> = {
             id: randomUUID(),
             parent_song_id: null,
@@ -191,9 +193,39 @@ const realFetch = globalThis.fetch;
 let server: any;
 let baseUrl: string;
 
+/* Extend tests: the route downloads the original and crossfade-joins it
+   with the provider segment through REAL ffmpeg, so both fetches must
+   return valid audio — two 5-second sine tones, generated once here. */
+const ORIGINAL_URL = "https://media.example.com/original-track.mp3";
+let originalTone: Buffer;
+let segmentTone: Buffer;
+
+function toneArrayBuffer(buf: Buffer): ArrayBuffer {
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+}
+
 beforeAll(async () => {
   process.env["ELEVENLABS_API_KEY"] = "test-key";
-  /* The provider call is the only global fetch the route makes. */
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const { readFile } = await import("fs/promises");
+  const { tmpdir } = await import("os");
+  const { join } = await import("path");
+  const execFileAsync = promisify(execFile);
+  const origPath = join(tmpdir(), `bdv-test-original-${randomUUID()}.mp3`);
+  const segPath = join(tmpdir(), `bdv-test-segment-${randomUUID()}.mp3`);
+  await execFileAsync("ffmpeg", [
+    "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
+    "-c:a", "libmp3lame", "-b:a", "192k", origPath,
+  ]);
+  await execFileAsync("ffmpeg", [
+    "-y", "-f", "lavfi", "-i", "sine=frequency=660:duration=5",
+    "-c:a", "libmp3lame", "-b:a", "192k", segPath,
+  ]);
+  originalTone = await readFile(origPath);
+  segmentTone = await readFile(segPath);
+  /* The provider call is the only global fetch the main route makes;
+     the extend route additionally downloads the original audio URL. */
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: unknown) => {
@@ -201,7 +233,15 @@ beforeAll(async () => {
         return {
           ok: true,
           status: 200,
-          arrayBuffer: async () => new Uint8Array([1, 2, 3, 4, 5]).buffer,
+          arrayBuffer: async () => toneArrayBuffer(segmentTone),
+          text: async () => "",
+        };
+      }
+      if (String(url) === ORIGINAL_URL) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => toneArrayBuffer(originalTone),
           text: async () => "",
         };
       }
@@ -234,6 +274,7 @@ beforeEach(() => {
   h.state.songs = [];
   h.state.charges = [];
   h.state.refunds = [];
+  h.state.failSongInsert = false;
   h.state.vaults = [
     { id: OWNED_VAULT, user_id: OWNER, voice_id: "voice-owned" },
     { id: FOREIGN_VAULT, user_id: OTHER_USER, voice_id: "voice-foreign" },
@@ -369,6 +410,132 @@ describe("POST /api/generate-music-audio — the library save", () => {
       expect((list.json.songs as any[]).filter((s) => s.title === "Once Only")).toHaveLength(1);
     } finally {
       nowSpy.mockRestore();
+    }
+  });
+});
+
+/**
+ * Stack-30 C1 — extended songs enter the song library.
+ *
+ * The main generation path's Step 3 (above) never had an extend twin:
+ * POST /generate-music-audio/extend saved the joined audio, wrote a
+ * history row and charged — but never inserted into `songs`, so an
+ * extended song lived only in the history tray, invisible to the
+ * library, the distribution picker, remix-by-id and albums. The
+ * extend handler now makes the same post-charge library save, with
+ * the same idempotency (keyed on the upload's storage path), the same
+ * vault-ownership rule, and the same refund-on-failure contract.
+ * These tests drive the REAL extend route (real ffmpeg join over the
+ * tone fixtures stubbed into fetch above) against the same fake db.
+ */
+describe("POST /api/generate-music-audio/extend — the library save", () => {
+  const extendBody = {
+    originalAudioUrl: ORIGINAL_URL,
+    originalPrompt: "warm soul groove",
+    extendPrompt: "epic outro",
+    extendSeconds: 5,
+    songTitle: "Golden Hour",
+  };
+
+  it("creates exactly one library song for the extension, carrying title / audio / duration / source", async () => {
+    const { status, json } = await req("POST", "/generate-music-audio/extend", extendBody);
+    expect(status).toBe(200);
+    expect(json.songId).toBeTruthy();
+    expect(json.url).toContain("-music-extended.mp3");
+    expect(h.state.refunds).toEqual([]);
+
+    expect(h.state.songs).toHaveLength(1);
+    const [row] = h.state.songs;
+    expect(row!["id"]).toBe(json.songId);
+    expect(row!["user_id"]).toBe(OWNER);
+    expect(row!["title"]).toBe("Golden Hour (Extended)");
+    expect(row!["source"]).toBe("generated");
+    expect(String(row!["audio_path"])).toMatch(
+      new RegExp(`^audio-stems/${OWNER}/generated/\\d+-music-extended\\.mp3$`),
+    );
+    expect(row!["audio_url"]).toBe(`https://cdn.example.com/${String(row!["audio_path"])}`);
+    expect(row!["audio_url"]).toBe(json.url);
+    /* 5 s original + 5 s segment − 3 s crossfade ≈ 7 s, probed for real. */
+    const dur = Number(row!["duration_sec"]);
+    expect(Number.isFinite(dur)).toBe(true);
+    expect(dur).toBeGreaterThanOrEqual(6);
+    expect(dur).toBeLessThanOrEqual(8);
+    expect(row!["artist_vault_id"]).toBeNull();
+  });
+
+  it("the extended song is returned by GET /api/songs — the distribute picker's query", async () => {
+    const ext = await req("POST", "/generate-music-audio/extend", extendBody);
+    expect(ext.status).toBe(200);
+
+    const list = await req("GET", "/songs");
+    expect(list.status).toBe(200);
+    const mine = (list.json.songs as any[]).filter((s) => s.id === ext.json.songId);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].title).toBe("Golden Hour (Extended)");
+
+    /* The release flow's attach-by-id ownership query, verbatim. */
+    const { db } = await import("@workspace/db");
+    const owned = await (db as any).execute(
+      sql`SELECT id, audio_url FROM songs WHERE id = ${ext.json.songId} AND user_id = ${OWNER}`,
+    );
+    expect(owned.rows).toHaveLength(1);
+    const foreign = await (db as any).execute(
+      sql`SELECT id, audio_url FROM songs WHERE id = ${ext.json.songId} AND user_id = ${OTHER_USER}`,
+    );
+    expect(foreign.rows).toHaveLength(0);
+  });
+
+  it("carries the generating character's vault id only when the vault is the caller's own", async () => {
+    const own = await req("POST", "/generate-music-audio/extend", {
+      ...extendBody,
+      artistVaultId: OWNED_VAULT,
+    });
+    expect(own.status).toBe(200);
+    const ownRow = h.state.songs.find((r) => r["id"] === own.json.songId);
+    expect(ownRow!["artist_vault_id"]).toBe(OWNED_VAULT);
+
+    const foreign = await req("POST", "/generate-music-audio/extend", {
+      ...extendBody,
+      songTitle: "Not Mine",
+      artistVaultId: FOREIGN_VAULT,
+    });
+    expect(foreign.status).toBe(200);
+    const foreignRow = h.state.songs.find((r) => r["id"] === foreign.json.songId);
+    /* A vault the caller doesn't own never lands on their song row. */
+    expect(foreignRow!["artist_vault_id"]).toBeNull();
+  });
+
+  it("a retried completion does not duplicate the row (idempotent per extend job)", async () => {
+    /* A retry re-presents the same extend outputs: same upload path
+       (Date.now frozen), same body. The library must converge on the
+       one row the first completion wrote. */
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_700_000_100_000);
+    try {
+      const first = await req("POST", "/generate-music-audio/extend", extendBody);
+      const second = await req("POST", "/generate-music-audio/extend", extendBody);
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(second.json.songId).toBe(first.json.songId);
+
+      expect(h.state.songs).toHaveLength(1);
+      expect(h.state.songs[0]!["id"]).toBe(first.json.songId);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("a library-save failure after charging refunds in full and fails loudly", async () => {
+    h.state.failSongInsert = true;
+    try {
+      const { status, json } = await req("POST", "/generate-music-audio/extend", extendBody);
+      expect(status).toBe(500);
+      expect(String(json.error)).toContain("refunded");
+      /* Charged once (400 for the 10 s-clamped extension), refunded once. */
+      expect(h.state.charges).toEqual([{ userId: OWNER, cost: 400 }]);
+      expect(h.state.refunds).toEqual([{ userId: OWNER, amount: 400 }]);
+      expect(h.state.songs).toHaveLength(0);
+    } finally {
+      h.state.failSongInsert = false;
     }
   });
 });

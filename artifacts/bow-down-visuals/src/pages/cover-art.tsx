@@ -12,7 +12,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
-import { coverArtSeedFromAsset } from "@/lib/hub-song";
+import { coverArtSeedFromAsset, COVER_ART_PROMPT_MAX } from "@/lib/hub-song";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
@@ -266,7 +266,7 @@ export default function CoverArt() {
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
                 placeholder={t("cover-art.dark_hip_hop_triumphant_late_nig")}
-                maxLength={300}
+                maxLength={COVER_ART_PROMPT_MAX}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>

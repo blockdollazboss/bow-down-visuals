@@ -2,6 +2,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useHubProject } from "@/lib/hub-project";
@@ -195,16 +196,16 @@ export default function CarouselMaker() {
     }
   }, [exporting, confirmedFetch, slides, template, format, brandColors, activeArtist, font, addAsset, refreshProfile, toast, t]);
 
-  /* ── Hand off to the War Room (scheduler) ── */
+  /* ── Hand off to the War Room (scheduler) — the shared deep-link
+        protocol (lib/scheduler-handoff); the composer validates the
+        platform keys and keeps the ones it knows. ── */
   const handleSchedule = useCallback(() => {
     const caption = slides.map((s) => s.title).filter(Boolean).join(" · ").slice(0, 200)
       || t("carouselMaker.defaultCaption");
-    const params = new URLSearchParams({
-      schedule: "1",
+    window.location.href = buildSchedulerHref({
       caption,
-      platform: "instagram,tiktok,linkedin",
+      platforms: ["instagram", "tiktok", "linkedin"],
     });
-    window.location.href = `/scheduler?${params.toString()}`;
   }, [slides, t]);
 
   const filledCount = slides.filter((s) => s.title.trim() || s.body.trim()).length;
