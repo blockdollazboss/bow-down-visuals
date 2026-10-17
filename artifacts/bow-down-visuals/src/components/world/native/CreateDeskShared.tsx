@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, ChevronDown, Disc3, ListMusic, Music, PenLine, Rocket, Scissors, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { jukeboxTrackIdOf } from "@/lib/world/create-desks";
@@ -385,6 +385,200 @@ export function TextResult({ isLight, text, title }: { isLight: boolean; text: s
       >
         {text}
       </pre>
+    </div>
+  );
+}
+
+/* ─── THE-GAME §5(a) — the desk result quest-progress chip ──────────
+   A desk job snapshots the member's quest rails when it STARTS
+   (GET /api/retention/quests — the Treasury board's own read) and
+   re-reads them when it FINISHES. The diff is server truth: only a
+   quest whose progress actually moved (or newly completed) earns a
+   chip, named, with the claim pointed at the Treasury. No movement
+   → no chip. A failed snapshot → no chip (never a guess). */
+
+import {
+  questAdvancesBetween,
+  questChipLine,
+  questsOfResponse,
+  type QuestProgress,
+} from "@/lib/world/create-desks";
+import { Target } from "lucide-react";
+import { peaksFromChannelData } from "@/lib/world/audio-benches";
+
+export function useQuestProgressChip() {
+  const beforeRef = useRef<QuestProgress[] | null>(null);
+  const [lines, setLines] = useState<string[]>([]);
+  const authHeaders = useDeskAuthHeaders();
+
+  const snapshot = useCallback(async () => {
+    setLines([]);
+    try {
+      const res = await fetch("/api/retention/quests", { headers: await authHeaders() });
+      beforeRef.current = res.ok ? questsOfResponse(await res.json().catch(() => null)) : null;
+    } catch {
+      beforeRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const checkAfter = useCallback(async () => {
+    try {
+      const res = await fetch("/api/retention/quests", { headers: await authHeaders() });
+      if (!res.ok) return;
+      const after = questsOfResponse(await res.json().catch(() => null));
+      const advances = questAdvancesBetween(beforeRef.current, after);
+      if (advances.length > 0) setLines(advances.map(questChipLine));
+    } catch {
+      /* the chip is a celebration, never a blocker — silence on failure */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { snapshot, checkAfter, lines };
+}
+
+export function QuestProgressChip({ isLight, lines }: { isLight: boolean; lines: string[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <div
+      data-testid="world-create-quest-chip"
+      className={`mt-3 rounded-2xl border p-3 ${
+        isLight
+          ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
+          : "border-[#d4af37]/40 bg-gradient-to-b from-[#1a1408] to-[#0d0a04]"
+      }`}
+    >
+      {lines.map((line) => (
+        <p key={line} className="flex items-start gap-2 text-xs font-bold leading-relaxed">
+          <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#d4af37]" />
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Ring 2 (2.7) — the before/after A/B player with waveform peaks ─
+   The Audio Studio cleanup panel's own pattern docked: decode both
+   sides, draw per-bar peaks (lib/world/audio-benches shaping), and
+   swap the playing source at the same position when the side
+   flips. Peaks that can't decode render an honest "waveform
+   unavailable" strip instead of a fake flat line. */
+
+async function computePeaks(source: File | string, bars = 48): Promise<number[] | null> {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    let raw: ArrayBuffer;
+    if (typeof source === "string") {
+      const res = await fetch(source);
+      raw = await res.arrayBuffer();
+    } else {
+      raw = await source.arrayBuffer();
+    }
+    const buf = await ctx.decodeAudioData(raw);
+    const peaks = peaksFromChannelData(buf.getChannelData(0), bars);
+    void ctx.close();
+    return peaks.length > 0 ? peaks : null;
+  } catch {
+    return null;
+  }
+}
+
+function WaveformBars({ peaks, active }: { peaks: number[] | null; active: boolean }) {
+  if (!peaks) {
+    return (
+      <div className="flex h-14 items-center justify-center text-[11px] opacity-60">
+        Waveform unavailable — the audio still plays.
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-14 items-end gap-[2px]" aria-hidden>
+      {peaks.map((p, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-full bg-[#d4af37] transition-opacity"
+          style={{ height: `${Math.max(6, p * 100)}%`, opacity: active ? 0.95 : 0.35 }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function ABAudioPlayer(props: {
+  isLight: boolean;
+  beforeLabel: string;
+  afterLabel: string;
+  beforeSource: File | string | null;
+  afterUrl: string;
+}) {
+  const { isLight } = props;
+  const [side, setSide] = useState<"before" | "after">("after");
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
+  const [beforePeaks, setBeforePeaks] = useState<number[] | null>(null);
+  const [afterPeaks, setAfterPeaks] = useState<number[] | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!props.beforeSource) {
+      setBeforeUrl(null);
+      setBeforePeaks(null);
+      return;
+    }
+    if (typeof props.beforeSource === "string") {
+      setBeforeUrl(props.beforeSource);
+      void computePeaks(props.beforeSource).then(setBeforePeaks);
+      return;
+    }
+    const url = URL.createObjectURL(props.beforeSource);
+    setBeforeUrl(url);
+    void computePeaks(props.beforeSource).then(setBeforePeaks);
+    return () => URL.revokeObjectURL(url);
+  }, [props.beforeSource]);
+
+  useEffect(() => {
+    void computePeaks(props.afterUrl).then(setAfterPeaks);
+  }, [props.afterUrl]);
+
+  const flip = (next: "before" | "after") => {
+    const el = audioRef.current;
+    setSide(next);
+    if (!el) return;
+    const t = el.currentTime;
+    const wasPlaying = !el.paused;
+    el.pause();
+    window.setTimeout(() => {
+      const target = next === "after" ? props.afterUrl : beforeUrl;
+      if (!target || !audioRef.current) return;
+      audioRef.current.src = target;
+      audioRef.current.currentTime = Math.min(t, audioRef.current.duration || t);
+      if (wasPlaying) void audioRef.current.play().catch(() => {});
+    }, 0);
+  };
+
+  const tabCls = (active: boolean) =>
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+      active
+        ? "border-[#d4af37] bg-[#d4af37] text-black"
+        : isLight
+          ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+          : "border-white/15 text-white/75 hover:text-white"
+    }`;
+
+  return (
+    <div data-testid="world-audio-ab-player" className="space-y-2">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Before and after">
+        <button type="button" role="tab" aria-selected={side === "before"} data-testid="world-audio-ab-before" onClick={() => flip("before")} disabled={!beforeUrl} className={tabCls(side === "before")}>
+          Before — {props.beforeLabel}
+        </button>
+        <button type="button" role="tab" aria-selected={side === "after"} data-testid="world-audio-ab-after" onClick={() => flip("after")} className={tabCls(side === "after")}>
+          After — {props.afterLabel}
+        </button>
+      </div>
+      <WaveformBars peaks={side === "before" ? beforePeaks : afterPeaks} active />
+      <audio ref={audioRef} src={side === "after" ? props.afterUrl : (beforeUrl ?? undefined)} controls className="w-full" />
     </div>
   );
 }
