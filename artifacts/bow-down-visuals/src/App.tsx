@@ -83,6 +83,7 @@ const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
 const Trending = lazyWithRetry(() => import("@/pages/trending"));
 const Remix = lazyWithRetry(() => import("@/pages/remix"));
 const Saved = lazyWithRetry(() => import("@/pages/saved"));
+const PostPage = lazyWithRetry(() => import("@/pages/post"));
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -199,6 +200,7 @@ const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
+const StorefrontProduct = lazyWithRetry(() => import("@/pages/storefront-product"));
 const StoreSuccess = lazyWithRetry(() => import("@/pages/store-success"));
 const MyMusic = lazyWithRetry(() => import("@/pages/my-music"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
@@ -585,8 +587,11 @@ function AppShell() {
           <Route path="/trending"><Trending /></Route>
           <Route path="/remix"><Remix /></Route>
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
+          <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
-          <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>
+          <Route path="/shop/:slug"><ShopStorefront /></Route>
+          <Route path="/storefront/product/:id"><StorefrontProduct /></Route>
+          <Route path="/interview-prep"><InterviewPrep /></Route>
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>

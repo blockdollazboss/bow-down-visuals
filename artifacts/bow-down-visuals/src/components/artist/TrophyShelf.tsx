@@ -2,8 +2,9 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Trophy, Share2, Crown } from "lucide-react";
+import { Trophy, Share2, Crown, Gamepad2 } from "lucide-react";
 import { ordinal } from "@/lib/visual-bucs";
+import { gameCardsFromStats, type ProfileGameStatsDto } from "@/lib/game-stats";
 import BragModal from "@/components/milestones/BragModal";
 import {
   tierColor,
@@ -36,6 +37,7 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
   const { t } = useTranslation();
   const [achievements, setAchievements] = useState<MilestoneAchievement[] | null>(null);
   const [wins, setWins] = useState<ChallengeWin[] | null>(null);
+  const [gameStats, setGameStats] = useState<ProfileGameStatsDto | null>(null);
   const [brag, setBrag] = useState<MilestoneAchievement | null>(null);
 
   useEffect(() => {
@@ -68,12 +70,31 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
         if (!cancelled) setWins([]);
       }
     })();
+    /* DE-15: the creator's game record (arcade bests + party wins)
+       belongs on the same shelf — play is part of the public record.
+       Aggregates only; the endpoint hides it entirely when the
+       creator opted out of leaderboards. */
+    (async () => {
+      try {
+        const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/game-stats`);
+        if (!res.ok) {
+          if (!cancelled) setGameStats(null);
+          return;
+        }
+        const data = (await res.json()) as ProfileGameStatsDto;
+        if (!cancelled) setGameStats(data);
+      } catch {
+        if (!cancelled) setGameStats(null);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
-  if ((!achievements || achievements.length === 0) && (!wins || wins.length === 0)) return null;
+  const gameCards = gameCardsFromStats(gameStats);
+
+  if ((!achievements || achievements.length === 0) && (!wins || wins.length === 0) && gameCards.length === 0) return null;
 
   const groups = VERTICAL_ORDER.map((vertical) => ({
     vertical,
@@ -184,6 +205,37 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
                 )}
                 <p className={`mt-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"} group-hover:text-primary`}>
                   See the winners' circle →
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DE-15: the game record — arcade bests + party wins, on the shelf */}
+      {gameCards.length > 0 && (
+        <div className="mt-6">
+          <h3 className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
+            <Gamepad2 className="h-4 w-4" aria-hidden="true" />
+            Game Room · {gameCards.length} {gameCards.length === 1 ? "title" : "titles"} on the board
+          </h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {gameCards.map((card) => (
+              <Link
+                key={card.key}
+                href={card.href}
+                className={`group relative overflow-hidden rounded-2xl border p-5 transition hover:bg-white/[0.04] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+              >
+                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+                <p className={`truncate text-sm font-black uppercase tracking-widest ${isLight ? "text-[#2A1E07]" : "text-white"}`} title={card.title}>
+                  {card.title}
+                </p>
+                <p className="mt-3 text-4xl font-black text-primary">{card.headline}</p>
+                <p className={`mt-1 text-sm font-bold uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/70"}`}>
+                  {card.headlineLabel}
+                </p>
+                <p className={`mt-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"} group-hover:text-primary`}>
+                  {card.detail} →
                 </p>
               </Link>
             ))}

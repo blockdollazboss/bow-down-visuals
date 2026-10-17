@@ -10,6 +10,7 @@ import type {
   MerchItem, ProfileEventItem, SocialPostItem, ProfileMediaItem,
 } from "@/lib/artist-profiles";
 import { fetchComments, postComment, profileUrl, type ProfileComment } from "@/lib/artist-profiles";
+import { merchShopHref } from "@/lib/profile-shop-link";
 import { RichText } from "@/lib/safe-richtext";
 import { apiJson, type Story, type StoryHighlight } from "@/lib/social-api";
 import { StoryViewer } from "@/components/social/StoryViewer";
@@ -475,7 +476,9 @@ export function MediaKitSection({ title, profile }: { title: string; profile: Cr
 /* ─── Merch shelf — products link out; shelf links to their shop ─── */
 export function MerchSection({ title, profile }: { title: string; profile: CreatorProfile }) {
   const items = profile.merch_items ?? [];
-  const shopHref = `/my-shop?artist=${encodeURIComponent(profile.slug)}`;
+  /* Public viewers go to the public shop page — never the owner's shop
+     manager (/my-shop). Resolution lives in lib/profile-shop-link. */
+  const shopHref = merchShopHref(profile);
   return (
     <Shell
       title={title}

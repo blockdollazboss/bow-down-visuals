@@ -6,7 +6,7 @@
    Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
    recordCreation() is fire-and-forget safe: it never throws. */
 
-import { db, creationStreaksTable, questProgressTable, retentionPrefsTable } from "@workspace/db";
+import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
 import { logger } from "./logger";
@@ -141,15 +141,83 @@ async function updateStreak(userId: string): Promise<void> {
     .update(creationStreaksTable)
     .set({ currentStreak: next, longestStreak: longest, lastCreationDate: today, updatedAt: new Date() })
     .where(eq(creationStreaksTable.userId, userId));
+
+  /* DE-18: landing exactly on an unclaimed milestone day is a
+     one-time transition (the streak passes each count once, and a
+     claimed milestone is never re-reached unclaimed) — ring the
+     bell so the reward doesn't wait silently for a widget visit. */
+  const milestone = STREAK_MILESTONES.find((m) => m.days === next);
+  if (milestone && !((row.milestonesClaimed ?? []) as number[]).includes(milestone.days)) {
+    await notifyStreakMilestone(userId, milestone.days, milestone.reward);
+  }
 }
 
 /* ── QUEST TRACKING ────────────────────────────────────────────────────── */
+
+/* Quest display names — mirror the QuestsWidget's English titles
+   (retention.quest_*_title in locales/en.json); notification copy is
+   written server-side, in English, everywhere in the house. */
+const QUEST_TITLES: Record<string, string> = {
+  "make-thumbnail": "Make a thumbnail",
+  "generate-song": "Generate a song",
+  "export-video": "Export a video",
+  "viral-sharer": "Viral Sharer",
+};
+
+/** DE-18: the moment a quest flips to complete, ring the bell. The
+ *  reward still waits for the claim tap in the widget — but it no
+ *  longer sits there silently if the creator never opens the widget.
+ *  Best-effort: a failed insert never breaks the creation hook. */
+async function notifyQuestComplete(userId: string, def: QuestDef): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Quest complete 🏆",
+      body: `You finished “${QUEST_TITLES[def.key] ?? def.key}” — ${def.reward} Visual Bucs are waiting. Tap to claim.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, questKey: def.key }, "[retention] quest-complete notification failed");
+  }
+}
+
+/** DE-18, streak half: a milestone day reached is the same silent
+ *  wait as a completed quest — ring the same bell (the streak widget
+ *  with its claim button lives on the same dashboard surface). */
+async function notifyStreakMilestone(userId: string, days: number, reward: number): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Streak milestone 🔥",
+      body: `Your creation streak hit ${days} days — ${reward} Visual Bucs are waiting. Tap to claim.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, days }, "[retention] streak-milestone notification failed");
+  }
+}
 
 async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
   const weekStart = currentWeekStart();
   const applicable = QUEST_DEFS.filter((q) => q.kinds.includes(kind));
   for (const q of applicable) {
-    await db
+    /* DE-18: read the row BEFORE the upsert so the completion flip
+       (false → true) is observable — the upsert alone can't say
+       whether THIS event finished the quest. (Two simultaneous
+       finishing events could both observe the flip and ring twice;
+       the bell is cosmetic — no VB moves without the claim CAS.) */
+    const [prior] = await db
+      .select({ completed: questProgressTable.completed })
+      .from(questProgressTable)
+      .where(and(
+        eq(questProgressTable.userId, userId),
+        eq(questProgressTable.questKey, q.key),
+        eq(questProgressTable.weekStart, weekStart),
+      ))
+      .limit(1);
+    const [row] = await db
       .insert(questProgressTable)
       .values({
         userId,
@@ -166,7 +234,11 @@ async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
           completed: sql`LEAST(${questProgressTable.progress} + 1, ${questProgressTable.target}) >= ${questProgressTable.target}`,
           updatedAt: new Date(),
         },
-      });
+      })
+      .returning({ completed: questProgressTable.completed });
+    if (!prior?.completed && row?.completed) {
+      await notifyQuestComplete(userId, q);
+    }
   }
 }
 

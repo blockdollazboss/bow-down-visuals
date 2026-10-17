@@ -496,7 +496,7 @@ type VideoDto = ReturnType<typeof enrichVideo>;
  * podcaster's episodes are products, an educator's course videos too.
  */
 async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) {
-  const [tracks, videos, domainShops] = await Promise.all([
+  const [tracks, videos, domainShops, shopRows] = await Promise.all([
     db.select({ price: profileTracksTable.downloadPriceCents }).from(profileTracksTable).where(and(
       eq(profileTracksTable.profileId, profile.id),
       eq(profileTracksTable.isPublished, true),
@@ -509,6 +509,14 @@ async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) 
       eq(shopsTable.user_id, profile.userId),
       eq(shopsTable.domain_verified, true),
     )).limit(1),
+    /* The creator's public shop handle (customer shops rail) — the
+       profile's Merch shelf links to /shop/<handle>; without it the
+       shelf had nowhere public to point. Any shop counts: the public
+       storefront page serves by handle regardless of custom-domain
+       verification. */
+    db.select({ handle: shopsTable.handle }).from(shopsTable).where(
+      eq(shopsTable.user_id, profile.userId),
+    ).limit(1),
   ]);
   const hasProduct = tracks.length + videos.length > 0;
   const hasPrice =
@@ -527,6 +535,7 @@ async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) 
     has_social_links: Object.keys(socialLinks).length > 0,
     has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
     has_media_kit: profile.mediaKit !== null,
+    shop_handle: shopRows[0]?.handle ?? null,
     monetization_checklist,
     money_moves_done,
     money_moves_total: 5,
@@ -1123,6 +1132,16 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
     await db.insert(followsTable)
       .values({ followerUserId: userId, profileId: profile.id })
       .onConflictDoNothing({ target: [followsTable.followerUserId, followsTable.profileId] });
+    // The follower's own profile card — fetched once, used by both
+    // the live alert and the bell notification below (DE-17: a follow
+    // alert names the follower and links THEIR page, not yours).
+    const followerProfile = await db
+      .select({ displayName: creatorProfilesTable.displayName, slug: creatorProfilesTable.slug })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+    const followerName = followerProfile[0]?.displayName ?? null;
+    const followerSlug = followerProfile[0]?.slug ?? null;
     if (isNewFollow) {
       // A follow that lands while the creator is live surfaces as an
       // on-screen alert in their studio Program feed (same WS room as
@@ -1135,16 +1154,11 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
           .limit(1);
         const live = liveRows[0];
         if (live) {
-          const followerProfile = await db
-            .select({ displayName: creatorProfilesTable.displayName })
-            .from(creatorProfilesTable)
-            .where(eq(creatorProfilesTable.userId, userId))
-            .limit(1);
           liveChatHub.broadcast(live.id, {
             type: "alert",
             alert: {
               kind: "follow",
-              title: `${followerProfile[0]?.displayName ?? "Someone"} just followed`,
+              title: `${followerName ?? "Someone"} just followed`,
               body: "Say hello — they're watching the stream.",
             },
           });
@@ -1158,9 +1172,11 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
       .where(eq(creatorProfilesTable.id, profile.id));
     await notify(profile.userId, {
       kind: "follow",
-      title: "New follower on deck 🦈",
-      body: "Someone just followed your creator profile — keep the cheat code coming.",
-      link: `/artist/${profile.slug}`,
+      title: followerName ? `${followerName} followed you 🦈` : "New follower on deck 🦈",
+      body: followerName
+        ? `${followerName} just followed your creator profile — tap through to their page.`
+        : "Someone just followed your creator profile — keep the cheat code coming.",
+      link: followerSlug ? `/artist/${followerSlug}` : `/artist/${profile.slug}`,
     });
     res.json({ followed: true, follower_count: (profile.followerCount ?? 0) + 1 });
   } catch (err) {

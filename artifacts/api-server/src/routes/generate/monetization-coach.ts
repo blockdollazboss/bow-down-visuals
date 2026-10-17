@@ -1,6 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
+import { eq, ne, and, desc, sql } from "drizzle-orm";
+import {
+  db,
+  songsTable,
+  distributionReleasesTable,
+  creatorProfilesTable,
+  storeProductsTable,
+  fanTiersTable,
+} from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -25,6 +34,169 @@ const PLATFORM_LABEL: Record<Platform, string> = {
    so 1 credit holds a deep margin while staying an impulse buy — and honors
    the standing rule that every AI feature costs a fee. */
 const COACH_CREDITS = Number(process.env["MONETIZATION_COACH_CREDIT_COST"]) || 100;
+
+/* ── DE-19: the coach reads the creator's REAL catalog ──────────────────
+   The plan used to be identical for a creator with no songs and one
+   with fifty, because the route never looked at the catalog. This
+   read assembles the state the advice must respect — library,
+   releases, store, memberships, and the same earnings totals the
+   /api/earnings view shows — from the creator's OWN rows only.
+   Every source is isolated: one failing read degrades that field to
+   zero, never the whole plan. */
+export interface CreatorState {
+  songs: number;
+  latestSongTitle: string | null;
+  releases: number;
+  submittedReleases: number;
+  storeProducts: number;
+  membershipTiers: number;
+  earningsCents: number;
+  tipsVb: number;
+}
+
+const EMPTY_STATE: CreatorState = {
+  songs: 0,
+  latestSongTitle: null,
+  releases: 0,
+  submittedReleases: 0,
+  storeProducts: 0,
+  membershipTiers: 0,
+  earningsCents: 0,
+  tipsVb: 0,
+};
+
+export async function readCreatorState(userId: string): Promise<CreatorState> {
+  const state: CreatorState = { ...EMPTY_STATE };
+  const attempt = async (name: string, fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (err) {
+      logger.warn({ err, userId, source: name }, "[monetization-coach] creator-state source failed — treating as zero");
+    }
+  };
+
+  await attempt("songs", async () => {
+    const [countRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(songsTable)
+      .where(eq(songsTable.user_id, userId));
+    state.songs = countRow?.n ?? 0;
+    if (state.songs > 0) {
+      const [latest] = await db
+        .select({ title: songsTable.title })
+        .from(songsTable)
+        .where(eq(songsTable.user_id, userId))
+        .orderBy(desc(songsTable.created_at))
+        .limit(1);
+      state.latestSongTitle = latest?.title ?? null;
+    }
+  });
+
+  await attempt("releases", async () => {
+    const [allRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(distributionReleasesTable)
+      .where(eq(distributionReleasesTable.user_id, userId));
+    state.releases = allRow?.n ?? 0;
+    const [subRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(distributionReleasesTable)
+      .where(and(eq(distributionReleasesTable.user_id, userId), ne(distributionReleasesTable.status, "draft")));
+    state.submittedReleases = subRow?.n ?? 0;
+  });
+
+  await attempt("store+memberships", async () => {
+    const [profile] = await db
+      .select({ id: creatorProfilesTable.id })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+    if (profile) {
+      const [prodRow] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(storeProductsTable)
+        .where(eq(storeProductsTable.profileId, profile.id));
+      state.storeProducts = prodRow?.n ?? 0;
+    }
+    const [tierRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(fanTiersTable)
+      .where(eq(fanTiersTable.user_id, userId));
+    state.membershipTiers = tierRow?.n ?? 0;
+  });
+
+  await attempt("earnings", async () => {
+    // The same four sources (and the same total definition) as
+    // GET /api/earnings — the coach's numbers must agree with the
+    // money view the creator already sees.
+    const orders = await db.execute(sql`
+      SELECT COALESCE(SUM(o.creator_amount_cents), 0)::int AS cents
+      FROM store_orders o
+      JOIN creator_profiles cp ON cp.id = o.profile_id
+      WHERE cp.user_id = ${userId} AND o.status = 'completed'
+    `);
+    const shop = await db.execute(sql`
+      SELECT COALESCE(SUM(amount_cents - platform_fee_cents), 0)::int AS cents
+      FROM shop_events
+      WHERE user_id = ${userId} AND event_type = 'sale'
+    `);
+    const members = await db.execute(sql`
+      SELECT COALESCE(SUM(price_cents), 0)::int AS cents
+      FROM fan_members
+      WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL
+    `);
+    const deals = await db.execute(sql`
+      SELECT COALESCE(SUM(net_cents), 0)::int AS cents
+      FROM sponsor_payouts
+      WHERE creator_user_id = ${userId} AND status = 'released'
+    `);
+    const centsOf = (r: { rows: unknown[] }) => Number(((r.rows as Array<{ cents?: unknown }>)[0]?.cents) ?? 0);
+    state.earningsCents = centsOf(orders) + centsOf(shop) + centsOf(members) + centsOf(deals);
+    const tips = await db.execute(sql`
+      SELECT COALESCE(SUM(amount_vb), 0)::int AS vb
+      FROM live_stream_tips
+      WHERE creator_user_id = ${userId} AND creator_credited_at IS NOT NULL
+    `);
+    state.tipsVb = Number(((tips.rows as Array<{ vb?: unknown }>)[0]?.vb) ?? 0);
+  });
+
+  return state;
+}
+
+/* The ONE next move, derived from the state itself — deterministic,
+   never model-invented: walk the canonical chain (create → release
+   → sell → membership → promote) and point at the first gap. */
+export interface CoachNextAction {
+  label: string;
+  href: string;
+}
+
+export function nextActionForState(state: CreatorState): CoachNextAction {
+  if (state.songs === 0) return { label: "Make your first song", href: "/make-song" };
+  if (state.releases === 0) return { label: "Distribute your songs", href: "/distribute" };
+  if (state.storeProducts === 0) return { label: "Stock your profile store", href: "/storefronts/builder" };
+  if (state.membershipTiers === 0) return { label: "Launch a fan membership", href: "/memberships" };
+  return { label: "Promote your latest release", href: "/promote" };
+}
+
+/* The catalog facts as prompt lines — stated as facts about THIS
+   creator's business, like the Money Tracker snapshot. */
+export function creatorStateLines(state: CreatorState): string[] {
+  const dollars = (c: number) => `$${(c / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  const lines = [
+    `Song library: ${state.songs} song${state.songs === 1 ? "" : "s"}${state.latestSongTitle ? ` (latest: “${state.latestSongTitle}”)` : ""}.`,
+    `Distribution: ${state.releases} release${state.releases === 1 ? "" : "s"} on file, ${state.submittedReleases} submitted past draft.`,
+    `Profile store: ${state.storeProducts} product${state.storeProducts === 1 ? "" : "s"}. Fan memberships: ${state.membershipTiers} tier${state.membershipTiers === 1 ? "" : "s"} defined.`,
+    `Earnings to date on the platform: ${dollars(state.earningsCents)}${state.tipsVb > 0 ? `, plus ${state.tipsVb.toLocaleString("en-US")} Visual Bucs in stream tips` : ""}.`,
+  ];
+  if (state.songs > 0 && state.releases === 0) {
+    lines.push("IMPORTANT GAP: this creator has songs in the library but has NEVER distributed one — the first money move must push distribution of the existing catalog, not making more content.");
+  }
+  if (state.songs === 0) {
+    lines.push("IMPORTANT GAP: this creator's library is EMPTY — the first money move must be creating the first song, not distribution or promotion of work that doesn't exist.");
+  }
+  return lines;
+}
 
 const coachSchema = z.object({
   niche: z.string().min(1, "Niche is required.").max(120),
@@ -107,6 +279,15 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
     .map((p) => `- ${PLATFORM_LABEL[p]}: ${followers[p] ?? 0} followers/subscribers`)
     .join("\n");
 
+  /* DE-19: the creator's real catalog state, read server-side from
+     their own rows. Grounds the prompt (below) and derives the one
+     structured next action returned with the plan. */
+  const creatorState = await readCreatorState(req.userId!);
+  const catalogContext =
+    `The creator's REAL catalog on Bow Down Visuals (treat as fact, and tailor the money moves to it — ` +
+    `reference the actual gaps, e.g. undistributed songs or an empty store, instead of generic advice): ` +
+    creatorStateLines(creatorState).join(" ");
+
   /* Real tracked money (if the creator uses the Money Tracker): treat these
      as facts about their business and reference them in the money moves. */
   const snap = parsed.data.moneySnapshot;
@@ -161,7 +342,8 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
             `"nextStep": "..."}], "earnings": {"rpmNotes": "...", "bestFormat": "...", ` +
             `"bestCadence": "..."}, "moneyMoves": ["...", "...", "..."], ` +
             `"note": "Thresholds and RPMs are estimates as of 2026 — verify current program terms."}` +
-            (moneyContext ? ` ${moneyContext}` : ""),
+            (moneyContext ? ` ${moneyContext}` : "") +
+            ` ${catalogContext}`,
         },
         {
           role: "user",
@@ -234,6 +416,12 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
       earnings,
       moneyMoves,
       note,
+      /* DE-19: the one structured next move (state-derived, above)
+         — the page renders it as the plan's primary button — plus
+         the state it was derived from, so the creator can see the
+         coach actually read their catalog. */
+      nextAction: nextActionForState(creatorState),
+      creatorState,
       creditsUsed: COACH_CREDITS,
       creditsRemaining,
     });

@@ -194,7 +194,7 @@ interface ProductRow extends Record<string, unknown> {
 
 function withLinks(p: ProductRow) {
   const artistUrl = `/artist/${p.artist_slug}`;
-  const productUrl = `/artist/${p.artist_slug}#product-${p.id}`;
+  const productUrl = `/storefront/product/${p.id}`;
   return {
     id: p.id,
     profileId: p.profile_id,
@@ -575,7 +575,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       /* Same success page as the digital store; it falls back to
          /api/storefront/verify for storefront sessions (see MOUNT.md). */
       success_url: `${baseUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/artist/${p.artist_slug}#product-${p.id}`,
+      cancel_url: `${baseUrl}/storefront/product/${p.id}`,
       metadata: {
         type: "storefront_purchase",
         buyer_user_id: req.userId!,
@@ -832,7 +832,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
       delivery,
       /* Link graph: no dead ends after payment — the highest-trust moment. */
       links: {
-        productUrl: p ? `/artist/${p.artist_slug}#product-${p.id}` : null,
+        productUrl: p ? `/storefront/product/${p.id}` : null,
         creatorUrl: p ? `/artist/${p.artist_slug}` : null,
         eventUrl: eventId ? `/shows#event-${eventId}` : null,
         /* Buyer order history is API-only for now:
@@ -1132,7 +1132,7 @@ function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
     fulfillmentNote: (r["fulfillment_note"] as string | null) ?? null,
     createdAt: String(r["created_at"]),
     links: {
-      productUrl: r["product_id"] && artistSlug ? `/artist/${artistSlug}#product-${r["product_id"]}` : null,
+      productUrl: r["product_id"] ? `/storefront/product/${r["product_id"]}` : null,
       creatorUrl: artistSlug ? `/artist/${artistSlug}` : null,
     },
   };
@@ -1377,7 +1377,7 @@ router.get("/storefront/promote/email", requireAuth, async (req, res) => {
       LIMIT 50
     `);
     const productUrl = product
-      ? `${getBaseUrl(req)}/artist/${profile.slug}#product-${product.id}`
+      ? `${getBaseUrl(req)}/storefront/product/${product.id}`
       : `${getBaseUrl(req)}/artist/${profile.slug}`;
     const prefill = product
       ? {
