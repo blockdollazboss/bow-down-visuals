@@ -14,7 +14,7 @@
  * capped at target, completed derived) so the flip is exercised
  * honestly: first finishing event rings, later events don't.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -127,7 +127,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb };
 });
 
-import { recordCreation, recordShareEvent } from "../retention";
+import { recordCreation, recordShareEvent, QUEST_DEFS } from "../retention";
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -207,5 +207,65 @@ describe("DE-18 — the quest bell", () => {
     };
     await recordCreation(USER, "project");
     expect(h.state.notifications).toHaveLength(0);
+  });
+});
+
+/**
+ * Stack-30 C2 — one updateQuests call rings at most one bell.
+ *
+ * When a single event finishes two quests at once (two defs sharing
+ * the event's kind, both flipping false → true in the same loop),
+ * the old code rang one bell per finished quest — two notifications
+ * for one action. updateQuests now latches: the bell names the first
+ * quest the call finished; the second quest still completes (its
+ * reward waits on the same /dashboard claim surface), it just
+ * doesn't ring a second bell for the same event. Streak-milestone
+ * bells ring from updateStreak and are NOT capped by the latch.
+ */
+describe("Stack-30 C2 — the per-call bell dedupe", () => {
+  const BONUS_DEF = { key: "song-bonus", target: 1, reward: 10, kinds: ["song"] as const };
+
+  beforeEach(() => {
+    QUEST_DEFS.push(BONUS_DEF as never);
+  });
+
+  afterEach(() => {
+    const i = QUEST_DEFS.indexOf(BONUS_DEF as never);
+    if (i >= 0) QUEST_DEFS.splice(i, 1);
+  });
+
+  it("two quests finished by one event produce exactly one bell, naming the first", async () => {
+    await recordCreation(USER, "song");
+    /* Both quests completed — progress semantics unchanged… */
+    const completed = h.state.questRows.filter((r) => r["completed"] === true);
+    expect(completed.map((r) => r["questKey"]).sort()).toEqual(["generate-song", "song-bonus"]);
+    /* …but only one bell rang, naming the first quest finished. */
+    const bells = h.state.notifications.filter((n) => String(n["title"]).includes("Quest complete"));
+    expect(bells).toHaveLength(1);
+    expect(String(bells[0]!["body"])).toContain("Generate a song");
+    expect(String(bells[0]!["body"])).toContain("80");
+  });
+
+  it("the silently-finished second quest does not ring on a later event either (flip already spent)", async () => {
+    await recordCreation(USER, "song");
+    await recordCreation(USER, "song");
+    const bells = h.state.notifications.filter((n) => String(n["title"]).includes("Quest complete"));
+    expect(bells).toHaveLength(1);
+  });
+
+  it("a streak-milestone bell in the same call is separate and still rings", async () => {
+    h.state.streakRow = {
+      userId: USER,
+      currentStreak: 2,
+      longestStreak: 2,
+      lastCreationDate: yesterdayKey(),
+      milestonesClaimed: [],
+    };
+    await recordCreation(USER, "song"); // finishes two quests AND lands the 3-day milestone
+    const questBells = h.state.notifications.filter((n) => String(n["title"]).includes("Quest complete"));
+    const milestoneBells = h.state.notifications.filter((n) => String(n["title"]).includes("Streak milestone"));
+    expect(questBells).toHaveLength(1);
+    expect(milestoneBells).toHaveLength(1);
+    expect(h.state.notifications).toHaveLength(2);
   });
 });

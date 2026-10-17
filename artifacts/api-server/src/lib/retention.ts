@@ -202,12 +202,20 @@ async function notifyStreakMilestone(userId: string, days: number, reward: numbe
 async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
   const weekStart = currentWeekStart();
   const applicable = QUEST_DEFS.filter((q) => q.kinds.includes(kind));
+  /* Stack-30 C2: at most ONE quest-completion bell per updateQuests
+     call. A single event can finish several quests at once (every def
+     whose kinds include this kind flips false → true in this loop);
+     each used to ring its own bell for the same one action. The bell
+     now names the first quest this call finished — every finished
+     quest's reward still waits on the same /dashboard claim surface
+     the bell links to, and every quest's progress/completion is
+     recorded exactly as before. (Streak-milestone bells ring from
+     updateStreak, not here, and are not capped by this.) */
+  let bellRung = false;
   for (const q of applicable) {
     /* DE-18: read the row BEFORE the upsert so the completion flip
        (false → true) is observable — the upsert alone can't say
-       whether THIS event finished the quest. (Two simultaneous
-       finishing events could both observe the flip and ring twice;
-       the bell is cosmetic — no VB moves without the claim CAS.) */
+       whether THIS event finished the quest. */
     const [prior] = await db
       .select({ completed: questProgressTable.completed })
       .from(questProgressTable)
@@ -236,7 +244,8 @@ async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
         },
       })
       .returning({ completed: questProgressTable.completed });
-    if (!prior?.completed && row?.completed) {
+    if (!prior?.completed && row?.completed && !bellRung) {
+      bellRung = true;
       await notifyQuestComplete(userId, q);
     }
   }
