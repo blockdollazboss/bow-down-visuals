@@ -17,11 +17,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
 import {
   splitPanelPath,
-  stationGuestBlocked,
+  resolveStationPanel,
   editorStepthroughSearch,
   PANEL_ROUTE_PATHS,
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
+import { NativePlaceholder, TransferFooter } from "@/components/world/native";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -29,13 +30,20 @@ import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
-   A door-station's panel: the room's REAL feature, mounted inside
-   the World page — the site's own page component in an in-panel
-   router, a world-native panel built from real data, or (the one
-   heavy desk) a step-through. Never a replica, never a redirect
-   out. Guests at a members-only door get the pitch and the sign-in
-   ask — sign-in itself deliberately lives on the site, not in a
-   3D panel (the plan's phishing-hygiene refusal). */
+   A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
+   station NEVER mounts a website page component. Opening a station
+   resolves through `resolveStationPanel` to exactly one of: the
+   guest pitch (members-only door, guest walker), a native surface
+   (its pattern's instrument — the honest "being rebuilt"
+   placeholder until that pattern ships, framed by the standard
+   transfer footer), one of the six world-native custom panels, or
+   (the one heavy desk) the step-through. The in-panel router below
+   survives ONLY for the bare-page target a custom panel can still
+   point at (a Front Row portrait → a creator profile); it is
+   unreachable from the station-open path and is deleted at the
+   plan's Step 8. Guests at a members-only door get the pitch and
+   the sign-in ask — sign-in itself deliberately lives on the site,
+   not in a 3D panel (the plan's phishing-hygiene refusal). */
 
 /** What the panel is showing: a station, or a bare page a custom
  *  panel sent the walker to (a Court portrait's profile). */
@@ -75,15 +83,17 @@ export interface StationPanelProps {
    gallery (the same public court the hall's stage honors read). */
 const KING_COURT_SLUG = "thy-cheat-code";
 
-/* ─── The in-panel router ────────────────────────────────────────────
-   The site's own pages, mounted under a memory-location router:
-   their links and back buttons navigate INSIDE the panel, so
-   walking through a door never walks you out of the palace. The
-   route set is the shared table in lib/world/station-panel (the
-   doors' targets, the deeper hub links those pages make, and the
-   profile door the Court portraits open); anything beyond it
-   lands on the honest miss card. The record below is keyed by the
-   table, so a path added there without a page here won't compile. */
+/* ─── The in-panel router (LEGACY — plan Step 8 deletes this) ───────
+   The site's own pages, mounted under a memory-location router.
+   Registry v2: NO station opens through here anymore — stations
+   resolve natively (see the host below). This router remains only
+   for the bare-page target (`StationPanelTarget` kind "page") that
+   a custom panel can still point at — today, a Front Row portrait
+   opening a creator's profile — and the deeper links inside such
+   a page. The route set is the shared table in
+   lib/world/station-panel; anything beyond it lands on the honest
+   miss card. The record below is keyed by the table, so a path
+   added there without a page here won't compile. */
 const PANEL_PAGES: Record<PanelRoutePath, ReturnType<typeof lazy>> = {
   "/messages": lazy(() => import("@/pages/messages")),
   "/my-music": lazy(() => import("@/pages/my-music")),
@@ -980,14 +990,18 @@ export default function StationPanel(props: StationPanelProps) {
   const name = target.kind === "station" ? target.station.name : target.title;
   const tagline = target.kind === "station" ? target.station.tagline : null;
 
+  /* Registry v2: a station target resolves ONCE, here, and every
+     render below follows the resolution. Its union has no page
+     variant — a station can never mount a website page component
+     again. Bare-page targets (kind "page") carry no resolution;
+     they are the legacy router's last job (see PanelRouter). */
+  const station = target.kind === "station" ? target.station : null;
+  const resolution = station ? resolveStationPanel(station, isGuest) : null;
+
   /* The step-through: the one heavy desk (the Visual Vibes editor)
      opens full-screen INSIDE /world — no new tab, no lost place;
      the bar at the top is the way back to your exact spot. */
-  if (
-    target.kind === "station" &&
-    target.station.panel.kind === "stepthrough" &&
-    !stationGuestBlocked(target.station, isGuest)
-  ) {
+  if (resolution?.type === "stepthrough") {
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-station-stepthrough">
         <div
@@ -1011,7 +1025,7 @@ export default function StationPanel(props: StationPanelProps) {
           </button>
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <PanelBoundary isLight={isLight} resetKey={target.station.id}>
+          <PanelBoundary isLight={isLight} resetKey={resolution.station.id}>
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center gap-2 text-white/60">
@@ -1029,41 +1043,55 @@ export default function StationPanel(props: StationPanelProps) {
   }
 
   const body = (() => {
+    /* Bare-page targets are the legacy router's only remaining
+       caller — a custom panel (a Front Row portrait) pointed here.
+       No station target can reach this branch: station targets
+       carry a resolution, and the resolution union has no page. */
     if (target.kind === "page") {
       return <PanelRouter initialPath={target.path} isLight={isLight} />;
     }
-    const station = target.station;
-    if (stationGuestBlocked(station, isGuest)) {
-      return <GuestPitch station={station} isLight={isLight} />;
+    if (!station || !resolution) return null;
+    switch (resolution.type) {
+      case "guest-pitch":
+        return <GuestPitch station={station} isLight={isLight} />;
+      case "native":
+        /* The migration placeholder until this station's pattern
+           surface ships — honest, palace-voiced, and framed below
+           by the standard transfer footer. Pattern lanes swap this
+           one branch's contents; the frame and footer stay. */
+        return (
+          <PanelBoundary isLight={isLight} resetKey={station.id}>
+            <NativePlaceholder station={station} isLight={isLight} />
+          </PanelBoundary>
+        );
+      case "custom":
+        switch (resolution.id) {
+          case "kingdom-board":
+            return (
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
+            );
+          case "front-row":
+            return <FrontRowGallery isLight={isLight} onOpenPage={props.onOpenPage} />;
+          case "treasury-daily":
+            return <TreasuryDaily isLight={isLight} />;
+          case "treasury-shark":
+            return <TreasuryShark isLight={isLight} />;
+          case "treasury-quests":
+            return <TreasuryQuests />;
+          case "jukebox":
+            return <JukeboxPanel {...props} />;
+          default:
+            return (
+              <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                This door isn&rsquo;t hung yet — the room is here, the feature is still on its way in.
+              </p>
+            );
+        }
+      default:
+        /* "stepthrough" is narrowed out here — it returned
+           full-screen above, before the sheet ever renders. */
+        return null;
     }
-    if (station.panel.kind === "page") {
-      return <PanelRouter initialPath={station.panel.path} isLight={isLight} />;
-    }
-    if (station.panel.kind === "custom") {
-      switch (station.panel.id) {
-        case "kingdom-board":
-          return (
-            <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
-          );
-        case "front-row":
-          return <FrontRowGallery isLight={isLight} onOpenPage={props.onOpenPage} />;
-        case "treasury-daily":
-          return <TreasuryDaily isLight={isLight} />;
-        case "treasury-shark":
-          return <TreasuryShark isLight={isLight} />;
-        case "treasury-quests":
-          return <TreasuryQuests />;
-        case "jukebox":
-          return <JukeboxPanel {...props} />;
-        default:
-          return (
-            <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-              This door isn&rsquo;t hung yet — the room is here, the feature is still on its way in.
-            </p>
-          );
-      }
-    }
-    return null;
   })();
 
   return (
@@ -1095,6 +1123,17 @@ export default function StationPanel(props: StationPanelProps) {
         </button>
       </div>
       {body}
+      {/* The standard transfer footer — native panels only, exactly
+          one, always the frame's last row (NATIVE-PLAN §3.0). The
+          guest pitch carries its own sign-in transfer by design,
+          and the customs keep the frames they have always had. */}
+      {resolution?.type === "native" && (
+        <TransferFooter
+          context={resolution.station.tagline}
+          websitePath={resolution.websitePath}
+          isLight={isLight}
+        />
+      )}
     </div>
   );
 }
