@@ -15,6 +15,7 @@ import {
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { tmpUploadStorage } from "../../lib/upload-storage";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -45,6 +46,9 @@ const upload = multer({
 
 const audioCleanupSchema = z.object({
   mode: z.enum(["voice", "music", "denoise"]),
+  /** When the input was picked from the caller's song library, its id —
+   *  the finished output's library row points back at it (parent chain). */
+  sourceSongId: z.string().max(64).optional(),
 });
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
@@ -135,6 +139,10 @@ export interface AudioCleanupJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the input came from, when it came from the library. */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished output (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, AudioCleanupJob>();
@@ -194,9 +202,23 @@ export async function runAudioCleanupJob(
     const ref = await uploadMediaToSupabaseStorage(objectName, outBuffer, "audio/mpeg");
     const url = await refreshSupabaseStorageUrl(ref);
 
-    job.status = "done";
     job.outputUrl = url;
     job.outputRef = ref;
+
+    /* Linkage (DE-6): the finished cleanup lands in the caller's song
+       library, chained to the library song it started from when the
+       input was one. A library-write failure never fails a delivered
+       job — recordLibrarySong logs and returns null. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Cleaned"),
+      audioUrl: url,
+      audioPath: ref,
+      source: "cleanup",
+      parentSongId: job.sourceSongId,
+    });
+
+    job.status = "done";
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Audio cleanup failed";
@@ -285,6 +307,8 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     error: null,
     creditsCharged: AUDIO_CLEANUP_CREDIT_COST,
     createdAt: Date.now(),
+    sourceSongId: parsed.data.sourceSongId ?? null,
+    librarySongId: null,
   };
   jobs.set(job.id, job);
 
@@ -320,6 +344,7 @@ router.get("/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) =
     mode: job.mode,
     sourceName: job.sourceName,
     outputUrl: job.outputUrl,
+    songId: job.librarySongId,
     noiseReductionDb: job.noiseReductionDb,
     error: job.error,
     createdAt: job.createdAt,

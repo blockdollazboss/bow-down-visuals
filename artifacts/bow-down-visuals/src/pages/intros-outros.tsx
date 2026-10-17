@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { fetchBrandKit } from "@/lib/brand-kit";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useHubProject } from "@/lib/hub-project";
@@ -55,7 +56,7 @@ interface RecentSting {
 export function IntrosOutrosTool() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
@@ -70,6 +71,32 @@ export function IntrosOutrosTool() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [recent, setRecent] = useState<RecentSting[]>([]);
   const pollRef = useRef<number | null>(null);
+  const [fromBrandKit, setFromBrandKit] = useState(false);
+
+  /* Linkage (DE-5): the brand kit is the source of truth — prefill the
+     channel name, tagline and logo from it instead of asking for a
+     pasted logo URL and re-typed brand facts. Only empty fields fill;
+     anything the creator typed (or a template seeded) wins. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const kit = await fetchBrandKit(getAccessToken);
+        if (cancelled || !kit) return;
+        let used = false;
+        if (kit.brandName) { setChannelName((prev) => { if (!prev.trim()) { used = true; return kit.brandName; } return prev; }); }
+        const taglinePick = kit.selectedTagline ?? kit.taglines[0];
+        if (taglinePick) { setTagline((prev) => { if (!prev.trim()) { used = true; return taglinePick.slice(0, 80); } return prev; }); }
+        if (kit.logoUrl) { setLogoUrl((prev) => { if (!prev.trim()) { used = true; return kit.logoUrl!; } return prev; }); }
+        if (used) setFromBrandKit(true);
+      } catch {
+        /* brand kit is a prefill nicety — the manual fields still work */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   /* Template deep-link: ?template=<slug> from Thy Library pre-selects the
      sting type (intro/outro from the slug prefix) and seeds the tagline with
@@ -265,6 +292,11 @@ export function IntrosOutrosTool() {
                 placeholder="https://…"
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
               />
+              {fromBrandKit && (
+                <p className="mt-1.5 text-[11px] text-primary/70">
+                  {t("introsOutros.fromBrandKit", { defaultValue: "Prefilled from your brand kit — edit anything and it only changes this sting." })}
+                </p>
+              )}
             </div>
 
             <button

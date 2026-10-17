@@ -15,6 +15,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 import { analyzeMelody } from "../../lib/melody-analysis";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 import {
   uploadHumForConditioning,
   composeWithConditioning,
@@ -268,8 +269,30 @@ router.post("/finish-my-song/complete", publicApiLimiter, requireAuth, upload.si
     }
     const songUrl = r2PublicUrl(songR2Key);
 
+    /* Linkage (DE-6): a finished song is a library song — record it so
+       it shows up in the caller's song library (distribute, remix, the
+       editor) instead of living only in this response. The output lives
+       on R2 behind a public URL, so there is no storage ref to store.
+       When the demo was picked from the library, the client sends its
+       id as sourceSongId and the finished song chains back to it.
+       A library-write failure never fails a delivered song. */
+    const sourceSongId =
+      typeof req.body?.sourceSongId === "string" && req.body.sourceSongId.length <= 64
+        ? req.body.sourceSongId
+        : null;
+    const librarySongId = await recordLibrarySong({
+      userId: req.userId!,
+      title: librarySongTitle(req.file.originalname, "Finished"),
+      audioUrl: songUrl,
+      audioPath: null,
+      source: "finish",
+      parentSongId: sourceSongId,
+      durationSec: analysis.durationSec,
+    });
+
     res.json({
       songUrl,
+      songId: librarySongId,
       lyrics: parts.lyrics,
       arrangement: parts.arrangement,
       influence,

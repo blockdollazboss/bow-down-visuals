@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
-import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera } from "lucide-react";
+import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera, Fingerprint } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { BrandKitPanel } from "@/components/branding/BrandKitPanel";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
 import { BrowseLibraryButton } from "@/pages/library";
@@ -19,7 +20,7 @@ import { HeadshotStudio } from "@/components/photo/HeadshotStudio";
 
 /* Tab labels translate inside the component (via t()); icons stay static.
    The blurbs are reference metadata and are not rendered on this page. */
-type TabKey = "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry";
+type TabKey = "brand" | "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry";
 
 export default function BrandingKit() {
   const { t } = useTranslation();
@@ -28,11 +29,12 @@ export default function BrandingKit() {
   const [tab, setTab] = useState<TabKey>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      return q === "intros" || q === "stream" || q === "headshots" || q === "shop" || q === "jewelry" ? q : "logo";
-    } catch { return "logo"; }
+      return q === "logo" || q === "intros" || q === "stream" || q === "headshots" || q === "shop" || q === "jewelry" ? q : "brand";
+    } catch { return "brand"; }
   });
 
   const TABS = [
+    { key: "brand", label: t("brandingKit.tabs.brand.label", { defaultValue: "Brand Kit" }), Icon: Fingerprint },
     { key: "logo", label: t("brandingKit.tabs.logo.label"), Icon: Palette },
     { key: "intros", label: t("brandingKit.tabs.intros.label"), Icon: Clapperboard },
     { key: "stream", label: t("brandingKit.tabs.stream.label"), Icon: Tv },
@@ -96,7 +98,7 @@ export default function BrandingKit() {
         <BrowseLibraryButton tab="templates" category="Intros & Outros" tool="brand" />
       </div>
       {/* Handoff: brand assets belong in videos — one tap into the editor */}
-      {(tab === "logo" || tab === "intros") && (
+      {(tab === "brand" || tab === "logo" || tab === "intros") && (
         <div className="mx-auto max-w-5xl px-4 mb-4">
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-primary/25 bg-primary/[0.05] p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.10]">
@@ -115,6 +117,7 @@ export default function BrandingKit() {
         </div>
       )}
       <div className="pb-10">
+        {tab === "brand" && <BrandKitPanel key="brand" />}
         {tab === "logo" && <LogoMakerTool key="logo" />}
         {tab === "intros" && <IntrosOutrosTool key="intros" />}
         {tab === "stream" && <StreamPackTool key="stream" />}
