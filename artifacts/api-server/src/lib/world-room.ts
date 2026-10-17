@@ -1,14 +1,26 @@
 /**
- * world-room.ts — The World: presence for the King's Hall, the site's
- * one shared VR room. Socket state only (no DB rows): peers live in
- * this process for exactly as long as their socket does, and despawn
- * the moment it closes.
+ * world-room.ts — The World: presence for ONE room of the palace.
+ * Socket state only (no DB rows): peers live in this process for
+ * exactly as long as their socket does, and despawn the moment it
+ * closes. The palace registry (lib/world-palace.ts) runs one
+ * WorldRoom per palace room — the King's Hall (this class's default
+ * configuration: spawn, stage, screen) plus the Music Hall, the Game
+ * Rooms, the Create Wing and the Courtyard — and moves peers between
+ * them when they walk through a doorway (a `room.enter` frame, which
+ * the REGISTRY intercepts; it never reaches a room). Presence, chat
+ * and the voice mesh are all room-scoped: you see and hear the room
+ * you are standing in, and proximity voice stops at doorways.
  *
  * Rides the shared live gateway (lib/live-ws.ts) in its own room,
  * separate from chat/control rooms. Protocol (JSON frames):
  *
  *   client → server
  *     { type: "move", x, y, z, rotY }        position sync (throttled)
+ *     { type: "action", action }             perform an avatar action
+ *                                            (bow/wave/cheer/clap/spin
+ *                                            once; dance/sit toggle —
+ *                                            re-sending the toggle ends
+ *                                            it; null stops now)
  *     { type: "say", body }                  room text (signed-in only)
  *     { type: "character", characterId }     walk in as a Creative Vault
  *                                            character (id only — the
@@ -52,9 +64,16 @@
  *     { type: "admin.remove", peerId }        host only: remove a
  *                                            person from the hall
  *   server → client
- *     { type: "welcome", peerId, you, peers }   on join (full snapshot)
+ *     { type: "welcome", peerId, room, you, peers }   on join (full
+ *                                            snapshot; `room` names
+ *                                            the room you stand in —
+ *                                            a doorway transfer sends
+ *                                            a fresh welcome for the
+ *                                            new room, same peerId)
  *     { type: "peer.join", peer } / { type: "peer.leave", peerId }
  *     { type: "peer.move", peerId, x, y, z, rotY }
+ *     { type: "peer.action", peerId, action }   a peer started (or
+ *                                            stopped) an avatar action
  *     { type: "peer.say", peerId, body }
  *     { type: "peer.character", peerId, character }   a peer's vault
  *                                            character (or null) changed
@@ -260,6 +279,55 @@ export function screenPositionAt(content: WorldScreenContent, nowMs: number): nu
   return Math.max(0, pb.anchorPosSec + (nowMs - pb.anchorAtMs) / 1000);
 }
 
+/**
+ * Avatar actions (owner order: "the avatar should be able to do
+ * things"). One id set, mirrored by the client's lib/world/actions.ts.
+ * "once" actions play through and settle; "toggle" actions (dance,
+ * sit) hold until toggled off, replaced — or the wearer walks: a
+ * move frame clears a held toggle server-side too, so a stale dance
+ * can never outlive the walk that ended it.
+ */
+export const WORLD_ACTIONS = {
+  bow: "once",
+  wave: "once",
+  cheer: "once",
+  clap: "once",
+  spin: "once",
+  dance: "toggle",
+  sit: "toggle",
+} as const;
+export type WorldActionId = keyof typeof WORLD_ACTIONS;
+
+/** One action frame per peer per ~half second at most. */
+export const ACTION_MIN_INTERVAL_MS = 500;
+
+/**
+ * Per-instance room configuration. The King's Hall is the default
+ * (bounds, spawn arc, stage); the palace registry (world-palace.ts)
+ * constructs one WorldRoom per palace room with its own id, bounds
+ * and spawn — and only the hall gets the stage/screen authority.
+ */
+export interface WorldRoomOptions {
+  roomId?: string;
+  name?: string;
+  bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
+  spawn?: { x: number; z: number };
+  stageEnabled?: boolean;
+}
+
+/**
+ * What a doorway transfer carries across: the peer keeps ONE identity
+ * palace-wide — same peerId, same character, same voice flags — while
+ * presence (and its voice mesh) becomes the new room's.
+ */
+export interface WorldTransferState {
+  identity: WorldIdentity;
+  peerId: string;
+  character: WorldCharacterRef | null;
+  voiceOff: boolean;
+  voiceDeaf: boolean;
+}
+
 export interface WorldPeerDto {
   peerId: string;
   displayName: string;
@@ -283,6 +351,10 @@ export interface WorldPeerDto {
    *  mesh, and voice.join is refused until the host unmutes. */
   hostMuted: boolean;
   character: WorldCharacterRef | null;
+  /** The avatar action this presence is performing right now
+   *  (toggles persist in the snapshot so a late joiner walks into
+   *  the dance already in progress). */
+  action: WorldActionId | null;
   x: number;
   y: number;
   z: number;
@@ -303,6 +375,11 @@ interface WorldPeer extends WorldIdentity {
   /** Bumped on every character pick/clear so a slow resolution can't
    *  land after a newer pick and resurrect a stale character. */
   characterSeq: number;
+  /** The action being performed + when it started (server clock) —
+   *  the snapshot carries the id; clients replay the pose from
+   *  their own receipt time, which is close enough for an emote. */
+  action: { id: WorldActionId; at: number } | null;
+  lastActionAt: number;
   x: number;
   y: number;
   z: number;
@@ -332,6 +409,22 @@ interface StageHolder {
 }
 
 export class WorldRoom {
+  /** This room's hub channel + public id (the palace directory keys
+   *  rooms by it). The hall keeps the original channel id, so the
+   *  palace arrived without changing the hall's wire identity. */
+  readonly roomId: string;
+  /** The name on the door — shown in the directory and the welcome. */
+  readonly roomName: string;
+  private readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  private readonly spawnPoint: { x: number; z: number };
+  /** Stage/screen authority lives in exactly one room: the hall.
+   *  Other rooms refuse the stage frames (the screen is not theirs
+   *  to hold) instead of growing a second authority. */
+  readonly stageEnabled: boolean;
+  /** Fired when anything the palace directory shows changes
+   *  (membership, stage holder). The palace registry wires it to
+   *  rebroadcast the directory; a standalone room leaves it unset. */
+  onChange: (() => void) | null = null;
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
@@ -350,10 +443,37 @@ export class WorldRoom {
       resolveStageStream?: WorldStageStreamResolver;
       resolveScreenVideo?: WorldScreenVideoResolver;
     } = {},
-  ) {}
+    opts: WorldRoomOptions = {},
+  ) {
+    this.roomId = opts.roomId ?? WORLD_ROOM_ID;
+    this.roomName = opts.name ?? "The King's Hall";
+    this.bounds = opts.bounds ?? HALL_BOUNDS;
+    this.spawnPoint = opts.spawn ?? { x: 0, z: 9.5 };
+    this.stageEnabled = opts.stageEnabled ?? this.roomId === WORLD_ROOM_ID;
+  }
 
   size(): number {
     return this.peers.size;
+  }
+
+  /** Display names inside, for the palace directory ("your people
+   *  are in the Music Hall" is the whole point of the board). */
+  memberNames(): string[] {
+    return [...this.peers.values()].map((p) => p.displayName);
+  }
+
+  /** A show is on the stage (the directory's LIVE flag). */
+  stageHeld(): boolean {
+    return this.stageHolder !== null;
+  }
+
+  /** Clamp a proposed position into this room's bounds — doorway
+   *  transfers land where the walker actually crossed, clamped. */
+  clampToBounds(x: number, z: number): { x: number; z: number } {
+    return {
+      x: clamp(x, this.bounds.minX, this.bounds.maxX),
+      z: clamp(z, this.bounds.minZ, this.bounds.maxZ),
+    };
   }
 
   voiceSize(): number {
@@ -381,6 +501,7 @@ export class WorldRoom {
       admin: peer.admin,
       hostMuted: peer.hostMuted,
       character: peer.character,
+      action: peer.action?.id ?? null,
       x: peer.x,
       y: peer.y,
       z: peer.z,
@@ -398,8 +519,20 @@ export class WorldRoom {
   }
 
   /** Admit a socket. Returns false (after an honest room_full frame +
-   *  close) when the hall is at its presence cap. */
-  attach(socket: WsClientSocket, identity: WorldIdentity): boolean {
+   *  close) when the room is at its presence cap. A doorway transfer
+   *  passes `carry`: the peer keeps its peerId, character and voice
+   *  flags, and lands at the crossing point instead of the spawn. */
+  attach(
+    socket: WsClientSocket,
+    identity: WorldIdentity,
+    carry?: {
+      peerId?: string;
+      character?: WorldCharacterRef | null;
+      voiceOff?: boolean;
+      voiceDeaf?: boolean;
+      at?: { x: number; z: number; rotY?: number };
+    },
+  ): boolean {
     if (this.peers.size >= WORLD_PRESENCE_CAP) {
       try {
         socket.send(JSON.stringify({ type: "room_full", cap: WORLD_PRESENCE_CAP }));
@@ -415,10 +548,11 @@ export class WorldRoom {
     }
 
     this.counter++;
-    const peerId = `w${this.counter.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    /* Spawn in a loose arc at the hall entrance so arrivals don't stack
+    const peerId = carry?.peerId ?? `w${this.counter.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    /* Spawn in a loose arc at the room entrance so arrivals don't stack
      * inside each other. */
     const slot = this.counter % 10;
+    const at = carry?.at ? this.clampToBounds(carry.at.x, carry.at.z) : null;
     const peer: WorldPeer = {
       ...identity,
       peerId,
@@ -426,24 +560,26 @@ export class WorldRoom {
       tint: tintForKey(identity.profileSlug ?? identity.userId ?? peerId),
       guest: identity.userId === null,
       voice: false,
-      voiceOff: false,
-      voiceDeaf: false,
+      voiceOff: carry?.voiceOff === true,
+      voiceDeaf: carry?.voiceDeaf === true,
       admin: identity.userId !== null && identity.admin === true,
       hostMuted: false,
-      character: null,
+      character: carry?.character ?? null,
       characterSeq: 0,
-      x: (slot - 4.5) * 1.1,
+      action: null,
+      lastActionAt: 0,
+      x: at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1,
       y: 0,
-      z: 9.5,
+      z: at ? at.z : this.spawnPoint.z,
       /* Heading convention (shared with the client): rotY 0 faces the
        * stage/screen at the front of the hall (-Z). */
-      rotY: 0,
+      rotY: carry?.at?.rotY ?? 0,
       lastMoveAt: 0,
       lastSayAt: 0,
     };
     this.peers.set(socket, peer);
     this.byPeerId.set(peerId, peer);
-    this.hub.join(WORLD_ROOM_ID, socket);
+    this.hub.join(this.roomId, socket);
 
     const snapshot = [...this.peers.values()]
       .filter((p) => p !== peer)
@@ -451,27 +587,54 @@ export class WorldRoom {
     this.send(peer, {
       type: "welcome",
       peerId,
+      room: { id: this.roomId, name: this.roomName },
       you: this.dto(peer),
       peers: snapshot,
       // Late joiners land on the right screen: the stage as it stands.
-      screen: this.screenBroadcast(),
+      // Only the stage room carries screen state; other rooms omit it
+      // and the client keeps the hall's last known state.
+      ...(this.stageEnabled ? { screen: this.screenBroadcast() } : {}),
     });
     // The joiner never hears its own join — `welcome` already told it
     // everything about itself; peer.join is strictly for the room.
     this.broadcastExcept(peer, { type: "peer.join", peer: this.dto(peer) });
+    this.onChange?.();
     return true;
   }
 
-  /** Remove a socket's peer (disconnect / error). Broadcasts the
-   *  despawn; also a voice departure when they were in the mesh. */
+  /** The transferable state of the peer on this socket, or null when
+   *  the socket isn't in this room. Read BEFORE detach; the palace
+   *  registry hands it to the destination room's attach. */
+  peekTransferState(socket: WsClientSocket): WorldTransferState | null {
+    const peer = this.peers.get(socket);
+    if (!peer) return null;
+    return {
+      identity: {
+        userId: peer.userId,
+        displayName: peer.displayName,
+        avatarUrl: peer.avatarUrl,
+        profileSlug: peer.profileSlug,
+        admin: peer.admin,
+      },
+      peerId: peer.peerId,
+      character: peer.character,
+      voiceOff: peer.voiceOff,
+      voiceDeaf: peer.voiceDeaf,
+    };
+  }
+
+  /** Remove a socket's peer (disconnect / error / doorway transfer).
+   *  Broadcasts the despawn; also a voice departure when they were in
+   *  the mesh — walking through a doorway ends the voice session,
+   *  because the mesh is this room's. */
   detach(socket: WsClientSocket): void {
     const peer = this.peers.get(socket);
     if (!peer) return;
     this.peers.delete(socket);
     this.byPeerId.delete(peer.peerId);
-    this.hub.leave(WORLD_ROOM_ID, socket);
+    this.hub.leave(this.roomId, socket);
     if (peer.voice) {
-      this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
+      this.hub.broadcast(this.roomId, { type: "voice.left", peerId: peer.peerId });
     }
     /* No orphaned stage: the holder leaving ends the show and the
      * screen falls back to the Reel for everyone still inside. */
@@ -479,12 +642,13 @@ export class WorldRoom {
       this.stageHolder = null;
       this.screenContent = { kind: "reel" };
       this.stageSeq++;
-      this.hub.broadcast(WORLD_ROOM_ID, {
+      this.hub.broadcast(this.roomId, {
         type: "screen.state",
         screen: this.screenBroadcast(`${peer.displayName}'s show has ended.`),
       });
     }
-    this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.leave", peerId: peer.peerId });
+    this.hub.broadcast(this.roomId, { type: "peer.leave", peerId: peer.peerId });
+    this.onChange?.();
   }
 
   /* ── The stage + screen ─────────────────────────────────────────── */
@@ -536,7 +700,7 @@ export class WorldRoom {
   }
 
   private broadcastScreen(notice: string | null = null): void {
-    this.hub.broadcast(WORLD_ROOM_ID, { type: "screen.state", screen: this.screenBroadcast(notice) });
+    this.hub.broadcast(this.roomId, { type: "screen.state", screen: this.screenBroadcast(notice) });
   }
 
   /** Who may drive the screen: its holder — or the host, always. */
@@ -567,11 +731,24 @@ export class WorldRoom {
       case "move": {
         if (now - peer.lastMoveAt < MOVE_MIN_INTERVAL_MS) return;
         peer.lastMoveAt = now;
-        peer.x = clamp(finiteOr(frame["x"], peer.x), HALL_BOUNDS.minX, HALL_BOUNDS.maxX);
-        peer.z = clamp(finiteOr(frame["z"], peer.z), HALL_BOUNDS.minZ, HALL_BOUNDS.maxZ);
+        const prevX = peer.x;
+        const prevZ = peer.z;
+        peer.x = clamp(finiteOr(frame["x"], peer.x), this.bounds.minX, this.bounds.maxX);
+        peer.z = clamp(finiteOr(frame["z"], peer.z), this.bounds.minZ, this.bounds.maxZ);
         peer.y = 0;
         const rot = finiteOr(frame["rotY"], peer.rotY);
         peer.rotY = Math.atan2(Math.sin(rot), Math.cos(rot));
+        /* Walking ends a held toggle action (dance, sit) — the pose
+         * layer reads movement the same way; the server mirrors it so
+         * a fresh snapshot never shows a walker still dancing. */
+        if (
+          peer.action &&
+          WORLD_ACTIONS[peer.action.id] === "toggle" &&
+          Math.abs(peer.x - prevX) + Math.abs(peer.z - prevZ) > 0.05
+        ) {
+          peer.action = null;
+          this.broadcastExcept(peer, { type: "peer.action", peerId: peer.peerId, action: null });
+        }
         this.broadcastExcept(peer, {
           type: "peer.move",
           peerId: peer.peerId,
@@ -582,6 +759,36 @@ export class WorldRoom {
         });
         return;
       }
+      case "action": {
+        /* Perform an avatar action. Everyone present performs —
+         * guests included: an action is presence, not speech, and
+         * the rate limit keeps it sane. The id must be one of the
+         * shared WORLD_ACTIONS; anything else is ignored, so a
+         * modified client can't invent poses the room renders. */
+        if (now - peer.lastActionAt < ACTION_MIN_INTERVAL_MS) return;
+        const raw = frame["action"];
+        if (raw === null) {
+          peer.lastActionAt = now;
+          if (peer.action) {
+            peer.action = null;
+            this.broadcastExcept(peer, { type: "peer.action", peerId: peer.peerId, action: null });
+          }
+          return;
+        }
+        if (typeof raw !== "string" || !(raw in WORLD_ACTIONS)) return;
+        const id = raw as WorldActionId;
+        peer.lastActionAt = now;
+        /* Re-performing the toggle you're holding turns it off —
+         * the same press that started the dance ends it. */
+        if (WORLD_ACTIONS[id] === "toggle" && peer.action?.id === id) {
+          peer.action = null;
+          this.broadcastExcept(peer, { type: "peer.action", peerId: peer.peerId, action: null });
+          return;
+        }
+        peer.action = { id, at: now };
+        this.broadcastExcept(peer, { type: "peer.action", peerId: peer.peerId, action: id });
+        return;
+      }
       case "say": {
         /* Guests are look-only: no voice, no text. The client doesn't
          * offer them a composer; this is the server-side backstop. */
@@ -590,7 +797,7 @@ export class WorldRoom {
         const body = typeof frame["body"] === "string" ? frame["body"].trim().slice(0, SAY_MAX_CHARS) : "";
         if (!body) return;
         peer.lastSayAt = now;
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.say", peerId: peer.peerId, body });
+        this.hub.broadcast(this.roomId, { type: "peer.say", peerId: peer.peerId, body });
         return;
       }
       case "character": {
@@ -608,7 +815,7 @@ export class WorldRoom {
           peer.characterSeq++;
           if (peer.character) {
             peer.character = null;
-            this.hub.broadcast(WORLD_ROOM_ID, {
+            this.hub.broadcast(this.roomId, {
               type: "peer.character",
               peerId: peer.peerId,
               character: null,
@@ -625,7 +832,7 @@ export class WorldRoom {
         if (houseRef) {
           peer.characterSeq++;
           peer.character = houseRef;
-          this.hub.broadcast(WORLD_ROOM_ID, {
+          this.hub.broadcast(this.roomId, {
             type: "peer.character",
             peerId: peer.peerId,
             character: houseRef,
@@ -641,7 +848,7 @@ export class WorldRoom {
             if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
             if (peer.characterSeq !== seq) return; // a newer pick won
             peer.character = ref;
-            this.hub.broadcast(WORLD_ROOM_ID, {
+            this.hub.broadcast(this.roomId, {
               type: "peer.character",
               peerId: peer.peerId,
               character: ref,
@@ -670,14 +877,14 @@ export class WorldRoom {
           return;
         }
         peer.voice = true;
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.joined", peerId: peer.peerId });
+        this.hub.broadcast(this.roomId, { type: "voice.joined", peerId: peer.peerId });
         this.send(peer, { type: "voice.state", voicePeerIds: this.voicePeerIds(peer) });
         return;
       }
       case "voice.leave": {
         if (!peer.voice) return;
         peer.voice = false;
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
+        this.hub.broadcast(this.roomId, { type: "voice.left", peerId: peer.peerId });
         return;
       }
       case "voice.off": {
@@ -692,17 +899,17 @@ export class WorldRoom {
         if (off === peer.voiceOff && !peer.voice) return;
         if (off && peer.voice) {
           peer.voice = false;
-          this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: peer.peerId });
+          this.hub.broadcast(this.roomId, { type: "voice.left", peerId: peer.peerId });
         }
         if (off && peer.voiceDeaf) {
           /* Voice-off outranks deafen: the deafened mark clears on
            * the way out, so the plate tells the one story that
            * matters — this peer is out of voice entirely. */
           peer.voiceDeaf = false;
-          this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voicedeaf", peerId: peer.peerId, deaf: false });
+          this.hub.broadcast(this.roomId, { type: "peer.voicedeaf", peerId: peer.peerId, deaf: false });
         }
         peer.voiceOff = off;
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voiceoff", peerId: peer.peerId, off });
+        this.hub.broadcast(this.roomId, { type: "peer.voiceoff", peerId: peer.peerId, off });
         return;
       }
       case "voice.deaf": {
@@ -717,13 +924,14 @@ export class WorldRoom {
         const deaf = frame["deaf"] === true;
         if (deaf === peer.voiceDeaf) return;
         peer.voiceDeaf = deaf;
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.voicedeaf", peerId: peer.peerId, deaf });
+        this.hub.broadcast(this.roomId, { type: "peer.voicedeaf", peerId: peer.peerId, deaf });
         return;
       }
       case "stage.live": {
         /* Take the stage with my live stream. The id is all the
          * client sends — the injected resolver verifies the stream
          * is mine and truly live before anything reaches a screen. */
+        if (!this.stageEnabled) return;
         if (peer.guest || !peer.userId) return;
         const streamId = typeof frame["streamId"] === "string" ? frame["streamId"] : "";
         if (!streamId || streamId.length > 64) return;
@@ -747,6 +955,7 @@ export class WorldRoom {
         /* Take the stage with a catalog video — a watch party. Same
          * id-only rule: the resolver verifies the pick is a real,
          * playable platform video (mine, or public). */
+        if (!this.stageEnabled) return;
         if (peer.guest || !peer.userId) return;
         const videoId = typeof frame["videoId"] === "string" ? frame["videoId"] : "";
         if (!videoId || videoId.length > 96) return;
@@ -773,6 +982,10 @@ export class WorldRoom {
       case "screen.reel": {
         /* The holder parks the screen on the King's Reel (the stage
          * itself stays held); the host can always do it too. */
+        if (!this.stageEnabled) {
+          this.denyScreen(peer);
+          return;
+        }
         if (!this.canControlScreen(peer)) {
           this.denyScreen(peer);
           return;
@@ -787,6 +1000,10 @@ export class WorldRoom {
         /* Shared play/pause for a stage video: the holder (or host)
          * re-anchors the server stamp and everyone re-derives their
          * position from it — approximate sync, honestly labeled. */
+        if (!this.stageEnabled) {
+          this.denyScreen(peer);
+          return;
+        }
         if (!this.canControlScreen(peer)) {
           this.denyScreen(peer);
           return;
@@ -808,6 +1025,7 @@ export class WorldRoom {
       case "stage.end": {
         /* Release: the show is over, the screen falls back to the
          * Reel, the stage is free for the next creator. */
+        if (!this.stageEnabled) return;
         if (!this.stageHolder) return;
         if (!this.canControlScreen(peer)) {
           this.denyScreen(peer);
@@ -818,6 +1036,7 @@ export class WorldRoom {
         this.screenContent = { kind: "reel" };
         this.stageSeq++;
         this.broadcastScreen(wasMine ? null : "The host ended the show.");
+        this.onChange?.();
         return;
       }
       case "admin.mute": {
@@ -835,9 +1054,9 @@ export class WorldRoom {
         target.hostMuted = muted;
         if (muted && target.voice) {
           target.voice = false;
-          this.hub.broadcast(WORLD_ROOM_ID, { type: "voice.left", peerId: target.peerId });
+          this.hub.broadcast(this.roomId, { type: "voice.left", peerId: target.peerId });
         }
-        this.hub.broadcast(WORLD_ROOM_ID, { type: "peer.hostmute", peerId: target.peerId, muted });
+        this.hub.broadcast(this.roomId, { type: "peer.hostmute", peerId: target.peerId, muted });
         return;
       }
       case "admin.remove": {
@@ -908,6 +1127,7 @@ export class WorldRoom {
         };
         this.screenContent = resolved.content;
         this.broadcastScreen(takeover ? "The host took the stage." : null);
+        this.onChange?.();
       })
       .catch(() => undefined);
   }
