@@ -12,10 +12,13 @@ import {
   WorldClient,
   worldOverlay,
   defaultWorldSocketUrl,
+  fetchWorldDirectory,
+  HALL_ROOM_ID,
   type WorldStatus,
   type WorldSayEvent,
   type WorldPeer,
   type WorldScreenState,
+  type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
 import { fetchPublicCourt } from "@/lib/royal-court";
 import {
@@ -55,13 +58,15 @@ import {
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 
-/* ─── The World — the King's Hall (/world) ──────────────────────────────────
-   One shared VR room: a palace hall with a stage and a big screen
-   (the featured reel, or a live stream's picture while one is truly
-   live). Creators and fans walk it together as named avatars; guests
-   visit look-only. Voice has modes — Off, Proximity (walk up to
-   someone to talk), Lobby (the whole hall), Deafen (hear nobody,
-   mic muted, still in the room).
+/* ─── The World — the palace (/world) ───────────────────────────────────────
+   One shared VR palace: the King's Hall (a stage and a big screen —
+   the featured reel, or a live stream's picture while one is truly
+   live) with the Music Hall, Game Rooms, Create Wing and Courtyard
+   off it, walked through real doorways. Presence is room-scoped:
+   you see and hear the room you stand in. Creators and fans walk it
+   together as named avatars; guests visit look-only. Voice has
+   modes — Off, Proximity (walk up to someone to talk), Lobby (the
+   whole room), Deafen (hear nobody, mic muted, still in the room).
    The 3D scene (three.js) loads ONLY on this route, behind a dynamic
    import in the init effect.
    The hall wears the visitor's site theme (owner's pick, 2026-10-16):
@@ -118,6 +123,14 @@ export default function WorldPage() {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<WorldStatus>("connecting");
   const [peopleCount, setPeopleCount] = useState(0);
+  /* The palace: the room I stand in (the header names it) and the
+     directory — who's in every room, the front-door signal that
+     your people are here. Presence is per-room now; the count in
+     the header is THIS room's. */
+  const [roomId, setRoomId] = useState<string>(HALL_ROOM_ID);
+  const [roomName, setRoomName] = useState("The King's Hall");
+  const [directory, setDirectory] = useState<PalaceDirectoryEntry[]>([]);
+  const inHall = roomId === HALL_ROOM_ID;
   const [isGuest, setIsGuest] = useState(true);
   const [myName, setMyName] = useState("");
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
@@ -230,6 +243,24 @@ export default function WorldPage() {
     return () => {
       window.removeEventListener("gamepadconnected", scan);
       window.removeEventListener("gamepaddisconnected", scan);
+    };
+  }, []);
+
+  /* The directory at the front door: who's in which room, fetched
+     over HTTP before the socket even opens — and only as a prefill
+     (the socket's own directory frames own it from the moment they
+     land; a slower HTTP answer never overwrites a fresher one). */
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+    fetchWorldDirectory(ctrl.signal)
+      .then((rooms) => {
+        if (!cancelled) setDirectory((prev) => (prev.length > 0 ? prev : rooms));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      ctrl.abort();
     };
   }, []);
 
@@ -425,6 +456,14 @@ export default function WorldPage() {
       if (bootMode === "off") client.setVoiceOff(true);
       if (bootMode === "deafen") client.setVoiceDeaf(true);
       scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
+      /* A doorway crossing: the scene already flipped its own room
+         (the body is through the door); the presence follows by
+         transfer, landing at the crossing point. */
+      scene.onRoomEnter = (nextRoomId) => {
+        if (cancelled) return;
+        const pose = scene.localPose();
+        client.enterRoom(nextRoomId, pose);
+      };
       /* Controller face buttons land on the same controls the
          footer shows — one behavior, whatever drives it. A steps
          the voice mode; Y flips the view. */
@@ -453,6 +492,48 @@ export default function WorldPage() {
             scene.setSpawn(client.self.x, client.self.z);
           }
         }
+      };
+      client.onDirectory = (rooms) => {
+        if (!cancelled) setDirectory(rooms);
+      };
+      /* A doorway transfer landed: the room is new — its crowd
+         replaces the old room's on the next peer sync, the Screen
+         panel (the hall's stage) closes, and the voice session
+         ends here: the mesh belongs to the room you left, and
+         rejoining in the new room is one tap, like joining always
+         was. The mode itself is untouched — only the session. */
+      client.onRoomChanged = (room) => {
+        if (cancelled) return;
+        const wasInVoice = voiceSwitchRef.current.inVoice;
+        if (wasInVoice) {
+          teardownVoiceSession();
+          dispatchVoice({ type: "voice-left" });
+        }
+        setRoomId(room.id);
+        setRoomName(room.name);
+        scene.setRoom(room.id);
+        scene.removeAllPeers();
+        setScreenPanelOpen(false);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: `You walked into the ${room.name}.` },
+        ]);
+        if (wasInVoice) {
+          setVoiceNote(
+            `Voice stayed in the room you left — it's per-room here. Join voice to talk in the ${room.name}.`,
+          );
+        }
+      };
+      /* A full room refused the doorway: I never left. The scene
+         flips back to the room the server holds me in and steps
+         back through the door. */
+      client.onRoomUnavailable = ({ name, cap }) => {
+        if (cancelled) return;
+        scene.setRoom(client.room?.id ?? HALL_ROOM_ID);
+        scene.returnThroughDoor();
+        setVoiceNote(
+          `The ${name} is full right now — ${cap} people inside. You're still in the ${client.room?.name ?? "King's Hall"}.`,
+        );
       };
       client.onPeerJoin = (peer) => scene.upsertPeer(peer);
       client.onPeerCharacter = (peerId) => {
@@ -727,7 +808,7 @@ export default function WorldPage() {
         </Link>
         <h1 className="flex items-center gap-2 text-base font-black tracking-wide sm:text-lg">
           <Crown className="h-5 w-5 text-[#d4af37]" />
-          The World <span className={`font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>· The King's Hall</span>
+          The World <span className={`font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>· {roomName}</span>
         </h1>
         {screen?.mode === "live" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
@@ -753,7 +834,7 @@ export default function WorldPage() {
         )}
         <span className={`ml-auto inline-flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
           <Users className="h-4 w-4 text-[#d4af37]" />
-          {status === "inside" ? `${peopleCount} in the hall` : "—"}
+          {status === "inside" ? `${peopleCount} ${inHall ? "in the hall" : `in the ${roomName}`}` : "—"}
         </span>
         {fsSupported && (
           <button
@@ -781,6 +862,53 @@ export default function WorldPage() {
           isLight={isLight}
         />
       ) : null}
+
+      {/* The palace directory — every room, who's inside it, and a
+          LIVE mark when a show holds the hall's stage. The front-
+          door signal: your people are here, in a room with a name. */}
+      {directory.length > 0 && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-1.5 border-b px-4 py-2 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
+          data-testid="world-directory"
+        >
+          <span className={`mr-1 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            The Palace
+          </span>
+          {directory.map((r) => {
+            const here = status === "inside" && r.id === roomId;
+            return (
+              <span
+                key={r.id}
+                data-testid="world-directory-room"
+                className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                  here
+                    ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
+                    : isLight
+                      ? "border-[#C9A84C]/40 bg-white/50 text-[#6B5B36]"
+                      : "border-white/10 bg-white/5 text-white/55"
+                }`}
+              >
+                {r.live && (
+                  <span className="inline-flex items-center gap-1 font-black text-red-400">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> LIVE
+                  </span>
+                )}
+                <span className={here ? "font-black" : ""}>
+                  {r.name} · {r.count}
+                </span>
+                {here ? (
+                  <span className="opacity-80">· you&rsquo;re here</span>
+                ) : r.members.length > 0 ? (
+                  <span className="max-w-[220px] truncate opacity-75">
+                    · {r.members.slice(0, 3).join(", ")}
+                    {r.count > 3 ? ` +${r.count - 3}` : ""}
+                  </span>
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── The room ── */}
       <div ref={roomRef} className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
@@ -852,8 +980,9 @@ export default function WorldPage() {
         )}
 
         {/* The stage plate, over the room by the big screen: who is
-            on stage, in words, the moment a show is on. */}
-        {status === "inside" && stageScreen?.holder && (
+            on stage, in words, the moment a show is on. The stage
+            is the hall's — the plate shows only there. */}
+        {status === "inside" && inHall && stageScreen?.holder && (
           <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2" data-testid="world-stage-plate">
             {stageScreen.mode === "live" ? (
               <span className="inline-flex items-center gap-2 rounded-full border border-red-500/50 bg-black/70 px-4 py-1.5 text-sm font-black tracking-wide text-red-300 backdrop-blur-sm">
@@ -896,8 +1025,9 @@ export default function WorldPage() {
       {/* The Screen remote — the stage holder's hand on the big
           screen (the host's too, at any moment). One panel, in the
           hall: take the stage live, play a video for everyone,
-          park it on the Reel, or end the show. */}
-      {screenPanelOpen && !isGuest && status === "inside" && (
+          park it on the Reel, or end the show. The stage lives in
+          the hall, so the panel does too. */}
+      {screenPanelOpen && inHall && !isGuest && status === "inside" && (
         <div
           className={`relative z-20 max-h-[46vh] overflow-y-auto border-t px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
           data-testid="world-screen-panel"
@@ -1051,7 +1181,7 @@ export default function WorldPage() {
           <p className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
             <Shield className="h-4 w-4 text-[#d4af37]" /> Host controls
             <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-              — the screen and stage answer to you in the Screen panel; here is voice and the door
+              — voice and the door for the room you&rsquo;re in; the screen and stage answer to you in the hall&rsquo;s Screen panel
             </span>
           </p>
           <div className="mt-2 space-y-1.5">
@@ -1146,7 +1276,7 @@ export default function WorldPage() {
                 className={`min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/70 focus:border-[#7A5A12]" : "border-white/12 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"}`}
                 data-testid="world-say-input"
               />
-              <button type="submit" className="rounded-full bg-[#d4af37] p-2.5 text-black transition hover:scale-105" aria-label="Send to the hall">
+              <button type="submit" className="rounded-full bg-[#d4af37] p-2.5 text-black transition hover:scale-105" aria-label="Send to the room">
                 <Send className="h-4 w-4" />
               </button>
             </form>
@@ -1178,7 +1308,7 @@ export default function WorldPage() {
                 Change character
               </button>
             )}
-            {!isGuest && status === "inside" && (
+            {!isGuest && inHall && status === "inside" && (
               <button
                 type="button"
                 onClick={() => setScreenPanelOpen((o) => !o)}
@@ -1285,7 +1415,7 @@ export default function WorldPage() {
                     </button>
                     <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                       {voiceSwitch.mode === "lobby"
-                        ? "Lobby voice — everyone in the hall, near or far."
+                        ? "Lobby voice — everyone in this room, near or far."
                         : "Voice is by distance — walk up to talk."}
                     </span>
                   </>

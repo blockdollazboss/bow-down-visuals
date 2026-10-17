@@ -1,0 +1,253 @@
+/**
+ * palace-layout.ts — The palace floor plan as pure geometry.
+ *
+ * The King's Hall stays exactly the room it has always been (same
+ * walk bounds, same camera clamp); four more rooms hang off it:
+ *
+ *        ┌─────────────┬──────────────┬─────────────┐
+ *        │             │  THE KING'S  │             │
+ *        │ MUSIC HALL  │     HALL     │ CREATE WING │
+ *        ├─────────────┤  (spawn +    ├─────────────┤
+ *        │ GAME ROOMS  │   stage)     │             │
+ *        └─────────────┴──────┬───────┴─────────────┘
+ *                          COURTYARD (back arch)
+ *
+ * Movement is union-of-rects: a position is walkable when it stands
+ * in a room's walk rect or in a doorway's portal rect. The walls
+ * between rects are NOT walkable, so the only way from one room to
+ * another is through a portal — a doorway — exactly like walking
+ * the real palace. Membership flips at the wall plane inside the
+ * portal: cross the plane inside the span and you are in the next
+ * room (the scene reports it; the server transfers your presence).
+ *
+ * Server clamp bounds for the same rooms live in the API's
+ * lib/world-palace.ts (a little generous at the doorway aprons, on
+ * purpose — the clamp is anti-wall-parking, not physics).
+ */
+
+export const HALL_ROOM_ID = "world:kings-hall";
+export const MUSIC_HALL_ID = "world:music-hall";
+export const GAME_ROOMS_ID = "world:game-rooms";
+export const CREATE_WING_ID = "world:create-wing";
+export const COURTYARD_ID = "world:courtyard";
+
+export interface PalaceRect {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+export interface PalaceRoomLayout {
+  id: string;
+  name: string;
+  /** Where a figure's center may stand. */
+  walk: PalaceRect;
+  /** The room's physical interior (wall face to wall face) — the
+   *  shell builder floors and ceilings to this. */
+  interior: PalaceRect;
+  /** Third-person camera clamp inside this room. */
+  camClamp: PalaceRect;
+  /** Where you materialize when a transfer carries no crossing
+   *  point: just inside the room's door. */
+  spawn: { x: number; z: number };
+}
+
+/** Door height — the lintel/arch line every doorway shares. */
+export const PALACE_DOOR_HEIGHT = 3.6;
+
+export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
+  [HALL_ROOM_ID]: {
+    id: HALL_ROOM_ID,
+    name: "The King's Hall",
+    // The hall's long-standing walk bounds — unchanged.
+    walk: { minX: -13.1, maxX: 13.1, minZ: -11.6, maxZ: 11.1 },
+    interior: { minX: -14.0, maxX: 14.0, minZ: -18.0, maxZ: 12.0 },
+    camClamp: { minX: -13.7, maxX: 13.7, minZ: -17.7, maxZ: 11.75 },
+    spawn: { x: 0, z: 9.5 },
+  },
+  [MUSIC_HALL_ID]: {
+    id: MUSIC_HALL_ID,
+    name: "Music Hall",
+    walk: { minX: -27.85, maxX: -14.35, minZ: -8.25, maxZ: 2.75 },
+    interior: { minX: -28.2, maxX: -14.4, minZ: -8.6, maxZ: 3.1 },
+    camClamp: { minX: -27.9, maxX: -14.7, minZ: -8.3, maxZ: 2.8 },
+    spawn: { x: -15.6, z: -2 },
+  },
+  [GAME_ROOMS_ID]: {
+    id: GAME_ROOMS_ID,
+    name: "Game Rooms",
+    walk: { minX: -27.85, maxX: -14.35, minZ: 3.85, maxZ: 11.55 },
+    interior: { minX: -28.2, maxX: -14.4, minZ: 3.5, maxZ: 11.9 },
+    camClamp: { minX: -27.9, maxX: -14.7, minZ: 3.8, maxZ: 11.6 },
+    spawn: { x: -15.6, z: 5 },
+  },
+  [CREATE_WING_ID]: {
+    id: CREATE_WING_ID,
+    name: "Create Wing",
+    walk: { minX: 14.35, maxX: 27.85, minZ: -8.25, maxZ: 2.75 },
+    interior: { minX: 14.4, maxX: 28.2, minZ: -8.6, maxZ: 3.1 },
+    camClamp: { minX: 14.7, maxX: 27.9, minZ: -8.3, maxZ: 2.8 },
+    spawn: { x: 15.6, z: -2 },
+  },
+  [COURTYARD_ID]: {
+    id: COURTYARD_ID,
+    name: "Courtyard",
+    walk: { minX: -13.6, maxX: 13.6, minZ: 13.65, maxZ: 25.7 },
+    interior: { minX: -14.0, maxX: 14.0, minZ: 12.4, maxZ: 26.0 },
+    camClamp: { minX: -13.8, maxX: 13.8, minZ: 12.6, maxZ: 25.8 },
+    spawn: { x: 0, z: 14.6 },
+  },
+};
+
+export interface PalaceDoor {
+  /** The room on the other side of the hall wall (the destination
+   *  the hall-side name plate announces). */
+  roomId: string;
+  /** The wall the doorway pierces: "x" = a wall running along Z at
+   *  x = plane (the side walls); "z" = a wall running along X at
+   *  z = plane (the back wall). */
+  axis: "x" | "z";
+  plane: number;
+  /** The opening's span along the wall. */
+  spanMin: number;
+  spanMax: number;
+  /** The walkable doorway zone — aprons on both faces of the wall. */
+  portal: PalaceRect;
+  /** Membership on the plane's negative / positive side. */
+  negRoom: string;
+  posRoom: string;
+}
+
+export const PALACE_DOORS: PalaceDoor[] = [
+  {
+    roomId: MUSIC_HALL_ID,
+    axis: "x",
+    plane: -14.2,
+    spanMin: -3.5,
+    spanMax: -0.5,
+    portal: { minX: -14.4, maxX: -13.05, minZ: -3.45, maxZ: -0.55 },
+    negRoom: MUSIC_HALL_ID,
+    posRoom: HALL_ROOM_ID,
+  },
+  {
+    roomId: GAME_ROOMS_ID,
+    axis: "x",
+    plane: -14.2,
+    spanMin: 3.5,
+    spanMax: 6.5,
+    portal: { minX: -14.4, maxX: -13.05, minZ: 3.55, maxZ: 6.45 },
+    negRoom: GAME_ROOMS_ID,
+    posRoom: HALL_ROOM_ID,
+  },
+  {
+    roomId: CREATE_WING_ID,
+    axis: "x",
+    plane: 14.2,
+    spanMin: -3.5,
+    spanMax: -0.5,
+    portal: { minX: 13.05, maxX: 14.4, minZ: -3.45, maxZ: -0.55 },
+    negRoom: HALL_ROOM_ID,
+    posRoom: CREATE_WING_ID,
+  },
+  {
+    roomId: COURTYARD_ID,
+    axis: "z",
+    plane: 12.2,
+    spanMin: -2.2,
+    spanMax: 2.2,
+    portal: { minX: -2.15, maxX: 2.15, minZ: 11.05, maxZ: 13.7 },
+    negRoom: HALL_ROOM_ID,
+    posRoom: COURTYARD_ID,
+  },
+];
+
+export function pointInRect(x: number, z: number, r: PalaceRect): boolean {
+  return x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
+}
+
+/** Standing room: inside some room's walk rect, or in a doorway. */
+export function isWalkable(x: number, z: number): boolean {
+  for (const room of Object.values(PALACE_LAYOUT)) {
+    if (pointInRect(x, z, room.walk)) return true;
+  }
+  for (const door of PALACE_DOORS) {
+    if (pointInRect(x, z, door.portal)) return true;
+  }
+  return false;
+}
+
+/**
+ * Which room a position belongs to. Inside a portal, the wall plane
+ * decides: which side of the wall you're on is the room you're in.
+ * Outside every rect (inside a wall, say), the fallback stands —
+ * geometry alone can't claim you there.
+ */
+export function roomAt(x: number, z: number, fallback: string): string {
+  for (const door of PALACE_DOORS) {
+    if (pointInRect(x, z, door.portal)) {
+      const along = door.axis === "x" ? x : z;
+      return along < door.plane ? door.negRoom : door.posRoom;
+    }
+  }
+  for (const room of Object.values(PALACE_LAYOUT)) {
+    if (pointInRect(x, z, room.walk)) return room.id;
+  }
+  return fallback;
+}
+
+/** Clamp a position into a room's walk rect. */
+export function clampToRoom(roomId: string, x: number, z: number): { x: number; z: number } {
+  const room = PALACE_LAYOUT[roomId] ?? PALACE_LAYOUT[HALL_ROOM_ID]!;
+  return {
+    x: Math.min(room.walk.maxX, Math.max(room.walk.minX, x)),
+    z: Math.min(room.walk.maxZ, Math.max(room.walk.minZ, z)),
+  };
+}
+
+export interface PalaceMoveResult {
+  x: number;
+  z: number;
+  room: string;
+  /** The room just entered, when this step crossed a doorway plane
+   *  (or left the spawn room) — null for an ordinary step. */
+  entered: string | null;
+}
+
+/** A segment may only pass through walkable ground — sampled finely
+ *  enough that a 0.4 m wall can never be tunneled between samples. */
+function segmentWalkable(x0: number, z0: number, x1: number, z1: number): boolean {
+  const dist = Math.hypot(x1 - x0, z1 - z0);
+  const steps = Math.max(1, Math.ceil(dist / 0.12));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    if (!isWalkable(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t)) return false;
+  }
+  return true;
+}
+
+/**
+ * Resolve one movement step against the palace: try the full step,
+ * then slide along each axis — the way a body slides along a wall
+ * instead of sticking to it. Reports the room the step lands in and
+ * whether that is a doorway crossing.
+ */
+export function resolvePalaceMove(
+  from: { x: number; z: number; room: string },
+  nextX: number,
+  nextZ: number,
+): PalaceMoveResult {
+  const candidates: Array<{ x: number; z: number }> = [
+    { x: nextX, z: nextZ },
+    { x: nextX, z: from.z },
+    { x: from.x, z: nextZ },
+  ];
+  for (const c of candidates) {
+    if (c.x === from.x && c.z === from.z) continue;
+    if (segmentWalkable(from.x, from.z, c.x, c.z)) {
+      const room = roomAt(c.x, c.z, from.room);
+      return { x: c.x, z: c.z, room, entered: room !== from.room ? room : null };
+    }
+  }
+  return { x: from.x, z: from.z, room: from.room, entered: null };
+}

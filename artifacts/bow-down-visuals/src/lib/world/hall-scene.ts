@@ -36,6 +36,16 @@
  * the real landmarks), its lips move with the speaker's live voice
  * level via setSpeechLevel; a portrait with no face found never
  * grows a mouth.
+ *
+ * The palace: the hall is the throne room of a multi-room palace
+ * (palace-layout.ts holds the floor plan). Doorways pierce its west
+ * wall (Music Hall, Game Rooms), east wall (Create Wing) and back
+ * wall (the Courtyard arch); each room beyond is a shell in the
+ * palace's materials — floored, walled, name-plated, empty of
+ * features until its own lane docks them. Walking through a doorway
+ * crosses rooms (the scene reports the crossing; the server moves
+ * the presence), and only the room you stand in — plus the hall,
+ * always — is rendered around you.
  */
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
@@ -68,6 +78,18 @@ import {
   type DefaultArtState,
   type GuardVariant,
 } from "./figure";
+import {
+  PALACE_LAYOUT,
+  PALACE_DOORS,
+  PALACE_DOOR_HEIGHT,
+  HALL_ROOM_ID,
+  MUSIC_HALL_ID,
+  GAME_ROOMS_ID,
+  CREATE_WING_ID,
+  COURTYARD_ID,
+  resolvePalaceMove,
+  clampToRoom,
+} from "./palace-layout";
 
 export interface HallScreenSource {
   mode: "live" | "featured" | "video";
@@ -79,7 +101,9 @@ export interface HallScreenSource {
   startAtSec?: number;
 }
 
-const BOUNDS = { minX: -13.1, maxX: 13.1, minZ: -11.6, maxZ: 11.1 };
+/* The hall's camera clamp comes from the palace floor plan
+   (palace-layout.ts) — the same numbers the hall has always used,
+   now one source for the whole palace. */
 const EYE_HEIGHT = 1.7;
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6;
@@ -87,7 +111,7 @@ const RUN_SPEED = 6;
    the walls so the follow cam never leaves the room. */
 const THIRD_CAM_DISTANCE = 4.1;
 const THIRD_CAM_HEIGHT = 2.45;
-const CAM_CLAMP = { minX: -13.7, maxX: 13.7, minZ: -17.7, maxZ: 11.75 };
+const CAM_CLAMP = PALACE_LAYOUT[HALL_ROOM_ID]!.camClamp;
 
 const GOLD = 0xd4af37;
 const GOLD_DEEP = 0x8a6a1c;
@@ -208,6 +232,50 @@ function hazeTexture(): THREE.CanvasTexture {
     ]);
   }
   return hazeTex;
+}
+
+/* ── Door name plates ───────────────────────────────────────────────
+   A bronze plaque with a gold hairline and serif caps, hung over
+   every doorway: the room it leads to, readable from across the
+   hall in both looks (basic material — the plate never goes dark).
+   Cached per name; the four doors of the first ring are all the
+   palace needs. */
+const doorPlateCache = new Map<string, THREE.CanvasTexture>();
+
+function doorPlateTexture(text: string): THREE.CanvasTexture {
+  const hit = doorPlateCache.get(text);
+  if (hit) return hit;
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 224;
+  const g = c.getContext("2d")!;
+  const grad = g.createLinearGradient(0, 0, 0, 224);
+  grad.addColorStop(0, "#2b1f0c");
+  grad.addColorStop(0.5, "#1c1408");
+  grad.addColorStop(1, "#120d05");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 1024, 224);
+  g.strokeStyle = "rgba(212,175,55,0.9)";
+  g.lineWidth = 5;
+  g.strokeRect(14, 14, 996, 196);
+  g.strokeStyle = "rgba(212,175,55,0.35)";
+  g.lineWidth = 2;
+  g.strokeRect(27, 27, 970, 170);
+  g.fillStyle = "#e8c86a";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  let size = 96;
+  g.font = `600 ${size}px Georgia, 'Times New Roman', serif`;
+  while (g.measureText(text).width > 880 && size > 40) {
+    size -= 6;
+    g.font = `600 ${size}px Georgia, 'Times New Roman', serif`;
+  }
+  g.fillText(text, 512, 118);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  doorPlateCache.set(text, tex);
+  return tex;
 }
 
 /** Everything the name plate shows — when any of it changes the
@@ -677,6 +745,17 @@ const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes
 
 export class KingsHallScene {
   onPose: ((x: number, z: number, rotY: number) => void) | null = null;
+  /** The walker just crossed a doorway plane into another room —
+   *  the page answers by asking the server to transfer presence
+   *  (the scene has already flipped its own room: movement, camera
+   *  and visibility follow the body, not the paperwork). */
+  onRoomEnter: ((roomId: string) => void) | null = null;
+  /** The palace room the walker physically stands in. The hall is
+   *  home: spawn, stage, the palace's one mirror floor. */
+  private currentRoom: string = HALL_ROOM_ID;
+  /** The room shells by room id (children of the look group, so a
+   *  theme re-skin rebuilds them in the new look's materials). */
+  private shellGroups = new Map<string, THREE.Group>();
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -930,6 +1009,7 @@ export class KingsHallScene {
     if (look.lightBeams) this.buildBeams(group);
     if (look.dust) anim.dust = this.buildDust(group);
     if (look.haze) this.buildHaze(group, anim);
+    this.buildRoomShells(group, look, mats, anim);
     this.lookAnim = anim;
   }
 
@@ -993,34 +1073,145 @@ export class KingsHallScene {
     }
   }
 
-  private buildWalls(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
-    const mkWall = (w: number, x: number, z: number, rotY: number) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 6.5, 0.4), mats.marbleWall);
-      wall.position.set(x, 3.25, z);
-      wall.rotation.y = rotY;
-      group.add(wall);
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.09, 0.06), mats.gold);
-      trim.position.set(x, 5.7, z);
-      trim.rotation.y = rotY;
-      trim.translateZ(0.24);
+  /** One run of palace wall along X (at depth z) or along Z (at
+   *  depth x), from `from` to `to`, spanning heights y0..y1 —
+   *  full-height runs and the lintels over doorways share the code.
+   *  `inward` points into the room the wall dresses: the gold trim
+   *  line (at 5.7, running unbroken over the lintels) and the base
+   *  sit on that face. (The v1 hall placed the back and east walls'
+   *  trim on the far side, inside/outside the wall where no one
+   *  could see it; the palace puts every wall's trim on its room
+   *  face — the courtyard and the Create Wing made the far sides
+   *  visible, and floating trim would have hung in their air.) */
+  private wallRunX(
+    group: THREE.Group, mats: LookMaterials,
+    z: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+  ): void {
+    const len = to - from;
+    if (len <= 0.01 || y1 <= y0) return;
+    const cx = (from + to) / 2;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, y1 - y0, 0.4), mats.marbleWall);
+    wall.position.set(cx, y0 + (y1 - y0) / 2, z);
+    wall.receiveShadow = QUALITY[this.quality].shadows;
+    group.add(wall);
+    if (y0 <= 5.7 && y1 >= 5.7) {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.06), mats.gold);
+      trim.position.set(cx, 5.7, z + inward * 0.24);
       group.add(trim);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.05), mats.goldDark);
-      base.position.set(x, 0.16, z);
-      base.rotation.y = rotY;
-      base.translateZ(0.23);
+    }
+    if (y0 === 0) {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.3, 0.05), mats.goldDark);
+      base.position.set(cx, 0.16, z + inward * 0.23);
       group.add(base);
-    };
-    mkWall(28.8, 0, -18.2, 0);
-    mkWall(28.8, 0, 12.2, 0);
-    mkWall(30.8, -14.2, -3, Math.PI / 2);
-    mkWall(30.8, 14.2, -3, Math.PI / 2);
+    }
+  }
+
+  private wallRunZ(
+    group: THREE.Group, mats: LookMaterials,
+    x: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+  ): void {
+    const len = to - from;
+    if (len <= 0.01 || y1 <= y0) return;
+    const cz = (from + to) / 2;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, y1 - y0, len), mats.marbleWall);
+    wall.position.set(x, y0 + (y1 - y0) / 2, cz);
+    wall.receiveShadow = QUALITY[this.quality].shadows;
+    group.add(wall);
+    if (y0 <= 5.7 && y1 >= 5.7) {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, len), mats.gold);
+      trim.position.set(x + inward * 0.24, 5.7, cz);
+      group.add(trim);
+    }
+    if (y0 === 0) {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, len), mats.goldDark);
+      base.position.set(x + inward * 0.23, 0.16, cz);
+      group.add(base);
+    }
+  }
+
+  /** The gold arch around a doorway in a wall running along Z (at
+   *  depth x): two jambs and a header, proud of both faces — the
+   *  same arch dresses the doorway from either room. */
+  private doorArchZ(group: THREE.Group, mats: LookMaterials, x: number, spanMin: number, spanMax: number): void {
+    const dh = PALACE_DOOR_HEIGHT;
+    for (const z of [spanMin - 0.1, spanMax + 0.1]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.56, dh, 0.2), mats.gold);
+      jamb.position.set(x, dh / 2, z);
+      group.add(jamb);
+    }
+    const header = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.26, spanMax - spanMin + 0.4), mats.gold);
+    header.position.set(x, dh + 0.13, (spanMin + spanMax) / 2);
+    group.add(header);
+    const threshold = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.02, spanMax - spanMin), mats.goldDark);
+    threshold.position.set(x, 0.012, (spanMin + spanMax) / 2);
+    group.add(threshold);
+  }
+
+  /** The gold arch around a doorway in a wall running along X. */
+  private doorArchX(group: THREE.Group, mats: LookMaterials, z: number, spanMin: number, spanMax: number): void {
+    const dh = PALACE_DOOR_HEIGHT;
+    for (const x of [spanMin - 0.1, spanMax + 0.1]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.2, dh, 0.56), mats.gold);
+      jamb.position.set(x, dh / 2, z);
+      group.add(jamb);
+    }
+    const header = new THREE.Mesh(new THREE.BoxGeometry(spanMax - spanMin + 0.4, 0.26, 0.56), mats.gold);
+    header.position.set((spanMin + spanMax) / 2, dh + 0.13, z);
+    group.add(header);
+    const threshold = new THREE.Mesh(new THREE.BoxGeometry(spanMax - spanMin, 0.02, 0.95), mats.goldDark);
+    threshold.position.set((spanMin + spanMax) / 2, 0.012, z);
+    group.add(threshold);
+  }
+
+  /** A doorway's name plate, hung over the arch on the face the
+   *  `rotY` turns it toward. */
+  private doorPlate(
+    group: THREE.Group, text: string, x: number, y: number, z: number, rotY: number, width = 3.4,
+  ): void {
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, (width * 224) / 1024),
+      new THREE.MeshBasicMaterial({ map: doorPlateTexture(text), toneMapped: false }),
+    );
+    plate.position.set(x, y, z);
+    plate.rotation.y = rotY;
+    group.add(plate);
+  }
+
+  private buildWalls(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const H = 6.5;
+    const DH = PALACE_DOOR_HEIGHT;
+    // The front wall (the stage wall) — solid, as it has always been.
+    this.wallRunX(group, mats, -18.2, -14.4, 14.4, 0, H, 1);
+    // The back wall — the Courtyard arch pierces it at x ∈ [-2.2, 2.2].
+    this.wallRunX(group, mats, 12.2, -14.4, -2.2, 0, H, -1);
+    this.wallRunX(group, mats, 12.2, 2.2, 14.4, 0, H, -1);
+    this.wallRunX(group, mats, 12.2, -2.2, 2.2, DH, H, -1);
+    this.doorArchX(group, mats, 12.2, -2.2, 2.2);
+    this.doorPlate(group, "COURTYARD", 0, DH + 0.66, 11.93, Math.PI, 4.2);
+    // The west wall — doors to the Music Hall (z = -2) and the Game
+    // Rooms (z = 5) where two of its windows/frames used to hang.
+    this.wallRunZ(group, mats, -14.2, -18.4, -3.5, 0, H, 1);
+    this.wallRunZ(group, mats, -14.2, -0.5, 3.5, 0, H, 1);
+    this.wallRunZ(group, mats, -14.2, 6.5, 12.4, 0, H, 1);
+    this.wallRunZ(group, mats, -14.2, -3.5, -0.5, DH, H, 1);
+    this.wallRunZ(group, mats, -14.2, 3.5, 6.5, DH, H, 1);
+    this.doorArchZ(group, mats, -14.2, -3.5, -0.5);
+    this.doorArchZ(group, mats, -14.2, 3.5, 6.5);
+    this.doorPlate(group, "MUSIC HALL", -13.93, DH + 0.66, -2, Math.PI / 2);
+    this.doorPlate(group, "GAME ROOMS", -13.93, DH + 0.66, 5, Math.PI / 2);
+    // The east wall — the Create Wing door at z = -2.
+    this.wallRunZ(group, mats, 14.2, -18.4, -3.5, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, -0.5, 12.4, 0, H, -1);
+    this.wallRunZ(group, mats, 14.2, -3.5, -0.5, DH, H, -1);
+    this.doorArchZ(group, mats, 14.2, -3.5, -0.5);
+    this.doorPlate(group, "CREATE WING", 13.93, DH + 0.66, -2, -Math.PI / 2);
 
     if (look.windows) {
-      for (const z of [-9, -2, 5]) this.buildWindow(group, mats, z);
-      for (const z of [-9, -2, 5]) this.buildPanelFrame(group, mats, 1, z);
+      this.buildWindow(group, mats, -9);
+      for (const z of [-9, 5]) this.buildPanelFrame(group, mats, 1, z);
     } else {
       for (const side of [-1, 1] as const) {
-        for (const z of [-9, -2, 5]) this.buildPanelFrame(group, mats, side, z);
+        for (const z of [-9, 5]) this.buildPanelFrame(group, mats, side, z);
         for (const z of [-5.5, 2.5]) this.buildSconce(group, mats, anim, side, z, side * 13.3);
       }
       for (const x of [-6, 6]) this.buildSconce(group, mats, anim, 0, x, null);
@@ -1442,11 +1633,13 @@ export class KingsHallScene {
   }
 
   /** Fake god-rays slanting from the window wall (Look A), with a
-   *  warm pool where each beam lands. */
+   *  warm pool where each beam lands. Only the z = -9 window remains
+   *  on the west wall — z = -2 and z = 5 are doorways now, and a beam
+   *  pouring from a lintel would read as a mistake, not sunlight. */
   private buildBeams(group: THREE.Group): void {
     const dir = new THREE.Vector3(0.94, -0.34, 0.02).normalize();
     const len = 13.5;
-    for (const z of [-9, -2, 5]) {
+    for (const z of [-9]) {
       for (const [half, opacity] of [[2.0, 0.05], [1.1, 0.04]] as Array<[number, number]>) {
         const a = new THREE.Vector3(-13.9, 5.5, z - half);
         const b = new THREE.Vector3(-13.9, 5.5, z + half);
@@ -1513,6 +1706,263 @@ export class KingsHallScene {
       group.add(sheet);
       anim.smokes.push({ mesh: sheet, baseX: x, phase: i * 1.7, speed: 0.5 + (i % 3) * 0.3 });
     });
+  }
+
+  /* ── The palace rooms (shells) ────────────────────────────────────
+     Each room beyond the hall is built to the palace's materials in
+     the current look: polished marble floor with the gold inlay,
+     marble walls with the trim line, a ceiling with a lantern for
+     the indoor rooms, low marble walls and planters for the open
+     Courtyard. SHELLS, deliberately: no jukebox, no game tables, no
+     desks — each room's features dock in their own lane. The one
+     mirror floor stays in the hall (the plan's performance law):
+     shells get the polished overlay only, no second Reflector. */
+
+  private buildRoomShells(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    this.shellGroups.clear();
+    for (const roomId of [MUSIC_HALL_ID, GAME_ROOMS_ID, CREATE_WING_ID]) {
+      this.buildIndoorShell(group, look, mats, roomId);
+    }
+    this.buildCourtyardShell(group, look, mats, anim);
+    this.applyRoomVisibility();
+  }
+
+  /** A polished marble floor (no reflector — the hall owns the one
+   *  mirror) with the palace's gold inlay border. */
+  private shellFloor(
+    g: THREE.Group, look: HallLook, mats: LookMaterials,
+    rect: { minX: number; maxX: number; minZ: number; maxZ: number },
+    roughness: number, repeatDivisor: number,
+  ): void {
+    const w = rect.maxX - rect.minX;
+    const d = rect.maxZ - rect.minZ;
+    const cx = (rect.minX + rect.maxX) / 2;
+    const cz = (rect.minZ + rect.maxZ) / 2;
+    const map = hallTexture(
+      look.marbleTextureUrl,
+      Math.max(2, Math.round(w / repeatDivisor)),
+      Math.max(2, Math.round(d / repeatDivisor)),
+    );
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshPhysicalMaterial({
+        map, bumpMap: map, bumpScale: 0.06,
+        transparent: true, opacity: 0.97,
+        roughness, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.35,
+        envMapIntensity: 0.8, depthWrite: false,
+      }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(cx, 0.012, cz);
+    floor.renderOrder = 2;
+    floor.receiveShadow = QUALITY[this.quality].shadows;
+    g.add(floor);
+    const inset = 0.55;
+    const strip = (sw: number, sd: number, x: number, z: number) => {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.012, sd), mats.goldDark);
+      s.position.set(x, 0.02, z);
+      g.add(s);
+    };
+    strip(w - inset * 2, 0.07, cx, rect.minZ + inset);
+    strip(w - inset * 2, 0.07, cx, rect.maxZ - inset);
+    strip(0.07, d - inset * 2, rect.minX + inset, cz);
+    strip(0.07, d - inset * 2, rect.maxX - inset, cz);
+  }
+
+  /** A gilt panel frame on a shell's far wall — the palace's wall
+   *  language carried into the rooms, empty until dressing lanes. */
+  private shellPanelFrame(
+    g: THREE.Group, mats: LookMaterials, x: number, z: number, rotY: number,
+  ): void {
+    const frame = new THREE.Group();
+    frame.position.set(x, 0, z);
+    frame.rotation.y = rotY;
+    const bar = (w: number, h: number, bx: number, y: number) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), mats.goldDark);
+      b.position.set(bx, y, 0.03);
+      frame.add(b);
+    };
+    bar(3.2, 0.07, 0, 5.15);
+    bar(3.2, 0.07, 0, 1.05);
+    bar(0.07, 4.17, -1.6, 3.1);
+    bar(0.07, 4.17, 1.6, 3.1);
+    g.add(frame);
+  }
+
+  /** A hanging lantern at a shell's heart: chain, gilt ring, warm
+   *  bulb — and the room's one steady point light on tiers that
+   *  carry extra lights (the plan's budget: no room out-lights the
+   *  hall; shells get exactly this one). */
+  private shellLantern(g: THREE.Group, look: HallLook, x: number, z: number): void {
+    const matsGold = new THREE.MeshStandardMaterial({
+      color: 0xd9b45c, metalness: 1, roughness: 0.3, envMapIntensity: 1.2,
+    });
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.1, 6), matsGold);
+    chain.position.set(x, 5.95, z);
+    g.add(chain);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 8, 28), matsGold);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x, 5.36, z);
+    g.add(ring);
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 14, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1a1206, emissive: look.houseLight.color, emissiveIntensity: 1.6, roughness: 0.4 }),
+    );
+    bulb.position.set(x, 5.3, z);
+    g.add(bulb);
+    if (QUALITY[this.quality].candleLights) {
+      const light = new THREE.PointLight(look.houseLight.color, 20, 16, 1.8);
+      light.position.set(x, 4.9, z);
+      g.add(light);
+    }
+  }
+
+  private buildIndoorShell(group: THREE.Group, look: HallLook, mats: LookMaterials, roomId: string): void {
+    const def = PALACE_LAYOUT[roomId]!;
+    const g = new THREE.Group();
+    const { interior } = def;
+    const cx = (interior.minX + interior.maxX) / 2;
+    const cz = (interior.minZ + interior.maxZ) / 2;
+    const west = roomId !== CREATE_WING_ID; // west-side rooms face east, and vice versa
+
+    this.shellFloor(g, look, mats, interior, look.floorRoughness, 7);
+
+    const ceiling = new THREE.Mesh(
+      new THREE.PlaneGeometry(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
+      mats.ceiling,
+    );
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(cx, 6.5, cz);
+    g.add(ceiling);
+
+    // The three walls the hall didn't already build. The Music Hall
+    // also builds the shared wall the Game Rooms lean on (z = 3.3) —
+    // one wall, two faces, built once.
+    if (west) {
+      this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1);
+      this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1);
+      if (roomId === MUSIC_HALL_ID) this.wallRunX(g, mats, 3.3, -28.4, -14.2, 0, 6.5, -1);
+      if (roomId === GAME_ROOMS_ID) this.wallRunX(g, mats, 12.1, -28.4, -14.2, 0, 6.5, -1);
+    } else {
+      this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1);
+      this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, 14.2, 28.4, 0, 6.5, -1);
+    }
+
+    // The way back, labeled from inside: the plate names the hall.
+    const door = PALACE_DOORS.find((d) => d.roomId === roomId)!;
+    const doorCenter = (door.spanMin + door.spanMax) / 2;
+    if (west) this.doorPlate(g, "THE KING'S HALL", -14.52, PALACE_DOOR_HEIGHT + 0.66, doorCenter, -Math.PI / 2);
+    else this.doorPlate(g, "THE KING'S HALL", 14.52, PALACE_DOOR_HEIGHT + 0.66, doorCenter, Math.PI / 2);
+
+    this.shellLantern(g, look, cx, cz);
+    // One empty gilt frame on the far wall — the room's first wall
+    // dressing, waiting for its lane like everything else here.
+    if (west) this.shellPanelFrame(g, mats, interior.minX + 0.06, cz, Math.PI / 2);
+    else this.shellPanelFrame(g, mats, interior.maxX - 0.06, cz, -Math.PI / 2);
+
+    group.add(g);
+    this.shellGroups.set(roomId, g);
+  }
+
+  private buildCourtyardShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const def = PALACE_LAYOUT[COURTYARD_ID]!;
+    const g = new THREE.Group();
+    const { interior } = def;
+    const cz = (interior.minZ + interior.maxZ) / 2;
+
+    // Open air: the floor is stone under the sky — the same marble,
+    // rougher, no polish to mirror a ceiling that isn't there.
+    this.shellFloor(g, look, mats, interior, 0.78, 7);
+
+    // Low marble walls with a gold cap on the three open sides (the
+    // fourth is the hall's own back wall + the arch through it).
+    const lowWall = (w: number, d: number, x: number, z: number) => {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.05, d), mats.marble);
+      wall.position.set(x, 0.525, z);
+      wall.castShadow = QUALITY[this.quality].shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w === 0.35 ? 0.47 : w, 0.07, d === 0.35 ? 0.47 : d), mats.gold);
+      cap.position.set(x, 1.09, z);
+      g.add(cap);
+    };
+    lowWall(0.35, interior.maxZ - interior.minZ, -14.0, cz);
+    lowWall(0.35, interior.maxZ - interior.minZ, 14.0, cz);
+    lowWall(interior.maxX - interior.minX + 0.35, 0.35, 0, interior.maxZ);
+
+    // Columns where the walls turn: plinth, marble shaft, gold cap —
+    // the hall's column language at garden scale.
+    const column = (x: number, z: number) => {
+      const col = new THREE.Group();
+      col.position.set(x, 0, z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.9), mats.marble);
+      plinth.position.y = 1.13;
+      col.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.6, 0.62), mats.marble);
+      shaft.position.y = 2.54;
+      shaft.castShadow = QUALITY[this.quality].shadows;
+      col.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      col.add(cap);
+      g.add(col);
+    };
+    for (const x of [-14.0, 14.0]) {
+      column(x, interior.minZ + 0.2);
+      column(x, cz);
+    }
+    for (const x of [-7, 7]) column(x, interior.maxZ);
+
+    // Planters along the side walls: marble troughs, green crowns.
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
+    for (const x of [-13.1, 13.1]) {
+      for (const z of [15.8, 22.6]) {
+        const trough = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.55, 2.0), mats.marble);
+        trough.position.set(x, 0.275, z);
+        g.add(trough);
+        for (const dz of [-0.5, 0.5]) {
+          const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.44, 1), leafMat);
+          crown.position.set(x, 0.82, z + dz);
+          crown.castShadow = QUALITY[this.quality].shadows;
+          g.add(crown);
+        }
+      }
+    }
+
+    // Braziers in the dark look — the courtyard burns at night.
+    if (look.candles) {
+      const bronze = new THREE.MeshStandardMaterial({ color: 0x4a3418, metalness: 0.85, roughness: 0.4 });
+      for (const x of [-4.6, 4.6]) {
+        const brazier = new THREE.Group();
+        brazier.position.set(x, 0, 18.6);
+        const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.5, 10), mats.darkMetal);
+        pedestal.position.y = 0.25;
+        brazier.add(pedestal);
+        const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.18, 0.3, 18), bronze);
+        bowl.position.y = 0.65;
+        brazier.add(bowl);
+        const flame = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        }));
+        flame.scale.set(0.6, 0.95, 1);
+        flame.position.y = 1.18;
+        brazier.add(flame);
+        anim.flames.push({ sprite: flame, baseX: 0.6, baseY: 0.95, phase: Math.random() * 20 });
+        g.add(brazier);
+        if (QUALITY[this.quality].candleLights) {
+          const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
+          light.position.set(x, 1.35, 18.6);
+          g.add(light);
+          anim.flickerLights.push({ light, base: 22, phase: Math.random() * 20 });
+        }
+      }
+    }
+
+    // The way back, labeled from the courtyard side of the arch.
+    this.doorPlate(g, "THE KING'S HALL", 0, PALACE_DOOR_HEIGHT + 0.66, 12.52, 0, 4.2);
+
+    group.add(g);
+    this.shellGroups.set(COURTYARD_ID, g);
   }
 
   /* ── Screen ── */
@@ -1842,7 +2292,60 @@ export class KingsHallScene {
   }
 
   setSpawn(x: number, z: number): void {
-    this.rig.position.set(clamp(x, BOUNDS.minX, BOUNDS.maxX), 0, clamp(z, BOUNDS.minZ, BOUNDS.maxZ));
+    const p = clampToRoom(this.currentRoom, x, z);
+    this.rig.position.set(p.x, 0, p.z);
+  }
+
+  /** The room the walker stands in (the scene's own truth — it
+   *  flips at the doorway plane, a step ahead of the server's
+   *  transfer welcome, which setRoom then confirms). */
+  get roomId(): string {
+    return this.currentRoom;
+  }
+
+  /** Confirm the room from the server's welcome. Movement, camera
+   *  clamp and shell visibility all follow the room. */
+  setRoom(roomId: string): void {
+    if (!PALACE_LAYOUT[roomId]) return;
+    this.currentRoom = roomId;
+    this.applyRoomVisibility();
+  }
+
+  /** A doorway crossing, detected by the movement resolver: flip
+   *  the scene's room and tell the page (which transfers presence
+   *  server-side to match). */
+  private crossedInto(roomId: string): void {
+    this.currentRoom = roomId;
+    this.applyRoomVisibility();
+    this.onRoomEnter?.(roomId);
+  }
+
+  /** The destination room was full (the server refused the
+   *  transfer): step back through the doorway. Call AFTER
+   *  setRoom(serverRoom) — the scene's room flips back to the room
+   *  the server still holds me in, and the rig (standing in that
+   *  room's doorway apron) clamps to just inside its door — the
+   *  honest step back. */
+  returnThroughDoor(): void {
+    const p = clampToRoom(this.currentRoom, this.rig.position.x, this.rig.position.z);
+    this.rig.position.x = p.x;
+    this.rig.position.z = p.z;
+  }
+
+  /** Only the room you stand in renders around you — plus the hall,
+   *  which is never a shell: it is the look group itself, visible
+   *  through every doorway from every room. From the hall, every
+   *  shell shows (you glimpse each room through its door). */
+  private applyRoomVisibility(): void {
+    for (const [id, g] of this.shellGroups) {
+      g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id;
+    }
+  }
+
+  /** Every peer figure out — a room change despawns the old room's
+   *  crowd locally; the new room's snapshot re-stands them. */
+  removeAllPeers(): void {
+    for (const peerId of [...this.avatars.keys()]) this.removePeer(peerId);
   }
 
   /* ── Your own figure + camera ── */
@@ -2111,11 +2614,14 @@ export class KingsHallScene {
    *  Never called while XR presents — the headset owns the camera. */
   private applyFlatCamera(): void {
     if (this.viewMode === "third") {
+      /* The follow camera clamps inside the room you stand in —
+       * each palace room has its own clamp, the hall's unchanged. */
+      const cc = PALACE_LAYOUT[this.currentRoom]?.camClamp ?? CAM_CLAMP;
       this.rig.updateMatrixWorld();
       SCRATCH_VEC.set(0, THIRD_CAM_HEIGHT, THIRD_CAM_DISTANCE);
       this.rig.localToWorld(SCRATCH_VEC);
-      SCRATCH_VEC.x = clamp(SCRATCH_VEC.x, CAM_CLAMP.minX, CAM_CLAMP.maxX);
-      SCRATCH_VEC.z = clamp(SCRATCH_VEC.z, CAM_CLAMP.minZ, CAM_CLAMP.maxZ);
+      SCRATCH_VEC.x = clamp(SCRATCH_VEC.x, cc.minX, cc.maxX);
+      SCRATCH_VEC.z = clamp(SCRATCH_VEC.z, cc.minZ, cc.maxZ);
       this.rig.worldToLocal(SCRATCH_VEC);
       this.camera.position.copy(SCRATCH_VEC);
       this.camera.rotation.x = this.pitch * 0.5 - 0.14;
@@ -2132,8 +2638,17 @@ export class KingsHallScene {
     // Camera forward on the floor plane is (-sin(yaw), -cos(yaw)).
     const dx = (-sin * fwd + cos * strafe) * speed * dt;
     const dz = (-cos * fwd - sin * strafe) * speed * dt;
-    this.rig.position.x = clamp(this.rig.position.x + dx, BOUNDS.minX, BOUNDS.maxX);
-    this.rig.position.z = clamp(this.rig.position.z + dz, BOUNDS.minZ, BOUNDS.maxZ);
+    /* The palace resolves the step: walls are solid everywhere
+     * except the doorways, a blocked diagonal slides along the
+     * wall, and crossing a doorway plane reports the new room. */
+    const res = resolvePalaceMove(
+      { x: this.rig.position.x, z: this.rig.position.z, room: this.currentRoom },
+      this.rig.position.x + dx,
+      this.rig.position.z + dz,
+    );
+    this.rig.position.x = res.x;
+    this.rig.position.z = res.z;
+    if (res.entered) this.crossedInto(res.entered);
   }
 
   private tickFlatMove(dt: number): void {
@@ -2225,6 +2740,8 @@ export class KingsHallScene {
     }
     for (const tex of textureCache.values()) tex.dispose();
     textureCache.clear();
+    for (const tex of doorPlateCache.values()) tex.dispose();
+    doorPlateCache.clear();
     flameTex?.dispose();
     flameTex = null;
     hazeTex?.dispose();

@@ -477,3 +477,94 @@ describe("host actions", () => {
     expect(worldOverlay(client.status)).toBe("removed");
   });
 });
+
+describe("the palace (multi-room)", () => {
+  it("the welcome names the room I'm standing in", async () => {
+    const { client, socket } = makeClient();
+    await client.connect();
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:kings-hall", name: "The King's Hall" },
+      you: SELF,
+      peers: [],
+    });
+    expect(client.room).toEqual({ id: "world:kings-hall", name: "The King's Hall" });
+  });
+
+  it("enterRoom sends the crossing point; the same room is a no-op", async () => {
+    const { client, socket } = await inside();
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:kings-hall", name: "The King's Hall" },
+      you: SELF,
+      peers: [],
+    });
+    socket.sent = [];
+    client.enterRoom("world:kings-hall", { x: 0, z: 0, rotY: 0 });
+    expect(socket.sent).toEqual([]);
+    client.enterRoom("world:music-hall", { x: -14.3, z: -2, rotY: -1.5 });
+    expect(socket.sent).toEqual([
+      { type: "room.enter", roomId: "world:music-hall", x: -14.3, z: -2, rotY: -1.5 },
+    ]);
+  });
+
+  it("a transfer welcome re-homes the client: new room, fresh peers, voice cleared, onRoomChanged fires", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [{ ...OTHER, voice: true }]);
+    expect(client.voicePeerIds.has(OTHER.peerId)).toBe(true);
+    const changes: string[] = [];
+    client.onRoomChanged = (room) => changes.push(room.id);
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:music-hall", name: "Music Hall" },
+      you: { ...SELF, x: -15, z: -2 },
+      peers: [],
+    });
+    expect(changes).toEqual(["world:music-hall"]);
+    expect(client.room?.id).toBe("world:music-hall");
+    expect(client.peers.size).toBe(0);
+    expect(client.voicePeerIds.size).toBe(0);
+    // Still inside — a transfer is not a reconnect.
+    expect(client.status).toBe("inside");
+  });
+
+  it("a repeat welcome in the same room does not fire onRoomChanged", async () => {
+    const { client, socket } = await inside();
+    let fired = 0;
+    client.onRoomChanged = () => fired++;
+    socket.receive({
+      type: "welcome",
+      peerId: SELF.peerId,
+      room: { id: "world:kings-hall", name: "The King's Hall" },
+      you: SELF,
+      peers: [],
+    });
+    expect(fired).toBe(0);
+  });
+
+  it("directory frames land on state and the handler", async () => {
+    const { client, socket } = await inside();
+    const seen: number[] = [];
+    client.onDirectory = (rooms) => seen.push(rooms.length);
+    socket.receive({
+      type: "palace.directory",
+      rooms: [
+        { id: "world:kings-hall", name: "The King's Hall", count: 2, members: ["Me", "Other"], live: true },
+        { id: "world:music-hall", name: "Music Hall", count: 0, members: [], live: false },
+      ],
+    });
+    expect(seen).toEqual([2]);
+    expect(client.directory[0]?.live).toBe(true);
+    expect(client.directory[0]?.count).toBe(2);
+  });
+
+  it("room.unavailable reaches its handler with the honest cap", async () => {
+    const { client, socket } = await inside();
+    const refusals: Array<{ name: string; cap: number }> = [];
+    client.onRoomUnavailable = (info) => refusals.push(info);
+    socket.receive({ type: "room.unavailable", roomId: "world:music-hall", name: "Music Hall", cap: 30 });
+    expect(refusals).toEqual([{ roomId: "world:music-hall", name: "Music Hall", cap: 30 }]);
+  });
+});

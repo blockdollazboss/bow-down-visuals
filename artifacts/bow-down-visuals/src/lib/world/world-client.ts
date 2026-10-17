@@ -1,20 +1,29 @@
 /**
- * world-client.ts — The World's presence client: the King's Hall socket
+ * world-client.ts — The World's presence client: the palace socket
  * brain. Framework-free (the React page is a thin shell) so the whole
  * protocol behaviour is unit-tested in node with fake sockets.
  *
- * Protocol mirrors lib/world-room.ts on the server:
+ * Protocol mirrors lib/world-room.ts + lib/world-palace.ts on the
+ * server:
  *   out: move (throttled to ~10/s here AND on the server), say,
  *        character (walk in as a Creative Vault character — id only,
  *        the server verifies ownership and resolves the portrait),
  *        voice.join / voice.leave, voice.off (the proximity-voice
  *        switch — off means no sending, no hearing, mic released),
  *        voice.deaf (deafen — still in the mesh, hearing nobody,
- *        mic muted), voice.signal
- *   in:  welcome (self + snapshot), peer.join / peer.move / peer.leave,
+ *        mic muted), voice.signal, room.enter (walked through a
+ *        doorway — the registry transfers this peer to that room)
+ *   in:  welcome (room + self + snapshot), palace.directory,
+ *        room.unavailable, peer.join / peer.move / peer.leave,
  *        peer.say, peer.character, peer.voiceoff, peer.voicedeaf,
  *        voice.joined / voice.left / voice.state / voice.signal /
  *        voice.full / voice.denied, room_full
+ *
+ * Presence is room-scoped: this client only ever holds the room it
+ * stands in. A doorway transfer arrives as a FRESH welcome (same
+ * peerId, new room, new snapshot) — onRoomChanged fires so the page
+ * can tear the old room's voice session down (the mesh is the
+ * room's; it never crosses a doorway).
  * Guests (no session token, or a stale one the server couldn't verify)
  * arrive as guest peers: present and visible, no voice, no say — the
  * client hides those controls off `self.guest`, the server enforces it.
@@ -60,6 +69,26 @@ export interface WorldPeer {
 }
 
 export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed" | "removed";
+
+/** The room this client stands in, as the server named it. */
+export interface PalaceRoomInfo {
+  id: string;
+  name: string;
+}
+
+/** One row of the palace directory: a room, its headcount, who's
+ *  inside (display names, server-capped), and whether a show holds
+ *  the hall's stage. */
+export interface PalaceDirectoryEntry {
+  id: string;
+  name: string;
+  count: number;
+  members: string[];
+  live: boolean;
+}
+
+/** The hall's id — the palace's front door and its one stage room. */
+export const HALL_ROOM_ID = "world:kings-hall";
 
 /** The stage + big-screen state, mirrored from the room: who holds
  *  the stage, what's playing, and (for a watch-party video) the
@@ -140,8 +169,15 @@ export class WorldClient {
   peers = new Map<string, WorldPeer>();
   voicePeerIds = new Set<string>();
   /** The stage + screen, as the room last stated it (welcome, then
-   *  every `screen.state`). Null until the welcome lands. */
+   *  every `screen.state`). Null until the welcome lands. Only the
+   *  hall carries screen state — a transfer welcome from another
+   *  room omits it and the hall's last state stands. */
   screen: WorldScreenState | null = null;
+  /** The room this client stands in (set by every welcome). */
+  room: PalaceRoomInfo | null = null;
+  /** The palace directory — who's where — as last broadcast (and
+   *  re-sent inside every transfer). Empty until the first frame. */
+  directory: PalaceDirectoryEntry[] = [];
 
   /* Assignable handlers — the page wires scene + voice + chat log. */
   onStatus: ((status: WorldStatus) => void) | null = null;
@@ -162,6 +198,16 @@ export class WorldClient {
   /** The host muted/unmuted ME (self only) — the page shows the
    *  honest notice and keeps me out of voice while it stands. */
   onHostMuted: ((muted: boolean) => void) | null = null;
+  /** The palace directory changed (someone walked through a door,
+   *  in or out of the palace, or a show took the stage). */
+  onDirectory: ((rooms: PalaceDirectoryEntry[]) => void) | null = null;
+  /** I walked through a doorway: a fresh welcome re-homed this
+   *  client. The page resets the scene's room and tears down the
+   *  old room's voice session in answer. */
+  onRoomChanged: ((room: PalaceRoomInfo) => void) | null = null;
+  /** A doorway transfer was refused: the destination is at its
+   *  presence cap. I never left the room I'm in. */
+  onRoomUnavailable: ((info: { roomId: string; name: string; cap: number }) => void) | null = null;
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
@@ -223,6 +269,19 @@ export class WorldClient {
     this.peers.clear();
     this.voicePeerIds.clear();
     this.self = null;
+    this.room = null;
+  }
+
+  /** Walk through a doorway into another palace room. `at` is the
+   *  crossing point (the scene's own position as it crossed the
+   *  plane) — the server clamps it into the destination and lands
+   *  me there; without it I arrive at the room's spawn. The answer
+   *  is a fresh welcome (onRoomChanged) or a refusal
+   *  (onRoomUnavailable — a full room; I stay where I stand). */
+  enterRoom(roomId: string, at?: { x: number; z: number; rotY: number }): void {
+    if (this.status !== "inside" || !this.self) return;
+    if (this.room?.id === roomId) return;
+    this.send({ type: "room.enter", roomId, x: at?.x, z: at?.z, rotY: at?.rotY });
   }
 
   /** Position sync — throttled; the latest pose always wins the next
@@ -371,11 +430,21 @@ export class WorldClient {
       }
       case "welcome": {
         const you = frame["you"] as WorldPeer;
+        const wasInside = this.status === "inside";
+        const prevRoomId = this.room?.id ?? null;
+        const roomFrame = frame["room"] as { id?: unknown; name?: unknown } | undefined;
+        this.room = {
+          id: typeof roomFrame?.id === "string" ? roomFrame.id : HALL_ROOM_ID,
+          name: typeof roomFrame?.name === "string" ? roomFrame.name : "The King's Hall",
+        };
         this.self = you;
         if (frame["screen"] && typeof frame["screen"] === "object") {
           this.screen = frame["screen"] as WorldScreenState;
         }
         this.peers.clear();
+        /* A transfer welcome starts a new room's voice world: the
+         * old mesh membership is gone with the old room. */
+        this.voicePeerIds.clear();
         const snapshot = Array.isArray(frame["peers"]) ? (frame["peers"] as WorldPeer[]) : [];
         for (const peer of snapshot) {
           this.peers.set(peer.peerId, peer);
@@ -394,6 +463,25 @@ export class WorldClient {
         if (this.voiceDeafWanted !== undefined && !you.guest) {
           this.send({ type: "voice.deaf", deaf: this.voiceDeafWanted });
         }
+        // A doorway transfer re-homes the page (scene room, voice
+        // teardown) — only when the room actually changed.
+        if (wasInside && prevRoomId !== this.room.id) {
+          this.onRoomChanged?.(this.room);
+        }
+        return;
+      }
+      case "palace.directory": {
+        const rooms = Array.isArray(frame["rooms"]) ? (frame["rooms"] as PalaceDirectoryEntry[]) : [];
+        this.directory = rooms;
+        this.onDirectory?.(rooms);
+        return;
+      }
+      case "room.unavailable": {
+        this.onRoomUnavailable?.({
+          roomId: String(frame["roomId"] ?? ""),
+          name: typeof frame["name"] === "string" ? frame["name"] : "That room",
+          cap: typeof frame["cap"] === "number" ? frame["cap"] : 30,
+        });
         return;
       }
       case "peer.character": {
@@ -526,4 +614,14 @@ export class WorldClient {
         return;
     }
   }
+}
+
+/** The palace directory over HTTP — the front-door signal for the
+ *  entry screen (who's in which room) before the socket even opens.
+ *  Mirrors GET /api/world/directory on the server. */
+export async function fetchWorldDirectory(signal?: AbortSignal): Promise<PalaceDirectoryEntry[]> {
+  const res = await fetch("/api/world/directory", { signal });
+  if (!res.ok) throw new Error(`world directory ${res.status}`);
+  const body = (await res.json()) as { rooms?: PalaceDirectoryEntry[] };
+  return Array.isArray(body.rooms) ? body.rooms : [];
 }
