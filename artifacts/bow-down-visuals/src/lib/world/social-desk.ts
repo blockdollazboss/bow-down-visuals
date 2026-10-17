@@ -223,11 +223,12 @@ export function postBodyReady(body: string): boolean {
   return n >= 1 && n <= POST_BODY_MAX;
 }
 
-/** The reaction set the board offers — the head of PostCard's own
- *  REACTIONS table (the two a notice board needs at a glance). */
+/** The reaction set the board offers — the head of the site's reaction
+ *  keys (the two a notice board needs at a glance). Art comes from the
+ *  King's set via lib/king-emoji's REACTION_ART. */
 export const BOARD_REACTIONS = [
-  { emoji: "like", icon: "❤️", label: "Like" },
-  { emoji: "fire", icon: "🔥", label: "Fire" },
+  { emoji: "like", label: "Like" },
+  { emoji: "fire", label: "Fire" },
 ] as const;
 
 /** Optimistic reaction math, mirroring PostCard.react: tapping the

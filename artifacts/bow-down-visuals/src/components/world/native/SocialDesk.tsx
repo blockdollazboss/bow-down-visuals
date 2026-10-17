@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Send, Check, X, Ban, Plus, Pin, Heart, Flame, MessageCircle, Star, BarChart3, Loader2,
+  Send, Check, X, Ban, Plus, Pin, MessageCircle, Star, BarChart3, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ReactionSticker } from "@/components/social/KingEmoji";
 import {
   NativeCard, NativeLoadingState, NativeEmptyState, NativeErrorState,
 } from "@/components/world/native";
@@ -508,7 +509,7 @@ function NoticePostCard({
               aria-pressed={emoji === r.emoji}
               className={`${chipBtn(isLight)} ${emoji === r.emoji ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
             >
-              {r.emoji === "like" ? <Heart className="h-3.5 w-3.5" /> : <Flame className="h-3.5 w-3.5" />}
+              <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
               {r.label}
               {(counts[r.emoji] ?? 0) > 0 ? ` ${counts[r.emoji]}` : ""}
             </button>
