@@ -6,8 +6,10 @@
  * Protocol mirrors lib/world-room.ts + lib/world-palace.ts on the
  * server:
  *   out: move (throttled to ~10/s here AND on the server), say,
- *        character (walk in as a Creative Vault character — id only,
- *        the server verifies ownership and resolves the portrait),
+ *        action (perform an avatar action — the shared id set in
+ *        actions.ts; the server relays it to the room), character
+ *        (walk in as a Creative Vault character — id only, the
+ *        server verifies ownership and resolves the portrait),
  *        voice.join / voice.leave, voice.off (the proximity-voice
  *        switch — off means no sending, no hearing, mic released),
  *        voice.deaf (deafen — still in the mesh, hearing nobody,
@@ -15,6 +17,7 @@
  *        doorway — the registry transfers this peer to that room)
  *   in:  welcome (room + self + snapshot), palace.directory,
  *        room.unavailable, peer.join / peer.move / peer.leave,
+ *        peer.action,
  *        peer.say, peer.character, peer.voiceoff, peer.voicedeaf,
  *        voice.joined / voice.left / voice.state / voice.signal /
  *        voice.full / voice.denied, room_full
@@ -36,6 +39,9 @@ export interface WorldCharacterRef {
   name: string;
   portraitUrl: string;
 }
+
+export type { WorldActionId } from "./actions";
+import type { WorldActionId } from "./actions";
 
 export interface WorldPeer {
   peerId: string;
@@ -62,6 +68,10 @@ export interface WorldPeer {
   /** The host muted this peer's voice server-side. */
   hostMuted: boolean;
   character: WorldCharacterRef | null;
+  /** The avatar action this presence is performing (toggles ride
+   *  the snapshot, so walking into a room mid-dance shows the
+   *  dance already in progress). */
+  action: WorldActionId | null;
   x: number;
   y: number;
   z: number;
@@ -183,6 +193,9 @@ export class WorldClient {
   onStatus: ((status: WorldStatus) => void) | null = null;
   onPeerJoin: ((peer: WorldPeer) => void) | null = null;
   onPeerLeave: ((peerId: string) => void) | null = null;
+  /** A peer started (or stopped) an avatar action — the scene
+   *  performs it on their figure. */
+  onPeerAction: ((peerId: string, action: WorldActionId | null) => void) | null = null;
   onPeerCharacter: ((peerId: string, character: WorldCharacterRef | null) => void) | null = null;
   onPeerVoiceOff: ((peerId: string, off: boolean) => void) | null = null;
   onPeerVoiceDeaf: ((peerId: string, deaf: boolean) => void) | null = null;
@@ -270,6 +283,18 @@ export class WorldClient {
     this.voicePeerIds.clear();
     this.self = null;
     this.room = null;
+  }
+
+  /** Perform an avatar action (or stop one with null). Everyone
+   *  present performs — guests too: an action is presence, not
+   *  speech. The page resolves a toggle press to the state it
+   *  wants (pressing Dance while dancing sends null), so this is a
+   *  plain setter: the scene performs my own action optimistically
+   *  from the same call, and the room relays it to everyone else. */
+  performAction(action: WorldActionId | null): void {
+    if (this.status !== "inside" || !this.self) return;
+    this.self.action = action;
+    this.send({ type: "action", action });
   }
 
   /** Walk through a doorway into another palace room. `at` is the
@@ -519,6 +544,15 @@ export class WorldClient {
         if (!peer || peer.peerId === this.self?.peerId) return;
         this.peers.set(peer.peerId, peer);
         this.onPeerJoin?.(peer);
+        return;
+      }
+      case "peer.action": {
+        const peerId = String(frame["peerId"]);
+        const raw = frame["action"];
+        const action = typeof raw === "string" ? (raw as WorldActionId) : null;
+        const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+        if (target) target.action = action;
+        this.onPeerAction?.(peerId, action);
         return;
       }
       case "peer.move": {

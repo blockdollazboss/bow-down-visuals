@@ -90,6 +90,12 @@ import {
   resolvePalaceMove,
   clampToRoom,
 } from "./palace-layout";
+import {
+  ACTION_BY_ID,
+  actionClearedByMove,
+  actionPoseAt,
+  type WorldActionId,
+} from "./actions";
 
 export interface HallScreenSource {
   mode: "live" | "featured" | "video";
@@ -438,6 +444,19 @@ interface AvatarRig {
   guardWanted: GuardVariant | null;
   /** Per-figure phase so the hall doesn't sway in lockstep. */
   swayPhase: number;
+  /** The avatar action this figure is performing, and when it
+   *  started on the local clock. One-shots complete and settle on
+   *  their own; toggles hold until stopped, replaced, or walked
+   *  off (see actions.ts). */
+  actionId: WorldActionId | null;
+  actionAt: number;
+  /** The pose the figure currently wears, eased toward the
+   *  action's pose each frame so starts and stops never pop. The
+   *  spin is NOT eased — a spin must turn exactly one full turn. */
+  poseTiltX: number;
+  poseTiltZ: number;
+  poseY: number;
+  poseSpinY: number;
   /** The floor ring (brightened + widened for Front Row members). */
   ring: THREE.Mesh;
   /** Whether the Front Row treatment is currently applied. */
@@ -693,6 +712,12 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     guardVariant: null,
     guardWanted: null,
     swayPhase: Math.random() * Math.PI * 2,
+    actionId: null,
+    actionAt: 0,
+    poseTiltX: 0,
+    poseTiltZ: 0,
+    poseY: 0,
+    poseSpinY: 0,
     ring,
     frontRow: false,
     plateKey: namePlateKey(peer),
@@ -778,6 +803,13 @@ export class KingsHallScene {
   onPadToggleVoice: (() => void) | null = null;
   /** A controller's view-toggle press (first/third person). */
   onPadToggleView: (() => void) | null = null;
+  /** A controller's action press (D-pad / face buttons — the page
+   *  performs it through the same path as the on-screen bar). */
+  onPadAction: ((action: WorldActionId) => void) | null = null;
+  /** My own performed action changed on its own — a one-shot
+   *  finished, or walking ended a held toggle — so the page's
+   *  action bar stays truthful without polling. */
+  onSelfAction: ((action: WorldActionId | null) => void) | null = null;
   private yaw = 0;
   private pitch = 0;
   private lookDrag: { id: number; lastX: number; lastY: number } | null = null;
@@ -2092,12 +2124,64 @@ export class KingsHallScene {
       existing.target = { x: peer.x, z: peer.z, rotY: peer.rotY };
       this.reconcileFigure(existing, peer);
       this.reconcilePlate(existing, peer);
+      // A snapshot can carry an action already in progress (a
+      // dancer mid-dance when I walk in) — start it on the figure.
+      if (peer.action !== existing.actionId) this.setRigAction(existing, peer.action);
       return;
     }
     const rig = buildAvatar(peer);
     this.avatars.set(peer.peerId, rig);
     this.scene.add(rig.group);
     this.reconcileFigure(rig, peer);
+    if (peer.action) this.setRigAction(rig, peer.action);
+  }
+
+  /** A peer started (or stopped) an avatar action — their figure
+   *  performs it. Driven by the client's peer.action frames. */
+  setPeerAction(peerId: string, action: WorldActionId | null): void {
+    const rig = this.avatars.get(peerId);
+    if (rig) this.setRigAction(rig, action);
+  }
+
+  /** Perform an action on my own figure (the page's optimistic
+   *  half of the action bar / gamepad press). */
+  setSelfAction(action: WorldActionId | null): void {
+    if (this.selfRig) this.setRigAction(this.selfRig, action);
+  }
+
+  /** The one place a rig's performed action changes: stamps the
+   *  start clock (one-shots settle from it; the dance loop phases
+   *  from it) and keeps the page's bar honest about my own figure. */
+  private setRigAction(rig: AvatarRig, action: WorldActionId | null): void {
+    if (rig.actionId === action) return;
+    rig.actionId = action;
+    rig.actionAt = performance.now();
+    if (rig === this.selfRig) this.onSelfAction?.(action);
+  }
+
+  /** One figure's action life for this frame: finish a completed
+   *  one-shot, ease the worn pose toward the action's pose, and
+   *  write it onto the body. updateFigure ADDS its idle sway on top
+   *  of rotation.z afterwards (portrait/default figures only), and
+   *  the spin rides the billboard yaw for portraits — the pose is
+   *  composed here, decorated there, never owned twice. */
+  private applyActionPose(rig: AvatarRig, dt: number, nowMs: number): void {
+    if (rig.actionId) {
+      const def = ACTION_BY_ID.get(rig.actionId);
+      if (def?.kind === "once" && nowMs - rig.actionAt >= def.durationMs) {
+        this.setRigAction(rig, null);
+      }
+    }
+    const pose = rig.actionId ? actionPoseAt(rig.actionId, nowMs - rig.actionAt) : null;
+    const blend = 1 - Math.exp(-16 * dt);
+    rig.poseTiltX += ((pose?.tiltX ?? 0) - rig.poseTiltX) * blend;
+    rig.poseTiltZ += ((pose?.tiltZ ?? 0) - rig.poseTiltZ) * blend;
+    rig.poseY += ((pose?.y ?? 0) - rig.poseY) * blend;
+    rig.poseSpinY = pose?.spinY ?? 0;
+    rig.group.position.y = rig.poseY;
+    rig.body.rotation.x = rig.poseTiltX;
+    rig.body.rotation.z = rig.poseTiltZ;
+    if (!rig.portrait) rig.body.rotation.y = rig.poseSpinY;
   }
 
   /** Keep the name plate matched to the peer: when what it shows
@@ -2525,11 +2609,23 @@ export class KingsHallScene {
 
     // Remote avatars glide to their latest reported spots.
     const k = 1 - Math.exp(-9 * dt);
+    const nowMs = performance.now();
     for (const rig of this.avatars.values()) {
+      // A held toggle ends when the figure actually starts walking
+      // — predicted here the frame the target pulls away (the
+      // server's clearing frame confirms it a beat later).
+      if (rig.actionId && actionClearedByMove(rig.actionId)) {
+        const dx = rig.target.x - rig.group.position.x;
+        const dz = rig.target.z - rig.group.position.z;
+        if (dx * dx + dz * dz > 0.16) this.setRigAction(rig, null);
+      }
       rig.group.position.x += (rig.target.x - rig.group.position.x) * k;
       rig.group.position.z += (rig.target.z - rig.group.position.z) * k;
       rig.group.rotation.y = angleLerp(rig.group.rotation.y, rig.target.rotY, k);
+      this.applyActionPose(rig, dt, nowMs);
     }
+    // My own figure wears its action too (visible in third person).
+    if (this.selfRig) this.applyActionPose(this.selfRig, dt, nowMs);
 
     // Character figures: the portrait panel billboards toward the
     // viewer (a portrait is a face — it should meet your eye, not the
@@ -2537,7 +2633,6 @@ export class KingsHallScene {
     // Your own figure gets the same treatment in third person.
     if (this.avatars.size || this.selfRig?.portrait) {
       this.camera.getWorldPosition(SCRATCH_VEC);
-      const nowMs = performance.now();
       for (const rig of this.avatars.values()) {
         if (rig.portrait) this.updateFigure(rig, dt, nowMs);
       }
@@ -2588,10 +2683,14 @@ export class KingsHallScene {
       Math.atan2(SCRATCH_VEC.x - rig.group.position.x, SCRATCH_VEC.z - rig.group.position.z) -
       rig.group.rotation.y;
     rig.body.rotation.y = angleLerp(rig.body.rotation.y, faceYaw, 1 - Math.exp(-7 * dt));
+    // A spin turns the portrait with everything else — the yaw the
+    // billboard just settled gets the spin's turn on top.
+    if (rig.poseSpinY !== 0) rig.body.rotation.y += rig.poseSpinY;
     /* The default figure breathes: a barely-there idle sway, phased
-     * per figure so the hall never moves in lockstep. */
+     * per figure so the hall never moves in lockstep. ADDED to the
+     * action pose's tilt — applyActionPose owns rotation.z now. */
     if (rig.defaultFigure) {
-      rig.body.rotation.z = Math.sin(nowMs / 1500 + rig.swayPhase) * 0.018;
+      rig.body.rotation.z += Math.sin(nowMs / 1500 + rig.swayPhase) * 0.018;
     }
 
     const opennessDiff = rig.speechTarget - rig.speechShown;
@@ -2641,13 +2740,25 @@ export class KingsHallScene {
     /* The palace resolves the step: walls are solid everywhere
      * except the doorways, a blocked diagonal slides along the
      * wall, and crossing a doorway plane reports the new room. */
+    const prevX = this.rig.position.x;
+    const prevZ = this.rig.position.z;
     const res = resolvePalaceMove(
-      { x: this.rig.position.x, z: this.rig.position.z, room: this.currentRoom },
-      this.rig.position.x + dx,
-      this.rig.position.z + dz,
+      { x: prevX, z: prevZ, room: this.currentRoom },
+      prevX + dx,
+      prevZ + dz,
     );
     this.rig.position.x = res.x;
     this.rig.position.z = res.z;
+    // Actually walking ends a held toggle (dance/sit) on my own
+    // figure — the same rule the server applies to my move frames,
+    // so what I see and what the room sees agree.
+    if (
+      this.selfRig?.actionId &&
+      actionClearedByMove(this.selfRig.actionId) &&
+      (res.x !== prevX || res.z !== prevZ)
+    ) {
+      this.setRigAction(this.selfRig, null);
+    }
     if (res.entered) this.crossedInto(res.entered);
   }
 
@@ -2683,6 +2794,7 @@ export class KingsHallScene {
       if (intent.sprint) run = true;
       if (intent.toggleVoice) this.onPadToggleVoice?.();
       if (intent.toggleView) this.onPadToggleView?.();
+      if (intent.action) this.onPadAction?.(intent.action);
     }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {

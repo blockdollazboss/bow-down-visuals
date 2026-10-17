@@ -301,6 +301,15 @@ export type WorldActionId = keyof typeof WORLD_ACTIONS;
 /** One action frame per peer per ~half second at most. */
 export const ACTION_MIN_INTERVAL_MS = 500;
 
+/** How long a one-shot action rides the peer DTO (welcome/join
+ *  snapshots). The client's longest one-shot is 1.7 s; past this
+ *  window the action has plainly finished wherever it played, and
+ *  the DTO stops reporting it — otherwise a late joiner would meet
+ *  a room where someone bows on loop forever. Toggles never
+ *  expire here: they end by frame, or by the walk that clears
+ *  them. */
+export const ACTION_SNAPSHOT_MS = 2500;
+
 /**
  * Per-instance room configuration. The King's Hall is the default
  * (bounds, spawn arc, stage); the palace registry (world-palace.ts)
@@ -428,6 +437,10 @@ export class WorldRoom {
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
+  /** The latest frame time this room has seen — the room's clock.
+   *  DTO snapshot expiry (one-shot actions) reads it, so injected
+   *  time in tests and gateway time in production stay one story. */
+  private frameNow = 0;
   /** The stage: one holder, and the screen is theirs. Null = the
    *  stage is free and the screen runs its ambient programming. */
   private stageHolder: StageHolder | null = null;
@@ -488,6 +501,17 @@ export class WorldRoom {
   }
 
   private dto(peer: WorldPeer): WorldPeerDto {
+    // One-shots expire out of the snapshot (see ACTION_SNAPSHOT_MS);
+    // the stored record clears with them so every reader agrees.
+    // Measured on the room's frame clock (handleFrame's `now`),
+    // never the wall clock — the two must never disagree.
+    if (
+      peer.action &&
+      WORLD_ACTIONS[peer.action.id] === "once" &&
+      this.frameNow - peer.action.at > ACTION_SNAPSHOT_MS
+    ) {
+      peer.action = null;
+    }
     return {
       peerId: peer.peerId,
       displayName: peer.displayName,
@@ -718,6 +742,7 @@ export class WorldRoom {
   handleFrame(socket: WsClientSocket, raw: string, now = Date.now()): void {
     const peer = this.peers.get(socket);
     if (!peer || raw.length > MAX_FRAME_CHARS) return;
+    if (now > this.frameNow) this.frameNow = now;
     let frame: Record<string, unknown>;
     try {
       const parsed: unknown = JSON.parse(raw);

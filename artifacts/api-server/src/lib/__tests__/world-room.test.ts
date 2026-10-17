@@ -899,6 +899,36 @@ describe("host authority", () => {
   });
 });
 
+describe("action snapshots", () => {
+  it("a one-shot leaves the snapshot once it has plainly finished; a toggle stays", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(b, room, { type: "action", action: "bow" }, 1_000);
+    frame(a, room, { type: "action", action: "dance" }, 1_600);
+    // A late joiner inside the window still meets the bow…
+    const c = fakeSocket();
+    room.attach(c, member("Carol"));
+    const carolWelcome = c.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(carolWelcome.peers.map((p) => p.action)).toContain("bow");
+    // …but once the room's clock passes the snapshot window, the
+    // bow is over everywhere — while the dance (a toggle) holds.
+    frame(a, room, { type: "say", text: "later" }, 4_200);
+    const d = fakeSocket();
+    room.attach(d, member("Delta"));
+    const deltaWelcome = d.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(deltaWelcome.peers.map((p) => p.action)).not.toContain("bow");
+    expect(deltaWelcome.peers.map((p) => p.action)).toContain("dance");
+    expect(room.peerFor(b)?.action).toBeNull();
+  });
+});
+
 describe("tints", () => {
   it("are stable per key and always from the house palette", () => {
     expect(tintForKey("hall-member")).toBe(tintForKey("hall-member"));

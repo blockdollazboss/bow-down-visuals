@@ -4,7 +4,14 @@ import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
   Maximize, Minimize, Gamepad2,
+  Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
 } from "lucide-react";
+import {
+  WORLD_ACTIONS,
+  ACTION_BY_ID,
+  type WorldActionId,
+  type WorldActionDef,
+} from "@/lib/world/actions";
 import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -107,6 +114,51 @@ interface ScreenCatalogItem {
   durationSec: number;
 }
 
+const ACTION_ICONS: Record<WorldActionId, typeof Hand> = {
+  bow: Accessibility,
+  wave: Hand,
+  cheer: PartyPopper,
+  clap: Sparkles,
+  dance: Music2,
+  spin: RefreshCw,
+  sit: Armchair,
+};
+
+/** One button on the action bar. A held toggle (Dance, Sit) wears
+ *  the solid-gold active state; one-shots are momentary. */
+function ActionButton({
+  def,
+  active,
+  isLight,
+  onPerform,
+}: {
+  def: WorldActionDef;
+  active: boolean;
+  isLight: boolean;
+  onPerform: (id: WorldActionId) => void;
+}) {
+  const Icon = ACTION_ICONS[def.id];
+  return (
+    <button
+      type="button"
+      onClick={() => onPerform(def.id)}
+      data-testid={`world-action-${def.id}`}
+      aria-pressed={def.kind === "toggle" ? active : undefined}
+      title={def.kind === "toggle" ? `${def.label} — stays on until you stop it` : def.label}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+        active
+          ? "border-[#d4af37] bg-[#d4af37] text-black"
+          : isLight
+            ? "border-[#7A5A12]/30 text-[#6B5B36] hover:border-[#7A5A12]/60 hover:text-[#2a1e07]"
+            : "border-white/15 text-white/75 hover:border-[#d4af37]/60 hover:text-white"
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {def.label}
+    </button>
+  );
+}
+
 export default function WorldPage() {
   usePageTitle("The World — The King's Hall", "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.");
   const { user, getAccessToken } = useAuth();
@@ -149,6 +201,28 @@ export default function WorldPage() {
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
+  /* The avatar action my figure is performing (the action bar's
+     state; the scene reports its own endings — a finished bow,
+     a walk that ended the dance — through onSelfAction). */
+  const [myAction, setMyAction] = useState<WorldActionId | null>(null);
+  const myActionRef = useRef<WorldActionId | null>(null);
+  /* Perform an avatar action: pressing the toggle I'm already
+     holding ends it; anything else starts (or replaces) the
+     performance. The client relays it to the room; the scene
+     performs it on my figure in the same breath. */
+  const performAction = (id: WorldActionId) => {
+    const client = clientRef.current;
+    const scene = sceneRef.current;
+    if (!client || !scene) return;
+    const next =
+      ACTION_BY_ID.get(id)?.kind === "toggle" && myActionRef.current === id ? null : id;
+    client.performAction(next);
+    scene.setSelfAction(next);
+    setMyAction(next);
+    myActionRef.current = next;
+  };
+  const performActionRef = useRef(performAction);
+  performActionRef.current = performAction;
   /* The in-hall character panel (the entry picker, reachable from
      inside — the owner couldn't find character choice from within). */
   const [charPanelOpen, setCharPanelOpen] = useState(false);
@@ -473,6 +547,23 @@ export default function WorldPage() {
       scene.onPadToggleView = () => {
         if (!cancelled) toggleViewMode();
       };
+      /* Controller action buttons perform through the same path as
+         the on-screen bar (D-pad + face buttons, see gamepad.ts). */
+      scene.onPadAction = (action) => {
+        if (!cancelled) performActionRef.current(action);
+      };
+      /* My figure's action ended on its own (a finished one-shot,
+         a walk that stopped the dance) — the bar follows. */
+      scene.onSelfAction = (action) => {
+        if (cancelled) return;
+        setMyAction(action);
+        myActionRef.current = action;
+      };
+      /* Peers' actions land on their figures. */
+      client.onPeerAction = (peerId, action) => {
+        if (cancelled || peerId === client.self?.peerId) return;
+        scene.setPeerAction(peerId, action);
+      };
 
       client.onStatus = (s) => {
         if (cancelled) return;
@@ -511,6 +602,10 @@ export default function WorldPage() {
         }
         setRoomId(room.id);
         setRoomName(room.name);
+        // A doorway starts the figure clean in the new room (the
+        // server resets the performed action on transfer too).
+        setMyAction(null);
+        myActionRef.current = null;
         scene.setRoom(room.id);
         scene.removeAllPeers();
         setScreenPanelOpen(false);
@@ -1256,8 +1351,34 @@ export default function WorldPage() {
         {padConnected && status === "inside" && (
           <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
             <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view.
+            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view, D-pad and face buttons perform the actions below.
           </p>
+        )}
+        {/* The action bar: what your figure can DO, seen by the
+            whole room. One-shots play out and settle; Dance and Sit
+            hold until pressed again — or until you walk off. */}
+        {status === "inside" && (
+          <div
+            className="mb-2 flex flex-wrap items-center gap-1.5"
+            data-testid="world-action-bar"
+            role="group"
+            aria-label="Avatar actions — everyone in the room sees these"
+          >
+            {WORLD_ACTIONS.map((def) => (
+              <ActionButton
+                key={def.id}
+                def={def}
+                active={myAction === def.id}
+                isLight={isLight}
+                onPerform={performAction}
+              />
+            ))}
+            {myAction && ACTION_BY_ID.get(myAction)?.kind === "toggle" && (
+              <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                {ACTION_BY_ID.get(myAction)?.label} is on — tap it again, or just walk, to stop.
+              </span>
+            )}
+          </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
           {!isGuest && status === "inside" && (

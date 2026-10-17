@@ -44,7 +44,7 @@ describe("applyRadialDeadzone", () => {
 
 describe("pollGamepad", () => {
   it("a missing pad is a clean idle and resets the edges", () => {
-    const { intent, edges } = pollGamepad(null, { voice: true, view: true });
+    const { intent, edges } = pollGamepad(null, { voice: true, view: true, actions: {} });
     expect(intent).toMatchObject({ moveX: 0, moveY: 0, sprint: false, toggleVoice: false });
     expect(edges).toEqual(IDLE_GAMEPAD_EDGES);
   });
@@ -86,5 +86,45 @@ describe("firstGamepad", () => {
     expect(firstGamepad([null, undefined, p])).toBe(p);
     expect(firstGamepad([null])).toBeNull();
     expect(firstGamepad([])).toBeNull();
+  });
+});
+
+describe("avatar action buttons", () => {
+  it("maps the D-pad, X, B and RB to the seven actions on the press edge", () => {
+    const cases: Array<[number, string]> = [
+      [12, "bow"],
+      [15, "cheer"],
+      [13, "sit"],
+      [14, "wave"],
+      [2, "clap"],
+      [1, "dance"],
+      [5, "spin"],
+    ];
+    for (const [button, action] of cases) {
+      const { intent } = pollGamepad(pad([0, 0, 0, 0], [button]), IDLE_GAMEPAD_EDGES);
+      expect(intent.action).toBe(action);
+    }
+  });
+
+  it("holding an action button fires once, never per frame", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [12]), IDLE_GAMEPAD_EDGES);
+    expect(down.intent.action).toBe("bow");
+    const held = pollGamepad(pad([0, 0, 0, 0], [12]), down.edges);
+    expect(held.intent.action).toBeNull();
+    const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges);
+    const again = pollGamepad(pad([0, 0, 0, 0], [12]), up.edges);
+    expect(again.intent.action).toBe("bow");
+  });
+
+  it("two fresh presses in one frame perform the first in map order", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [1, 12]), IDLE_GAMEPAD_EDGES);
+    expect(intent.action).toBe("bow");
+  });
+
+  it("the voice/view toggles are untouched by the action map", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [0, 3]), IDLE_GAMEPAD_EDGES);
+    expect(intent.toggleVoice).toBe(true);
+    expect(intent.toggleView).toBe(true);
+    expect(intent.action).toBeNull();
   });
 });

@@ -55,6 +55,7 @@ const SELF = {
   admin: false,
   hostMuted: false,
   character: null,
+  action: null,
   x: 0,
   y: 0,
   z: 9.5,
@@ -566,5 +567,44 @@ describe("the palace (multi-room)", () => {
     client.onRoomUnavailable = (info) => refusals.push(info);
     socket.receive({ type: "room.unavailable", roomId: "world:music-hall", name: "Music Hall", cap: 30 });
     expect(refusals).toEqual([{ roomId: "world:music-hall", name: "Music Hall", cap: 30 }]);
+  });
+});
+
+describe("avatar actions", () => {
+  it("performAction is a plain setter — the page resolves toggle presses", async () => {
+    const { client, socket } = await inside();
+    socket.sent = [];
+    client.performAction("bow");
+    expect(socket.sent).toEqual([{ type: "action", action: "bow" }]);
+    expect(client.self?.action).toBe("bow");
+    client.performAction("dance");
+    expect(client.self?.action).toBe("dance");
+    // Stopping is an explicit null (the page sends it when a held
+    // toggle is pressed again) — never a re-send side effect.
+    client.performAction(null);
+    expect(socket.sent[socket.sent.length - 1]).toEqual({ type: "action", action: null });
+    expect(client.self?.action).toBeNull();
+  });
+
+  it("peer.action frames land on the peer and fire the handler", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: Array<[string, string | null]> = [];
+    client.onPeerAction = (peerId, action) => seen.push([peerId, action]);
+    socket.receive({ type: "peer.action", peerId: OTHER.peerId, action: "dance" });
+    expect(client.peers.get(OTHER.peerId)?.action).toBe("dance");
+    socket.receive({ type: "peer.action", peerId: OTHER.peerId, action: null });
+    expect(client.peers.get(OTHER.peerId)?.action).toBeNull();
+    expect(seen).toEqual([
+      [OTHER.peerId, "dance"],
+      [OTHER.peerId, null],
+    ]);
+  });
+
+  it("a guest can perform — actions are presence, and the client sends them", async () => {
+    const guestSelf = { ...SELF, guest: true };
+    const { client, socket } = await inside({ t: 0 }, guestSelf, []);
+    socket.sent = [];
+    client.performAction("wave");
+    expect(socket.sent).toEqual([{ type: "action", action: "wave" }]);
   });
 });
