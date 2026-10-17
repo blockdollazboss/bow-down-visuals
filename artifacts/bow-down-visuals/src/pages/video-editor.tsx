@@ -77,6 +77,7 @@ import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
 import { StockLibraryPanel } from "@/components/editor/sections/StockLibraryPanel";
+import { AssetLibraryPanel } from "@/components/editor/sections/AssetLibraryPanel";
 import TemplatesTabPanel from "@/components/video-editor/TemplatesTabPanel";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
@@ -2465,6 +2466,17 @@ export default function VideoEditor() {
                             onGoToTab={(t) => setTab(t)}
                           />
 
+                          {/* ── My Library (DE-7): the creator's OWN songs, clips and
+                              covers from /api/asset-library — no re-upload, no charge. ── */}
+                          <AssetLibraryPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            settings={settings}
+                            setSettings={setSettings}
+                            getAccessToken={getAccessToken}
+                            onGoToTab={(t) => setTab(t)}
+                          />
+
                           <ClipGeneratorSection
                             scenes={scenes}
                             setScenes={setScenes}
@@ -2514,6 +2526,16 @@ export default function VideoEditor() {
                         defaultValue: "Generate music, beats, and voice for your video.",
                       })}
                     >
+                    {/* ── My Library (DE-7): attach one of your own library
+                        songs as the soundtrack without re-uploading it. ── */}
+                    <AssetLibraryPanel
+                      scenes={scenes}
+                      setScenes={setScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      getAccessToken={getAccessToken}
+                      onGoToTab={(t) => setTab(t)}
+                    />
                     <MusicStudio
                       settings={settings}
                       onChange={setSettings}
