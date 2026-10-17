@@ -105,3 +105,94 @@ export function pushSongPackageToProject(input: PushSongInput): void {
     }
   }
 }
+
+/* ─── Reading the package back ─────────────────────────────────────────────
+   The meta written above is the song's travelling context. Desks that pick
+   a song out of the project must carry ALL of it — a pick that takes only
+   the audio URL strands the title, genre, and lyrics at the seam
+   (linkage audit DE-10), and the cover desk never read the art direction
+   at all (DE-8). These readers are the other half of the writers above. */
+
+/** Decode a `data:text/plain` asset URL (how script assets carry text).
+ *  Returns null for anything else — remote text is not read synchronously. */
+export function decodeDataTextUrl(url: string): string | null {
+  if (!url.startsWith("data:text/plain")) return null;
+  const comma = url.indexOf(",");
+  if (comma < 0) return null;
+  try {
+    return decodeURIComponent(url.slice(comma + 1));
+  } catch {
+    return null;
+  }
+}
+
+/** The lyrics script asset that belongs to a picked song asset — the
+ *  sibling pushSongPackageToProject added alongside it. Matched on the
+ *  package identity (artist + title in meta), never on position, so a
+ *  project holding several songs can't attach the wrong words. */
+export function findSongLyricsScript(
+  assets: HubAsset[],
+  song: HubAsset,
+): HubAsset | undefined {
+  const title = song.meta?.["title"];
+  const artist = song.meta?.["artist"];
+  if (!title || !artist) return undefined;
+  return assets.find(
+    (a) =>
+      a.kind === "script" &&
+      a.meta?.["kind"] === "lyrics" &&
+      a.meta?.["title"] === title &&
+      a.meta?.["artist"] === artist,
+  );
+}
+
+export interface SongPickPrefill {
+  title?: string;
+  genre?: string;
+  lyrics?: string;
+}
+
+/** Everything a desk should prefill when the creator picks this song:
+ *  title + genre from the song's own meta, lyrics decoded from the
+ *  sibling script asset. Fields the package doesn't know stay absent —
+ *  a pick must never invent or borrow another song's data. */
+export function songPickPrefill(assets: HubAsset[], song: HubAsset): SongPickPrefill {
+  const prefill: SongPickPrefill = {};
+  const title = song.meta?.["title"]?.trim();
+  if (title) prefill.title = title;
+  const genre = song.meta?.["genre"]?.trim();
+  if (genre) prefill.genre = genre;
+  const script = findSongLyricsScript(assets, song);
+  if (script) {
+    const lyrics = decodeDataTextUrl(script.url);
+    if (lyrics?.trim()) prefill.lyrics = lyrics;
+  }
+  return prefill;
+}
+
+export interface CoverArtSeed {
+  title?: string;
+  artist?: string;
+  genre?: string;
+  mood?: string;
+  /** The song package's own art direction for its cover (DE-8). */
+  coverArtPrompt?: string;
+}
+
+/** Seed for the Cover Art desk from any song-package asset (the song and
+ *  its lyrics script carry the same meta). Absent fields stay absent. */
+export function coverArtSeedFromAsset(asset: HubAsset): CoverArtSeed {
+  const meta = asset.meta ?? {};
+  const seed: CoverArtSeed = {};
+  const title = meta["title"]?.trim();
+  if (title) seed.title = title;
+  const artist = meta["artist"]?.trim();
+  if (artist) seed.artist = artist;
+  const genre = meta["genre"]?.trim();
+  if (genre) seed.genre = genre;
+  const mood = meta["mood"]?.trim();
+  if (mood) seed.mood = mood;
+  const coverArtPrompt = meta["coverArtPrompt"]?.trim();
+  if (coverArtPrompt) seed.coverArtPrompt = coverArtPrompt;
+  return seed;
+}

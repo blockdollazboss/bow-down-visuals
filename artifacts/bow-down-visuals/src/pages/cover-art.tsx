@@ -12,6 +12,8 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
+import { coverArtSeedFromAsset } from "@/lib/hub-song";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
   COVER_ART_STYLES,
@@ -169,6 +171,25 @@ export default function CoverArt() {
             <p className="text-sm text-red-300/80">{error}</p>
           </div>
         )}
+
+        {/* Spine: the song package already art-directed its cover — pull
+            the song in and its coverArtPrompt seeds this desk, instead of
+            the prompt dying unread in the asset meta (DE-8). */}
+        <div className="mt-6">
+          <ProjectFlowBar
+            kinds={["song", "script"]}
+            actionLabel={t("cover-art.useSong", { defaultValue: "Use song" })}
+            onPick={(asset) => {
+              const seed = coverArtSeedFromAsset(asset);
+              if (seed.title) setSongTitle(seed.title);
+              if (seed.artist) setArtistName(seed.artist);
+              if (seed.coverArtPrompt) setMood(seed.coverArtPrompt);
+              else if (seed.mood) setMood(seed.mood);
+              else if (seed.genre) setMood(seed.genre);
+              setMode("custom");
+            }}
+          />
+        </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {/* ── Controls ── */}

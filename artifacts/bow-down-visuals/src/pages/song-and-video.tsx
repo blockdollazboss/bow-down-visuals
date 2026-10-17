@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import { turboSongVideoInputData, withProjectAudio } from "@/lib/project-handoff";
 import {
   defaultEditorSettings,
   defaultAiEditSettings,
@@ -529,7 +530,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
           songTitle: null,
           genre: SIMPLE_DEFAULTS.genre,
           mood: SIMPLE_DEFAULTS.mood,
-          inputData: { simpleMode: true, idea, lyrics: effectiveLyrics },
+          inputData: turboSongVideoInputData({ idea, lyrics: effectiveLyrics, audioUrl }),
           outputData: {
             result: rawResult,
             ...(songStructure ? { songStructure } : {}),
@@ -1072,7 +1073,7 @@ export function SongAndVideoModule() {
           songTitle:    watched.songTitle  || null,
           genre:        watched.genre      || null,
           mood:         watched.mood       || null,
-          inputData:    watched as unknown as Record<string, unknown>,
+          inputData:    withProjectAudio(watched as unknown as Record<string, unknown>, audioUrl),
           outputData: {
             result: resultToSave,
             ...(songStructure ? { songStructure } : {}),
