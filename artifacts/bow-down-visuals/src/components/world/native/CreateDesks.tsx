@@ -6,12 +6,16 @@ import {
   DeskSelectField,
   DeskTextField,
   ImageResult,
+  PublishedReward,
   ResultChips,
+  SongAudioRail,
   TextResult,
   VideoResult,
   useDeskAuthHeaders,
+  type SongAudioState,
 } from "./CreateDeskShared";
 import { callGenerateApi } from "@/lib/generate-api";
+import { generateMusicAudio, type GenerateMusicAudioRequest } from "@/lib/generate-music-audio";
 import { extractSongPackage } from "@/lib/hub-song";
 import { COVER_ART_RATIOS, COVER_ART_STYLES } from "@/lib/cover-art";
 import type { ArtistImageModel } from "@/components/generate-artist-image";
@@ -22,6 +26,8 @@ import {
   buildCoverInMotionPayload,
   buildDraftPayload,
   buildEditorProjectPayload,
+  buildMusicAudioPayload,
+  buildPublishTrackPayload,
   buildRunwayClipPayload,
   buildSongPayloadAdvanced,
   buildSongPayloadTurbo,
@@ -33,8 +39,12 @@ import {
   coverInMotionCost,
   distributeHrefForCover,
   interpretTaskPoll,
+  musicAudioCost,
+  profileIdOfProfilesResponse,
+  publishedTrackIdOfResponse,
   resultExcerpt,
   scheduleHrefForMedia,
+  SONG_AUDIO_LENGTH_SECONDS,
   songDeskCost,
   songVideoDeskCost,
   SONG_DRAFT_WORKFLOW,
@@ -111,6 +121,139 @@ function useDraftSaver() {
   return { saved, save, reset: () => setSaved(false) };
 }
 
+/* ─── The song publish rail (Ring 2, items 2.1 + 2.2) ───────────────
+   Shared by the Song Desk and the Song + Video Desk — both packages
+   carry the same AI MUSIC PROMPT + lyrics, so the rail applies
+   identically: package → real audio (POST /api/generate-music-audio,
+   the site's own audio step) → publish to the profile
+   (POST /api/publish/track, the /publish page's rail, free) → the
+   response's track id lights the ResultChips jukebox chip.
+   Honesty rules: audio exists only when the audio call lands;
+   "published" exists only when the publish call answers with a
+   track the jukebox gate accepts; a published song can never be
+   published twice from this card (the chip settles, the publish
+   action retires); every failure keeps its state dark + retryable. */
+function useSongPublishRail(args: {
+  rawResult: string | null;
+  artistName: string;
+  title: string;
+  genre: string;
+  onJukeboxAdd: (trackId: string) => void;
+}) {
+  const { getAccessToken, refreshProfile } = useAuth();
+  const authHeaders = useDeskAuthHeaders();
+  const [audioState, setAudioState] = useState<SongAudioState>("idle");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishedTrackId, setPublishedTrackId] = useState<string | null>(null);
+  const [jukeboxSent, setJukeboxSent] = useState(false);
+
+  const reset = () => {
+    setAudioState("idle");
+    setAudioUrl(null);
+    setAudioError(null);
+    setPublishBusy(false);
+    setPublishError(null);
+    setPublishedTrackId(null);
+    setJukeboxSent(false);
+  };
+
+  const makeAudio = async () => {
+    if (audioState === "running" || !args.rawResult) return;
+    const payload = buildMusicAudioPayload({
+      rawResult: args.rawResult,
+      artistName: args.artistName,
+      songTitle: args.title,
+    });
+    if (!payload) {
+      setAudioError("This package has no music prompt to make audio from — make the song again.");
+      setAudioState("failed");
+      return;
+    }
+    setAudioState("running");
+    setAudioError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Sign in to make the audio.");
+      const resp = await generateMusicAudio(token, payload as unknown as GenerateMusicAudioRequest);
+      if (!resp) return; // a confirmation was declined — nothing ran
+      setAudioUrl(resp.url);
+      setAudioState("done");
+      refreshProfile();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Audio generation failed.";
+      setAudioError(
+        msg === "out_of_credits" ? "You're out of Visual Bucs — top up, then make the audio." : msg,
+      );
+      setAudioState("failed");
+    }
+  };
+
+  const publish = async () => {
+    if (!audioUrl || publishBusy || publishedTrackId) return;
+    setPublishBusy(true);
+    setPublishError(null);
+    try {
+      const headers = await authHeaders();
+      const profRes = await fetch("/api/creator-profiles", { headers });
+      if (!profRes.ok) throw new Error("Couldn't check your creator profile — try publishing again.");
+      const profileId = profileIdOfProfilesResponse(await profRes.json().catch(() => null));
+      if (!profileId) {
+        throw new Error(
+          "You don't have a creator profile yet — create one on your profile page, then publish from here.",
+        );
+      }
+      const res = await fetch("/api/publish/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(
+          buildPublishTrackPayload({
+            profileId,
+            title: args.title,
+            audioUrl,
+            genre: args.genre,
+            durationSec: SONG_AUDIO_LENGTH_SECONDS,
+          }),
+        ),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(json.message ?? json.error ?? "Publishing didn't land — try again.");
+      const trackId = publishedTrackIdOfResponse(json);
+      if (!trackId) {
+        throw new Error("Publishing came back without your track — check your profile before trying again.");
+      }
+      setPublishedTrackId(trackId);
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : "Publishing didn't land — try again.");
+    } finally {
+      setPublishBusy(false);
+    }
+  };
+
+  const queueToJukebox = (trackId: string) => {
+    args.onJukeboxAdd(trackId);
+    setJukeboxSent(true);
+  };
+
+  return {
+    audioState,
+    audioUrl,
+    audioError,
+    audioCost: musicAudioCost(),
+    makeAudio,
+    publish,
+    publishBusy,
+    publishError,
+    published: publishedTrackId !== null,
+    publishedTrackId,
+    jukeboxSent,
+    queueToJukebox,
+    reset,
+  };
+}
+
 const GENRE_OPTIONS = ["", "Hip Hop", "Drill", "Trap", "R&B", "Pop", "Afrobeats", "Dancehall", "Gospel", "Kids Music", "Rock", "Country", "Other"];
 const MOOD_OPTIONS = ["", "Luxury", "Dark", "Emotional", "Street", "Romantic", "Energetic", "Pain", "Victory", "Party", "Inspirational", "Funny", "Kid-Friendly"];
 const LENGTH_OPTIONS = ["", "30 seconds", "60 seconds", "2 minutes", "Full song"];
@@ -138,6 +281,7 @@ export function SongDesk(props: CreateDeskProps) {
     setError(null);
     setRawResult(null);
     draft.reset();
+    rail.reset();
     try {
       const token = await getAccessToken();
       const payload = useAdvanced ? buildSongPayloadAdvanced(prompt, adv) : buildSongPayloadTurbo(prompt);
@@ -155,6 +299,13 @@ export function SongDesk(props: CreateDeskProps) {
 
   const pkg = rawResult ? extractSongPackage(rawResult) : null;
   const title = adv.songTitle || pkg?.bestTitle || "Your song";
+  const rail = useSongPublishRail({
+    rawResult,
+    artistName: adv.artistName,
+    title,
+    genre: adv.genre,
+    onJukeboxAdd: props.onJukeboxAdd,
+  });
 
   return (
     <div className="space-y-3" data-testid="world-create-song-desk">
@@ -185,6 +336,15 @@ export function SongDesk(props: CreateDeskProps) {
           rawResult ? (
             <div>
               <TextResult isLight={isLight} title={title} text={resultExcerpt(rawResult)} />
+              <SongAudioRail
+                isLight={isLight}
+                state={rail.audioState}
+                error={rail.audioError}
+                audioUrl={rail.audioUrl}
+                title={title}
+                costVisualBucs={rail.audioCost}
+                onMakeAudio={() => void rail.makeAudio()}
+              />
               <ResultChips
                 isLight={isLight}
                 onSendToEditor={
@@ -206,6 +366,11 @@ export function SongDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
+                onPublish={rail.audioUrl && !rail.published ? () => void rail.publish() : undefined}
+                publishBusy={rail.publishBusy}
+                published={rail.published}
+                jukeboxTrackId={rail.publishedTrackId}
+                onJukeboxAdd={rail.queueToJukebox}
                 onSaveDraft={() =>
                   void draft.save(
                     buildDraftPayload(SONG_DRAFT_WORKFLOW, title, {
@@ -220,12 +385,22 @@ export function SongDesk(props: CreateDeskProps) {
                   setState("idle");
                   setRawResult(null);
                   setPrompt("");
+                  rail.reset();
                 }}
               />
-              <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                The full package — lyrics, hook, video idea and cover prompt — rides the draft and the editor seed.
-                Once the song is published to your profile it can go on the Music Hall jukebox from the Jukebox itself.
-              </p>
+              {rail.publishError ? (
+                <p data-testid="world-create-publish-error" className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                  {rail.publishError}
+                </p>
+              ) : null}
+              {rail.published ? (
+                <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
+              ) : (
+                <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                  The full package — lyrics, hook, video idea and cover prompt — rides the draft and the editor seed.
+                  Make the audio, publish it to your profile right here, and the jukebox chip lights up.
+                </p>
+              )}
             </div>
           ) : undefined
         }
@@ -255,6 +430,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
     setState("running");
     setError(null);
     setRawResult(null);
+    rail.reset();
     try {
       const token = await getAccessToken();
       const payload = useAdvanced ? buildSongVideoPayloadAdvanced(prompt, adv) : buildSongVideoPayloadTurbo(prompt);
@@ -272,6 +448,18 @@ export function SongVideoDesk(props: CreateDeskProps) {
 
   const pkg = rawResult ? extractSongPackage(rawResult) : null;
   const title = adv.songTitle || pkg?.bestTitle || "Your song + video";
+  /* The song+video package carries the same AI MUSIC PROMPT + lyrics
+     as a Song Desk package, so the publish rail applies identically:
+     make the audio, publish the song to the profile, light the
+     jukebox chip. The package's video side still rides the editor
+     seed exactly as before. */
+  const rail = useSongPublishRail({
+    rawResult,
+    artistName: adv.artistName,
+    title,
+    genre: adv.genre,
+    onJukeboxAdd: props.onJukeboxAdd,
+  });
 
   return (
     <div className="space-y-3" data-testid="world-create-song-video-desk">
@@ -302,6 +490,15 @@ export function SongVideoDesk(props: CreateDeskProps) {
           rawResult ? (
             <div>
               <TextResult isLight={isLight} title={title} text={resultExcerpt(rawResult)} />
+              <SongAudioRail
+                isLight={isLight}
+                state={rail.audioState}
+                error={rail.audioError}
+                audioUrl={rail.audioUrl}
+                title={title}
+                costVisualBucs={rail.audioCost}
+                onMakeAudio={() => void rail.makeAudio()}
+              />
               <ResultChips
                 isLight={isLight}
                 onSendToEditor={
@@ -323,12 +520,26 @@ export function SongVideoDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
+                onPublish={rail.audioUrl && !rail.published ? () => void rail.publish() : undefined}
+                publishBusy={rail.publishBusy}
+                published={rail.published}
+                jukeboxTrackId={rail.publishedTrackId}
+                onJukeboxAdd={rail.queueToJukebox}
                 onMakeAnother={() => {
                   setState("idle");
                   setRawResult(null);
                   setPrompt("");
+                  rail.reset();
                 }}
               />
+              {rail.publishError ? (
+                <p data-testid="world-create-publish-error" className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                  {rail.publishError}
+                </p>
+              ) : null}
+              {rail.published ? (
+                <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
+              ) : null}
             </div>
           ) : undefined
         }

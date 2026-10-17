@@ -580,3 +580,138 @@ export function jukeboxTrackIdOf(candidate: string | null | undefined): string |
   if (!candidate) return null;
   return /^track:[0-9a-fA-F-]{36}$/.test(candidate) ? candidate : null;
 }
+
+/* ─── The publish rail — Ring 2 items 2.1 + 2.2 ──────────────────────
+   The palace's central loop, closed with the SITE'S OWN rails, in
+   the SITE'S OWN order (the exact steps the 2D flow takes):
+     1. The package becomes real audio — POST /api/generate-music-audio
+        with the package's AI MUSIC PROMPT (GenerationResult's
+        "Generate real audio" step; the response carries the song
+        library row the server saved, source "generated").
+     2. The audio is published to the creator's profile —
+        POST /api/publish/track with is_published:true, the /publish
+        page's save body for audio (publish.tsx handleSave). FREE:
+        the publish route charges nothing ("uploading/publishing is
+        FREE — it's the creator's own content"); only AI extras
+        charge. The profile id comes from GET /api/creator-profiles,
+        the same lookup the publish page and the publish server use.
+     3. The publish response's track id becomes the jukebox identity
+        `track:<uuid>` — and only then may the ResultChips jukebox
+        chip light (see jukeboxTrackIdOf above). */
+
+/** The desk makes its audio at the default length: 60 seconds,
+ *  the music-audio route's own DEFAULT_LENGTH_MS. */
+export const SONG_AUDIO_LENGTH_SECONDS = 60;
+
+/** POST /api/generate-music-audio's REAL price at a length: the
+ *  registry's 400 is the ≤1-minute tier; the server's
+ *  creditCostForLength tiers 400 / 800 / 1200 at 1 and 3 minutes —
+ *  exact multiples of the registry base, never invented here. */
+export function musicAudioCost(lengthSeconds: number = SONG_AUDIO_LENGTH_SECONDS): number {
+  const base = registryCost("/api/generate-music-audio");
+  if (lengthSeconds <= 60) return base;
+  if (lengthSeconds <= 180) return base * 2;
+  return base * 3;
+}
+
+/** One ## section of a song package (the hub-song section shape). */
+export function packageSectionOf(raw: string, header: string): string {
+  const re = new RegExp(`^##\\s*${header}\\s*$`, "im");
+  const m = re.exec(raw);
+  if (!m || m.index === undefined) return "";
+  const start = m.index + m[0].length;
+  const rest = raw.slice(start);
+  const next = /^##\s+\S/m.exec(rest);
+  return (next ? rest.slice(0, next.index) : rest).trim();
+}
+
+/** The package's AI MUSIC PROMPT — the exact text GenerationResult
+ *  hands to the audio maker. Null when the package carries none
+ *  (then there is honestly nothing to make audio from). */
+export function songMusicPromptOf(rawResult: string): string | null {
+  const prompt = packageSectionOf(rawResult, "AI MUSIC PROMPT");
+  return prompt ? prompt : null;
+}
+
+/** The generate-music-audio body GenerationResult posts for a
+ *  finished package: the music prompt, the package's own lyrics as
+ *  the custom-lyrics input, and the desk's title/artist. Null when
+ *  the package has no music prompt. */
+export function buildMusicAudioPayload(input: {
+  rawResult: string;
+  artistName?: string;
+  songTitle?: string;
+}): Record<string, unknown> | null {
+  const prompt = songMusicPromptOf(input.rawResult);
+  if (!prompt) return null;
+  const lyrics = packageSectionOf(input.rawResult, "FULL LYRICS");
+  return {
+    prompt,
+    ...(lyrics ? { lyrics } : {}),
+    ...(input.artistName?.trim() ? { artistName: input.artistName.trim() } : {}),
+    ...(input.songTitle?.trim() ? { songTitle: input.songTitle.trim() } : {}),
+    lengthSeconds: SONG_AUDIO_LENGTH_SECONDS,
+  };
+}
+
+/** The /publish page's audio save body (publish.tsx handleSave,
+ *  publish=true): profile_id + title + audio_url + is_published.
+ *  Category "music" rides as the vertical; the server folds it
+ *  into tags itself. download_price_cents 0 = free download, the
+ *  page's default. */
+export function buildPublishTrackPayload(input: {
+  profileId: string;
+  title: string;
+  audioUrl: string;
+  genre?: string;
+  durationSec?: number;
+}): Record<string, unknown> {
+  return {
+    profile_id: input.profileId,
+    title: input.title.trim() || "Untitled Song",
+    audio_url: input.audioUrl,
+    genre: input.genre?.trim() ? input.genre.trim() : undefined,
+    category: "music",
+    tags: [],
+    duration_sec:
+      typeof input.durationSec === "number" && input.durationSec > 0
+        ? Math.round(input.durationSec)
+        : undefined,
+    download_price_cents: 0,
+    is_published: true,
+  };
+}
+
+/** The creator's first profile id from GET /api/creator-profiles —
+ *  the response shapes the publish page's loadProfile accepts
+ *  (array, { profiles }, or a single profile object). Null when the
+ *  creator has no profile yet: publishing honestly cannot proceed. */
+export function profileIdOfProfilesResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const list: unknown[] = Array.isArray(json)
+    ? json
+    : Array.isArray((json as { profiles?: unknown }).profiles)
+      ? ((json as { profiles: unknown[] }).profiles as unknown[])
+      : typeof (json as { id?: unknown }).id === "string"
+        ? [json]
+        : [];
+  for (const p of list) {
+    if (p && typeof p === "object" && typeof (p as { id?: unknown }).id === "string") {
+      return (p as { id: string }).id;
+    }
+  }
+  return null;
+}
+
+/** The published identity from POST /api/publish/track's response
+ *  ({ track: { id, … } }): `track:<uuid>`, passed through the
+ *  jukebox gate — anything else is not a publish the room can play,
+ *  so it reads as null and the desk must say so, never light up. */
+export function publishedTrackIdOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const track = (json as { track?: unknown }).track;
+  if (!track || typeof track !== "object") return null;
+  const id = (track as { id?: unknown }).id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+  return jukeboxTrackIdOf(`track:${String(id)}`);
+}

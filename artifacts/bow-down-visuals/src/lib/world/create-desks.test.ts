@@ -38,11 +38,18 @@ import {
   deverbCost,
   distributeHrefForCover,
   finishMySongCost,
+  buildMusicAudioPayload,
+  buildPublishTrackPayload,
   interpretJobPoll,
   interpretTaskPoll,
   isCreateDeskId,
   jukeboxTrackIdOf,
+  musicAudioCost,
+  profileIdOfProfilesResponse,
+  publishedTrackIdOfResponse,
   resultExcerpt,
+  songMusicPromptOf,
+  SONG_AUDIO_LENGTH_SECONDS,
   scheduleHrefForMedia,
   sfxCost,
   songDeskCost,
@@ -324,5 +331,102 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     const ex = resultExcerpt(long, 100);
     expect(ex.length).toBe(101);
     expect(ex.endsWith("…")).toBe(true);
+  });
+});
+
+describe("the publish rail — Ring 2 items 2.1 + 2.2 (pin g)", () => {
+  const PACKAGE = [
+    "## SONG CONCEPT",
+    "A crown anthem.",
+    "",
+    "## BEST SONG TITLE",
+    "Heavy Crown",
+    "",
+    "## FULL LYRICS",
+    "Verse one lines",
+    "",
+    "## AI MUSIC PROMPT",
+    "Dark trap, 140 BPM, heavy 808s",
+    "",
+    "## COVER ART PROMPT",
+    "Gold on black",
+  ].join("\n");
+  const TRACK_UUID = "123e4567-e89b-12d3-a456-426614174000";
+
+  it("music audio price is the server's duration tiers, from the registry base", () => {
+    const base = getCreditCost("/api/generate-music-audio")!.cost;
+    expect(base).toBe(400);
+    expect(musicAudioCost(30)).toBe(base);
+    expect(musicAudioCost(60)).toBe(base);
+    expect(musicAudioCost(120)).toBe(base * 2);
+    expect(musicAudioCost(180)).toBe(base * 2);
+    expect(musicAudioCost(240)).toBe(base * 3);
+    /* The desk's default length is the route's own 60s default tier. */
+    expect(SONG_AUDIO_LENGTH_SECONDS).toBe(60);
+    expect(musicAudioCost()).toBe(400);
+  });
+
+  it("the audio payload is GenerationResult's step: music prompt + package lyrics", () => {
+    expect(songMusicPromptOf(PACKAGE)).toBe("Dark trap, 140 BPM, heavy 808s");
+    expect(
+      buildMusicAudioPayload({ rawResult: PACKAGE, artistName: " King ", songTitle: "Heavy Crown" }),
+    ).toEqual({
+      prompt: "Dark trap, 140 BPM, heavy 808s",
+      lyrics: "Verse one lines",
+      artistName: "King",
+      songTitle: "Heavy Crown",
+      lengthSeconds: SONG_AUDIO_LENGTH_SECONDS,
+    });
+    /* No music prompt in the package → no payload, honestly null. */
+    expect(songMusicPromptOf("## FULL LYRICS\nwords only")).toBeNull();
+    expect(buildMusicAudioPayload({ rawResult: "## FULL LYRICS\nwords only" })).toBeNull();
+  });
+
+  it("the publish payload is the /publish page's audio save body, published", () => {
+    expect(
+      buildPublishTrackPayload({
+        profileId: "prof-1",
+        title: " Heavy Crown ",
+        audioUrl: "https://cdn/x.mp3",
+        genre: "Trap",
+        durationSec: 60,
+      }),
+    ).toEqual({
+      profile_id: "prof-1",
+      title: "Heavy Crown",
+      audio_url: "https://cdn/x.mp3",
+      genre: "Trap",
+      category: "music",
+      tags: [],
+      duration_sec: 60,
+      download_price_cents: 0,
+      is_published: true,
+    });
+    /* Blank genre/duration ride undefined, exactly as the page omits them. */
+    const bare = buildPublishTrackPayload({ profileId: "p", title: "T", audioUrl: "u" });
+    expect(bare.genre).toBeUndefined();
+    expect(bare.duration_sec).toBeUndefined();
+    expect(bare.is_published).toBe(true);
+  });
+
+  it("the profile id reads every shape GET /api/creator-profiles answers", () => {
+    expect(profileIdOfProfilesResponse([{ id: "a" }, { id: "b" }])).toBe("a");
+    expect(profileIdOfProfilesResponse({ profiles: [{ id: "c" }] })).toBe("c");
+    expect(profileIdOfProfilesResponse({ id: "d" })).toBe("d");
+    /* No profile yet → null: the desk must say so, never invent one. */
+    expect(profileIdOfProfilesResponse([])).toBeNull();
+    expect(profileIdOfProfilesResponse({ profiles: [] })).toBeNull();
+    expect(profileIdOfProfilesResponse(null)).toBeNull();
+    expect(profileIdOfProfilesResponse("nope")).toBeNull();
+  });
+
+  it("only a real publish response lights the jukebox chip (2.2's gate)", () => {
+    expect(publishedTrackIdOfResponse({ track: { id: TRACK_UUID } })).toBe(`track:${TRACK_UUID}`);
+    /* A response without a uuid track id is NOT a publish the room
+       can play — the chip stays dark and the desk says so. */
+    expect(publishedTrackIdOfResponse({ track: { id: 42 } })).toBeNull();
+    expect(publishedTrackIdOfResponse({ track: {} })).toBeNull();
+    expect(publishedTrackIdOfResponse({})).toBeNull();
+    expect(publishedTrackIdOfResponse(null)).toBeNull();
   });
 });

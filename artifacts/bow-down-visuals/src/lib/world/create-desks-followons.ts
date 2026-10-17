@@ -43,13 +43,13 @@ export const CREATE_DESK_NATIVE_FOLLOWONS: readonly NativeFollowOn[] = [
   },
   {
     desk: "song-desk",
-    item: "Artist Vault preset loading, uploaded-song + transcription intake, and the finished-song action row (song cover, vocal polish, harmony, singing voice, synced-lyrics .lrc export, publish-to-profile)",
+    item: "Artist Vault preset loading, uploaded-song + transcription intake, and the rest of the finished-song action row (song cover, vocal polish, harmony, singing voice, synced-lyrics .lrc export) — publish-to-profile SHIPPED in-world (Ring 2, 2.1: make the audio, then POST /api/publish/track, the /publish page's own rail)",
     todayVia: "/create?panel=song",
   },
   {
     desk: "song-desk",
-    item: "Put it on the jukebox for a freshly made song: the room queue accepts only PUBLISHED profile tracks (track:<uuid> ids, re-verified server-side), and a generated package is not published yet — the chip is wired in ResultChips and activates the moment a desk result carries a published track id (publish-to-profile in-world is the missing rail)",
-    todayVia: "Publish on /create?panel=song, then the Jukebox panel in the Music Hall",
+    item: "Hearing a desk-published song on the jukebox FROM the Create Wing: the chip lights the moment the publish lands (Ring 2, 2.2) and fires jukebox.add like every other surface, but the room authority only runs a jukebox in the Music Hall — an add sent from another room never lands. Palace-wide queueing (or carrying the pick across the doorway) is the remaining rail; today the song plays when the creator taps the chip in the Music Hall itself",
+    todayVia: "The Jukebox panel in the Music Hall",
   },
 
   /* ── Video Desk ────────────────────────────────────────────────── */
