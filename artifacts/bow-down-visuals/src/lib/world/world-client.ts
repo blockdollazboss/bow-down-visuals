@@ -773,7 +773,10 @@ export class WorldClient {
             typeof r["name"] === "string" &&
             (portraitUrl !== null || loopUrl !== null)
           ) {
-            character = { id: r["id"], name: r["name"], portraitUrl, loopUrl, voiceProfile };
+            character = { id: r["id"], name: r["name"], portraitUrl, loopUrl };
+            /* Absent stays absent — the field is only attached when
+               the character actually has a set voice. */
+            if (voiceProfile) character.voiceProfile = voiceProfile;
           }
         }
         const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);

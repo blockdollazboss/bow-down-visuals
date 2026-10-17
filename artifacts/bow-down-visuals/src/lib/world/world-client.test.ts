@@ -291,6 +291,23 @@ describe("vault characters — walk in as", () => {
       loopUrl: null,
     });
   });
+  it("peer.character carries a set voice profile through (0142 G4 x loop identity merge); unset stays absent", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [{ ...OTHER }]);
+    const PROFILE = { pitchSemitones: -4, formantRatio: 0.9, formantGainDb: 2, eq: [] };
+    socket.receive({
+      type: "peer.character",
+      peerId: "w-self",
+      character: { id: "char-voiced", name: "Voiced", portraitUrl: "https://img.example/v.png", loopUrl: null, voiceProfile: PROFILE },
+    });
+    expect(client.self?.character?.voiceProfile).toEqual(PROFILE);
+    // A malformed profile degrades to absent, never a crash or a junk shape.
+    socket.receive({
+      type: "peer.character",
+      peerId: "w-self",
+      character: { id: "char-voiced", name: "Voiced", portraitUrl: "https://img.example/v.png", loopUrl: null, voiceProfile: { nope: true } },
+    });
+    expect(client.self?.character).toEqual({ id: "char-voiced", name: "Voiced", portraitUrl: "https://img.example/v.png", loopUrl: null });
+  });
 });
 
 describe("the voice switch — setVoiceOff + peer.voiceoff", () => {
