@@ -96,6 +96,15 @@ import {
   actionPoseAt,
   type WorldActionId,
 } from "./actions";
+import { createMover, stepMover, type MoverState } from "./movement";
+
+/** A peer's figure chases its network target at most this fast
+ *  (m/s) — a touch over run pace, so a sprinting peer reads as
+ *  sprinting, never as teleporting rubber. */
+const PEER_CHASE_MAX = 7.2;
+/** Past this gap (m) a peer's figure snaps to its target instead
+ *  of chasing — lag corrections land, they don't slide. */
+const PEER_SNAP_DIST = 6;
 
 export interface HallScreenSource {
   mode: "live" | "featured" | "video";
@@ -457,6 +466,10 @@ interface AvatarRig {
   poseTiltZ: number;
   poseY: number;
   poseSpinY: number;
+  /** The figure's body physics (movement.ts): eased velocity,
+   *  stride bob, lean, stop settle — fed the figure's real
+   *  positions, so the gait tells the truth about the motion. */
+  mover: MoverState;
   /** The floor ring (brightened + widened for Front Row members). */
   ring: THREE.Mesh;
   /** Whether the Front Row treatment is currently applied. */
@@ -718,6 +731,7 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     poseTiltZ: 0,
     poseY: 0,
     poseSpinY: 0,
+    mover: createMover(peer.x, peer.z),
     ring,
     frontRow: false,
     plateKey: namePlateKey(peer),
@@ -794,6 +808,10 @@ export class KingsHallScene {
    *  the XR camera rules stand, and a body at the camera's own spot
    *  would fill the view. */
   private selfRig: AvatarRig | null = null;
+  /** My own body physics (movement.ts) — the walk rig's mover: eased
+   *  velocity, stride bob, lean, stop settle. (My figure rig carries
+   *  a mover too, unused — peers' rigs are the ones it drives.) */
+  private selfMover: MoverState = createMover(0, 9.5);
   private viewMode: HallViewMode = "first";
   private keys = new Set<string>();
   /** Gamepad edge state carried between polls (toggle buttons fire
@@ -2159,13 +2177,19 @@ export class KingsHallScene {
     if (rig === this.selfRig) this.onSelfAction?.(action);
   }
 
+
+
   /** One figure's action life for this frame: finish a completed
    *  one-shot, ease the worn pose toward the action's pose, and
-   *  write it onto the body. updateFigure ADDS its idle sway on top
-   *  of rotation.z afterwards (portrait/default figures only), and
-   *  the spin rides the billboard yaw for portraits — the pose is
-   *  composed here, decorated there, never owned twice. */
-  private applyActionPose(rig: AvatarRig, dt: number, nowMs: number): void {
+   *  write it onto the body COMPOSED with the mover's gait — the
+   *  figure rides its stride bob plus the action's lift, and leans
+   *  with its motion under the action's tilts. updateFigure ADDS
+   *  its idle sway on top of rotation.z afterwards (portrait/
+   *  default figures only), and the spin rides the billboard yaw
+   *  for portraits — composed here, decorated there, never owned
+   *  twice. `mover` defaults to the rig's own; my figure passes
+   *  the walk rig's mover instead. */
+  private applyActionPose(rig: AvatarRig, dt: number, nowMs: number, mover: MoverState = rig.mover): void {
     if (rig.actionId) {
       const def = ACTION_BY_ID.get(rig.actionId);
       if (def?.kind === "once" && nowMs - rig.actionAt >= def.durationMs) {
@@ -2178,9 +2202,9 @@ export class KingsHallScene {
     rig.poseTiltZ += ((pose?.tiltZ ?? 0) - rig.poseTiltZ) * blend;
     rig.poseY += ((pose?.y ?? 0) - rig.poseY) * blend;
     rig.poseSpinY = pose?.spinY ?? 0;
-    rig.group.position.y = rig.poseY;
-    rig.body.rotation.x = rig.poseTiltX;
-    rig.body.rotation.z = rig.poseTiltZ;
+    rig.group.position.y = mover.bobY + rig.poseY;
+    rig.body.rotation.x = rig.poseTiltX + mover.leanPitch;
+    rig.body.rotation.z = rig.poseTiltZ + mover.leanRoll;
     if (!rig.portrait) rig.body.rotation.y = rig.poseSpinY;
   }
 
@@ -2378,6 +2402,9 @@ export class KingsHallScene {
   setSpawn(x: number, z: number): void {
     const p = clampToRoom(this.currentRoom, x, z);
     this.rig.position.set(p.x, 0, p.z);
+    // The body re-anchors with the spawn — no stride, no settle
+    // carried across a teleport.
+    this.selfMover = createMover(p.x, p.z);
   }
 
   /** The room the walker stands in (the scene's own truth — it
@@ -2414,6 +2441,11 @@ export class KingsHallScene {
     const p = clampToRoom(this.currentRoom, this.rig.position.x, this.rig.position.z);
     this.rig.position.x = p.x;
     this.rig.position.z = p.z;
+    // The step back is a placement, not a walk — the body follows.
+    this.selfMover.px = p.x;
+    this.selfMover.pz = p.z;
+    this.selfMover.vx = 0;
+    this.selfMover.vz = 0;
   }
 
   /** Only the room you stand in renders around you — plus the hall,
@@ -2607,25 +2639,45 @@ export class KingsHallScene {
     // don't mix; the polished overlay carries the floor in a headset.
     if (this.floorReflector) this.floorReflector.visible = !this.renderer.xr.isPresenting;
 
-    // Remote avatars glide to their latest reported spots.
+    // Remote figures walk to their latest reported spots — as
+    // bodies, not gliders: each rig's mover chases the target
+    // (desired velocity = the gap, capped a touch over run pace),
+    // so peers lean into their starts, bob with their stride and
+    // settle on arrival exactly like my own figure does. A gap too
+    // wide to be a walk (lag snap, fresh spawn) lands instantly.
     const k = 1 - Math.exp(-9 * dt);
     const nowMs = performance.now();
     for (const rig of this.avatars.values()) {
-      // A held toggle ends when the figure actually starts walking
-      // — predicted here the frame the target pulls away (the
-      // server's clearing frame confirms it a beat later).
-      if (rig.actionId && actionClearedByMove(rig.actionId)) {
-        const dx = rig.target.x - rig.group.position.x;
-        const dz = rig.target.z - rig.group.position.z;
-        if (dx * dx + dz * dz > 0.16) this.setRigAction(rig, null);
+      const dx = rig.target.x - rig.group.position.x;
+      const dz = rig.target.z - rig.group.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > PEER_SNAP_DIST) {
+        rig.group.position.x = rig.target.x;
+        rig.group.position.z = rig.target.z;
+        rig.mover = createMover(rig.target.x, rig.target.z);
       }
-      rig.group.position.x += (rig.target.x - rig.group.position.x) * k;
-      rig.group.position.z += (rig.target.z - rig.group.position.z) * k;
+      let desiredVx = 0;
+      let desiredVz = 0;
+      if (dist > 0.02) {
+        const chase = Math.min(dist * 5.5, PEER_CHASE_MAX);
+        desiredVx = (dx / dist) * chase;
+        desiredVz = (dz / dist) * chase;
+      }
+      stepMover(rig.mover, rig.group.position, desiredVx, desiredVz, rig.group.rotation.y, dt);
+      rig.group.position.x += rig.mover.vx * dt;
+      rig.group.position.z += rig.mover.vz * dt;
       rig.group.rotation.y = angleLerp(rig.group.rotation.y, rig.target.rotY, k);
+      // A held toggle ends when the figure actually starts walking
+      // — read off the body's measured speed (the server's
+      // clearing frame confirms it a beat later).
+      if (rig.actionId && actionClearedByMove(rig.actionId) && rig.mover.speed > 0.6) {
+        this.setRigAction(rig, null);
+      }
       this.applyActionPose(rig, dt, nowMs);
     }
-    // My own figure wears its action too (visible in third person).
-    if (this.selfRig) this.applyActionPose(this.selfRig, dt, nowMs);
+    // My own figure wears its action too (visible in third person),
+    // composed with my walk rig's body physics.
+    if (this.selfRig) this.applyActionPose(this.selfRig, dt, nowMs, this.selfMover);
 
     // Character figures: the portrait panel billboards toward the
     // viewer (a portrait is a face — it should meet your eye, not the
@@ -2725,27 +2777,44 @@ export class KingsHallScene {
       this.camera.position.copy(SCRATCH_VEC);
       this.camera.rotation.x = this.pitch * 0.5 - 0.14;
     } else {
-      this.camera.position.set(0, EYE_HEIGHT, 0);
+      // First person rides the stride — gentled (the full bob
+      // plays on the figure, seen in third person), so the view
+      // breathes with the walk without swimming.
+      this.camera.position.set(0, EYE_HEIGHT + this.selfMover.bobY * 0.45, 0);
       this.camera.rotation.x = this.pitch;
     }
   }
 
   private moveRig(fwd: number, strafe: number, dt: number, speed: number, headingYaw: number): void {
-    if (fwd === 0 && strafe === 0) return;
     const sin = Math.sin(headingYaw);
     const cos = Math.cos(headingYaw);
     // Camera forward on the floor plane is (-sin(yaw), -cos(yaw)).
-    const dx = (-sin * fwd + cos * strafe) * speed * dt;
-    const dz = (-cos * fwd - sin * strafe) * speed * dt;
-    /* The palace resolves the step: walls are solid everywhere
-     * except the doorways, a blocked diagonal slides along the
-     * wall, and crossing a doorway plane reports the new room. */
+    // Input becomes the body's DESIRED velocity; the mover eases
+    // the actual velocity toward it (acceleration/deceleration
+    // curves, lean, stride — movement.ts), so a start takes a
+    // beat and a stop carries weight. Runs every frame, input or
+    // not: the ease-out IS the frames after the keys come up.
+    const desiredVx = (-sin * fwd + cos * strafe) * speed;
+    const desiredVz = (-cos * fwd - sin * strafe) * speed;
     const prevX = this.rig.position.x;
     const prevZ = this.rig.position.z;
+    stepMover(
+      this.selfMover,
+      { x: prevX, z: prevZ },
+      desiredVx,
+      desiredVz,
+      headingYaw,
+      dt,
+    );
+    /* The palace resolves the step: walls are solid everywhere
+     * except the doorways, a blocked diagonal slides along the
+     * wall, and crossing a doorway plane reports the new room. The
+     * mover reads the RESOLVED position next frame, so a wall
+     * stops the gait as surely as it stops the body. */
     const res = resolvePalaceMove(
       { x: prevX, z: prevZ, room: this.currentRoom },
-      prevX + dx,
-      prevZ + dz,
+      prevX + this.selfMover.vx * dt,
+      prevZ + this.selfMover.vz * dt,
     );
     this.rig.position.x = res.x;
     this.rig.position.z = res.z;
@@ -2807,6 +2876,9 @@ export class KingsHallScene {
   private tickXrMove(dt: number): void {
     const session = this.renderer.xr.getSession();
     if (!session) return;
+    let fwd = 0;
+    let strafe = 0;
+    let yawFromLook = this.yaw;
     for (const source of session.inputSources) {
       const gp = source.gamepad;
       if (!gp || gp.axes.length < 4) continue;
@@ -2818,10 +2890,14 @@ export class KingsHallScene {
       // matches a look vector (dx, dz) is atan2(-dx, -dz).
       const dir = new THREE.Vector3();
       this.camera.getWorldDirection(dir);
-      const yawFromLook = Math.atan2(-dir.x, -dir.z);
-      this.moveRig(-ay, ax, dt, WALK_SPEED, yawFromLook);
-      return;
+      yawFromLook = Math.atan2(-dir.x, -dir.z);
+      fwd = -ay;
+      strafe = ax;
+      break;
     }
+    // Called every frame, stick centered or not — the body's ease
+    // and settle live in the frames after the stick lets go.
+    this.moveRig(fwd, strafe, dt, WALK_SPEED, yawFromLook);
   }
 
   dispose(): void {
