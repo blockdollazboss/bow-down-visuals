@@ -8,6 +8,7 @@ import {
   claimStreakMilestone,
   getQuestsStatus,
   claimQuestReward,
+  getTreasuryHistory,
   getRetentionPrefs,
   setRetentionPrefs,
 } from "../lib/retention";
@@ -59,6 +60,19 @@ router.get("/retention/quests", requireAuth, publicApiLimiter, async (req: Reque
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention] quests status failed");
     res.status(500).json({ error: "Could not load quests" });
+  }
+});
+
+/* Treasury history (World Ring 2, 2.21 + 2.22): the claim ledger
+   (quests / shark drops / hourly crates the tables record), the
+   full quest catalog, and past weeks' quest progress. Read-only;
+   daily-drop claims have no per-claim table and are not listed. */
+router.get("/retention/quests/history", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    res.json(await getTreasuryHistory(req.userId!));
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention] treasury history failed");
+    res.status(500).json({ error: "Could not load treasury history" });
   }
 });
 
