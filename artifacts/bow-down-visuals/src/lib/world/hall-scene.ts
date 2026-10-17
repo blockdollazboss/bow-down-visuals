@@ -947,6 +947,9 @@ export class KingsHallScene {
   /** A controller's action press (D-pad / face buttons — the page
    *  performs it through the same path as the on-screen bar). */
   onPadAction: ((action: WorldActionId) => void) | null = null;
+  /** A controller's station-interact press (LB — the page opens
+   *  the door whose prompt is showing, the E key's twin). */
+  onPadInteract: (() => void) | null = null;
   /** My own performed action changed on its own — a one-shot
    *  finished, or walking ended a held toggle — so the page's
    *  action bar stays truthful without polling. */
@@ -3396,9 +3399,10 @@ export class KingsHallScene {
     /* A paired controller (Bluetooth gamepads arrive as standard
      * gamepads) merges in — it never replaces keyboard/mouse/touch,
      * it adds to them: left stick walks, right stick looks with the
-     * same sign conventions as the mouse, RT/L3 hurries, and the two
+     * same sign conventions as the mouse, RT/L3 hurries, the two
      * face-button toggles fire their page callbacks on the press
-     * edge. Flat-screen only: XR keeps its own controller rules in
+     * edge, and LB lands the station interact the same way.
+     * Flat-screen only: XR keeps its own controller rules in
      * tickXrMove. */
     const pads = typeof navigator !== "undefined" ? navigator.getGamepads?.() : null;
     const pad = pads ? firstGamepad([...pads]) : null;
@@ -3414,6 +3418,7 @@ export class KingsHallScene {
       if (intent.toggleVoice) this.onPadToggleVoice?.();
       if (intent.toggleView) this.onPadToggleView?.();
       if (intent.action) this.onPadAction?.(intent.action);
+      if (intent.interact) this.onPadInteract?.();
     }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {

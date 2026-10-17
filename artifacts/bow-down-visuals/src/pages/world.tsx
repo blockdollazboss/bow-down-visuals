@@ -278,6 +278,17 @@ export default function WorldPage() {
   const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
   const nearStationIdRef = useRef<string | null>(null);
   const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
+  /* The door-opener behind both the E key and the controller's LB:
+   * a prompt must be showing and no panel may be open — one guard,
+   * whatever drives it. The scene's pad callbacks bind once at
+   * boot, so they reach it through this ref (the performAction
+   * pattern). */
+  const openStationRef = useRef<() => void>(() => {});
+  openStationRef.current = () => {
+    if (!panelTarget && nearStation) {
+      setPanelTarget({ kind: "station", station: nearStation });
+    }
+  };
   /* The Music Hall jukebox: the room's state as last broadcast, the
      anchor (state + when it landed here) the room audio derives
      its position from, and whether the browser is letting the
@@ -358,7 +369,8 @@ export default function WorldPage() {
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
-     A steps the voice mode, Y switches view — see lib/world/gamepad). */
+     A steps the voice mode, Y switches view, LB opens the door at
+     its prompt — see lib/world/gamepad). */
   useEffect(() => {
     const scan = () => {
       try {
@@ -499,7 +511,8 @@ export default function WorldPage() {
 
   /* Walk-up keys: E opens the door you're standing at. Typing (the
      say box, any field) keeps its letters; an open panel keeps the
-     key for itself. */
+     key for itself. The opener + its guard live in openStationRef —
+     the controller's LB lands on exactly the same door. */
   useEffect(() => {
     if (status !== "inside") return;
     const onKey = (e: KeyboardEvent) => {
@@ -508,7 +521,7 @@ export default function WorldPage() {
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (panelTarget || !nearStation) return;
       e.preventDefault();
-      setPanelTarget({ kind: "station", station: nearStation });
+      openStationRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -745,6 +758,11 @@ export default function WorldPage() {
          the on-screen bar (D-pad + face buttons, see gamepad.ts). */
       scene.onPadAction = (action) => {
         if (!cancelled) performActionRef.current(action);
+      };
+      /* LB at a door: the station interact — the E key's twin,
+         guarded by the same opener (prompt showing, no panel). */
+      scene.onPadInteract = () => {
+        if (!cancelled) openStationRef.current();
       };
       /* My figure's action ended on its own (a finished one-shot,
          a walk that stopped the dance) — the bar follows. */
@@ -1375,7 +1393,8 @@ export default function WorldPage() {
         {/* The walk-up prompt: the door you're standing at. The gold
             marker in the scene and this prompt read the same
             registry, so they can never disagree about where a door
-            stands. E opens it too; the panel's own close is the way
+            stands. E (or a controller's LB) opens it too; the
+            panel's own close is the way
             back to the room. */}
         {status === "inside" && nearStation && !panelTarget && (
           <div
@@ -1411,6 +1430,15 @@ export default function WorldPage() {
               >
                 E
               </kbd>
+              {padConnected && (
+                <kbd
+                  className={`hidden shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-black md:block ${
+                    isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
+                  }`}
+                >
+                  LB
+                </kbd>
+              )}
             </div>
           </div>
         )}
@@ -1707,7 +1735,7 @@ export default function WorldPage() {
         {padConnected && status === "inside" && (
           <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
             <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view, D-pad and face buttons perform the actions below.
+            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view, LB opens the door you&rsquo;re standing at, D-pad and face buttons perform the actions below.
           </p>
         )}
         {/* The action bar: what your figure can DO, seen by the

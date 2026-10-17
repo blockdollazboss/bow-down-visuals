@@ -16,6 +16,12 @@
  *   buttons[0]  A / Cross    → step the voice mode (edge):
  *                              Off → Proximity → Lobby → Deafen → Off
  *   buttons[3]  Y / Triangle → toggle first/third person (edge)
+ *   buttons[4]  LB / L1      → station interact (edge): open the
+ *                              door you're standing at. Every face
+ *                              button is taken (voice, view, and
+ *                              the actions), so the free shoulder
+ *                              takes it; the page honors the press
+ *                              only while a station prompt shows.
  *   D-pad ↑ → Bow · D-pad → → Cheer · D-pad ↓ → Sit · D-pad ← → Wave
  *   buttons[2]  X / Square   → Clap
  *   buttons[1]  B / Circle   → Dance (toggle — press again to stop)
@@ -36,6 +42,7 @@ export interface GamepadLike {
 export interface GamepadEdges {
   voice: boolean;
   view: boolean;
+  interact: boolean;
   /** Action buttons held at the last poll, by action id. */
   actions: Partial<Record<WorldActionId, boolean>>;
 }
@@ -52,6 +59,9 @@ export interface GamepadIntent {
   /** Edge-triggered: true only on the frame the button goes down. */
   toggleVoice: boolean;
   toggleView: boolean;
+  /** Edge-triggered: LB went down this frame — the station
+   *  interact (open the door at the showing prompt). */
+  interact: boolean;
   /** Edge-triggered avatar action for this frame (the first fresh
    *  press, in map order), or null. */
   action: WorldActionId | null;
@@ -65,10 +75,11 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   sprint: false,
   toggleVoice: false,
   toggleView: false,
+  interact: false,
   action: null,
 };
 
-export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, actions: {} };
+export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, interact: false, actions: {} };
 
 /** Action buttons in priority order — if two go down on the same
  *  frame, the first in this list is the performance. */
@@ -125,7 +136,12 @@ export function pollGamepad(
     actionEdges[id] = down;
     if (action === null && down && prev.actions[id] !== true) action = id;
   }
-  const edges: GamepadEdges = { voice: pressed(pad, 0), view: pressed(pad, 3), actions: actionEdges };
+  const edges: GamepadEdges = {
+    voice: pressed(pad, 0),
+    view: pressed(pad, 3),
+    interact: pressed(pad, 4),
+    actions: actionEdges,
+  };
   return {
     intent: {
       moveX,
@@ -135,6 +151,7 @@ export function pollGamepad(
       sprint: pressed(pad, 7) || pressed(pad, 10),
       toggleVoice: edges.voice && !prev.voice,
       toggleView: edges.view && !prev.view,
+      interact: edges.interact && !prev.interact,
       action,
     },
     edges,
