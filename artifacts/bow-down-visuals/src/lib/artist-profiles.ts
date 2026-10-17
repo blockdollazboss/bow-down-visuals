@@ -413,6 +413,9 @@ export interface CreatorProfile {
   follower_count: number;
   total_plays: number;
   referral_code?: string | null;
+  /* The creator's public customer-shop handle — the Merch shelf links
+     to /shop/<handle>. Null/absent when they have no shop. */
+  shop_handle?: string | null;
   /* Virality wave: the creator's referral rank badge (null when unranked). */
   recruiter_badge?: { stars: number; title: string; signups: number; ratePct: number } | null;
   custom_domain?: string | null;

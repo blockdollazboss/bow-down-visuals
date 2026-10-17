@@ -484,7 +484,7 @@ type VideoDto = ReturnType<typeof enrichVideo>;
  * podcaster's episodes are products, an educator's course videos too.
  */
 async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) {
-  const [tracks, videos, domainShops] = await Promise.all([
+  const [tracks, videos, domainShops, shopRows] = await Promise.all([
     db.select({ price: profileTracksTable.downloadPriceCents }).from(profileTracksTable).where(and(
       eq(profileTracksTable.profileId, profile.id),
       eq(profileTracksTable.isPublished, true),
@@ -497,6 +497,14 @@ async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) 
       eq(shopsTable.user_id, profile.userId),
       eq(shopsTable.domain_verified, true),
     )).limit(1),
+    /* The creator's public shop handle (customer shops rail) — the
+       profile's Merch shelf links to /shop/<handle>; without it the
+       shelf had nowhere public to point. Any shop counts: the public
+       storefront page serves by handle regardless of custom-domain
+       verification. */
+    db.select({ handle: shopsTable.handle }).from(shopsTable).where(
+      eq(shopsTable.user_id, profile.userId),
+    ).limit(1),
   ]);
   const hasProduct = tracks.length + videos.length > 0;
   const hasPrice =
@@ -515,6 +523,7 @@ async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) 
     has_social_links: Object.keys(socialLinks).length > 0,
     has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
     has_media_kit: profile.mediaKit !== null,
+    shop_handle: shopRows[0]?.handle ?? null,
     monetization_checklist,
     money_moves_done,
     money_moves_total: 5,

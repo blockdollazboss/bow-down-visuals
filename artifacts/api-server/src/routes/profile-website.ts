@@ -6,6 +6,8 @@ import {
   profileTracksTable,
   profileVideosTable,
   storeProductsTable,
+  shopsTable,
+  shopProductsTable,
   digitalSalesTable,
   storeOrdersTable,
 } from "@workspace/db";
@@ -268,11 +270,15 @@ export interface StoreCatalogDto {
 
 /** Assemble one creator's sellable catalog from the EXISTING surfaces:
     profile tracks/videos priced via download_price_cents (the store.ts
-    rail) and store_products priced via price_cents (the storefront
-    rail). Prices are copied from those exact fields — displayed price
-    here IS the charged price there, by construction. */
+    rail), store_products priced via price_cents (the storefront rail),
+    and the creator's customer-shop products priced via price_cents
+    (the /shop/:handle rail). Prices are copied from those exact fields —
+    displayed price here IS the charged price there, by construction.
+    Every buyUrl lands on a page that can actually complete the sale:
+    /store/buy for tracks/videos, /storefront/product for store
+    products, and the public shop page for shop products. */
 export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatalogDto> {
-  const [tracks, videos, products] = await Promise.all([
+  const [tracks, videos, products, shopRows] = await Promise.all([
     db.select().from(profileTracksTable)
       .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
       .orderBy(desc(profileTracksTable.playCount)),
@@ -282,7 +288,16 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
     db.select().from(storeProductsTable)
       .where(and(eq(storeProductsTable.profileId, profile.id), eq(storeProductsTable.isActive, true)))
       .orderBy(desc(storeProductsTable.createdAt)),
+    db.select().from(shopsTable)
+      .where(eq(shopsTable.user_id, profile.userId))
+      .limit(1),
   ]);
+  const shop = shopRows[0] ?? null;
+  const shopProducts = shop
+    ? await db.select().from(shopProductsTable)
+        .where(eq(shopProductsTable.shop_id, shop.id))
+        .orderBy(desc(shopProductsTable.created_at))
+    : [];
 
   const items: StoreCatalogItemDto[] = [];
   for (const t of tracks) {
@@ -326,8 +341,24 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       price: formatUsd(p.priceCents),
       compareAtCents: p.compareAtCents ?? null,
       pwyw: null,
-      buyUrl: `/artist/${profile.slug}#product-${p.id}`,
+      buyUrl: `/storefront/product/${p.id}`,
     });
+  }
+  if (shop) {
+    for (const sp of shopProducts) {
+      items.push({
+        kind: "product",
+        productKind: "shop",
+        id: sp.id,
+        title: sp.name,
+        artworkUrl: sp.image_url ?? null,
+        priceCents: sp.price_cents,
+        price: formatUsd(sp.price_cents),
+        compareAtCents: null,
+        pwyw: null,
+        buyUrl: `/shop/${shop.handle}`,
+      });
+    }
   }
 
   return {

@@ -34,6 +34,7 @@ const h = vi.hoisted(() => ({
   state: {
     profilesBySlug: new Map<string, Record<string, unknown>>(),
     referralCodesByUserId: new Map<string, string>(),
+    shopsByUserId: new Map<string, Record<string, unknown>>(),
   },
 }));
 
@@ -83,9 +84,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
     profileVideosTable,
     playlistsTable,
     referralCodesTable,
+    shopsTable,
   } = actual;
 
   function rowsFor(table: unknown, fields: unknown, cond: unknown): unknown[] {
+    if (table === shopsTable) {
+      const userId = String(render(cond).params[0] ?? "");
+      const row = state.shopsByUserId.get(userId);
+      return row ? [row] : [];
+    }
     if (table === referralCodesTable) {
       const userId = String(render(cond).params[0] ?? "");
       const code = state.referralCodesByUserId.get(userId);
@@ -186,6 +193,7 @@ function officialProfileRow(): Record<string, unknown> {
 beforeEach(() => {
   h.state.profilesBySlug = new Map();
   h.state.referralCodesByUserId = new Map();
+  h.state.shopsByUserId = new Map();
 });
 
 async function get(path: string) {
@@ -242,6 +250,38 @@ describe("GET /api/creator-profiles/:slug — public profile contract", () => {
     expect(json.profile.user_id).toBe("44444444-4444-4444-8444-444444444444");
     expect(json.profile.is_public).toBe(true);
     expect(json.profile.is_official).toBe(false);
+    // No customer shop for this creator → shop_handle is null, never a
+    // fabricated handle (DE-13: the Merch shelf falls back to the
+    // public storefronts hub on null).
+    expect(json.profile.shop_handle).toBeNull();
+  });
+
+  it("carries shop_handle when the creator runs a customer shop (DE-13)", async () => {
+    // The profile's Merch shelf links to /shop/<handle> — the PUBLIC
+    // storefront — using this field. Before DE-13 the payload carried
+    // no handle and the shelf fell back to /my-shop?artist=<slug>, the
+    // signed-in shop MANAGER, which ignores the parameter entirely.
+    const row = {
+      ...officialProfileRow(),
+      id: "33333333-3333-4333-8333-333333333333",
+      userId: "44444444-4444-4444-8444-444444444444",
+      slug: "some-creator",
+      displayName: "Some Creator",
+      isOfficial: false,
+    };
+    h.state.profilesBySlug.set("some-creator", row);
+    h.state.shopsByUserId.set("44444444-4444-4444-8444-444444444444", {
+      id: "55555555-5555-4555-8555-555555555555",
+      user_id: "44444444-4444-4444-8444-444444444444",
+      handle: "some-creator-shop",
+      name: "Some Creator Shop",
+      domain_verified: false,
+    });
+
+    const { status, json } = await get("/creator-profiles/some-creator");
+
+    expect(status).toBe(200);
+    expect(json.profile.shop_handle).toBe("some-creator-shop");
   });
 
   it("carries the creator's referral_code when one has been minted", async () => {
