@@ -742,6 +742,13 @@ export default function WorldPage() {
       let bootPhase = true;
       try {
       setBootFailed(false);
+      /* A (re-)entry starts from "Entering…" again. The fresh
+         client built below never re-emits "connecting" — its own
+         status starts there, so its setter sees no change and
+         stays silent — so without this reset the previous
+         sequence's error card would sit over the new attempt
+         until its welcome lands. */
+      setStatus("connecting");
       const canvas = canvasRef.current;
       if (!canvas) return;
       const { KingsHallScene } = await import("@/lib/world/hall-scene");
@@ -1008,6 +1015,19 @@ export default function WorldPage() {
         }
       };
       screenApi.reload = loadScreen;
+      /* The door starts NOW, not after the screen fetch. Boot used
+         to serialize chunk → scene → screen → socket, and the
+         screen fetch (an HTTP call with no timeout of its own, on
+         the same waking box) could hold the socket hostage for its
+         entire wake — the page sat on "Entering…" with no socket
+         ever opened. The screen content lands whenever its fetch
+         does; the poll below keeps it fresh either way, and the
+         socket welcome carries the room's screen state for the
+         page in the meantime. A throw out of connect() still
+         routes through this boot's catch (bootPhase is already
+         false) exactly as when it was awaited at the tail. */
+      bootPhase = false;
+      const connectPromise = client.connect();
       await loadScreen();
       screenPoll = setInterval(loadScreen, 45_000);
 
@@ -1076,8 +1096,7 @@ export default function WorldPage() {
         }
       }, 200);
 
-      bootPhase = false;
-      await client.connect();
+      await connectPromise;
       } catch {
         if (!cancelled) {
           if (bootPhase) setBootFailed(true);
