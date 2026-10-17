@@ -1075,11 +1075,28 @@ export function ThumbnailMakerModule() {
                       <p className={isLight ? "text-sm text-black/60" : "text-sm text-white/60"}>
                         <span className="text-primary font-bold">{t("wave8.thumbnailAb.winnerLabel")}</span> — {t("wave8.thumbnailAb.winnerSaved")}
                       </p>
-                      <Link href="/video-studio">
-                        <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
-                          <Clapperboard className="h-4 w-4" /> {t("wave8.thumbnailAb.useInVideoPackaging")}
-                        </Button>
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href="/video-studio">
+                          <Button variant="outline" size="sm" className="border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.12] gap-2">
+                            <Clapperboard className="h-4 w-4" /> {t("wave8.thumbnailAb.useInVideoPackaging")}
+                          </Button>
+                        </Link>
+                        {/* Stack-30 C6: the winning thumbnail attaches to the
+                            work through the same publish protocol as the
+                            generated result's action bar (DE-8) — it used to
+                            travel only as a localStorage hand-off. */}
+                        <PublishToProfileButton
+                          type="video"
+                          category="video"
+                          videoUrl={publishTargetVideo?.url}
+                          title={publishTargetVideo ? (publishTargetVideo.meta?.["title"] ?? publishTargetVideo.label) : undefined}
+                          artworkUrl={winnerUrl}
+                          from="/thumbnail-studio"
+                          fromLabel="Thumbnail Studio"
+                          label={t("thumbnailMaker.useAsThumbnail", { defaultValue: "Use as thumbnail for…" })}
+                          compact
+                        />
+                      </div>
                     </div>
                   )}
                 </>
@@ -1541,7 +1558,13 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
   const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
-  const { project } = useHubProject();
+  const { project, latestOfKind } = useHubProject();
+  /* Stack-30 C6: a library thumbnail attaches to the work through the
+     publish protocol, same as the generated result's action bar — the
+     target is the project's newest video/clip when one exists;
+     without one, /publish still takes the thumbnail and the creator
+     picks the video there (DE-8). */
+  const libraryPublishVideo = latestOfKind("video") ?? latestOfKind("clip");
   const [thumbnails, setThumbnails] = useState<LibraryThumbnail[]>([]);
   const [loading, setLoading] = useState(true);
   /* Hub thumbnails (from thumbnail-maker, repurpose, A/B tests) live alongside
@@ -1676,6 +1699,19 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
                           <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                       </a>
                     )}
+                    {thumb.thumbnail_url && (
+                      <PublishToProfileButton
+                        type="video"
+                        category="video"
+                        videoUrl={libraryPublishVideo?.url}
+                        title={libraryPublishVideo ? (libraryPublishVideo.meta?.["title"] ?? libraryPublishVideo.label) : undefined}
+                        artworkUrl={thumb.thumbnail_url}
+                        from="/thumbnail-studio"
+                        fromLabel="Thumbnail Studio"
+                        label={t("thumbnailMaker.useAsThumbnail", { defaultValue: "Use as thumbnail for…" })}
+                        compact
+                      />
+                    )}
                     {thumb.id.startsWith("hub-") ? (
                       <span className="ml-auto text-[11px] font-bold text-primary/70 px-2 py-1.5">{t("thumbnails.fromProject", { defaultValue: "From this project" })}</span>
                     ) : confirmDeleteId === thumb.id ? (
@@ -1747,6 +1783,19 @@ function ThumbnailLibrary({ onGoGenerate }: { onGoGenerate: () => void }) {
                     <Button variant="outline" size="sm" className={isLight ? "border-black/10 bg-black/5 text-black/80 hover:bg-black/10 gap-1.5" : "border-white/10 bg-white/5 text-white hover:bg-white/10 gap-1.5"}>
                       <Download className="h-3.5 w-3.5" />{t("thumbnails.download")}</Button>
                   </a>
+                )}
+                {lightbox.thumbnail_url && (
+                  <PublishToProfileButton
+                    type="video"
+                    category="video"
+                    videoUrl={libraryPublishVideo?.url}
+                    title={libraryPublishVideo ? (libraryPublishVideo.meta?.["title"] ?? libraryPublishVideo.label) : undefined}
+                    artworkUrl={lightbox.thumbnail_url}
+                    from="/thumbnail-studio"
+                    fromLabel="Thumbnail Studio"
+                    label={t("thumbnailMaker.useAsThumbnail", { defaultValue: "Use as thumbnail for…" })}
+                    compact
+                  />
                 )}
                 <Button
                   variant="outline"
