@@ -8,6 +8,8 @@ import {
   friendlyLoadError,
 } from "@/lib/community-ui";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
+import { insertAtCursor } from "@/lib/king-emoji";
 
 /* ─── /messages — DMs ──────────────────────────────────────────────────────
    Inbox + requests tabs, thread view, rate-limited sends. Every thread
@@ -42,6 +44,7 @@ export default function Messages() {
   const [newSlug, setNewSlug] = useState("");
   const [showNew, setShowNew] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef<HTMLInputElement>(null);
   const threadReqRef = useRef(0);
 
   async function loadConvs() {
@@ -96,6 +99,20 @@ export default function Messages() {
       setNewSlug(""); setShowNew(false);
       await startByUserId(r.user_id);
     } catch (e) { setNotice(e instanceof Error ? e.message : "Creator not found."); }
+  }
+
+  /* King tray: stickers + GIFs ride as :shortcode: text in the body —
+     the bubble renderer lights them up; no DM schema change. */
+  function insertDraftToken(token: string) {
+    const el = draftRef.current;
+    const next = insertAtCursor(draft, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, 2000);
+    setDraft(next.value);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(next.caret, next.caret);
+      }
+    });
   }
 
   async function send() {
@@ -255,7 +272,9 @@ export default function Messages() {
                     return (
                       <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${mine ? "bg-[#e8c86a] text-black" : "bg-white/10 text-white"}`}>
-                          <p className="whitespace-pre-wrap text-sm">{m.body}</p>
+                          <p className="whitespace-pre-wrap text-sm">
+                            <KingTokenText body={m.body} />
+                          </p>
                           <p className={`mt-1 text-[10px] ${mine ? "text-black/50" : "text-white/40"}`}>{timeAgo(m.created_at)}</p>
                         </div>
                       </div>
@@ -265,8 +284,9 @@ export default function Messages() {
                 </div>
 
                 {canChat ? (
-                  <div className="flex gap-2 border-t border-white/10 p-4">
-                    <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message…"
+                  <div className="flex items-center gap-2 border-t border-white/10 p-4">
+                    <EmojiTray onPickToken={insertDraftToken} />
+                    <input ref={draftRef} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message…"
                       maxLength={2000} className={goldInput} onKeyDown={(e) => e.key === "Enter" && send()} />
                     <button type="button" onClick={send} disabled={!draft.trim()} className={goldButton}>
                       <Send className="h-4 w-4" />

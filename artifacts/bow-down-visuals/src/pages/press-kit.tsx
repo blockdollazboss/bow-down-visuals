@@ -12,7 +12,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { slugifyHandle } from "@/lib/press-kit";
+import {
+  slugifyHandle,
+  PRESS_KIT_GENERATE_COST_VISUAL_BUCS,
+  PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS,
+} from "@/lib/press-kit";
 import { fetchBrandKit, pressKitFieldsFromBrandKit } from "@/lib/brand-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
@@ -25,8 +29,11 @@ import MediaKitBuilder from "@/components/wave8/MediaKitBuilder";
    publish a shareable page at /press/:handle — bio, photos, top tracks,
    achievements, press quotes, booking contact.
 
-   Pricing: 3 credits for AI bio + kit generation. Bio refresh 1 credit.
-   All editing, viewing, sharing, and PDF download are free. */
+   Pricing: 300 Visual Bucs for AI bio + kit generation, 100 for a
+   bio refresh — the PRESS_KIT_*_COST_VISUAL_BUCS constants in
+   lib/press-kit.ts, read from the credit registry; the server
+   charges exactly those. All editing, viewing, sharing, and PDF
+   download are free. */
 
 interface Vault {
   id: string;
@@ -57,9 +64,6 @@ interface PressKit {
   is_public: boolean;
   press_releases?: Array<{ id: string; headline: string; body: string; announcementType: string; social: string; createdAt: string }>;
 }
-
-const FALLBACK_GENERATE_COST = 3;
-const FALLBACK_REFRESH_COST = 1;
 
 const inputCls =
   "w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-[#d4af37]/60 focus:outline-none";
@@ -228,7 +232,7 @@ export default function PressKitBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        overrideCost: FALLBACK_GENERATE_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideCost: PRESS_KIT_GENERATE_COST_VISUAL_BUCS, // the registry price — the server charges exactly this
         overrideFeature: t("press-kit.confirmFeatureGenerate"),
         body: JSON.stringify({
           handle: slugifyHandle(handle),
@@ -315,7 +319,7 @@ export default function PressKitBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        overrideCost: FALLBACK_REFRESH_COST, // not in the credit registry; backend charges 1
+        overrideCost: PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS, // the registry price for the :id route — the server charges exactly this
         overrideFeature: t("press-kit.confirmFeatureRefresh"),
         body: JSON.stringify({ achievements: cleanList(achievements), tone }),
       });
@@ -487,7 +491,7 @@ export default function PressKitBuilder() {
                       <Button size="sm" variant="outline" onClick={handleRefreshBio} disabled={refreshingBio}
                               className="border-white/15 text-xs">
                         {refreshingBio ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                        {t("press-kit.refreshBio", { count: FALLBACK_REFRESH_COST })}
+                        {t("press-kit.refreshBio", { count: PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS })}
                       </Button>
                     </div>
                   </div>
@@ -721,7 +725,7 @@ export default function PressKitBuilder() {
                     <Button onClick={handleGenerate} disabled={generating}
                             className="bg-[#d4af37] text-black hover:bg-[#e5c158] font-semibold">
                       {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                      {t("press-kit.generateKit", { count: FALLBACK_GENERATE_COST })}
+                      {t("press-kit.generateKit", { count: PRESS_KIT_GENERATE_COST_VISUAL_BUCS })}
                     </Button>
                   )}
                 </div>
