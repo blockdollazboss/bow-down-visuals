@@ -25,6 +25,9 @@ export interface MusicVariant {
   url: string;
   storagePath: string;
   label: string;
+  /** The variant's row in the song library (the server saves every
+      generation there now) — hand it straight to Distribute / Remix. */
+  songId?: string;
 }
 
 export interface GenerateMusicAudioResponse {
@@ -35,6 +38,9 @@ export interface GenerateMusicAudioResponse {
   creditsRemaining: number;
   genHistoryId: string;
   voiceSwapped?: boolean;
+  /** Song-library id of the (first) generated song + all variants. */
+  songId?: string;
+  songIds?: string[];
 }
 
 const FRIENDLY_ERRORS: Record<string, string> = {

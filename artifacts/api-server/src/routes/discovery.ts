@@ -14,6 +14,7 @@ import {
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { fanOutToFollowers } from "../lib/notify-fanout";
 import rateLimit from "express-rate-limit";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
@@ -834,34 +835,22 @@ router.post("/notify", requireAuth, asyncHandler(async (req, res) => {
     return;
   }
 
-  // Fan-out to followers — caller must own the profile.
-  const owned = await db
-    .select({ id: creatorProfilesTable.id })
-    .from(creatorProfilesTable)
-    .where(sql`${creatorProfilesTable.id} = ${profileId}::uuid AND ${creatorProfilesTable.userId} = ${req.userId!}::uuid`)
-    .limit(1);
-  if (!owned.length) {
+  /* Fan-out to followers — the shared implementation in
+     lib/notify-fanout (the release submit fires the same fan-out
+     server-side). Caller must own the profile. */
+  const fanOut = await fanOutToFollowers({
+    profileId: profileId!,
+    ownerUserId: req.userId!,
+    kind,
+    title,
+    body,
+    link,
+  });
+  if (!fanOut.ok) {
     res.status(403).json({ error: "Profile not found or not yours." });
     return;
   }
-  const followers = (await db.execute(sql`
-    SELECT follower_user_id AS uid FROM follows
-    WHERE profile_id = ${profileId}::uuid
-    LIMIT 5000`)).rows as unknown as Array<{ uid: string }>;
-  const targets = followers.map((f) => f.uid).filter((uid) => uid !== req.userId);
-  if (!targets.length) {
-    res.json({ ok: true, notified: 0 });
-    return;
-  }
-  // Chunked bulk insert keeps the fan-out to a couple of round-trips.
-  for (let i = 0; i < targets.length; i += 500) {
-    const chunk = targets.slice(i, i + 500);
-    await db.execute(sql`
-      INSERT INTO notifications (user_id, kind, title, body, link)
-      SELECT u, ${kind}, ${title}, ${body}, ${link}
-      FROM unnest(${sql.raw(`ARRAY[${chunk.map((u) => `'${u}'::uuid`).join(",")}]`)}) AS u`);
-  }
-  res.json({ ok: true, notified: targets.length });
+  res.json({ ok: true, notified: fanOut.notified });
 }));
 
 export default router;

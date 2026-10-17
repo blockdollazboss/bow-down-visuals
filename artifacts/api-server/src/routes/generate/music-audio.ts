@@ -2,8 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { db, artistVaultsTable } from "@workspace/db";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { swapSongVocalsToVoice } from "../../lib/voice-swap";
 import { execFile } from "child_process";
@@ -283,18 +283,95 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
       throw deductErr;
     }
 
-    // Step 3: Fire-and-forget — mark charged + log usage
+    // Step 3: Persist every variant in the song library (source:
+    // "generated") — the same post-charge library save covers and
+    // harmony mixes make. Before this step existed, a generated song
+    // lived ONLY in the 100-item generation-history tray: the song
+    // library, the distribution picker, remix-by-id and albums all
+    // read the songs table, so a fresh generation was invisible to
+    // every downstream feature.
+    // Idempotent per generation job: a variant's row is keyed on its
+    // storage path (audio_path is unique per generated file), so a
+    // retried completion finds the row it already wrote and reuses
+    // its id instead of duplicating the song.
+    let songIds: string[];
+    try {
+      // The generating character rides the row only when the vault is
+      // the caller's own — the same ownership rule the voice lookup
+      // above applies (songs.artist_vault_id is how remixes already
+      // carry their character).
+      let ownedVaultId: string | null = null;
+      if (artistVaultId) {
+        const [vault] = await db
+          .select({ id: artistVaultsTable.id })
+          .from(artistVaultsTable)
+          .where(
+            and(
+              eq(artistVaultsTable.id, artistVaultId),
+              eq(artistVaultsTable.user_id, req.userId!),
+            ),
+          )
+          .limit(1);
+        if (vault) ownedVaultId = vault.id;
+      }
+      const libraryTitle = (songTitle ?? "").trim() || "Untitled song";
+      songIds = [];
+      for (const variant of variantsOut) {
+        const audioPath = `${BUCKET}/${variant.storagePath}`;
+        const [existing] = await db
+          .select({ id: songsTable.id })
+          .from(songsTable)
+          .where(and(eq(songsTable.user_id, req.userId!), eq(songsTable.audio_path, audioPath)))
+          .limit(1);
+        if (existing) {
+          songIds.push(existing.id);
+          continue;
+        }
+        const [song] = await db
+          .insert(songsTable)
+          .values({
+            user_id: req.userId!,
+            title: libraryTitle.slice(0, 200),
+            audio_url: variant.url,
+            audio_path: audioPath,
+            source: "generated",
+            artist_vault_id: ownedVaultId,
+            duration_sec: String(Math.round(musicLengthMs / 1000)),
+          })
+          .returning();
+        songIds.push(song!.id);
+      }
+    } catch (libErr) {
+      // Post-charge failure (the song-cover contract): refund in full
+      // and fail loudly rather than strand a paid generation outside
+      // the library it was promised to.
+      req.log.error({ err: libErr }, "generate-music-audio: library save failed, refunding");
+      try {
+        await refundCredits(req.userId!, creditCost, { action: "Generate Audio — Refund" });
+      } catch (refundErr) {
+        req.log.error({ err: refundErr }, "generate-music-audio: refund failed");
+      }
+      res.status(500).json({ error: "Could not save the song to your library. Your Visual Bucs were refunded." });
+      return;
+    }
+
+    // Step 4: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({
       // Back-compat: single-variant shape
       url: variantsOut[0].url,
       storagePath: variantsOut[0].storagePath,
-      variants: variantsOut,
+      // Each variant now carries the id of its song-library row, so
+      // the studio can hand the song straight to Distribute / Remix /
+      // an album without a library round-trip to find it.
+      variants: variantsOut.map((v, i) => ({ ...v, songId: songIds[i] })),
       durationMs: musicLengthMs,
       creditsRemaining: creditsAfter,
       genHistoryId,
       voiceSwapped,
+      songId: songIds[0],
+      songIds,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
