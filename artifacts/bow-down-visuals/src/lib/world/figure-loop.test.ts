@@ -1,16 +1,16 @@
 /**
  * Living-loop decision tests (lib/world/figure-loop): guards
  * resolve by variant with their sheet-exact source crops and the
- * still-alpha mask; the King resolves by his vault name; everyone
- * else stands as their still. Plus the playback budget, the mask
- * levels remap, and the mouth-drift speech rule.
+ * still-alpha mask; vault characters resolve by IDENTITY — the
+ * loopUrl their row carried in the payload, never by name.
+ * Plus the playback budget, the mask levels remap, and the
+ * mouth-drift speech rule.
  */
 import { describe, it, expect } from "vitest";
 import {
   loopForGuardVariant,
   loopForCharacterRef,
   loopVideoUrl,
-  normalizeCharacterName,
   mouthDriftPercent,
   stillWhileSpeakingForDrift,
   loopSuspendedForSpeech,
@@ -19,7 +19,6 @@ import {
   MAX_LIVE_LOOPS,
   MASK_INSET_PX,
   MOUTH_DRIFT_RIDE_LIMIT_PERCENT,
-  KING_LOOP_MOUTH_DRIFT_PERCENT,
   type FigureLoopDef,
 } from "./figure-loop";
 import type { MouthBox } from "./lips";
@@ -59,53 +58,41 @@ describe("guard loops", () => {
 });
 
 describe("character-ref resolution", () => {
-  it("the King resolves by his vault name — case and whitespace forgiving", () => {
-    const def = loopForCharacterRef({ id: "vault-123", name: "Shark King" });
-    expect(def?.key).toBe("king");
-    expect(def?.videoPath).toBe("/world/loops/shark-king-idle-loop.mp4");
-    expect(def?.posterPath).toBe("/world/loops/shark-king-idle-poster.png");
+  it("a vault character's loop resolves by IDENTITY — the loopUrl its row resolved to, keyed by its id", () => {
+    const def = loopForCharacterRef({ id: "char-77", loopUrl: "https://storage.example/loops/anyone.mp4" });
+    expect(def?.key).toBe("vault-char-77");
+    expect(def?.videoPath).toBe("https://storage.example/loops/anyone.mp4");
+    expect(def?.posterPath).toBe("");
     expect(def?.masked).toBe(false);
     expect(def?.sourceCrop).toBeNull();
-    expect(loopForCharacterRef({ id: "vault-123", name: "  shark   KING " })?.key).toBe("king");
+    expect(def && loopVideoUrl("/", def)).toBe("https://storage.example/loops/anyone.mp4");
   });
 
-  it("the King never suspends for speech — measured: no landmarked mouth exists on his still or his loop", () => {
-    const def = loopForCharacterRef({ id: "vault-123", name: "Shark King" })!;
-    expect(KING_LOOP_MOUTH_DRIFT_PERCENT).toBe(0);
+  it("payload loops never suspend for speech — the one measured character has no landmarked mouth to protect", () => {
+    // Measured (figure-loop.ts header): the King's still and all
+    // 10 sampled loop frames yield NO mouth box from the hall's own
+    // landmarker — there is no overlay position to drift from.
+    const def = loopForCharacterRef({ id: "char-king", loopUrl: "https://storage.example/loops/king.mp4" })!;
     expect(def.stillWhileSpeaking).toBe(false);
     expect(loopSuspendedForSpeech(def, true)).toBe(false);
   });
 
-  it("any other vault character has no loop — they stand as their still", () => {
-    expect(loopForCharacterRef({ id: "vault-9", name: "Nova Vale" })).toBeNull();
-    expect(loopForCharacterRef({ id: "vault-9", name: "Shark" })).toBeNull();
-    expect(loopForCharacterRef({ id: "vault-9", name: "" })).toBeNull();
+  it("names are NOT keys: a character with no loopUrl has no loop, whatever it is called", () => {
+    // The ref type doesn't even carry a name into resolution —
+    // these stand for every display name, "Shark King" included:
+    // a renamed impostor gains nothing, the real row renamed loses
+    // nothing (its loopUrl rides its id).
+    expect(loopForCharacterRef({ id: "char-1", loopUrl: null })).toBeNull();
+    expect(loopForCharacterRef({ id: "char-1", loopUrl: "  " })).toBeNull();
+    expect(loopForCharacterRef({ id: "char-1" })).toBeNull();
+    expect(loopForCharacterRef(null)).toBeNull();
+    expect(loopForCharacterRef(undefined)).toBeNull();
   });
 
   it("house guard picks never resolve here — a picked guard stands as the guard figure, by variant", () => {
-    expect(loopForCharacterRef({ id: HOUSE_GUARD_ID, name: "Palace Guard" })).toBeNull();
-    expect(loopForCharacterRef({ id: HOUSE_GUARD_FEMALE_ID, name: "Palace Guard — Female" })).toBeNull();
-  });
-
-  it("a future vault loop field drops straight in", () => {
-    const def = loopForCharacterRef({
-      id: "char-77",
-      name: "Anyone",
-      loopUrl: "https://storage.example/loops/anyone.mp4",
-      loopPosterUrl: "https://storage.example/loops/anyone.png",
-    });
-    expect(def?.key).toBe("vault-char-77");
-    expect(def?.masked).toBe(false);
-    expect(def && loopVideoUrl("/", def)).toBe("https://storage.example/loops/anyone.mp4");
-    // …but never overrides a house guard pick, and blank means absent
-    expect(loopForCharacterRef({ id: HOUSE_GUARD_ID, name: "X", loopUrl: "https://e/x.mp4" })).toBeNull();
-    expect(loopForCharacterRef({ id: "vault-1", name: "Y", loopUrl: "  " })).toBeNull();
-  });
-
-  it("name normalization forgives case and stray whitespace only", () => {
-    expect(normalizeCharacterName("  Shark   King ")).toBe("shark king");
-    expect(normalizeCharacterName("Shark King")).toBe("shark king");
-    expect(normalizeCharacterName("Shark  King!")).not.toBe("shark king");
+    expect(loopForCharacterRef({ id: HOUSE_GUARD_ID, loopUrl: "https://e/x.mp4" })).toBeNull();
+    expect(loopForCharacterRef({ id: HOUSE_GUARD_FEMALE_ID, loopUrl: "https://e/x.mp4" })).toBeNull();
+    expect(loopForCharacterRef({ id: HOUSE_GUARD_ID, loopUrl: null })).toBeNull();
   });
 });
 
