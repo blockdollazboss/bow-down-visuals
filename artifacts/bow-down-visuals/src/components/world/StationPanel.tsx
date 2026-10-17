@@ -23,6 +23,7 @@ import {
   type PanelRoutePath,
 } from "@/lib/world/station-panel";
 import { NativePlaceholder, TransferFooter } from "@/components/world/native";
+import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -987,6 +988,17 @@ export default function StationPanel(props: StationPanelProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /* The Studio Board's Continue: stepping through into the editor
+     seeded with the CHOSEN project (not just the newest — that is
+     the editor door's own seed, resolved by the page). Local to
+     this host: the step-through frame below renders the same
+     StepThroughEditor the editor door uses, and Return lands back
+     on the board. Cleared whenever the panel's target changes. */
+  const [boardProjectId, setBoardProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    setBoardProjectId(null);
+  }, [target]);
+
   const name = target.kind === "station" ? target.station.name : target.title;
   const tagline = target.kind === "station" ? target.station.tagline : null;
 
@@ -1042,6 +1054,50 @@ export default function StationPanel(props: StationPanelProps) {
     );
   }
 
+  /* The Studio Board's step-through: the same full-screen editor
+     frame as the editor door's, seeded with the board's chosen
+     project; Return goes back to the board (the sheet below). */
+  if (boardProjectId !== null && resolution?.type === "native" && station?.id === "my-studio") {
+    return (
+      <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-studio-stepthrough">
+        <div
+          className={`relative z-10 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] text-[#2a1e07]" : "border-[#d4af37]/25 bg-[#070605] text-white"
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 text-sm font-black">
+            <DoorOpen className="h-4 w-4 text-[#d4af37]" /> Visual Vibes Editor
+            <span className={`hidden text-xs font-semibold sm:inline ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              — stepped through from {name}, still in the palace
+            </span>
+          </span>
+          <button
+            type="button"
+            data-testid="world-studio-return"
+            onClick={() => setBoardProjectId(null)}
+            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+          >
+            <X className="h-4 w-4" /> Back to My Studio
+          </button>
+        </div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <PanelBoundary isLight={isLight} resetKey={`studio-${boardProjectId}`}>
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center gap-2 text-white/60">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#d4af37]" />
+                  <span className="text-sm font-semibold">Opening the editor…</span>
+                </div>
+              }
+            >
+              <StepThroughEditor projectId={boardProjectId} />
+            </Suspense>
+          </PanelBoundary>
+        </div>
+      </div>
+    );
+  }
+
   const body = (() => {
     /* Bare-page targets are the legacy router's only remaining
        caller — a custom panel (a Front Row portrait) pointed here.
@@ -1055,13 +1111,27 @@ export default function StationPanel(props: StationPanelProps) {
       case "guest-pitch":
         return <GuestPitch station={station} isLight={isLight} />;
       case "native":
-        /* The migration placeholder until this station's pattern
-           surface ships — honest, palace-voiced, and framed below
-           by the standard transfer footer. Pattern lanes swap this
-           one branch's contents; the frame and footer stay. */
+        /* The station's pattern surface, framed below by the
+           standard transfer footer. Board-pattern stations with a
+           shipped board render it; every other native station
+           keeps the honest migration placeholder until its pattern
+           surface ships — never a silent pull-up, never a dead end. */
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
-            <NativePlaceholder station={station} isLight={isLight} />
+            {resolution.pattern === "board" && station.id === "charts-desk" ? (
+              <ChartsBoard
+                isLight={isLight}
+                isGuest={isGuest}
+                jukeboxDenied={props.jukeboxDenied}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
+              <EarningsBoard isLight={isLight} />
+            ) : resolution.pattern === "board" && station.id === "my-studio" ? (
+              <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+            ) : (
+              <NativePlaceholder station={station} isLight={isLight} />
+            )}
           </PanelBoundary>
         );
       case "custom":
