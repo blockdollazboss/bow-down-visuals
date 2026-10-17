@@ -3,7 +3,9 @@ import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
+  Maximize, Minimize, Gamepad2,
 } from "lucide-react";
+import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
@@ -99,6 +101,7 @@ export default function WorldPage() {
   const { user, getAccessToken } = useAuth();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const roomRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<WorldClient | null>(null);
   const sceneRef = useRef<KingsHallScene | null>(null);
   const meshRef = useRef<VoiceMesh | null>(null);
@@ -148,6 +151,11 @@ export default function WorldPage() {
   const [removeArm, setRemoveArm] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myPeerId, setMyPeerId] = useState<string | null>(null);
+  /* Fullscreen + controller presence (view states only — the render
+     loop and the session never depend on either). */
+  const [isFs, setIsFs] = useState(false);
+  const [fsSupported, setFsSupported] = useState(false);
+  const [padConnected, setPadConnected] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
@@ -182,6 +190,42 @@ export default function WorldPage() {
   }, [viewMode]);
 
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
+
+  /* Fullscreen: the standard API on the room container. The
+     `fullscreenchange` event is the ground truth (it also fires for
+     the browser's own Esc exit), so no exit path strands anything —
+     the render loop, pointer lock and XR entry are untouched. */
+  useEffect(() => {
+    const sync = () => setIsFs(isFullscreenActive(document));
+    sync();
+    setFsSupported(fullscreenSupported(document, document.documentElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  const toggleFs = () => {
+    void toggleFullscreen(document, roomRef.current);
+  };
+
+  /* Controller presence: a paired gamepad announces itself; the
+     scene polls it for input (left stick walks, right stick looks,
+     A toggles voice, Y switches view — see lib/world/gamepad). */
+  useEffect(() => {
+    const scan = () => {
+      try {
+        setPadConnected([...(navigator.getGamepads?.() ?? [])].some(Boolean));
+      } catch {
+        /* no gamepad API — the line just never shows */
+      }
+    };
+    scan();
+    window.addEventListener("gamepadconnected", scan);
+    window.addEventListener("gamepaddisconnected", scan);
+    return () => {
+      window.removeEventListener("gamepadconnected", scan);
+      window.removeEventListener("gamepaddisconnected", scan);
+    };
+  }, []);
 
   /* Front Row honors: while a show runs, the seat arc shows before
      the stage, and the performer's Front Row members (their public
@@ -348,6 +392,14 @@ export default function WorldPage() {
       // name plates are right from the first frame.
       if (!loadVoiceEnabled()) client.setVoiceOff(true);
       scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
+      /* Controller face buttons land on the same switches the
+         footer shows — one behavior, whatever drives it. */
+      scene.onPadToggleVoice = () => {
+        if (!cancelled) toggleVoiceSwitch();
+      };
+      scene.onPadToggleView = () => {
+        if (!cancelled) toggleViewMode();
+      };
 
       client.onStatus = (s) => {
         if (cancelled) return;
@@ -655,6 +707,18 @@ export default function WorldPage() {
           <Users className="h-4 w-4 text-[#d4af37]" />
           {status === "inside" ? `${peopleCount} in the hall` : "—"}
         </span>
+        {fsSupported && (
+          <button
+            type="button"
+            onClick={toggleFs}
+            data-testid="world-fullscreen"
+            aria-pressed={isFs}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+          >
+            {isFs ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            {isFs ? "Exit full screen" : "Full screen"}
+          </button>
+        )}
       </header>
 
       {/* Walk in as — members pick a Creative Vault character (or the
@@ -671,7 +735,7 @@ export default function WorldPage() {
       ) : null}
 
       {/* ── The room ── */}
-      <div className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
+      <div ref={roomRef} className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
         <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" data-testid="world-canvas" />
 
         {overlay === "connecting" && (
@@ -1005,6 +1069,12 @@ export default function WorldPage() {
             to walk in with your name, talk, and be heard.
           </p>
         ) : null}
+        {padConnected && status === "inside" && (
+          <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
+            <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
+            Controller connected — left stick walks, right stick looks, trigger hurries, A toggles voice, Y switches view.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {!isGuest && status === "inside" && (
             <form

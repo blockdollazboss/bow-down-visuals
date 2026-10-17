@@ -51,6 +51,12 @@ import {
   type MouthBox,
 } from "./lips";
 import { locatePortraitMouth } from "./portrait-mouth";
+import {
+  firstGamepad,
+  pollGamepad,
+  IDLE_GAMEPAD_EDGES,
+  type GamepadEdges,
+} from "./gamepad";
 
 export interface HallScreenSource {
   mode: "live" | "featured" | "video";
@@ -544,6 +550,13 @@ export class KingsHallScene {
   private selfRig: AvatarRig | null = null;
   private viewMode: HallViewMode = "first";
   private keys = new Set<string>();
+  /** Gamepad edge state carried between polls (toggle buttons fire
+   *  once per press). */
+  private padEdges: GamepadEdges = IDLE_GAMEPAD_EDGES;
+  /** A controller's voice-toggle press (the page flips its switch). */
+  onPadToggleVoice: (() => void) | null = null;
+  /** A controller's view-toggle press (first/third person). */
+  onPadToggleView: (() => void) | null = null;
   private yaw = 0;
   private pitch = 0;
   private lookDrag: { id: number; lastX: number; lastY: number } | null = null;
@@ -1875,12 +1888,33 @@ export class KingsHallScene {
       strafe += this.stick.dx;
       fwd += -this.stick.dy;
     }
+    let run = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    /* A paired controller (Bluetooth gamepads arrive as standard
+     * gamepads) merges in — it never replaces keyboard/mouse/touch,
+     * it adds to them: left stick walks, right stick looks with the
+     * same sign conventions as the mouse, RT/L3 hurries, and the two
+     * face-button toggles fire their page callbacks on the press
+     * edge. Flat-screen only: XR keeps its own controller rules in
+     * tickXrMove. */
+    const pads = typeof navigator !== "undefined" ? navigator.getGamepads?.() : null;
+    const pad = pads ? firstGamepad([...pads]) : null;
+    const polled = pollGamepad(pad, this.padEdges);
+    this.padEdges = polled.edges;
+    if (pad) {
+      const intent = polled.intent;
+      strafe += intent.moveX;
+      fwd += -intent.moveY;
+      this.yaw -= intent.lookX * 2.2 * dt;
+      this.pitch = clamp(this.pitch - intent.lookY * 2.2 * dt, -1.15, 1.15);
+      if (intent.sprint) run = true;
+      if (intent.toggleVoice) this.onPadToggleVoice?.();
+      if (intent.toggleView) this.onPadToggleView?.();
+    }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {
       fwd /= len;
       strafe /= len;
     }
-    const run = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
     this.moveRig(fwd, strafe, dt, run ? RUN_SPEED : WALK_SPEED, this.yaw);
   }
 
