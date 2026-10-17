@@ -34,6 +34,7 @@ import {
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
+import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -1184,6 +1185,13 @@ export default function StationPanel(props: StationPanelProps) {
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
               )}
+            </PanelBoundary>
+          );
+        }
+        if (resolution.pattern === "games") {
+          return (
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              <GamesPanel stationId={station.id} isLight={isLight} />
             </PanelBoundary>
           );
         }
