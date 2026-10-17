@@ -49,7 +49,10 @@ interface ListStats {
  total: number;
  active: number;
  unsubscribed: number;
- openRate: number;
+ /* null = opens are not tracked (no pixel/webhook exists) — the card
+    must say so instead of rendering a measured-looking 0. */
+ openRate: number | null;
+ opensTracked: boolean;
  freeLimit: number;
 }
 
@@ -404,8 +407,17 @@ export default function EmailListBuilder() {
  </div>
  <div className={cardClass}>
  <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Mail className="h-3.5 w-3.5" />{t("email-list.avg_opens_subscriber")}</p>
+ {stats && !stats.opensTracked ? (
+ <>
+ <p className="mt-2 font-display text-3xl font-black">{t("email-list.opens_not_tracked")}</p>
+ <p className="mt-1 text-xs text-white/40">{t("email-list.opens_not_tracked_note")}</p>
+ </>
+ ) : (
+ <>
  <p className="mt-2 font-display text-3xl font-black">{stats?.openRate ?? 0}</p>
  <p className="mt-1 text-xs text-white/40">{t("email-list.best_effort_pixel_tracking")}</p>
+ </>
+ )}
  </div>
  <div className={cardClass}>
  <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/40"><Download className="h-3.5 w-3.5" />{t("email-list.export")}</p>

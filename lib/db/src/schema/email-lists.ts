@@ -45,7 +45,11 @@ export const emailSubscribersTable = pgTable("email_subscribers", {
   /* Where the signup came from: "embed" | "landing" | "import" */
   source:    text("source").notNull().default("landing"),
   confirmed: boolean("confirmed").notNull().default(true),
-  /* v1 tracks opens via a best-effort pixel; honest about its limits. */
+  /* Reserved for open tracking — nothing writes this column yet: v1 has
+     no tracking pixel and no provider webhook, so it stays 0 and the
+     dashboard reports opens as NOT TRACKED instead of presenting this
+     permanent 0 as a measured stat. When a real open signal lands, it
+     lands here. */
   opens:     integer("opens").notNull().default(0),
   unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
   subscribedAt: timestamp("subscribed_at", { withTimezone: true }).defaultNow().notNull(),
@@ -73,6 +77,8 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   status:    text("status").notNull().default("draft"),
   sentAt:    timestamp("sent_at", { withTimezone: true }),
   recipientCount: integer("recipient_count").notNull().default(0),
+  /* Reserved like email_subscribers.opens — no open signal writes this
+     in v1; never surface it as a measured count. */
   openCount: integer("open_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

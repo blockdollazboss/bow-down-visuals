@@ -265,16 +265,22 @@ router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, a
     .orderBy(desc(emailSubscribersTable.subscribedAt))
     .limit(500);
   const active = subscribers.filter((s) => !s.unsubscribedAt);
-  const totalOpens = subscribers.reduce((n, s) => n + (s.opens ?? 0), 0);
-  /* v1 open-rate honesty: pixel-based, best-effort — disclosed in the UI. */
-  const openRate = active.length > 0 ? Math.round((totalOpens / active.length) * 100) / 100 : 0;
+  /* Open tracking is NOT wired up — reported honestly as not tracked.
+     Nothing in the system records an email open: there is no tracking
+     pixel endpoint and no provider webhook, and campaigns are queued
+     rows (no send pipeline stamps opens either). The subscribers.opens
+     column therefore stays 0 forever, and the previous code turned that
+     into a permanently-0 "openRate" the dashboard presented as a
+     measured stat. Until a real open signal exists, the stat is null
+     and opensTracked is false — never a fabricated number. */
   res.json({
     subscribers,
     stats: {
       total: subscribers.length,
       active: active.length,
       unsubscribed: subscribers.length - active.length,
-      openRate,
+      openRate: null,
+      opensTracked: false,
       freeLimit: EMAIL_FREE_SUBSCRIBER_LIMIT,
     },
   });
