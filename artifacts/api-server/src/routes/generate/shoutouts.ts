@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import Stripe from "stripe";
 import OpenAI from "openai";
 import { eq, and, desc } from "drizzle-orm";
 import { db, shoutoutSettingsTable, shoutoutRequestsTable } from "@workspace/db";
@@ -19,14 +20,14 @@ const router = Router();
 
 /* ─── Fan Shoutouts ──────────────────────────────────────────────────────
    /shoutouts — creators sell personalized video shoutouts to fans.
-   v1 honesty contract: setup + request tracking are real. Actual payment
-   processing is "coming soon" — requests are recorded with status
-   "pending_payment" and no money moves until payment integration ships.
-   The UI and API never report a request as paid or completed in v1.
-   Pricing: free to set up and track. The site's 10% platform fee is
-   recorded as intent (applies to future payment processing, revenue
-   share — not credits). Only the AI message helper costs credits
-   (1 credit, charge-before-generate, refund on provider failure). */
+   Setup + request tracking are real. Payment (0142, DE-14): a priced
+   request gets a real Stripe Checkout session (test mode, like every
+   money path on the site) via POST /shoutouts/requests/:id/checkout;
+   the verify endpoint flips it pending_payment → accepted exactly
+   once when the session reports paid. Free requests (price 0) keep
+   the manual accept flow. The site's 10% platform fee intent is
+   unchanged. Only the AI message helper costs credits (1 credit,
+   charge-before-generate, refund on provider failure). */
 
 /* 1 credit per AI message draft — env-overridable without a deploy. */
 export const SHOUTOUT_AI_CREDITS = Number(process.env["SHOUTOUT_AI_CREDIT_COST"]) || 100;
@@ -129,9 +130,28 @@ async function toRequestJson(r: typeof shoutoutRequestsTable.$inferSelect) {
     priceCents: r.price_cents,
     /* Re-sign storage refs so the creator's dashboard always plays. */
     deliveryUrl: r.delivery_url ? await refreshSupabaseStorageUrl(r.delivery_url) : "",
+    paidAt: r.paid_at ?? null,
     createdAt: r.created_at,
     deliveredAt: r.delivered_at,
   };
+}
+
+/* ── Checkout helpers (0142) — same shape as the storefront's ── */
+function getStripe(): Stripe {
+  const key = process.env["STRIPE_SECRET_KEY"];
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key);
+}
+
+function getBaseUrl(req: import("express").Request): string {
+  const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
+  if (domain) return `https://${domain}`;
+  const devDomain = process.env["REPLIT_DEV_DOMAIN"];
+  if (devDomain) return `https://${devDomain}`;
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.headers["host"];
+  if (host) return `${proto}://${host}`;
+  return "http://localhost";
 }
 
 /* GET /api/shoutouts/creators — public list of creators accepting requests (free).
@@ -204,8 +224,8 @@ router.put("/shoutouts/settings", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* POST /api/shoutouts/requests — a fan submits a shoutout request (free, public).
-   The request lands as "pending_payment": honest in v1 because payment
-   processing is coming soon — no charge is made, nothing is marked paid. */
+   The request lands as "pending_payment"; a priced request is paid via
+   the checkout endpoint below, a free one via the manual accept flow. */
 router.post("/shoutouts/requests", publicApiLimiter, async (req, res) => {
   const parsed = requestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -238,8 +258,109 @@ router.post("/shoutouts/requests", publicApiLimiter, async (req, res) => {
     .returning();
   res.status(201).json({
     request: await toRequestJson(request!),
-    paymentsLive: false, /* v1 honesty */
+    /* Priced requests can be paid immediately via the checkout
+       endpoint; free requests skip payment entirely. */
+    paymentsLive: (request?.price_cents ?? 0) > 0,
   });
+});
+
+/* POST /api/shoutouts/requests/:id/checkout — start payment for a
+   priced request (public: the request id is the capability, exactly
+   like the storefront's session flow). Creates a Checkout session,
+   stores its id on the request, returns the hosted URL. */
+router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, res) => {
+  const [request] = await db
+    .select()
+    .from(shoutoutRequestsTable)
+    .where(eq(shoutoutRequestsTable.id, param(req.params.id)));
+  if (!request) {
+    res.status(404).json({ error: "Request not found." });
+    return;
+  }
+  if (request.status !== "pending_payment") {
+    res.status(409).json({ error: "This request isn't waiting for payment." });
+    return;
+  }
+  if (request.price_cents <= 0) {
+    res.status(400).json({ error: "This shoutout is free — no checkout needed." });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+  const base = getBaseUrl(req);
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          unit_amount: request.price_cents,
+          product_data: { name: "Personalized shoutout video" },
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: { type: "shoutout_request", requestId: request.id },
+    success_url: `${base}/shoutouts?request=${request.id}&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${base}/shoutouts`,
+  });
+  await db
+    .update(shoutoutRequestsTable)
+    .set({ stripe_session_id: session.id, updated_at: new Date() })
+    .where(eq(shoutoutRequestsTable.id, request.id));
+  res.json({ checkoutUrl: session.url });
+});
+
+/* POST /api/shoutouts/requests/:id/checkout/verify { sessionId } —
+   the fan is back from Checkout: if the session is paid, flip the
+   request pending_payment → accepted exactly once (the guarded
+   UPDATE is the idempotency: retries and double-clicks no-op). */
+router.post("/shoutouts/requests/:id/checkout/verify", publicApiLimiter, async (req, res) => {
+  const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : "";
+  const [request] = await db
+    .select()
+    .from(shoutoutRequestsTable)
+    .where(eq(shoutoutRequestsTable.id, param(req.params.id)));
+  if (!request) {
+    res.status(404).json({ error: "Request not found." });
+    return;
+  }
+  if (!sessionId || request.stripe_session_id !== sessionId) {
+    res.status(400).json({ error: "That checkout session doesn't match this request." });
+    return;
+  }
+  if (request.status !== "pending_payment") {
+    res.json({ status: request.status, paid: true });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (session.payment_status !== "paid") {
+    res.json({ status: request.status, paid: false });
+    return;
+  }
+  const [updated] = await db
+    .update(shoutoutRequestsTable)
+    .set({ status: "accepted", paid_at: new Date(), updated_at: new Date() })
+    .where(
+      and(
+        eq(shoutoutRequestsTable.id, request.id),
+        eq(shoutoutRequestsTable.status, "pending_payment"),
+      ),
+    )
+    .returning();
+  res.json({ status: updated?.status ?? "accepted", paid: true });
 });
 
 /* GET /api/shoutouts/requests — the creator's incoming requests (free, owner only). */
@@ -310,8 +431,9 @@ router.patch("/shoutouts/requests/:id", publicApiLimiter, requireAuth, async (re
 });
 
 /* GET /api/shoutouts/revenue — revenue tracking (free, owner only).
-   Sums are computed from real tracked requests. paymentsLive: false until
-   payment processing ships — nothing here claims money changed hands. */
+   Sums are computed from real tracked requests. Priced requests are
+   payable via Checkout (0142); "earnable" counts accepted+ requests —
+   for priced ones that now means actually paid (or free-accepted). */
 router.get("/shoutouts/revenue", publicApiLimiter, requireAuth, async (req, res) => {
   const rows = await db
     .select()
@@ -335,7 +457,7 @@ router.get("/shoutouts/revenue", publicApiLimiter, requireAuth, async (req, res)
     netCents: netAfterFee(grossCents),
     netDollars: centsToDollars(netAfterFee(grossCents)),
     platformFeePct: SHOUTOUT_PLATFORM_FEE_PCT,
-    paymentsLive: false,
+    paymentsLive: true,
   });
 });
 

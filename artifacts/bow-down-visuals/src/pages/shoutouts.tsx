@@ -199,6 +199,29 @@ export default function Shoutouts() {
   useEffect(() => { fetchCreators(); }, []);
   useEffect(() => { if (tab === "creator") fetchCreatorData(); }, [tab, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* Back from Checkout (0142): verify the payment once; a paid session
+     flips the request to accepted server-side. */
+  const [paidConfirmed, setPaidConfirmed] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestId = params.get("request");
+    const sessionId = params.get("session_id");
+    if (!requestId || !sessionId) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/shoutouts/requests/${requestId}/checkout/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        const j = await res.json().catch(() => null);
+        if (res.ok && j?.paid) setPaidConfirmed(true);
+      } catch {
+        /* the creator still sees the request; payment state re-verifies on any later visit */
+      }
+    })();
+  }, []);
+
   async function submitRequest() {
     if (!selected) return;
     setError("");
@@ -219,6 +242,22 @@ export default function Shoutouts() {
       if (!res.ok) {
         setError(j.error || t("shoutouts.errorSubmitFailed"));
         return;
+      }
+      /* Priced requests go straight to checkout (0142): the fan pays
+         now and the request lands as accepted on return. If checkout
+         can't start (payments unconfigured), the request still stands
+         — the panel below explains the manual path. */
+      if (j.paymentsLive && j.request?.id && (j.request?.priceCents ?? 0) > 0) {
+        try {
+          const co = await fetch(`/api/shoutouts/requests/${j.request.id}/checkout`, { method: "POST" });
+          const coJson = await co.json().catch(() => null);
+          if (co.ok && coJson?.checkoutUrl) {
+            window.location.href = coJson.checkoutUrl as string;
+            return;
+          }
+        } catch {
+          /* fall through to the recorded panel */
+        }
       }
       setSubmitted(true);
     } catch {
@@ -385,6 +424,13 @@ export default function Shoutouts() {
 
         {tab === "request" && (
           <>
+            {paidConfirmed && (
+              <div className="max-w-xl mx-auto text-center py-10 mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-emerald-400" />
+                <h2 className="text-xl font-bold mb-2">{t("shoutouts.paidTitle")}</h2>
+                <p className="text-white/50 text-sm">{t("shoutouts.paidDesc")}</p>
+              </div>
+            )}
             {creatorsLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
             ) : creatorsLoadError ? (

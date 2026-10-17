@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
+import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
-import { db, creatorProfilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, creatorProfilesTable, tipJarTipsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -17,7 +18,15 @@ import { requireAuth } from "../../middlewares/require-auth";
 
    Storage: server-owned in-memory maps (same pattern as the caption styler
    and other v1 tools). NOT restart-safe — move to DB-backed storage before
-   real payments ship. */
+   real payments ship.
+
+   REAL CHECKOUT (0142, DE-14): alongside the intent flow, POST
+   /tips/:handle/checkout records a durable tip_jar_tips row and opens a
+   Stripe Checkout session (test mode, like every money path here);
+   POST /tips/checkout/verify flips the row to "paid" exactly once when
+   the session reports paid. The intent endpoints above are unchanged —
+   they remain the fallback when payments aren't configured, and the
+   earnings view reads them as pending, as before. */
 
 export const TIP_CURRENCY = "USD";
 export const TIP_STATUS_PENDING = "pending_payment";
@@ -225,8 +234,12 @@ router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
       goalLabel: settings.goalLabel,
     },
     stats: { ...stats, goalProgress: settings.goalAmount ? Math.min(1, stats.total / settings.goalAmount) : null },
-    paymentsLive: false,
-    notice: "Payment processing is coming soon — no charge is made today.",
+    /* Real checkout is live when payments are configured (0142);
+       otherwise the page falls back to recording tip intent. */
+    paymentsLive: paymentsConfigured(),
+    notice: paymentsConfigured()
+      ? "Tips are charged securely at checkout."
+      : "Payment processing is coming soon — no charge is made today.",
   });
 });
 
@@ -270,6 +283,140 @@ router.post("/tips/:handle/tip", publicApiLimiter, async (req, res) => {
     paymentsLive: false,
     notice: "Tip recorded. Payment processing is coming soon — no charge was made today.",
   });
+});
+
+/* ── Real checkout (0142) — same session shape as the storefront's ── */
+function getStripe(): Stripe {
+  const key = process.env["STRIPE_SECRET_KEY"];
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key);
+}
+
+function getBaseUrl(req: import("express").Request): string {
+  const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
+  if (domain) return `https://${domain}`;
+  const devDomain = process.env["REPLIT_DEV_DOMAIN"];
+  if (devDomain) return `https://${devDomain}`;
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.headers["host"];
+  if (host) return `${proto}://${host}`;
+  return "http://localhost";
+}
+
+const paymentsConfigured = () => !!process.env["STRIPE_SECRET_KEY"];
+
+/* POST /api/tips/:handle/checkout { amount, fanName, message } — record
+   a durable tip row and open its Checkout session. Public. */
+router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
+  const handle = String(req.params.handle ?? "").toLowerCase();
+  const ownerId = await resolveTipPageOwnerId(handle);
+  if (!ownerId) {
+    res.status(404).json({ error: "Tip page not found." });
+    return;
+  }
+  const page = tipPages.get(ownerId)!;
+  const parsed = tipIntentSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid tip.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+  const { amount, fanName, message } = parsed.data;
+  const amountCents = Math.round(amount * 100);
+  const [tip] = await db
+    .insert(tipJarTipsTable)
+    .values({
+      page_user_id: ownerId,
+      handle: page.handle,
+      fan_name: fanName.trim(),
+      message: message.trim(),
+      amount_cents: amountCents,
+      currency: "usd",
+      status: "pending_payment",
+    })
+    .returning();
+  try {
+    const base = getBaseUrl(req);
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: amountCents,
+            product_data: { name: `Tip for ${page.displayName}` },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: { type: "tip_jar", tipId: tip!.id },
+      success_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/tips/${page.handle}`,
+    });
+    await db
+      .update(tipJarTipsTable)
+      .set({ stripe_session_id: session.id })
+      .where(eq(tipJarTipsTable.id, tip!.id));
+    res.json({ checkoutUrl: session.url, tipId: tip!.id });
+  } catch (err) {
+    /* No session → no charge is possible; drop the orphan row. */
+    await db.delete(tipJarTipsTable).where(eq(tipJarTipsTable.id, tip!.id)).catch(() => {});
+    logger.error({ err, handle: page.handle }, "[tip-jar] checkout session failed");
+    res.status(502).json({ error: "Could not start checkout. Try again." });
+  }
+});
+
+/* POST /api/tips/checkout/verify { sessionId } — the fan is back from
+   Checkout: flip the tip to "paid" exactly once (guarded UPDATE). */
+router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
+  const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : "";
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  const [tip] = await db
+    .select()
+    .from(tipJarTipsTable)
+    .where(eq(tipJarTipsTable.stripe_session_id, sessionId));
+  if (!tip) {
+    res.status(404).json({ error: "Tip not found for that session." });
+    return;
+  }
+  if (tip.status === "paid") {
+    res.json({ status: "paid", amountCents: tip.amount_cents, handle: tip.handle });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (session.payment_status !== "paid" || session.metadata?.["type"] !== "tip_jar") {
+    res.json({ status: tip.status, paid: false });
+    return;
+  }
+  await db
+    .update(tipJarTipsTable)
+    .set({ status: "paid", paid_at: new Date() })
+    .where(
+      and(
+        eq(tipJarTipsTable.id, tip.id),
+        eq(tipJarTipsTable.status, "pending_payment"),
+      ),
+    );
+  res.json({ status: "paid", amountCents: tip.amount_cents, handle: tip.handle });
 });
 
 /* GET /api/tips/dashboard → my totals + tip feed. Auth. */

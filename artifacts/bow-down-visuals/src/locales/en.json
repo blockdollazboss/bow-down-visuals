@@ -5539,7 +5539,7 @@
     "priceTurnaround": "{{price}} · ~{{days}}-day turnaround",
     "requestAnother": "Request another",
     "requestButton": "Request",
-    "requestSentDesc": "They'll review it and record your shoutout. You'll be notified when payment checkout goes live to complete your {{price}} order.",
+    "requestSentDesc": "They'll review it and record your shoutout once it's accepted. Your {{price}} order is saved — keep an eye on your email for updates.",
     "requestSentTitle": "Request sent to {{name}}!",
     "revenueDisclaimer": "Tracked from real requests. Payments coming soon — nothing claimed as paid.",
     "revenueTitle": "Revenue",
@@ -5566,7 +5566,9 @@
     "viewDeliveredVideo": "View delivered video",
     "yourNameLabel": "Your name",
     "yourNamePlaceholder": "Who's this shoutout for?",
-    "yourShoutoutPage": "Your shoutout page"
+    "yourShoutoutPage": "Your shoutout page",
+    "paidTitle": "Payment complete — shoutout booked!",
+    "paidDesc": "Your shoutout is paid and accepted. The creator will record it and send it your way within their turnaround time."
   },
   "shows": {
     "artistNameLabel": "Your artist name",
@@ -6221,7 +6223,9 @@
     "recordedTitle": "Tip recorded!",
     "sendTipButton": "Send ${{amount}} tip",
     "tipHeading": "Tip",
-    "tipStats": "{{count}} tips so far · ${{total}} total"
+    "tipStats": "{{count}} tips so far · ${{total}} total",
+    "paidTitle": "Tip sent!",
+    "paidBody": "{{name}} just received your ${{amount}} tip — thank you for supporting their work."
   },
   "tips": {
     "anonymousFan": "Anonymous fan",
