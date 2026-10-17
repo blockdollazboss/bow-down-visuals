@@ -9,11 +9,12 @@
  *        the server verifies ownership and resolves the portrait),
  *        voice.join / voice.leave, voice.off (the proximity-voice
  *        switch — off means no sending, no hearing, mic released),
- *        voice.signal
+ *        voice.deaf (deafen — still in the mesh, hearing nobody,
+ *        mic muted), voice.signal
  *   in:  welcome (self + snapshot), peer.join / peer.move / peer.leave,
- *        peer.say, peer.character, peer.voiceoff, voice.joined /
- *        voice.left / voice.state / voice.signal / voice.full /
- *        voice.denied, room_full
+ *        peer.say, peer.character, peer.voiceoff, peer.voicedeaf,
+ *        voice.joined / voice.left / voice.state / voice.signal /
+ *        voice.full / voice.denied, room_full
  * Guests (no session token, or a stale one the server couldn't verify)
  * arrive as guest peers: present and visible, no voice, no say — the
  * client hides those controls off `self.guest`, the server enforces it.
@@ -40,6 +41,11 @@ export interface WorldPeer {
    *  name plates mark the voice-off so nobody talks to a peer who
    *  can't hear them. */
   voiceOff: boolean;
+  /** Deafened (the voice modes' Deafen): in the mesh but hearing
+   *  nobody, mic muted — distinct from `voiceOff` (fully out, mic
+   *  released); name plates mark the deafened so nobody mistakes
+   *  silence for ignoring. */
+  voiceDeaf: boolean;
   /** Host authority, resolved by the server at the door (never a
    *  client claim) — the hall shows host controls off this flag,
    *  and the server re-verifies every host action anyway. */
@@ -143,6 +149,7 @@ export class WorldClient {
   onPeerLeave: ((peerId: string) => void) | null = null;
   onPeerCharacter: ((peerId: string, character: WorldCharacterRef | null) => void) | null = null;
   onPeerVoiceOff: ((peerId: string, off: boolean) => void) | null = null;
+  onPeerVoiceDeaf: ((peerId: string, deaf: boolean) => void) | null = null;
   onSay: ((ev: WorldSayEvent) => void) | null = null;
   onSignal: ((from: string, data: unknown) => void) | null = null;
   onVoiceState: ((voicePeerIds: string[]) => void) | null = null;
@@ -166,6 +173,9 @@ export class WorldClient {
    *  touched (the room default: voice available); a boolean is (re)sent
    *  the moment we're inside, like a character pick. */
   private voiceOffWanted: boolean | undefined = undefined;
+  /** Deafen, as this client wants it. Same want discipline as the
+   *  voice switch: remembered pre-welcome, (re)sent on entry. */
+  private voiceDeafWanted: boolean | undefined = undefined;
   private readonly now: () => number;
 
   constructor(private deps: WorldClientDeps) {
@@ -256,6 +266,17 @@ export class WorldClient {
     this.voiceOffWanted = off;
     if (this.status !== "inside" || !this.self || this.self.guest) return;
     this.send({ type: "voice.off", off });
+  }
+
+  /** Deafen (or lift it). Announced to the room so name plates can
+   *  mark the deafened; unlike the switch, it never touches the
+   *  mesh membership — the gains and the mic mute are the page's
+   *  side of the same act. Safe before the welcome lands; guests
+   *  never send it. */
+  setVoiceDeaf(deaf: boolean): void {
+    this.voiceDeafWanted = deaf;
+    if (this.status !== "inside" || !this.self || this.self.guest) return;
+    this.send({ type: "voice.deaf", deaf });
   }
 
   joinVoice(): void {
@@ -369,6 +390,10 @@ export class WorldClient {
         if (this.voiceOffWanted !== undefined && !you.guest) {
           this.send({ type: "voice.off", off: this.voiceOffWanted });
         }
+        // And a deafen chosen before the door opened.
+        if (this.voiceDeafWanted !== undefined && !you.guest) {
+          this.send({ type: "voice.deaf", deaf: this.voiceDeafWanted });
+        }
         return;
       }
       case "peer.character": {
@@ -391,6 +416,14 @@ export class WorldClient {
         const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
         if (target) target.voiceOff = off;
         this.onPeerVoiceOff?.(peerId, off);
+        return;
+      }
+      case "peer.voicedeaf": {
+        const peerId = String(frame["peerId"]);
+        const deaf = frame["deaf"] === true;
+        const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+        if (target) target.voiceDeaf = deaf;
+        this.onPeerVoiceDeaf?.(peerId, deaf);
         return;
       }
       case "peer.join": {

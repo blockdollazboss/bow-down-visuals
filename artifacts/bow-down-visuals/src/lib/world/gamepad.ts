@@ -13,7 +13,8 @@
  *   axes[2..3]  right stick  → look (x = yaw, y = pitch)
  *   buttons[7]  right trigger ┐
  *   buttons[10] L3 (stick click) ┘ → hurry/sprint (held)
- *   buttons[0]  A / Cross    → toggle proximity voice (edge)
+ *   buttons[0]  A / Cross    → step the voice mode (edge):
+ *                              Off → Proximity → Lobby → Deafen → Off
  *   buttons[3]  Y / Triangle → toggle first/third person (edge)
  */
 

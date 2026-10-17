@@ -51,6 +51,7 @@ const SELF = {
   guest: false,
   voice: false,
   voiceOff: false,
+  voiceDeaf: false,
   admin: false,
   hostMuted: false,
   character: null,
@@ -301,6 +302,47 @@ describe("the voice switch — setVoiceOff + peer.voiceoff", () => {
   it("the welcome snapshot carries who's already voice-off", async () => {
     const { client } = await inside({ t: 0 }, SELF, [{ ...OTHER, voiceOff: true }]);
     expect(client.peers.get("w-other")?.voiceOff).toBe(true);
+  });
+});
+
+describe("deafen — setVoiceDeaf + peer.voicedeaf", () => {
+  it("flips while inside go straight out; a deafen chosen before entry rides the welcome", async () => {
+    const { client, socket } = makeClient();
+    client.setVoiceDeaf(true);
+    await client.connect();
+    expect(socket.sent.find((m) => m.type === "voice.deaf")).toBeUndefined();
+    socket.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(socket.sent).toContainEqual({ type: "voice.deaf", deaf: true });
+
+    client.setVoiceDeaf(false);
+    expect(socket.sent).toContainEqual({ type: "voice.deaf", deaf: false });
+  });
+
+  it("guests never send deafen — they have no voice to deafen", async () => {
+    const guestSelf = { ...SELF, peerId: "w-guest", guest: true, displayName: "Guest" };
+    const { client, socket } = await inside({ t: 0 }, guestSelf);
+    client.setVoiceDeaf(true);
+    expect(socket.sent.find((m) => m.type === "voice.deaf")).toBeUndefined();
+  });
+
+  it("peer.voicedeaf updates the roster (and self) and notifies for the name plates", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: Array<[string, boolean]> = [];
+    client.onPeerVoiceDeaf = (peerId, deaf) => seen.push([peerId, deaf]);
+
+    socket.receive({ type: "peer.voicedeaf", peerId: "w-other", deaf: true });
+    expect(client.peers.get("w-other")?.voiceDeaf).toBe(true);
+    socket.receive({ type: "peer.voicedeaf", peerId: "w-self", deaf: true });
+    expect(client.self?.voiceDeaf).toBe(true);
+    expect(seen).toEqual([
+      ["w-other", true],
+      ["w-self", true],
+    ]);
+  });
+
+  it("the welcome snapshot carries who's already deafened", async () => {
+    const { client } = await inside({ t: 0 }, SELF, [{ ...OTHER, voiceDeaf: true }]);
+    expect(client.peers.get("w-other")?.voiceDeaf).toBe(true);
   });
 });
 
