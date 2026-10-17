@@ -19,6 +19,7 @@ import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
 import { mediaUrl } from "@/lib/media-cdn";
 import { postLoginPath } from "@/lib/auth-next";
+import { safeNextPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 export default function Login() {
@@ -125,6 +126,16 @@ export default function Login() {
       setResetLoading(false);
     }
   }
+
+  /* The "Sign up free" link carries a valid ?next= across, so a guest
+   * bounced from a locked page who creates an account instead of
+   * signing in still lands where they were headed — signup honors
+   * the same return path from there (audit §4.2, signup parity). */
+  const signupHref = (() => {
+    if (typeof window === "undefined") return "/signup";
+    const next = safeNextPath(window.location.search);
+    return next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
+  })();
 
   const bgVideoRef = useRef<HTMLVideoElement>(null);
   const scrubTarget = useRef<number | null>(null);
@@ -281,7 +292,7 @@ export default function Login() {
                 <span aria-hidden className="text-white/20">·</span>
                 <span>
                   {t("auth.noAccount")}{" "}
-                  <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
+                  <Link href={signupHref} className="text-[#c9a84c] hover:underline font-medium">
                     {t("auth.signUpFree")}
                   </Link>
                 </span>

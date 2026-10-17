@@ -31,3 +31,34 @@ export function safeNextPath(search: string): string | null {
 export function postLoginPath(search: string): string {
   return safeNextPath(search) ?? DEFAULT_POST_LOGIN_PATH;
 }
+
+/** Build the /login URL that bounces a signed-out visitor to sign-in
+ *  carrying where they were headed — the sending half of the contract
+ *  above (the GuestGate and ProtectedRoute both build their redirects
+ *  here, so the two can never drift). `search` is the destination's
+ *  query string, with or without its leading "?" (wouter's useSearch
+ *  returns it bare).
+ *
+ *  The builder only ever emits a same-origin relative target: the
+ *  destination is validated with the same rules safeNextPath applies
+ *  on the receiving end, and anything hostile (absolute, protocol-
+ *  relative, backslash-smuggled, or not a path at all) collapses to
+ *  bare "/login" instead of riding into ?next=. It deliberately does
+ *  NOT consult the public-route allowlist — carrying a public
+ *  destination is harmless and is exactly what /presave and /unlock
+ *  already do by hand. The one destination that collapses is /login
+ *  itself: a bounce from the sign-in screen must never nest
+ *  ?next=/login inside itself. */
+export function loginPathWithNext(pathname: string, search?: string): string {
+  const query = search ? (search.startsWith("?") ? search.slice(1) : search) : "";
+  const destination = query ? `${pathname}?${query}` : pathname;
+  if (
+    !destination.startsWith("/") ||
+    destination.startsWith("//") ||
+    destination.includes("\\")
+  ) {
+    return "/login";
+  }
+  if (destination.split(/[?#]/)[0] === "/login") return "/login";
+  return `/login?next=${encodeURIComponent(destination)}`;
+}

@@ -15,6 +15,7 @@ import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { StreamingPlayerProvider } from "@/contexts/StreamingPlayerContext";
 import { StreamingPlayerBar } from "@/components/player/StreamingPlayerBar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { GuestGate } from "@/components/GuestGate";
 import { AdminRoute } from "@/components/AdminRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
@@ -475,6 +476,12 @@ function AppShell() {
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
+        {/* Access lockdown (Lane 2): the GuestGate wraps the whole
+            routed tree — both Switches — and judges every navigation
+            at the shell level. SiteMode never reaches here:
+            SiteModeGate renders INSTEAD of AppShell on creator
+            custom domains, so those hosts stay gate-free. */}
+        <GuestGate>
         <Switch>
           {/* Auth routes */}
           <Route path="/login"><Login /></Route>
@@ -737,6 +744,7 @@ function AppShell() {
             </AuthedLayout>
           </Route>
         </Switch>
+        </GuestGate>
         </RouteErrorBoundary>
       </Suspense>
       {!hideFooter && <SiteFooter />}
