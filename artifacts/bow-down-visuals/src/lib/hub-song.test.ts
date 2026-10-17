@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   pushSongPackageToProject,
   songPickPrefill,
   findSongLyricsScript,
   coverArtSeedFromAsset,
   decodeDataTextUrl,
+  COVER_ART_PROMPT_MAX,
   type PushSongInput,
 } from "./hub-song";
 import type { HubAsset, HubAssetKind } from "./hub-project";
@@ -143,5 +145,43 @@ describe("decodeDataTextUrl", () => {
     expect(decodeDataTextUrl("https://cdn.example.com/lyrics.txt")).toBeNull();
     expect(decodeDataTextUrl("data:text/plain")).toBeNull();
     expect(decodeDataTextUrl("data:text/plain,%E0%A4%A")).toBeNull();
+  });
+});
+
+/**
+ * Stack-30 C5 — the mood input cap matches the seed's real maximum.
+ *
+ * A song package's coverArtPrompt is stored capped at
+ * COVER_ART_PROMPT_MAX (600) and seeds the Cover Art desk's mood
+ * field whole — but the mood input capped TYPING at 300, so editing
+ * a seeded prompt truncated it to half its length. The input now
+ * takes its cap from the same constant the writer slices with.
+ */
+describe("COVER_ART_PROMPT_MAX — the seed cap and the input cap agree", () => {
+  it("is 600, the stored seed's real maximum", () => {
+    expect(COVER_ART_PROMPT_MAX).toBe(600);
+  });
+
+  it("the package writer stores a long art direction at the full cap, uncropped below it", () => {
+    const { assets, input } = fakeHub();
+    const longPrompt = "x".repeat(700);
+    pushSongPackageToProject({
+      ...input,
+      rawResult: RAW_PACKAGE.replace(
+        "Gold crown over a midnight skyline, cinematic, luxury",
+        longPrompt,
+      ),
+    });
+    const song = assets.find((a) => a.kind === "song");
+    expect(song?.meta?.["coverArtPrompt"]).toHaveLength(COVER_ART_PROMPT_MAX);
+    /* …and the seed reader hands the desk the full stored length. */
+    const seed = coverArtSeedFromAsset(song!);
+    expect(seed.coverArtPrompt).toHaveLength(COVER_ART_PROMPT_MAX);
+  });
+
+  it("the Cover Art desk's mood input takes its maxLength from the same constant (source)", () => {
+    const src = readFileSync(new URL("../pages/cover-art.tsx", import.meta.url), "utf8");
+    expect(src).toContain("maxLength={COVER_ART_PROMPT_MAX}");
+    expect(src).not.toContain("maxLength={300}");
   });
 });
