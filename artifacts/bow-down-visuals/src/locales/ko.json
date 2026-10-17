@@ -2802,7 +2802,7 @@
     "socialStatsPlaceholder": "소셜/스트리밍 통계 (예: 월간 리스너 5만, TikTok 팔로워 12만)",
     "songAnalysis": "노래 분석",
     "songTitlePlaceholder": "노래 제목 *",
-    "sourceAuto": "✨ 자동 (AI 선택)",
+    "sourceAuto": "✨ Turbo (AI 선택)",
     "sourceLibrary": "내 라이브러리에서",
     "sourceLibraryCount": "내 라이브러리에서 ({{count}})",
     "sourceManual": "직접 입력",

@@ -2150,7 +2150,7 @@
     "socialStatsPlaceholder": "SNS/ストリーミング統計(例: 月間リスナー5万人、TikTokフォロワー12万人)",
     "songAnalysis": "曲分析",
     "songTitlePlaceholder": "曲名 *",
-    "sourceAuto": "✨ 自動(AIが選ぶ)",
+    "sourceAuto": "✨ Turbo(AIが選ぶ)",
     "sourceLibrary": "ライブラリから",
     "sourceLibraryCount": "ライブラリから({{count}}件)",
     "sourceManual": "手動で入力",
