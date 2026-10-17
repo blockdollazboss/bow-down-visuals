@@ -15,7 +15,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
-import { splitPanelPath, stationGuestBlocked, editorStepthroughSearch } from "@/lib/world/station-panel";
+import {
+  splitPanelPath,
+  stationGuestBlocked,
+  editorStepthroughSearch,
+  PANEL_ROUTE_PATHS,
+  type PanelRoutePath,
+} from "@/lib/world/station-panel";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -73,25 +79,39 @@ const KING_COURT_SLUG = "thy-cheat-code";
    The site's own pages, mounted under a memory-location router:
    their links and back buttons navigate INSIDE the panel, so
    walking through a door never walks you out of the palace. The
-   route set is the doors' targets plus the profile door the Court
-   portraits open; anything deeper lands on the honest miss card. */
-const PanelMessages = lazy(() => import("@/pages/messages"));
-const PanelMyMusic = lazy(() => import("@/pages/my-music"));
-const PanelCharts = lazy(() => import("@/pages/discovery/charts"));
-const PanelArcade = lazy(() => import("@/pages/arcade"));
-const PanelParty = lazy(() => import("@/pages/party"));
-const PanelDashboard = lazy(() => import("@/pages/dashboard"));
-const PanelCreate = lazy(() => import("@/pages/create"));
-const PanelAudioStudio = lazy(() => import("@/pages/audio-studio"));
-const PanelThumbnailStudio = lazy(() => import("@/pages/thumbnail-studio"));
-const PanelMemberships = lazy(() => import("@/pages/memberships"));
-const PanelBrandingKit = lazy(() => import("@/pages/branding-kit"));
-const PanelPressKit = lazy(() => import("@/pages/press-kit"));
-const PanelStorefronts = lazy(() => import("@/pages/storefronts"));
-const PanelCommunity = lazy(() => import("@/pages/community"));
-const PanelPromote = lazy(() => import("@/pages/promote"));
-const PanelEarnings = lazy(() => import("@/pages/earnings"));
-const PanelArtist = lazy(() => import("@/pages/artist-public"));
+   route set is the shared table in lib/world/station-panel (the
+   doors' targets, the deeper hub links those pages make, and the
+   profile door the Court portraits open); anything beyond it
+   lands on the honest miss card. The record below is keyed by the
+   table, so a path added there without a page here won't compile. */
+const PANEL_PAGES: Record<PanelRoutePath, ReturnType<typeof lazy>> = {
+  "/messages": lazy(() => import("@/pages/messages")),
+  "/my-music": lazy(() => import("@/pages/my-music")),
+  "/charts": lazy(() => import("@/pages/discovery/charts")),
+  "/arcade": lazy(() => import("@/pages/arcade")),
+  "/party": lazy(() => import("@/pages/party")),
+  "/dashboard": lazy(() => import("@/pages/dashboard")),
+  "/create": lazy(() => import("@/pages/create")),
+  "/audio-studio": lazy(() => import("@/pages/audio-studio")),
+  "/thumbnail-studio": lazy(() => import("@/pages/thumbnail-studio")),
+  "/memberships": lazy(() => import("@/pages/memberships")),
+  "/branding-kit": lazy(() => import("@/pages/branding-kit")),
+  "/press-kit": lazy(() => import("@/pages/press-kit")),
+  "/storefronts": lazy(() => import("@/pages/storefronts")),
+  "/community": lazy(() => import("@/pages/community")),
+  "/promote": lazy(() => import("@/pages/promote")),
+  "/earnings": lazy(() => import("@/pages/earnings")),
+  "/post/:id": lazy(() => import("@/pages/post")),
+  "/track/:id": lazy(() => import("@/pages/stream/track")),
+  "/watch/:id": lazy(() => import("@/pages/stream/watch")),
+  "/shop/:slug": lazy(() => import("@/pages/shop")),
+  "/coach": lazy(() => import("@/pages/coach")),
+  "/my-projects": lazy(() => import("@/pages/my-projects")),
+  "/credit-history": lazy(() => import("@/pages/credit-history")),
+  "/distribute": lazy(() => import("@/pages/distribute")),
+  "/scheduler": lazy(() => import("@/pages/scheduler")),
+  "/artist/:slug": lazy(() => import("@/pages/artist-public")),
+};
 const PanelEditor = lazy(() => import("@/pages/video-editor"));
 
 /** A panel page that failed to load or render: said plainly, with
@@ -182,23 +202,14 @@ function PanelRouter({ initialPath, isLight }: { initialPath: string; isLight: b
       <PanelBoundary isLight={isLight} resetKey={initialPath}>
         <Suspense fallback={fallback}>
           <Switch>
-            <Route path="/messages"><PanelMessages /></Route>
-            <Route path="/my-music"><PanelMyMusic /></Route>
-            <Route path="/charts"><PanelCharts /></Route>
-            <Route path="/arcade"><PanelArcade /></Route>
-            <Route path="/party"><PanelParty /></Route>
-            <Route path="/dashboard"><PanelDashboard /></Route>
-            <Route path="/create"><PanelCreate /></Route>
-            <Route path="/audio-studio"><PanelAudioStudio /></Route>
-            <Route path="/thumbnail-studio"><PanelThumbnailStudio /></Route>
-            <Route path="/memberships"><PanelMemberships /></Route>
-            <Route path="/branding-kit"><PanelBrandingKit /></Route>
-            <Route path="/press-kit"><PanelPressKit /></Route>
-            <Route path="/storefronts"><PanelStorefronts /></Route>
-            <Route path="/community"><PanelCommunity /></Route>
-            <Route path="/promote"><PanelPromote /></Route>
-            <Route path="/earnings"><PanelEarnings /></Route>
-            <Route path="/artist/:slug"><PanelArtist /></Route>
+            {PANEL_ROUTE_PATHS.map((path) => {
+              const Page = PANEL_PAGES[path];
+              return (
+                <Route key={path} path={path}>
+                  <Page />
+                </Route>
+              );
+            })}
             <Route><PanelMiss homePath={initialPath} isLight={isLight} /></Route>
           </Switch>
         </Suspense>
