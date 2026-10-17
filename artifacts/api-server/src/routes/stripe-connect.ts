@@ -19,8 +19,10 @@ const router = Router();
 
 /* ── Stripe Connect (Express) money-out — TEST MODE ───────────────────────
  * Creators connect a bank via Stripe-hosted onboarding; payouts move their
- * pending earnings (digital_sales + store_orders creator cuts) to their
- * connected account via stripe.transfers.create.
+ * pending earnings to their connected account via stripe.transfers.create.
+ * Payable ledgers: digital_sales + store_orders creator cuts (bulk), plus
+ * the 0142 per-row-settled ledgers — released sponsor deals, paid
+ * memberships, and shop sales (see pendingPayoutCents).
  * TEST MODE: with sk_test_* keys these are test transfers — no real money
  * moves. Real payouts require a later explicit user approval + live keys.
  * Every route is auth-required and fails closed without STRIPE_SECRET_KEY. */
@@ -46,19 +48,93 @@ async function callerProfileId(userId: string): Promise<string | null> {
   return row ? String(row["id"]) : null;
 }
 
+/* "Unsettled" for the 0142 extension ledgers: a row counts as payable
+ * until a payout in an active state claims it. settled_payout_id is
+ * stamped when a payout is created (see markExtensionRowsSettled); if
+ * that payout later FAILS, the row becomes payable again on its own —
+ * no bookkeeping cleanup can strand or double-pay it. `alias` is one
+ * of this file's own static table aliases (never user input). */
+function unsettledSql(alias: string) {
+  return sql`
+    (${sql.raw(alias)}.settled_payout_id IS NULL
+     OR ${sql.raw(alias)}.settled_payout_id NOT IN (
+       SELECT id FROM creator_payouts WHERE status IN ('processing', 'pending', 'paid')
+     ))
+  `;
+}
+
 /* Pending (unsettled) earnings for a profile, in cents:
- * gross creator cuts minus amounts already paid out via creator_payouts. */
+ * gross creator cuts minus amounts already paid out via creator_payouts.
+ *
+ * The legacy ledgers (digital_sales + store_orders) settle in bulk: the
+ * original formula subtracts every active payout, unchanged.
+ *
+ * The 0142 extension ledgers settle PER ROW (settled_payout_id):
+ * released brand deals (sponsor_payouts.net_cents), paid memberships
+ * (fan_members.price_cents — stripe_session_id present = actually
+ * charged, mirroring routes/earnings.ts), and shop sales
+ * (shop_events amount − platform fee, event_type 'sale'). Their keys
+ * are the creator's USER id (sponsor_payouts.creator_user_id is the
+ * user id as text), resolved here from the profile. */
 export async function pendingPayoutCents(profileId: string): Promise<number> {
   const r = await db.execute(sql`
     SELECT
       COALESCE((SELECT SUM(creator_amount_cents) FROM digital_sales WHERE profile_id = ${profileId}), 0)
       + COALESCE((SELECT SUM(creator_amount_cents) FROM store_orders WHERE profile_id = ${profileId}), 0)
+      + COALESCE((
+          SELECT SUM(sp.net_cents) FROM sponsor_payouts sp
+          WHERE sp.creator_user_id = (SELECT user_id::text FROM creator_profiles WHERE id = ${profileId})
+            AND sp.status = 'released'
+            AND ${unsettledSql("sp")}
+        ), 0)
+      + COALESCE((
+          SELECT SUM(fm.price_cents) FROM fan_members fm
+          WHERE fm.user_id = (SELECT user_id FROM creator_profiles WHERE id = ${profileId})
+            AND fm.stripe_session_id IS NOT NULL
+            AND ${unsettledSql("fm")}
+        ), 0)
+      + COALESCE((
+          SELECT SUM(se.amount_cents - se.platform_fee_cents) FROM shop_events se
+          WHERE se.user_id = (SELECT user_id FROM creator_profiles WHERE id = ${profileId})
+            AND se.event_type = 'sale'
+            AND ${unsettledSql("se")}
+        ), 0)
       - COALESCE((SELECT SUM(amount_cents) FROM creator_payouts
                   WHERE profile_id = ${profileId} AND status IN ('processing', 'pending', 'paid')), 0)
       AS available
   `);
   const row = r.rows[0] as Record<string, unknown> | undefined;
   return Math.max(0, Number(row?.["available"] ?? 0));
+}
+
+/* Stamp the extension-ledger rows a new payout covers (0142). Runs
+ * when the payout row is created, inside the payout's own try: if the
+ * transfer then fails, the payout flips to 'failed' and every stamped
+ * row becomes payable again via the UNSETTLED predicate above.
+ * Rows created AFTER the payout was computed are not stamped — the
+ * created_at bound keeps the stamped set inside the paid amount. */
+export async function markExtensionRowsSettled(
+  userId: string,
+  payoutId: string,
+  payoutCreatedAt: string,
+): Promise<void> {
+  const stamp = sql`settled_payout_id = ${payoutId}::uuid, settled_at = NOW()`;
+  const bound = sql`created_at <= ${payoutCreatedAt}::timestamptz`;
+  await db.execute(sql`
+    UPDATE sponsor_payouts SET ${stamp}
+    WHERE creator_user_id = ${userId} AND status = 'released'
+      AND ${unsettledSql("sponsor_payouts")} AND ${bound}
+  `);
+  await db.execute(sql`
+    UPDATE fan_members SET ${stamp}
+    WHERE user_id = ${userId}::uuid AND stripe_session_id IS NOT NULL
+      AND ${unsettledSql("fan_members")} AND ${bound}
+  `);
+  await db.execute(sql`
+    UPDATE shop_events SET ${stamp}
+    WHERE user_id = ${userId}::uuid AND event_type = 'sale'
+      AND ${unsettledSql("shop_events")} AND ${bound}
+  `);
 }
 
 /* ── POST /api/connect/onboard — create account (if needed) + onboarding URL */
@@ -196,13 +272,16 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
     // (The old SELECT-then-INSERT had a TOCTOU race: both could see zero
     // in-flight payouts and both insert.)
     let payoutId: string;
+    let payoutCreatedAt: string;
     try {
       const ins = await db.execute(sql`
         INSERT INTO creator_payouts (profile_id, amount_cents, status)
         VALUES (${profileId}, ${available}, 'processing')
-        RETURNING id
+        RETURNING id, created_at
       `);
-      payoutId = String((ins.rows[0] as Record<string, unknown>)["id"]);
+      const payoutRow = ins.rows[0] as Record<string, unknown>;
+      payoutId = String(payoutRow["id"]);
+      payoutCreatedAt = new Date(payoutRow["created_at"] as string).toISOString();
     } catch (err) {
       const code = (err as { code?: string })?.code;
       if (code === "23505") {
@@ -213,6 +292,11 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
     }
 
     try {
+      /* Claim the extension-ledger rows this payout covers (0142)
+         before the transfer: if anything below fails, the payout flips
+         to 'failed' and the rows un-claim themselves. */
+      await markExtensionRowsSettled(req.userId!, payoutId, payoutCreatedAt);
+
       const transfer = await createPayoutTransfer(
         fields.accountId,
         available,
