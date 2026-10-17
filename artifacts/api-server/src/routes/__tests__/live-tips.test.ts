@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
   messages: [] as Array<Record<string, unknown>>,
   mutes: [] as Array<Record<string, unknown>>,
   tips: [] as Array<Record<string, unknown>>,
+  notifications: [] as Array<Record<string, unknown>>,
   profiles: [] as Array<Record<string, unknown>>,
   creditUsage: [] as Array<Record<string, unknown>>,
   balances: new Map<string, number>(),
@@ -151,7 +152,7 @@ vi.mock("../../lib/payment-record", () => ({
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const state = h;
-  const { liveStreamsTable, liveChatMessagesTable, liveChatMutesTable, liveStreamTipsTable, creatorProfilesTable, creditUsageTable } = actual;
+  const { liveStreamsTable, liveChatMessagesTable, liveChatMutesTable, liveStreamTipsTable, creatorProfilesTable, creditUsageTable, notificationsTable } = actual;
   const tableOf = (t: unknown) =>
     t === liveStreamsTable
       ? "streams"
@@ -165,7 +166,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
               ? "profiles"
               : t === creditUsageTable
                 ? "creditUsage"
-                : "?";
+                : t === notificationsTable
+                  ? "notifications"
+                  : "?";
   const allRows = (kind: string): Array<Record<string, unknown>> =>
     kind === "streams"
       ? [...state.streams.values()]
@@ -179,7 +182,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
               ? state.profiles
               : kind === "creditUsage"
                 ? state.creditUsage
-                : [];
+                : kind === "notifications"
+                  ? state.notifications
+                  : [];
 
   function selectChain(table: unknown, fields?: Record<string, { name: string }>): any {
     const kind = tableOf(table);
@@ -249,6 +254,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
           row.pinned_until = null;
           row.creator_credited_at = null;
           state.tips.push(row);
+        }
+        if (kind === "notifications") {
+          row.id = `66666666-6666-4666-8666-${String(++state.seq).padStart(12, "0")}`;
+          row.created_at = new Date();
+          state.notifications.push(row);
         }
         return {
           returning: async () => [{ ...row }],
@@ -328,6 +338,7 @@ beforeEach(() => {
   h.messages = [];
   h.mutes = [];
   h.tips = [];
+  h.notifications = [];
   h.creditUsage = [];
   h.chargedKeys.clear();
   h.refunds = [];
@@ -379,6 +390,27 @@ describe("POST /live/:id/tips", () => {
     expect(h.balances.get(FAN)).toBe(9_000);
     expect(h.balances.get(OWNER)).toBe(1_000);
     expect(h.tips).toHaveLength(1);
+  });
+
+  it("DE-17: a landed tip raises the creator's bell — and a retry doesn't ring it twice", async () => {
+    const body = { amountVb: 1000, body: "love this song", idempotencyKey: "tip-key-bell" };
+    const first = await req("POST", `/api/live/${STREAM}/tips`, { user: FAN, body });
+    expect(first.status).toBe(201);
+    // The notification lands beside the tip: creator, kind, the
+    // tipper's name + amount in the title, the tip text as the body,
+    // and a link to the stream itself — not a generic surface.
+    expect(h.notifications).toHaveLength(1);
+    expect(h.notifications[0]).toMatchObject({
+      userId: OWNER,
+      kind: "tip",
+      body: "love this song",
+      link: `/live/${STREAM}`,
+    });
+    expect(String(h.notifications[0]!["title"])).toContain("Fan One");
+    expect(String(h.notifications[0]!["title"])).toContain("1,000");
+    const second = await req("POST", `/api/live/${STREAM}/tips`, { user: FAN, body });
+    expect(second.status).toBe(200);
+    expect(h.notifications).toHaveLength(1);
   });
 
   it("insufficient balance is an honest 402 and nothing moves", async () => {

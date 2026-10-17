@@ -1333,6 +1333,14 @@ async function notifyUser(userId: string, kind: string, title: string, body: str
   }
 }
 
+/** DE-17: a notification must land ON the thing it announces — the
+ *  post's own page (/post/:id, backed by GET /posts/:id) — never the
+ *  feed's front door. Every post-alert kind links the post that
+ *  carries the action the alert describes. */
+export function postNotificationLink(postId: string): string {
+  return `/post/${postId}`;
+}
+
 /* ── Link-graph guard: attachments that promise a destination must deliver ── */
 const attachmentSchema = z
   .object({
@@ -1643,7 +1651,7 @@ router.post("/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Reque
     }).returning();
     await db.update(conversationsTable).set({ lastMessageAt: new Date() }).where(eq(conversationsTable.id, conv.id));
     await notifyUser(owner.userId, "story_reply", "New story reply 💬",
-      `${parsed.data.body.slice(0, 120)}`, `/artist/${owner.slug}`);
+      `${parsed.data.body.slice(0, 120)}`, `/messages?to=${req.userId}`);
     return res.status(201).json({ message: msg, conversation_id: conv.id });
   } catch (err) {
     return res.status(500).json({ error: "reply_failed", message: "Couldn't send that reply." });
@@ -1845,7 +1853,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       for (const m of mentioned) {
         if (m.userId !== req.userId) {
           await notifyUser(m.userId, "mention", `${me.displayName} mentioned you 📣`,
-            d.body.slice(0, 120), `/home`);
+            d.body.slice(0, 120), postNotificationLink(post.id));
         }
       }
     }
@@ -1854,14 +1862,14 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       if (parent) {
         const [pa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1);
         if (pa && pa.userId !== req.userId) {
-          await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`, d.body.slice(0, 120), `/home`);
+          await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`, d.body.slice(0, 120), postNotificationLink(post.id));
         }
       }
     }
     if (quoteTarget) {
       const [qa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, quoteTarget.profileId)).limit(1);
       if (qa && qa.userId !== req.userId) {
-        await notifyUser(qa.userId, "post_quote", `${me.displayName} quoted your post 🔁`, d.body.slice(0, 120), `/home`);
+        await notifyUser(qa.userId, "post_quote", `${me.displayName} quoted your post 🔁`, d.body.slice(0, 120), postNotificationLink(post.id));
       }
     }
 
@@ -2056,7 +2064,7 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
     const [pa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1);
     if (pa && pa.userId !== req.userId) {
       await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`,
-        parsed.data.body.slice(0, 120), `/home`);
+        parsed.data.body.slice(0, 120), postNotificationLink(post.id));
     }
     const [enriched] = await enrichPosts([post], req.userId!);
     return res.status(201).json({ post: enriched });
@@ -2090,7 +2098,7 @@ router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Reques
       .where(eq(postsTable.id, id));
     const [oa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, orig.profileId)).limit(1);
     if (oa && oa.userId !== req.userId) {
-      await notifyUser(oa.userId, "post_repost", `${me.displayName} reposted you 🔁`, "", `/home`);
+      await notifyUser(oa.userId, "post_repost", `${me.displayName} reposted you 🔁`, "", postNotificationLink(id));
     }
     return res.status(201).json({ post });
   } catch {
@@ -2130,7 +2138,7 @@ router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request
     const [oa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, orig.profileId)).limit(1);
     if (oa && oa.userId !== req.userId) {
       await notifyUser(oa.userId, "post_quote", `${me.displayName} quoted your post 🔁`,
-        parsed.data.body.slice(0, 120), `/home`);
+        parsed.data.body.slice(0, 120), postNotificationLink(post.id));
     }
     const [enriched] = await enrichPosts([post], req.userId!);
     return res.status(201).json({ post: enriched });

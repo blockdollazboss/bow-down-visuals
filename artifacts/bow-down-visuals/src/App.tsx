@@ -83,6 +83,7 @@ const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
 const Trending = lazyWithRetry(() => import("@/pages/trending"));
 const Remix = lazyWithRetry(() => import("@/pages/remix"));
 const Saved = lazyWithRetry(() => import("@/pages/saved"));
+const PostPage = lazyWithRetry(() => import("@/pages/post"));
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -586,6 +587,7 @@ function AppShell() {
           <Route path="/trending"><Trending /></Route>
           <Route path="/remix"><Remix /></Route>
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
+          <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>
           <Route path="/storefront/product/:id"><StorefrontProduct /></Route>

@@ -37,6 +37,7 @@ const h = vi.hoisted(() => ({
     follows: new Set<string>(),
     insertedFollows: [] as Array<Record<string, unknown>>,
     deletedFollows: [] as Array<Record<string, unknown>>,
+    notifications: [] as Array<Record<string, unknown>>,
   },
 }));
 
@@ -89,6 +90,14 @@ vi.mock("@workspace/db", async (importOriginal) => {
   function rowsFor(table: unknown, cond: unknown): unknown[] {
     if (table === creatorProfilesTable) {
       const { sql, params } = render(cond);
+      // Owner-by-user lookup (the DE-17 follower-card fetch): answer
+      // by userId only.
+      if (sql.includes('"user_id"')) {
+        const row = [...state.profilesById.values()].find(
+          (p) => String(p["userId"]) === String(params[0] ?? ""),
+        );
+        return row ? [row] : [];
+      }
       // Slug lookup: select() with eq(slug) — answer by slug only.
       if (sql.includes('"slug"')) {
         const row = [...state.profilesById.values()].find(
@@ -133,6 +142,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
         if (table === followsTable) {
           state.insertedFollows.push(v);
           state.follows.add(followKey(v["followerUserId"], v["profileId"]));
+        }
+        if (table === notificationsTable) {
+          state.notifications.push(v);
         }
         // notify() inserts into notificationsTable and simply awaits the
         // values() result; the follows insert chains onConflictDoNothing.
@@ -201,6 +213,7 @@ beforeEach(() => {
   s.follows = new Set();
   s.insertedFollows = [];
   s.deletedFollows = [];
+  s.notifications = [];
 
   s.profilesById.set(PROFILE_ID, {
     id: PROFILE_ID,
@@ -252,6 +265,25 @@ describe("POST /api/creator-profiles/:id/follow", () => {
     const { status } = await post(`/creator-profiles/no-such-creator/follow`);
     expect(status).toBe(404);
     expect(h.state.insertedFollows).toHaveLength(0);
+  });
+
+  it("DE-17: the follow bell names the follower and links THEIR profile — not the recipient's own", async () => {
+    const FOLLOWER_PROFILE_ID = "44444444-4444-4444-8444-444444444444";
+    h.state.profilesById.set(FOLLOWER_PROFILE_ID, {
+      id: FOLLOWER_PROFILE_ID,
+      userId: AUTH_USER,
+      slug: "the-follower",
+      displayName: "Faithful Follower",
+      isPublic: true,
+      followerCount: 3,
+    });
+    const { status } = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+    expect(status).toBe(200);
+    const notes = h.state.notifications.filter((n) => n["kind"] === "follow");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!["userId"]).toBe(PROFILE_OWNER);
+    expect(String(notes[0]!["title"])).toContain("Faithful Follower");
+    expect(notes[0]!["link"]).toBe("/artist/the-follower");
   });
 });
 

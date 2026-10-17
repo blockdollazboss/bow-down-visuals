@@ -9,6 +9,7 @@ import {
   liveStreamTipsTable,
   creatorProfilesTable,
   creditUsageTable,
+  notificationsTable,
   type LiveStream,
   type LiveStreamTip,
 } from "@workspace/db";
@@ -354,6 +355,25 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
         .where(eq(liveStreamTipsTable.id, tip.id))
         .returning();
       if (credited[0]) tip = credited[0];
+
+      // DE-17: the tip reaches the creator's BELL, not only the live
+      // chat overlay — a creator who isn't watching chat still learns
+      // they were tipped. This block runs exactly once per tip (only
+      // while creator_credited_at is unset), so a retry never
+      // double-notifies. Best-effort, like every house notification:
+      // a failed insert never fails the tip.
+      try {
+        const tipper = await tipperCard(tipperUserId);
+        await db.insert(notificationsTable).values({
+          userId: stream.user_id,
+          kind: "tip",
+          title: `${tipper.displayName} tipped you ${amountVb.toLocaleString("en-US")} Visual Bucs 💰`,
+          body,
+          link: `/live/${stream.id}`,
+        });
+      } catch (notifyErr) {
+        logger.warn({ notifyErr, tipId: tip.id }, "live tip: bell notification failed (tip itself landed)");
+      }
     }
 
     // 4) The pin rides the tip: at/above the minimum, this tip's
