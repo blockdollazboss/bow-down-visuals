@@ -66,6 +66,26 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   try {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object as Stripe.Checkout.Session;
+      /* Marketplace shop purchases (0144): the order already exists as
+         pending_sale rows keyed on the session id; a paid session flips
+         them to sales via the same guarded flip the verify endpoint
+         runs, so webhook replays and verify+webhook races land once.
+         The amount must match the order's server-computed gross — a
+         mismatched session never fulfils. */
+      if (s.metadata?.type === "marketplace_shop_purchase") {
+        if (s.payment_status === "paid") {
+          const { fetchMarketSaleBySession, markMarketSalePaid } = await import("./market-sale");
+          const rows = await fetchMarketSaleBySession(s.id);
+          const expected = rows.reduce((sum, r) => sum + Number(r.amount_cents), 0);
+          if (rows.length > 0 && (s.amount_total ?? 0) === expected) {
+            await markMarketSalePaid(s.id);
+          } else {
+            logger.warn({ sessionId: s.id, rows: rows.length, amountTotal: s.amount_total, expected }, "Stripe webhook: marketplace sale not applied (no pending order or amount mismatch)");
+          }
+        }
+        res.status(200).json({ received: true, kind: "marketplace_shop_purchase" });
+        return;
+      }
       if (s.metadata?.kind === "creator_tier") {
         const { handleTierCheckoutCompleted } = await import("./creator-tier-sync");
         await handleTierCheckoutCompleted(s);
@@ -76,6 +96,16 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         const { handleHostingCheckoutCompleted } = await import("./creator-tier-sync");
         await handleHostingCheckoutCompleted(s);
         res.status(200).json({ received: true, kind: "creator_hosting" });
+        return;
+      }
+    } else if (event.type === "checkout.session.expired") {
+      /* An abandoned Marketplace checkout: label its pending lines
+         expired — they never become sales (0144). */
+      const s = event.data.object as Stripe.Checkout.Session;
+      if (s.metadata?.type === "marketplace_shop_purchase") {
+        const { markMarketSaleExpired } = await import("./market-sale");
+        await markMarketSaleExpired(s.id);
+        res.status(200).json({ received: true, kind: "marketplace_shop_purchase", expired: true });
         return;
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {

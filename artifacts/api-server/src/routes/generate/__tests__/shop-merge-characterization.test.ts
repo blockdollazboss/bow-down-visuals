@@ -56,6 +56,30 @@ vi.mock("../../../lib/mirrorMedia", () => ({
   mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v ?? null),
 }));
 
+/* 0144: checkout now opens a real (test-mode) Stripe session — faked at
+   the house seam, lib/stripe-checkout, exactly as memberships/beats do. */
+const stripeH = vi.hoisted(() => ({ sessions: new Map<string, any>(), seq: 0 }));
+vi.mock("../../../lib/stripe-checkout", () => ({
+  getCheckoutStripe: vi.fn(() => ({
+    checkout: { sessions: { create: vi.fn(async (params: any) => {
+      stripeH.seq += 1;
+      const id = `cs_test_${stripeH.seq}`;
+      const session = { id, url: `https://checkout.example.com/pay/${id}`, payment_status: "unpaid",
+        amount_total: (params.line_items as any[]).reduce((s: number, li: any) => s + li.price_data.unit_amount * li.quantity, 0),
+        metadata: params.metadata };
+      stripeH.sessions.set(id, session);
+      return session;
+    }) } },
+  })),
+  retrieveCheckoutSession: vi.fn(async (id: string) => {
+    const s = stripeH.sessions.get(id);
+    if (!s) throw new Error("no such session");
+    return s;
+  }),
+  checkoutBaseUrl: vi.fn(() => "https://example.com"),
+  isCheckoutTestMode: vi.fn(() => true),
+}));
+
 import shopsRouter from "../shops";
 import storefrontsRouter from "../storefronts";
 import { createTestDb } from "../../../lib/__tests__/test-db";
@@ -80,6 +104,8 @@ CREATE TABLE shop_events (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   event_type text NOT NULL, product_id uuid, amount_cents integer NOT NULL DEFAULT 0,
   platform_fee_cents integer NOT NULL DEFAULT 0, buyer_email text, ip_hash text,
+  stripe_session_id text, payment_status text, paid_at timestamptz,
+  quantity integer NOT NULL DEFAULT 1, checkout_group_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE creator_profiles (
@@ -148,7 +174,7 @@ describe("storefronts surface over the shared shops tables", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("POST /storefronts/checkout records a sale at the 10% platform fee (seller's cut)", async () => {
+  it("POST /storefronts/checkout records a PENDING order at the 10% platform fee, and only a paid verify lands the sale (0144)", async () => {
     const { shopId, productId } = await seedShopWithProduct(2000);
     const { status, json } = await req("POST", "/storefronts/checkout", {
       shopId, productId, quantity: 2, buyerEmail: "fan@example.com",
@@ -157,10 +183,21 @@ describe("storefronts surface over the shared shops tables", () => {
     expect(json.gross_cents).toBe(4000);
     expect(json.platform_fee_cents).toBe(400);
     expect(json.seller_net_cents).toBe(3600);
-    // the sale lands in shop_events (the ledger analytics reads)
+    /* Updated 0144: at click time the order is pending — NOT a sale.
+       (This characterization previously pinned the record-at-click
+       behavior; the real card checkout supersedes it deliberately.) */
+    expect(json.paid).toBe(false);
+    expect(json.status).toBe("pending_payment");
+    expect(json.url).toContain("https://checkout.example.com/pay/");
     const ev = await testState.db.execute(sql`SELECT amount_cents, platform_fee_cents, event_type FROM shop_events WHERE shop_id = ${shopId}`);
     expect(ev.rows).toHaveLength(1);
-    expect(ev.rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 400, event_type: "sale" });
+    expect(ev.rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 400, event_type: "pending_sale" });
+    // The paid session flips it into the sale the ledger reads.
+    stripeH.sessions.get(json.sessionId).payment_status = "paid";
+    const v = await req("POST", "/storefronts/checkout/verify", { sessionId: json.sessionId });
+    expect(v.json.paid).toBe(true);
+    const after = await testState.db.execute(sql`SELECT event_type, payment_status FROM shop_events WHERE shop_id = ${shopId}`);
+    expect(after.rows[0]).toMatchObject({ event_type: "sale", payment_status: "paid" });
   });
 
   it("POST /storefronts/checkout 404s for an unknown product", async () => {

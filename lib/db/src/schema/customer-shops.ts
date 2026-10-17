@@ -70,10 +70,14 @@ export const insertShopProductSchema = createInsertSchema(shopProductsTable).omi
 export const selectShopProductSchema = createSelectSchema(shopProductsTable);
 
 /* ── Shop events (analytics) ─────────────────────────────────────────────
-   Append-only event log powering per-shop analytics. Views are recorded on
+   Event log powering per-shop analytics. Views are recorded on
    public storefront loads (deduped per IP+shop per hour at write time).
-   Sales are recorded at checkout: gross in cents, the Bow Down Visuals
-   platform fee in cents, and the seller's net — all integers, never floats. */
+   Sales carry gross in cents, the Bow Down Visuals platform fee in cents,
+   and the seller's net — all integers, never floats. Since migration
+   0144 a card checkout first lands as event_type='pending_sale' and is
+   flipped to 'sale' only when its Stripe session is confirmed paid, so
+   'sale' rows are always paid truth (legacy pre-0144 rows were recorded
+   at click time and keep their historical meaning). */
 
 export const shopEventsTable = pgTable("shop_events", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -90,6 +94,22 @@ export const shopEventsTable = pgTable("shop_events", {
   platform_fee_cents: integer("platform_fee_cents").notNull().default(0),
   /** Buyer email for sale events (order follow-up). */
   buyer_email: text("buyer_email"),
+  /** Marketplace card checkout (migration 0144): the Stripe Checkout
+      session that pays for this row. One session can cover several cart
+      lines — one row per line, all sharing the session id (index, not
+      unique; idempotency is the guarded pending_sale -> sale flip). */
+  stripe_session_id: text("stripe_session_id"),
+  /** 'pending' | 'paid' | 'no_payment_required' | 'expired'. Null on
+      views and on legacy sale rows recorded before 0144. A row only
+      counts as a sale (analytics / earnings) once event_type='sale',
+      which happens exclusively through the paid flip. */
+  payment_status: text("payment_status"),
+  /** When the paid flip landed (server truth for "this was paid"). */
+  paid_at: timestamp("paid_at", { withTimezone: true }),
+  /** Units bought on this line (migration 0144). */
+  quantity: integer("quantity").notNull().default(1),
+  /** Groups the lines of one checkout (migration 0144). */
+  checkout_group_id: text("checkout_group_id"),
   /** Connect settlement (migration 0142, DE-14): the creator_payouts row
       that paid this sale out. Null = not yet settled. A linked payout in
       'failed' status does not settle (see pendingPayoutCents). */

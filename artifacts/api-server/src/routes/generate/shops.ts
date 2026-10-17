@@ -31,6 +31,18 @@ import {
   OutOfCreditsError,
 } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import {
+  getCheckoutStripe,
+  retrieveCheckoutSession,
+  checkoutBaseUrl,
+  isCheckoutTestMode,
+} from "../../lib/stripe-checkout";
+import {
+  fetchMarketSaleBySession,
+  markMarketSalePaid,
+  marketSaleIsPaid,
+  marketSaleReceipt,
+} from "../../lib/market-sale";
 import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 
@@ -921,10 +933,24 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
     SELECT e.id, e.product_id, p.name AS product_name,
            e.amount_cents, e.platform_fee_cents,
            (e.amount_cents - e.platform_fee_cents) AS seller_net_cents,
-           e.buyer_email, e.created_at
+           e.buyer_email, e.created_at,
+           e.quantity, e.payment_status, e.paid_at
     FROM shop_events e
     LEFT JOIN shop_products p ON p.id = e.product_id
     WHERE e.shop_id = ${shop.id} AND e.event_type = 'sale'
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `);
+  /* Pending checkouts are the seller's honest "not yet" list: shown
+     apart, never folded into the sales totals above (0144). */
+  const pending = await db.execute(sql`
+    SELECT e.id, e.product_id, p.name AS product_name,
+           e.amount_cents, e.platform_fee_cents,
+           (e.amount_cents - e.platform_fee_cents) AS seller_net_cents,
+           e.buyer_email, e.created_at, e.quantity, e.payment_status
+    FROM shop_events e
+    LEFT JOIN shop_products p ON p.id = e.product_id
+    WHERE e.shop_id = ${shop.id} AND e.event_type = 'pending_sale'
     ORDER BY e.created_at DESC
     LIMIT 100
   `);
@@ -938,65 +964,280 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
       gross_cents: t.gross_cents,
       platform_fee_cents: t.platform_fee_cents,
       seller_net_cents: t.gross_cents - t.platform_fee_cents,
+      pending_orders: (pending.rows as unknown[]).length,
     },
     dailyViews: daily.rows,
     sales: sales.rows,
+    pendingSales: pending.rows,
     platformFeePct: PLATFORM_FEE_PCT,
   });
 });
 
-/* ── POST /api/storefronts/checkout — record a sale ────────────────────────
-   Order capture (no card processing yet — Stripe Connect is the follow-up).
-   The 10% platform fee comes out of the SELLER's cut; the buyer pays the
-   listed price. All money math in integer cents. */
+/* ── POST /api/storefronts/checkout — real card checkout (0144) ───────────
+   The house pattern (tip-jar / shoutouts / memberships, over
+   lib/stripe-checkout): the order is recorded FIRST as pending
+   (shop_events event_type='pending_sale' — never counted as a sale),
+   then a hosted Stripe Checkout session opens for the cart total, and
+   the sale only becomes a sale when the session is confirmed paid via
+   POST /storefronts/checkout/verify or the central webhook — both run
+   the same guarded flip in lib/market-sale.
+   Amounts are ALWAYS computed here from shop_products.price_cents —
+   the client sends product ids and quantities, never money.
+   The 10% platform fee comes out of the SELLER's cut; the buyer pays
+   the listed price. All money math in integer cents.
+   Seller side: the house's Stripe Connect is recipient/transfers-only
+   (money-out — see lib/stripe-connect); there are NO destination
+   charges anywhere, so this is a platform-account checkout (TEST mode
+   only, enforced by getCheckoutStripe): funds land on the platform
+   account, the row records the seller (shop owner user_id) and their
+   net, settled later through the existing creator-payout path.
+   A zero-total cart (free goods) needs no card: it records as paid
+   with payment_status='no_payment_required', honestly labelled. */
 const checkoutSchema = z.object({
   shopId: z.string().uuid(),
-  productId: z.string().uuid(),
+  /* Legacy single-line shape (kept for older callers). */
+  productId: z.string().uuid().optional(),
   quantity: z.number().int().min(1).max(99).default(1),
+  /* Cart shape: one checkout — one session — for the whole cart. */
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().int().min(1).max(99).default(1),
+  })).min(1).max(50).optional(),
   buyerEmail: z.string().trim().email().max(254).optional().default(""),
 });
 
+interface CheckoutLine {
+  productId: string;
+  name: string;
+  unitCents: number;
+  quantity: number;
+  gross: number;
+  fee: number;
+  saleId: string;
+}
+
 router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
+  if (!parsed.success || (!parsed.data.productId && !parsed.data.items)) {
     res.status(400).json({ error: "Invalid order." });
     return;
   }
-  const { shopId, productId, quantity, buyerEmail } = parsed.data;
-  const prod = await db.execute(sql`
-    SELECT p.id, p.shop_id, p.name, p.price_cents, s.user_id
-    FROM shop_products p
-    JOIN shops s ON s.id = p.shop_id
-    WHERE p.id = ${productId} AND p.shop_id = ${shopId}
-    LIMIT 1
+  const { shopId, buyerEmail } = parsed.data;
+
+  /* Merge duplicate lines, then price EVERY line from the server's
+     own product rows — client-supplied amounts are never read. */
+  const wanted = new Map<string, number>();
+  const rawLines = parsed.data.items ?? [{ productId: parsed.data.productId!, quantity: parsed.data.quantity }];
+  for (const l of rawLines) {
+    wanted.set(l.productId, Math.min(99, (wanted.get(l.productId) ?? 0) + l.quantity));
+  }
+
+  const shopRes = await db.execute(sql`
+    SELECT id, user_id, name, handle FROM shops WHERE id = ${shopId} LIMIT 1
   `);
-  const rows = prod.rows as unknown as Array<{
-    id: string; shop_id: string; name: string; price_cents: number; user_id: string;
-  }>;
-  const product = rows[0];
-  if (!product) {
-    res.status(404).json({ error: "Product not found." });
+  const shop = (shopRes.rows as unknown as Array<{ id: string; user_id: string; name: string; handle: string }>)[0];
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
     return;
   }
-  const gross = product.price_cents * quantity;
-  const fee = Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000);
-  const net = gross - fee;
-  const saleId = randomUUID();
-  await db.execute(sql`
-    INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email)
-    VALUES (${saleId}, ${shopId}, ${product.user_id}, 'sale', ${productId}, ${gross}, ${fee}, ${buyerEmail || null})
-  `);
-  res.status(201).json({
-    saleId,
-    productName: product.name,
-    quantity,
+
+  const lines: CheckoutLine[] = [];
+  for (const [productId, quantity] of wanted) {
+    const prod = await db.execute(sql`
+      SELECT p.id, p.name, p.price_cents
+      FROM shop_products p
+      WHERE p.id = ${productId} AND p.shop_id = ${shopId}
+      LIMIT 1
+    `);
+    const product = (prod.rows as unknown as Array<{ id: string; name: string; price_cents: number }>)[0];
+    if (!product) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    const gross = Number(product.price_cents) * quantity;
+    lines.push({
+      productId, name: product.name, unitCents: Number(product.price_cents), quantity,
+      gross, fee: Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
+      saleId: randomUUID(),
+    });
+  }
+  const gross = lines.reduce((s, l) => s + l.gross, 0);
+  const fee = lines.reduce((s, l) => s + l.fee, 0);
+  const groupId = randomUUID();
+  const totals = {
     gross_cents: gross,
     platform_fee_cents: fee,
     platform_fee_pct: PLATFORM_FEE_PCT,
-    seller_net_cents: net,
+    seller_net_cents: gross - fee,
     buyerEmail: buyerEmail || null,
-    note: "Order recorded. Card processing via Stripe Connect is coming soon — the seller follows up to complete payment.",
+  };
+  const lineReceipts = lines.map((l) => ({
+    saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
+    gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
+  }));
+
+  /* Free cart: no card exists to charge — record the sale as paid
+     with the honest no-payment status, exactly once, right here. */
+  if (gross <= 0) {
+    for (const l of lines) {
+      await db.execute(sql`
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id)
+        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId})
+      `);
+    }
+    res.status(201).json({
+      saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+      status: "paid", paid: true, free: true, paymentStatus: "no_payment_required",
+      productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+      lines: lineReceipts, ...totals,
+      note: "Free order — no payment was needed, and none was taken. It's yours.",
+    });
+    return;
+  }
+
+  /* Payments must be configured before any row is written, so a
+     config failure never leaves a phantom pending order behind. */
+  let stripe: ReturnType<typeof getCheckoutStripe>;
+  try {
+    stripe = getCheckoutStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+
+  /* 1) Record the order as PENDING first (brief + house pattern). */
+  for (const l of lines) {
+    await db.execute(sql`
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id)
+      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId})
+    `);
+  }
+
+  /* 2) Open the hosted session for the cart total. Failure = honest
+        error and the pending rows are removed (tip-jar's orphan rule):
+        no session, no charge possible, no order pretending to exist. */
+  let session: { id: string; url: string | null };
+  try {
+    const base = checkoutBaseUrl(req);
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      ...(buyerEmail ? { customer_email: buyerEmail } : {}),
+      line_items: lines.map((l) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: l.unitCents,
+          product_data: { name: l.name, description: shop.name },
+        },
+        quantity: l.quantity,
+      })),
+      metadata: {
+        type: "marketplace_shop_purchase",
+        shop_id: shopId,
+        checkout_group_id: groupId,
+        sale_id: lines[0]!.saleId,
+      },
+      success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
+    }, { idempotencyKey: `market-sale:${groupId}` });
+    if (!session.url) throw new Error("Checkout session did not return a URL");
+  } catch (err) {
+    await db.execute(sql`DELETE FROM shop_events WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'`).catch(() => {});
+    logger.error({ err, shopId, groupId }, "[storefronts] checkout session failed — pending order removed");
+    res.status(502).json({ error: "Could not start checkout. Nothing was charged — try again." });
+    return;
+  }
+
+  await db.execute(sql`
+    UPDATE shop_events SET stripe_session_id = ${session.id}
+    WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'
+  `);
+  logger.info({ shopId, groupId, sessionId: session.id, gross }, "[storefronts] checkout session created (order pending)");
+  res.status(201).json({
+    saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+    status: "pending_payment", paid: false, paymentStatus: "pending",
+    sessionId: session.id,
+    url: session.url, checkoutUrl: session.url,
+    productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+    lines: lineReceipts, ...totals,
+    testMode: isCheckoutTestMode(),
+    note: "Your order is saved as pending — payment happens at the hosted checkout. It only counts as a sale once the payment confirms.",
   });
+});
+
+/* ── POST /api/storefronts/checkout/verify — confirm a payment ───────────
+   The buyer is back from hosted checkout (or a stand is refreshing on
+   focus): retrieve the session from Stripe, and only a PAID session
+   whose total matches the pending order's server-computed gross flips
+   the order to a sale — through the same guarded flip the webhook
+   runs, so the two doors can never double-fulfil. The session id is
+   the capability (shoutout/tip-jar pattern): no auth, but nothing is
+   revealed beyond the order the session itself paid for. */
+const checkoutVerifySchema = z.object({ sessionId: z.string().trim().min(1).max(200) });
+
+router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) => {
+  const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  const { sessionId } = parsed.data;
+  const rows = await fetchMarketSaleBySession(sessionId);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Order not found for that checkout session." });
+    return;
+  }
+  if (marketSaleIsPaid(rows)) {
+    const receipt = marketSaleReceipt(rows);
+    /* The receipt itself carries status/paid — spreading it last is
+       the whole shape; no duplicate literals. */
+    res.json({ duplicate: true, sessionId, order: receipt, ...receipt });
+    return;
+  }
+  let session;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.metadata?.["type"] !== "marketplace_shop_purchase") {
+    res.status(400).json({ error: "This session isn't a shop purchase." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    const receipt = marketSaleReceipt(rows);
+    res.json({ sessionId, order: receipt, ...receipt });
+    return;
+  }
+  const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0);
+  if ((session.amount_total ?? 0) !== expected) {
+    logger.error({ sessionId, amountTotal: session.amount_total, expected }, "[storefronts] verify: paid amount does not match the order");
+    res.status(400).json({ error: "The paid amount doesn't match this order." });
+    return;
+  }
+  const { flipped, rows: after } = await markMarketSalePaid(sessionId);
+  const receipt = marketSaleReceipt(after);
+  logger.info({ sessionId, flipped }, "[storefronts] checkout verified — sale recorded");
+  res.json({ duplicate: flipped === 0, sessionId, order: receipt, ...receipt });
+});
+
+/* ── GET /api/storefronts/checkout/status?sessionId= — DB truth, read-only ─
+   What the server currently believes about an order, without asking
+   Stripe: paid only when the flip has landed, pending (or expired)
+   otherwise. A pending order NEVER reads as paid here. */
+router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) => {
+  const sessionId = String(req.query.sessionId ?? "").trim();
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  const rows = await fetchMarketSaleBySession(sessionId);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Order not found for that checkout session." });
+    return;
+  }
+  const receipt = marketSaleReceipt(rows);
+  res.json({ sessionId, ...receipt, order: receipt });
 });
 
 /* ── POST /api/storefronts/:id/domain — attach a custom domain (Pro+) ────── */
