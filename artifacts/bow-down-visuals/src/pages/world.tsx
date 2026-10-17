@@ -35,8 +35,12 @@ import {
   initialVoiceToggle,
   reduceVoiceToggle,
   canJoinVoice,
-  loadVoiceEnabled,
-  storeVoiceEnabled,
+  gainPolicyForMode,
+  loadVoiceMode,
+  nextVoiceMode,
+  storeVoiceMode,
+  VOICE_MODES,
+  type VoiceMode,
   type VoiceToggleAction,
   type VoiceToggleState,
 } from "@/lib/world/voice-toggle";
@@ -55,7 +59,9 @@ import WalkInAsPicker from "@/components/world/WalkInAsPicker";
    One shared VR room: a palace hall with a stage and a big screen
    (the featured reel, or a live stream's picture while one is truly
    live). Creators and fans walk it together as named avatars; guests
-   visit look-only. Voice is proximity — walk up to someone to talk.
+   visit look-only. Voice has modes — Off, Proximity (walk up to
+   someone to talk), Lobby (the whole hall), Deafen (hear nobody,
+   mic muted, still in the room).
    The 3D scene (three.js) loads ONLY on this route, behind a dynamic
    import in the init effect.
    The hall wears the visitor's site theme (owner's pick, 2026-10-16):
@@ -117,12 +123,12 @@ export default function WorldPage() {
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
   const [sayLog, setSayLog] = useState<WorldSayEvent[]>([]);
   const [draft, setDraft] = useState("");
-  /* The proximity-voice switch (owner's order): a master on/off for
-     hall voice, remembered on this device. `inVoice` inside it is
-     the live mesh session; the switch gates it, never replaces the
-     explicit Join-voice act. */
+  /* The voice control (owner's order): MODES, not just on/off —
+     Off, Proximity, Lobby, Deafen — remembered on this device.
+     `inVoice` inside it is the live mesh session; the mode gates
+     and shapes it, never replaces the explicit Join-voice act. */
   const [voiceSwitch, setVoiceSwitch] = useState<VoiceToggleState>(() =>
-    initialVoiceToggle(loadVoiceEnabled()),
+    initialVoiceToggle(loadVoiceMode()),
   );
   const voiceSwitchRef = useRef(voiceSwitch);
   voiceSwitchRef.current = voiceSwitch;
@@ -209,7 +215,7 @@ export default function WorldPage() {
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
-     A toggles voice, Y switches view — see lib/world/gamepad). */
+     A steps the voice mode, Y switches view — see lib/world/gamepad). */
   useEffect(() => {
     const scan = () => {
       try {
@@ -316,10 +322,11 @@ export default function WorldPage() {
     clientRef.current?.setCharacter(walkInAs);
   }, [walkInAs]);
 
-  /* Run one voice-switch action through the machine and carry out
+  /* Run one voice-mode action through the machine and carry out
      its effects: the mic is hardware (release = stop the tracks and
-     tear the mesh down), the announcement is a presence frame, and
-     the preference is device memory. */
+     tear the mesh down; deafen = mute the track, mesh stays up),
+     the announcements are presence frames, the gains are the mesh's
+     policy, and the preference is device memory. */
   const teardownVoiceSession = () => {
     meshRef.current?.leave();
     meshRef.current = null;
@@ -334,21 +341,44 @@ export default function WorldPage() {
   const dispatchVoice = (action: VoiceToggleAction) => {
     const { state, effects } = reduceVoiceToggle(voiceSwitchRef.current, action);
     setVoiceSwitch(state);
+    let store = false;
     for (const effect of effects) {
       if (effect === "release-mic") teardownVoiceSession();
       if (effect === "announce-off") {
-        storeVoiceEnabled(false);
         clientRef.current?.setVoiceOff(true);
+        store = true;
       }
       if (effect === "announce-on") {
-        storeVoiceEnabled(true);
         clientRef.current?.setVoiceOff(false);
+        store = true;
+      }
+      if (effect === "announce-deaf") {
+        clientRef.current?.setVoiceDeaf(true);
+        store = true;
+      }
+      if (effect === "announce-undeaf") {
+        clientRef.current?.setVoiceDeaf(false);
+        store = true;
+      }
+      if (effect === "deafen-mic") {
+        meshRef.current?.setMuted(true);
+        setMuted(true);
+      }
+      if (effect === "restore-mic") {
+        meshRef.current?.setMuted(state.resumeMuted);
+        setMuted(state.resumeMuted);
+      }
+      if (effect === "apply-mode") {
+        meshRef.current?.setGainPolicy(gainPolicyForMode(state.mode));
       }
     }
+    if (store) storeVoiceMode(state.mode);
   };
 
-  const toggleVoiceSwitch = () => {
-    dispatchVoice({ type: voiceSwitchRef.current.enabled ? "switch-off" : "switch-on" });
+  const setVoiceMode = (mode: VoiceMode) => {
+    /* Deafen captures the mic's current mute from the mesh itself —
+       the track's own truth — so undeafening restores it exactly. */
+    dispatchVoice({ type: "set-mode", mode, micMuted: meshRef.current?.isMuted ?? muted });
   };
 
   useEffect(() => {
@@ -389,13 +419,17 @@ export default function WorldPage() {
       // want and sends it the moment the welcome lands).
       if (walkInAsRef.current) client.setCharacter(walkInAsRef.current);
       // A remembered voice-off walks in with us too — the room's
-      // name plates are right from the first frame.
-      if (!loadVoiceEnabled()) client.setVoiceOff(true);
+      // name plates are right from the first frame. So does a
+      // remembered deafen.
+      const bootMode = loadVoiceMode();
+      if (bootMode === "off") client.setVoiceOff(true);
+      if (bootMode === "deafen") client.setVoiceDeaf(true);
       scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
-      /* Controller face buttons land on the same switches the
-         footer shows — one behavior, whatever drives it. */
+      /* Controller face buttons land on the same controls the
+         footer shows — one behavior, whatever drives it. A steps
+         the voice mode; Y flips the view. */
       scene.onPadToggleVoice = () => {
-        if (!cancelled) toggleVoiceSwitch();
+        if (!cancelled) setVoiceMode(nextVoiceMode(voiceSwitchRef.current.mode));
       };
       scene.onPadToggleView = () => {
         if (!cancelled) toggleViewMode();
@@ -499,7 +533,7 @@ export default function WorldPage() {
         if (client.self) {
           const all = [client.self, ...client.peers.values()];
           const sig = all
-            .map((p) => `${p.peerId}:${p.voice ? 1 : 0}:${p.voiceOff ? 1 : 0}:${p.hostMuted ? 1 : 0}:${p.admin ? 1 : 0}:${p.displayName}`)
+            .map((p) => `${p.peerId}:${p.voice ? 1 : 0}:${p.voiceOff ? 1 : 0}:${p.voiceDeaf ? 1 : 0}:${p.hostMuted ? 1 : 0}:${p.admin ? 1 : 0}:${p.displayName}`)
             .join(";");
           if (sig !== rosterSigRef.current) {
             rosterSigRef.current = sig;
@@ -618,6 +652,10 @@ export default function WorldPage() {
       });
       meshRef.current = mesh;
       mesh.start(stream);
+      /* A fresh mesh hears with the CURRENT mode's policy — joining
+         in Lobby hears the hall, joining deafened hears nobody (and
+         the machine's deafen-mic mutes the mic on the join). */
+      mesh.setGainPolicy(gainPolicyForMode(voiceSwitchRef.current.mode));
       localTapRef.current = createLocalLevelTap(stream);
       setMuted(false);
       client.joinVoice();
@@ -669,6 +707,13 @@ export default function WorldPage() {
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"
     }`;
+  /* The voice modes in the words the control speaks them. */
+  const voiceModeLabels: Record<VoiceMode, string> = {
+    off: "Off",
+    proximity: "Proximity",
+    lobby: "Lobby",
+    deafen: "Deafen",
+  };
 
   return (
     <div
@@ -1021,6 +1066,7 @@ export default function WorldPage() {
                 {p.guest && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>guest</span>}
                 {p.voice && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>in voice</span>}
                 {p.voiceOff && <span className="text-[11px] font-semibold text-[#e08a6d]">voice off</span>}
+                {p.voiceDeaf && <span className={`text-[11px] font-semibold ${isLight ? "text-[#476b8a]" : "text-[#a9c3d9]"}`}>deafened</span>}
                 {p.hostMuted && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-300">Muted by host</span>}
                 {p.peerId !== myPeerId && (
                   <span className="ml-auto inline-flex gap-1.5">
@@ -1080,7 +1126,7 @@ export default function WorldPage() {
         {padConnected && status === "inside" && (
           <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
             <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, A toggles voice, Y switches view.
+            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view.
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -1159,33 +1205,52 @@ export default function WorldPage() {
             )}
             {!isGuest && status === "inside" && (
               <>
-                {/* The voice switch — proximity chat on/off, in words,
-                    no menu. Off releases the mic and marks your name
-                    plate voice-off for the whole hall. */}
+                {/* The voice modes — Off · Proximity · Lobby · Deafen,
+                    in words, right here, no menu digging. Off releases
+                    the mic and marks your name plate voice-off for the
+                    whole hall; Deafen keeps you in voice, mutes your
+                    mic, and marks you deafened. Switching modes never
+                    joins voice by itself — Join is still its own act. */}
                 <span className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                   Voice
                 </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={voiceSwitch.enabled}
-                  aria-label="Proximity voice"
-                  onClick={toggleVoiceSwitch}
-                  data-testid="world-voice-switch"
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
-                    voiceSwitch.enabled
-                      ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
-                      : isLight
-                        ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36] hover:text-[#2a1e07]"
-                        : "border-white/20 bg-white/5 text-white/60 hover:text-white"
-                  }`}
+                <div
+                  role="radiogroup"
+                  aria-label="Voice mode"
+                  data-testid="world-voice-modes"
+                  className={`inline-flex items-center gap-1 rounded-full border p-1 ${isLight ? "border-[#7A5A12]/40 bg-black/5" : "border-white/20 bg-white/5"}`}
                 >
-                  {voiceSwitch.enabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-                  {voiceSwitch.enabled ? "Voice on" : "Voice off"}
-                </button>
-                {!voiceSwitch.enabled && (
+                  {VOICE_MODES.map((mode) => {
+                    const active = voiceSwitch.mode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        data-testid={`world-voice-mode-${mode}`}
+                        onClick={() => setVoiceMode(mode)}
+                        className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                          active
+                            ? "bg-[#d4af37] text-black"
+                            : isLight
+                              ? "text-[#6B5B36] hover:text-[#2a1e07]"
+                              : "text-white/60 hover:text-white"
+                        }`}
+                      >
+                        {voiceModeLabels[mode]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {voiceSwitch.mode === "off" && (
                   <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                     You can't hear or be heard here — your name plate shows it. Text still works.
+                  </span>
+                )}
+                {voiceSwitch.mode === "deafen" && (
+                  <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    Deafened — you hear nobody, and your mic is muted. Your name plate shows it.
                   </span>
                 )}
                 {hostMuted && !voiceSwitch.inVoice && (
@@ -1193,13 +1258,23 @@ export default function WorldPage() {
                     <MicOff className="h-4 w-4" /> Muted by the host
                   </span>
                 )}
-                {voiceSwitch.enabled && !voiceSwitch.inVoice && !hostMuted && (
+                {voiceSwitch.mode !== "off" && !voiceSwitch.inVoice && !hostMuted && (
                   <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
                     {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                     Join voice
                   </button>
                 )}
-                {voiceSwitch.inVoice && (
+                {voiceSwitch.inVoice && voiceSwitch.mode === "deafen" && (
+                  <>
+                    <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${isLight ? "border-[#476b8a]/40 bg-[#476b8a]/10 text-[#476b8a]" : "border-[#a9c3d9]/40 bg-[#a9c3d9]/10 text-[#a9c3d9]"}`} data-testid="world-deafened-chip">
+                      <MicOff className="h-4 w-4" /> Deafened — mic muted
+                    </span>
+                    <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                      <PhoneOff className="h-4 w-4" /> Leave voice
+                    </button>
+                  </>
+                )}
+                {voiceSwitch.inVoice && voiceSwitch.mode !== "deafen" && (
                   <>
                     <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
                       {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -1208,7 +1283,11 @@ export default function WorldPage() {
                     <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
                       <PhoneOff className="h-4 w-4" /> Leave voice
                     </button>
-                    <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>Voice is by distance — walk up to talk.</span>
+                    <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                      {voiceSwitch.mode === "lobby"
+                        ? "Lobby voice — everyone in the hall, near or far."
+                        : "Voice is by distance — walk up to talk."}
+                    </span>
                   </>
                 )}
               </>
