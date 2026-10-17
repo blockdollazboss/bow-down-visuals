@@ -137,6 +137,11 @@ export interface WorldClientDeps {
   /** Open a socket (WebSocket in the browser; fakes in tests). */
   openSocket: (url: string) => WorldSocketLike;
   now?: () => number;
+  /** Timer injection for the first-connect retry engine (tests
+   *  drive the backoff + watchdog by hand; the browser omits these
+   *  and gets the real timers). */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
 }
 
 export interface WorldSayEvent {
@@ -148,6 +153,22 @@ export interface WorldSayEvent {
 export type VoiceNotice = "full" | "denied-guest" | "denied-host";
 
 const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
+
+/* ── First-connect resilience ──────────────────────────────────────
+ * The door is retried, quietly, before it is ever called broken:
+ * the staging box (and any waking host) can take seconds to accept
+ * a socket, and a single dropped handshake used to be a dead end
+ * with an error card. The FIRST connect gets a bounded budget —
+ * this many attempts in total, with a growing pause between them —
+ * and a watchdog per attempt: a handshake that produces neither a
+ * welcome nor a close within the window counts as failed, so a
+ * hung connect retries instead of spinning forever. Once the first
+ * welcome lands the budget is spent for good: a later drop is a
+ * real drop and reports the way it always has. */
+export const WORLD_CONNECT_MAX_ATTEMPTS = 3;
+/** The pause before attempt 2 and attempt 3, respectively. */
+export const WORLD_CONNECT_BACKOFF_MS: readonly number[] = [1_000, 2_000];
+export const WORLD_WELCOME_WATCHDOG_MS = 20_000;
 
 export function defaultWorldSocketUrl(loc: { protocol: string; host: string }, token: string | null): string {
   const proto = loc.protocol === "https:" ? "wss:" : "ws:";
@@ -224,6 +245,15 @@ export class WorldClient {
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
+  /** First-connect retry state: sockets opened so far in this
+   *  connect sequence, whether the first welcome has ever landed,
+   *  and the two pending timers (welcome watchdog, backoff). */
+  private connectAttemptsMade = 0;
+  private everInside = false;
+  private welcomeWatchdog: unknown = null;
+  private retryTimer: unknown = null;
+  private readonly setTimer: (fn: () => void, ms: number) => unknown;
+  private readonly clearTimer: (handle: unknown) => void;
   /** The vault character this client wants to stand as. `undefined` =
    *  never chosen this session (send nothing); a string id or null
    *  (house avatar) is (re)sent the moment we're inside. */
@@ -239,6 +269,10 @@ export class WorldClient {
 
   constructor(private deps: WorldClientDeps) {
     this.now = deps.now ?? (() => Date.now());
+    this.setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+    this.clearTimer =
+      deps.clearTimer ??
+      ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>));
   }
 
   get isGuest(): boolean {
@@ -250,35 +284,146 @@ export class WorldClient {
   }
 
   async connect(): Promise<void> {
+    this.clearConnectTimers();
+    this.connectAttemptsMade = 0;
+    this.everInside = false;
     this.setStatus("connecting");
+    await this.openAttempt();
+  }
+
+  /** One connection attempt: a fresh token, a fresh socket, a
+   *  welcome watchdog. Every failure route (error, close of ANY
+   *  code before the welcome, a hung handshake, a socket that
+   *  won't even construct) funnels into failConnectAttempt while
+   *  the first-connect budget lasts — the status never leaves
+   *  "connecting" between attempts, so the page just keeps showing
+   *  its entering state and no error card flashes for a transient. */
+  private async openAttempt(): Promise<void> {
+    this.connectAttemptsMade += 1;
+    const attempt = this.connectAttemptsMade;
     let token: string | null = null;
     try {
       token = await this.deps.getAccessToken();
     } catch {
       token = null; // a token hiccup downgrades to guest, never blocks the door
     }
-    const socket = this.deps.openSocket(this.deps.socketUrl(token));
+    /* A disconnect (or a whole new connect) may have landed while
+     * the token was in flight — a stale attempt must not open. */
+    if (this.status !== "connecting" || this.connectAttemptsMade !== attempt) return;
+    let socket: WorldSocketLike;
+    try {
+      socket = this.deps.openSocket(this.deps.socketUrl(token));
+    } catch {
+      this.failConnectAttempt();
+      return;
+    }
     this.socket = socket;
-    socket.onmessage = (ev) => this.handleFrame(ev.data);
+    /* Handlers check identity: a superseded attempt's socket (the
+     * watchdog already closed it, we're on a newer one) must never
+     * act on its late events. */
+    socket.onmessage = (ev) => {
+      if (this.socket === socket) this.handleFrame(ev.data);
+    };
     socket.onclose = (ev) => {
-      if (this.status === "full" || this.status === "removed") return; // already explained itself
-      if (this.status === "inside" || this.status === "connecting") {
-        this.setStatus(ev.code === 1000 || ev.code === 1005 ? "closed" : "error");
-      }
+      if (this.socket === socket) this.handleSocketClose(ev);
     };
     socket.onerror = () => {
-      if (this.status === "connecting") this.setStatus("error");
+      if (this.socket === socket) this.handleSocketFailure();
     };
+    this.armWelcomeWatchdog(socket);
+  }
+
+  private handleSocketClose(ev: { code?: number }): void {
+    if (this.status === "full" || this.status === "removed") return; // already explained itself
+    if (!this.everInside && this.status === "connecting") {
+      /* A close before the first welcome — clean (1000/1005, a
+       * draining server) or abnormal (1006, a killed handshake) —
+       * is a failed attempt, not a dead room: it retries inside
+       * the same budget, and only an exhausted budget shows the
+       * card. (Before this, a clean close landed on "closed",
+       * which has no overlay at all — a bare dead room.) */
+      this.failConnectAttempt();
+      return;
+    }
+    if (this.status === "inside") {
+      this.setStatus(ev.code === 1000 || ev.code === 1005 ? "closed" : "error");
+    }
+  }
+
+  private handleSocketFailure(): void {
+    if (!this.everInside && this.status === "connecting") {
+      this.failConnectAttempt();
+    }
+  }
+
+  /** The current attempt is dead: retire its socket quietly and
+   *  either schedule the next attempt (backoff, status untouched)
+   *  or, with the budget spent, land on the honest error state. */
+  private failConnectAttempt(): void {
+    this.clearWelcomeWatchdog();
+    const socket = this.socket;
+    this.socket = null;
+    if (socket) {
+      try {
+        socket.close();
+      } catch {
+        /* already gone */
+      }
+    }
+    if (this.connectAttemptsMade >= WORLD_CONNECT_MAX_ATTEMPTS) {
+      this.setStatus("error");
+      return;
+    }
+    const delay =
+      WORLD_CONNECT_BACKOFF_MS[this.connectAttemptsMade - 1] ??
+      WORLD_CONNECT_BACKOFF_MS[WORLD_CONNECT_BACKOFF_MS.length - 1]!;
+    this.retryTimer = this.setTimer(() => {
+      this.retryTimer = null;
+      if (this.status !== "connecting" || this.everInside) return;
+      void this.openAttempt();
+    }, delay);
+  }
+
+  /** A handshake that lands neither a welcome nor a close inside
+   *  the window is a failed attempt — without this, a hung connect
+   *  spins on "connecting" forever (there was no timer at all). */
+  private armWelcomeWatchdog(socket: WorldSocketLike): void {
+    this.clearWelcomeWatchdog();
+    this.welcomeWatchdog = this.setTimer(() => {
+      this.welcomeWatchdog = null;
+      if (this.socket !== socket) return;
+      if (this.status !== "connecting" || this.everInside) return;
+      this.failConnectAttempt();
+    }, WORLD_WELCOME_WATCHDOG_MS);
+  }
+
+  private clearWelcomeWatchdog(): void {
+    if (this.welcomeWatchdog !== null) {
+      this.clearTimer(this.welcomeWatchdog);
+      this.welcomeWatchdog = null;
+    }
+  }
+
+  private clearConnectTimers(): void {
+    this.clearWelcomeWatchdog();
+    if (this.retryTimer !== null) {
+      this.clearTimer(this.retryTimer);
+      this.retryTimer = null;
+    }
   }
 
   disconnect(): void {
     this.setStatus("closed");
-    try {
-      this.socket?.close();
-    } catch {
-      /* already gone */
-    }
+    this.clearConnectTimers();
+    const socket = this.socket;
     this.socket = null;
+    if (socket) {
+      try {
+        socket.close();
+      } catch {
+        /* already gone */
+      }
+    }
     this.peers.clear();
     this.voicePeerIds.clear();
     this.self = null;
@@ -450,10 +595,15 @@ export class WorldClient {
 
     switch (frame["type"]) {
       case "room_full": {
+        this.clearConnectTimers();
         this.setStatus("full");
         return;
       }
       case "welcome": {
+        /* The first welcome spends the connect budget for good and
+         * silences the watchdog — from here, drops are real drops. */
+        this.everInside = true;
+        this.clearConnectTimers();
         const you = frame["you"] as WorldPeer;
         const wasInside = this.status === "inside";
         const prevRoomId = this.room?.id ?? null;
@@ -641,6 +791,7 @@ export class WorldClient {
       case "removed": {
         /* The host removed me: the socket close follows immediately;
          * the status (and its honest card) must survive it. */
+        this.clearConnectTimers();
         this.setStatus("removed");
         return;
       }

@@ -19,7 +19,10 @@ import {
   WorldClient,
   worldOverlay,
   defaultWorldSocketUrl,
+  WORLD_CONNECT_MAX_ATTEMPTS,
+  WORLD_WELCOME_WATCHDOG_MS,
   type WorldSocketLike,
+  type WorldStatus,
 } from "./world-client";
 
 class FakeSocket implements WorldSocketLike {
@@ -606,5 +609,170 @@ describe("avatar actions", () => {
     socket.sent = [];
     client.performAction("wave");
     expect(socket.sent).toEqual([{ type: "action", action: "wave" }]);
+  });
+});
+
+describe("the first connect — bounded retry + welcome watchdog", () => {
+  /* Timers driven by hand: the retry engine's delays are asserted,
+   * not waited out. Insertion order stands in for due order — the
+   * engine never has two timers racing (watchdog OR backoff). */
+  function manualTimers() {
+    let nextId = 1;
+    const timers = new Map<number, { fn: () => void; ms: number }>();
+    return {
+      setTimer: (fn: () => void, ms: number) => {
+        const id = nextId++;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      clearTimer: (handle: unknown) => {
+        timers.delete(handle as number);
+      },
+      pendingDelays: () => [...timers.values()].map((t) => t.ms),
+      fireNext: () => {
+        const first = [...timers.entries()][0];
+        if (!first) return null;
+        timers.delete(first[0]);
+        first[1].fn();
+        return first[1].ms;
+      },
+    };
+  }
+
+  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  function makeRetryClient() {
+    const timers = manualTimers();
+    const sockets: FakeSocket[] = [];
+    const statuses: WorldStatus[] = [];
+    const client = new WorldClient({
+      getAccessToken: async () => "token-abc",
+      socketUrl: (token) => `ws://hall/api/world/ws${token ? `?token=${token}` : ""}`,
+      openSocket: () => {
+        const s = new FakeSocket();
+        sockets.push(s);
+        return s;
+      },
+      setTimer: timers.setTimer,
+      clearTimer: timers.clearTimer,
+    });
+    client.onStatus = (s) => statuses.push(s);
+    return { client, sockets, timers, statuses };
+  }
+
+  it("a failed first attempt retries quietly — status never leaves connecting, no error flashes", async () => {
+    const { client, sockets, timers, statuses } = makeRetryClient();
+    await client.connect();
+    expect(sockets).toHaveLength(1);
+    expect(timers.pendingDelays()).toEqual([WORLD_WELCOME_WATCHDOG_MS]);
+
+    sockets[0]!.onerror?.();
+    expect(client.status).toBe("connecting");
+    expect(timers.pendingDelays()).toEqual([1_000]); // backoff before attempt 2
+
+    expect(timers.fireNext()).toBe(1_000);
+    await flush();
+    expect(sockets).toHaveLength(2);
+
+    sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+    expect(statuses).toEqual(["inside"]); // connecting → inside, nothing between
+    expect(timers.pendingDelays()).toEqual([]); // watchdog spent with the welcome
+  });
+
+  it("a CLEAN close (1000) during connect retries too — it no longer strands a bare dead room", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    sockets[0]!.onclose?.({ code: 1000 });
+    expect(client.status).toBe("connecting"); // NOT "closed" — worldOverlay("closed") is no card at all
+    expect(worldOverlay(client.status)).toBe("connecting");
+
+    timers.fireNext();
+    await flush();
+    expect(sockets).toHaveLength(2);
+    sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+  });
+
+  it("a hung handshake is failed by the watchdog and retried, not spun on forever", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    // The socket neither opens a welcome nor closes — it just hangs.
+    expect(timers.fireNext()).toBe(WORLD_WELCOME_WATCHDOG_MS);
+    expect(client.status).toBe("connecting");
+    expect(sockets[0]!.readyState).toBe(3); // the watchdog retired it
+    expect(timers.pendingDelays()).toEqual([1_000]);
+
+    timers.fireNext();
+    await flush();
+    expect(sockets).toHaveLength(2);
+    sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+  });
+
+  it("the budget is bounded: after the last attempt fails, the honest error lands", async () => {
+    const { client, sockets, timers, statuses } = makeRetryClient();
+    await client.connect();
+
+    sockets[0]!.onerror?.();
+    expect(timers.pendingDelays()).toEqual([1_000]);
+    timers.fireNext();
+    await flush();
+
+    sockets[1]!.onclose?.({ code: 1006 });
+    expect(timers.pendingDelays()).toEqual([2_000]); // the backoff grows
+    timers.fireNext();
+    await flush();
+
+    expect(sockets).toHaveLength(WORLD_CONNECT_MAX_ATTEMPTS);
+    sockets[2]!.onerror?.();
+    expect(client.status).toBe("error");
+    expect(statuses).toEqual(["error"]);
+    expect(timers.pendingDelays()).toEqual([]); // nothing left scheduled
+    expect(sockets).toHaveLength(WORLD_CONNECT_MAX_ATTEMPTS); // and no 4th socket
+  });
+
+  it("once inside, the budget is spent — a drop is a real drop and is never retried", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(client.status).toBe("inside");
+
+    sockets[0]!.onclose?.({ code: 1006 });
+    expect(client.status).toBe("error");
+    expect(sockets).toHaveLength(1);
+    expect(timers.pendingDelays()).toEqual([]);
+  });
+
+  it("a clean close mid-visit still reads as a deliberate closed, as before", async () => {
+    const { client, sockets } = makeRetryClient();
+    await client.connect();
+    sockets[0]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    sockets[0]!.onclose?.({ code: 1005 });
+    expect(client.status).toBe("closed");
+  });
+
+  it("disconnect during the backoff cancels the retry — leaving means leaving", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    sockets[0]!.onerror?.();
+    expect(timers.pendingDelays()).toEqual([1_000]);
+
+    client.disconnect();
+    expect(client.status).toBe("closed");
+    expect(timers.pendingDelays()).toEqual([]);
+    await flush();
+    expect(sockets).toHaveLength(1); // the scheduled attempt never opened
+  });
+
+  it("room_full during connect stays terminal — no retry against a full hall", async () => {
+    const { client, sockets, timers } = makeRetryClient();
+    await client.connect();
+    sockets[0]!.receive({ type: "room_full", cap: 30 });
+    expect(client.status).toBe("full");
+    expect(timers.pendingDelays()).toEqual([]); // watchdog cleared with the verdict
+    sockets[0]!.onclose?.({ code: 4429 });
+    expect(client.status).toBe("full");
+    expect(sockets).toHaveLength(1);
   });
 });

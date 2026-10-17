@@ -184,6 +184,11 @@ export default function WorldPage() {
 
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<WorldStatus>("connecting");
+  /* A boot failure is NOT a connection failure: the scene chunk
+     failed to load or the WebGL2 renderer threw before any socket
+     existed — the device couldn't start the hall. It wears its own
+     honest card, never the "connection dropped" copy. */
+  const [bootFailed, setBootFailed] = useState(false);
   const [peopleCount, setPeopleCount] = useState(0);
   /* The palace: the room I stand in (the header names it) and the
      directory — who's in every room, the front-door signal that
@@ -553,8 +558,16 @@ export default function WorldPage() {
          to load, or the WebGL2-only renderer throws on a no-WebGL2
          client) used to escape this IIFE uncaught — status stayed
          "connecting" forever and the page's own error card was
-         unreachable. Route them to that error state instead. */
+         unreachable. They route to the boot-failure card instead:
+         the device couldn't START the hall, which is a different
+         story from a dropped connection and wears different copy.
+         Only a throw out of client.connect() itself (the socket
+         wouldn't even construct) is a connection failure here —
+         ordinary connect drops never throw; the client reports
+         those through its status, retries included. */
+      let bootPhase = true;
       try {
+      setBootFailed(false);
       const canvas = canvasRef.current;
       if (!canvas) return;
       const { KingsHallScene } = await import("@/lib/world/hall-scene");
@@ -840,9 +853,13 @@ export default function WorldPage() {
         }
       }, 66);
 
+      bootPhase = false;
       await client.connect();
       } catch {
-        if (!cancelled) setStatus("error");
+        if (!cancelled) {
+          if (bootPhase) setBootFailed(true);
+          else setStatus("error");
+        }
       }
     })();
 
@@ -1080,10 +1097,22 @@ export default function WorldPage() {
       <div ref={roomRef} className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
         <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" data-testid="world-canvas" />
 
-        {overlay === "connecting" && (
+        {overlay === "connecting" && !bootFailed && (
           <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/70"}`}>
             <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
             <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>Entering the King's Hall…</p>
+          </div>
+        )}
+        {bootFailed && (
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
+              <AlertTriangle className="mx-auto h-8 w-8 text-[#d4af37]" />
+              <h2 className="mt-3 text-lg font-black">The hall couldn't start on this device</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>The 3D hall needs WebGL2, and this browser didn't hand it over — the hall itself is fine, and so is your connection. A current browser, or hardware acceleration switched on, usually settles it.</p>
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                <RotateCcw className="h-4 w-4" /> Try again
+              </button>
+            </div>
           </div>
         )}
         {overlay === "room-full" && (
