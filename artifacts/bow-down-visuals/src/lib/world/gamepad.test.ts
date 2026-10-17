@@ -44,7 +44,7 @@ describe("applyRadialDeadzone", () => {
 
 describe("pollGamepad", () => {
   it("a missing pad is a clean idle and resets the edges", () => {
-    const { intent, edges } = pollGamepad(null, { voice: true, view: true, actions: {} });
+    const { intent, edges } = pollGamepad(null, { voice: true, view: true, interact: true, actions: {} });
     expect(intent).toMatchObject({ moveX: 0, moveY: 0, sprint: false, toggleVoice: false });
     expect(edges).toEqual(IDLE_GAMEPAD_EDGES);
   });
@@ -77,6 +77,27 @@ describe("pollGamepad", () => {
   it("short axis/button arrays read as zeros, never crash", () => {
     const { intent } = pollGamepad({ axes: [], buttons: [] }, IDLE_GAMEPAD_EDGES);
     expect(intent).toMatchObject({ moveX: 0, lookX: 0, sprint: false });
+  });
+
+  it("LB is the station interact — on the press edge only", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [4]), IDLE_GAMEPAD_EDGES);
+    expect(down.intent.interact).toBe(true);
+    const held = pollGamepad(pad([0, 0, 0, 0], [4]), down.edges);
+    expect(held.intent.interact).toBe(false);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges);
+    const again = pollGamepad(pad([0, 0, 0, 0], [4]), up.edges);
+    expect(again.intent.interact).toBe(true);
+  });
+
+  it("LB steals nothing: it is not an action, a toggle, or sprint", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [4]), IDLE_GAMEPAD_EDGES);
+    expect(intent.action).toBeNull();
+    expect(intent.toggleVoice).toBe(false);
+    expect(intent.toggleView).toBe(false);
+    expect(intent.sprint).toBe(false);
+    // …and the buttons LB lives beside keep their own jobs.
+    expect(pollGamepad(pad([0, 0, 0, 0], [5]), IDLE_GAMEPAD_EDGES).intent.action).toBe("spin");
+    expect(pollGamepad(pad([0, 0, 0, 0], [4]), IDLE_GAMEPAD_EDGES).intent.interact).toBe(true);
   });
 });
 

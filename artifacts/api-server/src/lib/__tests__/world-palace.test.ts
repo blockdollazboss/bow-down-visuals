@@ -59,8 +59,9 @@ const member = (name: string): WorldIdentity => ({
 const MUSIC = "world:music-hall";
 
 function enter(palace: WorldPalace, socket: FakeSocket, name: string): void {
+  /* Mirrors routes/world.ts: enterHall alone — the directory rides
+   * the attach's change broadcast, no explicit send after. */
   expect(palace.enterHall(socket, member(name))).toBe(true);
-  palace.sendDirectory(socket);
 }
 
 function frame(palace: WorldPalace, socket: FakeSocket, payload: unknown, now?: number) {
@@ -82,6 +83,28 @@ describe("admission + directory", () => {
       live: false,
     });
     expect(palace.totalPopulation()).toBe(1);
+  });
+
+  it("sends the joiner exactly one palace.directory on entry, after the welcome", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const a = fakeSocket();
+    enter(palace, a, "Alpha");
+    const types = a.sent.map((m) => m.type);
+    expect(types.filter((t) => t === "palace.directory")).toHaveLength(1);
+    expect(types.indexOf("palace.directory")).toBeGreaterThan(types.indexOf("welcome"));
+  });
+
+  it("a second joiner means exactly one new directory for everyone inside", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    enter(palace, a, "Alpha");
+    a.sent = [];
+    enter(palace, b, "Beta");
+    // The room change broadcasts once: Alpha hears it once, and the
+    // joiner's own copy is that same broadcast — never a duplicate.
+    expect(a.sent.filter((m) => m.type === "palace.directory")).toHaveLength(1);
+    expect(b.sent.filter((m) => m.type === "palace.directory")).toHaveLength(1);
   });
 });
 
@@ -198,6 +221,24 @@ describe("room scoping", () => {
     b.sent = [];
     frame(palace, a, { type: "voice.signal", to: betaId, data: { kind: "offer" } });
     expect(b.sent).toEqual([]);
+  });
+
+  it("a doorway transfer sends the walker exactly one palace.directory", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    enter(palace, a, "Alpha");
+    enter(palace, b, "Beta");
+    b.sent = [];
+    frame(palace, b, { type: "room.enter", roomId: MUSIC, x: -16, z: -2 });
+    // The detach's broadcast passes while Beta stands in no room;
+    // the destination attach's broadcast is the walker's one copy.
+    expect(b.sent.filter((m) => m.type === "palace.directory")).toHaveLength(1);
+    const directory = b.sent.filter((m) => m.type === "palace.directory")[0];
+    expect(directory.rooms.find((r: any) => r.id === MUSIC)).toMatchObject({
+      count: 1,
+      members: ["Beta"],
+    });
   });
 
   it("per-room move clamps use the room's own bounds", () => {
