@@ -34,6 +34,8 @@ import {
   detailedMarketCart,
   marketCartTotalCents,
   marketCartCount,
+  marketOrderFromPayload,
+  marketPendingKey,
   sumMarketReceipts,
   hostedCheckoutUrl,
   checkoutCompletedInWorld,
@@ -58,6 +60,10 @@ import { BRANDING_PRODUCTS, BRANDING_DESIGN_COST } from "@/lib/branding-shop";
 
 const standsSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/ShopStands.tsx", import.meta.url)),
+  "utf8",
+);
+const shopPageSrc = readFileSync(
+  fileURLToPath(new URL("../../pages/shop.tsx", import.meta.url)),
   "utf8",
 );
 const panelSrc = readFileSync(
@@ -249,6 +255,55 @@ describe("Crowns & Memberships", () => {
     expect(parseCreatorUserId("not-an-id")).toBeNull();
     expect(parseCreatorUserId("/memberships?creator=nope")).toBeNull();
     expect(parseCreatorUserId("")).toBeNull();
+  });
+});
+
+describe("Marketplace order truth (0144 — real card checkout)", () => {
+  const paidPayload = {
+    status: "paid", paid: true, gross_cents: 4500, platform_fee_cents: 450, seller_net_cents: 4050,
+    lines: [
+      { saleId: "s1", productId: "p1", productName: "Hoodie", quantity: 2, gross_cents: 4000, platform_fee_cents: 400, seller_net_cents: 3600 },
+      { saleId: "s2", productId: "p2", productName: "Cap", quantity: 1, gross_cents: 500, platform_fee_cents: 50, seller_net_cents: 450 },
+    ],
+  };
+
+  it("a confirmed order parses with its acquired items named (the reward moment's material)", () => {
+    const order = marketOrderFromPayload(paidPayload);
+    expect(order?.paid).toBe(true);
+    expect(order?.status).toBe("paid");
+    expect(order?.lines.map((l) => l.productName)).toEqual(["Hoodie", "Cap"]);
+    expect(order?.gross_cents).toBe(4500);
+  });
+
+  it("a pending order NEVER parses as paid — status and flag must agree", () => {
+    expect(marketOrderFromPayload({ status: "pending_payment", paid: false })?.paid).toBe(false);
+    expect(marketOrderFromPayload({ status: "pending_payment", paid: true })?.paid).toBe(false);
+    expect(marketOrderFromPayload({ status: "paid", paid: false })?.paid).toBe(false);
+    expect(marketOrderFromPayload({ status: "expired", paid: false })?.status).toBe("expired");
+    expect(marketOrderFromPayload({ nonsense: 1 })?.status).toBe("pending_payment");
+    expect(marketOrderFromPayload(null)).toBeNull();
+    expect(marketOrderFromPayload("paid")).toBeNull();
+  });
+
+  it("the pending-checkout marker is per shop handle", () => {
+    expect(marketPendingKey("gold-shop")).toBe("bdv-market-pending-gold-shop");
+  });
+
+  it("the stand wires the verify door, the pending marker and the paid confirmation — and drops the old record-at-click receipt", () => {
+    expect(standsSrc).toContain("/api/storefronts/checkout/verify");
+    expect(standsSrc).toContain("marketPendingKey(");
+    expect(standsSrc).toContain('data-testid="world-shop-paid-confirmation"');
+    expect(standsSrc).toContain('data-testid="world-shop-pending-order"');
+    expect(standsSrc).toContain('data-testid="world-shop-refresh-order"');
+    expect(standsSrc).not.toContain("Order recorded at this stand");
+    expect(standsSrc).not.toContain("follows up to complete payment");
+  });
+
+  it("the shop page verifies on return instead of trusting the redirect, and goes to the hosted page to pay", () => {
+    expect(shopPageSrc).toContain("/api/storefronts/checkout/verify");
+    expect(shopPageSrc).toContain("session_id");
+    expect(shopPageSrc).toContain("window.location.href = url");
+    expect(shopPageSrc).not.toContain("Card processing (Stripe Connect) is next");
   });
 });
 

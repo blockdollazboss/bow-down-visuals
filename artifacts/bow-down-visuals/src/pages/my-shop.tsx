@@ -854,9 +854,10 @@ function AnalyticsCard({
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [data, setData] = useState<{
-    totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number };
+    totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number; pending_orders?: number };
     dailyViews: Array<{ day: string; views: number }>;
-    sales: Array<{ id: string; product_name: string | null; amount_cents: number; platform_fee_cents: number; seller_net_cents: number; buyer_email: string | null; created_at: string }>;
+    sales: Array<{ id: string; product_name: string | null; amount_cents: number; platform_fee_cents: number; seller_net_cents: number; buyer_email: string | null; created_at: string; payment_status?: string | null; paid_at?: string | null }>;
+    pendingSales?: Array<{ id: string; product_name: string | null; amount_cents: number; seller_net_cents: number; created_at: string; payment_status?: string | null }>;
     platformFeePct: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -927,9 +928,24 @@ function AnalyticsCard({
                 {data.sales.slice(0, 10).map((sale) => (
                   <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                     <div className="min-w-0">
-                      <div className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</span>
+                        {/* The seller's win, only ever on a confirmed sale:
+                            this list is event_type='sale', which since the
+                            real checkout (0144) means payment confirmed. */}
+                        {sale.payment_status === "paid" && (
+                          <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                            {t("myShop.paidBadge", { defaultValue: "Paid" })}
+                          </span>
+                        )}
+                        {sale.payment_status === "no_payment_required" && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white/60">
+                            {t("myShop.freeOrderBadge", { defaultValue: "Free order" })}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-white/40">
-                        {new Date(sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
+                        {new Date(sale.paid_at ?? sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
@@ -941,6 +957,29 @@ function AnalyticsCard({
               </div>
             )}
           </div>
+
+          {(data.pendingSales?.length ?? 0) > 0 && (
+            <div className="mt-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-white/40">
+                {t("myShop.awaitingPayment", { defaultValue: "Awaiting payment" })}
+                <span className="normal-case font-normal"> {t("myShop.awaitingPaymentNote", { defaultValue: "— started at checkout, not paid yet. These are not sales until the payment confirms." })}</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {data.pendingSales!.slice(0, 10).map((sale) => (
+                  <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-2.5 text-sm opacity-75 ${isLight ? "bg-[#F7ECD2]/50 border-[#C9A84C]/30" : "border-white/15 bg-black/30"}`}>
+                    <div className="min-w-0">
+                      <div className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</div>
+                      <div className="text-[11px] text-white/40">{new Date(sale.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
+                      <div className="text-[11px] text-amber-300">{sale.payment_status === "expired" ? t("myShop.checkoutExpired", { defaultValue: "Checkout expired" }) : t("myShop.pendingBadge", { defaultValue: "Pending" })}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>

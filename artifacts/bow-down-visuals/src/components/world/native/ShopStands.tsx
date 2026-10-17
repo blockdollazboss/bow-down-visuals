@@ -19,11 +19,12 @@ import {
   brandingCartTotalCents, brandingDesignComplete, brandingOrderPayload,
   brandingOrderStatusLabel, brandingShippingComplete, checkoutCompletedInWorld,
   detailedMarketCart, hostedCheckoutUrl, isQuoteOnly, marketCartCount, membershipDollars,
-  marketCartTotalCents, parseCreatorUserId, setBrandingCartQty, setCartLineQty,
-  sumMarketReceipts, tierAnnualSavingLabel, tierOffersTrial, tierPriceLabel,
+  marketCartTotalCents, marketOrderFromPayload, marketPendingKey, parseCreatorUserId,
+  setBrandingCartQty, setCartLineQty,
+  tierAnnualSavingLabel, tierOffersTrial, tierPriceLabel,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type HubShopDto,
-  type MembershipTierDto, type MyMembershipDto, type PublicProductDto,
+  type MarketOrder, type MembershipTierDto, type MyMembershipDto, type PublicProductDto,
   type PublicShopDto,
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
@@ -119,7 +120,12 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const [buyerEmail, setBuyerEmail] = useState("");
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<{ lines: number; gross: number; fee: number; net: number; pct: number } | null>(null);
+  /* The confirmed (PAID) order — the reward moment, rendered only
+     from server truth via marketOrderFromPayload. A pending order is
+     a note + a refresh door, never this block. */
+  const [paidOrder, setPaidOrder] = useState<MarketOrder | null>(null);
+  const [pendingNote, setPendingNote] = useState<string | null>(null);
+  const [refreshingOrder, setRefreshingOrder] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +150,8 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
     setStandState("loading");
     setShop(null);
     setProducts([]);
-    setReceipt(null);
+    setPaidOrder(null);
+    setPendingNote(null);
     setOrderError(null);
     try {
       const res = await fetch(`/api/storefronts/slug/${encodeURIComponent(handle)}`);
@@ -155,10 +162,59 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       setProducts(Array.isArray(data.products) ? data.products : []);
       setFeePct(data.platformFeePct ?? 10);
       setStandState("ready");
+      /* An unfinished checkout from an earlier visit refreshes from
+         server truth the moment the stand reopens. */
+      void refreshOrder(handle);
     } catch {
       setStandState("failed");
     }
   };
+
+  /* Refresh an order from SERVER truth (POST verify retrieves the
+     session and flips the order only when Stripe says paid). Paid →
+     the reward moment + the cart clears; still pending → an honest
+     pending note; expired → the note says so and the marker drops. */
+  const refreshOrder = async (handle: string) => {
+    let sessionId: string | null = null;
+    try { sessionId = localStorage.getItem(marketPendingKey(handle)); } catch { /* storage blocked */ }
+    if (!sessionId || refreshingOrder) return;
+    setRefreshingOrder(true);
+    try {
+      const res = await fetch("/api/storefronts/checkout/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error("verify");
+      const order = marketOrderFromPayload(data["order"] ?? data);
+      if (order?.paid) {
+        setPaidOrder(order);
+        setPendingNote(null);
+        setCart([]);
+        try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
+      } else if (order?.status === "expired") {
+        setPendingNote("That checkout expired before payment — the order was never charged. Your cart is still here whenever you're ready.");
+        try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
+      } else {
+        setPendingNote("Your order is saved as pending — payment hasn't confirmed yet. Finish at the hosted checkout, then check again here.");
+      }
+    } catch {
+      setPendingNote("Your order is saved as pending — its status couldn't be refreshed just now. Nothing about it was changed.");
+    } finally {
+      setRefreshingOrder(false);
+    }
+  };
+
+  /* Coming back from the hosted checkout tab: refresh the pending
+     order in-world when the palace tab takes focus again. */
+  useEffect(() => {
+    if (!openHandle) return;
+    const onFocus = () => void refreshOrder(openHandle);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openHandle]);
 
   /* The cart is the shop page's own: local lines, persisted per
      shop handle under the same localStorage key the page uses. */
@@ -186,46 +242,50 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const total = marketCartTotalCents(detailed);
   const count = marketCartCount(detailed);
 
-  /* Checkout — the marked transfer (§3.9). The stand POSTs each
-     cart line to the checkout endpoint. That endpoint records the
-     sale and answers a receipt (no hosted URL today — see
-     shop-stands.ts); if a response ever carries a hosted URL, it
-     opens in a new tab like the other stands. Either way the
-     receipt is shown in-world, honestly. */
+  /* Checkout — the marked transfer (§3.9). ONE POST for the whole
+     cart: the server records the order as PENDING, prices it from
+     its own product rows, and answers the hosted payment URL, which
+     opens in a NEW TAB. The order is not a sale yet — the cart stays
+     put until the payment confirms (refreshOrder, on focus/reopen),
+     and only a server-confirmed paid order renders as paid. A free
+     cart completes in-world (checkoutCompletedInWorld) with the
+     paid confirmation straight away. Session-creation failure is an
+     honest error with the cart untouched. */
   const checkout = async () => {
     if (!shop || detailed.length === 0 || placing) return;
     setPlacing(true);
     setOrderError(null);
+    setPendingNote(null);
     try {
-      const receipts: Array<Record<string, number>> = [];
-      for (const l of detailed) {
-        const res = await fetch("/api/storefronts/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shopId: shop.id,
-            productId: l.productId,
-            quantity: l.qty,
-            buyerEmail: buyerEmail.trim() || undefined,
-          }),
-        });
-        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "The order didn't go through.");
-        const url = hostedCheckoutUrl(data);
-        if (url) {
-          openCheckoutTab(url);
-          setReceipt(null);
-          setOrderError("Your checkout opened in a new tab — finish paying there, and this stand keeps your place.");
-          setPlacing(false);
-          return;
-        }
-        receipts.push(data as Record<string, number>);
+      const res = await fetch("/api/storefronts/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId: shop.id,
+          items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
+          buyerEmail: buyerEmail.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Checkout didn't start — nothing was charged.");
+      if (checkoutCompletedInWorld(data)) {
+        const order = marketOrderFromPayload(data);
+        if (order?.paid) setPaidOrder(order);
+        setCart([]);
+        return;
       }
-      const sum = sumMarketReceipts(receipts);
-      setReceipt({ lines: detailed.length, gross: sum.gross_cents, fee: sum.platform_fee_cents, net: sum.seller_net_cents, pct: sum.platform_fee_pct ?? feePct });
-      setCart([]);
+      const url = hostedCheckoutUrl(data);
+      if (url) {
+        if (typeof data.sessionId === "string" && openHandle) {
+          try { localStorage.setItem(marketPendingKey(openHandle), data.sessionId); } catch { /* storage blocked — refresh on reopen just won't find it */ }
+        }
+        openCheckoutTab(url);
+        setPendingNote("Your checkout opened in a new tab — finish paying there. This stand keeps your place and your cart, and confirms the order here when the payment lands.");
+        return;
+      }
+      throw new Error("Checkout didn't return a payment page — nothing was charged.");
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "The order didn't go through — your cart is untouched.");
+      setOrderError(e instanceof Error ? e.message : "Checkout didn't start — nothing was charged, and your cart is untouched.");
     } finally {
       setPlacing(false);
     }
@@ -286,7 +346,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           </div>
         )}
 
-        {standState === "ready" && (detailed.length > 0 || receipt) && (
+        {standState === "ready" && (detailed.length > 0 || paidOrder || pendingNote) && (
           <NativeCard isLight={isLight} title={`Your cart${count > 0 ? ` (${count})` : ""}`}>
             {detailed.map((l) => (
               <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
@@ -300,7 +360,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 </span>
               </div>
             ))}
-            {detailed.length > 0 && !receipt && (
+            {detailed.length > 0 && !paidOrder && (
               <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className={muted(isLight)}>Total</span>
@@ -324,22 +384,52 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 </p>
               </div>
             )}
-            {receipt && (
-              <div className="py-2 text-center" data-testid="world-shop-receipt">
-                <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-400/15">
-                  <Check className="h-5 w-5 text-emerald-300" />
-                </span>
-                <p className={`mt-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>Order recorded at this stand</p>
-                <p className={`mt-1 text-xs ${muted(isLight)}`}>
-                  {receipt.lines} {receipt.lines === 1 ? "item" : "items"} · total {centsToDisplay(receipt.gross)} · platform fee ({receipt.pct}%) {centsToDisplay(receipt.fee)} · the seller receives {centsToDisplay(receipt.net)} and follows up to complete payment.
+            {pendingNote && !paidOrder && (
+              <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shop-pending-order">
+                <p className="flex items-start gap-2 text-xs font-semibold text-amber-300">
+                  <Loader2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${refreshingOrder ? "animate-spin" : ""}`} />
+                  <span>{pendingNote}</span>
                 </p>
-                <button type="button" onClick={() => setReceipt(null)} className={`${chipBtn(isLight)} mt-2`}>Keep browsing</button>
+                <p className={`text-[11px] ${muted(isLight)}`}>
+                  This order is pending — it is not paid yet, and it will never be shown as paid until the payment confirms.
+                </p>
+                <button type="button" data-testid="world-shop-refresh-order" onClick={() => openHandle && void refreshOrder(openHandle)} disabled={refreshingOrder} className={`${chipBtn(isLight)}`}>
+                  <RefreshCw className="h-3 w-3" /> Check payment status
+                </button>
+              </div>
+            )}
+            {paidOrder && (
+              /* The reward moment: the acquired items, named proudly
+                 from the server's own confirmed order — never from a
+                 local guess. */
+              <div className="py-2 text-center" data-testid="world-shop-paid-confirmation">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#d4af37]/20 ring-2 ring-[#d4af37]/60">
+                  <Sparkles className="h-6 w-6 text-[#d4af37]" />
+                </span>
+                <p className={`mt-2 text-base font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  It&rsquo;s yours — payment confirmed
+                </p>
+                <div className="mx-auto mt-2 max-w-sm space-y-1">
+                  {paidOrder.lines.map((l) => (
+                    <p key={l.saleId} className="flex items-center justify-center gap-1.5 text-sm font-bold">
+                      <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-300" />
+                      <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
+                        {l.quantity > 1 ? `${l.quantity} × ` : ""}{l.productName ?? "Your item"}
+                      </span>
+                      <span className="text-[#d4af37]">{centsToDisplay(l.gross_cents)}</span>
+                    </p>
+                  ))}
+                </div>
+                <p className={`mt-2 text-xs ${muted(isLight)}`}>
+                  Paid {centsToDisplay(paidOrder.gross_cents)} · platform fee ({feePct}%) {centsToDisplay(paidOrder.platform_fee_cents)} · the seller receives {centsToDisplay(paidOrder.seller_net_cents)} — their win lands in their sales the moment this confirmed.
+                </p>
+                <button type="button" onClick={() => setPaidOrder(null)} className={`${chipBtn(isLight)} mt-2`}>Keep browsing</button>
               </div>
             )}
           </NativeCard>
         )}
         {isGuest && (
-          <p className={`px-1 text-[11px] ${muted(isLight)}`}>Browsing the square is open to everyone — the stands take orders right here, no account needed.</p>
+          <p className={`px-1 text-[11px] ${muted(isLight)}`}>Browsing the square is open to everyone — no account needed. Buying opens the hosted payment page in a new tab at the money moment, and the stand confirms your order here once the payment lands.</p>
         )}
       </div>
     );
