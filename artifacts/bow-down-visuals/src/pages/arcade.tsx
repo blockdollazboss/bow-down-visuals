@@ -7,7 +7,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import SharkRunnerGame from "@/components/arcade/SharkRunnerGame";
-import ShooterGalleryGame from "@/components/arcade/ShooterGalleryGame";
+import RoyalSkeetGame from "@/components/arcade/RoyalSkeetGame";
 import ArcadeLeaderboard from "@/components/arcade/ArcadeLeaderboard";
 import {
   ARCADE_GAME_META,
@@ -18,7 +18,7 @@ import {
 
 /* ─── The Arcade (/arcade) ────────────────────────────────────────────────
    Play surface for the retention loop: two house games (Shark King
-   Endless Runner, Shooter Gallery), real leaderboards, and rewards that
+   Endless Runner, Royal Skeet), real leaderboards, and rewards that
    ride the EXISTING rails — a qualifying run checks the Shark Drop rail
    (dice + caps + prefs all live there); quests, streaks, the Daily Drop
    and the hourly wheel live on the Dashboard, one tap away below.
@@ -44,7 +44,7 @@ type DropState =
 export default function ArcadePage() {
   usePageTitle(
     "The Arcade — Bow Down Visuals",
-    "Play Shark King Endless Runner and the Shooter Gallery. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
+    "Play Shark King Endless Runner and Royal Skeet. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
   );
   const light = useIsLightTheme();
   const { getAccessToken } = useAuth();
@@ -269,12 +269,12 @@ export default function ArcadePage() {
         <div className="mt-3">{outcomeLine("runner")}</div>
       </section>
 
-      {/* Gallery */}
+      {/* Royal Skeet */}
       <section className={`mt-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
-        <h2 className={`text-lg font-black ${ink}`}>{ARCADE_GAME_META.gallery.title}</h2>
-        <p className={`mb-4 mt-1 text-sm ${muted}`}>{ARCADE_GAME_META.gallery.tagline}</p>
-        <ShooterGalleryGame light={light} onGameOver={handleGameOver} />
-        <div className="mt-3">{outcomeLine("gallery")}</div>
+        <h2 className={`text-lg font-black ${ink}`}>{ARCADE_GAME_META.skeet.title}</h2>
+        <p className={`mb-4 mt-1 text-sm ${muted}`}>{ARCADE_GAME_META.skeet.tagline}</p>
+        <RoyalSkeetGame light={light} onGameOver={handleGameOver} />
+        <div className="mt-3">{outcomeLine("skeet")}</div>
       </section>
 
       {/* Leaderboard */}

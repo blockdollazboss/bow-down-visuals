@@ -11,11 +11,11 @@
    rail), so the blast radius of a faked score is a leaderboard lie,
    not money. */
 
-export const ARCADE_GAMES = ["runner", "gallery"] as const;
+export const ARCADE_GAMES = ["runner", "skeet"] as const;
 export type ArcadeGame = (typeof ARCADE_GAMES)[number];
 
 export function isArcadeGame(v: unknown): v is ArcadeGame {
-  return v === "runner" || v === "gallery";
+  return v === "runner" || v === "skeet";
 }
 
 /* Runner construction (client): speed starts 420 px/s, ramps +6 px/s per
@@ -26,16 +26,17 @@ export const RUNNER_PX_PER_POINT = 40;
 export const RUNNER_COIN_POINTS = 25;
 export const RUNNER_MIN_COIN_INTERVAL_S = 1.1;
 
-/* Gallery construction (client): fixed 45s round. Targets spawn no
-   faster than every 500ms. A hit scores 100 + min(streak, 10) * 5, so
-   one hit is worth at most 150. */
-export const GALLERY_ROUND_MS = 45_000;
-export const GALLERY_MIN_SPAWN_INTERVAL_MS = 500;
-export const GALLERY_MAX_HIT_POINTS = 150;
+/* Royal Skeet construction (client): fixed 45s round — it replaced
+   the Shooter Gallery in the games upgrade with the same scoring
+   contract. Plates spawn no faster than every 500ms. A hit scores
+   100 + min(streak, 10) * 5, so one hit is worth at most 150. */
+export const SKEET_ROUND_MS = 45_000;
+export const SKEET_MIN_SPAWN_INTERVAL_MS = 500;
+export const SKEET_MAX_HIT_POINTS = 150;
 
 /* A scored run must last at least this long, and no submission may
    claim more than 20 minutes of play (both games end far sooner:
-   runner runs end on collision, gallery rounds are 45s). */
+   runner runs end on collision, skeet rounds are 45s). */
 export const ARCADE_MIN_DURATION_MS = 2_000;
 export const ARCADE_MAX_DURATION_MS = 20 * 60_000;
 
@@ -47,8 +48,8 @@ export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number 
     const maxCoins = Math.floor(seconds / RUNNER_MIN_COIN_INTERVAL_S) + 1;
     return distancePoints + maxCoins * RUNNER_COIN_POINTS;
   }
-  const maxTargets = Math.floor(durationMs / GALLERY_MIN_SPAWN_INTERVAL_MS) + 1;
-  return maxTargets * GALLERY_MAX_HIT_POINTS;
+  const maxTargets = Math.floor(durationMs / SKEET_MIN_SPAWN_INTERVAL_MS) + 1;
+  return maxTargets * SKEET_MAX_HIT_POINTS;
 }
 
 export type ScoreVerdict =
@@ -77,8 +78,8 @@ export function validateArcadeScore(input: {
   if (durationMs > ARCADE_MAX_DURATION_MS) {
     return { ok: false, reason: "Run duration out of range" };
   }
-  if (input.game === "gallery" && durationMs > GALLERY_ROUND_MS + 5_000) {
-    return { ok: false, reason: "Gallery rounds last 45 seconds" };
+  if (input.game === "skeet" && durationMs > SKEET_ROUND_MS + 5_000) {
+    return { ok: false, reason: "Skeet rounds last 45 seconds" };
   }
   if (score > maxPlausibleScore(input.game, durationMs)) {
     return { ok: false, reason: "Score is not possible for a run of that length" };
