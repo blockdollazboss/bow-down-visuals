@@ -10,6 +10,12 @@ import {
   figureWidthForHeight,
   defaultFigureCanvasSize,
   defaultCharacterUrl,
+  guardCharacterUrl,
+  guardVariantForKey,
+  houseGuardVariantForId,
+  GUARD_CHARACTER_PATHS,
+  HOUSE_GUARD_ID,
+  HOUSE_GUARD_FEMALE_ID,
   DEFAULT_FIGURE_HEIGHT,
 } from "./figure";
 
@@ -50,5 +56,33 @@ describe("figure measurements", () => {
   it("the slot URL is BASE_URL-aware, like the hall's textures", () => {
     expect(defaultCharacterUrl("/")).toBe("/world/default-character.png");
     expect(defaultCharacterUrl("/app/")).toBe("/app/world/default-character.png");
+  });
+});
+
+describe("the two house guards", () => {
+  it("both slots are named — the male guard keeps the original slot", () => {
+    expect(GUARD_CHARACTER_PATHS.male).toBe("/world/default-character.png");
+    expect(GUARD_CHARACTER_PATHS.female).toBe("/world/default-character-female.png");
+    expect(guardCharacterUrl("/", "female")).toBe("/world/default-character-female.png");
+    expect(guardCharacterUrl("/app/", "male")).toBe("/app/world/default-character.png");
+  });
+
+  it("house pick ids map to their guard — vault ids and no pick map to nothing", () => {
+    expect(houseGuardVariantForId(HOUSE_GUARD_ID)).toBe("male");
+    expect(houseGuardVariantForId(HOUSE_GUARD_FEMALE_ID)).toBe("female");
+    expect(houseGuardVariantForId("char-nova")).toBeNull();
+    expect(houseGuardVariantForId(null)).toBeNull();
+    expect(houseGuardVariantForId(undefined)).toBeNull();
+  });
+
+  it("the deal is deterministic — same key, same guard, every call", () => {
+    for (const key of ["thy-cheat-code", "peer-1", "some-long-slug-xyz", ""]) {
+      expect(guardVariantForKey(key)).toBe(guardVariantForKey(key));
+    }
+  });
+
+  it("the deal actually deals both guards across a crowd of presences", () => {
+    const dealt = new Set(Array.from({ length: 200 }, (_, i) => guardVariantForKey(`peer-${i}`)));
+    expect(dealt).toEqual(new Set(["male", "female"]));
   });
 });
