@@ -1,29 +1,42 @@
 /**
- * stations.ts — The palace's DOORS: the access layer (plan Step 3).
+ * stations.ts — The palace's DOORS: the native registry (v2).
  *
  * A station is a physical spot in a room — a desk, a cabinet, a
  * counter — with a name plate in the 3D scene and a walk-up prompt
- * on the page. Activating one opens the room's REAL feature as an
- * in-world panel (the screen-remote pattern): the site's actual
- * page/component, mounted inside the palace, never a replica and
- * never a redirect out. This module is the one registry both sides
- * read: the scene builds a marker per station, the page computes
- * the nearest one for the prompt and mounts its panel.
+ * on the page. Activating one opens a WORLD-NATIVE instrument built
+ * for the room (the owner's law, Oct 17 2026: "Everything I interact
+ * with should happen in the VR world") — never the website's 2D
+ * page mounted in a panel. This module is the one registry both
+ * sides read: the scene builds a marker per station, the page
+ * computes the nearest one for the prompt and mounts its panel.
  *
- * `panel.kind`:
- *   "page"        — mount the app's own route component at `path`
- *                   inside the panel host's in-panel router. Desks
- *                   of the Create Wing open the Create house at its
- *                   panel (`/create?panel=song`) — the same deep
- *                   links the site's own redirects use.
+ * `panel.kind` (v2 — "page" is RETIRED; no station auto-opens a
+ * website page ever again):
+ *   "native"      — an in-world instrument following one of the
+ *                   seven shared patterns (see `NativePattern`).
+ *                   Until a station's pattern surface ships, the
+ *                   panel host renders the honest "being rebuilt"
+ *                   placeholder WITH the transfer footer — never a
+ *                   silent pull-up, never a dead end.
  *   "custom"      — a world-native panel built from real data (the
  *                   Front Row gallery from the public court, the
  *                   Music Hall jukebox, the Treasury's drop rails,
- *                   the Kingdom Board).
+ *                   the Kingdom Board). Unchanged from v1.
  *   "stepthrough" — a full-screen takeover INSIDE /world with a
  *                   "Return to the palace" bar (the Visual Vibes
  *                   editor: a working surface you step INTO, not a
- *                   panel you peek at).
+ *                   panel you peek at). Unchanged from v1.
+ *
+ * `websitePath`: the station's page on the website — the EXACT
+ * string this door used to auto-open, deep links included (e.g.
+ * `/create?panel=song`, `/branding-kit?tab=shop`). In v2 it is
+ * ONLY the transfer target: the one quiet "Open on the website ↗"
+ * button in the native panel's footer points here, in a new tab,
+ * when a walker explicitly clicks it. It is never auto-opened,
+ * never auto-focused, never a redirect. `null` for the six custom
+ * stations — they were born world-native and never auto-opened a
+ * page, so they carry no transfer target. The step-through editor
+ * mirrors its panel path here for a uniform table.
  *
  * `membersOnly`: the feature needs an account. Guests still get
  * the station, its name and its pitch — plus the sign-in ask —
@@ -41,8 +54,19 @@ import {
   BRANDING_ATELIER_ID,
 } from "./palace-layout";
 
+/** The seven shared in-world patterns every native station is
+ *  built from (NATIVE-PLAN §3.1–§3.7) — no 27 one-offs. */
+export type NativePattern =
+  | "board"
+  | "shelf"
+  | "shop"
+  | "social"
+  | "games"
+  | "create"
+  | "business";
+
 export type StationPanel =
-  | { kind: "page"; path: string }
+  | { kind: "native"; pattern: NativePattern }
   | { kind: "custom"; id: string }
   | { kind: "stepthrough"; path: string };
 
@@ -58,6 +82,10 @@ export interface PalaceStation {
   z: number;
   membersOnly: boolean;
   panel: StationPanel;
+  /** The transfer target: the exact website path this station
+   *  used to auto-open (deep links included), or null when the
+   *  station never had one (the six customs). See the header. */
+  websitePath: string | null;
 }
 
 /** How close a walker must stand for the prompt (metres). */
@@ -74,6 +102,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: 10.7,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
   },
   {
     id: "post-office",
@@ -83,7 +112,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 5.5,
     z: 10.7,
     membersOnly: true,
-    panel: { kind: "page", path: "/messages" },
+    panel: { kind: "native", pattern: "social" },
+    websitePath: "/messages",
   },
 
   /* ── Music Hall ──────────────────────────────────────────────── */
@@ -96,6 +126,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -7.6,
     membersOnly: false,
     panel: { kind: "custom", id: "jukebox" },
+    websitePath: null,
   },
   {
     id: "listening-booth",
@@ -105,7 +136,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -27.2,
     z: -2,
     membersOnly: true,
-    panel: { kind: "page", path: "/my-music" },
+    panel: { kind: "native", pattern: "shelf" },
+    websitePath: "/my-music",
   },
   {
     id: "charts-desk",
@@ -115,7 +147,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -24.5,
     z: 2.1,
     membersOnly: false,
-    panel: { kind: "page", path: "/charts" },
+    panel: { kind: "native", pattern: "board" },
+    websitePath: "/charts",
   },
 
   /* ── Game Rooms ──────────────────────────────────────────────── */
@@ -127,7 +160,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -24,
     z: 4.5,
     membersOnly: true,
-    panel: { kind: "page", path: "/arcade" },
+    panel: { kind: "native", pattern: "games" },
+    websitePath: "/arcade",
   },
   {
     id: "marble-table",
@@ -137,7 +171,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -21,
     z: 10.9,
     membersOnly: true,
-    panel: { kind: "page", path: "/party" },
+    panel: { kind: "native", pattern: "games" },
+    websitePath: "/party",
   },
 
   /* ── Create Wing ─────────────────────────────────────────────── */
@@ -149,7 +184,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 15.1,
     z: -2,
     membersOnly: true,
-    panel: { kind: "page", path: "/dashboard" },
+    panel: { kind: "native", pattern: "board" },
+    websitePath: "/dashboard",
   },
   {
     id: "visual-vibes-editor",
@@ -160,6 +196,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -7.6,
     membersOnly: true,
     panel: { kind: "stepthrough", path: "/video-editor" },
+    websitePath: "/video-editor",
   },
   {
     id: "song-desk",
@@ -169,7 +206,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 16.5,
     z: 2.1,
     membersOnly: true,
-    panel: { kind: "page", path: "/create?panel=song" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/create?panel=song",
   },
   {
     id: "video-desk",
@@ -179,7 +217,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 21,
     z: 2.1,
     membersOnly: true,
-    panel: { kind: "page", path: "/create?panel=video" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/create?panel=video",
   },
   {
     id: "song-video-desk",
@@ -189,7 +228,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 25.5,
     z: 2.1,
     membersOnly: true,
-    panel: { kind: "page", path: "/create?panel=song-video" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/create?panel=song-video",
   },
   {
     id: "cover-art-desk",
@@ -199,7 +239,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 27.2,
     z: -5,
     membersOnly: true,
-    panel: { kind: "page", path: "/create?panel=coverart" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/create?panel=coverart",
   },
   {
     id: "audio-desk",
@@ -209,7 +250,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 27.2,
     z: 0.5,
     membersOnly: true,
-    panel: { kind: "page", path: "/audio-studio" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/audio-studio",
   },
   {
     id: "thumbnail-desk",
@@ -219,7 +261,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 15.1,
     z: -6,
     membersOnly: true,
-    panel: { kind: "page", path: "/thumbnail-studio" },
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/thumbnail-studio",
   },
 
   /* ── Treasury ────────────────────────────────────────────────── */
@@ -232,6 +275,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -16.9,
     membersOnly: true,
     panel: { kind: "custom", id: "treasury-daily" },
+    websitePath: null,
   },
   {
     id: "shark-drops",
@@ -242,6 +286,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -16.9,
     membersOnly: true,
     panel: { kind: "custom", id: "treasury-shark" },
+    websitePath: null,
   },
   {
     id: "quest-board",
@@ -252,6 +297,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -16.9,
     membersOnly: true,
     panel: { kind: "custom", id: "treasury-quests" },
+    websitePath: null,
   },
 
   /* ── Royal Court Chamber ─────────────────────────────────────── */
@@ -264,6 +310,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -16.9,
     membersOnly: false,
     panel: { kind: "custom", id: "front-row" },
+    websitePath: null,
   },
   {
     id: "crowns-desk",
@@ -273,7 +320,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 27.2,
     z: -13.5,
     membersOnly: false,
-    panel: { kind: "page", path: "/memberships" },
+    panel: { kind: "native", pattern: "shop" },
+    websitePath: "/memberships",
   },
 
   /* ── Branding Atelier ────────────────────────────────────────── */
@@ -285,7 +333,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 18,
     z: 4.5,
     membersOnly: false,
-    panel: { kind: "page", path: "/branding-kit" },
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/branding-kit",
   },
   {
     id: "branding-shop-desk",
@@ -295,7 +344,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 24,
     z: 4.5,
     membersOnly: false,
-    panel: { kind: "page", path: "/branding-kit?tab=shop" },
+    panel: { kind: "native", pattern: "shop" },
+    websitePath: "/branding-kit?tab=shop",
   },
   {
     id: "press-kit-desk",
@@ -305,7 +355,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 27.2,
     z: 8,
     membersOnly: false,
-    panel: { kind: "page", path: "/press-kit" },
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/press-kit",
   },
 
   /* ── Courtyard ───────────────────────────────────────────────── */
@@ -317,7 +368,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -9,
     z: 24.9,
     membersOnly: false,
-    panel: { kind: "page", path: "/storefronts" },
+    panel: { kind: "native", pattern: "shop" },
+    websitePath: "/storefronts",
   },
   {
     id: "community-hall",
@@ -327,7 +379,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: -3,
     z: 24.9,
     membersOnly: false,
-    panel: { kind: "page", path: "/community" },
+    panel: { kind: "native", pattern: "social" },
+    websitePath: "/community",
   },
   {
     id: "promote-room",
@@ -337,7 +390,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 3.5,
     z: 24.9,
     membersOnly: false,
-    panel: { kind: "page", path: "/promote" },
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/promote",
   },
   {
     id: "get-paid-room",
@@ -347,7 +401,8 @@ export const PALACE_STATIONS: PalaceStation[] = [
     x: 12,
     z: 18,
     membersOnly: true,
-    panel: { kind: "page", path: "/earnings" },
+    panel: { kind: "native", pattern: "board" },
+    websitePath: "/earnings",
   },
 ];
 

@@ -1,29 +1,169 @@
+/**
+ * station-panel — the pure seam between a station and its panel.
+ *
+ * Registry v2 pins (NATIVE-PLAN §3.0):
+ * (b) resolving ANY station yields guest-pitch / native / custom /
+ *     stepthrough — never a page-component mount (the resolution
+ *     union has no page variant, and these tests walk all 27);
+ * (c) a native resolution's transfer href is the station's exact
+ *     former website path (the full table lives in stations.test);
+ * (d) customs + the step-through resolve exactly as they did in v1;
+ * (e) members-only stations resolve to the guest pitch for guests,
+ *     for every kind — and to their real surface for members.
+ *
+ * Kept working alongside: the editor step-through seeding
+ * (newestEditorProjectId / editorStepthroughSearch). The legacy
+ * page-target router table (panelRouteFor / PANEL_ROUTE_PATHS /
+ * splitPanelPath) was deleted with the router at the plan's
+ * Step 8 — the pins below prove no station can resolve to a page
+ * mount, and the deleted names no longer exist to resolve to.
+ */
 import { describe, it, expect } from "vitest";
 import {
-  splitPanelPath,
   stationGuestBlocked,
+  resolveStationPanel,
+  TRANSFER_BUTTON_LABEL,
   newestEditorProjectId,
   editorStepthroughSearch,
-  panelRouteFor,
-  PANEL_ROUTE_PATHS,
 } from "./station-panel";
 import { STATION_BY_ID, PALACE_STATIONS } from "./stations";
 
-describe("splitPanelPath", () => {
-  it("splits the Create house's panel deep links", () => {
-    expect(splitPanelPath("/create?panel=song")).toEqual({
-      pathname: "/create",
-      search: "panel=song",
-    });
+describe("resolveStationPanel — registry v2 resolution (pins b, d, e)", () => {
+  it("no station ever resolves to a page mount, for guests or members (pin b)", () => {
+    for (const s of PALACE_STATIONS) {
+      for (const isGuest of [false, true]) {
+        const r = resolveStationPanel(s, isGuest);
+        expect(["guest-pitch", "native", "custom", "stepthrough"], `${s.id} guest=${isGuest}`).toContain(r.type);
+        expect(r.type, s.id).not.toBe("page");
+        expect(r.station).toBe(s);
+      }
+    }
   });
-  it("splits the branding shop's tab link", () => {
-    expect(splitPanelPath("/branding-kit?tab=shop")).toEqual({
-      pathname: "/branding-kit",
-      search: "tab=shop",
-    });
+
+  it("every native station resolves native, with its pattern and exact transfer href (pins b, c)", () => {
+    for (const s of PALACE_STATIONS) {
+      if (s.panel.kind !== "native" || s.membersOnly) continue;
+      const r = resolveStationPanel(s, false);
+      expect(r.type, s.id).toBe("native");
+      if (r.type === "native") {
+        expect(r.pattern, s.id).toBe(s.panel.kind === "native" ? s.panel.pattern : null);
+        expect(r.websitePath, s.id).toBe(s.websitePath);
+        expect(r.websitePath.startsWith("/"), s.id).toBe(true);
+      }
+    }
+    // Members at members-only native desks resolve native too.
+    for (const s of PALACE_STATIONS) {
+      if (s.panel.kind !== "native") continue;
+      const r = resolveStationPanel(s, false);
+      expect(r.type, s.id).toBe("native");
+    }
   });
-  it("leaves a bare path whole", () => {
-    expect(splitPanelPath("/arcade")).toEqual({ pathname: "/arcade", search: "" });
+
+  it("the transfer hrefs are the exact former auto-open paths, deep links included (pin c)", () => {
+    const href = (id: string) => {
+      const r = resolveStationPanel(STATION_BY_ID.get(id)!, false);
+      if (r.type !== "native") throw new Error(`${id} did not resolve native`);
+      return r.websitePath;
+    };
+    expect(href("song-desk")).toBe("/create?panel=song");
+    expect(href("branding-shop-desk")).toBe("/branding-kit?tab=shop");
+    expect(href("branding-kit-desk")).toBe("/branding-kit");
+    expect(href("post-office")).toBe("/messages");
+    expect(href("get-paid-room")).toBe("/earnings");
+  });
+
+  it("customs resolve to their unchanged custom ids (pin d)", () => {
+    const expected: Record<string, string> = {
+      "kingdom-board": "kingdom-board",
+      jukebox: "jukebox",
+      "daily-drop": "treasury-daily",
+      "shark-drops": "treasury-shark",
+      "quest-board": "treasury-quests",
+      "front-row-gallery": "front-row",
+    };
+    for (const [id, customId] of Object.entries(expected)) {
+      const r = resolveStationPanel(STATION_BY_ID.get(id)!, false);
+      expect(r.type, id).toBe("custom");
+      if (r.type === "custom") expect(r.id, id).toBe(customId);
+    }
+  });
+
+  it("the editor resolves stepthrough with its path, unchanged (pin d)", () => {
+    const r = resolveStationPanel(STATION_BY_ID.get("visual-vibes-editor")!, false);
+    expect(r.type).toBe("stepthrough");
+    if (r.type === "stepthrough") expect(r.path).toBe("/video-editor");
+  });
+
+  it("members-only stations produce the guest pitch for guests — every kind (pin e)", () => {
+    for (const s of PALACE_STATIONS) {
+      if (!s.membersOnly) continue;
+      expect(resolveStationPanel(s, true).type, s.id).toBe("guest-pitch");
+      // …and their real surface for members.
+      expect(resolveStationPanel(s, false).type, s.id).not.toBe("guest-pitch");
+    }
+    // Named cases: a native desk, a custom rail, the step-through.
+    expect(resolveStationPanel(STATION_BY_ID.get("post-office")!, true).type).toBe("guest-pitch");
+    expect(resolveStationPanel(STATION_BY_ID.get("daily-drop")!, true).type).toBe("guest-pitch");
+    expect(resolveStationPanel(STATION_BY_ID.get("visual-vibes-editor")!, true).type).toBe("guest-pitch");
+  });
+
+  it("open stations never pitch a guest (pin e)", () => {
+    for (const s of PALACE_STATIONS) {
+      if (s.membersOnly) continue;
+      expect(resolveStationPanel(s, true).type, s.id).not.toBe("guest-pitch");
+    }
+    expect(resolveStationPanel(STATION_BY_ID.get("jukebox")!, true).type).toBe("custom");
+    expect(resolveStationPanel(STATION_BY_ID.get("charts-desk")!, true).type).toBe("native");
+  });
+
+  it("the transfer button label is exact and uniform (owner ruling Q3)", () => {
+    expect(TRANSFER_BUTTON_LABEL).toBe("Open on the website ↗");
+  });
+});
+
+describe("the Treasury — three customs, verified native (Lane 8)", () => {
+  const treasury: Record<string, string> = {
+    "daily-drop": "treasury-daily",
+    "shark-drops": "treasury-shark",
+    "quest-board": "treasury-quests",
+  };
+
+  it("every Treasury station resolves to its custom panel for members — never a page mount", () => {
+    for (const [id, customId] of Object.entries(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      expect(s.roomId, id).toBe("world:treasury");
+      const r = resolveStationPanel(s, false);
+      expect(r.type, id).toBe("custom");
+      if (r.type === "custom") expect(r.id, id).toBe(customId);
+    }
+  });
+
+  it("no Treasury panel path resolves to a page mount, for guests or members", () => {
+    for (const id of Object.keys(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      for (const isGuest of [false, true]) {
+        const r = resolveStationPanel(s, isGuest);
+        expect(["custom", "guest-pitch"], `${id} guest=${isGuest}`).toContain(r.type);
+        expect(r.type, id).not.toBe("page");
+        expect(r.type, id).not.toBe("native");
+        expect(r.type, id).not.toBe("stepthrough");
+      }
+    }
+  });
+
+  it("the Treasury customs carry no transfer target — they never auto-opened a page", () => {
+    for (const id of Object.keys(treasury)) {
+      expect(STATION_BY_ID.get(id)!.websitePath, id).toBeNull();
+      expect(STATION_BY_ID.get(id)!.membersOnly, id).toBe(true);
+    }
+  });
+
+  it("guests at the Treasury get the pitch, members the panels (pin e, Treasury cut)", () => {
+    for (const id of Object.keys(treasury)) {
+      const s = STATION_BY_ID.get(id)!;
+      expect(resolveStationPanel(s, true).type, id).toBe("guest-pitch");
+      expect(resolveStationPanel(s, false).type, id).toBe("custom");
+    }
   });
 });
 
@@ -68,72 +208,11 @@ describe("editorStepthroughSearch", () => {
   });
 });
 
-describe("panelRouteFor — the in-panel router's reach", () => {
-  it("covers every station's page target", () => {
-    for (const s of PALACE_STATIONS) {
-      if (s.panel.kind !== "page") continue;
-      const { pathname } = splitPanelPath(s.panel.path);
-      expect(panelRouteFor(pathname), s.id).not.toBeNull();
-    }
-  });
-
-  it("covers the hub destinations the panels' pages link to", () => {
-    for (const p of [
-      "/dashboard",
-      "/my-music",
-      "/charts",
-      "/community",
-      "/promote",
-      "/earnings",
-      "/memberships",
-      "/storefronts",
-      "/arcade",
-      "/party",
-      "/messages",
-      "/coach",
-      "/my-projects",
-      "/credit-history",
-      "/distribute",
-      "/scheduler",
-    ]) {
-      expect(panelRouteFor(p), p).toBe(p);
-    }
-  });
-
-  it("resolves the deep links: a post, a track, a watch page, a shop, a profile", () => {
-    expect(panelRouteFor("/post/42")).toBe("/post/:id");
-    expect(panelRouteFor("/track/abc-123")).toBe("/track/:id");
-    expect(panelRouteFor("/watch/xyz")).toBe("/watch/:id");
-    expect(panelRouteFor("/shop/some-handle")).toBe("/shop/:slug");
-    expect(panelRouteFor("/artist/thy-cheat-code")).toBe("/artist/:slug");
-  });
-
-  it("leaves the deliberately unhung doors to the miss card", () => {
-    for (const p of [
-      "/login",
-      "/signup",
-      "/settings",
-      "/video-editor",
-      "/shorts",
-      "/my-shop",
-      "/admin",
-      "/",
-      "/post", // missing its id
-      "/post/1/comments", // deeper than the door reaches
-      "/shop", // missing its slug
-    ]) {
-      expect(panelRouteFor(p), p).toBeNull();
-    }
-  });
-
-  it("the route table has no duplicates", () => {
-    expect(new Set(PANEL_ROUTE_PATHS).size).toBe(PANEL_ROUTE_PATHS.length);
-  });
-
-  it("the editor station is a step-through, not a panel route", () => {
+describe("the editor station's shape (the router that once excluded it is gone)", () => {
+  it("the editor station is a step-through, never a panel route", () => {
     const editor = STATION_BY_ID.get("visual-vibes-editor")!;
     expect(editor.panel.kind).toBe("stepthrough");
-    expect(panelRouteFor("/video-editor")).toBeNull();
+    expect(resolveStationPanel(editor, false).type).toBe("stepthrough");
   });
 });
 

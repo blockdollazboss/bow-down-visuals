@@ -30,6 +30,7 @@ import {
 } from "@/lib/world/world-client";
 import {
   nearestStation,
+  STATION_BY_ID,
   type PalaceStation,
 } from "@/lib/world/stations";
 import {
@@ -85,6 +86,7 @@ import {
   type VaultCharacter,
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
+import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
 
 /* ─── The World — the palace (/world) ───────────────────────────────────────
    One shared VR palace: the King's Hall (a stage and a big screen —
@@ -1280,6 +1282,12 @@ export default function WorldPage() {
             {isFs ? "Exit full screen" : "Full screen"}
           </button>
         )}
+        {/* The standing switch (owner addendum, Oct 17): the plain
+            way out of the palace to the 2D website — always in the
+            chrome, both themes, guests included. Distinct from the
+            panels' "Open on the website ↗" footers, which peek at a
+            station's page in a new tab without leaving the room. */}
+        <SwitchToWebsite isLight={isLight} />
       </header>
 
       {/* Walk in as — members pick a Creative Vault character (or the
@@ -1772,7 +1780,6 @@ export default function WorldPage() {
           isLight={isLight}
           isGuest={isGuest}
           onClose={() => setPanelTarget(null)}
-          onOpenPage={(path, title) => setPanelTarget({ kind: "page", path, title })}
           directory={directory}
           currentRoomId={roomId}
           jukebox={jukebox}
@@ -1780,6 +1787,10 @@ export default function WorldPage() {
           myPeerId={myPeerId}
           isAdmin={isAdmin}
           editorProjectId={editorProjectId}
+          onOpenEditorStation={() => {
+            const editorStation = STATION_BY_ID.get("visual-vibes-editor");
+            if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
+          }}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}

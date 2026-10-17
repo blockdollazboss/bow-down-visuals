@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, Router, Route, Switch, useLocation } from "wouter";
+import { Link, Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import {
   X, Loader2, Crown, Users, Play, Pause, SkipForward, XCircle,
@@ -16,12 +16,24 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
 import {
-  splitPanelPath,
-  stationGuestBlocked,
+  resolveStationPanel,
   editorStepthroughSearch,
-  PANEL_ROUTE_PATHS,
-  type PanelRoutePath,
 } from "@/lib/world/station-panel";
+import {
+  CreateDeskPanel,
+  NativePlaceholder,
+  TransferFooter,
+  ListeningBooth,
+  NowPlayingCard,
+  ShopStand,
+  useShelfPlayer,
+  type ShelfPlayerController,
+} from "@/components/world/native";
+import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
+import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
+import { PortraitCard } from "@/components/world/native/PortraitCard";
+import { GamesPanel } from "@/components/world/native/GamesPanels";
+import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
@@ -29,27 +41,30 @@ import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
-   A door-station's panel: the room's REAL feature, mounted inside
-   the World page — the site's own page component in an in-panel
-   router, a world-native panel built from real data, or (the one
-   heavy desk) a step-through. Never a replica, never a redirect
-   out. Guests at a members-only door get the pitch and the sign-in
-   ask — sign-in itself deliberately lives on the site, not in a
-   3D panel (the plan's phishing-hygiene refusal). */
+   A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
+   station NEVER mounts a website page component. Opening a station
+   resolves through `resolveStationPanel` to exactly one of: the
+   guest pitch (members-only door, guest walker), a native surface
+   (its pattern's instrument, framed by the standard transfer
+   footer), one of the six world-native custom panels, or (the one
+   heavy desk) the step-through. The old in-panel page router is
+   GONE (plan Step 8): no target, link, or custom panel can mount a
+   website page in here anymore — the website is reachable only
+   through the explicit transfer doors (the footer peek, the
+   standing switch in the world chrome). Guests at a members-only
+   door get the pitch and the sign-in ask — sign-in itself
+   deliberately lives on the site, not in a 3D panel (the plan's
+   phishing-hygiene refusal). */
 
-/** What the panel is showing: a station, or a bare page a custom
- *  panel sent the walker to (a Court portrait's profile). */
-export type StationPanelTarget =
-  | { kind: "station"; station: PalaceStation }
-  | { kind: "page"; path: string; title: string };
+/** What the panel is showing: a station. (The bare-page target
+ *  kind died with the in-panel router at Step 8.) */
+export type StationPanelTarget = { kind: "station"; station: PalaceStation };
 
 export interface StationPanelProps {
   target: StationPanelTarget;
   isLight: boolean;
   isGuest: boolean;
   onClose: () => void;
-  /** Open a bare page in the panel (Court portraits → profiles). */
-  onOpenPage: (path: string, title: string) => void;
   /* The Kingdom Board's data + the room the walker stands in. */
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
@@ -65,53 +80,35 @@ export interface StationPanelProps {
    *  editor's location with ?project=<id> so it opens where they
    *  left off. Null (or still loading) → the editor opens fresh. */
   editorProjectId?: string | null;
+  /** The Create desks' Send-to-the-editor chip: step through to the
+   *  Visual Vibes editor station (the page swaps the panel target;
+   *  the step-through's newest-project seed resolves on open, and
+   *  the desk has just saved its result as that project). Optional —
+   *  hosts without an editor door simply don't offer the chip. */
+  onOpenEditorStation?: () => void;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
   onJukeboxRemove: (entryId: string) => void;
+  /* The Shelf player (NATIVE-PLAN §3.2): THE one in-world personal
+     player, in the jukebox's prop shape — a world page that wants
+     playback to survive the panel closing may hoist useShelfPlayer
+     and pass its controller in here; otherwise the host owns one
+     for the panel's life and every native surface in it (the
+     Listening Booth today, the Charts board's Play next) plays
+     through the same instance. */
+  shelfPlayer?: ShelfPlayerController;
 }
 
 /* The King's own Front Row is the Royal Court Chamber's standing
    gallery (the same public court the hall's stage honors read). */
 const KING_COURT_SLUG = "thy-cheat-code";
 
-/* ─── The in-panel router ────────────────────────────────────────────
-   The site's own pages, mounted under a memory-location router:
-   their links and back buttons navigate INSIDE the panel, so
-   walking through a door never walks you out of the palace. The
-   route set is the shared table in lib/world/station-panel (the
-   doors' targets, the deeper hub links those pages make, and the
-   profile door the Court portraits open); anything beyond it
-   lands on the honest miss card. The record below is keyed by the
-   table, so a path added there without a page here won't compile. */
-const PANEL_PAGES: Record<PanelRoutePath, ReturnType<typeof lazy>> = {
-  "/messages": lazy(() => import("@/pages/messages")),
-  "/my-music": lazy(() => import("@/pages/my-music")),
-  "/charts": lazy(() => import("@/pages/discovery/charts")),
-  "/arcade": lazy(() => import("@/pages/arcade")),
-  "/party": lazy(() => import("@/pages/party")),
-  "/dashboard": lazy(() => import("@/pages/dashboard")),
-  "/create": lazy(() => import("@/pages/create")),
-  "/audio-studio": lazy(() => import("@/pages/audio-studio")),
-  "/thumbnail-studio": lazy(() => import("@/pages/thumbnail-studio")),
-  "/memberships": lazy(() => import("@/pages/memberships")),
-  "/branding-kit": lazy(() => import("@/pages/branding-kit")),
-  "/press-kit": lazy(() => import("@/pages/press-kit")),
-  "/storefronts": lazy(() => import("@/pages/storefronts")),
-  "/community": lazy(() => import("@/pages/community")),
-  "/promote": lazy(() => import("@/pages/promote")),
-  "/earnings": lazy(() => import("@/pages/earnings")),
-  "/post/:id": lazy(() => import("@/pages/post")),
-  "/track/:id": lazy(() => import("@/pages/stream/track")),
-  "/watch/:id": lazy(() => import("@/pages/stream/watch")),
-  "/shop/:slug": lazy(() => import("@/pages/shop")),
-  "/coach": lazy(() => import("@/pages/coach")),
-  "/my-projects": lazy(() => import("@/pages/my-projects")),
-  "/credit-history": lazy(() => import("@/pages/credit-history")),
-  "/distribute": lazy(() => import("@/pages/distribute")),
-  "/scheduler": lazy(() => import("@/pages/scheduler")),
-  "/artist/:slug": lazy(() => import("@/pages/artist-public")),
-};
+/* The step-through's editor surface — the ONE website workbench
+   the palace mounts, full-screen inside /world under the owner's
+   step-through ruling (never a panel page; see StepThroughEditor
+   below). The old in-panel page router (PANEL_PAGES + PanelRouter
+   + the miss card) was deleted at plan Step 8. */
 const PanelEditor = lazy(() => import("@/pages/video-editor"));
 
 /** A panel page that failed to load or render: said plainly, with
@@ -151,71 +148,6 @@ class PanelBoundary extends Component<
       </div>
     );
   }
-}
-
-function PanelMiss({ homePath, isLight }: { homePath: string; isLight: boolean }) {
-  const [path, setLocation] = useLocation();
-  return (
-    <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-      <DoorOpen className="h-7 w-7 text-[#d4af37]" />
-      <p className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-        That door isn&rsquo;t hung in the palace yet
-      </p>
-      <p className={`max-w-sm text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-        <span className="font-semibold">{path}</span> lives on the site — the palace&rsquo;s doors
-        reach the rooms off this one, and this path isn&rsquo;t among them yet.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => setLocation(homePath)}
-          className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
-        >
-          Back to this door
-        </button>
-        <a
-          href={path}
-          className={`rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
-        >
-          Open it on the site
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function PanelRouter({ initialPath, isLight }: { initialPath: string; isLight: boolean }) {
-  const loc = useMemo(() => {
-    const { pathname, search } = splitPanelPath(initialPath);
-    return memoryLocation({ path: pathname, searchPath: search });
-  }, [initialPath]);
-  const fallback = (
-    <div className="flex items-center justify-center gap-2 px-4 py-12">
-      <Loader2 className="h-5 w-5 animate-spin text-[#d4af37]" />
-      <span className={`text-sm font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        Opening the door…
-      </span>
-    </div>
-  );
-  return (
-    <Router hook={loc.hook}>
-      <PanelBoundary isLight={isLight} resetKey={initialPath}>
-        <Suspense fallback={fallback}>
-          <Switch>
-            {PANEL_ROUTE_PATHS.map((path) => {
-              const Page = PANEL_PAGES[path];
-              return (
-                <Route key={path} path={path}>
-                  <Page />
-                </Route>
-              );
-            })}
-            <Route><PanelMiss homePath={initialPath} isLight={isLight} /></Route>
-          </Switch>
-        </Suspense>
-      </PanelBoundary>
-    </Router>
-  );
 }
 
 /* The step-through editor, seeded with its deep link: inside the
@@ -328,14 +260,33 @@ function KingdomBoard({
 
 function FrontRowGallery({
   isLight,
-  onOpenPage,
+  isGuest,
+  onPlayTrack,
 }: {
   isLight: boolean;
-  onOpenPage: (path: string, title: string) => void;
+  isGuest: boolean;
+  /** Portrait Card Play seam: the host's jukebox.add intent. */
+  onPlayTrack: (trackId: string) => void;
 }) {
   const [members, setMembers] = useState<CourtMember[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
+  /* The Portrait Card (NATIVE-PLAN §3.4): a portrait click opens the
+     creator's CARD in-world — never their profile page. The card
+     carries its own /artist/:slug transfer footer. */
+  const [selected, setSelected] = useState<CourtMember | null>(null);
+
+  if (selected) {
+    return (
+      <PortraitCard
+        member={selected}
+        isLight={isLight}
+        isGuest={isGuest}
+        onPlayTrack={onPlayTrack}
+        onBack={() => setSelected(null)}
+      />
+    );
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -390,7 +341,7 @@ function FrontRowGallery({
             key={m.profileId}
             type="button"
             data-testid="world-court-portrait"
-            onClick={() => onOpenPage(`/artist/${m.slug}`, m.displayName)}
+            onClick={() => setSelected(m)}
             className={`group flex flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 text-center transition ${
               isLight
                 ? "border-[#C9A84C]/50 bg-white/60 hover:border-[#7A5A12]"
@@ -415,14 +366,15 @@ function FrontRowGallery({
               <Crown className="h-3 w-3" /> Seat #{m.position}
             </span>
             <span className={`text-[11px] font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]/80"}`}>
-              Open their profile door →
+              See their card →
             </span>
           </button>
         ))}
       </div>
       <p className={`px-1 pt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         The King&rsquo;s Front Row — the honored creators, portrait by portrait. A portrait opens that
-        creator&rsquo;s real profile, right here in the palace.
+        creator&rsquo;s card, right here in the palace — their full profile waits on the card&rsquo;s
+        own website link, only if you choose it.
       </p>
     </div>
   );
@@ -555,8 +507,9 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
         )}
       </div>
       {/* The day's content drop rides the same rail it always has —
-          the real card, in the vault. */}
-      <DailyDropCard />
+          the real card, in the vault. inWorld: its CTA is an
+          explicit new-tab transfer, never a same-tab walk-out. */}
+      <DailyDropCard inWorld />
     </div>
   );
 }
@@ -735,7 +688,7 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
 
 function TreasuryQuests() {
   const { getAccessToken, refreshProfile } = useAuth();
-  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />;
+  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} inWorld />;
 }
 
 /* ─── The Music Hall jukebox ───────────────────────────────────────── */
@@ -968,6 +921,11 @@ function JukeboxPanel(props: StationPanelProps) {
 export default function StationPanel(props: StationPanelProps) {
   const { target, isLight, isGuest, onClose } = props;
 
+  /* The Shelf player: one instance for the panel's whole life (or
+     the caller's hoisted one, when passed) — see the prop note. */
+  const internalShelfPlayer = useShelfPlayer();
+  const shelfPlayer = props.shelfPlayer ?? internalShelfPlayer;
+
   /* Escape closes the door (the panel pattern, house-wide). */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -977,17 +935,31 @@ export default function StationPanel(props: StationPanelProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const name = target.kind === "station" ? target.station.name : target.title;
-  const tagline = target.kind === "station" ? target.station.tagline : null;
+  /* The Studio Board's Continue: stepping through into the editor
+     seeded with the CHOSEN project (not just the newest — that is
+     the editor door's own seed, resolved by the page). Local to
+     this host: the step-through frame below renders the same
+     StepThroughEditor the editor door uses, and Return lands back
+     on the board. Cleared whenever the panel's target changes. */
+  const [boardProjectId, setBoardProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    setBoardProjectId(null);
+  }, [target]);
+
+  const name = target.station.name;
+  const tagline = target.station.tagline;
+
+  /* Registry v2: a station target resolves ONCE, here, and every
+     render below follows the resolution. Its union has no page
+     variant — a station can never mount a website page component
+     again. */
+  const station = target.station;
+  const resolution = resolveStationPanel(station, isGuest);
 
   /* The step-through: the one heavy desk (the Visual Vibes editor)
      opens full-screen INSIDE /world — no new tab, no lost place;
      the bar at the top is the way back to your exact spot. */
-  if (
-    target.kind === "station" &&
-    target.station.panel.kind === "stepthrough" &&
-    !stationGuestBlocked(target.station, isGuest)
-  ) {
+  if (resolution?.type === "stepthrough") {
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-station-stepthrough">
         <div
@@ -1011,7 +983,7 @@ export default function StationPanel(props: StationPanelProps) {
           </button>
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <PanelBoundary isLight={isLight} resetKey={target.station.id}>
+          <PanelBoundary isLight={isLight} resetKey={resolution.station.id}>
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center gap-2 text-white/60">
@@ -1028,42 +1000,160 @@ export default function StationPanel(props: StationPanelProps) {
     );
   }
 
+  /* The Studio Board's step-through: the same full-screen editor
+     frame as the editor door's, seeded with the board's chosen
+     project; Return goes back to the board (the sheet below). */
+  if (boardProjectId !== null && resolution?.type === "native" && station?.id === "my-studio") {
+    return (
+      <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-studio-stepthrough">
+        <div
+          className={`relative z-10 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] text-[#2a1e07]" : "border-[#d4af37]/25 bg-[#070605] text-white"
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 text-sm font-black">
+            <DoorOpen className="h-4 w-4 text-[#d4af37]" /> Visual Vibes Editor
+            <span className={`hidden text-xs font-semibold sm:inline ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              — stepped through from {name}, still in the palace
+            </span>
+          </span>
+          <button
+            type="button"
+            data-testid="world-studio-return"
+            onClick={() => setBoardProjectId(null)}
+            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+          >
+            <X className="h-4 w-4" /> Back to My Studio
+          </button>
+        </div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <PanelBoundary isLight={isLight} resetKey={`studio-${boardProjectId}`}>
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center gap-2 text-white/60">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#d4af37]" />
+                  <span className="text-sm font-semibold">Opening the editor…</span>
+                </div>
+              }
+            >
+              <StepThroughEditor projectId={boardProjectId} />
+            </Suspense>
+          </PanelBoundary>
+        </div>
+      </div>
+    );
+  }
+
   const body = (() => {
-    if (target.kind === "page") {
-      return <PanelRouter initialPath={target.path} isLight={isLight} />;
-    }
-    const station = target.station;
-    if (stationGuestBlocked(station, isGuest)) {
-      return <GuestPitch station={station} isLight={isLight} />;
-    }
-    if (station.panel.kind === "page") {
-      return <PanelRouter initialPath={station.panel.path} isLight={isLight} />;
-    }
-    if (station.panel.kind === "custom") {
-      switch (station.panel.id) {
-        case "kingdom-board":
+    if (!station || !resolution) return null;
+    switch (resolution.type) {
+      case "guest-pitch":
+        return <GuestPitch station={station} isLight={isLight} />;
+      case "native":
+        /* The station's pattern surface, framed below by the
+           standard transfer footer (rendered once, by the host).
+           Each shipped pattern surface renders here; a native
+           station whose pattern hasn't shipped keeps the honest
+           migration placeholder — never a silent pull-up, never
+           a dead end. */
+        if (resolution.pattern === "shelf") {
           return (
-            <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              <ListeningBooth
+                isLight={isLight}
+                shelfPlayer={shelfPlayer}
+                onJukeboxAdd={props.onJukeboxAdd}
+              />
+            </PanelBoundary>
           );
-        case "front-row":
-          return <FrontRowGallery isLight={isLight} onOpenPage={props.onOpenPage} />;
-        case "treasury-daily":
-          return <TreasuryDaily isLight={isLight} />;
-        case "treasury-shark":
-          return <TreasuryShark isLight={isLight} />;
-        case "treasury-quests":
-          return <TreasuryQuests />;
-        case "jukebox":
-          return <JukeboxPanel {...props} />;
-        default:
+        }
+        if (resolution.pattern === "social") {
           return (
-            <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-              This door isn&rsquo;t hung yet — the room is here, the feature is still on its way in.
-            </p>
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              {station.id === "post-office" ? (
+                <PostOfficeDesk isLight={isLight} />
+              ) : station.id === "community-hall" ? (
+                <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+              ) : (
+                <NativePlaceholder station={station} isLight={isLight} />
+              )}
+            </PanelBoundary>
           );
-      }
+        }
+        if (resolution.pattern === "games") {
+          return (
+            <PanelBoundary isLight={isLight} resetKey={station.id}>
+              <GamesPanel stationId={station.id} isLight={isLight} />
+            </PanelBoundary>
+          );
+        }
+        return (
+          <PanelBoundary isLight={isLight} resetKey={station.id}>
+            {resolution.pattern === "create" ? (
+              <CreateDeskPanel
+                station={station}
+                isLight={isLight}
+                onJukeboxAdd={props.onJukeboxAdd}
+                onOpenEditor={props.onOpenEditorStation}
+              />
+            ) : resolution.pattern === "shop" ? (
+              <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
+              <ChartsBoard
+                isLight={isLight}
+                isGuest={isGuest}
+                jukeboxDenied={props.jukeboxDenied}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
+              <EarningsBoard isLight={isLight} />
+            ) : resolution.pattern === "board" && station.id === "my-studio" ? (
+              <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+            ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
+              <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
+              <PressKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "promote-room" ? (
+              <PromoteDesk isLight={isLight} isGuest={isGuest} />
+            ) : (
+              <NativePlaceholder station={station} isLight={isLight} />
+            )}
+          </PanelBoundary>
+        );
+      case "custom":
+        switch (resolution.id) {
+          case "kingdom-board":
+            return (
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
+            );
+          case "front-row":
+            return (
+              <FrontRowGallery
+                isLight={isLight}
+                isGuest={isGuest}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            );
+          case "treasury-daily":
+            return <TreasuryDaily isLight={isLight} />;
+          case "treasury-shark":
+            return <TreasuryShark isLight={isLight} />;
+          case "treasury-quests":
+            return <TreasuryQuests />;
+          case "jukebox":
+            return <JukeboxPanel {...props} />;
+          default:
+            return (
+              <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                This door isn&rsquo;t hung yet — the room is here, the feature is still on its way in.
+              </p>
+            );
+        }
+      default:
+        /* "stepthrough" is narrowed out here — it returned
+           full-screen above, before the sheet ever renders. */
+        return null;
     }
-    return null;
   })();
 
   return (
@@ -1094,7 +1184,25 @@ export default function StationPanel(props: StationPanelProps) {
           <X className="h-3.5 w-3.5" /> Back to the room
         </button>
       </div>
+      {/* The Shelf's Now Playing card: rendered by the host for
+          whichever native surface set the player (the Booth, the
+          Charts board's Play) — one player, one card, above the
+          station's own body. */}
+      {resolution?.type === "native" && shelfPlayer.current && (
+        <NowPlayingCard player={shelfPlayer} isLight={isLight} />
+      )}
       {body}
+      {/* The standard transfer footer — native panels only, exactly
+          one, always the frame's last row (NATIVE-PLAN §3.0). The
+          guest pitch carries its own sign-in transfer by design,
+          and the customs keep the frames they have always had. */}
+      {resolution?.type === "native" && (
+        <TransferFooter
+          context={resolution.station.tagline}
+          websitePath={resolution.websitePath}
+          isLight={isLight}
+        />
+      )}
     </div>
   );
 }
