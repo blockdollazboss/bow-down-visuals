@@ -85,6 +85,7 @@ import {
   type VaultCharacter,
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
+import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
 
 /* ─── The World — the palace (/world) ───────────────────────────────────────
    One shared VR palace: the King's Hall (a stage and a big screen —
@@ -1280,6 +1281,12 @@ export default function WorldPage() {
             {isFs ? "Exit full screen" : "Full screen"}
           </button>
         )}
+        {/* The standing switch (owner addendum, Oct 17): the plain
+            way out of the palace to the 2D website — always in the
+            chrome, both themes, guests included. Distinct from the
+            panels' "Open on the website ↗" footers, which peek at a
+            station's page in a new tab without leaving the room. */}
+        <SwitchToWebsite isLight={isLight} />
       </header>
 
       {/* Walk in as — members pick a Creative Vault character (or the

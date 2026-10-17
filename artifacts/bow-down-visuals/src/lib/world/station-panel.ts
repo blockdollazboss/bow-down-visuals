@@ -42,6 +42,24 @@ export function stationGuestBlocked(station: PalaceStation, isGuest: boolean): b
  *  once, trusted everywhere (NATIVE-PLAN §3.0, owner ruling Q3). */
 export const TRANSFER_BUTTON_LABEL = "Open on the website ↗";
 
+/* ─── The standing switch — the OTHER outbound door ─────────────────
+   Owner addendum (Oct 17, 14:29 EDT): "vice versa, I should be in
+   the VR world and have an option to switch [to] the actual
+   website." Alongside the per-panel footer peeks there is a
+   STANDING exit in the world page's chrome: "Switch to the
+   website", always reachable in the room header, both themes,
+   guests included. The two doors are deliberately distinct:
+   - the footer (above) is a PEEK — a station's exact page, deep
+     link included, in a NEW TAB; the palace stays where it was.
+   - the switch is the plain EXIT — a same-tab navigation to the
+     site root; you leave the palace for the 2D website.
+   The labels are exact and never interchangeable. */
+export const SWITCH_TO_WEBSITE_LABEL = "Switch to the website";
+
+/** The standing switch's destination: the website's root — the
+ *  simple way out, not any station's deep link. */
+export const WEBSITE_HOME_PATH = "/";
+
 export type StationPanelResolution =
   | { type: "guest-pitch"; station: PalaceStation }
   | {
