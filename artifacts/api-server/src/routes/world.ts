@@ -427,6 +427,89 @@ router.get("/world/jukebox-catalog", requireAuth, async (req, res) => {
   }
 });
 
+/* ── My music — owned playback, published or not (Ring 2, 2.14) ─────────
+ * GET /api/world/my-music — the signed-in member's OWN profile tracks,
+ * drafts and unpublished included, each with the streamable audio URL
+ * the site itself streams from (the row's audio_url, storage-refreshed
+ * at the boundary like every world payload). The public media detail
+ * (GET /api/media/track/:id) 404s unpublished tracks by design, so an
+ * owner could never hear their own unreleased songs in the palace;
+ * this is the one world-shaped read that closes that gap, following
+ * the screen-catalog precedent (requireAuth, caller's profile first).
+ *
+ * OWNERSHIP IS THE QUERY: rows are selected by the caller's own
+ * profile id and nothing else — there is no id parameter, so there is
+ * no way to ask for anyone else's music. The DTO is camelCase (the
+ * world catalogs' house shape); the client normalizes at its boundary
+ * in lib/world/shelf.ts (parseMyMusic). */
+export interface WorldMyMusicItem {
+  id: string;
+  title: string;
+  artistName: string | null;
+  artworkUrl: string | null;
+  audioUrl: string;
+  genre: string | null;
+  durationSec: number;
+  isPublished: boolean;
+  likeCount: number;
+  commentCount: number;
+  playCount: number;
+  createdAt: string;
+}
+
+type ProfileTrackRow = typeof profileTracksTable.$inferSelect;
+
+/** Pure DTO mapper (exported for route tests): one own-track row →
+ *  the world-shaped item. Dates ride as ISO strings, never Date
+ *  objects, so the wire shape is the tested shape. */
+export function myMusicItemFromTrack(row: ProfileTrackRow, artistName: string | null): WorldMyMusicItem {
+  return {
+    id: row.id,
+    title: row.title,
+    artistName,
+    artworkUrl: row.artworkUrl ?? null,
+    audioUrl: row.audioUrl,
+    genre: row.genre ?? null,
+    durationSec: row.durationSec ?? 0,
+    isPublished: row.isPublished === true,
+    likeCount: row.likeCount ?? 0,
+    commentCount: row.commentCount ?? 0,
+    playCount: row.playCount ?? 0,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+  };
+}
+
+router.get("/world/my-music", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const [myProfile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+    if (!myProfile) {
+      res.json({ tracks: [] });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(profileTracksTable)
+      .where(eq(profileTracksTable.profileId, myProfile.id))
+      .orderBy(desc(profileTracksTable.createdAt))
+      .limit(50);
+    const tracks = rows
+      .filter((t) => t.audioUrl)
+      .map((t) => myMusicItemFromTrack(t, myProfile.displayName));
+    /* Awaited on purpose: res.json() on the un-awaited promise would
+       serialize to {} — the stored audio_url may be a storage ref
+       that only the refresh turns into a playable URL. */
+    res.json(await refreshSupabaseStorageUrlsDeep({ tracks }));
+  } catch (err) {
+    logger.error({ err }, "[world] my-music lookup failed");
+    res.status(500).json({ error: "Couldn't load your songs. Try again." });
+  }
+});
+
 /* ── Presence socket ────────────────────────────────────────────────────── */
 
 export interface WorldWsDeps {
