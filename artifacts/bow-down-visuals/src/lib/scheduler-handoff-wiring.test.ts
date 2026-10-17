@@ -45,3 +45,28 @@ describe("E1 — label pitch hands its announcement to the composer protocol", (
     expect(schedulerSource).toContain('params.get("caption")');
   });
 });
+
+describe("E2 — PromoteButton delivers its share text into the composer", () => {
+  it("the scheduler has never read a `text` param (the old href's payload went nowhere)", () => {
+    expect(schedulerSource).not.toContain('params.get("text")');
+    expect(schedulerSource).not.toContain("params.get('text')");
+  });
+
+  it("PromoteButton builds its scheduler link through buildSchedulerHref with the share text as the caption", () => {
+    expect(promoteButtonSource).toContain('import { buildSchedulerHref } from "@/lib/scheduler-handoff"');
+    expect(promoteButtonSource).toContain("buildSchedulerHref({ caption: shareText() })");
+  });
+
+  it("PromoteButton no longer emits the dead ?text= param", () => {
+    expect(promoteButtonSource).not.toContain("/scheduler?text=");
+    expect(promoteButtonSource).not.toContain("?text=");
+  });
+
+  it("the produced href carries the full multi-line share text as the composer caption", () => {
+    const text = "👑 Gold Chain — $49\nUse code GOLD for a discount.\nhttps://example.com/p/1?ref=ABC";
+    const q = new URLSearchParams(buildSchedulerHref({ caption: text }).split("?")[1]);
+    expect(q.get("schedule")).toBe("1");
+    expect(q.get("caption")).toBe(text);
+    expect(q.get("text")).toBeNull();
+  });
+});
