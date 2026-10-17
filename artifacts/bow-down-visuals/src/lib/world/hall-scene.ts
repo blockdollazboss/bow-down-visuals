@@ -41,6 +41,7 @@ import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
+import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import {
   coverTransform,
@@ -355,7 +356,12 @@ const DEFAULT_SPRITE_Y = 2.12;
 
 function buildCapsuleBody(tintHex: string): THREE.Group {
   const body = new THREE.Group();
-  const tint = new THREE.Color(tintHex);
+  /* The fallback figure is the HOUSE figure: the presence tint is
+   * anchored into the gold family (capsule-color) before it ever
+   * touches a material — raw, the coral/jade tints read as bare
+   * skin or candy under the hall lights. The head rides the same
+   * anchored gold, darkened: dark bronze under the gold visor. */
+  const tint = new THREE.Color(capsuleBodyHex(tintHex));
   const bodyMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.3 });
   const darkMat = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.6, metalness: 0.2 });
 
