@@ -33,11 +33,16 @@
  */
 
 /** A Creative Vault character standing in the hall — resolved and
- *  ownership-verified by the server; clients never invent these. */
+ *  ownership-verified by the server; clients never invent these.
+ *  portraitUrl is the character's reference image; loopUrl its
+ *  living loop (the row's reference video, resolved server-side).
+ *  Either may be null — a video-only character stands on its loop
+ *  alone — but a legal ref always carries at least one. */
 export interface WorldCharacterRef {
   id: string;
   name: string;
-  portraitUrl: string;
+  portraitUrl: string | null;
+  loopUrl: string | null;
 }
 
 export type { WorldActionId } from "./actions";
@@ -512,12 +517,23 @@ export class WorldClient {
       case "peer.character": {
         const peerId = String(frame["peerId"]);
         const raw = frame["character"];
-        const character =
-          raw && typeof raw === "object" &&
-          typeof (raw as WorldCharacterRef).id === "string" &&
-          typeof (raw as WorldCharacterRef).portraitUrl === "string"
-            ? (raw as WorldCharacterRef)
-            : null;
+        // Explicit normalizer (DTO discipline): a ref is legal when
+        // it carries an id, a name, and at least one way to stand —
+        // a portrait, a living loop, or both. Anything else is no
+        // character at all.
+        let character: WorldCharacterRef | null = null;
+        if (raw && typeof raw === "object") {
+          const r = raw as Record<string, unknown>;
+          const portraitUrl = typeof r["portraitUrl"] === "string" && r["portraitUrl"] ? r["portraitUrl"] : null;
+          const loopUrl = typeof r["loopUrl"] === "string" && r["loopUrl"] ? r["loopUrl"] : null;
+          if (
+            typeof r["id"] === "string" && r["id"] &&
+            typeof r["name"] === "string" &&
+            (portraitUrl !== null || loopUrl !== null)
+          ) {
+            character = { id: r["id"], name: r["name"], portraitUrl, loopUrl };
+          }
+        }
         const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
         if (target) target.character = character;
         this.onPeerCharacter?.(peerId, character);

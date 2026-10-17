@@ -3,8 +3,9 @@
  * - normalization tolerates the vault DTO's snake_case rows, camelCase
  *   stragglers, junk rows, and missing fields without guessing
  * - the device pick round-trips through storage and clears on null
- * - a remembered pick for a character that no longer exists (or lost
- *   its portrait) reconciles to the house avatar instead of a refusal
+ * - a remembered pick for a character that no longer exists (or has
+ *   neither portrait nor living loop) reconciles to the house avatar
+ *   instead of a refusal; a video-only character's pick stands
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -31,14 +32,14 @@ describe("normalizeVaultCharacters", () => {
     const out = normalizeVaultCharacters({
       vaults: [
         { id: "c1", artist_name: "Nova", reference_image_url: "https://img/nova.png" },
-        { id: "c2", artist_name: "Rey", reference_image_url: null },
-        { id: "c3", artistName: "Cam", referenceImageUrl: "https://img/cam.png" },
+        { id: "c2", artist_name: "Rey", reference_image_url: null, reference_video_url: "https://vid/rey.mp4" },
+        { id: "c3", artistName: "Cam", referenceImageUrl: "https://img/cam.png", referenceVideoUrl: "https://vid/cam.mp4" },
       ],
     });
     expect(out).toEqual([
-      { id: "c1", name: "Nova", portraitUrl: "https://img/nova.png" },
-      { id: "c2", name: "Rey", portraitUrl: null },
-      { id: "c3", name: "Cam", portraitUrl: "https://img/cam.png" },
+      { id: "c1", name: "Nova", portraitUrl: "https://img/nova.png", loopUrl: null },
+      { id: "c2", name: "Rey", portraitUrl: null, loopUrl: "https://vid/rey.mp4" },
+      { id: "c3", name: "Cam", portraitUrl: "https://img/cam.png", loopUrl: "https://vid/cam.mp4" },
     ]);
   });
 
@@ -47,8 +48,8 @@ describe("normalizeVaultCharacters", () => {
       vaults: [null, "junk", { name: "no id" }, { id: "c9", artist_name: "   " }, { id: "c8", reference_image_url: "" }],
     });
     expect(out).toEqual([
-      { id: "c9", name: "Untitled character", portraitUrl: null },
-      { id: "c8", name: "Untitled character", portraitUrl: null },
+      { id: "c9", name: "Untitled character", portraitUrl: null, loopUrl: null },
+      { id: "c8", name: "Untitled character", portraitUrl: null, loopUrl: null },
     ]);
     expect(normalizeVaultCharacters(null)).toEqual([]);
     expect(normalizeVaultCharacters({ nope: 1 })).toEqual([]);
@@ -96,13 +97,16 @@ describe("device pick storage", () => {
 
 describe("reconcileStoredPick", () => {
   const chars: VaultCharacter[] = [
-    { id: "c1", name: "Nova", portraitUrl: "https://img/nova.png" },
-    { id: "c2", name: "Rey", portraitUrl: null },
+    { id: "c1", name: "Nova", portraitUrl: "https://img/nova.png", loopUrl: null },
+    { id: "c2", name: "Rey", portraitUrl: null, loopUrl: "https://vid/rey.mp4" },
+    { id: "c3", name: "Cam", portraitUrl: null, loopUrl: null },
   ];
-  it("keeps a live pick, drops a vanished or portrait-less one", () => {
+  it("keeps a live pick — portrait or living loop — and drops a vanished or empty one", () => {
     expect(reconcileStoredPick(chars, "c1")).toBe("c1");
+    // video-only: the living loop stands as the figure, so the pick stands
+    expect(reconcileStoredPick(chars, "c2")).toBe("c2");
+    expect(reconcileStoredPick(chars, "c3")).toBeNull();
     expect(reconcileStoredPick(chars, "gone")).toBeNull();
-    expect(reconcileStoredPick(chars, "c2")).toBeNull();
     expect(reconcileStoredPick(chars, null)).toBeNull();
     expect(reconcileStoredPick([], "c1")).toBeNull();
   });

@@ -16,9 +16,14 @@ export interface VaultCharacter {
   id: string;
   name: string;
   /** The character's reference portrait, or null when the vault row
-   *  has no image yet — such a character can't stand in the hall, so
-   *  the picker shows it disabled with the reason, not as a dead end. */
+   *  has no image yet. */
   portraitUrl: string | null;
+  /** The character's living loop (the row's reference video), or
+   *  null when it has none. A character with a loop but no portrait
+   *  CAN stand in the hall — its living portrait is the figure —
+   *  and the picker shows the loop itself as its tile. Only a
+   *  character with neither shows disabled, with the reason. */
+  loopUrl: string | null;
 }
 
 /** Shape the /api/artist-vaults payload into picker rows. Defensive
@@ -42,7 +47,9 @@ export function normalizeVaultCharacters(payload: unknown): VaultCharacter[] {
     const name = typeof nameRaw === "string" && nameRaw.trim() ? nameRaw.trim().slice(0, 80) : "Untitled character";
     const portraitRaw = r["reference_image_url"] ?? r["referenceImageUrl"];
     const portraitUrl = typeof portraitRaw === "string" && portraitRaw.trim() ? portraitRaw.trim() : null;
-    out.push({ id, name, portraitUrl });
+    const loopRaw = r["reference_video_url"] ?? r["referenceVideoUrl"];
+    const loopUrl = typeof loopRaw === "string" && loopRaw.trim() ? loopRaw.trim() : null;
+    out.push({ id, name, portraitUrl, loopUrl });
   }
   return out;
 }
@@ -105,7 +112,7 @@ export function storeCharacterId(id: string | null, storage: StorageLike | null 
 export function reconcileStoredPick(characters: VaultCharacter[], storedId: string | null): string | null {
   if (!storedId) return null;
   if (houseGuardVariantForId(storedId)) return storedId;
-  return characters.some((c) => c.id === storedId && c.portraitUrl) ? storedId : null;
+  return characters.some((c) => c.id === storedId && (c.portraitUrl || c.loopUrl)) ? storedId : null;
 }
 
 /** Fetch the signed-in member's vault characters for the picker. */

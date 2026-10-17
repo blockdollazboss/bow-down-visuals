@@ -49,7 +49,7 @@
  */
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
-import type { WorldPeer, WorldCharacterRef } from "./world-client";
+import type { WorldPeer } from "./world-client";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
 import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
@@ -2363,7 +2363,7 @@ export class KingsHallScene {
    *  stays set so the 120 ms upsert cadence never turns into a retry
    *  storm. */
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
-    const want = peer.character && peer.character.portraitUrl ? peer.character : null;
+    const want = peer.character && (peer.character.portraitUrl || peer.character.loopUrl) ? peer.character : null;
     rig.characterName = want?.name ?? "";
     const wantId = want?.id ?? null;
     /* A house guard pick arrives as a character ref too — but it
@@ -2384,42 +2384,85 @@ export class KingsHallScene {
       return;
     }
     rig.guardWanted = null;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-      void locatePortraitMouth(img).then((mouth) => {
+    if (want.portraitUrl) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
         if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-        try {
-          const built = buildPortraitFigure(img, mouth);
-          rig.defaultFigure = false;
-          rig.guardVariant = null;
-          this.swapFigure(rig, built.body, built.portrait, wantId);
-          // Living loop: resolve off the standing character's own
-          // identity (the King by name today; a future per-character
-          // loop field on the ref drops straight in — no other code
-          // changes when the vault grows the field).
-          const future = want as WorldCharacterRef & { loopUrl?: unknown; loopPosterUrl?: unknown };
-          this.attachLoopFeed(
-            rig,
-            loopForCharacterRef({
-              id: want.id,
-              name: want.name,
-              loopUrl: typeof future.loopUrl === "string" ? future.loopUrl : undefined,
-              loopPosterUrl: typeof future.loopPosterUrl === "string" ? future.loopPosterUrl : undefined,
-            }),
-          );
-        } catch {
-          /* canvas unavailable — the standing figure keeps standing */
-        }
-      });
+        void locatePortraitMouth(img).then((mouth) => {
+          if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+          try {
+            const built = buildPortraitFigure(img, mouth);
+            rig.defaultFigure = false;
+            rig.guardVariant = null;
+            this.swapFigure(rig, built.body, built.portrait, wantId);
+            // Living loop: the ref's loopUrl — resolved server-side
+            // from the character's own vault row, keyed by its
+            // identity end to end (never by name).
+            this.attachLoopFeed(rig, loopForCharacterRef(want));
+          } catch {
+            /* canvas unavailable — the standing figure keeps standing */
+          }
+        });
+      };
+      img.onerror = () => {
+        /* portrait unreachable (or not CORS-clean for WebGL): the
+           standing figure keeps standing; no retry until the pick
+           changes */
+      };
+      img.src = want.portraitUrl;
+      return;
+    }
+    /* Video-only character: its vault row carries a living loop
+       but no portrait. The figure's still is the loop's own first
+       frame — snapshot it once the video can play, stand the
+       figure on it, and let the loop feed take over from there.
+       Any failure along the way leaves the standing figure
+       standing — the same contract as a failed portrait load. */
+    const loopUrl = want.loopUrl;
+    if (!loopUrl) return;
+    const probe = document.createElement("video");
+    probe.muted = true;
+    probe.playsInline = true;
+    probe.preload = "auto";
+    probe.crossOrigin = "anonymous";
+    probe.onerror = () => {
+      /* loop unreachable — the standing figure keeps standing */
     };
-    img.onerror = () => {
-      /* portrait unreachable (or not CORS-clean for WebGL): the
-         standing figure keeps standing; no retry until the pick
-         changes */
+    probe.oncanplay = () => {
+      if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+      try {
+        const snap = document.createElement("canvas");
+        snap.width = probe.videoWidth;
+        snap.height = probe.videoHeight;
+        const sctx = snap.width > 0 ? snap.getContext("2d") : null;
+        if (!sctx) return;
+        sctx.drawImage(probe, 0, 0);
+        const stillUrl = snap.toDataURL("image/png");
+        probe.removeAttribute("src");
+        probe.load();
+        const img = new Image();
+        img.onload = () => {
+          if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+          void locatePortraitMouth(img).then((mouth) => {
+            if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+            try {
+              const built = buildPortraitFigure(img, mouth);
+              rig.defaultFigure = false;
+              rig.guardVariant = null;
+              this.swapFigure(rig, built.body, built.portrait, wantId);
+              this.attachLoopFeed(rig, loopForCharacterRef(want));
+            } catch {
+              /* canvas unavailable — the standing figure keeps standing */
+            }
+          });
+        };
+        img.src = stillUrl;
+      } catch {
+        /* a tainted or torn-down probe — the standing figure stands */
+      }
     };
-    img.src = want.portraitUrl;
+    probe.src = loopUrl;
   }
 
   /** Stand the presence as a palace guard: the explicit pick when

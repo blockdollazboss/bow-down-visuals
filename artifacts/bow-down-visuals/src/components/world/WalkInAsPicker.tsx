@@ -8,10 +8,12 @@
  * you talk. Signed-in members only; the world page renders this for
  * them alone.
  *
- * Honest states, no dead ends: characters without a portrait can't
- * stand in the hall yet and say so; an empty vault links straight to
- * the Creative Vault to make one; a failed load keeps the house
- * avatar walk-in working and says what happened.
+ * Honest states, no dead ends: a character with a living loop
+ * but no portrait still stands — its tile is the loop itself,
+ * moving; only a character with neither says so and sits out; an
+ * empty vault links straight to the Creative Vault to make one;
+ * a failed load keeps the house avatar walk-in working and says
+ * what happened.
  */
 import { Link } from "wouter";
 import { Sparkles, Check } from "lucide-react";
@@ -109,8 +111,37 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             </span>
           ) : null}
 
-          {(characters ?? []).map((c) =>
-            c.portraitUrl ? (
+          {(characters ?? []).map((c) => {
+            const selectable = Boolean(c.portraitUrl || c.loopUrl);
+            if (!selectable) {
+              return (
+                <div
+                  key={c.id}
+                  className={`${tileBase} cursor-not-allowed opacity-60 ${tileIdle}`}
+                  data-testid={`walk-in-character-${c.id}`}
+                  title="This character has no portrait or living loop yet"
+                >
+                  {/* Nothing to stand as yet: a house placeholder —
+                      the character's monogram on a gold disc — never
+                      a broken-image glyph. */}
+                  <span
+                    aria-hidden
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-black ${
+                      isLight
+                        ? "bg-gradient-to-b from-[#e8c86a] to-[#C9A84C] text-[#2a1e07] ring-1 ring-[#7A5A12]/50"
+                        : "bg-gradient-to-b from-[#e8c86a] to-[#b8860b] text-[#171106] ring-1 ring-[#d4af37]/60"
+                    }`}
+                  >
+                    {characterMonogram(c.name)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block truncate text-xs font-bold ${nameCls}`}>{c.name}</span>
+                    <span className={`block truncate text-[11px] ${subCls}`}>No portrait yet</span>
+                  </span>
+                </div>
+              );
+            }
+            return (
               <button
                 key={c.id}
                 type="button"
@@ -119,47 +150,39 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                 data-testid={`walk-in-character-${c.id}`}
                 aria-pressed={selectedId === c.id}
               >
-                <img
-                  src={c.portraitUrl}
-                  alt=""
-                  className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                  loading="lazy"
-                />
+                {c.portraitUrl ? (
+                  <img
+                    src={c.portraitUrl}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  /* Video-only character: the tile IS its living
+                     portrait — the loop itself, moving — never a
+                     dead tile. */
+                  <video
+                    src={c.loopUrl ?? undefined}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    preload="metadata"
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                  />
+                )}
                 <span className="min-w-0">
                   <span className={`flex items-center gap-1 text-sm font-bold ${nameCls}`}>
                     <span className="truncate">{c.name}</span>
                     {selectedId === c.id ? <Check className="h-3.5 w-3.5 shrink-0 text-[#d4af37]" /> : null}
                   </span>
-                  <span className={`block truncate text-[11px] ${subCls}`}>Creative Vault</span>
+                  <span className={`block truncate text-[11px] ${subCls}`}>
+                    {c.portraitUrl ? "Creative Vault" : "Creative Vault · Living portrait"}
+                  </span>
                 </span>
               </button>
-            ) : (
-              <div
-                key={c.id}
-                className={`${tileBase} cursor-not-allowed opacity-60 ${tileIdle}`}
-                data-testid={`walk-in-character-${c.id}`}
-                title="This character has no portrait yet"
-              >
-                {/* No portrait yet: a house placeholder — the
-                    character's monogram on a gold disc — never a
-                    broken-image glyph. */}
-                <span
-                  aria-hidden
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-black ${
-                    isLight
-                      ? "bg-gradient-to-b from-[#e8c86a] to-[#C9A84C] text-[#2a1e07] ring-1 ring-[#7A5A12]/50"
-                      : "bg-gradient-to-b from-[#e8c86a] to-[#b8860b] text-[#171106] ring-1 ring-[#d4af37]/60"
-                  }`}
-                >
-                  {characterMonogram(c.name)}
-                </span>
-                <span className="min-w-0">
-                  <span className={`block truncate text-xs font-bold ${nameCls}`}>{c.name}</span>
-                  <span className={`block truncate text-[11px] ${subCls}`}>No portrait yet</span>
-                </span>
-              </div>
-            ),
-          )}
+            );
+          })}
 
           {characters !== null && characters.length === 0 && !loadFailed ? (
             <Link

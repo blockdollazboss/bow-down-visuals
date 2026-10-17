@@ -252,7 +252,7 @@ describe("vault characters — walk in as", () => {
 
     const seen: Array<[string, unknown]> = [];
     client.onPeerCharacter = (peerId, character) => seen.push([peerId, character]);
-    const REY = { id: "char-rey", name: "Rey", portraitUrl: "https://img.example/rey.png" };
+    const REY = { id: "char-rey", name: "Rey", portraitUrl: "https://img.example/rey.png", loopUrl: null };
     socket.receive({ type: "peer.character", peerId: "w-other", character: REY });
     expect(client.peers.get("w-other")?.character).toEqual(REY);
     socket.receive({ type: "peer.character", peerId: "w-other", character: null });
@@ -262,6 +262,31 @@ describe("vault characters — walk in as", () => {
     // A malformed character payload degrades to null, never a crash.
     socket.receive({ type: "peer.character", peerId: "w-other", character: { nope: true } });
     expect(client.peers.get("w-other")?.character).toBeNull();
+  });
+
+  it("peer.character accepts a video-only ref (loop, no portrait) and refuses a ref with neither", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [{ ...OTHER }]);
+    const LIVING = { id: "char-vid", name: "Vid", portraitUrl: null, loopUrl: "https://vid.example/vid.mp4" };
+    socket.receive({ type: "peer.character", peerId: "w-other", character: LIVING });
+    expect(client.peers.get("w-other")?.character).toEqual(LIVING);
+    socket.receive({
+      type: "peer.character",
+      peerId: "w-other",
+      character: { id: "char-empty", name: "Empty", portraitUrl: null, loopUrl: null },
+    });
+    expect(client.peers.get("w-other")?.character).toBeNull();
+    // An older payload that carries no loopUrl field at all still parses.
+    socket.receive({
+      type: "peer.character",
+      peerId: "w-other",
+      character: { id: "char-old", name: "Old", portraitUrl: "https://img.example/old.png" },
+    });
+    expect(client.peers.get("w-other")?.character).toEqual({
+      id: "char-old",
+      name: "Old",
+      portraitUrl: "https://img.example/old.png",
+      loopUrl: null,
+    });
   });
 });
 
