@@ -15,6 +15,7 @@ import {
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { tmpUploadStorage } from "../../lib/upload-storage";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -64,6 +65,9 @@ const upload = multer({
 
 const masteringSchema = z.object({
   preset: z.string().optional(),
+  /** When the input was picked from the caller's song library, its id —
+   *  the master lands back in the library chained to it. */
+  sourceSongId: z.string().max(64).optional(),
 });
 
 export type MasteringJobStatus = "queued" | "processing" | "done" | "failed";
@@ -87,6 +91,10 @@ export interface MasteringJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the input came from, when it came from the library. */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished master (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, MasteringJob>();
@@ -192,6 +200,19 @@ export async function runMasteringJob(job: MasteringJob, uploadedPath: string, o
     job.wavRef = wavRef;
     job.mp3Ref = mp3Ref;
 
+    /* Linkage (DE-6): the finished master lands in the caller's song
+       library (the MP3 is the library's playable copy), chained to the
+       library song it started from when the input was one. A
+       library-write failure never fails a delivered job. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Master"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "master",
+      parentSongId: job.sourceSongId,
+    });
+
     job.status = "done";
   } catch (err) {
     job.status = "failed";
@@ -287,6 +308,8 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     error: null,
     creditsCharged: MASTERING_CREDIT_COST,
     createdAt: Date.now(),
+    sourceSongId: parsed.success ? parsed.data.sourceSongId ?? null : null,
+    librarySongId: null,
   };
   jobs.set(job.id, job);
 
@@ -329,6 +352,7 @@ router.get("/mastering/:jobId", requireAuth, (req: Request, res: Response) => {
     },
     wavUrl: job.wavUrl,
     mp3Url: job.mp3Url,
+    songId: job.librarySongId,
     error: job.error,
     creditsCharged: job.creditsCharged,
   });

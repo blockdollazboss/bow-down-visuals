@@ -31,6 +31,7 @@ import {
   type LoudnormMeasurement,
 } from "./mix-master-chain";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -120,6 +121,11 @@ export interface MixMasterJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the master input came from (master jobs only; a mix
+   *  has many parents, so mixes record no single parent). */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished output (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, MixMasterJob>();
@@ -321,6 +327,20 @@ export async function runMasterJob(
     const mp3Ref = await uploadMediaToSupabaseStorage(`mix-master/${stamp}.mp3`, mp3Buffer, "audio/mpeg");
     job.wavUrl = await refreshSupabaseStorageUrl(wavRef);
     job.mp3Url = await refreshSupabaseStorageUrl(mp3Ref);
+
+    /* Linkage (DE-6): the finished master lands in the caller's song
+       library, chained to the library song it started from when the
+       input was one. A library-write failure never fails a delivered
+       job — recordLibrarySong logs and returns null. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Master"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "master",
+      parentSongId: job.sourceSongId,
+    });
+
     job.status = "done";
   } catch (err) {
     await refundJob(job, err);
@@ -369,6 +389,20 @@ export async function runMixJob(
     const mp3Ref = await uploadMediaToSupabaseStorage(`mix-master/${stamp}.mp3`, mp3Buffer, "audio/mpeg");
     job.wavUrl = await refreshSupabaseStorageUrl(wavRef);
     job.mp3Url = await refreshSupabaseStorageUrl(mp3Ref);
+
+    /* Linkage (DE-6): the finished mix lands in the caller's song
+       library. A mix has many parents (its stems), so no single
+       parent_song_id is recorded. A library-write failure never fails
+       a delivered job. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.stemNames[0] ?? job.sourceName, "Mix"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "mix",
+      parentSongId: null,
+    });
+
     job.status = "done";
   } catch (err) {
     await refundJob(job, err);
@@ -389,6 +423,8 @@ const mixMasterBodySchema = z.object({
   intensity: z.string().optional(),
   loudness: z.string().optional(),
   vocalLevelDb: z.coerce.number().optional(),
+  /** Master jobs: id of the library song the input was picked from. */
+  sourceSongId: z.string().max(64).optional(),
 });
 
 function parseCommonFields(body: z.infer<typeof mixMasterBodySchema> | undefined): {
@@ -465,6 +501,7 @@ function jobResponse(job: MixMasterJob) {
     },
     wavUrl: job.wavUrl,
     mp3Url: job.mp3Url,
+    songId: job.librarySongId,
     error: job.error,
     creditsCharged: job.creditsCharged,
   };
@@ -551,6 +588,8 @@ router.post(
       error: null,
       creditsCharged: MIX_MASTER_CREDIT_COST,
       createdAt: Date.now(),
+      sourceSongId: bodyParse.data.sourceSongId ?? null,
+      librarySongId: null,
     };
     jobs.set(job.id, job);
 
@@ -651,6 +690,8 @@ router.post(
       error: null,
       creditsCharged: MIX_STEMS_CREDIT_COST,
       createdAt: Date.now(),
+      sourceSongId: null,
+      librarySongId: null,
     };
     jobs.set(job.id, job);
 
