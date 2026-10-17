@@ -11,17 +11,29 @@
 import { describe, it, expect } from "vitest";
 import {
   ARCADE_CABINETS,
+  contestStatusLine,
   createPartyRoomBody,
   dropQualifies,
   gamesSurfaceForStation,
   outcomeForFailedScore,
   outcomeForSavedScore,
   parseArcadeMe,
+  parseChallengeStandings,
   parseCreatedPartyRoom,
+  parseHallOfFame,
+  parseMyLiveStream,
+  parseMyProfileSlug,
+  parsePartyInvite,
   parsePartyLeaderboard,
   parsePartyMe,
+  parsePartyRoomSnapshot,
   parsePartyRooms,
   parseSharkDrop,
+  parseWeeklyContest,
+  partyInvitePath,
+  partyInviteUrl,
+  partySummonsHeadline,
+  partyTableHomeLine,
 } from "./games-lobby";
 
 describe("gamesSurfaceForStation", () => {
@@ -187,5 +199,220 @@ describe("parsePartyMe + create", () => {
     expect(parseCreatedPartyRoom({ room: { code: "ABC234" } })).toBe("ABC234");
     expect(parseCreatedPartyRoom({})).toBeNull();
     expect(parseCreatedPartyRoom({ room: { code: "" } })).toBeNull();
+  });
+});
+
+describe("party invite deep links (2.23)", () => {
+  it("builds /world deep links, normalizing the code like the party client", () => {
+    expect(partyInvitePath("abc234")).toBe("/world?party=ABC234");
+    expect(partyInvitePath("ABC234")).toBe("/world?party=ABC234");
+    expect(partyInviteUrl("https://bowdownvisuals.com", "ABC234")).toBe(
+      "https://bowdownvisuals.com/world?party=ABC234",
+    );
+    expect(partyInviteUrl("https://bowdownvisuals.com/", "ABC234")).toBe(
+      "https://bowdownvisuals.com/world?party=ABC234",
+    );
+  });
+
+  it("refuses to build an invite from a non-code", () => {
+    expect(partyInvitePath("nope")).toBeNull();
+    expect(partyInvitePath("")).toBeNull();
+    expect(partyInviteUrl("https://x.example", "toolongcode")).toBeNull();
+  });
+
+  it("parses the invite param off a landing URL's search string", () => {
+    expect(parsePartyInvite("?party=ABC234")).toBe("ABC234");
+    expect(parsePartyInvite("?party=abc234&other=1")).toBe("ABC234");
+    expect(parsePartyInvite("party=XYZ789")).toBe("XYZ789");
+  });
+
+  it("parses no invite from a bare visit or a malformed code", () => {
+    expect(parsePartyInvite("")).toBeNull();
+    expect(parsePartyInvite("?room=ABC234")).toBeNull();
+    expect(parsePartyInvite("?party=nope")).toBeNull();
+    expect(parsePartyInvite("?party=")).toBeNull();
+  });
+
+  it("reads one table's snapshot for the summons — server truth, not the link", () => {
+    const room = parsePartyRoomSnapshot({
+      room: {
+        code: "ABC234",
+        game: "duel",
+        players: [{ displayName: "Host One", isHost: true }],
+        streamId: null,
+        profileSlug: "host-one",
+      },
+    });
+    expect(room?.hostName).toBe("Host One");
+    expect(room?.profileSlug).toBe("host-one");
+    expect(parsePartyRoomSnapshot({ room: null })).toBeNull();
+    expect(parsePartyRoomSnapshot({})).toBeNull();
+    expect(parsePartyRoomSnapshot({ room: { code: "ABC234", game: "chess" } })).toBeNull();
+  });
+
+  it("writes the summons headline from the room snapshot", () => {
+    expect(
+      partySummonsHeadline({
+        code: "ABC234",
+        game: "trivia",
+        hostName: "Host One",
+        players: 3,
+        streamId: null,
+        profileSlug: null,
+      }),
+    ).toBe("Host One summoned you to their Party Trivia table");
+  });
+});
+
+describe("homed tables (2.25)", () => {
+  it("builds plain, profile-homed, and stream-homed create payloads", () => {
+    expect(createPartyRoomBody("trivia")).toEqual({ game: "trivia" });
+    expect(createPartyRoomBody("trivia", { kind: "plain" })).toEqual({ game: "trivia" });
+    expect(
+      createPartyRoomBody("duel", { kind: "profile", slug: "king-shark" }),
+    ).toEqual({ game: "duel", profileSlug: "king-shark" });
+    expect(
+      createPartyRoomBody("trivia", { kind: "stream", streamId: "s1", title: "Live" }),
+    ).toEqual({ game: "trivia", streamId: "s1" });
+  });
+
+  it("never sends both homes, and falls back to plain on an empty home", () => {
+    const body = createPartyRoomBody("trivia", { kind: "profile", slug: "" });
+    expect(body).toEqual({ game: "trivia" });
+    expect(
+      createPartyRoomBody("trivia", { kind: "stream", streamId: "", title: null }),
+    ).toEqual({ game: "trivia" });
+  });
+
+  it("parses my profile slug from the me payload, null when profile-less", () => {
+    expect(parseMyProfileSlug({ slug: "king-shark" })).toBe("king-shark");
+    expect(parseMyProfileSlug({ profile: { slug: "nested" } })).toBe("nested");
+    expect(parseMyProfileSlug({})).toBeNull();
+    expect(parseMyProfileSlug(null)).toBeNull();
+  });
+
+  it("parses my live stream only while one is actually live", () => {
+    expect(parseMyLiveStream({ live_stream: { id: "s1", title: "Friday Live" } })).toEqual({
+      id: "s1",
+      title: "Friday Live",
+    });
+    expect(parseMyLiveStream({ live_stream: null })).toBeNull();
+    expect(parseMyLiveStream({})).toBeNull();
+  });
+
+  it("labels a table's home the way the page does", () => {
+    const base = { code: "ABC234", game: "trivia" as const, hostName: "H", players: 1 };
+    expect(partyTableHomeLine({ ...base, streamId: null, profileSlug: "sluggy" })).toBe(
+      "Playing at @sluggy",
+    );
+    expect(partyTableHomeLine({ ...base, streamId: "s1", profileSlug: null })).toBe(
+      "Live stream room",
+    );
+    expect(partyTableHomeLine({ ...base, streamId: null, profileSlug: null })).toBe(
+      "Table ABC234",
+    );
+  });
+});
+
+describe("contests + the Winners' Circle (2.24)", () => {
+  const weeklyPayload = {
+    week_key: "2026-W42",
+    challenge: {
+      slug: "golden-hour-glow",
+      title: "Golden Hour Glow",
+      hashtag: "goldenhourglow",
+      status: "live",
+      entry_count: 14,
+      prize_pool_credits: 1000,
+      ends_at: "2026-10-18T23:59:59Z",
+      prizes: [
+        { place: 2, prize_credits: 300 },
+        { place: 1, prize_credits: 500 },
+        { place: 3, prize_credits: 200 },
+      ],
+      winners: [],
+    },
+    last_week: {
+      challenge_title: "Night Drive",
+      winners: [
+        {
+          place: 1,
+          prize_credits: 500,
+          creator: { slug: "nova", display_name: "Nova" },
+          video: { id: "v1", title: "Midnight Run" },
+        },
+      ],
+    },
+  };
+
+  it("parses the weekly contest with prizes in place order", () => {
+    const { weekly, lastWeek } = parseWeeklyContest(weeklyPayload);
+    expect(weekly?.slug).toBe("golden-hour-glow");
+    expect(weekly?.entryCount).toBe(14);
+    expect(weekly?.prizePoolCredits).toBe(1000);
+    expect(weekly?.prizes.map((p) => p.place)).toEqual([1, 2, 3]);
+    expect(lastWeek?.challengeTitle).toBe("Night Drive");
+    expect(lastWeek?.winners[0]).toEqual({
+      place: 1,
+      prizeCredits: 500,
+      creatorName: "Nova",
+      creatorSlug: "nova",
+      challengeTitle: "Night Drive",
+      entryTitle: "Midnight Run",
+    });
+  });
+
+  it("renders the empty state honestly: no contest launched, no crowns", () => {
+    expect(parseWeeklyContest({ challenge: null, last_week: null })).toEqual({
+      weekly: null,
+      lastWeek: null,
+    });
+    expect(parseWeeklyContest({})).toEqual({ weekly: null, lastWeek: null });
+    expect(parseHallOfFame({ winners: [] })).toEqual([]);
+    expect(parseHallOfFame({})).toEqual([]);
+    expect(parseChallengeStandings({ entries: [] })).toEqual([]);
+  });
+
+  it("keeps the server's standings order — who's ahead is the server's call", () => {
+    const standings = parseChallengeStandings({
+      entries: [
+        { title: "Leader Vid", vote_count: 9, view_count: 900, creator: { slug: "a", display_name: "Ahead" } },
+        { title: "Second Vid", vote_count: 4, view_count: 500, creator: { slug: "b", display_name: "Behind" } },
+        { title: "Third Vid", vote_count: 1, view_count: 100, creator: { slug: null, display_name: null } },
+        { title: "Fourth Vid", vote_count: 0, view_count: 10, creator: { slug: "d", display_name: "Cut Off" } },
+      ],
+    });
+    expect(standings.map((s) => s.creatorName)).toEqual(["Ahead", "Behind", "Creator"]);
+    expect(standings[0]).toMatchObject({ rank: 1, votes: 9, views: 900 });
+  });
+
+  it("parses the hall of fame as winner standings with their crowns", () => {
+    const fame = parseHallOfFame({
+      winners: [
+        {
+          place: 2,
+          prize_credits: 300,
+          challenge: { slug: "flip", title: "The Flip", hashtag: "theflip" },
+          video: { id: "v9", title: "Flipped It" },
+          creator: { slug: "rex", display_name: "Rex" },
+        },
+      ],
+    });
+    expect(fame).toEqual([
+      {
+        place: 2,
+        prizeCredits: 300,
+        creatorName: "Rex",
+        creatorSlug: "rex",
+        challengeTitle: "The Flip",
+        entryTitle: "Flipped It",
+      },
+    ]);
+  });
+
+  it("speaks contest statuses in wall words", () => {
+    expect(contestStatusLine("live")).toContain("Live now");
+    expect(contestStatusLine("winners")).toBe("Winners crowned");
+    expect(contestStatusLine("judging")).toContain("Judging");
   });
 });
