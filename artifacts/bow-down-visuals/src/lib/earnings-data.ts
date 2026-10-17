@@ -58,6 +58,100 @@ function moneySource(v: unknown): EarningsSource {
   return { status: "ok", totalCents, count };
 }
 
+/* ─── The load itself: patient + retrying ────────────────────────────
+ * pages/earnings.tsx used to fire ONE fetch and paint its "couldn't
+ * load" card on any failure (owner screenshot, Oct 17 18:16 EDT: the
+ * card on a signed-in visit). The handler cannot produce that card by
+ * itself — every source settles independently and a 200 always carries
+ * a finite totalCents (this module's contract, pinned in tests) — so
+ * the card means the load died in transit: a non-200 from the edge
+ * while the free-tier box wakes (502/reset), a rejected fetch, an
+ * unparseable body, or a token that came back null for one attempt
+ * (→ 401). ALL of those are transient on a waking box, and the API
+ * would have answered seconds later — the page just never asked again.
+ *
+ * loadEarnings is the whole load as one retryable unit (fresh token
+ * per attempt — the token leg is part of the failure surface — plus
+ * fetch + normalize), with the World door's patience shape: several
+ * attempts, growing backoff, and a per-attempt timeout so a hung
+ * request retries instead of stranding the page on "Loading…" forever.
+ * Only genuine exhaustion surfaces the page's honest error card. */
+
+export const EARNINGS_LOAD_ATTEMPTS = 4;
+export const EARNINGS_LOAD_BACKOFF_MS: readonly number[] = [2_000, 5_000, 12_000];
+export const EARNINGS_ATTEMPT_TIMEOUT_MS = 45_000;
+
+/** Thrown when the caller went away mid-load (page unmounted / reload
+ *  superseded) — the page treats it as silence, never as failure. */
+export class EarningsLoadCancelled extends Error {
+  constructor() {
+    super("earnings load cancelled");
+    this.name = "EarningsLoadCancelled";
+  }
+}
+
+export interface EarningsLoadDeps {
+  /** Fresh token per attempt; a null (or a throw) is just a failed
+   *  attempt — the next try asks again. */
+  getToken: () => Promise<string | null>;
+  /** Defaults to the ambient fetch (in the browser, the session-guard
+   *  wrapped one). Injected in tests. */
+  fetchFn?: (input: string, init: RequestInit) => Promise<Response>;
+  /** Injected in tests so backoff never slows the suite. */
+  sleep?: (ms: number) => Promise<void>;
+  isCancelled?: () => boolean;
+  /** Fires when another attempt is about to start (attempt ≥ 2) —
+   *  the page uses it to say "still trying — the server may be
+   *  waking up" instead of a bare spinner. */
+  onRetry?: (nextAttempt: number) => void;
+}
+
+export interface EarningsLoadOptions {
+  attempts?: number;
+  backoffMs?: readonly number[];
+  attemptTimeoutMs?: number;
+}
+
+export async function loadEarnings(
+  deps: EarningsLoadDeps,
+  options: EarningsLoadOptions = {},
+): Promise<EarningsResponse> {
+  const fetchFn = deps.fetchFn ?? ((input: string, init: RequestInit) => fetch(input, init));
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const attempts = options.attempts ?? EARNINGS_LOAD_ATTEMPTS;
+  const backoffMs = options.backoffMs ?? EARNINGS_LOAD_BACKOFF_MS;
+  const attemptTimeoutMs = options.attemptTimeoutMs ?? EARNINGS_ATTEMPT_TIMEOUT_MS;
+
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (deps.isCancelled?.()) throw new EarningsLoadCancelled();
+    try {
+      const token = await deps.getToken().catch(() => null);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
+      try {
+        const res = await fetchFn("/api/earnings", {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`earnings failed (${res.status})`);
+        const normalized = normalizeEarningsResponse(await res.json());
+        if (!normalized) throw new Error("earnings payload incomplete");
+        return normalized;
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (err) {
+      lastError = err;
+      if (attempt >= attempts) break;
+      if (deps.isCancelled?.()) throw new EarningsLoadCancelled();
+      deps.onRetry?.(attempt + 1);
+      await sleep(backoffMs[attempt - 1] ?? backoffMs[backoffMs.length - 1] ?? 0);
+    }
+  }
+  throw lastError ?? new Error("earnings failed");
+}
+
 export function normalizeEarningsResponse(payload: unknown): EarningsResponse | null {
   if (!isObj(payload)) return null;
   const totalCents = finite(payload.totalCents);
