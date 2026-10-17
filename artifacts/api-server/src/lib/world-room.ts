@@ -155,6 +155,29 @@ export interface WorldCharacterRef {
   portraitUrl: string;
 }
 
+/** The house palace guards — the World's approved default
+ *  characters (owner approval, 2026-10-16: a male and a female King
+ *  Shark guard). A guard pick is house property, not a vault row:
+ *  there is no ownership to verify, so the room resolves these two
+ *  ids itself and broadcasts the ref. The portrait URL is the
+ *  figure's public slot; the scene stands the full-body guard
+ *  figure for these ids, never the easel. Keep the ids in sync
+ *  with the mirrored constants in the web client's figure lib. */
+export const HOUSE_GUARD_ID = "house:palace-guard";
+export const HOUSE_GUARD_FEMALE_ID = "house:palace-guard-female";
+export const HOUSE_CHARACTER_REFS: Record<string, WorldCharacterRef> = {
+  [HOUSE_GUARD_ID]: {
+    id: HOUSE_GUARD_ID,
+    name: "Palace Guard",
+    portraitUrl: "/world/default-character.png",
+  },
+  [HOUSE_GUARD_FEMALE_ID]: {
+    id: HOUSE_GUARD_FEMALE_ID,
+    name: "Palace Guard — Female",
+    portraitUrl: "/world/default-character-female.png",
+  },
+};
+
 /** Injected by the route layer (which owns the DB): verify the
  *  character belongs to this user (or their active team) and carry a
  *  portrait; return the ref to broadcast, or null to refuse the pick. */
@@ -576,7 +599,9 @@ export class WorldRoom {
          * resolver verifies ownership against the vault and returns
          * the name + portrait to broadcast — a refused pick (not
          * theirs, no portrait, vault row gone) changes nothing, so a
-         * stale pick never strips a figure already standing. */
+         * stale pick never strips a figure already standing. The two
+         * house guard ids are the one exception: house property,
+         * resolved by the room itself below. */
         if (peer.guest || !peer.userId) return;
         const raw = frame["characterId"];
         if (raw === null) {
@@ -593,6 +618,20 @@ export class WorldRoom {
         }
         if (typeof raw !== "string" || !raw || raw.length > 64) return;
         if (peer.character?.id === raw) return;
+        /* A house guard pick resolves right here — house property,
+         * no vault, no resolver. It still rides the seq guard so a
+         * slower vault resolution in flight can't land after it. */
+        const houseRef = HOUSE_CHARACTER_REFS[raw];
+        if (houseRef) {
+          peer.characterSeq++;
+          peer.character = houseRef;
+          this.hub.broadcast(WORLD_ROOM_ID, {
+            type: "peer.character",
+            peerId: peer.peerId,
+            character: houseRef,
+          });
+          return;
+        }
         const resolve = this.deps.resolveCharacter;
         if (!resolve) return;
         const seq = ++peer.characterSeq;

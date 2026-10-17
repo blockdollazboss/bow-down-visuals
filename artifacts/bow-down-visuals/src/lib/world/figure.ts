@@ -6,21 +6,69 @@
  *    on the gold-framed easel panel, lips landmarked (unchanged).
  *  - "default": the house default — a life-size full-body figure of
  *    a King Shark palace guard (the owner's ruling: a King Shark,
- *    never his main character), rendered from the art in the slot at
- *    public/world/default-character.png. The slot is deliberately
- *    just a path: approved art drops in and every default presence
- *    in the hall wears it — no code change. The guard's face is
- *    frontal, so the same landmarked-lips treatment applies.
- *  - "capsule": the fallback ONLY — what stands while the default
- *    art is still loading, or if the slot file can't load at all
+ *    never his main character). TWO approved guards stand in the
+ *    hall (owner approval, 2026-10-16): the male guard in the slot
+ *    at public/world/default-character.png and the female guard at
+ *    public/world/default-character-female.png. A presence with no
+ *    explicit pick wears the guard a deterministic hash of its
+ *    identity deals it, so the hall reads as a guard corps rather
+ *    than clones of one figure, and a person keeps the same guard
+ *    for the whole session. Picking either guard in the "Walk in
+ *    as" picker overrides the deal. Both faces are frontal, so the
+ *    same landmarked-lips treatment applies.
+ *  - "capsule": the fallback ONLY — what stands while a guard's art
+ *    is still loading, or if its slot file can't load at all
  *    (exactly how a failed portrait load behaved before it).
  *
  * Pure decisions + measurements, unit-tested; the scene does the
  * three.js lifting.
  */
 
-/** The asset slot for the approved palace-guard art (public/). */
+/** The asset slot for the approved male palace-guard art (public/). */
 export const DEFAULT_CHARACTER_PATH = "/world/default-character.png";
+
+/** The asset slot for the approved female palace-guard art (public/). */
+export const DEFAULT_CHARACTER_FEMALE_PATH = "/world/default-character-female.png";
+
+/** Which of the two house guards a default presence stands as. */
+export type GuardVariant = "male" | "female";
+
+/** Both guard slots, by variant. */
+export const GUARD_CHARACTER_PATHS: Record<GuardVariant, string> = {
+  male: DEFAULT_CHARACTER_PATH,
+  female: DEFAULT_CHARACTER_FEMALE_PATH,
+};
+
+/** The pick ids the "Walk in as" picker sends for the house guards.
+ *  They ride the character-pick frame like a vault id, but they're
+ *  house property: the room resolves them itself (no vault row, no
+ *  ownership to verify) and broadcasts them back as character refs
+ *  the scene recognises here. Keep in sync with the mirrored ids in
+ *  api-server's world room. */
+export const HOUSE_GUARD_ID = "house:palace-guard";
+export const HOUSE_GUARD_FEMALE_ID = "house:palace-guard-female";
+
+/** The variant a character id names, when it names a house guard at
+ *  all — null for vault ids and for no pick. */
+export function houseGuardVariantForId(id: string | null | undefined): GuardVariant | null {
+  if (id === HOUSE_GUARD_ID) return "male";
+  if (id === HOUSE_GUARD_FEMALE_ID) return "female";
+  return null;
+}
+
+/** Deal a presence its guard: FNV-1a over a stable identity key
+ *  (the member's profile slug when they have one, else the presence
+ *  id) — same key, same guard, on every client and every frame, so
+ *  the whole room agrees on who stands as whom. */
+export function guardVariantForKey(key: string): GuardVariant {
+  let hash = 0x811c9dc5;
+  const s = key || "presence";
+  for (let i = 0; i < s.length; i++) {
+    hash ^= s.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0) % 2 === 0 ? "male" : "female";
+}
 
 /** Life-size: the same standing height family as the capsule it
  *  replaces (capsule head tops out ~2.04 m; the guard stands 1.92). */
@@ -34,10 +82,16 @@ export function figureKindFor(hasCharacter: boolean, defaultArt: DefaultArtState
   return defaultArt === "ready" ? "default" : "capsule";
 }
 
-/** The slot path resolved the way the hall resolves its textures
+/** The male slot path resolved the way the hall resolves its textures
  *  (BASE_URL-aware). */
 export function defaultCharacterUrl(baseUrl: string): string {
   return `${baseUrl}${DEFAULT_CHARACTER_PATH.replace(/^\//, "")}`;
+}
+
+/** A guard slot path resolved the way the hall resolves its textures
+ *  (BASE_URL-aware). */
+export function guardCharacterUrl(baseUrl: string, variant: GuardVariant): string {
+  return `${baseUrl}${GUARD_CHARACTER_PATHS[variant].replace(/^\//, "")}`;
 }
 
 /** Width for a standing figure of `height` from the art's aspect

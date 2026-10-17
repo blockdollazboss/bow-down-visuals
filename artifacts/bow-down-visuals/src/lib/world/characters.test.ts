@@ -106,4 +106,8 @@ describe("reconcileStoredPick", () => {
     expect(reconcileStoredPick(chars, null)).toBeNull();
     expect(reconcileStoredPick([], "c1")).toBeNull();
   });
+  it("keeps a house guard pick — it needs no vault row", () => {
+    expect(reconcileStoredPick([], "house:palace-guard")).toBe("house:palace-guard");
+    expect(reconcileStoredPick(chars, "house:palace-guard-female")).toBe("house:palace-guard-female");
+  });
 });

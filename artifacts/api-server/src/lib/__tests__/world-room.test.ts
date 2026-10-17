@@ -418,6 +418,93 @@ describe("vault characters (walk in as)", () => {
   });
 });
 
+describe("house palace guards (walk in as)", () => {
+  const flush = () => new Promise<void>((r) => setImmediate(r));
+  const MALE = { id: "house:palace-guard", name: "Palace Guard", portraitUrl: "/world/default-character.png" };
+  const FEMALE = {
+    id: "house:palace-guard-female",
+    name: "Palace Guard — Female",
+    portraitUrl: "/world/default-character-female.png",
+  };
+
+  it("resolves a guard pick in the room — the vault resolver is never consulted", async () => {
+    let resolverCalls = 0;
+    const room = new WorldRoom(new RoomHub(), {
+      resolveCharacter: async () => {
+        resolverCalls++;
+        return null;
+      },
+    });
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+
+    frame(a, room, { type: "character", characterId: MALE.id });
+    await flush();
+
+    expect(resolverCalls).toBe(0);
+    expect(b.sent.find((m) => m.type === "peer.character")?.character).toEqual(MALE);
+    expect(room.peerFor(a)?.character).toEqual(MALE);
+
+    // A late joiner's welcome snapshot already carries the guard.
+    const c = fakeSocket();
+    room.attach(c, member("Gamma"));
+    const welcomeC = c.sent.find((m) => m.type === "welcome");
+    expect(welcomeC.peers.find((p: any) => p.displayName === "Alpha")?.character).toEqual(MALE);
+  });
+
+  it("the female guard resolves the same way — with no resolver injected at all", async () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    frame(a, room, { type: "character", characterId: FEMALE.id });
+    await flush();
+    expect(room.peerFor(a)?.character).toEqual(FEMALE);
+  });
+
+  it("guests cannot pick a guard either", async () => {
+    const room = new WorldRoom(new RoomHub());
+    const g = fakeSocket();
+    room.attach(g, guest());
+    frame(g, room, { type: "character", characterId: MALE.id });
+    await flush();
+    expect(room.peerFor(g)?.character).toBeNull();
+  });
+
+  it("a guard pick beats a vault resolution still in flight", async () => {
+    const pending = new Map<string, (v: typeof NOVA | null) => void>();
+    const room = new WorldRoom(new RoomHub(), {
+      resolveCharacter: (userId, id) => new Promise((resolve) => pending.set(id, resolve)),
+    });
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    frame(a, room, { type: "character", characterId: "char-slow" });
+    frame(a, room, { type: "character", characterId: FEMALE.id });
+    // The guard landed at once; the slow vault pick resolves after
+    // and must not resurrect over it.
+    expect(room.peerFor(a)?.character).toEqual(FEMALE);
+    pending.get("char-slow")?.({ id: "char-slow", name: "Slow", portraitUrl: "https://img.example/slow.png" });
+    await flush();
+    expect(room.peerFor(a)?.character).toEqual(FEMALE);
+  });
+
+  it("clearing the pick clears the guard for the whole room", async () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(a, room, { type: "character", characterId: MALE.id });
+    await flush();
+    b.sent = [];
+    frame(a, room, { type: "character", characterId: null });
+    expect(b.sent.find((m) => m.type === "peer.character")?.character).toBeNull();
+    expect(room.peerFor(a)?.character).toBeNull();
+  });
+});
+
 describe("the voice switch (voice.off)", () => {
   it("flags the peer in the DTO and broadcasts peer.voiceoff to the room", () => {
     const room = new WorldRoom(new RoomHub());

@@ -59,12 +59,14 @@ import {
   type GamepadEdges,
 } from "./gamepad";
 import {
-  figureKindFor,
   figureWidthForHeight,
   defaultFigureCanvasSize,
-  defaultCharacterUrl,
+  guardCharacterUrl,
+  guardVariantForKey,
+  houseGuardVariantForId,
   DEFAULT_FIGURE_HEIGHT,
   type DefaultArtState,
+  type GuardVariant,
 } from "./figure";
 
 export interface HallScreenSource {
@@ -355,9 +357,17 @@ interface AvatarRig {
   group: THREE.Group;
   body: THREE.Group;
   sprite: THREE.Sprite;
-  /** Standing as the house default figure (the palace guard) —
-   *  drives the idle sway and the art-landing trade-up. */
+  /** The house default figure (a palace guard) — drives the idle
+   *  sway and the art-landing trade-up. */
   defaultFigure: boolean;
+  /** The guard variant this rig currently stands as — null unless
+   *  wearing a guard figure. */
+  guardVariant: GuardVariant | null;
+  /** The guard this presence should stand as per its latest
+   *  reconcile: the explicit pick when they made one, else the
+   *  deterministic deal off their identity. Null while standing as
+   *  a vault portrait. The art-landing trade-up reads this. */
+  guardWanted: GuardVariant | null;
   /** Per-figure phase so the hall doesn't sway in lockstep. */
   swayPhase: number;
   /** The floor ring (brightened + widened for Front Row members). */
@@ -612,6 +622,8 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     body,
     sprite,
     defaultFigure: false,
+    guardVariant: null,
+    guardWanted: null,
     swayPhase: Math.random() * Math.PI * 2,
     ring,
     frontRow: false,
@@ -702,13 +714,16 @@ export class KingsHallScene {
   private frontRowSlugs = new Set<string>();
   /** The honored seat arc before the stage, shown while a show runs. */
   private stageSeats: THREE.Group | null = null;
-  /** The house default figure's art (the palace-guard slot): loaded
-   *  once per scene; "ready" trades every default presence up from
-   *  the capsule, "failed" leaves the capsule as the fallback. */
-  private defaultArt: { status: DefaultArtState; image: HTMLImageElement | null; mouth: MouthBox | null } = {
-    status: "pending",
-    image: null,
-    mouth: null,
+  /** The house guards' art (both approved slots): each loads once
+   *  per scene; "ready" trades every presence dealt or picking that
+   *  guard up from the capsule, "failed" leaves the capsule as that
+   *  guard's fallback. */
+  private guardArt: Record<
+    GuardVariant,
+    { status: DefaultArtState; image: HTMLImageElement | null; mouth: MouthBox | null }
+  > = {
+    male: { status: "pending", image: null, mouth: null },
+    female: { status: "pending", image: null, mouth: null },
   };
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
@@ -748,7 +763,7 @@ export class KingsHallScene {
 
     this.screenMaterial = new THREE.MeshBasicMaterial({ map: screenIdleTexture() });
     this.applyLook(theme);
-    this.loadDefaultArt();
+    this.loadGuardArt();
     this.bindControls();
     this.resize();
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -1668,24 +1683,24 @@ export class KingsHallScene {
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
     const want = peer.character && peer.character.portraitUrl ? peer.character : null;
     const wantId = want?.id ?? null;
+    /* A house guard pick arrives as a character ref too — but it
+     * stands as the full-body guard figure, never the easel. */
+    const wantGuard = want ? houseGuardVariantForId(want.id) : null;
     if (wantId === rig.requestedId) {
-      /* No character change — the one drift left is the default art
-       * landing after this rig settled as a capsule: trade up. */
-      if (
-        wantId === null &&
-        !rig.portrait &&
-        figureKindFor(false, this.defaultArt.status) === "default"
-      ) {
-        this.swapToDefaultOrCapsule(rig);
-      }
+      /* No pick change — the one drift left is a guard figure not
+       * yet standing (its art landed after this rig settled as a
+       * capsule, or the deal/pick points at the other guard).
+       * Vault portraits never drift. */
+      if (!want || wantGuard) this.reconcileGuardFigure(rig, peer, wantGuard);
       return;
     }
     rig.requestedId = wantId;
     const seq = ++rig.swapSeq;
-    if (!want) {
-      this.swapToDefaultOrCapsule(rig);
+    if (!want || wantGuard) {
+      this.reconcileGuardFigure(rig, peer, wantGuard);
       return;
     }
+    rig.guardWanted = null;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -1695,6 +1710,7 @@ export class KingsHallScene {
         try {
           const built = buildPortraitFigure(img, mouth);
           rig.defaultFigure = false;
+          rig.guardVariant = null;
           this.swapFigure(rig, built.body, built.portrait, wantId);
         } catch {
           /* canvas unavailable — the standing figure keeps standing */
@@ -1709,16 +1725,32 @@ export class KingsHallScene {
     img.src = want.portraitUrl;
   }
 
-  /** Stand the house default: the palace-guard figure once its art
-   *  has landed, the capsule until then (and forever, if the slot
-   *  file can't load — the documented fallback, same as a failed
-   *  portrait load). Every default figure builds its own canvas off
-   *  the one shared image, so lips stay per-speaker. */
-  private swapToDefaultOrCapsule(rig: AvatarRig): void {
-    if (this.defaultArt.status === "ready" && this.defaultArt.image) {
+  /** Stand the presence as a palace guard: the explicit pick when
+   *  they made one, else the guard their identity deals them — the
+   *  same deal on every client, so the room agrees on who is whom
+   *  and nobody flickers between guards. Cheap on the upsert
+   *  cadence: a rig already wearing the right guard, or correctly
+   *  waiting as a capsule while its art is in flight, stands as-is. */
+  private reconcileGuardFigure(rig: AvatarRig, peer: WorldPeer, explicit: GuardVariant | null): void {
+    const variant = explicit ?? guardVariantForKey(peer.profileSlug ?? peer.peerId);
+    rig.guardWanted = variant;
+    if (rig.portrait && rig.guardVariant === variant) return;
+    if (!rig.portrait && this.guardArt[variant].status !== "ready") return;
+    this.swapToGuardOrCapsule(rig, variant);
+  }
+
+  /** Build the guard figure for `variant` — every figure builds its
+   *  own canvas off the one shared image, so lips stay per-speaker —
+   *  or the capsule when that guard's art isn't there (still loading,
+   *  or the slot can't load: the documented fallback, same as a
+   *  failed portrait load). */
+  private swapToGuardOrCapsule(rig: AvatarRig, variant: GuardVariant): void {
+    const art = this.guardArt[variant];
+    if (art.status === "ready" && art.image) {
       try {
-        const built = buildDefaultFigure(this.defaultArt.image, this.defaultArt.mouth);
+        const built = buildDefaultFigure(art.image, art.mouth);
         rig.defaultFigure = true;
+        rig.guardVariant = variant;
         this.swapFigure(rig, built.body, built.portrait, null, DEFAULT_SPRITE_Y);
         return;
       } catch {
@@ -1726,35 +1758,45 @@ export class KingsHallScene {
       }
     }
     rig.defaultFigure = false;
+    rig.guardVariant = null;
     this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
   }
 
-  /** Load the default figure's art once for the whole scene (the
-   *  slot at public/world/default-character.png — approved art drops
-   *  in there, no code change) and landmark its mouth: the guard's
-   *  face is frontal, so his lips work like any portrait's. When it
-   *  lands, every capsule-by-default presence trades up. A missing
-   *  or unreadable slot leaves the capsule standing — the fallback,
+  /** Load both guards' art once for the whole scene (the approved
+   *  slots at public/world/default-character.png and
+   *  default-character-female.png) and landmark each mouth: the
+   *  faces are frontal, so their lips work like any portrait's. As
+   *  each guard's art lands, every presence dealt or picking that
+   *  guard trades up from the capsule. A missing or unreadable slot
+   *  leaves the capsule standing for that guard — the fallback,
    *  never a broken figure. */
-  private loadDefaultArt(): void {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      void locatePortraitMouth(img).then((mouth) => {
-        if (this.disposed) return;
-        this.defaultArt = { status: "ready", image: img, mouth };
-        for (const rig of this.avatars.values()) {
-          if (rig.requestedId === null && !rig.portrait) this.swapToDefaultOrCapsule(rig);
-        }
-        if (this.selfRig && this.selfRig.requestedId === null && !this.selfRig.portrait) {
-          this.swapToDefaultOrCapsule(this.selfRig);
-        }
-      });
-    };
-    img.onerror = () => {
-      this.defaultArt = { status: "failed", image: null, mouth: null };
-    };
-    img.src = defaultCharacterUrl(import.meta.env.BASE_URL);
+  private loadGuardArt(): void {
+    (Object.keys(this.guardArt) as GuardVariant[]).forEach((variant) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        void locatePortraitMouth(img).then((mouth) => {
+          if (this.disposed) return;
+          this.guardArt[variant] = { status: "ready", image: img, mouth };
+          for (const rig of this.avatars.values()) {
+            if (rig.guardWanted === variant && rig.guardVariant !== variant) {
+              this.swapToGuardOrCapsule(rig, variant);
+            }
+          }
+          if (
+            this.selfRig &&
+            this.selfRig.guardWanted === variant &&
+            this.selfRig.guardVariant !== variant
+          ) {
+            this.swapToGuardOrCapsule(this.selfRig, variant);
+          }
+        });
+      };
+      img.onerror = () => {
+        this.guardArt[variant] = { status: "failed", image: null, mouth: null };
+      };
+      img.src = guardCharacterUrl(import.meta.env.BASE_URL, variant);
+    });
   }
 
   private swapFigure(

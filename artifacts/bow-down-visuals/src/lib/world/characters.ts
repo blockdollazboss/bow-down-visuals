@@ -10,6 +10,8 @@
  * here can dress a member in a character that isn't theirs.
  */
 
+import { houseGuardVariantForId } from "./figure";
+
 export interface VaultCharacter {
   id: string;
   name: string;
@@ -98,9 +100,11 @@ export function storeCharacterId(id: string | null, storage: StorageLike | null 
 
 /** Keep a remembered pick honest: if the vault no longer holds that
  *  character (deleted, or a first visit on a shared device), the
- *  remembered id is dropped rather than sent to be refused. */
+ *  remembered id is dropped rather than sent to be refused. A house
+ *  guard pick needs no vault row — it always stands. */
 export function reconcileStoredPick(characters: VaultCharacter[], storedId: string | null): string | null {
   if (!storedId) return null;
+  if (houseGuardVariantForId(storedId)) return storedId;
   return characters.some((c) => c.id === storedId && c.portraitUrl) ? storedId : null;
 }
 

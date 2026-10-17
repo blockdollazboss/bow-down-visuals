@@ -1,10 +1,12 @@
 /**
  * WalkInAsPicker — "Walk in as": choose who you are in the King's
- * Hall. The house default (the palace guard — a King Shark of the
- * hall, never the King's own character) or one of your Creative
- * Vault characters — its portrait stands in the hall on a gold-framed
- * panel, and its lips move when you talk. Signed-in members only;
- * the world page renders this for them alone.
+ * Hall. A house guard (the palace guards — King Sharks of the hall,
+ * never the King's own character; the male guard is the house
+ * default, and with no pick at all the hall deals you one of the
+ * two) or one of your Creative Vault characters — its portrait
+ * stands in the hall on a gold-framed panel, and its lips move when
+ * you talk. Signed-in members only; the world page renders this for
+ * them alone.
  *
  * Honest states, no dead ends: characters without a portrait can't
  * stand in the hall yet and say so; an empty vault links straight to
@@ -12,8 +14,14 @@
  * avatar walk-in working and says what happened.
  */
 import { Link } from "wouter";
-import { Crown, Sparkles, Check } from "lucide-react";
+import { Sparkles, Check } from "lucide-react";
 import { characterMonogram, type VaultCharacter } from "@/lib/world/characters";
+import {
+  HOUSE_GUARD_ID,
+  HOUSE_GUARD_FEMALE_ID,
+  guardCharacterUrl,
+  type GuardVariant,
+} from "@/lib/world/figure";
 
 interface WalkInAsPickerProps {
   /** null while the vault read is in flight. */
@@ -52,26 +60,44 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
           Walk in as
         </span>
         <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-0.5">
-          {/* The house default — who you are with no pick: the
-              palace guard, standing life-size in the hall. */}
-          <button
-            type="button"
-            onClick={() => onSelect(null)}
-            className={`${tileBase} ${selectedId === null ? tileActive : tileIdle}`}
-            data-testid="walk-in-house"
-            aria-pressed={selectedId === null}
-          >
-            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${isLight ? "bg-[#C9A84C]/20" : "bg-[#d4af37]/15"}`}>
-              <Crown className="h-6 w-6 text-[#d4af37]" />
-            </span>
-            <span className="min-w-0">
-              <span className={`flex items-center gap-1 text-sm font-bold ${nameCls}`}>
-                Palace Guard
-                {selectedId === null ? <Check className="h-4 w-4 text-[#d4af37]" /> : null}
-              </span>
-              <span className={`block truncate text-[11px] ${subCls}`}>The house default</span>
-            </span>
-          </button>
+          {/* The house guards — who you are with no vault pick. The
+              male guard is the house default (this tile also stands
+              for "no explicit pick", which the hall deals between
+              the two guards); picking either tile explicitly makes
+              that guard yours. */}
+          {(
+            [
+              { id: HOUSE_GUARD_ID, variant: "male" as GuardVariant, name: "Palace Guard", testid: "walk-in-house" },
+              { id: HOUSE_GUARD_FEMALE_ID, variant: "female" as GuardVariant, name: "Palace Guard — Female", testid: "walk-in-house-female" },
+            ]
+          ).map((guard) => {
+            const selected =
+              selectedId === guard.id || (guard.variant === "male" && selectedId === null);
+            return (
+              <button
+                key={guard.id}
+                type="button"
+                onClick={() => onSelect(guard.id)}
+                className={`${tileBase} ${selected ? tileActive : tileIdle}`}
+                data-testid={guard.testid}
+                aria-pressed={selected}
+              >
+                <img
+                  src={guardCharacterUrl(import.meta.env.BASE_URL, guard.variant)}
+                  alt=""
+                  className="h-12 w-12 shrink-0 rounded-xl object-cover object-top"
+                  loading="lazy"
+                />
+                <span className="min-w-0">
+                  <span className={`flex items-center gap-1 text-sm font-bold ${nameCls}`}>
+                    {guard.name}
+                    {selected ? <Check className="h-4 w-4 shrink-0 text-[#d4af37]" /> : null}
+                  </span>
+                  <span className={`block truncate text-[11px] ${subCls}`}>The house default</span>
+                </span>
+              </button>
+            );
+          })}
 
           {characters === null && !loadFailed ? (
             <span className={`px-2 text-xs ${subCls}`}>Loading your characters…</span>
