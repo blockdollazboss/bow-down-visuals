@@ -101,7 +101,6 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
         reference_image_url: d.referenceImageUrl ?? null,
         reference_image_path: d.referenceImagePath ?? null,
         consistency_prompt: d.consistencyPrompt ?? null,
-        is_active: false,
       })
       .returning({ id: artistVaultsTable.id });
 
@@ -193,33 +192,6 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       consistency_prompt: d.consistencyPrompt ?? null,
       updated_at: new Date(),
     })
-    .where(
-      and(
-        eq(artistVaultsTable.id, id),
-        eq(artistVaultsTable.user_id, req.userId!),
-        isNull(artistVaultsTable.deleted_at),
-      ),
-    );
-
-  res.json({ success: true });
-});
-
-router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
-  const id = String(req.params["id"]);
-
-  await db
-    .update(artistVaultsTable)
-    .set({ is_active: false })
-    .where(
-      and(
-        eq(artistVaultsTable.user_id, req.userId!),
-        isNull(artistVaultsTable.deleted_at),
-      ),
-    );
-
-  await db
-    .update(artistVaultsTable)
-    .set({ is_active: true })
     .where(
       and(
         eq(artistVaultsTable.id, id),
