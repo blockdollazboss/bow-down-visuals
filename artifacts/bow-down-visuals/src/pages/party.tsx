@@ -678,7 +678,15 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
 
 /* ─── Room ──────────────────────────────────────────────────────────────── */
 
-function RoomView({ code, onLeave }: { code: string; onLeave: () => void }) {
+/* Exported for the palace's Marble Table (NATIVE-PLAN §3.5): the
+   room is a self-contained surface — it speaks only through
+   lib/party-client.ts and its onLeave callback, and its one URL
+   use is building the invite link a player CHOOSES to copy — so
+   the world mounts this component directly in its step-through
+   instead of wrapping the /party page. The lobby above stays
+   page-shaped (it reads ?room=/?stream= from the page URL and
+   writes history); the palace lobby is its own native board. */
+export function RoomView({ code, onLeave }: { code: string; onLeave: () => void }) {
   const { light, panel, ink, muted, chip, goldBtn } = usePanel();
   const { getAccessToken } = useAuth();
   const clientRef = useRef<PartyClient | null>(null);
