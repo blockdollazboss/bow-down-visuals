@@ -17,6 +17,7 @@ import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { mediaUrl } from "@/lib/media-cdn";
+import { loginPathWithNext, postLoginPath, safeNextPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 const schema = (t: (key: string) => string) =>
@@ -51,10 +52,13 @@ export default function Signup() {
     defaultValues: { displayName: "", email: "", password: "", confirmPassword: "", agreeToTerms: false },
   });
 
-  // Already signed in? Don't show the form — same as the login page.
+  // Already signed in? Don't show the form — same as the login page,
+  // including its ?next= return path: a guest bounced from a locked
+  // page who lands here already signed in (or whose social sign-up
+  // returns with a session) goes where they were headed.
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/choose-artist");
+      setLocation(postLoginPath(window.location.search));
     }
   }, [authLoading, user, setLocation]);
 
@@ -109,6 +113,20 @@ export default function Signup() {
       setSuccess(true);
       setLoading(false);
     }
+  }
+
+  /* Where this page's sign-in handoffs point: a valid ?next= rides
+   * along to /login, so a guest who was bounced from a locked page
+   * and created an account here still lands where they were headed
+   * once they sign in (the login page's postLoginPath does the rest). */
+  const signInHref = (() => {
+    if (typeof window === "undefined") return "/login";
+    const next = safeNextPath(window.location.search);
+    return next ? loginPathWithNext(next) : "/login";
+  })();
+
+  function goToSignIn() {
+    setLocation(signInHref);
   }
 
   async function onSocialSignUp(provider: SocialProvider) {
@@ -182,7 +200,7 @@ export default function Signup() {
               <li className="flex gap-2"><span className="font-black text-[#c9a84c]">2.</span> Sign in — we'll walk you straight to your public page.</li>
               <li className="flex gap-2"><span className="font-black text-[#c9a84c]">3.</span> Your profile goes <span className="font-bold text-amber-300">live in 60 seconds</span> — name, vibe, share link.</li>
             </ol>
-            <Button onClick={() => setLocation("/login")} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
+            <Button onClick={goToSignIn} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
               {t("signup.goToSignIn")}
             </Button>
           </div>
@@ -309,7 +327,7 @@ export default function Signup() {
             <span aria-hidden className="text-white/20">·</span>
             <span>
               {t("signup.alreadyHaveAccount")}{" "}
-              <Link href="/login" className="text-[#c9a84c] hover:underline font-medium">
+              <Link href={signInHref} className="text-[#c9a84c] hover:underline font-medium">
                 {t("signup.signInLink")}
               </Link>
             </span>
