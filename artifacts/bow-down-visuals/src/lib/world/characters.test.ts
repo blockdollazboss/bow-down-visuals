@@ -9,6 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizeVaultCharacters,
+  characterMonogram,
   loadStoredCharacterId,
   storeCharacterId,
   reconcileStoredPick,
@@ -52,6 +53,21 @@ describe("normalizeVaultCharacters", () => {
     expect(normalizeVaultCharacters(null)).toEqual([]);
     expect(normalizeVaultCharacters({ nope: 1 })).toEqual([]);
     expect(normalizeVaultCharacters([{ id: "c1", artist_name: "Solo", reference_image_url: "x" }])).toHaveLength(1);
+  });
+});
+
+describe("characterMonogram", () => {
+  it("takes the first letter or digit, uppercased", () => {
+    expect(characterMonogram("Test Creator")).toBe("T");
+    expect(characterMonogram("shark king")).toBe("S");
+    expect(characterMonogram("  7th Son")).toBe("7");
+    expect(characterMonogram("★ Nova")).toBe("N");
+  });
+
+  it("never comes back empty — the placeholder disc always has a mark", () => {
+    expect(characterMonogram("")).toBe("B");
+    expect(characterMonogram("   ")).toBe("B");
+    expect(characterMonogram("★")).toBe("B");
   });
 });
 

@@ -12,8 +12,8 @@
  * avatar walk-in working and says what happened.
  */
 import { Link } from "wouter";
-import { Crown, ImageOff, Sparkles, Check } from "lucide-react";
-import type { VaultCharacter } from "@/lib/world/characters";
+import { Crown, Sparkles, Check } from "lucide-react";
+import { characterMonogram, type VaultCharacter } from "@/lib/world/characters";
 
 interface WalkInAsPickerProps {
   /** null while the vault read is in flight. */
@@ -114,8 +114,18 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                 data-testid={`walk-in-character-${c.id}`}
                 title="This character has no portrait yet"
               >
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"}`}>
-                  <ImageOff className="h-5 w-5 text-[#d4af37]/70" />
+                {/* No portrait yet: a house placeholder — the
+                    character's monogram on a gold disc — never a
+                    broken-image glyph. */}
+                <span
+                  aria-hidden
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-black ${
+                    isLight
+                      ? "bg-gradient-to-b from-[#e8c86a] to-[#C9A84C] text-[#2a1e07] ring-1 ring-[#7A5A12]/50"
+                      : "bg-gradient-to-b from-[#e8c86a] to-[#b8860b] text-[#171106] ring-1 ring-[#d4af37]/60"
+                  }`}
+                >
+                  {characterMonogram(c.name)}
                 </span>
                 <span className="min-w-0">
                   <span className={`block truncate text-xs font-bold ${nameCls}`}>{c.name}</span>
