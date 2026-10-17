@@ -59,6 +59,14 @@
  *                                            for a stage video
  *     { type: "stage.end" }                   holder: release the
  *                                            stage + screen to idle
+ *     { type: "jukebox.add", trackId }        Music Hall: put a song
+ *                                            on the room jukebox
+ *                                            (members only; id only —
+ *                                            verified published track)
+ *     { type: "jukebox.playpause", playing }  the song adder (or the
+ *                                            host): shared play/pause
+ *     { type: "jukebox.skip" }                adder/host: next song
+ *     { type: "jukebox.remove", entryId }     pull your queued song
  *     { type: "admin.mute", peerId, muted }   host only: mute/unmute a
  *                                            member's voice server-side
  *     { type: "admin.remove", peerId }        host only: remove a
@@ -94,6 +102,15 @@
  *                                            video's position stamped
  *     { type: "screen.denied", holderName }   someone else holds the
  *                                            stage — one hand only
+ *     { type: "jukebox.state", jukebox }       the Music Hall jukebox
+ *                                            now (also in `welcome`):
+ *                                            current song + its
+ *                                            anchor-stamped position,
+ *                                            and the up-next queue
+ *     { type: "jukebox.denied", reason }      a jukebox action was
+ *                                            refused (guests /
+ *                                            unplayable / queue-full /
+ *                                            not-yours)
  *     { type: "peer.hostmute", peerId, muted }  the host muted/unmuted
  *                                            a member's voice
  *     { type: "admin.denied" }                a host action attempted
@@ -279,6 +296,67 @@ export function screenPositionAt(content: WorldScreenContent, nowMs: number): nu
   return Math.max(0, pb.anchorPosSec + (nowMs - pb.anchorAtMs) / 1000);
 }
 
+/* ── The Music Hall jukebox ─────────────────────────────────────────
+ * The Music Hall's room programming (plan Step 5): a shared queue
+ * of real published songs, played for the whole room off ONE
+ * server-stamped playback anchor — the same anchor math as the
+ * stage's watch party, so every listener derives the same position
+ * from the same stamp. Members add songs (id only; the injected
+ * resolver re-verifies a real published track, exactly like
+ * stage.video); guests listen. Transport (play/pause/skip) belongs
+ * to whoever added the song that's playing — or the host. There is
+ * no timer: the queue advances LAZILY, folded into every state read
+ * and every jukebox frame, so a finished song hands over to the
+ * next without a clock thread. Nothing is seeded: an untouched
+ * jukebox is honestly idle. */
+
+/** A published profile track the jukebox can play, resolved from an
+ *  id the client picked from the catalog — never a URL it supplied. */
+export interface WorldJukeboxTrackRef {
+  id: string;
+  title: string;
+  url: string;
+  /** Seconds; 0 = the row carries no duration (never auto-advances —
+   *  it plays until someone skips it). */
+  durationSec: number;
+  creatorName: string | null;
+  artworkUrl: string | null;
+}
+
+/** Injected by the route layer: verify a jukebox pick is a real,
+ *  published, playable platform track (the member's own, or on a
+ *  public profile); return the ref to broadcast, or null to refuse. */
+export type WorldJukeboxTrackResolver = (
+  userId: string,
+  trackId: string,
+) => Promise<WorldJukeboxTrackRef | null>;
+
+/** One queued song: the track + who put it on (transport authority
+ *  and the queue's honesty both ride on the adder). */
+export interface WorldJukeboxEntry {
+  entryId: string;
+  track: WorldJukeboxTrackRef;
+  addedByPeerId: string;
+  addedByName: string;
+}
+
+/** The jukebox state every client in the Music Hall renders from —
+ *  sent in `welcome` and broadcast as `jukebox.state` on change. */
+export interface WorldJukeboxBroadcast {
+  /** The song on now, with its position computed from the anchor at
+   *  broadcast time (null = the jukebox is idle). */
+  current: {
+    entry: WorldJukeboxEntry;
+    playback: { playing: boolean; positionSec: number };
+  } | null;
+  /** Up next, in order. */
+  queue: WorldJukeboxEntry[];
+}
+
+/** The queue never grows past this — a runaway adder can't bury the
+ *  room's evening under one person's catalog. */
+export const JUKEBOX_QUEUE_CAP = 20;
+
 /**
  * Avatar actions (owner order: "the avatar should be able to do
  * things"). One id set, mirrored by the client's lib/world/actions.ts.
@@ -322,6 +400,9 @@ export interface WorldRoomOptions {
   bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
   spawn?: { x: number; z: number };
   stageEnabled?: boolean;
+  /** Runs a jukebox (the Music Hall's queue + shared playback).
+   *  Every other room refuses the jukebox frames. */
+  jukeboxEnabled?: boolean;
 }
 
 /**
@@ -430,6 +511,8 @@ export class WorldRoom {
    *  Other rooms refuse the stage frames (the screen is not theirs
    *  to hold) instead of growing a second authority. */
   readonly stageEnabled: boolean;
+  /** The jukebox lives in exactly one room too: the Music Hall. */
+  readonly jukeboxEnabled: boolean;
   /** Fired when anything the palace directory shows changes
    *  (membership, stage holder). The palace registry wires it to
    *  rebroadcast the directory; a standalone room leaves it unset. */
@@ -448,6 +531,15 @@ export class WorldRoom {
   /** Bumped on every stage claim so a slow verification can't land
    *  after a newer claim (or a release) and resurrect a dead show. */
   private stageSeq = 0;
+  /** The jukebox: the song on now (the queue's head, kept apart so
+   *  the queue is strictly "up next"), its playback anchor, and the
+   *  up-next list. An idle jukebox is current=null, queue empty. */
+  private jukeboxCurrent: {
+    entry: WorldJukeboxEntry;
+    playback: { playing: boolean; anchorPosSec: number; anchorAtMs: number };
+  } | null = null;
+  private jukeboxQueue: WorldJukeboxEntry[] = [];
+  private jukeboxEntryCounter = 0;
 
   constructor(
     private hub: RoomHub,
@@ -455,6 +547,7 @@ export class WorldRoom {
       resolveCharacter?: WorldCharacterResolver;
       resolveStageStream?: WorldStageStreamResolver;
       resolveScreenVideo?: WorldScreenVideoResolver;
+      resolveJukeboxTrack?: WorldJukeboxTrackResolver;
     } = {},
     opts: WorldRoomOptions = {},
   ) {
@@ -463,6 +556,7 @@ export class WorldRoom {
     this.bounds = opts.bounds ?? HALL_BOUNDS;
     this.spawnPoint = opts.spawn ?? { x: 0, z: 9.5 };
     this.stageEnabled = opts.stageEnabled ?? this.roomId === WORLD_ROOM_ID;
+    this.jukeboxEnabled = opts.jukeboxEnabled ?? false;
   }
 
   size(): number {
@@ -618,6 +712,9 @@ export class WorldRoom {
       // Only the stage room carries screen state; other rooms omit it
       // and the client keeps the hall's last known state.
       ...(this.stageEnabled ? { screen: this.screenBroadcast() } : {}),
+      // Same rule for the jukebox: only the Music Hall carries it,
+      // and a late joiner lands mid-song at the room's position.
+      ...(this.jukeboxEnabled ? { jukebox: this.jukeboxBroadcast() } : {}),
     });
     // The joiner never hears its own join — `welcome` already told it
     // everything about itself; peer.join is strictly for the room.
@@ -671,6 +768,15 @@ export class WorldRoom {
         screen: this.screenBroadcast(`${peer.displayName}'s show has ended.`),
       });
     }
+    /* The jukebox is room programming: a song keeps playing for
+     * whoever is still inside when its adder walks out (transport
+     * falls to the host). But an EMPTY room resets it — nobody's
+     * queue should drain into the void and greet the next visitor
+     * half-finished. */
+    if (this.jukeboxEnabled && this.peers.size === 0) {
+      this.jukeboxCurrent = null;
+      this.jukeboxQueue = [];
+    }
     this.hub.broadcast(this.roomId, { type: "peer.leave", peerId: peer.peerId });
     this.onChange?.();
   }
@@ -721,6 +827,79 @@ export class WorldRoom {
       positionSec: screenPositionAt(this.screenContent, Date.now()),
       playing: this.screenContent.playback.playing,
     };
+  }
+
+  /* ── The jukebox (Music Hall) ───────────────────────────────────── */
+
+  /** Where the current song is right now, from its anchor. */
+  private jukeboxPositionAt(now: number): number {
+    const cur = this.jukeboxCurrent;
+    if (!cur) return 0;
+    if (!cur.playback.playing) return cur.playback.anchorPosSec;
+    return Math.max(0, cur.playback.anchorPosSec + (now - cur.playback.anchorAtMs) / 1000);
+  }
+
+  /** The jukebox state as every client renders it, right now. A
+   *  read folds in any lazy advance first, so the state is never
+   *  stale by a finished song. */
+  jukeboxBroadcast(now = Date.now()): WorldJukeboxBroadcast {
+    this.advanceJukebox(now);
+    const cur = this.jukeboxCurrent;
+    return {
+      current: cur
+        ? {
+            entry: cur.entry,
+            playback: { playing: cur.playback.playing, positionSec: this.jukeboxPositionAt(now) },
+          }
+        : null,
+      queue: [...this.jukeboxQueue],
+    };
+  }
+
+  private broadcastJukebox(now: number): void {
+    this.hub.broadcast(this.roomId, { type: "jukebox.state", jukebox: this.jukeboxBroadcast(now) });
+  }
+
+  /** Lazy advance — no timers. A PLAYING song whose position has run
+   *  past its (known) duration hands over to the queue's head,
+   *  carrying the overshoot into the next song's anchor so a chain
+   *  of short songs stays in step. A paused song never advances;
+   *  a song with no known duration never auto-advances. */
+  private advanceJukebox(now: number): void {
+    let guard = 0;
+    while (this.jukeboxCurrent && guard++ < JUKEBOX_QUEUE_CAP + 2) {
+      const cur = this.jukeboxCurrent;
+      const dur = cur.entry.track.durationSec;
+      if (!cur.playback.playing || !(dur > 0)) return;
+      const pos = this.jukeboxPositionAt(now);
+      if (pos < dur) return;
+      const leftover = pos - dur;
+      const next = this.jukeboxQueue.shift() ?? null;
+      this.jukeboxCurrent = next
+        ? {
+            entry: next,
+            playback: { playing: true, anchorPosSec: Math.min(leftover, Math.max(0, next.track.durationSec - 0.05)), anchorAtMs: now },
+          }
+        : null;
+    }
+  }
+
+  /** Who may work the transport for the song on now: the member who
+   *  added it — or the host, always. */
+  private canDriveJukebox(peer: WorldPeer): boolean {
+    const cur = this.jukeboxCurrent;
+    if (!cur) return peer.admin;
+    return peer.admin || cur.entry.addedByPeerId === peer.peerId;
+  }
+
+  /** Start the queue's head (or go idle when it's empty). The
+   *  playing state carries across a skip: a paused jukebox stays
+   *  paused on the new song, at zero. */
+  private startNextJukebox(now: number, playing: boolean): void {
+    const next = this.jukeboxQueue.shift() ?? null;
+    this.jukeboxCurrent = next
+      ? { entry: next, playback: { playing, anchorPosSec: 0, anchorAtMs: now } }
+      : null;
   }
 
   private broadcastScreen(notice: string | null = null): void {
@@ -1002,6 +1181,112 @@ export class WorldRoom {
               : null,
           ),
         );
+        return;
+      }
+      case "jukebox.add": {
+        /* Put a song on the Music Hall jukebox. Members only —
+         * guests listen. The id is all the client sends; the
+         * injected resolver re-verifies a real published track
+         * before anything reaches the room's speakers, exactly like
+         * a stage.video pick. A refused pick changes nothing and
+         * says so (jukebox.denied) instead of failing silently. */
+        if (!this.jukeboxEnabled) return;
+        if (peer.guest || !peer.userId) {
+          this.send(peer, { type: "jukebox.denied", reason: "guests" });
+          return;
+        }
+        const trackId = typeof frame["trackId"] === "string" ? frame["trackId"] : "";
+        if (!trackId || trackId.length > 96) return;
+        const resolveTrack = this.deps.resolveJukeboxTrack;
+        if (!resolveTrack) return;
+        const userId = peer.userId;
+        void resolveTrack(userId, trackId)
+          .then((ref) => {
+            if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
+            if (!ref) {
+              this.send(peer, { type: "jukebox.denied", reason: "unplayable" });
+              return;
+            }
+            /* Capacity is judged at landing time, not send time —
+             * two adds in flight can't both slip past the cap. */
+            this.advanceJukebox(now);
+            const total = this.jukeboxQueue.length + (this.jukeboxCurrent ? 1 : 0);
+            if (total >= JUKEBOX_QUEUE_CAP) {
+              this.send(peer, { type: "jukebox.denied", reason: "queue-full" });
+              return;
+            }
+            const entry: WorldJukeboxEntry = {
+              entryId: `j${++this.jukeboxEntryCounter}`,
+              track: ref,
+              addedByPeerId: peer.peerId,
+              addedByName: peer.displayName,
+            };
+            if (!this.jukeboxCurrent) {
+              /* An idle jukebox starts the song now — adding IS
+               * asking to hear it. */
+              this.jukeboxCurrent = {
+                entry,
+                playback: { playing: true, anchorPosSec: 0, anchorAtMs: now },
+              };
+            } else {
+              this.jukeboxQueue.push(entry);
+            }
+            this.broadcastJukebox(now);
+          })
+          .catch(() => undefined);
+        return;
+      }
+      case "jukebox.playpause": {
+        /* Shared play/pause, stamped by the server anchor: whoever
+         * added the song on now (or the host) works the transport —
+         * one hand on it, like the screen. */
+        if (!this.jukeboxEnabled) return;
+        this.advanceJukebox(now);
+        const cur = this.jukeboxCurrent;
+        if (!cur) return;
+        if (!this.canDriveJukebox(peer)) {
+          this.send(peer, { type: "jukebox.denied", reason: "not-yours" });
+          return;
+        }
+        const playing = frame["playing"] === true;
+        if (playing === cur.playback.playing) return;
+        cur.playback = {
+          playing,
+          anchorPosSec: this.jukeboxPositionAt(now),
+          anchorAtMs: now,
+        };
+        this.broadcastJukebox(now);
+        return;
+      }
+      case "jukebox.skip": {
+        /* End the song on now; the queue's head takes over in the
+         * same playing state (a paused jukebox stays paused). */
+        if (!this.jukeboxEnabled) return;
+        this.advanceJukebox(now);
+        if (!this.jukeboxCurrent) return;
+        if (!this.canDriveJukebox(peer)) {
+          this.send(peer, { type: "jukebox.denied", reason: "not-yours" });
+          return;
+        }
+        this.startNextJukebox(now, this.jukeboxCurrent.playback.playing);
+        this.broadcastJukebox(now);
+        return;
+      }
+      case "jukebox.remove": {
+        /* Pull one of YOUR queued songs back off (the host can pull
+         * anyone's). The song on now is not removable here — skip
+         * is the honest verb for that. */
+        if (!this.jukeboxEnabled) return;
+        const entryId = typeof frame["entryId"] === "string" ? frame["entryId"] : "";
+        const idx = this.jukeboxQueue.findIndex((e) => e.entryId === entryId);
+        if (idx < 0) return;
+        const entry = this.jukeboxQueue[idx]!;
+        if (!peer.admin && entry.addedByPeerId !== peer.peerId) {
+          this.send(peer, { type: "jukebox.denied", reason: "not-yours" });
+          return;
+        }
+        this.jukeboxQueue.splice(idx, 1);
+        this.broadcastJukebox(now);
         return;
       }
       case "screen.reel": {

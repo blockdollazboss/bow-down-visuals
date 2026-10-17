@@ -24,6 +24,7 @@ import {
   artistVaultsTable,
   creatorProfilesTable,
   liveStreamsTable,
+  profileTracksTable,
   profileVideosTable,
 } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
@@ -42,6 +43,7 @@ import {
 import {
   type WorldCharacterRef,
   type WorldIdentity,
+  type WorldJukeboxTrackRef,
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
@@ -280,6 +282,9 @@ router.get("/world/directory", publicApiLimiter, (_req, res) => {
           { id: "world:game-rooms", name: "Game Rooms", count: 0, members: [], live: false },
           { id: "world:create-wing", name: "Create Wing", count: 0, members: [], live: false },
           { id: "world:courtyard", name: "Courtyard", count: 0, members: [], live: false },
+          { id: "world:treasury", name: "Treasury", count: 0, members: [], live: false },
+          { id: "world:royal-court", name: "Royal Court Chamber", count: 0, members: [], live: false },
+          { id: "world:branding-atelier", name: "Branding Atelier", count: 0, members: [], live: false },
         ],
   });
 });
@@ -346,6 +351,78 @@ router.get("/world/screen-catalog", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[world] screen catalog lookup failed");
     res.status(500).json({ error: "Couldn't load the screen catalog. Try again." });
+  }
+});
+
+/* ── The Music Hall jukebox catalog ─────────────────────────────────────
+ * The songs the jukebox can be fed: published profile tracks — the
+ * member's own and everyone's on a public profile. Ids are the
+ * `track:<uuid>` form the jukebox resolver re-verifies at add time,
+ * so a catalog row is a pick, never a playable URL. */
+export interface WorldJukeboxCatalogItem {
+  id: string;
+  title: string;
+  creatorName: string | null;
+  durationSec: number;
+  artworkUrl: string | null;
+}
+
+router.get("/world/jukebox-catalog", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const [myProfile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+
+    const mine: WorldJukeboxCatalogItem[] = [];
+    if (myProfile) {
+      const myTracks = await db
+        .select()
+        .from(profileTracksTable)
+        .where(and(eq(profileTracksTable.profileId, myProfile.id), eq(profileTracksTable.isPublished, true)))
+        .orderBy(desc(profileTracksTable.createdAt))
+        .limit(30);
+      mine.push(
+        ...myTracks
+          .filter((t) => t.audioUrl)
+          .map((t) => ({
+            id: `track:${t.id}`,
+            title: t.title,
+            creatorName: myProfile.displayName,
+            durationSec: t.durationSec,
+            artworkUrl: t.artworkUrl,
+          })),
+      );
+    }
+
+    const publicTracks = await db
+      .select({ track: profileTracksTable, creatorName: creatorProfilesTable.displayName })
+      .from(profileTracksTable)
+      .innerJoin(creatorProfilesTable, eq(profileTracksTable.profileId, creatorProfilesTable.id))
+      .where(
+        and(
+          eq(profileTracksTable.isPublished, true),
+          eq(creatorProfilesTable.isPublic, true),
+          myProfile ? ne(profileTracksTable.profileId, myProfile.id) : undefined,
+        ),
+      )
+      .orderBy(desc(profileTracksTable.createdAt))
+      .limit(30);
+    const pub: WorldJukeboxCatalogItem[] = publicTracks
+      .filter((r) => r.track.audioUrl)
+      .map((r) => ({
+        id: `track:${r.track.id}`,
+        title: r.track.title,
+        creatorName: r.creatorName,
+        durationSec: r.track.durationSec,
+        artworkUrl: r.track.artworkUrl,
+      }));
+    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+  } catch (err) {
+    logger.error({ err }, "[world] jukebox catalog lookup failed");
+    res.status(500).json({ error: "Couldn't load the song catalog. Try again." });
   }
 });
 
@@ -552,6 +629,44 @@ async function resolveScreenVideo(userId: string, videoId: string): Promise<Worl
   }
 }
 
+/** Jukebox resolver: a catalog id (`track:<uuid>`) becomes a
+ *  playable ref only when the track is truly published and sits on
+ *  the member's own profile or a public one. The URL is derived
+ *  here, from the row — the client never supplies one. Mirrors
+ *  resolveScreenVideo deliberately: same id-only discipline. */
+async function resolveJukeboxTrack(userId: string, trackId: string): Promise<WorldJukeboxTrackRef | null> {
+  try {
+    if (!trackId.startsWith("track:")) return null;
+    const id = trackId.slice("track:".length);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [row] = await db
+      .select()
+      .from(profileTracksTable)
+      .where(and(eq(profileTracksTable.id, id), eq(profileTracksTable.isPublished, true)))
+      .limit(1);
+    if (!row?.audioUrl) return null;
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.id, row.profileId))
+      .limit(1);
+    if (!profile || (profile.userId !== userId && !profile.isPublic)) return null;
+    const url = await refreshSupabaseStorageUrlsDeep(row.audioUrl);
+    if (typeof url !== "string" || !url) return null;
+    return {
+      id: trackId,
+      title: row.title.slice(0, 120),
+      url: url.slice(0, 2048),
+      durationSec: row.durationSec,
+      creatorName: profile.displayName,
+      artworkUrl: row.artworkUrl,
+    };
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] jukebox track lookup failed — pick refused");
+    return null;
+  }
+}
+
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldPalace {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
@@ -559,6 +674,7 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     resolveCharacter: resolveVaultCharacter,
     resolveStageStream,
     resolveScreenVideo,
+    resolveJukeboxTrack,
   });
   activePalace = palace;
 
