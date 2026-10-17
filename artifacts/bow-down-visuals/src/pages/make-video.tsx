@@ -14,6 +14,8 @@ import {
   FileText, ExternalLink,
 } from "lucide-react";
 import { callGenerateApi } from "@/lib/generate-api";
+import { withProjectAudio } from "@/lib/project-handoff";
+import { songPickPrefill } from "@/lib/hub-song";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -270,7 +272,7 @@ export function MakeVideoModule() {
   const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
-  const { addAsset } = useHubProject();
+  const { addAsset, project } = useHubProject();
   const reportedClipUrls = useRef<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -684,7 +686,7 @@ export function MakeVideoModule() {
           songTitle:    watched.songTitle  || null,
           genre:        watched.genre      || null,
           mood:         watched.mood       || null,
-          inputData:    watched as unknown as Record<string, unknown>,
+          inputData:    withProjectAudio(watched as unknown as Record<string, unknown>, audioUrl),
           outputData: {
             result: resultToSave,
             ...(songStructure ? { songStructure } : {}),
@@ -1037,7 +1039,17 @@ export function MakeVideoModule() {
               <ProjectFlowBar
                 kinds={["song"]}
                 actionLabel={t("makeVideo.useTrack")}
-                onPick={(asset) => { setAudioUrl(asset.url); setSongSegment(null); }}
+                onPick={(asset) => {
+                  setAudioUrl(asset.url);
+                  setSongSegment(null);
+                  /* The pick carries the whole song, not just its URL:
+                     title + genre from the song's meta, lyrics from the
+                     sibling script asset the song package saved (DE-10). */
+                  const prefill = songPickPrefill(project.assets, asset);
+                  if (prefill.title) setValue("songTitle", prefill.title);
+                  if (prefill.genre) setValue("genre", prefill.genre);
+                  if (prefill.lyrics) setValue("lyrics", prefill.lyrics);
+                }}
               />
               <FieldWrapper label={t("makeVideo.uploadSongLabel")} hint={t("makeVideo.uploadSongHint")}>
                 <AudioTranscribe
