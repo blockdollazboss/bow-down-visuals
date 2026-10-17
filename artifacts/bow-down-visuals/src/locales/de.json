@@ -2699,6 +2699,8 @@
     "algorithms_change_your_list_does": "Algorithmen ändern sich. Ihre Liste nicht. Sammeln Sie Fans, schreiben Sie Newsletter\n mit KI und verfolgen Sie das Wachstum — kostenlos bis zu 1.000 Abonnenten.",
     "avg_opens_subscriber": "Ø Öffnungen / Abonnent",
     "best_effort_pixel_tracking": "Pixel-Tracking nach bestem Bemühen",
+    "opens_not_tracked": "Nicht erfasst",
+    "opens_not_tracked_note": "Öffnungs-Tracking ist noch nicht verdrahtet — keine erfundenen Zahlen",
     "body": "Text",
     "builder": "Builder",
     "call_to_action_optional_e_g_pre": "Call to Action (optional — z. B. Single vorspeichern)",

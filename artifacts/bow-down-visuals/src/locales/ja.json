@@ -3766,6 +3766,8 @@
     "total_signups": "登録者総数",
     "avg_opens_subscriber": "平均開封数 / 登録者",
     "best_effort_pixel_tracking": "ピクセル追跡はベストエフォート",
+    "opens_not_tracked": "未計測",
+    "opens_not_tracked_note": "開封トラッキングはまだ有効になっていません — 偽の数値は表示しません",
     "export": "エクスポート",
     "csv_free": "CSV — 無料",
     "your_data_yours_to_keep": "あなたのデータは、ずっとあなたのもの",

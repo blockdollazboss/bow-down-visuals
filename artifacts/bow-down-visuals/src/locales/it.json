@@ -4879,6 +4879,8 @@
     "total_signups": "Iscrizioni totali",
     "avg_opens_subscriber": "Aperture medie / iscritto",
     "best_effort_pixel_tracking": "tracking con pixel best-effort",
+    "opens_not_tracked": "Non tracciato",
+    "opens_not_tracked_note": "il tracciamento delle aperture non è ancora collegato — nessun numero inventato",
     "export": "Esporta",
     "csv_free": "CSV — gratis",
     "your_data_yours_to_keep": "I tuoi dati, tuoi per sempre",

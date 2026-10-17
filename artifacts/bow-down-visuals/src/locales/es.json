@@ -2718,6 +2718,8 @@
     "total_signups": "Registros totales",
     "avg_opens_subscriber": "Aperturas prom. / suscriptor",
     "best_effort_pixel_tracking": "seguimiento por píxel de mejor esfuerzo",
+    "opens_not_tracked": "No rastreado",
+    "opens_not_tracked_note": "el seguimiento de aperturas aún no está activado — sin números inventados",
     "export": "Exportar",
     "csv_free": "CSV — gratis",
     "your_data_yours_to_keep": "Tus datos, tuyos para siempre",

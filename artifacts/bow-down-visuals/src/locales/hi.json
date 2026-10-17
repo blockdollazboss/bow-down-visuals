@@ -4879,6 +4879,8 @@
     "total_signups": "कुल साइनअप",
     "avg_opens_subscriber": "औसत खुलता है / ग्राहक",
     "best_effort_pixel_tracking": "सर्वोत्तम प्रयास वाली पिक्सेल ट्रैकिंग",
+    "opens_not_tracked": "ट्रैक नहीं किया गया",
+    "opens_not_tracked_note": "ओपन ट्रैकिंग अभी जुड़ी नहीं है — कोई फर्ज़ी आँकड़े नहीं",
     "export": "निर्यात करें",
     "csv_free": "सीएसवी - निःशुल्क",
     "your_data_yours_to_keep": "आपका डेटा, रखने के लिए आपका",

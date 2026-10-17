@@ -2718,6 +2718,8 @@
     "total_signups": "Inscriptions totales",
     "avg_opens_subscriber": "Ouvertures moy. / abonné",
     "best_effort_pixel_tracking": "suivi par pixel au mieux",
+    "opens_not_tracked": "Non suivi",
+    "opens_not_tracked_note": "le suivi des ouvertures n'est pas encore branché — aucun chiffre inventé",
     "export": "Exporter",
     "csv_free": "CSV — gratuit",
     "your_data_yours_to_keep": "Tes données, à toi pour toujours",

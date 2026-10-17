@@ -5755,6 +5755,8 @@
     "total_signups": "총 가입자 수",
     "avg_opens_subscriber": "평균 오픈 / 구독자",
     "best_effort_pixel_tracking": "최선 노력 기반 픽셀 추적",
+    "opens_not_tracked": "추적 안 됨",
+    "opens_not_tracked_note": "열람 추적이 아직 연결되지 않았습니다 — 가짜 숫자는 없습니다",
     "export": "내보내기",
     "csv_free": "CSV — 무료",
     "your_data_yours_to_keep": "데이터는 당신의 것, 그대로 유지하세요",
