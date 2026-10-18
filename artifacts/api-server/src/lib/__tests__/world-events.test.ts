@@ -464,3 +464,62 @@ describe("the first-play moment (§5(a))", () => {
     expect(after[1].moment).toMatchObject({ title: "Second Song", creatorName: "Guest Star" });
   });
 });
+
+describe("contests (2.24) — the scheduler flips status only", () => {
+  function contestRow(partial: Row): Row {
+    return eventRow({
+      kind: "contest",
+      roomId: MUSIC,
+      title: "Best Hook in the Palace",
+      payload: { theme: "A hook that stops the scroll" },
+      ...partial,
+    });
+  }
+  function makeScheduler(palace: WorldPalace, store: ReturnType<typeof makeStore>) {
+    return new WorldEventScheduler({
+      palace,
+      store,
+      resolveScreenVideo: async () => null,
+      resolveJukeboxTrack: async () => null,
+    });
+  }
+
+  it("a due contest goes live at its window and done at its deadline — and never touches the room", async () => {
+    const { palace } = makePalace();
+    const store = makeStore([contestRow({})]);
+    const scheduler = makeScheduler(palace, store);
+
+    await scheduler.tick(T0);
+    expect(store.rows[0]!.status).toBe("live");
+    /* No room state was driven: no scheduled show on the hall's
+     * stage, no drop anywhere, no listening party in the hall. */
+    const hall = palace.room(WORLD_ROOM_ID)!;
+    expect(hall.scheduledShowEventId()).toBeNull();
+    expect(hall.activeDropEventId()).toBeNull();
+    const music = palace.room(MUSIC)!;
+    expect(music.listeningPartyEventId()).toBeNull();
+    expect(music.activeDropEventId()).toBeNull();
+
+    await scheduler.tick(T0 + 31 * 60_000);
+    expect(store.rows[0]!.status).toBe("done");
+  });
+
+  it("a contest whose window passed while the palace slept ends done, never live", async () => {
+    const { palace } = makePalace();
+    const store = makeStore([
+      contestRow({ startsAt: new Date(T0 - 7200_000), endsAt: new Date(T0 - 60_000) }),
+    ]);
+    const scheduler = makeScheduler(palace, store);
+    await scheduler.tick(T0);
+    expect(store.rows[0]!.status).toBe("done");
+  });
+
+  it("a cancelled contest releases nothing and stays cancelled", async () => {
+    const { palace } = makePalace();
+    const store = makeStore([contestRow({ status: "cancelled" })]);
+    const scheduler = makeScheduler(palace, store);
+    await scheduler.tick(T0);
+    expect(store.rows[0]!.status).toBe("cancelled");
+    expect(palace.room(MUSIC)!.activeDropEventId()).toBeNull();
+  });
+});

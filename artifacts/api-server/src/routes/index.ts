@@ -319,6 +319,7 @@ import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
 import worldEventsRouter from "./world-events";
 import worldCourtSeasonRouter from "./world-court-season";
+import worldContestsRouter from "./world-contests";
 import worldTutorialRouter from "./world-tutorial";
 import dailyQuestsRouter from "./daily-quests";
 import publishRouter from "./publish";
@@ -633,6 +634,7 @@ router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 H
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
 router.use(worldEventsRouter);                // /api/world/events (World Events — the palace calendar, 0145)
 router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court seasons — the Season Marks Wall read, 0153)
+router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
 router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Daily Quest Trio, 0150)
 router.use("/publish", publishRouter);      // /api/publish/*
