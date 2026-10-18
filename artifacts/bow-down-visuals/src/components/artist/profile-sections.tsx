@@ -650,6 +650,7 @@ export function LinkCardSection({
 
 /* ─── Shout wall ─── */
 export function ShoutWallSection({ title, slug, preview }: { title: string; slug: string; preview?: boolean }) {
+  const { user } = useAuth();
   const [comments, setComments] = useState<ProfileComment[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -680,7 +681,30 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
 
   return (
     <Shell title={title}>
-      {!preview && (
+      {!preview && !user && (
+        /* Guest honesty (access lockdown Lane 3): the wall is public to
+           read, but posting is member-only server-side — a guest used to
+           get a working-looking composer whose send silently kept the
+           draft. Guests now get the memberships pattern instead: an
+           honest sign-in pitch in the composer's place. */
+        <div
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+          style={{ backgroundColor: "var(--ap-surface)", borderColor: "var(--ap-border)" }}
+          data-testid="shout-wall-signin"
+        >
+          <p className="min-w-0 flex-1 text-sm" style={{ color: "var(--ap-muted)" }}>
+            Guests can read the wall — signing in is how you leave a shout.
+          </p>
+          <Link
+            href={`/login?next=/artist/${encodeURIComponent(slug)}`}
+            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition hover:scale-[1.02]"
+            style={{ backgroundColor: "var(--ap-primary)", color: "#000" }}
+          >
+            <MessageSquare className="h-4 w-4" /> Sign in to shout
+          </Link>
+        </div>
+      )}
+      {!preview && user && (
         <div className="mb-3 flex gap-2">
           <input
             value={draft}
@@ -799,6 +823,7 @@ export function TopCreatorsSection({ title, slugs }: { title: string; slugs: str
 
 /* ─── Profile chrome: follow / tip / share / badge ─── */
 export function ProfileActions({ profile }: { profile: CreatorProfile }) {
+  const { user } = useAuth();
   const [following, setFollowing] = useState(false);
   const [count, setCount] = useState(profile.follower_count);
   const [shared, setShared] = useState(false);
@@ -830,16 +855,32 @@ export function ProfileActions({ profile }: { profile: CreatorProfile }) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2 px-4 pb-6">
-      <button
-        onClick={() => void toggleFollow()}
-        className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition hover:scale-105"
-        style={following
-          ? { border: "1px solid var(--ap-primary)", color: "var(--ap-primary)", backgroundColor: "transparent" }
-          : { backgroundColor: "var(--ap-primary)", color: "#000" }}
-      >
-        <Heart className={`h-4 w-4 ${following ? "fill-current" : ""}`} />
-        {following ? "Following" : "Follow"} · {count.toLocaleString()}
-      </button>
+      {/* Guest honesty (access lockdown Lane 3): follow is member-only
+          server-side, so a guest's Follow click used to silently no-op.
+          Guests get the memberships pattern — "Sign in to follow" back
+          to this exact profile — members keep the toggle untouched. */}
+      {!user ? (
+        <Link
+          href={`/login?next=/artist/${encodeURIComponent(profile.slug)}`}
+          data-testid="profile-follow-signin"
+          className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition hover:scale-105"
+          style={{ backgroundColor: "var(--ap-primary)", color: "#000" }}
+        >
+          <Heart className="h-4 w-4" />
+          Sign in to follow · {count.toLocaleString()}
+        </Link>
+      ) : (
+        <button
+          onClick={() => void toggleFollow()}
+          className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition hover:scale-105"
+          style={following
+            ? { border: "1px solid var(--ap-primary)", color: "var(--ap-primary)", backgroundColor: "transparent" }
+            : { backgroundColor: "var(--ap-primary)", color: "#000" }}
+        >
+          <Heart className={`h-4 w-4 ${following ? "fill-current" : ""}`} />
+          {following ? "Following" : "Follow"} · {count.toLocaleString()}
+        </button>
+      )}
       {profile.tip_jar_enabled && (
         <Link
           href={`/tips/${encodeURIComponent(profile.slug)}`}
