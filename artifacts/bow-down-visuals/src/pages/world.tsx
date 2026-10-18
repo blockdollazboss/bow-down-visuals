@@ -501,25 +501,31 @@ export default function WorldPage() {
   const invitePanelPendingRef = useRef(false);
 
   /* ── Level-up detection (THE-GAME §5(a)) ───────────────────────
-   * On World entry, and again after each quest claim, the existing
-   * level-check rail is consulted and the current level compared
+   * On World entry, and again after each quest claim, the level-check
+   * rail is consulted and the EARNED level it returns (computed on
+   * the server from recorded work — lib/creator-rank.ts) is compared
    * against the last level this device has seen for this user
-   * (lib/world/level-watch). A RISE is recorded on the celebrate
-   * rail first — that POST is what puts the new level into the
-   * server's own record — and only then does the bare levelup
-   * intent go to the room, which verifies it against that record
-   * before witnessing anything. The first-ever sighting sets the
-   * baseline silently: no moment for a level you already had
-   * before the game could see it. */
+   * (lib/world/level-watch). A RISE is recorded on the celebrate rail
+   * first — the server accepts it only at or below the earned rank —
+   * and only then does the bare levelup intent go to the room, which
+   * verifies it against the same earned computation before witnessing
+   * anything. The first-ever sighting sets the baseline silently: no
+   * moment for a level you already had before the game could see it. */
   const runLevelCheck = useCallback(async () => {
     if (!user) return;
-    const current = stars;
     try {
       const token = await getAccessToken();
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-      await fetch(`/api/retention/level-check?currentLevel=${current}`, { headers }).catch(
+      const checkRes = await fetch(`/api/retention/level-check`, { headers }).catch(
         () => undefined,
       );
+      const checkData = checkRes?.ok
+        ? ((await checkRes.json().catch(() => ({}))) as { stars?: unknown })
+        : {};
+      /* The server's earned stars are the truth; the context value is
+         only a fallback for a failed read (it is itself server-fed). */
+      const current =
+        typeof checkData.stars === "number" ? checkData.stars : stars;
       const verdict = evaluateLevel(readSeenLevel(window.localStorage, user.id), current);
       if (verdict.kind === "baseline") {
         writeSeenLevel(window.localStorage, user.id, verdict.level);

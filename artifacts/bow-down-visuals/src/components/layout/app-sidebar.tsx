@@ -117,73 +117,70 @@ import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
 
 const IS_DEV = import.meta.env.DEV;
 
-/** Simple / Advanced mode switch — ported from the old TopBar so the
- *  toolbar's mode control lives in the sidebar now. */
+/** Creator Rank display — stars are EARNED (server-computed from
+ *  recorded work; see lib/creator-rank.ts on the API). This is a
+ *  display, not a dial: there is nothing to tap to change your rank.
+ *  It shows the earned stars, the rank name, progress toward the next
+ *  star, and what earns it — the next thing, named. */
 function ModeToggle() {
-  const { stars, maxStars, setStars } = useUserMode();
+  const { stars, rank } = useUserMode();
+  const next = rank?.next ?? null;
+  const progressPct =
+    rank == null
+      ? 0
+      : next == null
+        ? 100
+        : Math.min(100, Math.round((rank.points / Math.max(1, next.pointsAt)) * 100));
   return (
-    <div className="w-full space-y-1.5" role="radiogroup" aria-label="Creator level">
+    <div className="w-full space-y-1.5" aria-label="Creator rank">
       <div className="flex items-center justify-between px-0.5">
         <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
-          Creator Level
+          Creator Rank
         </span>
         <span className="text-[10px] font-black text-primary uppercase">
           {STAR_RANKS[stars - 1]}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-1">
-        {([1, 2, 3, 4, 5, 6] as const).map((s) => {
-          const active = s <= stars;
-          const locked = s > maxStars;
-          const starIcon = (
-            <Star
-              className={`h-5 w-5 transition-colors ${
-                active
-                  ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
-                  : "fill-transparent text-white/20 hover:text-white/40"
-              }`}
-            />
-          );
-          if (locked) {
-            return (
-              <Link
-                key={s}
-                href="/pricing"
-                aria-label={`${s} stars — ${STAR_RANKS[s - 1]} — locked, requires ${STAR_RANKS[s - 1]} plan`}
-                title={`Locked — requires the ${STAR_RANKS[s - 1]} plan. Tap to see plans.`}
-                className="flex-1 flex justify-center items-center gap-0.5 py-1 opacity-50 hover:opacity-90 transition-opacity"
-              >
-                {starIcon}
-                <Lock className="h-3 w-3 text-white/40" />
-              </Link>
-            );
-          }
-          return (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={stars === s}
-              aria-label={`${s} star${s > 1 ? "s" : ""} — ${STAR_RANKS[s - 1]}`}
-              onClick={() => setStars(s)}
-              className="flex-1 flex justify-center py-1 transition-transform hover:scale-125 active:scale-95"
-              title={`${STAR_RANKS[s - 1]} — ${STAR_TAGLINES[s - 1]}`}
-            >
-              {starIcon}
-            </button>
-          );
-        })}
+      <div className="flex items-center justify-between gap-1 px-0.5" aria-label={`${stars} of 6 stars earned`}>
+        {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+          <Star
+            key={s}
+            className={`h-5 w-5 ${
+              s <= stars
+                ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
+                : "fill-transparent text-white/20"
+            }`}
+          />
+        ))}
       </div>
-      <p className="text-[10px] text-white/35 px-0.5">
-        {STAR_TAGLINES[stars - 1]}
-      </p>
-      {maxStars < 6 && (
+      {rank != null && next != null && (
+        <>
+          <div
+            className="mx-0.5 h-1 rounded-full bg-white/10 overflow-hidden"
+            role="progressbar"
+            aria-valuenow={rank.points}
+            aria-valuemax={next.pointsAt}
+            aria-label={`${rank.points} of ${next.pointsAt} points toward ${next.stars} stars`}
+          >
+            <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+          </div>
+          <p className="text-[10px] text-white/35 px-0.5">
+            {rank.points} pts · {next.pointsNeeded} to {STAR_RANKS[next.stars - 1]}
+          </p>
+          {rank.hints.slice(0, 2).map((hint) => (
+            <p key={hint} className="text-[10px] text-white/35 px-0.5">
+              {hint}
+            </p>
+          ))}
+        </>
+      )}
+      {rank != null && next == null && (
         <p className="text-[10px] text-white/35 px-0.5">
-          <Link href="/pricing" className="underline underline-offset-2 hover:text-white/60">
-            Upgrade your plan
-          </Link>{" "}
-          to unlock more stars.
+          {rank.points} pts · top rank — every star earned.
         </p>
+      )}
+      {rank == null && (
+        <p className="text-[10px] text-white/35 px-0.5">{STAR_TAGLINES[stars - 1]}</p>
       )}
     </div>
   );
