@@ -541,3 +541,37 @@ export function shelfPreviewComments<T extends MediaComment>(comments: readonly 
     hiddenCount: Math.max(0, comments.length - SHELF_COMMENT_PREVIEW_COUNT),
   };
 }
+
+/* ─── The thread's honest header (2.13, hardened for stack-20) ─────
+   The count beside "Comments" is the SERVER's count for the media —
+   the comment_count every play input carries from the media rail,
+   which the server bumps on every landed post — never the length of
+   the fetched window: the thread fetch caps at
+   SHELF_COMMENT_FULL_LIMIT, so a hot thread would otherwise read
+   "100" forever. Posts the walker lands in this sitting add on top
+   (the server counted them in exactly the same way). When the
+   server count is unknown, the loaded rows are the honest fallback;
+   during load (loadedCount null) the server count alone carries. */
+
+/** The true thread total to show next to "Comments". */
+export function shelfThreadCount(
+  serverTotal: number | null | undefined,
+  loadedCount: number | null,
+  postedCount: number,
+): number {
+  const base =
+    typeof serverTotal === "number" && Number.isFinite(serverTotal) && serverTotal >= 0
+      ? Math.floor(serverTotal)
+      : Math.max(0, loadedCount ?? 0);
+  const posted = Number.isFinite(postedCount) ? Math.max(0, Math.floor(postedCount)) : 0;
+  return base + posted;
+}
+
+/** When the fetched window is shorter than the true thread, the card
+ *  says so instead of letting the window pose as the whole
+ *  conversation. Null when the window holds everything. */
+export function shelfThreadWindowNote(total: number, loadedCount: number): string | null {
+  if (!Number.isFinite(total) || !Number.isFinite(loadedCount)) return null;
+  if (total <= loadedCount) return null;
+  return `Showing the newest ${loadedCount} of ${total} comments — the whole conversation lives on the full page.`;
+}

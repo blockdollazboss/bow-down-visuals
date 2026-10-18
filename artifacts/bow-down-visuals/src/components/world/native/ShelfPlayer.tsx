@@ -22,11 +22,14 @@ import {
   removeFromQueue,
   shelfEmbedCode,
   shelfPlayInput,
+  shelfThreadCount,
+  shelfThreadWindowNote,
   takeQueueNext,
   SHELF_COMMENT_FULL_LIMIT,
   type ShelfPlayInput,
 } from "@/lib/world/shelf";
 import { NativeCard } from "./NativeCard";
+import { NativeErrorState } from "./NativeStates";
 
 /* ─── The Shelf player — THE one in-world personal player (§3.2) ────
    Mirrors the jukebox's wiring in pages/world.tsx: one media
@@ -230,6 +233,9 @@ export function NowPlayingCard({
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeFailed, setLikeFailed] = useState(false);
   const [comments, setComments] = useState<MediaComment[] | null>(null);
+  const [commentsFailed, setCommentsFailed] = useState(false);
+  const [threadTick, setThreadTick] = useState(0);
+  const [postedCount, setPostedCount] = useState(0);
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const [postFailed, setPostFailed] = useState(false);
@@ -249,15 +255,15 @@ export function NowPlayingCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.src, current?.kind]);
 
-  /* Per-item state resets when the player moves on. The thread is
-     the FULL thread now (2.13) — fetched at the endpoint's full
-     limit, not the old 3-comment preview. */
+  /* Per-item state resets when the player moves on. */
   useEffect(() => {
     if (!current) return;
     setLiked(false);
     setLikeCount(current.likeCount);
     setLikeFailed(false);
     setComments(null);
+    setCommentsFailed(false);
+    setPostedCount(0);
     setDraft("");
     setReplyTo(null);
     setPostFailed(false);
@@ -266,13 +272,6 @@ export function NowPlayingCard({
     setEmbedCopied(false);
     setMoreItems(null);
     let cancelled = false;
-    fetchComments(current.kind, current.id, SHELF_COMMENT_FULL_LIMIT)
-      .then((list) => {
-        if (!cancelled) setComments(list);
-      })
-      .catch(() => {
-        if (!cancelled) setComments([]);
-      });
     if (current.profileId) {
       fetchMoreFromArtist(current.profileId, current.kind, current.id, 6)
         .then((items) => {
@@ -289,8 +288,49 @@ export function NowPlayingCard({
     };
   }, [current]);
 
+  /* The thread load (2.13): the FULL thread — fetched at the
+     endpoint's full limit, not the old 3-comment preview. A failed
+     load is a FAILED state with a retry, never an empty-looking
+     thread: the catch sets commentsFailed and leaves comments null,
+     so "No comments yet" can only ever mean the server truly
+     answered with an empty thread. threadTick is the retry lever —
+     bumping it re-runs this effect and nothing else. */
+  useEffect(() => {
+    if (!current) return;
+    let cancelled = false;
+    setComments(null);
+    fetchComments(current.kind, current.id, SHELF_COMMENT_FULL_LIMIT)
+      .then((list) => {
+        if (!cancelled) {
+          setComments(list);
+          setCommentsFailed(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCommentsFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [current, threadTick]);
+
   if (!current) return null;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  const retryThread = () => {
+    setCommentsFailed(false);
+    setComments(null);
+    setThreadTick((t) => t + 1);
+  };
+
+  /* The header count is the server's true total (shelfThreadCount),
+     never the fetched window's length. */
+  const threadTotal = shelfThreadCount(
+    current.commentCount,
+    comments ? comments.length : null,
+    postedCount,
+  );
+  const threadWindowNote = comments ? shelfThreadWindowNote(threadTotal, comments.length) : null;
 
   const onLike = async () => {
     if (likeBusy) return;
@@ -327,6 +367,7 @@ export function NowPlayingCard({
     try {
       const c = await postComment(current.kind, current.id, body, await authHeaders());
       setComments((prev) => [c, ...(prev ?? [])]);
+      setPostedCount((n) => n + 1);
       setDraft("");
       setReplyTo(null);
     } catch {
@@ -631,34 +672,49 @@ export function NowPlayingCard({
 
         {/* Comments (2.13): the FULL thread in-world — read it all,
             post, and reply without leaving. A reply names who it
-            answers (the rails are a flat thread — see onPost). */}
+            answers (the rails are a flat thread — see onPost). The
+            header count is the server's true total, and a failed
+            load is an honest error with a retry — never a thread
+            that only looks empty. */}
         <div className="mt-3">
           <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            <MessageCircle className="h-3.5 w-3.5" /> Comments{comments !== null && comments.length > 0 ? ` · ${comments.length}` : ""}
+            <MessageCircle className="h-3.5 w-3.5" /> Comments{threadTotal > 0 ? ` · ${threadTotal}` : ""}
           </p>
-          {comments === null ? (
+          {commentsFailed ? (
+            <NativeErrorState
+              isLight={isLight}
+              title="The conversation wouldn't load"
+              message="Comments wouldn't load — the song plays on. Give it another shot."
+              onRetry={retryThread}
+            />
+          ) : comments === null ? (
             <p className={`mt-1 text-xs ${muted}`}>Reading the room…</p>
           ) : comments.length === 0 ? (
             <p className={`mt-1 text-xs ${muted}`}>No comments yet — the first word is still unwritten.</p>
           ) : (
-            <ul className="mt-1 max-h-56 space-y-1.5 overflow-y-auto pr-1">
-              {comments.map((c) => (
-                <li key={c.id} className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
-                  <span className="font-bold">{c.display_name ?? "A listener"}</span>{" "}
-                  <span className={muted}>{c.body}</span>{" "}
-                  {user && (
-                    <button
-                      type="button"
-                      data-testid="world-shelf-comment-reply"
-                      onClick={() => startReply(c)}
-                      className="font-bold text-[#e8c86a] underline-offset-2 hover:underline"
-                    >
-                      Reply
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="mt-1 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                {comments.map((c) => (
+                  <li key={c.id} className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
+                    <span className="font-bold">{c.display_name ?? "A listener"}</span>{" "}
+                    <span className={muted}>{c.body}</span>{" "}
+                    {user && (
+                      <button
+                        type="button"
+                        data-testid="world-shelf-comment-reply"
+                        onClick={() => startReply(c)}
+                        className="font-bold text-[#e8c86a] underline-offset-2 hover:underline"
+                      >
+                        Reply
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {threadWindowNote && (
+                <p className={`mt-1 text-[11px] ${muted}`}>{threadWindowNote}</p>
+              )}
+            </>
           )}
           {user ? (
             <div className="mt-2">

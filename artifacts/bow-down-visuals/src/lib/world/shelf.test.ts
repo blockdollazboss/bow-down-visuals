@@ -30,6 +30,8 @@ import {
   shelfProgress,
   shelfPreviewComments,
   SHELF_COMMENT_PREVIEW_COUNT,
+  shelfThreadCount,
+  shelfThreadWindowNote,
   queueUpNext,
   takeQueueNext,
   removeFromQueue,
@@ -214,6 +216,36 @@ describe("comment preview", () => {
   });
 });
 
+describe("the thread's honest header (2.13, stack-20 hardening)", () => {
+  it("the server's count wins over the fetched window's length", () => {
+    /* A hot thread: the window holds the endpoint-capped 100 rows,
+       the server's true count is 137 — the header must say 137. */
+    expect(shelfThreadCount(137, 100, 0)).toBe(137);
+    expect(shelfThreadCount(4, 4, 0)).toBe(4);
+    expect(shelfThreadCount(0, 0, 0)).toBe(0);
+  });
+
+  it("during load the server count alone carries; unknown server count falls back to loaded rows", () => {
+    expect(shelfThreadCount(12, null, 0)).toBe(12);
+    expect(shelfThreadCount(null, null, 0)).toBe(0);
+    expect(shelfThreadCount(undefined, 6, 0)).toBe(6);
+    expect(shelfThreadCount(Number.NaN, 6, 0)).toBe(6);
+  });
+
+  it("this sitting's landed posts add on top — the server counted them the same way", () => {
+    expect(shelfThreadCount(10, 10, 1)).toBe(11);
+    expect(shelfThreadCount(10, 10, 3)).toBe(13);
+    expect(shelfThreadCount(null, 2, 1)).toBe(3);
+  });
+
+  it("the window note names the truncation, and only the truncation", () => {
+    expect(shelfThreadWindowNote(137, 100)).toContain("newest 100 of 137");
+    expect(shelfThreadWindowNote(100, 100)).toBeNull();
+    expect(shelfThreadWindowNote(3, 3)).toBeNull();
+    expect(shelfThreadWindowNote(0, 0)).toBeNull();
+  });
+});
+
 const playInput = (over: Partial<ShelfPlayInput> = {}): ShelfPlayInput => ({
   kind: "track",
   id: "trk-1",
@@ -378,5 +410,45 @@ describe("source pins — the booth is wired, the token is not a stream", () => 
     expect(booth).not.toContain("fetch(`/api/store/download");
     expect(booth).not.toContain('fetch("/api/store/token"');
     expect(booth).not.toContain("fetch(`/api/store/token`");
+  });
+});
+
+describe("source pins — the Now Playing card's thread (2.13, stack-20 hardening)", () => {
+  const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+  const card = read("../../components/world/native/ShelfPlayer.tsx");
+
+  it("reads the FULL thread through the media comment rails, at the full limit", () => {
+    expect(card).toContain("fetchComments(current.kind, current.id, SHELF_COMMENT_FULL_LIMIT)");
+    expect(card).not.toContain("shelfPreviewComments");
+  });
+
+  it("a failed load is a failed state with a retry — it never becomes an empty-looking thread", () => {
+    expect(card).toContain("setCommentsFailed(true)");
+    expect(card).not.toContain("setComments([])");
+    expect(card).toContain("commentsFailed ? (");
+    expect(card).toContain('title="The conversation wouldn\'t load"');
+    expect(card).toContain("onRetry={retryThread}");
+  });
+
+  it("the header count is the server's true total, and a truncated window says so", () => {
+    expect(card).toContain("shelfThreadCount(");
+    expect(card).toContain("Comments{threadTotal > 0 ? ` · ${threadTotal}` : \"\"}");
+    expect(card).toContain("shelfThreadWindowNote(threadTotal, comments.length)");
+  });
+
+  it("posting rides the real rails and counts the landed post", () => {
+    expect(card).toContain("postComment(current.kind, current.id, body, await authHeaders())");
+    expect(card).toContain("setPostedCount((n) => n + 1)");
+  });
+
+  it("guests read the thread and meet the pitch at the composer — no fake affordance", () => {
+    expect(card).toContain("Sign in to join the conversation — reading is open to everyone here.");
+    expect(card).toContain('data-testid="world-shelf-comment-input"');
+    /* The composer block only exists inside the member branch. */
+    const pitchAt = card.indexOf("Sign in to join the conversation");
+    const memberBranchAt = card.lastIndexOf("user ? (", pitchAt);
+    expect(memberBranchAt).toBeGreaterThan(-1);
+    expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeGreaterThan(memberBranchAt);
+    expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeLessThan(pitchAt);
   });
 });
