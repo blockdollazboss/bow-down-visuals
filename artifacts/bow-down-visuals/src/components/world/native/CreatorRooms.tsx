@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  Check,
   Crown,
   DoorOpen,
   Home,
   Loader2,
+  Lock,
   Music2,
+  Paintbrush,
   Play,
   ShoppingBag,
   Users,
@@ -15,13 +18,23 @@ import {
   fetchCreatorRoomDetail,
   fetchCreatorRoomDirectory,
   frontRowCourtMember,
+  putCreatorRoomDressing,
   type CreatorRoomDetail,
+  type CreatorRoomDressing,
   type CreatorRoomSummary,
 } from "@/lib/world/creator-rooms";
 import {
   creatorRoomEvolutionLine,
+  creatorRoomStars,
   creatorRoomTierDressing,
 } from "@/lib/world/creator-room-tier";
+import {
+  roomDressingBandName,
+  roomDressingOptions,
+  roomDressingStyleWords,
+} from "@/lib/world/creator-room-dressing";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 import { isSameShelfItem } from "@/lib/world/shelf";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { PortraitCard } from "./PortraitCard";
@@ -57,6 +70,189 @@ function loadRoomDetail(slug: string): Promise<CreatorRoomDetail | null> {
   });
   detailInflight.set(slug, p);
   return p;
+}
+
+/** After the host re-dresses their room, the cached read carries
+ *  the new dressing so the room's other stations agree with the
+ *  walls. */
+function patchCachedRoomDressing(slug: string, dressing: CreatorRoomDressing) {
+  const cached = detailCache.get(slug);
+  if (cached) detailCache.set(slug, { ...cached, dressing });
+}
+
+/* ─── The dressing desk: the host's own picker (Ring 4) ─────────────
+   Rendered only in the host's own room (the station threads
+   isOwnRoom from the walker's slug). The catalog and its gates
+   are the pure seam's (lib/world/creator-room-dressing): variants
+   at or below the walker's GATE stars — max(earned, grandfather
+   floor), the house gate — can be worn; the bands above stand
+   visible but locked, each with the honest rung that opens it.
+   A pick rides the owner's endpoint; the desk then wears the
+   SERVER's resolved dressing (the answer's DTO), patches the
+   cached room read, and tells the page to re-dress the scene. */
+
+function CreatorRoomDressingPicker({
+  slug,
+  detail,
+  isLight,
+  onDressingChanged,
+}: {
+  slug: string;
+  detail: CreatorRoomDetail;
+  isLight: boolean;
+  onDressingChanged?: (slug: string) => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const { gateStars } = useUserMode();
+  const [dressing, setDressing] = useState<CreatorRoomDressing | null>(detail.dressing);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  /* A fresher room read (a re-entry) re-words the desk from the
+   * server's resolution. */
+  useEffect(() => {
+    setDressing(detail.dressing);
+  }, [detail.dressing]);
+
+  const options = roomDressingOptions(gateStars);
+  const currentId = dressing?.variantId ?? null;
+
+  const pick = async (variantId: string) => {
+    if (variantId === currentId || savingId) return;
+    setSavingId(variantId);
+    setError(null);
+    setSaved(false);
+    try {
+      const token = await getAccessToken();
+      const resolved = await putCreatorRoomDressing(slug, variantId, gateStars, token);
+      setDressing(resolved);
+      patchCachedRoomDressing(slug, resolved);
+      setSaved(true);
+      onDressingChanged?.(slug);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't save your room's dressing. Try again.",
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const bands = [1, 2, 3, 4, 5, 6].map((band) => ({
+    band,
+    options: options.filter((o) => o.variant.band === band),
+  }));
+
+  return (
+    <div
+      className={`mb-3 rounded-2xl border px-3 py-3 ${
+        isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/25 bg-white/5"
+      }`}
+      data-testid="world-creator-room-dressing-desk"
+    >
+      <p
+        className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide ${
+          isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
+        }`}
+      >
+        <Paintbrush className="h-4 w-4 text-[#d4af37]" /> Your room&rsquo;s dressing
+      </p>
+      <p className={`pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+        {dressing
+          ? dressing.picked
+            ? `Wearing: ${dressing.name}. Pick any look at or below your rung — your visitors see the one you choose.`
+            : `Wearing the ${dressing.name} default — your room's rung look, until you pick one of your own.`
+          : "Your room wears its classic look. Pick any look at or below your rung — your visitors see the one you choose."}
+      </p>
+      <div className="space-y-2.5 pt-2.5">
+        {bands.map(({ band, options: bandOptions }) => (
+          <div key={band}>
+            <p
+              className="pb-1 text-[11px] font-black uppercase tracking-wide"
+              style={{ color: creatorRoomTierDressing(band).trimHex }}
+            >
+              {creatorRoomStars(band)} {roomDressingBandName(band)}
+            </p>
+            <div className="grid gap-1.5 sm:grid-cols-3">
+              {bandOptions.map(({ variant, locked, lockReason }) => {
+                const isCurrent = variant.id === currentId;
+                const isSaving = savingId === variant.id;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    disabled={locked || isCurrent || savingId !== null}
+                    onClick={() => void pick(variant.id)}
+                    data-testid={
+                      locked
+                        ? "world-creator-room-dressing-locked"
+                        : "world-creator-room-dressing-option"
+                    }
+                    className={`flex flex-col items-start gap-1 rounded-xl border px-2.5 py-2 text-left transition ${
+                      isCurrent
+                        ? isLight
+                          ? "border-[#7A5A12] bg-[#d4af37]/20"
+                          : "border-[#d4af37] bg-[#d4af37]/15"
+                        : locked
+                          ? isLight
+                            ? "border-[#C9A84C]/30 bg-white/30 opacity-70"
+                            : "border-white/10 bg-white/[0.02] opacity-60"
+                          : isLight
+                            ? "border-[#C9A84C]/50 bg-white/60 hover:border-[#7A5A12]"
+                            : "border-[#d4af37]/25 bg-white/5 hover:border-[#d4af37]/70"
+                    }`}
+                  >
+                    <span
+                      className="h-1.5 w-full rounded-full"
+                      style={{ background: creatorRoomTierDressing(band).trimHex }}
+                    />
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs font-bold ${
+                        isLight ? "text-[#2a1e07]" : "text-white"
+                      }`}
+                    >
+                      {variant.name.replace(`${roomDressingBandName(band)} `, "")}
+                      {isSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" />
+                      ) : isCurrent ? (
+                        <Check className="h-3.5 w-3.5 text-[#d4af37]" />
+                      ) : locked ? (
+                        <Lock className="h-3.5 w-3.5" />
+                      ) : null}
+                    </span>
+                    <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                      {roomDressingStyleWords(variant)}
+                    </span>
+                    {isCurrent && (
+                      <span className="text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">
+                        Wearing
+                      </span>
+                    )}
+                    {locked && lockReason && (
+                      <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
+                        {lockReason}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {error && (
+        <p className={`pt-2 text-xs font-semibold ${isLight ? "text-[#9a3412]" : "text-red-300"}`}>
+          That dressing wouldn&rsquo;t save — {error}
+        </p>
+      )}
+      {saved && !error && (
+        <p className={`pt-2 text-xs font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+          Saved — your walls wear it now, and every visitor sees it.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function useRoomDetail(slug: string | null): {
@@ -228,6 +424,8 @@ export function CreatorRoomStation({
   slug,
   isLight,
   isGuest,
+  isOwnRoom,
+  onDressingChanged,
   shelfPlayer,
   onPlayTrack,
 }: {
@@ -235,6 +433,13 @@ export function CreatorRoomStation({
   slug: string;
   isLight: boolean;
   isGuest: boolean;
+  /** True when the walker hosts this room — the dressing desk
+   *  (Ring 4) hangs only in the host's own room. Guests and other
+   *  members never see it: redressing is the owner's action. */
+  isOwnRoom?: boolean;
+  /** The host picked a new dressing — the page re-dresses the
+   *  scene from a fresh room read. */
+  onDressingChanged?: (slug: string) => void;
   shelfPlayer: ShelfPlayerController;
   /** Portrait Card Play seam: the host's jukebox.add intent (the
    *  card's own contract — a card press in ANY room offers the
@@ -269,6 +474,19 @@ export function CreatorRoomStation({
     );
   }
 
+  /* The dressing desk (Ring 4): the host's own picker, at the
+   * head of their room's stations. Only the host ever sees it —
+   * isOwnRoom comes from the walker's own slug, and the pick
+   * itself is enforced again server-side. */
+  const dressingDesk = isOwnRoom ? (
+    <CreatorRoomDressingPicker
+      slug={slug}
+      detail={detail}
+      isLight={isLight}
+      onDressingChanged={onDressingChanged}
+    />
+  ) : null;
+
   /* The room's evolution (Ring 3, Phase 5): the owner's earned
    * rung + what stands next, off the room DTO — shown at the head
    * of the room's stations. Unmeasured rooms show nothing. */
@@ -302,15 +520,19 @@ export function CreatorRoomStation({
     }
     if (detail.frontRow.length === 0) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t seated a Front Row yet — the chairs are here, the
-          portraits come when they crown their court.
-        </p>
+        <div>
+          {dressingDesk}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t seated a Front Row yet — the chairs are here, the
+            portraits come when they crown their court.
+          </p>
+        </div>
       );
     }
     return (
       <div>
         {evoHeader}
+        {dressingDesk}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {detail.frontRow.map((m) => (
             <button
@@ -358,15 +580,19 @@ export function CreatorRoomStation({
   if (stationId === "creator-music") {
     if (detail.tracks.length === 0) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t put any music on the rail yet — the shelf is here,
-          waiting for their first published song.
-        </p>
+        <div>
+          {dressingDesk}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t put any music on the rail yet — the shelf is here,
+            waiting for their first published song.
+          </p>
+        </div>
       );
     }
     return (
       <div className="space-y-1.5">
         {evoHeader}
+        {dressingDesk}
         {detail.tracks.map((t) => {
           const isCurrent =
             !!shelfPlayer.current &&
@@ -427,10 +653,13 @@ export function CreatorRoomStation({
     const video = detail.featuredVideo;
     if (!video) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t put a video on the screen yet — the screen wears
-          their name until their first featured piece.
-        </p>
+        <div>
+          {dressingDesk}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t put a video on the screen yet — the screen wears
+            their name until their first featured piece.
+          </p>
+        </div>
       );
     }
     const isCurrent =
@@ -439,6 +668,7 @@ export function CreatorRoomStation({
     return (
       <div className="space-y-2">
         {evoHeader}
+        {dressingDesk}
         <div
           className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}
         >
@@ -486,6 +716,7 @@ export function CreatorRoomStation({
   return (
     <div>
       {evoHeader}
+      {dressingDesk}
       <CreatorStorePanel detail={detail} isLight={isLight} />
     </div>
   );

@@ -43,6 +43,28 @@ export interface CreatorRoomEvolution {
   pointsNeeded: number | null;
 }
 
+/** A room's dressing (THE-GAME Ring 4): the owner's picked
+ *  template variant within their tier, resolved SERVER-side
+ *  (lib/world-room-dressing on the API) — a visitor's read
+ *  carries the host's choice, never a local guess. The variant
+ *  restyles the room through the dressing system's own
+ *  parameters (palette / trim / banner style); the catalog and
+ *  the picker live in lib/world/creator-room-dressing.ts. Null
+ *  when the server resolved none (unmeasured room, nothing
+ *  stored): the scene then wears its classic defaults, exactly
+ *  the Phase 5 rendering. */
+export interface CreatorRoomDressing {
+  variantId: string;
+  band: number;
+  name: string;
+  palette: "house" | "inverted" | "gilded";
+  trimStyle: "bar" | "double" | "crown";
+  bannerStyle: "flank" | "trio" | "none";
+  /** True when the owner picked this variant; false when it is
+   *  the band default an unpicked room wears. */
+  picked: boolean;
+}
+
 export interface CreatorRoomSummary {
   slug: string;
   displayName: string;
@@ -100,6 +122,7 @@ export interface CreatorRoomDetail {
   frontRow: CreatorRoomFrontRowMember[];
   storefront: { id: string; handle: string; name: string } | null;
   evolution: CreatorRoomEvolution | null;
+  dressing: CreatorRoomDressing | null;
 }
 
 /* ─── Parsing ─────────────────────────────────────────────────────── */
@@ -158,6 +181,38 @@ export function parseCreatorRoomEvolution(raw: unknown): CreatorRoomEvolution | 
       typeof raw["pointsNeeded"] === "number" && Number.isFinite(raw["pointsNeeded"])
         ? raw["pointsNeeded"]
         : null,
+  };
+}
+
+const DRESSING_PALETTES = ["house", "inverted", "gilded"] as const;
+const DRESSING_TRIM_STYLES = ["bar", "double", "crown"] as const;
+const DRESSING_BANNER_STYLES = ["flank", "trio", "none"] as const;
+
+/** The dressing DTO at the boundary: a variant id, a real band
+ *  (1–6) and the three style parameters, each one of the
+ *  catalog's own words — anything else reads as no dressing
+ *  (null), never as a half-trusted style the scene would wear. */
+export function parseCreatorRoomDressing(raw: unknown): CreatorRoomDressing | null {
+  if (!isRecord(raw)) return null;
+  const variantId = str(raw["variantId"]);
+  const name = str(raw["name"]);
+  const band = raw["band"];
+  if (!variantId || !name) return null;
+  if (typeof band !== "number" || !Number.isInteger(band) || band < 1 || band > 6) return null;
+  const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null =>
+    typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null;
+  const palette = oneOf(DRESSING_PALETTES, raw["palette"]);
+  const trimStyle = oneOf(DRESSING_TRIM_STYLES, raw["trimStyle"]);
+  const bannerStyle = oneOf(DRESSING_BANNER_STYLES, raw["bannerStyle"]);
+  if (!palette || !trimStyle || !bannerStyle) return null;
+  return {
+    variantId,
+    band,
+    name,
+    palette,
+    trimStyle,
+    bannerStyle,
+    picked: raw["picked"] === true,
   };
 }
 
@@ -271,6 +326,7 @@ export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | nu
           }
         : null,
     evolution: parseCreatorRoomEvolution(raw["evolution"]),
+    dressing: parseCreatorRoomDressing(raw["dressing"]),
   };
 }
 
@@ -307,6 +363,46 @@ export async function fetchCreatorRoomDetail(
   } catch {
     return null;
   }
+}
+
+export function creatorRoomDressingPath(slug: string): string {
+  return `${creatorRoomDetailPath(slug)}/dressing`;
+}
+
+/** The owner's dressing pick (Ring 4): PUT the chosen variant to
+ *  the room's dressing endpoint with the caller's session token
+ *  and their gate stars (the UserModeContext value — max(earned,
+ *  grandfather floor), asserted exactly as every exposure gate in
+ *  the house asserts it; the server re-checks ownership and the
+ *  gate against the earned rank). Resolves with the server's
+ *  freshly resolved dressing — the caller re-dresses the room
+ *  from the server's word, never from the local pick. Throws an
+ *  Error carrying the server's plain-words reason on refusal. */
+export async function putCreatorRoomDressing(
+  slug: string,
+  variantId: string,
+  gateStars: number,
+  token: string | null,
+): Promise<CreatorRoomDressing> {
+  const res = await fetch(creatorRoomDressingPath(slug), {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ variantId, savedDial: gateStars }),
+  });
+  const payload = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!res.ok) {
+    const message =
+      payload && typeof payload["error"] === "string" && payload["error"]
+        ? (payload["error"] as string)
+        : "Couldn't save your room's dressing. Try again.";
+    throw new Error(message);
+  }
+  const dressing = parseCreatorRoomDressing(payload?.["dressing"]);
+  if (!dressing) throw new Error("Couldn't save your room's dressing. Try again.");
+  return dressing;
 }
 
 /* ─── Deep entry ──────────────────────────────────────────────────── */

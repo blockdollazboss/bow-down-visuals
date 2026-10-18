@@ -118,6 +118,12 @@ export interface StationPanelProps {
   /** The signed-in walker's own profile slug — the arch panel
    *  pins "Your room" first when it matches a listed room. */
   mySlug?: string | null;
+  /** Creator Room dressing (Ring 4): the room's host changed its
+   *  dressing from the in-room picker — the page drops its cached
+   *  room read and re-dresses the scene. Optional — a host
+   *  without it leaves the pick saved server-side, worn on the
+   *  next entry. */
+  onRoomDressingChanged?: (slug: string) => void;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -1232,6 +1238,8 @@ export default function StationPanel(props: StationPanelProps) {
                 slug={slug}
                 isLight={isLight}
                 isGuest={isGuest}
+                isOwnRoom={(props.mySlug ?? null) === slug}
+                onDressingChanged={props.onRoomDressingChanged}
                 shelfPlayer={shelfPlayer}
                 onPlayTrack={props.onJukeboxAdd}
               />

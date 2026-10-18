@@ -986,6 +986,11 @@ export class KingsHallScene {
      *  tier's trim color. Absent = unmeasured room, no plate. */
     rankLine?: string | null;
     tierTrimHex?: string | null;
+    /** The owner's dressing choice (Ring 4): the picked template
+     *  variant's scene parameters. Absent = the classic tuple. */
+    palette?: "house" | "inverted" | "gilded";
+    trimStyle?: "bar" | "double" | "crown";
+    bannerStyle?: "flank" | "trio" | "none";
   } | null = null;
   private creatorDressingGroup: THREE.Group | null = null;
   /** The materials the current look's shells were built with —
@@ -2264,6 +2269,15 @@ export class KingsHallScene {
       screenVideoUrl: string | null;
       rankLine?: string | null;
       tierTrimHex?: string | null;
+      /* The owner's dressing choice (Ring 4): the picked template
+       * variant as scene parameters — palette treatment, trim
+       * style, banner style (lib/world/creator-room-dressing.ts,
+       * resolved server-side onto the room DTO). Absent — every
+       * caller that doesn't carry a dressing — wears the classic
+       * tuple, the Phase 5 rendering exactly. */
+      palette?: "house" | "inverted" | "gilded";
+      trimStyle?: "bar" | "double" | "crown";
+      bannerStyle?: "flank" | "trio" | "none";
     } | null,
   ): void {
     this.creatorDressing = dressing;
@@ -2305,43 +2319,83 @@ export class KingsHallScene {
     if (d.rankLine) {
       this.doorPlate(host, d.rankLine, cx, PALACE_DOOR_HEIGHT + 0.08, interior.minZ + 0.13, 0, 4.2);
       if (d.tierTrimHex) {
-        const trim = new THREE.Mesh(
-          new THREE.BoxGeometry(5.2, 0.07, 0.05),
-          new THREE.MeshStandardMaterial({
-            color: new THREE.Color(d.tierTrimHex),
-            roughness: 0.35,
-            metalness: 0.6,
-          }),
-        );
-        trim.position.set(cx, PALACE_DOOR_HEIGHT + 1.12, interior.minZ + 0.1);
-        host.add(trim);
+        const trimMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(d.tierTrimHex),
+          roughness: 0.35,
+          metalness: 0.6,
+        });
+        const trimBar = (width: number, height: number, y: number) => {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.05), trimMat);
+          bar.position.set(cx, y, interior.minZ + 0.1);
+          host.add(bar);
+        };
+        /* The variant's trim style (Ring 4): "bar" is the Phase 5
+         * single bar; "double" stacks a second over it; "crown"
+         * wears one wider, taller bar. */
+        if (d.trimStyle === "crown") {
+          trimBar(6.4, 0.14, PALACE_DOOR_HEIGHT + 1.16);
+        } else {
+          trimBar(5.2, 0.07, PALACE_DOOR_HEIGHT + 1.12);
+          if (d.trimStyle === "double") trimBar(5.2, 0.07, PALACE_DOOR_HEIGHT + 1.34);
+        }
       }
     }
 
-    const accent = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(d.accentHex),
+    /* The variant's palette treatment (Ring 4): "house" deals the
+     * hues as Phase 5 did — runner in accent, banners in primary;
+     * "inverted" swaps the two; "gilded" keeps the runner and
+     * dresses the banners in the tier's own gold (the theme
+     * primary stands in for an unmeasured room). */
+    const palette = d.palette ?? "house";
+    const runnerMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(palette === "inverted" ? d.primaryHex : d.accentHex),
       roughness: 0.85,
       metalness: 0.05,
     });
-    const primary = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(d.primaryHex),
-      roughness: 0.6,
-      metalness: 0.25,
-    });
+    const bannerMat =
+      palette === "gilded"
+        ? new THREE.MeshStandardMaterial({
+            color: new THREE.Color(d.tierTrimHex ?? d.primaryHex),
+            roughness: 0.35,
+            metalness: 0.6,
+          })
+        : new THREE.MeshStandardMaterial({
+            color: new THREE.Color(palette === "inverted" ? d.accentHex : d.primaryHex),
+            roughness: 0.6,
+            metalness: 0.25,
+          });
     // The runner: door to screen, in their accent.
-    const runner = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 8.6), accent);
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 8.6), runnerMat);
     runner.rotation.x = -Math.PI / 2;
     runner.position.set(cx, 0.018, 32.4);
     runner.renderOrder = 2;
     host.add(runner);
-    // Banners in their primary, flanking the screen.
-    for (const bx of [cx - 3.9, cx + 3.9]) {
-      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.1, 0.06), primary);
-      banner.position.set(bx, 3.5, interior.maxZ - 0.1);
-      host.add(banner);
-      const rod = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.09), mats.gold);
-      rod.position.set(bx, 5.1, interior.maxZ - 0.1);
-      host.add(rod);
+    /* The variant's banner style (Ring 4): "flank" is the Phase 5
+     * pair flanking the screen; "trio" adds a third on the east
+     * wall; "none" leaves the walls bare — the runner carries the
+     * room's color alone. */
+    const bannerStyle = d.bannerStyle ?? "flank";
+    if (bannerStyle !== "none") {
+      // Banners in their primary, flanking the screen.
+      for (const bx of [cx - 3.9, cx + 3.9]) {
+        const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.1, 0.06), bannerMat);
+        banner.position.set(bx, 3.5, interior.maxZ - 0.1);
+        host.add(banner);
+        const rod = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.09), mats.gold);
+        rod.position.set(bx, 5.1, interior.maxZ - 0.1);
+        host.add(rod);
+      }
+      if (bannerStyle === "trio") {
+        const midZ = (interior.minZ + interior.maxZ) / 2;
+        const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.1, 0.06), bannerMat);
+        banner.position.set(interior.maxX - 0.1, 3.5, midZ);
+        banner.rotation.y = Math.PI / 2;
+        host.add(banner);
+        const rod = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.09), mats.gold);
+        rod.position.set(interior.maxX - 0.1, 5.1, midZ);
+        rod.rotation.y = Math.PI / 2;
+        host.add(rod);
+      }
     }
     // Their portrait in the west frame: the creator's own image,
     // standing in their room whether or not they're home — their
