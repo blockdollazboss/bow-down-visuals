@@ -314,6 +314,17 @@ export const PALACE_STATIONS: PalaceStation[] = [
     websitePath: null,
   },
   {
+    id: "season-marks-wall",
+    roomId: ROYAL_COURT_ID,
+    name: "The Season Marks Wall",
+    tagline: "Every court season's final standings, carved as marks — who placed, and when.",
+    x: 16.4,
+    z: -16.9,
+    membersOnly: false,
+    panel: { kind: "custom", id: "season-marks" },
+    websitePath: null,
+  },
+  {
     id: "crowns-desk",
     roomId: ROYAL_COURT_ID,
     name: "Crowns & Memberships",
