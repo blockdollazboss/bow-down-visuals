@@ -480,7 +480,8 @@ describe("guest honest-states — look and listen only, said out loud", () => {
 
   it("the world page mounts the strip inside, across rooms", () => {
     expect(worldPageSrc).toContain("<ObjectiveStrip");
-    expect(worldPageSrc).toContain("isGuest={isGuest} directory={directory}");
+    expect(worldPageSrc).toContain("isGuest={isGuest}");
+    expect(worldPageSrc).toContain("directory={directory}");
   });
 
   it("the say box: members keep the composer byte-for-byte; guests get the pitch in its place", () => {

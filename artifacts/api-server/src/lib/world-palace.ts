@@ -52,6 +52,7 @@ import {
   WORLD_ROOM_ID,
   type PalaceAnnouncement,
   type WorldDropClaimer,
+  type WorldTutorialNotifier,
   worldIdentityKey,
   type WorldIdentity,
   type WorldRoomOptions,
@@ -240,6 +241,12 @@ export class WorldPalace {
    *  every other room, and nothing else. */
   private dropClaimer: WorldDropClaimer | undefined;
 
+  /** The tutorial notifier, kept the same way: creator rooms are
+   *  built later and carry it too (the verbs themselves are
+   *  room-gated — a creator room can only ever witness applause
+   *  with no stage, i.e. none; the rail stays uniform). */
+  private tutorialNotifier: WorldTutorialNotifier | undefined;
+
   constructor(
     private hub: RoomHub,
     deps: ConstructorParameters<typeof WorldRoom>[1] = {},
@@ -273,11 +280,13 @@ export class WorldPalace {
                 /* The Music Hall holds the palace's second stage —
                  * its performers take seat tips like the hall's. */
                 tipStagePerformer: deps.tipStagePerformer,
+                noteTutorialAction: deps.noteTutorialAction,
                 resolveStars: deps.resolveStars,
                 findRecentQuestClaim: deps.findRecentQuestClaim,
               }
             : {
                 claimWorldDrop: deps.claimWorldDrop,
+                noteTutorialAction: deps.noteTutorialAction,
                 resolveStars: deps.resolveStars,
                 findRecentQuestClaim: deps.findRecentQuestClaim,
               };
@@ -288,6 +297,7 @@ export class WorldPalace {
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
     this.dropClaimer = deps.claimWorldDrop;
+    this.tutorialNotifier = deps.noteTutorialAction;
   }
 
   /**
@@ -302,7 +312,7 @@ export class WorldPalace {
     const roomId = creatorRoomIdForSlug(slug);
     const room = new WorldRoom(
       this.hub,
-      { claimWorldDrop: this.dropClaimer },
+      { claimWorldDrop: this.dropClaimer, noteTutorialAction: this.tutorialNotifier },
       {
         roomId,
         name: creatorRoomName(displayName),

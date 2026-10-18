@@ -38,29 +38,35 @@
  * scheduler and the claimer are unit-tested against fakes; the
  * route layer wires the db store + the palace.
  */
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   db,
   kingMomentsTable,
   kingMomentClaimsTable,
-  questProgressTable,
   creatorProfilesTable,
   worldEventsTable,
   type KingMoment as KingMomentRow,
 } from "@workspace/db";
-import { QUEST_DEFS } from "./retention";
 import { PALACE_ROOM_DEFS, type WorldPalace } from "./world-palace";
 import { WORLD_ROOM_ID, type WorldKingMomentClaimer } from "./world-room";
 import { addCreditsAtomic } from "./supabase-admin";
+import {
+  questPoolSpendVb,
+  questPoolWeekStart,
+  dbQuestPoolStore,
+  WEEKLY_QUEST_POOL_VB,
+  type QuestPoolStore,
+} from "./quest-pool";
 import { logger } from "./logger";
+
+/** The weekly quest pool's ceiling — owned by lib/quest-pool
+ *  (the one envelope: quest claims + King gifts + tutorial
+ *  rewards); re-exported here for this module's earlier callers. */
+export { WEEKLY_QUEST_POOL_VB };
 
 /** The audience gift, in VB — drawn from the weekly quest pool
  *  (see the money rule above), never issued on top of it. */
 export const KING_MOMENT_REWARD_VB = 25;
-
-/** The weekly quest pool's ceiling (QUEST_DEFS sum; the moment's
- *  gifts and the quests share this one envelope per member). */
-export const WEEKLY_QUEST_POOL_VB = 300;
 
 /** How long after the firing the hall's claim window stands. */
 export const KING_MOMENT_CLAIM_WINDOW_MS = 60 * 60_000;
@@ -81,12 +87,10 @@ export function kingMomentDate(now: Date): string {
 }
 
 /** Monday (UTC) of the week containing `now`, YYYY-MM-DD — the
- *  quest week's key, mirroring lib/retention's currentWeekStart
- *  math against an explicit clock so claims are testable. */
+ *  quest week's key. The math lives in lib/quest-pool (the pool
+ *  envelope's home); this alias keeps the moment's callers put. */
 export function kingWeekStart(now: Date): string {
-  const dayIdx = (now.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayIdx));
-  return monday.toISOString().slice(0, 10);
+  return questPoolWeekStart(now);
 }
 
 /* ── The announcement (pure) ────────────────────────────────────── */
@@ -137,12 +141,6 @@ export interface KingMomentStore {
     claimDeadline: Date;
     payload: Record<string, unknown>;
   }): Promise<boolean>;
-  /** VB this member has drawn from the week's quest pool through
-   *  QUEST claims (claimed rows of the current quest week). */
-  questClaimsVb(userId: string, weekStart: string): Promise<number>;
-  /** VB this member has drawn from the pool through KING gifts
-   *  in the week starting `weekStart` (a YYYY-MM-DD Monday). */
-  kingClaimsVb(userId: string, weekStart: string): Promise<number>;
   /** Record a claim. Returns false on the (user, date) unique
    *  conflict — the member already claimed today's gift. */
   insertClaim(userId: string, date: string, amountVb: number): Promise<boolean>;
@@ -174,34 +172,6 @@ export const dbKingMomentStore: KingMomentStore = {
       .onConflictDoNothing()
       .returning({ momentDate: kingMomentsTable.momentDate });
     return inserted.length > 0;
-  },
-
-  async questClaimsVb(userId, weekStart) {
-    const rows = await db
-      .select({ questKey: questProgressTable.questKey, claimedAt: questProgressTable.claimedAt })
-      .from(questProgressTable)
-      .where(
-        and(eq(questProgressTable.userId, userId), eq(questProgressTable.weekStart, weekStart)),
-      );
-    let sum = 0;
-    for (const r of rows) {
-      if (!r.claimedAt) continue;
-      sum += QUEST_DEFS.find((d) => d.key === r.questKey)?.reward ?? 0;
-    }
-    return sum;
-  },
-
-  async kingClaimsVb(userId, weekStart) {
-    const rows = await db
-      .select({ amountVb: kingMomentClaimsTable.amountVb })
-      .from(kingMomentClaimsTable)
-      .where(
-        and(
-          eq(kingMomentClaimsTable.userId, userId),
-          gte(kingMomentClaimsTable.momentDate, weekStart),
-        ),
-      );
-    return rows.reduce((s, r) => s + r.amountVb, 0);
   },
 
   async insertClaim(userId, date, amountVb) {
@@ -300,6 +270,7 @@ export const dbKingMomentStore: KingMomentStore = {
  */
 export function createKingMomentClaimer(
   store: KingMomentStore = dbKingMomentStore,
+  pool: QuestPoolStore = dbQuestPoolStore,
 ): WorldKingMomentClaimer {
   return async (userId, date, nowMs) => {
     try {
@@ -307,12 +278,12 @@ export function createKingMomentClaimer(
       if (!moment || nowMs > new Date(moment.claimDeadline).getTime()) {
         return { ok: false, reason: "closed" };
       }
+      /* The pool is the shared envelope (lib/quest-pool): quest
+       * claims + King gifts + tutorial rewards all count, so no
+       * rail can pay past the member's week. */
       const weekStart = kingWeekStart(new Date(nowMs));
-      const [questVb, kingVb] = await Promise.all([
-        store.questClaimsVb(userId, weekStart),
-        store.kingClaimsVb(userId, weekStart),
-      ]);
-      if (questVb + kingVb + KING_MOMENT_REWARD_VB > WEEKLY_QUEST_POOL_VB) {
+      const spentVb = await questPoolSpendVb(pool, userId, weekStart);
+      if (spentVb + KING_MOMENT_REWARD_VB > WEEKLY_QUEST_POOL_VB) {
         return { ok: false, reason: "pool" };
       }
       const inserted = await store.insertClaim(userId, date, KING_MOMENT_REWARD_VB);

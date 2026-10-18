@@ -62,6 +62,12 @@ import {
   stageTipDeniedLine,
 } from "@/lib/world/stage-tip";
 import {
+  parseTutorialStatus,
+  tutorialStripLine,
+  tutorialGuidance,
+  type TutorialStatus,
+} from "@/lib/world/tutorial";
+import {
   nearestStation,
   STATION_BY_ID,
   type PalaceStation,
@@ -341,6 +347,14 @@ export default function WorldPage() {
    * words, on the tip bar. Landed tips speak for themselves — the
    * room witnesses them (the log + the moment toast). */
   const [tipNote, setTipNote] = useState<string | null>(null);
+  /* "Your First 10 Minutes" (Ring 3, Phase 6): the member's
+   * quest-line status from GET /api/world/tutorial — the read
+   * reconciles server-side, so this page just refreshes it at the
+   * moments a step could have landed (entering, changing rooms,
+   * closing a station panel). */
+  const [tutorialStatus, setTutorialStatus] = useState<TutorialStatus | null>(null);
+  const [tutorialClaimBusy, setTutorialClaimBusy] = useState(false);
+  const [tutorialMsg, setTutorialMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -624,6 +638,59 @@ export default function WorldPage() {
   }, [user, stars, getAccessToken]);
   const runLevelCheckRef = useRef(runLevelCheck);
   runLevelCheckRef.current = runLevelCheck;
+
+  /* "Your First 10 Minutes" (Phase 6): refresh the quest-line
+   * status. The read reconciles server-side against the real
+   * rails, so the page refreshes at the moments a step could have
+   * landed — entering, changing rooms, closing a station panel.
+   * Members only; a failed read keeps the last known status. */
+  const refreshTutorial = useCallback(async () => {
+    if (!user || isGuest) return;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/world/tutorial", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => undefined);
+      if (!res?.ok) return;
+      const parsed = parseTutorialStatus(await res.json().catch(() => null));
+      if (parsed) setTutorialStatus(parsed);
+    } catch {
+      /* The strip keeps its last known line. */
+    }
+  }, [user, isGuest, getAccessToken]);
+
+  useEffect(() => {
+    if (status !== "inside") return;
+    void refreshTutorial();
+  }, [status, roomId, refreshTutorial]);
+
+  const claimTutorialReward = useCallback(async () => {
+    if (tutorialClaimBusy) return;
+    setTutorialClaimBusy(true);
+    setTutorialMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/world/tutorial/claim", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { claimed?: boolean; amountVb?: number; error?: string }
+        | null;
+      if (res.ok && body?.claimed) {
+        setTutorialMsg(
+          `Quest line complete — ${body.amountVb ?? ""} Visual Bucs added to your balance.`,
+        );
+      } else {
+        setTutorialMsg(body?.error ?? "That claim didn't land — nothing was paid.");
+      }
+    } catch {
+      setTutorialMsg("That claim didn't land — nothing was paid.");
+    } finally {
+      setTutorialClaimBusy(false);
+      void refreshTutorial();
+    }
+  }, [tutorialClaimBusy, getAccessToken, refreshTutorial]);
 
   /* Entry runs the check (and a mid-visit level change re-runs it —
    * evaluateLevel makes repeats harmless: equal is "none"). */
@@ -1772,7 +1839,41 @@ export default function WorldPage() {
           sign-in pitch: they hold no hand, so there is no objective
           and no streak to name for them. */}
       {status === "inside" && (
-        <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} kingMoment={kingMoment} />
+        <ObjectiveStrip
+          isLight={isLight}
+          isGuest={isGuest}
+          directory={directory}
+          kingMoment={kingMoment}
+          tutorialLine={tutorialStripLine(tutorialStatus)}
+          onTutorialClaim={
+            tutorialStatus?.completed && !tutorialStatus.reward.claimed
+              ? claimTutorialReward
+              : undefined
+          }
+          tutorialClaimBusy={tutorialClaimBusy}
+        />
+      )}
+      {/* The tutorial's guidance + claim word (Phase 6): one quiet
+          line under the strip — where the current step happens, or
+          what the claim said. Members on the line only. */}
+      {status === "inside" && !isGuest && (tutorialGuidance(tutorialStatus) || tutorialMsg) && (
+        <div
+          className={`relative z-20 flex items-center gap-2 px-4 py-1 text-[11px] font-medium ${
+            isLight ? "bg-[#FBF6E9] text-[#6B5B36]" : "bg-[#070605] text-white/55"
+          }`}
+          data-testid="world-tutorial-guidance"
+        >
+          <span>{tutorialMsg ?? tutorialGuidance(tutorialStatus)}</span>
+          {tutorialMsg && (
+            <button
+              type="button"
+              onClick={() => setTutorialMsg(null)}
+              className="font-bold underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
       )}
 
       {/* The palace announcement (Ring 3, THE-GAME §5(b)): the
@@ -2606,7 +2707,12 @@ export default function WorldPage() {
           target={panelTarget}
           isLight={isLight}
           isGuest={isGuest}
-          onClose={() => setPanelTarget(null)}
+          onClose={() => {
+            setPanelTarget(null);
+            /* A station visit is where tutorial steps land (the
+               drop claim, the quest claim) — re-read the line. */
+            void refreshTutorial();
+          }}
           directory={directory}
           currentRoomId={roomId}
           kingLine={kingStripLine(kingMoment, Date.now(), isGuest)}

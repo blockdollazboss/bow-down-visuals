@@ -679,6 +679,22 @@ export type WorldStageTipper = (input: {
   attemptKey: string;
 }) => Promise<WorldStageTipResult>;
 
+/* ── Tutorial verbs (Ring 3, Phase 6) ─────────────────────────────
+ * "Your First 10 Minutes" completes three of its steps from what
+ * a member DOES in the palace: walking to the King, walking into
+ * the Treasury (the quest board's room), applauding at a show.
+ * The room reports the verb through this injected note; the
+ * tutorial rail (lib/world-tutorial) decides whether the verb's
+ * step is the member's current one — the room just witnesses.
+ * Fire-and-forget: a tutorial note can never break a frame. */
+
+export type WorldTutorialVerb = "meet-king" | "quest-board" | "applaud";
+
+/** Injected by the route layer: note one tutorial verb for a
+ *  member. Called at most once per verb per session per room
+ *  (the peer's latch) — the rail dedupes the rest. */
+export type WorldTutorialNotifier = (userId: string, verb: WorldTutorialVerb) => void;
+
 /** The pace between one member's stage tips in a room — tips are
  *  applause with weight, not a faucet to hold open. */
 export const STAGE_TIP_MIN_INTERVAL_MS = 2_000;
@@ -902,6 +918,9 @@ interface WorldPeer extends WorldIdentity {
    *  STAGE_TIP_MIN_INTERVAL_MS). Set when the attempt is taken,
    *  before the async transfer runs. */
   lastTipAt: number;
+  /** Tutorial verbs already noted for this peer this session
+   *  (the room-side latch — the rail dedupes across sessions). */
+  tutorialVerbsFired: Set<WorldTutorialVerb>;
   /** The last quest claim this session witnessed, keyed
    *  `<questKey>@<claimedAtMs>` — one claim, one moment, even if
    *  the intent is re-sent inside the freshness window. */
@@ -1075,6 +1094,7 @@ export class WorldRoom {
       claimWorldDrop?: WorldDropClaimer;
       claimKingMoment?: WorldKingMomentClaimer;
       tipStagePerformer?: WorldStageTipper;
+      noteTutorialAction?: WorldTutorialNotifier;
       resolveStars?: WorldStarsResolver;
       findRecentQuestClaim?: WorldQuestClaimFinder;
     } = {},
@@ -1239,6 +1259,7 @@ export class WorldRoom {
       announcedStars: carry?.announcedStars ?? stars ?? 0,
       lastMomentAt: 0,
       lastTipAt: 0,
+      tutorialVerbsFired: new Set(),
       lastQuestMomentKey: null,
       x: at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1,
       y: 0,
@@ -1283,6 +1304,10 @@ export class WorldRoom {
     // everything about itself; peer.join is strictly for the room.
     this.broadcastExcept(peer, { type: "peer.join", peer: this.dto(peer) });
     this.onChange?.();
+    /* Tutorial (Phase 6): walking into the Treasury IS the quest
+     * board step — the board stands in this room. Noted once per
+     * session (the latch); the rail checks the step is current. */
+    if (this.roomId === "world:treasury") this.noteTutorial(peer, "quest-board");
     return true;
   }
 
@@ -1747,6 +1772,21 @@ export class WorldRoom {
     return true;
   }
 
+  /* ── Tutorial verbs (Phase 6): the room witnesses, the rail
+   * decides. Latched per peer per session so a member standing in
+   * the throne zone doesn't note the verb on every move frame. */
+  private noteTutorial(peer: WorldPeer, verb: WorldTutorialVerb): void {
+    const note = this.deps.noteTutorialAction;
+    if (!note || !peer.userId || peer.guest) return;
+    if (peer.tutorialVerbsFired.has(verb)) return;
+    peer.tutorialVerbsFired.add(verb);
+    try {
+      note(peer.userId, verb);
+    } catch {
+      /* A tutorial note can never break the room. */
+    }
+  }
+
   /* ── The jukebox (Music Hall) ───────────────────────────────────── */
 
   /** Where the current song is right now, from its anchor. */
@@ -1937,6 +1977,17 @@ export class WorldRoom {
           z: peer.z,
           rotY: peer.rotY,
         });
+        /* Tutorial (Phase 6): the throne zone — the front of the
+         * hall, before the stage — is where a member meets the
+         * King. The hall's stage end is its −Z end (bounds minZ
+         * −17, the stage plate hangs at the top of the room). */
+        if (
+          this.roomId === WORLD_ROOM_ID &&
+          Math.abs(peer.x) <= 6 &&
+          peer.z <= -6
+        ) {
+          this.noteTutorial(peer, "meet-king");
+        }
         return;
       }
       case "action": {
@@ -1967,6 +2018,12 @@ export class WorldRoom {
         }
         peer.action = { id, at: now };
         this.broadcastExcept(peer, { type: "peer.action", peerId: peer.peerId, action: id });
+        /* Tutorial (Phase 6): applause is clapping or cheering
+         * while a show holds THIS room's stage — applause in an
+         * empty room is just exercise. */
+        if ((id === "clap" || id === "cheer") && this.stageHolder) {
+          this.noteTutorial(peer, "applaud");
+        }
         return;
       }
       case "say": {
@@ -2467,6 +2524,11 @@ export class WorldRoom {
               type: "stage.tipped",
               tip: { name: fromName, performerName: holder.name, amountVb },
             });
+            /* Tutorial (Phase 6): a landed stage tip is applause
+             * with weight — it satisfies the applaud step for the
+             * tipper just as a clap does (THE-GAME §4.6 step 6). */
+            const tipperPeer = this.peerForUserId(fromUserId);
+            if (tipperPeer) this.noteTutorial(tipperPeer, "applaud");
           })
           .catch(() => {
             const tipperPeer = this.peerForUserId(fromUserId);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Target, Flame, Crown, LogIn } from "lucide-react";
+import { Target, Flame, Crown, LogIn, Compass, Coins } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   destinationLabel,
@@ -51,6 +51,9 @@ export function ObjectiveStrip({
   isGuest,
   directory,
   kingMoment,
+  tutorialLine,
+  onTutorialClaim,
+  tutorialClaimBusy,
 }: {
   isLight: boolean;
   isGuest: boolean;
@@ -60,6 +63,15 @@ export function ObjectiveStrip({
    *  strip carries the king line ahead of the palace slot. Null
    *  (or past its deadline) renders no king chip at all. */
   kingMoment?: WorldKingMomentState | null;
+  /** "Your First 10 Minutes" (Ring 3, Phase 6): while the member's
+   *  quest line stands, its chip leads the strip — a new member's
+   *  next step outranks the weekly quest summary, which returns
+   *  when the line completes and its reward is claimed (or when
+   *  no status has loaded). Members only; guests never see it. */
+  tutorialLine?: string | null;
+  /** The completed line's claim action, shown beside the line. */
+  onTutorialClaim?: () => void;
+  tutorialClaimBusy?: boolean;
 }) {
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
@@ -266,7 +278,27 @@ export function ObjectiveStrip({
       >
         Your next things
       </span>
-      {slots.quest && (
+      {!isGuest && tutorialLine && (
+        <span className={slotCls} data-testid="world-objective-tutorial">
+          <span className={labelCls}>
+            <Compass className="h-3 w-3" /> Tutorial
+          </span>
+          <span>{tutorialLine}</span>
+          {onTutorialClaim && (
+            <button
+              type="button"
+              onClick={onTutorialClaim}
+              disabled={tutorialClaimBusy}
+              data-testid="world-objective-tutorial-claim"
+              className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-0.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50"
+            >
+              <Coins className="h-3 w-3" />{" "}
+              {tutorialClaimBusy ? "Claiming…" : "Claim"}
+            </button>
+          )}
+        </span>
+      )}
+      {slots.quest && !tutorialLine && (
         <span className={slotCls} data-testid="world-objective-quest">
           <span className={labelCls}>
             <Target className="h-3 w-3" /> Quest

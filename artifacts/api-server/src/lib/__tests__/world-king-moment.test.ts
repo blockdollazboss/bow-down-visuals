@@ -136,6 +136,18 @@ class FakeKingStore implements KingMomentStore {
 const FIRE_MS = Date.parse("2026-10-17T00:00:30.000Z");
 const DATE = "2026-10-17";
 
+
+/** The shared pool (lib/quest-pool) as this fake's world reports
+ *  it: quest sums from the field, king gifts from the claims map,
+ *  tutorial rewards zero unless a test seeds them. */
+function poolOf(store: FakeKingStore, tutorialVb = 0): import("../quest-pool").QuestPoolStore {
+  return {
+    questClaimsVb: async () => store.questVb,
+    kingClaimsVb: (u, w) => store.kingClaimsVb(u, w),
+    tutorialClaimsVb: async () => tutorialVb,
+  };
+}
+
 describe("the palace calendar math", () => {
   it("the palace day is the UTC date; the week starts Monday (UTC)", () => {
     expect(kingMomentDate(new Date("2026-10-17T23:59:59.000Z"))).toBe("2026-10-17");
@@ -191,7 +203,7 @@ describe("the claimer — the money rule", () => {
 
   it("pays the gift inside the window and records the claim", async () => {
     const store = firedStore();
-    const claim = createKingMomentClaimer(store);
+    const claim = createKingMomentClaimer(store, poolOf(store));
     await expect(claim("user-a", DATE, claimAt)).resolves.toEqual({
       ok: true,
       amountVb: KING_MOMENT_REWARD_VB,
@@ -202,7 +214,7 @@ describe("the claimer — the money rule", () => {
 
   it("refuses when no moment fired, and after the deadline (closed)", async () => {
     const store = firedStore();
-    const claim = createKingMomentClaimer(store);
+    const claim = createKingMomentClaimer(store, poolOf(store));
     await expect(claim("user-a", "2026-10-16", claimAt)).resolves.toEqual({
       ok: false,
       reason: "closed",
@@ -216,7 +228,7 @@ describe("the claimer — the money rule", () => {
 
   it("refuses a second claim the same day (already) without paying twice", async () => {
     const store = firedStore();
-    const claim = createKingMomentClaimer(store);
+    const claim = createKingMomentClaimer(store, poolOf(store));
     await claim("user-a", DATE, claimAt);
     await expect(claim("user-a", DATE, claimAt + 1000)).resolves.toEqual({
       ok: false,
@@ -227,7 +239,7 @@ describe("the claimer — the money rule", () => {
 
   it("the pool is one envelope: quest earnings and past gifts both count against the 300", async () => {
     const store = firedStore();
-    const claim = createKingMomentClaimer(store);
+    const claim = createKingMomentClaimer(store, poolOf(store));
     // 280 from quests + 25 gift > 300 → pool spent.
     store.questVb = 280;
     await expect(claim("user-a", DATE, claimAt)).resolves.toEqual({ ok: false, reason: "pool" });
@@ -241,15 +253,28 @@ describe("the claimer — the money rule", () => {
     const store2 = firedStore();
     store2.questVb = 275;
     store2.claims.set("user-a|2026-10-16", KING_MOMENT_REWARD_VB);
-    const claim2 = createKingMomentClaimer(store2);
+    const claim2 = createKingMomentClaimer(store2, poolOf(store2));
     await expect(claim2("user-a", DATE, claimAt)).resolves.toEqual({ ok: false, reason: "pool" });
     expect(WEEKLY_QUEST_POOL_VB).toBe(300);
+  });
+
+  it("tutorial rewards draw from the same envelope (the shared pool, Phase 6)", async () => {
+    const store = firedStore();
+    store.questVb = 260; // 260 + 30 tutorial + 25 gift > 300 → pool spent
+    const claim = createKingMomentClaimer(store, poolOf(store, 30));
+    await expect(claim("user-a", DATE, claimAt)).resolves.toEqual({ ok: false, reason: "pool" });
+    // Without the tutorial draw the same week pays.
+    const claim2 = createKingMomentClaimer(store, poolOf(store, 0));
+    await expect(claim2("user-a", DATE, claimAt)).resolves.toEqual({
+      ok: true,
+      amountVb: KING_MOMENT_REWARD_VB,
+    });
   });
 
   it("a failed grant rolls the claim row back and reports error — the member may retry", async () => {
     const store = firedStore();
     store.grantFails = true;
-    const claim = createKingMomentClaimer(store);
+    const claim = createKingMomentClaimer(store, poolOf(store));
     await expect(claim("user-a", DATE, claimAt)).resolves.toEqual({ ok: false, reason: "error" });
     expect(store.claims.has(`user-a|${DATE}`)).toBe(false);
     store.grantFails = false;

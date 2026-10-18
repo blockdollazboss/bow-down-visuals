@@ -66,6 +66,7 @@ import {
   createKingMomentClaimer,
 } from "../lib/world-king-moment";
 import { createStageTipper } from "../lib/world-stage-tips";
+import { createTutorialActionNotifier } from "../lib/world-tutorial";
 
 const router = Router();
 
@@ -1268,6 +1269,11 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
        * palace hands it to the two stage rooms (hall + Music
        * Hall). No fee — no house rule prices a cut of VB tips. */
       tipStagePerformer: createStageTipper(),
+      /* "Your First 10 Minutes" (Ring 3, Phase 6): the rooms note
+       * the tutorial verbs (walk to the King, enter the Treasury,
+       * applaud at a show); the rail in lib/world-tutorial owns
+       * the progress. Palace-wide like the other witnessed rails. */
+      noteTutorialAction: createTutorialActionNotifier(),
       /* Witnessed moments (THE-GAME §5(a)): the rooms verify quest +
        * levelup intents against these rails. A failed stars read is
        * "no level on record" — the moment is refused, never guessed. */
