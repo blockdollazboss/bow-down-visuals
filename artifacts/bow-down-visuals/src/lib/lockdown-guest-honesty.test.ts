@@ -22,6 +22,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 const profileSections = read("../components/artist/profile-sections.tsx");
 const worldSource = read("../pages/world.tsx");
 const earningsSource = read("../pages/earnings.tsx");
+const earningsDataSource = read("./earnings-data.ts");
 
 const segment = (src: string, from: string, to: string) => {
   const a = src.indexOf(from);
@@ -133,11 +134,18 @@ describe("Earnings — signed-out pitch instead of the doomed-fetch error card",
     );
   });
 
-  it("the fetch never fires without a session (guard precedes the fetch)", () => {
+  it("the fetch never fires without a session (guard precedes the load)", () => {
     expect(earningsSource).toContain("if (authLoading || !user) return;");
+    /* Batch union (lockdown × earnings-load-fix): the page no longer
+       fetches directly — its one network path is the guarded effect's
+       loadEarnings call, and the guard precedes it. The endpoint
+       literal lives in the loader (lib/earnings-data.ts), which only
+       that guarded call can reach. */
+    expect(earningsSource).not.toContain('fetch("/api/earnings"');
     expect(earningsSource.indexOf("if (authLoading || !user) return;")).toBeLessThan(
-      earningsSource.indexOf('fetch("/api/earnings"'),
+      earningsSource.indexOf("await loadEarnings({"),
     );
+    expect(earningsDataSource).toContain('fetchFn("/api/earnings"');
   });
 
   it("the signed-out branch renders the pitch — before the failure branch", () => {
