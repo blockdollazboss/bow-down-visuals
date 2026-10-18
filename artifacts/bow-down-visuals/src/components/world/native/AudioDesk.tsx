@@ -52,6 +52,14 @@ import type { CreateDeskProps } from "./CreateDesks";
 import {
   audioCleanupCost,
   beatCost,
+  BEAT_BPM_DEFAULT,
+  BEAT_KEYS,
+  BEAT_LENGTH_DEFAULT,
+  BEAT_LENGTHS,
+  BEAT_TITLE_MAX,
+  beatBpmInputOf,
+  beatLengthOf,
+  beatResultTitleOf,
   buildBeatPayload,
   buildEditorProjectPayload,
   buildSfxPayload,
@@ -130,10 +138,13 @@ export function AudioDesk(props: CreateDeskProps) {
   const [beatGenre, setBeatGenre] = useState("trap");
   /* Ring 2 (2.8): the beat bench's numbers, surfaced — the page's
      defaults (140 BPM, key C, 60 seconds) are the starting values,
-     never a silent post again. */
-  const [beatBpm, setBeatBpm] = useState(140);
+     never a silent post again. Stack-20 #11: the fields now speak
+     the website's exact ranges (lib/world/create-desks' beat
+     numbers — BPM clamped 60–200, the page's twelve keys, its
+     four durations), so a chosen number is the posted number. */
+  const [beatBpm, setBeatBpm] = useState(BEAT_BPM_DEFAULT);
   const [beatKey, setBeatKey] = useState("C");
-  const [beatLength, setBeatLength] = useState(60);
+  const [beatLength, setBeatLength] = useState(BEAT_LENGTH_DEFAULT);
   const [beatTitle, setBeatTitle] = useState("");
   const [pickedSong, setPickedSong] = useState<LibrarySong | null>(null);
   const quest = useQuestProgressChip();
@@ -332,7 +343,11 @@ export function AudioDesk(props: CreateDeskProps) {
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       if (!res.ok || !data.url) throw new Error(data.message || data.error || "Generation failed.");
       setResultUrl(data.url);
-      setResultTitle(isBeat ? "Your beat" : "Your sound effect");
+      setResultTitle(
+        isBeat
+          ? beatResultTitleOf({ title: beatTitle, genre: beatGenre, bpm: beatBpm, musicalKey: beatKey, lengthSeconds: beatLength })
+          : "Your sound effect",
+      );
       refreshProfile();
       setState("done");
       void quest.checkAfter();
@@ -522,16 +537,22 @@ export function AudioDesk(props: CreateDeskProps) {
               options={["hip-hop", "trap", "drill", "r&b", "afrobeats", "pop", "edm", "lofi", "dancehall", "jersey-club"].map((g) => ({ value: g, label: g }))}
             />
             <div className="grid gap-3 sm:grid-cols-2">
-              <DeskTextField isLight={isLight} label="BPM" value={String(beatBpm)} onChange={(v) => setBeatBpm(Number(v.replace(/[^0-9]/g, "")) || 140)} />
+              <DeskTextField isLight={isLight} label="BPM" value={String(beatBpm)} onChange={(v) => setBeatBpm(beatBpmInputOf(v))} />
               <DeskSelectField
                 isLight={isLight}
                 label="Musical key"
                 value={beatKey}
                 onChange={setBeatKey}
-                options={["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "Cm", "Dm", "Em", "Fm", "Gm", "Am"].map((k) => ({ value: k, label: k }))}
+                options={BEAT_KEYS.map((k) => ({ value: k, label: k }))}
               />
-              <DeskTextField isLight={isLight} label="Length (seconds)" value={String(beatLength)} onChange={(v) => setBeatLength(Number(v.replace(/[^0-9]/g, "")) || 60)} />
-              <DeskTextField isLight={isLight} label="Beat title" value={beatTitle} onChange={setBeatTitle} />
+              <DeskSelectField
+                isLight={isLight}
+                label="Length"
+                value={String(beatLength)}
+                onChange={(v) => setBeatLength(beatLengthOf(Number(v)))}
+                options={BEAT_LENGTHS.map((d) => ({ value: String(d.value), label: d.label }))}
+              />
+              <DeskTextField isLight={isLight} label="Beat title" value={beatTitle} onChange={(v) => setBeatTitle(v.slice(0, BEAT_TITLE_MAX))} />
             </div>
           </div>
         )}
