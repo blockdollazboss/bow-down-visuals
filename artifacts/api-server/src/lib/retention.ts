@@ -9,6 +9,7 @@
 import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable } from "@workspace/db";
 import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
+import { advanceDailyQuestsForUser, type DailyQuestDef } from "./daily-quests";
 import { logger } from "./logger";
 
 export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
@@ -256,13 +257,51 @@ async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
   }
 }
 
+/** Ring 4: the Daily Quest Trio's completion bell — the weekly
+ *  bell's daily twin (DE-18's rule: a finished quest never waits
+ *  silently). The trio's rewards claim on the Quest Board (the
+ *  widget lives on /dashboard and in the Treasury alike); the bell
+ *  links where the weekly bell links. Best-effort, like its twin. */
+async function notifyDailyQuestComplete(userId: string, def: DailyQuestDef): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Daily quest complete ☀️",
+      body: `You finished today's “${def.name}” — ${def.rewardVb} Visual Bucs and ${def.marks} marks are waiting on the Quest Board. Today's slate turns at the day-turn, so claim it today.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, questKey: def.key }, "[retention] daily quest-complete notification failed");
+  }
+}
+
+/** Ring 4: advance the Daily Quest Trio on the same event the
+ *  weekly quests just read — the trio rides this hook (its defs
+ *  are day-scoped; lib/daily-quests owns the slate + the store).
+ *  At most ONE daily bell per hook call, the Stack-30 C2 rule the
+ *  weekly half follows: one action, one bell, however many quests
+ *  it finished. Never throws (the daily tracker swallows its own
+ *  failures; this wrapper is the second belt). */
+async function updateDailyQuests(userId: string, kind: CreationKind): Promise<void> {
+  try {
+    const flipped = await advanceDailyQuestsForUser(userId, kind);
+    if (flipped[0]) await notifyDailyQuestComplete(userId, flipped[0]);
+  } catch (err) {
+    logger.warn({ err, userId, kind }, "[retention] daily quest advance failed");
+  }
+}
+
 /* ── THE HOOK: call after any creation event ─────────────────────────────
    Fire-and-forget: callers should .catch() it. Never throws. */
 export async function recordCreation(userId: string, kind: CreationKind): Promise<void> {
   try {
     const prefs = await getPrefs(userId);
     if (prefs.creationStreaksEnabled) await updateStreak(userId);
-    if (prefs.questsEnabled) await updateQuests(userId, kind);
+    if (prefs.questsEnabled) {
+      await updateQuests(userId, kind);
+      await updateDailyQuests(userId, kind);
+    }
   } catch (err) {
     logger.warn({ err, userId, kind }, "[retention] recordCreation failed");
   }
@@ -279,9 +318,18 @@ export async function recordShareEvent(userId: string): Promise<void> {
     if (!prefs.questsEnabled) return;
     if (!prefs.shareToEarnEnabled) return;
     await updateQuests(userId, "share");
+    await updateDailyQuests(userId, "share");
   } catch (err) {
     logger.warn({ err, userId }, "[retention] recordShareEvent failed");
   }
+}
+
+/** The quests on/off pref, read for the daily trio's routes
+ *  (lib/daily-quests' claim rail honors the same switch the
+ *  weekly claims honor — one switch for the whole quest house). */
+export async function getQuestsEnabled(userId: string): Promise<boolean> {
+  const prefs = await getPrefs(userId);
+  return prefs.questsEnabled;
 }
 
 /* ── READ API (used by routes) ─────────────────────────────────────────── */

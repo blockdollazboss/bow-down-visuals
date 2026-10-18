@@ -8,7 +8,8 @@
  *   - weekly quest rewards (retention QUEST_DEFS claims),
  *   - the King's daily audience gifts (lib/world-king-moment),
  *   - the "Your First 10 Minutes" completion reward
- *     (lib/world-tutorial).
+ *     (lib/world-tutorial),
+ *   - the Daily Quest Trio's claims (lib/daily-quests, Ring 4).
  * Every payer checks the SAME sum through this module before it
  * pays: spend + amount ≤ WEEKLY_QUEST_POOL_VB, or the claim
  * refuses with the pool reason. (The Daily Drop / bonus rail is a
@@ -18,12 +19,13 @@
  * quest rails run on (lib/retention's currentWeekStart).
  */
 
-import { and, eq, gte, isNotNull } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
 import {
   db,
   questProgressTable,
   kingMomentClaimsTable,
   worldTutorialProgressTable,
+  dailyQuestProgressTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "./retention";
 
@@ -41,12 +43,23 @@ export function questPoolWeekStart(now: Date): string {
   return day.toISOString().slice(0, 10);
 }
 
-/** The pool's three source sums for one member + week. Injectable
+/** The pool's four source sums for one member + week. Injectable
  *  so payers' pool math is unit-testable without a database. */
 export interface QuestPoolStore {
   questClaimsVb(userId: string, weekStart: string): Promise<number>;
   kingClaimsVb(userId: string, weekStart: string): Promise<number>;
   tutorialClaimsVb(userId: string, weekStart: string): Promise<number>;
+  dailyClaimsVb(userId: string, weekStart: string): Promise<number>;
+}
+
+/** The week window a daily row's day must fall in: [weekStart,
+ *  weekStart + 7d) as YYYY-MM-DD keys — daily claims key on their
+ *  palace day (migration 0150), so their weekly sum is a date
+ *  range, not a week key. */
+export function dailyWeekWindow(weekStart: string): { from: string; to: string } {
+  const [y, m, d] = weekStart.split("-").map((p) => Number(p));
+  const end = new Date(Date.UTC(y!, (m ?? 1) - 1, (d ?? 1) + 7));
+  return { from: weekStart, to: end.toISOString().slice(0, 10) };
 }
 
 export const dbQuestPoolStore: QuestPoolStore = {
@@ -89,6 +102,24 @@ export const dbQuestPoolStore: QuestPoolStore = {
       );
     return rows.reduce((sum, r) => sum + (r.amountVb ?? 0), 0);
   },
+  async dailyClaimsVb(userId, weekStart) {
+    /* The amount each claim row RECORDED (reward_vb stamped at
+     * claim time, the King's-gift pattern), so a later def
+     * rebalance can never rewrite what a past week actually paid. */
+    const { from, to } = dailyWeekWindow(weekStart);
+    const rows = await db
+      .select({ rewardVb: dailyQuestProgressTable.rewardVb })
+      .from(dailyQuestProgressTable)
+      .where(
+        and(
+          eq(dailyQuestProgressTable.userId, userId),
+          isNotNull(dailyQuestProgressTable.claimedAt),
+          gte(dailyQuestProgressTable.dayDate, from),
+          lt(dailyQuestProgressTable.dayDate, to),
+        ),
+      );
+    return rows.reduce((sum, r) => sum + (r.rewardVb ?? 0), 0);
+  },
 };
 
 /** What one member has already drawn from this week's pool,
@@ -98,10 +129,11 @@ export async function questPoolSpendVb(
   userId: string,
   weekStart: string,
 ): Promise<number> {
-  const [quests, king, tutorial] = await Promise.all([
+  const [quests, king, tutorial, daily] = await Promise.all([
     store.questClaimsVb(userId, weekStart),
     store.kingClaimsVb(userId, weekStart),
     store.tutorialClaimsVb(userId, weekStart),
+    store.dailyClaimsVb(userId, weekStart),
   ]);
-  return quests + king + tutorial;
+  return quests + king + tutorial + daily;
 }

@@ -35,6 +35,27 @@ export const questProgressTable = pgTable("quest_progress", {
 }, (t) => [primaryKey({ columns: [t.userId, t.questKey, t.weekStart] })]);
 export type QuestProgress = typeof questProgressTable.$inferSelect;
 
+/** Daily Quest Trio progress per user (World Ring 4, migration
+ *  0150). One row per member × daily quest × palace day (the UTC
+ *  date): the trio's defs rotate by day (lib/daily-quests in the
+ *  API), so the day is the scope. Claims stamp reward_vb + marks
+ *  at claim time — the row records what was actually paid; the VB
+ *  draws from the shared weekly quest pool (lib/quest-pool counts
+ *  these rows as its fourth source). */
+export const dailyQuestProgressTable = pgTable("daily_quest_progress", {
+  userId:    uuid("user_id").notNull(),
+  questKey:  text("quest_key").notNull(),
+  dayDate:   date("day_date").notNull(),
+  progress:  integer("progress").notNull().default(0),
+  target:    integer("target").notNull().default(1),
+  completed: boolean("completed").notNull().default(false),
+  rewardVb:  integer("reward_vb"),
+  marks:     integer("marks").notNull().default(0),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.questKey, t.dayDate] })]);
+export type DailyQuestProgress = typeof dailyQuestProgressTable.$inferSelect;
+
 /** Which creator levels were already celebrated (fires once per level-up). */
 export const levelCelebrationsTable = pgTable("level_celebrations", {
   userId:       uuid("user_id").notNull(),

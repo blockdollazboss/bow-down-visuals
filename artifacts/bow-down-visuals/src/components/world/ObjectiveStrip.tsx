@@ -10,10 +10,12 @@ import {
   mergeSlates,
   nextObjective,
   nextStreakStep,
+  normalizeDailyQuestsStatus,
   normalizeQuestsStatus,
   normalizeStreakStatus,
   normalizeWorldEventSlate,
   pickPalaceSlot,
+  type DailyQuestsStatusShape,
   type PalaceSlateEvent,
   type QuestsStatusShape,
   type StreakStatusShape,
@@ -36,7 +38,10 @@ import {
    Always pinned in the world chrome, across every room: the next
    thing, named — never an empty strip. Three slots for members,
    each read off the server rail it belongs to:
-     QUEST  — /api/retention/quests (Lane B's rails)
+     QUEST  — /api/retention/quests (Lane B's rails), with the
+              Daily Trio (/api/retention/quests/daily, Ring 4)
+              preferred: a trio step expires at the day-turn, so
+              it is named ahead of the week's step when one stands
      STREAK — /api/retention/streak (the creation-streak rail)
      PALACE — Lane H's slate (GET /api/world/events + the
               directory frame's events[])
@@ -78,6 +83,10 @@ export function ObjectiveStrip({
   const slots = stripSlotsFor(isGuest);
   const [quests, setQuests] = useState<QuestsStatusShape | null>(null);
   const [questsFailed, setQuestsFailed] = useState(false);
+  /* The Daily Trio (Ring 4): the quest slot's preferred step. A
+   * failed trio read never breaks the slot — the weekly pick
+   * stands alone, exactly as it did before the trio existed. */
+  const [daily, setDaily] = useState<DailyQuestsStatusShape | null>(null);
   const [streak, setStreak] = useState<StreakStatusShape | null>(null);
   const [streakFailed, setStreakFailed] = useState(false);
   const [restEvents, setRestEvents] = useState<PalaceSlateEvent[]>([]);
@@ -100,9 +109,10 @@ export function ObjectiveStrip({
         const headers: Record<string, string> = token
           ? { Authorization: `Bearer ${token}` }
           : {};
-        const [qRes, sRes] = await Promise.all([
+        const [qRes, sRes, dRes] = await Promise.all([
           fetch("/api/retention/quests", { headers }),
           fetch("/api/retention/streak", { headers }),
+          fetch("/api/retention/quests/daily", { headers }),
         ]);
         if (!cancelled) {
           if (qRes.ok) {
@@ -112,6 +122,9 @@ export function ObjectiveStrip({
               setQuestsFailed(false);
             } else setQuestsFailed(true);
           } else setQuestsFailed(true);
+          if (dRes.ok) {
+            setDaily(normalizeDailyQuestsStatus(await dRes.json()));
+          }
           if (sRes.ok) {
             const shaped = normalizeStreakStatus(await sRes.json());
             if (shaped) {
@@ -170,12 +183,12 @@ export function ObjectiveStrip({
       );
     }
     if (!quests) return <span>Reading your quests…</span>;
-    const next = nextObjective(quests);
+    const next = nextObjective(quests, daily);
     switch (next.kind) {
       case "claimable":
         return (
           <span>
-            <strong>{questTitle(next.quest.key)}</strong> is done —{" "}
+            <strong>{next.title ?? questTitle(next.quest.key)}</strong> is done —{" "}
             {next.objective.progress} of {next.objective.target}. Claim its{" "}
             {next.quest.reward.toLocaleString("en-US")} VB in the Treasury.
           </span>
@@ -183,7 +196,7 @@ export function ObjectiveStrip({
       case "active":
         return (
           <span>
-            <strong>{questTitle(next.quest.key)}</strong> — {next.objective.progress} of{" "}
+            <strong>{next.title ?? questTitle(next.quest.key)}</strong> — {next.objective.progress} of{" "}
             {next.objective.target}, at {destinationLabel(next.destination)}
             {next.quest.reward > 0
               ? ` · ${next.quest.reward.toLocaleString("en-US")} VB`

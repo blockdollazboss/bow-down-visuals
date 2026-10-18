@@ -27,10 +27,12 @@ import {
   profileTracksTable,
   profileVideosTable,
   questProgressTable,
+  dailyQuestProgressTable,
   royalCourtTable,
   shopsTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
+import { dailyQuestDef } from "../lib/daily-quests";
 import { getCreatorRank, starTitle, type RankResult } from "../lib/creator-rank";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
@@ -1047,9 +1049,14 @@ export async function resolveCreatorStars(userId: string): Promise<number> {
  * The witnessed-moment quest rail (THE-GAME §5(a)): the member's
  * most recent RECORDED quest claim at or after `sinceMs`, read from
  * quest_progress's claimed rows — the same rows the Treasury
- * history endpoint lists. The quest's name + reward come from
- * QUEST_DEFS (server truth); a claim whose key has no def (a
- * retired quest) is not witnessable and reads as no claim.
+ * history endpoint lists — and, since Ring 4, from
+ * daily_quest_progress's claimed rows too: a Daily Quest Trio
+ * claim is a win like any other, witnessed by the same rail. The
+ * quest's name + reward come from the defs (server truth — the
+ * daily row's own recorded reward wins, as it is what was paid);
+ * a claim whose key has no def (a retired quest) is not
+ * witnessable and reads as no claim. The most recent of the two
+ * rails is the moment.
  */
 export async function findRecentQuestClaim(
   userId: string,
@@ -1068,15 +1075,49 @@ export async function findRecentQuestClaim(
       )
       .orderBy(desc(questProgressTable.claimedAt))
       .limit(1);
-    if (!row?.claimedAt) return null;
-    const def = QUEST_DEFS.find((q) => q.key === row.questKey);
-    if (!def) return null;
-    return {
-      questKey: def.key,
-      questName: def.name,
-      rewardVb: def.reward,
-      claimedAtMs: new Date(row.claimedAt).getTime(),
-    };
+    let weekly: WorldQuestClaimFact | null = null;
+    if (row?.claimedAt) {
+      const def = QUEST_DEFS.find((q) => q.key === row.questKey);
+      if (def) {
+        weekly = {
+          questKey: def.key,
+          questName: def.name,
+          rewardVb: def.reward,
+          claimedAtMs: new Date(row.claimedAt).getTime(),
+        };
+      }
+    }
+    const [dailyRow] = await db
+      .select({
+        questKey: dailyQuestProgressTable.questKey,
+        claimedAt: dailyQuestProgressTable.claimedAt,
+        rewardVb: dailyQuestProgressTable.rewardVb,
+      })
+      .from(dailyQuestProgressTable)
+      .where(
+        and(
+          eq(dailyQuestProgressTable.userId, userId),
+          isNotNull(dailyQuestProgressTable.claimedAt),
+          gte(dailyQuestProgressTable.claimedAt, new Date(sinceMs)),
+        ),
+      )
+      .orderBy(desc(dailyQuestProgressTable.claimedAt))
+      .limit(1);
+    let daily: WorldQuestClaimFact | null = null;
+    if (dailyRow?.claimedAt) {
+      const def = dailyQuestDef(dailyRow.questKey);
+      if (def) {
+        daily = {
+          questKey: def.key,
+          questName: def.name,
+          rewardVb: dailyRow.rewardVb ?? def.rewardVb,
+          claimedAtMs: new Date(dailyRow.claimedAt).getTime(),
+        };
+      }
+    }
+    if (!weekly) return daily;
+    if (!daily) return weekly;
+    return daily.claimedAtMs >= weekly.claimedAtMs ? daily : weekly;
   } catch (err) {
     logger.warn({ err, userId }, "[world] quest claim lookup failed — moment not witnessed");
     return null;

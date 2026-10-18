@@ -139,12 +139,14 @@ const DATE = "2026-10-17";
 
 /** The shared pool (lib/quest-pool) as this fake's world reports
  *  it: quest sums from the field, king gifts from the claims map,
- *  tutorial rewards zero unless a test seeds them. */
+ *  tutorial rewards zero unless a test seeds them, daily-trio
+ *  claims zero (this fake's world runs no trio). */
 function poolOf(store: FakeKingStore, tutorialVb = 0): import("../quest-pool").QuestPoolStore {
   return {
     questClaimsVb: async () => store.questVb,
     kingClaimsVb: (u, w) => store.kingClaimsVb(u, w),
     tutorialClaimsVb: async () => tutorialVb,
+    dailyClaimsVb: async () => 0,
   };
 }
 
