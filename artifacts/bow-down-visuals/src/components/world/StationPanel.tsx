@@ -98,6 +98,12 @@ export interface StationPanelProps {
    *  the server and threads the result here for the Marble Table.
    *  Null when this visit carries no invite. */
   partyInvite?: { code: string; room: import("@/lib/world/games-lobby").PartyOpenRoom | null } | null;
+  /** The Kingdom Board's party-tables Join (program 2.23): the
+   *  board names a table off the server's open-rooms rail and the
+   *  page seats the walker through the same summons machinery a
+   *  /world?party=CODE landing uses. Optional — hosts without it
+   *  leave the board's tables look-only. */
+  onJoinPartyTable?: (room: import("@/lib/world/games-lobby").PartyOpenRoom) => void;
   /** The Create desks' Send-to-the-editor chip: step through to the
    *  Visual Vibes editor station (the page swaps the panel target;
    *  the step-through's newest-project seed resolves on open, and
@@ -242,12 +248,14 @@ function KingdomBoard({
   isLight,
   isGuest,
   kingLine,
+  onJoinPartyTable,
 }: {
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
   isLight: boolean;
   isGuest: boolean;
   kingLine?: string | null;
+  onJoinPartyTable?: (room: import("@/lib/world/games-lobby").PartyOpenRoom) => void;
 }) {
   if (directory.length === 0) {
     return (
@@ -255,7 +263,7 @@ function KingdomBoard({
         <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
           The board is quiet — the directory hasn&rsquo;t spoken yet.
         </p>
-        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} />
+        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} />
       </div>
     );
   }
@@ -299,7 +307,7 @@ function KingdomBoard({
         The board follows the palace live — walk through a door and your name moves with you. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
-      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} />
+      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} />
     </div>
   );
 }
@@ -1190,7 +1198,7 @@ export default function StationPanel(props: StationPanelProps) {
         switch (resolution.id) {
           case "kingdom-board":
             return (
-              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} kingLine={props.kingLine} />
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} kingLine={props.kingLine} onJoinPartyTable={props.onJoinPartyTable} />
             );
           case "front-row":
             return (
