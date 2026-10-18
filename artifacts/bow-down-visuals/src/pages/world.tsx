@@ -551,7 +551,7 @@ export default function WorldPage() {
      opens with the join pre-filled. Guests get the honest pitch:
      party tables are members-only — sign in and the same link
      brings them back to the table. */
-  const [partyInviteCode] = useState<string | null>(() =>
+  const [partyInviteCode, setPartyInviteCode] = useState<string | null>(() =>
     parsePartyInvite(window.location.search),
   );
   /* A Creator Rooms deep entry (Ring 2, 3.5): /world?creator=<slug>
@@ -794,6 +794,24 @@ export default function WorldPage() {
     const station = STATION_BY_ID.get("marble-table");
     if (station) setPanelTarget({ kind: "station", station });
   }, [roomId]);
+
+  /* The Kingdom Board's party-tables Join (program 2.23): the
+     board named a table off the server's open-rooms rail — the
+     summons machinery takes it from there. The invite state names
+     the table (the verify effect above re-reads its snapshot, so
+     a table that closed on the way over reads closed, honestly),
+     and the same walk carries the member to the Marble Table with
+     the seat offered. No banner: the board was the surface, the
+     panel's summons card is the confirmation. */
+  const joinDirectoryTable = useCallback(
+    (room: PartyOpenRoom) => {
+      setPartyInviteCode(room.code);
+      setInviteRoom(room);
+      setInviteResolved(true);
+      goToInvitedTable();
+    },
+    [goToInvitedTable],
+  );
 
   /* The Creator Rooms deep entry, once we're inside: walk the
      param's room in (enterCreatorRoom verifies it against the
@@ -2888,6 +2906,7 @@ export default function WorldPage() {
               ? { code: partyInviteCode, room: inviteRoom }
               : null
           }
+          onJoinPartyTable={joinDirectoryTable}
           onOpenEditorStation={() => {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });

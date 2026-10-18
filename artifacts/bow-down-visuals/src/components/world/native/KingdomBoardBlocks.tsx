@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Crown, LogIn } from "lucide-react";
+import { Crown, LogIn, Swords } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
+import {
+  PARTY_GAME_META,
+  parsePartyRooms,
+  partyTableHomeLine,
+  type PartyOpenRoom,
+} from "@/lib/world/games-lobby";
 import {
   normalizeLeaderboard,
   type Leaderboard,
@@ -25,7 +31,7 @@ import {
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── Kingdom Board blocks (Lane K2, item 2) ───────────────────────
-   Two blocks join the Kingdom Board's room directory:
+   Blocks joining the Kingdom Board's room directory:
      STANDINGS — the weekly creation leaderboard's top 5 + the
        viewer's own rank, from GET /api/retention/leaderboard (the
        same rail the Treasury standings read). Own rank shows ONLY
@@ -36,10 +42,19 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
        (GET /api/world/events + the directory frame's slate):
        shows, listening parties and drops with times and rooms,
        live ones marked live.
+     OPEN PARTY TABLES (program 2.23's directory join) — the open
+       Marble Tables off the server's own rail (GET /api/party/rooms,
+       the lobby's discovery read), each with a Join that hands the
+       table to the page's summons machinery — the same walk a
+       /world?party=CODE landing takes: across to the Game Rooms,
+       the Marble Table open, the seat offered. The board never
+       seats anyone itself; it names the table and the page walks.
    Guests: the standings rail is members-only (it answers 401), so
    a guest's standings block is the sign-in pitch — no fake rows,
-   no claim buttons (there are none here for anyone). The today
-   block is public information and reads the same for everyone. */
+   no claim buttons (there are none here for anyone). The party
+   rail is members-only the same way, so the tables block is the
+   pitch too. The today block is public information and reads the
+   same for everyone. */
 
 const EVENT_KIND_LABELS: Record<string, string> = {
   stage_show: "Stage show",
@@ -52,6 +67,7 @@ export function KingdomBoardBlocks({
   isLight,
   isGuest,
   kingLine,
+  onJoinPartyTable,
 }: {
   directory: PalaceDirectoryEntry[];
   isLight: boolean;
@@ -61,11 +77,18 @@ export function KingdomBoardBlocks({
    *  page builds it from the hall's kingMoment state). Null =
    *  no court stands; the block reads as before. */
   kingLine?: string | null;
+  /** The party tables block's Join (program 2.23): the page's
+   *  summons walk for the named table — the same machinery a
+   *  /world?party=CODE landing rides. Optional: a host without
+   *  it leaves the block's tables look-only, named but unseated. */
+  onJoinPartyTable?: (room: PartyOpenRoom) => void;
 }) {
   const { getAccessToken } = useAuth();
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
   const [restEvents, setRestEvents] = useState<PalaceSlateEvent[]>([]);
+  const [tables, setTables] = useState<PartyOpenRoom[] | null>(null);
+  const [tablesFailed, setTablesFailed] = useState(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -102,6 +125,35 @@ export function KingdomBoardBlocks({
         }
       } catch {
         if (!cancelled) setBoardFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest, tick]);
+
+  /* The open party tables — the Marble Table lobby's own
+     discovery rail (members-only; guests never spend the fetch,
+     their block is the pitch). */
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken().catch(() => null);
+        const headers: Record<string, string> = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
+        const res = await fetch("/api/party/rooms", { headers });
+        if (!res.ok) throw new Error("party rooms");
+        const parsed = parsePartyRooms(await res.json());
+        if (!cancelled) {
+          setTables(parsed);
+          setTablesFailed(false);
+        }
+      } catch {
+        if (!cancelled) setTablesFailed(true);
       }
     })();
     return () => {
@@ -236,6 +288,72 @@ export function KingdomBoardBlocks({
                 highlighted={e.status === "live"}
               />
             ))
+          )}
+        </NativeBoard>
+      </div>
+
+      {/* ── Open party tables ── */}
+      <div data-testid="world-kingdom-party-tables">
+        <NativeBoard isLight={isLight} title="Open party tables">
+          {isGuest ? (
+            <p
+              className={`inline-flex flex-wrap items-center gap-2 px-1 py-1 text-sm ${
+                isLight ? "text-[#6B5B36]" : "text-white/55"
+              }`}
+            >
+              The party tables are members&rsquo; games — the Marble Table
+              seats signed-in players.
+              <Link
+                href={GUEST_SIGN_IN_HREF}
+                className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
+              >
+                <LogIn className="h-3 w-3" /> Sign in to take a seat
+              </Link>
+            </p>
+          ) : tablesFailed ? (
+            <NativeErrorState
+              isLight={isLight}
+              title="The tables wouldn't come into view"
+              message="Open party tables wouldn't load — the tables themselves are fine. Try again."
+              onRetry={() => {
+                setTablesFailed(false);
+                setTables(null);
+                setTick((n) => n + 1);
+              }}
+            />
+          ) : tables === null ? (
+            <NativeLoadingState isLight={isLight} message="Looking for open tables…" />
+          ) : tables.length === 0 ? (
+            <NativeEmptyState
+              isLight={isLight}
+              message="No tables are open right now."
+              detail="Open the first one at the Marble Table in the Game Rooms — it will read here for the whole palace."
+            />
+          ) : (
+            tables.map((room) => {
+              const meta = PARTY_GAME_META[room.game];
+              return (
+                <NativeBoardRow
+                  key={room.code}
+                  isLight={isLight}
+                  title={`${meta.title} · ${room.hostName}`}
+                  detail={partyTableHomeLine(room)}
+                  meta={`${room.players}/${meta.seats}`}
+                  action={
+                    onJoinPartyTable ? (
+                      <button
+                        type="button"
+                        data-testid={`world-kingdom-party-join-${room.code}`}
+                        onClick={() => onJoinPartyTable(room)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                      >
+                        <Swords className="h-3.5 w-3.5" /> Take a seat
+                      </button>
+                    ) : undefined
+                  }
+                />
+              );
+            })
           )}
         </NativeBoard>
       </div>
