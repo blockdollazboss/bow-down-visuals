@@ -1,10 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import {
   db,
   sharkDropsTable,
-  levelCelebrationsTable,
   retentionPrefsTable,
   generationsTable,
   exportJobsTable,
@@ -319,6 +318,26 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
 
 const celebrateSchema = z.object({ level: z.number().int().min(1).max(6) });
 
+/* The earned-rank rails below read/write through raw SQL (db.execute),
+   the house pattern for aggregate reads (cf. routes/earnings.ts):
+   level_celebrations_enabled from retention_prefs (default true when
+   no row exists — the same default getDelightPrefs applies), the
+   celebrated-level set, and the celebration insert. */
+async function readLevelCelebrationsEnabled(userId: string): Promise<boolean> {
+  const res = await db.execute(
+    sql`SELECT level_celebrations_enabled AS enabled FROM retention_prefs WHERE user_id = ${userId} LIMIT 1`,
+  );
+  const row = (res.rows as any[])[0];
+  return row?.enabled ?? true;
+}
+
+async function readCelebratedLevels(userId: string): Promise<Set<number>> {
+  const res = await db.execute(
+    sql`SELECT level FROM level_celebrations WHERE user_id = ${userId}`,
+  );
+  return new Set((res.rows as any[]).map((r) => Number(r.level)));
+}
+
 /* GET /api/retention/rank — the caller's earned rank, in full: stars,
    points, the per-source counts and point contributions behind them, and
    exactly what the next star takes (points still needed + any unmet
@@ -348,16 +367,11 @@ router.get("/retention/level-check", requireAuth, publicApiLimiter, async (req: 
   try {
     const userId = req.userId!;
     const rank = await getCreatorRank(userId);
-    const prefs = await getDelightPrefs(userId);
-    if (!prefs.levelCelebrationsEnabled) {
+    if (!(await readLevelCelebrationsEnabled(userId))) {
       res.json({ uncelebrated: [], disabled: true, stars: rank.stars, points: rank.points });
       return;
     }
-    const celebrated = await db
-      .select({ level: levelCelebrationsTable.level })
-      .from(levelCelebrationsTable)
-      .where(eq(levelCelebrationsTable.userId, userId));
-    const seen = new Set(celebrated.map((c) => c.level));
+    const seen = await readCelebratedLevels(userId);
     const uncelebrated: number[] = [];
     for (let lvl = rank.stars; lvl >= 2; lvl--) {
       if (!seen.has(lvl)) uncelebrated.push(lvl);
@@ -382,8 +396,7 @@ router.post("/retention/level-check/celebrate", requireAuth, publicApiLimiter, a
   }
   try {
     const userId = req.userId!;
-    const prefs = await getDelightPrefs(userId);
-    if (!prefs.levelCelebrationsEnabled) {
+    if (!(await readLevelCelebrationsEnabled(userId))) {
       res.status(403).json({ error: "Level celebrations are turned off" });
       return;
     }
@@ -394,10 +407,9 @@ router.post("/retention/level-check/celebrate", requireAuth, publicApiLimiter, a
       });
       return;
     }
-    await db
-      .insert(levelCelebrationsTable)
-      .values({ userId, level: parsed.data.level })
-      .onConflictDoNothing();
+    await db.execute(
+      sql`INSERT INTO level_celebrations (user_id, level) VALUES (${userId}, ${parsed.data.level}) ON CONFLICT DO NOTHING`,
+    );
     res.json({ celebrated: true, level: parsed.data.level });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention-delight] celebrate failed");

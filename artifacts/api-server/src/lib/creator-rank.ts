@@ -44,21 +44,8 @@
      no matter how large the catalog grows.
 */
 
-import {
-  db,
-  creatorProfilesTable,
-  profileTracksTable,
-  profileVideosTable,
-  exportJobsTable,
-  storeOrdersTable,
-  shopEventsTable,
-  fanMembersTable,
-  followsTable,
-  liveStreamsTable,
-  tipJarTipsTable,
-  liveStreamTipsTable,
-} from "@workspace/db";
-import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 
 /* ── The ladder ─────────────────────────────────────────────────────────── */
@@ -261,89 +248,52 @@ export function rankFromCounts(counts: RankCounts): RankResult {
 
 /* ── Server computation over recorded work ──────────────────────────────── */
 
-async function countRows(
-  table: Parameters<typeof db.select>[0] extends never ? never : any,
-  where: any,
-): Promise<number> {
-  const rows = await db.select({ n: count() }).from(table).where(where);
-  return Number(rows[0]?.n ?? 0);
-}
-
+/**
+ * One round trip: every source counted in a single statement over the
+ * caller's own rows (profile-scoped sources join through
+ * creator_profiles, exactly like the earnings board reads them).
+ * Raw SQL through db.execute, the house pattern for aggregate reads.
+ */
 export async function countRankSources(userId: string): Promise<RankCounts> {
-  const profiles = await db
-    .select({ id: creatorProfilesTable.id })
-    .from(creatorProfilesTable)
-    .where(eq(creatorProfilesTable.userId, userId));
-  const profileIds = profiles.map((p) => p.id);
-
-  const noProfiles = profileIds.length === 0;
-  const inProfiles = (col: any) =>
-    noProfiles ? eq(col, "00000000-0000-0000-0000-000000000000") : inArray(col, profileIds);
-
-  const [
-    publishedTracks,
-    publishedVideos,
-    exportsDone,
-    followers,
-    streamsHosted,
-    jarTips,
-    streamTips,
-    storeSales,
-    shopSales,
-    membershipsSold,
-  ] = await Promise.all([
-    countRows(
-      profileTracksTable,
-      and(inProfiles(profileTracksTable.profileId), eq(profileTracksTable.isPublished, true)),
-    ),
-    countRows(
-      profileVideosTable,
-      and(inProfiles(profileVideosTable.profileId), eq(profileVideosTable.isPublished, true)),
-    ),
-    countRows(
-      exportJobsTable,
-      and(eq(exportJobsTable.user_id, userId), eq(exportJobsTable.state, "done")),
-    ),
-    countRows(followsTable, inProfiles(followsTable.profileId)),
-    countRows(liveStreamsTable, eq(liveStreamsTable.user_id, userId)),
-    countRows(
-      tipJarTipsTable,
-      and(eq(tipJarTipsTable.page_user_id, userId), eq(tipJarTipsTable.status, "paid")),
-    ),
-    countRows(
-      liveStreamTipsTable,
-      and(
-        eq(liveStreamTipsTable.creator_user_id, userId),
-        isNotNull(liveStreamTipsTable.creator_credited_at),
-      ),
-    ),
-    countRows(
-      storeOrdersTable,
-      and(inProfiles(storeOrdersTable.profileId), eq(storeOrdersTable.status, "completed")),
-    ),
-    countRows(
-      shopEventsTable,
-      and(eq(shopEventsTable.user_id, userId), eq(shopEventsTable.event_type, "sale")),
-    ),
-    countRows(
-      fanMembersTable,
-      and(
-        eq(fanMembersTable.user_id, userId),
-        isNotNull(fanMembersTable.stripe_session_id),
-        inArray(fanMembersTable.status, ["active", "trialing", "past_due"]),
-      ),
-    ),
-  ]);
-
+  const res = await db.execute(sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM profile_tracks pt
+         JOIN creator_profiles cp ON cp.id = pt.profile_id
+         WHERE cp.user_id = ${userId} AND pt.is_published) AS published_tracks,
+      (SELECT COUNT(*)::int FROM profile_videos pv
+         JOIN creator_profiles cp ON cp.id = pv.profile_id
+         WHERE cp.user_id = ${userId} AND pv.is_published) AS published_videos,
+      (SELECT COUNT(*)::int FROM export_jobs
+         WHERE user_id = ${userId} AND state = 'done') AS exports_done,
+      (SELECT COUNT(*)::int FROM follows f
+         JOIN creator_profiles cp ON cp.id = f.profile_id
+         WHERE cp.user_id = ${userId}) AS followers,
+      (SELECT COUNT(*)::int FROM live_streams
+         WHERE user_id = ${userId}) AS streams_hosted,
+      (SELECT COUNT(*)::int FROM tip_jar_tips
+         WHERE page_user_id = ${userId} AND status = 'paid') AS jar_tips,
+      (SELECT COUNT(*)::int FROM live_stream_tips
+         WHERE creator_user_id = ${userId} AND creator_credited_at IS NOT NULL) AS stream_tips,
+      (SELECT COUNT(*)::int FROM store_orders o
+         JOIN creator_profiles cp ON cp.id = o.profile_id
+         WHERE cp.user_id = ${userId} AND o.status = 'completed') AS store_sales,
+      (SELECT COUNT(*)::int FROM shop_events
+         WHERE user_id = ${userId} AND event_type = 'sale') AS shop_sales,
+      (SELECT COUNT(*)::int FROM fan_members
+         WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL
+           AND status IN ('active', 'trialing', 'past_due')) AS memberships_sold
+  `);
+  const row = (res.rows as any[])[0] ?? {};
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   return {
-    publishedTracks,
-    publishedVideos,
-    exports: exportsDone,
-    followers,
-    streamsHosted,
-    tipsReceived: jarTips + streamTips,
-    sales: storeSales + shopSales,
-    membershipsSold,
+    publishedTracks: n(row.published_tracks),
+    publishedVideos: n(row.published_videos),
+    exports: n(row.exports_done),
+    followers: n(row.followers),
+    streamsHosted: n(row.streams_hosted),
+    tipsReceived: n(row.jar_tips) + n(row.stream_tips),
+    sales: n(row.store_sales) + n(row.shop_sales),
+    membershipsSold: n(row.memberships_sold),
   };
 }
 
