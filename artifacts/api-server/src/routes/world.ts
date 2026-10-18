@@ -18,15 +18,18 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, ne, or } from "drizzle-orm";
 import {
   db,
   artistVaultsTable,
   creatorProfilesTable,
+  levelCelebrationsTable,
   liveStreamsTable,
   profileTracksTable,
   profileVideosTable,
+  questProgressTable,
 } from "@workspace/db";
+import { QUEST_DEFS } from "../lib/retention";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -44,6 +47,7 @@ import {
   type WorldCharacterRef,
   type WorldIdentity,
   type WorldJukeboxTrackRef,
+  type WorldQuestClaimFact,
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
@@ -610,6 +614,70 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
   }
 }
 
+/**
+ * The Creator Level stars the API itself has on record for a member
+ * (THE-GAME §5(a)): the highest level in level_celebrations — the
+ * table the /api/retention/level-check rails write when a level-up
+ * is celebrated and read back on every check. There is no second
+ * level computation to port: this IS the API's level record. A
+ * member with nothing recorded stands at 1 star, the product's
+ * new-creator default (the frontend's UserModeContext seeds the
+ * same). Throws on DB failure — the door degrades to a starless
+ * member identity (see registerWorldWs); the moment verifier treats
+ * a failed read as "no level on record" and witnesses nothing.
+ */
+export async function resolveCreatorStars(userId: string): Promise<number> {
+  const rows = await db
+    .select({ level: levelCelebrationsTable.level })
+    .from(levelCelebrationsTable)
+    .where(eq(levelCelebrationsTable.userId, userId));
+  let stars = 1;
+  for (const r of rows) {
+    if (r.level >= 1 && r.level <= 6 && r.level > stars) stars = r.level;
+  }
+  return stars;
+}
+
+/**
+ * The witnessed-moment quest rail (THE-GAME §5(a)): the member's
+ * most recent RECORDED quest claim at or after `sinceMs`, read from
+ * quest_progress's claimed rows — the same rows the Treasury
+ * history endpoint lists. The quest's name + reward come from
+ * QUEST_DEFS (server truth); a claim whose key has no def (a
+ * retired quest) is not witnessable and reads as no claim.
+ */
+export async function findRecentQuestClaim(
+  userId: string,
+  sinceMs: number,
+): Promise<WorldQuestClaimFact | null> {
+  try {
+    const [row] = await db
+      .select({ questKey: questProgressTable.questKey, claimedAt: questProgressTable.claimedAt })
+      .from(questProgressTable)
+      .where(
+        and(
+          eq(questProgressTable.userId, userId),
+          isNotNull(questProgressTable.claimedAt),
+          gte(questProgressTable.claimedAt, new Date(sinceMs)),
+        ),
+      )
+      .orderBy(desc(questProgressTable.claimedAt))
+      .limit(1);
+    if (!row?.claimedAt) return null;
+    const def = QUEST_DEFS.find((q) => q.key === row.questKey);
+    if (!def) return null;
+    return {
+      questKey: def.key,
+      questName: def.name,
+      rewardVb: def.reward,
+      claimedAtMs: new Date(row.claimedAt).getTime(),
+    };
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] quest claim lookup failed — moment not witnessed");
+    return null;
+  }
+}
+
 /** The site's host identity, resolved exactly the way the /api/admin
  *  routes resolve it: the ADMIN_EMAILS list, case-insensitive. A
  *  world admin is never a client claim — it is this check, at the
@@ -782,6 +850,18 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     /* Drop spectacles (3.4) pay through the existing drop rails —
      * the claimer owns the weekly budget check + grant + ledger. */
     claimWorldDrop: claimSpectacleDrop,
+    /* Witnessed moments (THE-GAME §5(a)): the rooms verify quest +
+     * levelup intents against these rails. A failed stars read is
+     * "no level on record" — the moment is refused, never guessed. */
+    resolveStars: async (userId) => {
+      try {
+        return await resolveCreatorStars(userId);
+      } catch (err) {
+        logger.warn({ err, userId }, "[world] stars lookup failed — moment not witnessed");
+        return null;
+      }
+    },
+    findRecentQuestClaim,
   });
   activePalace = palace;
 
@@ -805,6 +885,19 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     /* Host authority rides the verified token's email — resolved
      * here, server-side, the same way the admin routes resolve it. */
     identity = { ...identity, admin: auth ? isWorldAdminEmail(auth.email) : false };
+
+    /* Creator Level stars ride the identity too — resolved here,
+     * at the door, from the API's level rails (resolveCreatorStars),
+     * never from anything the client sent. A failed read degrades
+     * to a starless member: the room still opens, the nameplate
+     * simply shows no stars yet. Guests never reach this line. */
+    if (identity.userId) {
+      try {
+        identity = { ...identity, stars: await resolveCreatorStars(identity.userId) };
+      } catch (err) {
+        logger.warn({ err, userId: identity.userId }, "[world] stars lookup failed at the door — starless member");
+      }
+    }
 
     const client = socket as unknown as WsClientSocket;
     /* Everyone enters through the hall; doorways move them after.

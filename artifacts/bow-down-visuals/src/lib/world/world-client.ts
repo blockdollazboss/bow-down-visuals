@@ -14,10 +14,14 @@
  *        switch — off means no sending, no hearing, mic released),
  *        voice.deaf (deafen — still in the mesh, hearing nobody,
  *        mic muted), voice.signal, room.enter (walked through a
- *        doorway — the registry transfers this peer to that room)
+ *        doorway — the registry transfers this peer to that room),
+ *        moment.celebrate (ask the room to witness a win — a quest
+ *        claim or a level-up; a bare intent carrying no facts, the
+ *        server verifies the win against its own records first)
  *   in:  welcome (room + self + snapshot), palace.directory,
  *        room.unavailable, peer.join / peer.move / peer.leave,
- *        peer.action,
+ *        peer.action, peer.moment (a win the room witnessed — the
+ *        room's statement, built entirely from server records),
  *        peer.say, peer.character, peer.voiceoff, peer.voicedeaf,
  *        voice.joined / voice.left / voice.state / voice.signal /
  *        voice.full / voice.denied, room_full, pong (the keepalive
@@ -77,6 +81,12 @@ export interface WorldPeer {
    *  client claim) — the hall shows host controls off this flag,
    *  and the server re-verifies every host action anyway. */
   admin: boolean;
+  /** The member's Creator Level stars (1–6), resolved by the
+   *  server at the door from its own level rails — members only;
+   *  guests have no stars. The nameplate renders them beside the
+   *  name (never on the character art, THE-GAME §5 Q1), and a
+   *  witnessed level-up (peer.moment) restars the record live. */
+  stars?: number;
   /** The host muted this peer's voice server-side. */
   hostMuted: boolean;
   character: WorldCharacterRef | null;
@@ -188,6 +198,16 @@ export interface WorldNowPlayingMoment {
   creatorName: string | null;
   addedByName: string;
 }
+
+/** A win the room witnessed (THE-GAME §5(a)): a quest completion
+ *  or a level-up, broadcast by the server from its OWN records
+ *  after verifying the achiever's bare celebrate intent. Wins are
+ *  public (owner default §5 Q3): the moment carries the quest's
+ *  name + reward or the new star count — never a balance, never
+ *  progress detail. */
+export type WorldMoment =
+  | { kind: "quest"; peerId: string; name: string; questName: string; rewardVb: number }
+  | { kind: "levelup"; peerId: string; name: string; stars: number };
 
 /** A drop spectacle standing in the room you're in (World Events
  *  3.4): claimable by the members standing there, first-come. */
@@ -382,6 +402,9 @@ export class WorldClient {
   /** The drop spectacle standing in the room I'm in, when one has
    *  landed (welcome snapshot, then drop.* frames). */
   drop: WorldDropState | null = null;
+  /** The last win the room witnessed (a quest completion or a
+   *  level-up), as last broadcast by the server. */
+  lastMoment: WorldMoment | null = null;
   /** The room this client stands in (set by every welcome). */
   room: PalaceRoomInfo | null = null;
   /** The palace directory — who's where — as last broadcast (and
@@ -426,6 +449,10 @@ export class WorldClient {
   /** A claim landed, witnessed by the room: who + how much, from
    *  server truth. */
   onDropClaimed: ((claim: { name: string; amountVb: number }, drop: WorldDropState | null) => void) | null = null;
+  /** A win was witnessed in this room (a quest completion or a
+   *  level-up — THE-GAME §5(a)). The achiever's peer record has
+   *  already been restarred when this fires for a level-up. */
+  onMoment: ((moment: WorldMoment) => void) | null = null;
   /** My claim was refused (guests / no-drop / already-claimed /
    *  claimed-out / budget). */
   onDropDenied: ((reason: string) => void) | null = null;
@@ -940,6 +967,26 @@ export class WorldClient {
     this.send({ type: "drop.claim" });
   }
 
+  /* ── Witnessed moments (THE-GAME §5(a)) ───────────────────────
+   * Bare intents: "a win just happened — witness it if it's real."
+   * They carry NO facts (no quest name, no reward, no level): the
+   * server verifies the win against its own records and only then
+   * broadcasts peer.moment to the room. An unverified intent is
+   * dropped server-side, silently. Guests never send them — they
+   * witness, they never star. */
+
+  /** Ask the room to witness a quest reward I just claimed. */
+  celebrateQuest(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "moment.celebrate", kind: "quest" });
+  }
+
+  /** Ask the room to witness my Creator Level rising. */
+  celebrateLevelup(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "moment.celebrate", kind: "levelup" });
+  }
+
   /* ── Host actions (the server re-verifies admin on every one) ── */
 
   adminMute(peerId: string, muted: boolean): void {
@@ -1287,6 +1334,45 @@ export class WorldClient {
       }
       case "drop.denied": {
         this.onDropDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "refused");
+        return;
+      }
+      case "peer.moment": {
+        /* A witnessed win. Explicit normalizer (DTO discipline):
+         * a quest moment is legal only with its quest name + a
+         * numeric reward, a levelup only with a 1–6 star count —
+         * anything else is not a moment the page may present. */
+        const raw = frame["moment"];
+        if (!raw || typeof raw !== "object") return;
+        const m = raw as Record<string, unknown>;
+        const peerId = typeof m["peerId"] === "string" ? m["peerId"] : "";
+        const name = typeof m["name"] === "string" ? m["name"] : "";
+        if (!peerId || !name) return;
+        let moment: WorldMoment | null = null;
+        if (
+          m["kind"] === "quest" &&
+          typeof m["questName"] === "string" && m["questName"] &&
+          typeof m["rewardVb"] === "number"
+        ) {
+          moment = { kind: "quest", peerId, name, questName: m["questName"], rewardVb: m["rewardVb"] };
+        } else if (
+          m["kind"] === "levelup" &&
+          typeof m["stars"] === "number" &&
+          Number.isInteger(m["stars"]) &&
+          m["stars"] >= 1 && m["stars"] <= 6
+        ) {
+          moment = { kind: "levelup", peerId, name, stars: m["stars"] };
+        }
+        if (!moment) return;
+        this.lastMoment = moment;
+        /* The restar applies to the peer record itself (self
+         * included — the record I broadcast IS this record), so
+         * the nameplate the room reads carries the new rank from
+         * this frame on. */
+        if (moment.kind === "levelup") {
+          const target = peerId === this.self?.peerId ? this.self : this.peers.get(peerId);
+          if (target) target.stars = moment.stars;
+        }
+        this.onMoment?.(moment);
         return;
       }
       case "screen.denied": {
