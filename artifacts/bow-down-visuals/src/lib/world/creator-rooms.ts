@@ -19,7 +19,13 @@
  */
 import { creatorRoomId } from "./palace-layout";
 import { shelfPlayInput, type ShelfPlayInput } from "./shelf";
+import {
+  parseCreatorRoomOfficeHours,
+  type CreatorRoomOfficeHours,
+} from "./office-hours";
 import type { CourtMember } from "@/lib/royal-court";
+
+export type { CreatorRoomOfficeHours };
 
 export { creatorRoomId };
 
@@ -100,6 +106,10 @@ export interface CreatorRoomDetail {
   frontRow: CreatorRoomFrontRowMember[];
   storefront: { id: string; handle: string; name: string } | null;
   evolution: CreatorRoomEvolution | null;
+  /** The room's office hours (3.7): the current-or-next booked
+   *  session, or null when none stands. The state is the SCHEDULED
+   *  window's truth — never a claim about the host's presence. */
+  officeHours: CreatorRoomOfficeHours | null;
 }
 
 /* ─── Parsing ─────────────────────────────────────────────────────── */
@@ -271,6 +281,7 @@ export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | nu
           }
         : null,
     evolution: parseCreatorRoomEvolution(raw["evolution"]),
+    officeHours: parseCreatorRoomOfficeHours(raw["officeHours"]),
   };
 }
 

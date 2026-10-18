@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  CalendarClock,
   Crown,
   DoorOpen,
   Home,
@@ -9,6 +10,23 @@ import {
   ShoppingBag,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  buildOfficeHoursBooking,
+  currentOrNextSession,
+  nextHourLocalValue,
+  officeHoursCancelPath,
+  officeHoursErrorCopy,
+  officeHoursMarker,
+  officeHoursSessionWhen,
+  officeHoursSlatePath,
+  parseOfficeHoursEvents,
+  plusDaysLocalValue,
+  OFFICE_HOURS_BOOK_PATH,
+  OFFICE_HOURS_DURATIONS_MIN,
+  OFFICE_HOURS_MINE_PATH,
+  type OfficeHoursSession,
+} from "@/lib/world/office-hours";
 import {
   creatorTrackPlayInput,
   creatorVideoPlayInput,
@@ -221,6 +239,349 @@ export function CreatorRoomsDirectory({
   );
 }
 
+/* ─── Office hours (UPGRADE-PROGRAM 3.7) ──────────────────────────────
+   The room's standing invitation, riding the palace calendar
+   (world_events kind "office_hours"): the banner names the current
+   or next booked session for EVERYONE in the room — the hours are
+   the schedule's truth, and no copy here claims the host's body is
+   present (who's standing in the room is the roster's read). The
+   room's owner additionally gets the booking form and their
+   sessions with cancel, right here in their own room. */
+
+type OfficeHoursRow = OfficeHoursSession & { status: string };
+
+function OfficeHoursBlock({
+  detail,
+  isLight,
+  isOwnRoom,
+}: {
+  detail: CreatorRoomDetail;
+  isLight: boolean;
+  /** The walker owns this room (their slug == the room's slug):
+   *  only the host sees the booking form — the server re-checks
+   *  ownership on every write regardless. */
+  isOwnRoom: boolean;
+}) {
+  const { getAccessToken } = useAuth();
+  const [sessions, setSessions] = useState<OfficeHoursRow[] | null>(null);
+  const [mine, setMine] = useState<OfficeHoursRow[]>([]);
+  const [tick, setTick] = useState(0);
+  const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [startLocal, setStartLocal] = useState(() => nextHourLocalValue(Date.now()));
+  const [durationMin, setDurationMin] = useState<number>(60);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formDone, setFormDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  /* The room's public calendar read — the same slate the Kingdom
+   * Board reads palace-wide, narrowed to this room. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(officeHoursSlatePath(detail.roomId));
+        if (!res.ok) throw new Error("slate");
+        const parsed = parseOfficeHoursEvents(await res.json());
+        if (!cancelled) setSessions(parsed);
+      } catch {
+        /* The room's own DTO seed still speaks for the marker. */
+        if (!cancelled) setSessions((prev) => prev ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detail.roomId, tick]);
+
+  /* The host's own bookings (auth) — the cancel list. */
+  useEffect(() => {
+    if (!isOwnRoom) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken().catch(() => null);
+        if (!token) return;
+        const res = await fetch(OFFICE_HOURS_MINE_PATH, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("mine");
+        const parsed = parseOfficeHoursEvents(await res.json()).filter(
+          (s) => s.status === "scheduled" || s.status === "live",
+        );
+        if (!cancelled) setMine(parsed);
+      } catch {
+        /* The form still works; the list keeps its last truth. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwnRoom, tick, detail.roomId]);
+
+  const now = Date.now();
+  const fromSlate = sessions ? currentOrNextSession(sessions, now) : null;
+  const seed = detail.officeHours
+    ? {
+        title: detail.officeHours.title,
+        note: detail.officeHours.note,
+        startsAt: detail.officeHours.startsAt,
+        endsAt: detail.officeHours.endsAt,
+      }
+    : null;
+  const marker = officeHoursMarker(fromSlate ?? seed, detail.displayName, now);
+  const open = (sessions ?? []).filter(
+    (s) =>
+      (s.status === "scheduled" || s.status === "live") && Date.parse(s.endsAt) > now,
+  );
+
+  if (!marker && !isOwnRoom) return null;
+
+  async function book() {
+    setFormError(null);
+    setFormDone(null);
+    const built = buildOfficeHoursBooking(
+      detail.slug,
+      { title, note, startLocal, durationMin },
+      Date.now(),
+    );
+    if (!built.ok) {
+      setFormError(built.error);
+      return;
+    }
+    setBusy(true);
+    try {
+      const token = await getAccessToken().catch(() => null);
+      if (!token) {
+        setFormError("Sign in to book your office hours.");
+        return;
+      }
+      const res = await fetch(OFFICE_HOURS_BOOK_PATH, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(built.body),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFormError(officeHoursErrorCopy(res.status, payload));
+        return;
+      }
+      setFormDone("Booked — it's on the palace calendar, and this room carries the hours.");
+      /* One tap books the same slot next week. */
+      setStartLocal((v) => plusDaysLocalValue(v, 7));
+      setTick((n) => n + 1);
+    } catch {
+      setFormError("The booking wouldn't land — try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancel(id: string) {
+    setFormError(null);
+    setFormDone(null);
+    setBusy(true);
+    try {
+      const token = await getAccessToken().catch(() => null);
+      if (!token) {
+        setFormError("Sign in to manage your office hours.");
+        return;
+      }
+      const res = await fetch(officeHoursCancelPath(id), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFormError(officeHoursErrorCopy(res.status, payload));
+        return;
+      }
+      setFormDone("Session cancelled — the calendar and the room read it already.");
+      setTick((n) => n + 1);
+    } catch {
+      setFormError("The cancellation wouldn't land — try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+    isLight
+      ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]"
+      : "border-[#d4af37]/25 bg-white/5 text-white"
+  }`;
+
+  return (
+    <div
+      className={`mb-3 rounded-2xl border px-3 py-3 ${
+        isLight ? "border-[#C9A84C]/60 bg-[#FBF3DC]" : "border-[#d4af37]/35 bg-[#d4af37]/[0.06]"
+      }`}
+      data-testid="world-creator-room-office-hours"
+    >
+      {marker && (
+        <div>
+          <p
+            className={`inline-flex flex-wrap items-center gap-2 text-sm font-black ${
+              isLight ? "text-[#2a1e07]" : "text-white"
+            }`}
+          >
+            <CalendarClock className="h-4 w-4 text-[#d4af37]" />
+            {marker.headline}
+            {marker.inSession && (
+              <span className="rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-black">
+                On now
+              </span>
+            )}
+          </p>
+          <p className={`pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {marker.detail}
+          </p>
+          <p className={`pt-0.5 text-[11px] ${isLight ? "text-[#6B5B36]/80" : "text-white/35"}`}>
+            Booked hours on the palace calendar — who&rsquo;s standing in the room is on its
+            roster, not this card.
+          </p>
+        </div>
+      )}
+      {open.length > 0 && (
+        <div className="pt-2" data-testid="world-creator-room-office-hours-upcoming">
+          {open.slice(0, 4).map((s) => (
+            <p
+              key={s.id}
+              className={`flex flex-wrap items-baseline justify-between gap-2 py-0.5 text-xs ${
+                isLight ? "text-[#6B5B36]" : "text-white/50"
+              }`}
+            >
+              <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
+                {s.title}
+              </span>
+              <span>{officeHoursSessionWhen(s, now)}</span>
+            </p>
+          ))}
+        </div>
+      )}
+      {isOwnRoom && (
+        <div className="pt-3" data-testid="world-creator-room-office-hours-host">
+          <p className={`text-xs font-black uppercase tracking-wide ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            Your office hours
+          </p>
+          <p className={`pb-2 pt-0.5 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Hold court in this room: book the hour, and fans find it on the palace calendar
+            and on this room&rsquo;s door.
+          </p>
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Office hours — ask me anything"
+              maxLength={120}
+              className={inputCls}
+              data-testid="world-office-hours-title"
+            />
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="What the hour is for (optional) — e.g. mixing questions, beat feedback"
+              maxLength={140}
+              className={inputCls}
+              data-testid="world-office-hours-note"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="datetime-local"
+                value={startLocal}
+                onChange={(e) => setStartLocal(e.target.value)}
+                className={`rounded-xl border px-3 py-2 text-sm outline-none ${
+                  isLight
+                    ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]"
+                    : "border-[#d4af37]/25 bg-white/5 text-white"
+                }`}
+                data-testid="world-office-hours-start"
+              />
+              <span className="inline-flex gap-1">
+                {OFFICE_HOURS_DURATIONS_MIN.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setDurationMin(m)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                      durationMin === m
+                        ? "bg-[#d4af37] text-black"
+                        : isLight
+                          ? "border border-[#C9A84C]/60 text-[#7A5A12]"
+                          : "border border-[#d4af37]/30 text-white/60"
+                    }`}
+                    data-testid={`world-office-hours-duration-${m}`}
+                  >
+                    {m}m
+                  </button>
+                ))}
+              </span>
+              <button
+                type="button"
+                onClick={book}
+                disabled={busy}
+                className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                data-testid="world-office-hours-book"
+              >
+                {busy ? "Booking…" : "Book the hour"}
+              </button>
+            </div>
+            {formError && (
+              <p className={`text-xs font-semibold ${isLight ? "text-[#9A3412]" : "text-red-300"}`} data-testid="world-office-hours-error">
+                {formError}
+              </p>
+            )}
+            {formDone && (
+              <p className={`text-xs font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} data-testid="world-office-hours-done">
+                {formDone}
+              </p>
+            )}
+          </div>
+          {mine.length > 0 && (
+            <div className="pt-2" data-testid="world-office-hours-mine">
+              {mine.map((s) => (
+                <p
+                  key={s.id}
+                  className={`flex flex-wrap items-center justify-between gap-2 py-0.5 text-xs ${
+                    isLight ? "text-[#6B5B36]" : "text-white/50"
+                  }`}
+                >
+                  <span>
+                    <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
+                      {s.title}
+                    </span>{" "}
+                    · {officeHoursSessionWhen(s, now)}
+                    {s.status === "live" ? " · in session" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => cancel(s.id)}
+                    disabled={busy}
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold transition disabled:opacity-50 ${
+                      isLight
+                        ? "border border-[#C9A84C]/60 text-[#7A5A12]"
+                        : "border border-[#d4af37]/30 text-white/60"
+                    }`}
+                    data-testid="world-office-hours-cancel"
+                  >
+                    Cancel
+                  </button>
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Inside a creator's room: the four stations ──────────────────── */
 
 export function CreatorRoomStation({
@@ -228,6 +589,7 @@ export function CreatorRoomStation({
   slug,
   isLight,
   isGuest,
+  mySlug,
   shelfPlayer,
   onPlayTrack,
 }: {
@@ -235,6 +597,10 @@ export function CreatorRoomStation({
   slug: string;
   isLight: boolean;
   isGuest: boolean;
+  /** The signed-in walker's own profile slug (null for guests):
+   *  when it matches the room's slug, the walker is the host and
+   *  the office-hours booking form rides the room (3.7). */
+  mySlug: string | null;
   shelfPlayer: ShelfPlayerController;
   /** Portrait Card Play seam: the host's jukebox.add intent (the
    *  card's own contract — a card press in ANY room offers the
@@ -287,6 +653,17 @@ export function CreatorRoomStation({
     </p>
   ) : null;
 
+  /* Office hours (3.7): the room's calendar card — marker for
+   * everyone, the booking form for the room's own host — standing
+   * at the head of every station, like the evolution line. */
+  const officeBlock = (
+    <OfficeHoursBlock
+      detail={detail}
+      isLight={isLight}
+      isOwnRoom={!!mySlug && mySlug === slug}
+    />
+  );
+
   if (stationId === "creator-front-row") {
     const selected = detail.frontRow.find((m) => m.slug === selectedSlug) ?? null;
     if (selected) {
@@ -302,15 +679,19 @@ export function CreatorRoomStation({
     }
     if (detail.frontRow.length === 0) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t seated a Front Row yet — the chairs are here, the
-          portraits come when they crown their court.
-        </p>
+        <div>
+          {officeBlock}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t seated a Front Row yet — the chairs are here, the
+            portraits come when they crown their court.
+          </p>
+        </div>
       );
     }
     return (
       <div>
         {evoHeader}
+        {officeBlock}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {detail.frontRow.map((m) => (
             <button
@@ -358,15 +739,19 @@ export function CreatorRoomStation({
   if (stationId === "creator-music") {
     if (detail.tracks.length === 0) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t put any music on the rail yet — the shelf is here,
-          waiting for their first published song.
-        </p>
+        <div>
+          {officeBlock}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t put any music on the rail yet — the shelf is here,
+            waiting for their first published song.
+          </p>
+        </div>
       );
     }
     return (
       <div className="space-y-1.5">
         {evoHeader}
+        {officeBlock}
         {detail.tracks.map((t) => {
           const isCurrent =
             !!shelfPlayer.current &&
@@ -427,10 +812,13 @@ export function CreatorRoomStation({
     const video = detail.featuredVideo;
     if (!video) {
       return (
-        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          {detail.displayName} hasn&rsquo;t put a video on the screen yet — the screen wears
-          their name until their first featured piece.
-        </p>
+        <div>
+          {officeBlock}
+          <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+            {detail.displayName} hasn&rsquo;t put a video on the screen yet — the screen wears
+            their name until their first featured piece.
+          </p>
+        </div>
       );
     }
     const isCurrent =
@@ -439,6 +827,7 @@ export function CreatorRoomStation({
     return (
       <div className="space-y-2">
         {evoHeader}
+        {officeBlock}
         <div
           className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}
         >
@@ -486,6 +875,7 @@ export function CreatorRoomStation({
   return (
     <div>
       {evoHeader}
+      {officeBlock}
       <CreatorStorePanel detail={detail} isLight={isLight} />
     </div>
   );

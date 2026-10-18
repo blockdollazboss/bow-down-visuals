@@ -20,6 +20,12 @@
  *    claims by the members standing there, paid through the existing
  *    drop rails under the combined ≤1,000 VB/week drop budget
  *    (lib/stream-drops) — no new issuance, no new budget.
+ *  - office_hours (3.7, migration 0159): a creator holds court in
+ *    their OWN creator room. Nothing takes the room over at the
+ *    hour — there is no screen to seize and no queue to own; the
+ *    session is the room standing open under its host's name. The
+ *    tick's whole job is the honest status flip (scheduled → live
+ *    → done); the calendar and the room's own marker read the row.
  *
  * BOOKING RULES (owner-approved defaults, enforced server-side at
  * POST /api/world/events — the route calls the helpers here):
@@ -32,6 +38,11 @@
  *  - listening_party: Music Hall only; any signed-in member.
  *  - drop: any palace room; admin only (a spectacle is a house
  *    moment, and its VB comes out of the shared weekly drop budget).
+ *  - office_hours: the host's OWN creator room only — room_id must
+ *    be "creator:<the caller's own slug>", read off their creator
+ *    profile server-side (never a claim), and the profile must be
+ *    public: a private profile's room isn't open, so it can't hold
+ *    hours either. Any signed-in member with an open room.
  * Guests never book: booking is an authed REST route, full stop.
  *
  * THE TICK: a single cheap interval (startWorldEventScheduler in
@@ -74,16 +85,21 @@ export interface BookingRule {
   /** The one room this kind may be booked into (null = any palace room). */
   requiredRoomId: string | null;
   privilege: BookingPrivilege;
+  /** Which rooms the kind may anchor to: the fixed palace rooms, or
+   *  the host's own creator room ("creator:<their slug>"). */
+  roomKind: "palace" | "own-creator-room";
 }
 
 export function bookingRuleFor(kind: WorldEventKind): BookingRule {
   switch (kind) {
     case "stage_show":
-      return { requiredRoomId: WORLD_ROOM_ID, privilege: "front-row-or-admin" };
+      return { requiredRoomId: WORLD_ROOM_ID, privilege: "front-row-or-admin", roomKind: "palace" };
     case "listening_party":
-      return { requiredRoomId: MUSIC_HALL_ROOM_ID, privilege: "member" };
+      return { requiredRoomId: MUSIC_HALL_ROOM_ID, privilege: "member", roomKind: "palace" };
     case "drop":
-      return { requiredRoomId: null, privilege: "admin" };
+      return { requiredRoomId: null, privilege: "admin", roomKind: "palace" };
+    case "office_hours":
+      return { requiredRoomId: null, privilege: "member", roomKind: "own-creator-room" };
   }
 }
 
@@ -130,6 +146,12 @@ export function sanitizeEventPayload(kind: WorldEventKind, raw: unknown): Payloa
         ? p["playlistId"].trim().slice(0, 96)
         : null;
     return { ok: true, payload: { trackIds, playlistId } };
+  }
+  if (kind === "office_hours") {
+    /* The agenda line is the whole payload: optional, trimmed, and
+     * capped to a line — anything else sent along is dropped. */
+    const note = typeof p["note"] === "string" ? p["note"].trim().slice(0, 140) : "";
+    return { ok: true, payload: note ? { note } : {} };
   }
   // drop
   const amountVb = p["amountVb"];
@@ -487,6 +509,11 @@ export class WorldEventScheduler {
     if (row.kind === "listening_party") {
       return palace.room(MUSIC_HALL_ROOM_ID)?.listeningPartyEventId() === row.id;
     }
+    if (row.kind === "office_hours") {
+      /* Office hours carry no room state — the row IS the session.
+       * Always "carried", so a live session is never re-driven. */
+      return true;
+    }
     return palace.room(row.roomId)?.activeDropEventId() === row.id;
   }
 
@@ -496,6 +523,9 @@ export class WorldEventScheduler {
       palace.room(WORLD_ROOM_ID)?.endScheduledShow(row.id, "The show has ended.");
     } else if (row.kind === "listening_party") {
       palace.room(MUSIC_HALL_ROOM_ID)?.endListeningParty(row.id);
+    } else if (row.kind === "office_hours") {
+      /* Nothing to release: no room state was ever taken. */
+      return;
     } else {
       palace.room(row.roomId)?.endDrop(row.id);
     }
@@ -564,6 +594,15 @@ export class WorldEventScheduler {
         tracks,
         now: nowMs,
       });
+    }
+
+    if (row.kind === "office_hours") {
+      /* The session opens by existing: the status flip the caller
+       * applies on `true` is the whole effect. No screen is seized,
+       * no queue is owned, nobody's room state is touched — the
+       * host's room simply stands open for its hours, and the
+       * calendar + the room's marker read the live row. */
+      return true;
     }
 
     // drop

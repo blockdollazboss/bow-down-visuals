@@ -19,6 +19,14 @@ import { sql } from "drizzle-orm";
  *                       for the members standing in that room
  *                       (payload.amountVb per claim, payload.claimCap
  *                       claims in total).
+ *  - office_hours     — a creator holds court in their OWN room
+ *                       (migration 0159, UPGRADE-PROGRAM 3.7):
+ *                       room_id is the host's creator room id
+ *                       ("creator:<slug>"), payload { note? } is an
+ *                       optional agenda line. Nothing takes the room
+ *                       over at the hour — the scheduler only flips
+ *                       the status; the session is the room standing
+ *                       open under its host's name on the calendar.
  *
  * room_id is a palace room id ("world:kings-hall", "world:music-hall",
  * …) — plain text, because rooms are socket state, not rows; the
@@ -31,7 +39,7 @@ import { sql } from "drizzle-orm";
  *   scheduled → live → done, with cancelled reachable from scheduled
  *   or live (host or admin). The tick is the only writer of live/done.
  */
-export const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop"] as const;
+export const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "office_hours"] as const;
 export type WorldEventKind = (typeof WORLD_EVENT_KINDS)[number];
 
 export const WORLD_EVENT_STATUSES = ["scheduled", "live", "done", "cancelled"] as const;
@@ -41,7 +49,8 @@ export type WorldEventStatus = (typeof WORLD_EVENT_STATUSES)[number];
 export type WorldEventPayload =
   | { contentRef: string } // stage_show: "live" | "video:<uuid>" | "replay:<uuid>"
   | { trackIds: string[]; playlistId?: string | null } // listening_party
-  | { amountVb: number; claimCap: number }; // drop
+  | { amountVb: number; claimCap: number } // drop
+  | { note?: string }; // office_hours: an optional agenda line
 
 export const worldEventsTable = pgTable(
   "world_events",
@@ -61,10 +70,10 @@ export const worldEventsTable = pgTable(
     index("world_events_room_starts_idx").on(t.roomId, t.startsAt),
     index("world_events_status_starts_idx").on(t.status, t.startsAt),
     index("world_events_host_idx").on(t.hostUserId),
-    /* Migration 0145: kinds and statuses are closed sets. */
+    /* Migrations 0145 + 0159: kinds and statuses are closed sets. */
     check(
       "world_events_kind_check",
-      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop')`,
+      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'office_hours')`,
     ),
     check(
       "world_events_status_check",

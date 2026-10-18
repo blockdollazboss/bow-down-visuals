@@ -1232,6 +1232,7 @@ export default function StationPanel(props: StationPanelProps) {
                 slug={slug}
                 isLight={isLight}
                 isGuest={isGuest}
+                mySlug={props.mySlug ?? null}
                 shelfPlayer={shelfPlayer}
                 onPlayTrack={props.onJukeboxAdd}
               />
