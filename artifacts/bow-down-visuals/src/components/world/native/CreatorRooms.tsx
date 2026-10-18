@@ -18,6 +18,10 @@ import {
   type CreatorRoomDetail,
   type CreatorRoomSummary,
 } from "@/lib/world/creator-rooms";
+import {
+  creatorRoomEvolutionLine,
+  creatorRoomTierDressing,
+} from "@/lib/world/creator-room-tier";
 import { isSameShelfItem } from "@/lib/world/shelf";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { PortraitCard } from "./PortraitCard";
@@ -183,6 +187,19 @@ export function CreatorRoomsDirectory({
             ? "Their music and featured work are on the walls."
             : "A quiet room — its host is still moving in."}
         </span>
+        {creatorRoomEvolutionLine(r.evolution) && (
+          <span
+            className="block truncate text-[11px] font-bold"
+            style={{
+              color: r.evolution
+                ? creatorRoomTierDressing(r.evolution.stars).trimHex
+                : undefined,
+            }}
+            data-testid="world-creator-room-evolution"
+          >
+            {creatorRoomEvolutionLine(r.evolution)}
+          </span>
+        )}
       </span>
       {r.occupantCount > 0 && (
         <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
@@ -252,6 +269,24 @@ export function CreatorRoomStation({
     );
   }
 
+  /* The room's evolution (Ring 3, Phase 5): the owner's earned
+   * rung + what stands next, off the room DTO — shown at the head
+   * of the room's stations. Unmeasured rooms show nothing. */
+  const evoLine = creatorRoomEvolutionLine(detail.evolution);
+  const evoHeader = evoLine ? (
+    <p
+      className="px-1 pb-2 text-xs font-bold"
+      style={{
+        color: detail.evolution
+          ? creatorRoomTierDressing(detail.evolution.stars).trimHex
+          : undefined,
+      }}
+      data-testid="world-creator-room-station-evolution"
+    >
+      {evoLine} — this room levels with its host.
+    </p>
+  ) : null;
+
   if (stationId === "creator-front-row") {
     const selected = detail.frontRow.find((m) => m.slug === selectedSlug) ?? null;
     if (selected) {
@@ -275,6 +310,7 @@ export function CreatorRoomStation({
     }
     return (
       <div>
+        {evoHeader}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {detail.frontRow.map((m) => (
             <button
@@ -330,6 +366,7 @@ export function CreatorRoomStation({
     }
     return (
       <div className="space-y-1.5">
+        {evoHeader}
         {detail.tracks.map((t) => {
           const isCurrent =
             !!shelfPlayer.current &&
@@ -401,6 +438,7 @@ export function CreatorRoomStation({
       isSameShelfItem(shelfPlayer.current, { kind: "video", id: video.id });
     return (
       <div className="space-y-2">
+        {evoHeader}
         <div
           className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}
         >
@@ -445,7 +483,12 @@ export function CreatorRoomStation({
   }
 
   /* creator-store */
-  return <CreatorStorePanel detail={detail} isLight={isLight} />;
+  return (
+    <div>
+      {evoHeader}
+      <CreatorStorePanel detail={detail} isLight={isLight} />
+    </div>
+  );
 }
 
 /* ─── Their Store: the profile store catalog on the shop rails ────── */

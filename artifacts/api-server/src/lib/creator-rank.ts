@@ -81,6 +81,27 @@ export const RANK_SOURCES: readonly RankSourceDef[] = [
 /** Points required to HOLD each star level (index 0 = ★1). */
 export const STAR_POINT_THRESHOLDS: readonly number[] = [0, 25, 100, 300, 700, 1400] as const;
 
+/** The ladder's names (index 0 = ★1) — the one place they are
+ *  written. Every surface that names a rank (nameplates, the
+ *  Creator Room evolution read, the teams gate) reads them from
+ *  here; a second copy anywhere is a bug. */
+export const STAR_TITLES: readonly string[] = [
+  "Street Punk",
+  "Hustler",
+  "Gangster",
+  "Shot Caller",
+  "Crime Boss",
+  "Kingpin",
+] as const;
+
+/** The title for a star count, clamped to the ladder — an
+ *  out-of-range count reads as the nearest real rung, never a
+ *  blank. */
+export function starTitle(stars: number): string {
+  const idx = Math.min(STAR_TITLES.length, Math.max(1, Math.floor(stars) || 1)) - 1;
+  return STAR_TITLES[idx]!;
+}
+
 /** Non-points gates per star level (index 0 = ★1). Business results =
  *  sales + memberships sold; published works = tracks + videos. */
 export const STAR_GATES: ReadonlyArray<{

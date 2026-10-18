@@ -981,6 +981,11 @@ export class KingsHallScene {
     primaryHex: string;
     portraitUrl: string | null;
     screenVideoUrl: string | null;
+    /** The room's evolution (Ring 3, Phase 5): the rank plate's
+     *  line ("★★★ Gangster", composed from the server DTO) + the
+     *  tier's trim color. Absent = unmeasured room, no plate. */
+    rankLine?: string | null;
+    tierTrimHex?: string | null;
   } | null = null;
   private creatorDressingGroup: THREE.Group | null = null;
   /** The materials the current look's shells were built with —
@@ -2257,6 +2262,8 @@ export class KingsHallScene {
       primaryHex: string;
       portraitUrl: string | null;
       screenVideoUrl: string | null;
+      rankLine?: string | null;
+      tierTrimHex?: string | null;
     } | null,
   ): void {
     this.creatorDressing = dressing;
@@ -2289,6 +2296,27 @@ export class KingsHallScene {
     // Their name over the door, inside — you are in THEIR place.
     // (Just proud of the wall's inner face, the house plate offset.)
     this.doorPlate(host, d.roomName.toUpperCase(), cx, PALACE_DOOR_HEIGHT + 0.66, interior.minZ + 0.13, 0, 5.2);
+
+    /* The room's evolution (Ring 3, Phase 5): under the name, the
+     * rank plate — the owner's earned stars + rung, composed from
+     * the server DTO — and above it a trim bar in the tier's own
+     * gold, which deepens as the room levels. An unmeasured room
+     * (no evolution on the DTO) wears neither: no fake rank. */
+    if (d.rankLine) {
+      this.doorPlate(host, d.rankLine, cx, PALACE_DOOR_HEIGHT + 0.08, interior.minZ + 0.13, 0, 4.2);
+      if (d.tierTrimHex) {
+        const trim = new THREE.Mesh(
+          new THREE.BoxGeometry(5.2, 0.07, 0.05),
+          new THREE.MeshStandardMaterial({
+            color: new THREE.Color(d.tierTrimHex),
+            roughness: 0.35,
+            metalness: 0.6,
+          }),
+        );
+        trim.position.set(cx, PALACE_DOOR_HEIGHT + 1.12, interior.minZ + 0.1);
+        host.add(trim);
+      }
+    }
 
     const accent = new THREE.MeshStandardMaterial({
       color: new THREE.Color(d.accentHex),

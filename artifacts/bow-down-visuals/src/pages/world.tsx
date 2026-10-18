@@ -85,6 +85,10 @@ import {
   type CreatorRoomDetail,
 } from "@/lib/world/creator-rooms";
 import {
+  creatorRoomRankLine,
+  creatorRoomTierDressing,
+} from "@/lib/world/creator-room-tier";
+import {
   parsePartyInvite,
   parsePartyRoomSnapshot,
   partySummonsHeadline,
@@ -533,6 +537,13 @@ export default function WorldPage() {
       primaryHex: detail.theme.primary,
       portraitUrl: detail.bannerUrl ?? detail.avatarUrl,
       screenVideoUrl: detail.featuredVideo?.videoUrl ?? null,
+      /* The room's evolution (Ring 3, Phase 5): the rank plate +
+       * tier trim ride the same dressing — the stars + rung name
+       * off the server DTO, the trim off the tier dressing. */
+      rankLine: creatorRoomRankLine(detail.evolution),
+      tierTrimHex: detail.evolution
+        ? creatorRoomTierDressing(detail.evolution.stars).trimHex
+        : null,
     });
   }, []);
 

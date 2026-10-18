@@ -31,7 +31,7 @@ import {
   shopsTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
-import { getCreatorRank } from "../lib/creator-rank";
+import { getCreatorRank, starTitle, type RankResult } from "../lib/creator-rank";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -571,6 +571,45 @@ export interface WorldCreatorRoomSummary {
   theme: WorldCreatorRoomTheme;
   hasContent: boolean;
   occupantCount: number;
+  evolution: WorldCreatorRoomEvolution | null;
+}
+
+/** A Creator Room's evolution (Ring 3, Phase 5): the room levels
+ *  with its owner's EARNED rank. Every field is read off
+ *  lib/creator-rank's RankResult — the ladder's single source;
+ *  the names are its STAR_TITLES. Null on the DTO when the rank
+ *  read failed: an unmeasured room shows no tier at all, never a
+ *  fabricated ★1. */
+export interface WorldCreatorRoomEvolution {
+  stars: number;
+  tierName: string;
+  /** The next rung's name; null at the top of the ladder. */
+  nextTierName: string | null;
+  /** Rank points still needed for the next rung (points gates
+   *  only — a gate may also stand in the way); null at the top. */
+  pointsNeeded: number | null;
+}
+
+/** Pure: a RankResult → the room-evolution DTO. */
+export function creatorRoomEvolutionFromRank(rank: RankResult): WorldCreatorRoomEvolution {
+  return {
+    stars: rank.stars,
+    tierName: starTitle(rank.stars),
+    nextTierName: rank.next ? starTitle(rank.next.stars) : null,
+    pointsNeeded: rank.next ? rank.next.pointsNeeded : null,
+  };
+}
+
+/** The guarded rank read behind the evolution DTO: a failed read
+ *  degrades to null (no tier shown) rather than failing the room
+ *  read or inventing a rank. */
+async function resolveCreatorRoomEvolution(userId: string): Promise<WorldCreatorRoomEvolution | null> {
+  try {
+    return creatorRoomEvolutionFromRank(await getCreatorRank(userId));
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] creator-room evolution read failed — room shows no tier");
+    return null;
+  }
 }
 
 export interface WorldCreatorRoomTrack {
@@ -617,6 +656,7 @@ export interface WorldCreatorRoomDetail {
   tracks: WorldCreatorRoomTrack[];
   frontRow: WorldCreatorRoomFrontRowMember[];
   storefront: { id: string; handle: string; name: string } | null;
+  evolution: WorldCreatorRoomEvolution | null;
 }
 
 type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
@@ -658,7 +698,11 @@ export function creatorRoomThemeFromConfig(
  *  row → its creator-room directory row. */
 export function creatorRoomSummaryFromProfile(
   profile: CreatorProfileRow,
-  parts: { hasContent: boolean; occupantCount: number },
+  parts: {
+    hasContent: boolean;
+    occupantCount: number;
+    evolution?: WorldCreatorRoomEvolution | null;
+  },
 ): WorldCreatorRoomSummary {
   const name = profile.displayName;
   return {
@@ -670,6 +714,7 @@ export function creatorRoomSummaryFromProfile(
     theme: creatorRoomThemeFromConfig(profile.themeConfig),
     hasContent: parts.hasContent,
     occupantCount: parts.occupantCount,
+    evolution: parts.evolution ?? null,
   };
 }
 
@@ -754,10 +799,19 @@ router.get("/world/creator-rooms", publicApiLimiter, async (_req, res) => {
       ...withTracks.map((r) => r.profileId),
       ...withVideos.map((r) => r.profileId),
     ]);
-    const rooms = profiles.map((p) =>
+    /* Evolution rides the directory too (Ring 3, Phase 5): the
+     * rank read is 60s-memoized per creator, so a warm directory
+     * load costs no queries; a cold one pays one grouped count
+     * per listed creator. A failed read shows no tier for that
+     * room — never a fabricated one. */
+    const evolutions = await Promise.all(
+      profiles.map((p) => resolveCreatorRoomEvolution(p.userId)),
+    );
+    const rooms = profiles.map((p, i) =>
       creatorRoomSummaryFromProfile(p, {
         hasContent: home.has(p.id),
         occupantCount: activePalace?.creatorRoom(p.slug)?.size() ?? 0,
+        evolution: evolutions[i] ?? null,
       }),
     );
     res.json(await refreshSupabaseStorageUrlsDeep({ rooms }));
@@ -848,6 +902,10 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
       tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),
       frontRow,
       storefront: shop ? { id: shop.id, handle: shop.handle, name: shop.name } : null,
+      /* The room's evolution (Ring 3, Phase 5): the owner's
+       * earned rank off lib/creator-rank — the dressing and the
+       * panels read it from here, nowhere else. */
+      evolution: await resolveCreatorRoomEvolution(profile.userId),
     };
     res.json(await refreshSupabaseStorageUrlsDeep({ room: detail }));
   } catch (err) {

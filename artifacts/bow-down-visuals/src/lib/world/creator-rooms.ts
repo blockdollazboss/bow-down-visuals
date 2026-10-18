@@ -31,6 +31,18 @@ export interface CreatorRoomTheme {
   background: string;
 }
 
+/** A room's evolution (Ring 3, Phase 5): the owner's EARNED rank
+ *  as the server read it off lib/creator-rank — the names are the
+ *  ladder's own, carried on the DTO, never re-derived here. Null
+ *  when the server couldn't measure it: no tier shows, rather
+ *  than a fabricated one. */
+export interface CreatorRoomEvolution {
+  stars: number;
+  tierName: string;
+  nextTierName: string | null;
+  pointsNeeded: number | null;
+}
+
 export interface CreatorRoomSummary {
   slug: string;
   displayName: string;
@@ -40,6 +52,7 @@ export interface CreatorRoomSummary {
   theme: CreatorRoomTheme;
   hasContent: boolean;
   occupantCount: number;
+  evolution: CreatorRoomEvolution | null;
 }
 
 export interface CreatorRoomTrack {
@@ -86,6 +99,7 @@ export interface CreatorRoomDetail {
   tracks: CreatorRoomTrack[];
   frontRow: CreatorRoomFrontRowMember[];
   storefront: { id: string; handle: string; name: string } | null;
+  evolution: CreatorRoomEvolution | null;
 }
 
 /* ─── Parsing ─────────────────────────────────────────────────────── */
@@ -125,6 +139,28 @@ function parseTheme(v: unknown): CreatorRoomTheme {
   };
 }
 
+/** The evolution DTO at the boundary: stars must be a real rung
+ *  (1–6) with a name — anything else reads as unmeasured (null),
+ *  never as a guessed tier. */
+export function parseCreatorRoomEvolution(raw: unknown): CreatorRoomEvolution | null {
+  if (!isRecord(raw)) return null;
+  const stars = raw["stars"];
+  const tierName = str(raw["tierName"]);
+  if (typeof stars !== "number" || !Number.isInteger(stars) || stars < 1 || stars > 6) {
+    return null;
+  }
+  if (!tierName) return null;
+  return {
+    stars,
+    tierName,
+    nextTierName: strOrNull(raw["nextTierName"]),
+    pointsNeeded:
+      typeof raw["pointsNeeded"] === "number" && Number.isFinite(raw["pointsNeeded"])
+        ? raw["pointsNeeded"]
+        : null,
+  };
+}
+
 function parseSummary(raw: unknown): CreatorRoomSummary | null {
   if (!isRecord(raw)) return null;
   const slug = str(raw["slug"]);
@@ -139,6 +175,7 @@ function parseSummary(raw: unknown): CreatorRoomSummary | null {
     theme: parseTheme(raw["theme"]),
     hasContent: raw["hasContent"] === true,
     occupantCount: num(raw["occupantCount"]),
+    evolution: parseCreatorRoomEvolution(raw["evolution"]),
   };
 }
 
@@ -233,6 +270,7 @@ export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | nu
             name: str(storefrontRaw["name"], "Their shop"),
           }
         : null,
+    evolution: parseCreatorRoomEvolution(raw["evolution"]),
   };
 }
 
