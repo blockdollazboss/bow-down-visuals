@@ -1,20 +1,24 @@
 /**
- * perf-ladder.ts — inference performance governor for the Pro
- * background engine. Pure logic (no DOM, no timers): the caller
- * feeds it one inference duration per completed frame and acts on
- * the returned decision.
+ * perf-ladder.ts — inference performance governor. Pure logic (no
+ * DOM, no timers): the caller feeds it one inference duration per
+ * completed frame and acts on the returned decision.
+ *
+ * Its studio job (background-changer.ts, 'auto' quality): walk the
+ * matte-refinement steps — sustained slowness sheds edge work,
+ * sustained speed restores it — so the edge cleanup stays bounded
+ * by what the device can actually hold.
  *
  * Behaviour:
  *  - A warmup window is ignored (JIT / shader compile spikes are
  *    not a verdict on the machine).
  *  - Sustained slowness (EMA of inference time above `slowMs`,
- *    judged on an evaluation boundary) steps the engine DOWN its
- *    internal quality steps (cheaper feed / lower internal ratio).
- *    At the last step, the decision is 'degrade' — the caller (in
- *    Auto quality) falls back to the Standard engine.
+ *    judged on an evaluation boundary) steps the caller DOWN its
+ *    internal quality steps. At the last step, the decision is
+ *    'degrade' — the caller decides what that means; with one
+ *    engine the studio treats it as an honest stay at the floor.
  *  - Sustained speed (EMA below `fastMs` for many consecutive
- *    evaluations) steps back UP, with wide hysteresis so the engine
- *    never oscillates around a boundary.
+ *    evaluations) steps back UP, with wide hysteresis so the
+ *    caller never oscillates around a boundary.
  */
 
 export type PerfAction = "none" | "step-down" | "step-up" | "degrade";

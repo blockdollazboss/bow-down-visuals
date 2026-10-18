@@ -10,17 +10,23 @@
  * canvas.captureStream() — ready for a <video> element, a recorder, or a
  * publish transport (see ./transport.ts).
  *
- * Two engines sit behind one contract (rvm-engine.ts MattingEngine):
- * the Pro engine (Robust Video Matting — a soft alpha matte with hair
- * detail and recurrent temporal stability) and the Standard engine
- * (MediaPipe Selfie Segmentation — a harder, lower-res mask). The
- * `quality` config picks: 'auto' (default) tries Pro, falls back to
- * Standard, and degrades Pro → Standard if Pro runs too slowly on the
- * device; 'pro' forces Pro (raw camera if it can't run — never a
- * silent downgrade); 'standard' forces Standard. Both engines' mattes
- * pass through the same post-processing (matte-post.ts). If NO engine
- * can run, the camera still starts raw — an engine failure never
- * holds the camera hostage.
+ * ONE engine does the matting: MediaPipe Selfie Segmentation,
+ * vendored same-origin (below). It used to sit behind a two-engine
+ * contract as the fallback for a heavy ONNX video-matting engine
+ * (Robust Video Matting); that engine failed to load on the owner's
+ * machine and froze the tab when an effect was picked, so it was
+ * REMOVED from the studio path (owner's ruling, Oct 18, 2026) — it
+ * is never fetched, constructed, or selected here. Cleaner edges
+ * are chased the light way instead: the `quality` config picks a
+ * matte-refinement step (MATTE_REFINEMENT_STEPS) — how finely the
+ * mask is read and how much edge post-processing (matte-post.ts:
+ * temporal blend, fringe choke, levels curve, feather) is applied.
+ * 'auto' (default) lets the perf ladder (perf-ladder.ts) walk the
+ * steps by measured engine speed; 'pro' pins the sharpest step;
+ * 'standard' pins the balanced step (the behaviour that shipped
+ * before refinement steps existed). If the engine can't run, the
+ * camera still starts raw — an engine failure never holds the
+ * camera hostage.
  *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
@@ -29,7 +35,12 @@
  */
 
 import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIsolatorStatus } from "./voice-isolator";
-import { RvmEngine, RvmEngineError, RVM_MAX_STEP, type EngineMatte, type MattingEngine } from "./rvm-engine";
+/* Type-only: the shared matting contract. The heavy engine class
+   behind it (rvm-engine.ts) is deliberately NOT imported — the
+   studio never constructs it (see the header note). The contract
+   types are erased at compile time; the still-photo matting path
+   (photo-matting.ts) is the class's remaining consumer. */
+import type { EngineMatte, MattingEngine } from "./rvm-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
 import { PerfLadder } from "./perf-ladder";
 import { FrameStallTracker } from "./frame-stall";
@@ -79,16 +90,53 @@ const CAMERA_EFFECT_FILTERS: Record<string, string> = {
 export type BackgroundMode = "green" | "blur" | "image" | "none";
 
 /**
- * Background engine quality. 'auto' (default) runs the ladder: Pro
- * first, Standard on load failure, and a live Pro → Standard degrade
- * if Pro inference is too slow for the device. 'pro' forces the Pro
- * engine — if it cannot run, the camera goes raw rather than silently
- * dropping to Standard. 'standard' forces the Standard engine.
+ * Background quality — a matte-refinement choice on the ONE studio
+ * engine (see MATTE_REFINEMENT_STEPS). 'auto' (default) lets the
+ * perf ladder walk the refinement steps by measured engine speed,
+ * shedding edge work on slow devices and restoring it on fast ones.
+ * 'pro' pins the sharpest step. 'standard' pins the balanced step.
  */
 export type BackgroundQuality = "auto" | "pro" | "standard";
 
-/** Which background engine is actually live ('off' = raw camera). */
-export type BackgroundEngineKind = "pro" | "standard" | "off";
+/** Whether the background engine is live ('off' = raw camera). */
+export type BackgroundEngineKind = "standard" | "off";
+
+/**
+ * Matte-refinement steps, sharpest first — the light way to cleaner
+ * edges on the segmentation engine's mask. Each step sets how wide
+ * the mask is read (a finer read keeps more edge detail) and how
+ * the shared matte post-processing (matte-post.ts) is tuned: the
+ * sharpest step reads finer, blends a little more history (less
+ * flicker), chokes the fringe a little less hard, opens the levels
+ * curve a touch (less hair eaten), and feathers twice for a soft
+ * rim. The balanced step is byte-for-byte the behaviour that
+ * shipped before refinement steps existed (480px read, the
+ * MattePostProcessor defaults); the lightest step sheds read width
+ * for the weakest devices. The perf ladder walks these steps in
+ * 'auto' quality only — there is no second engine to degrade to,
+ * so the lightest step is the floor.
+ */
+export interface MatteRefinementStep {
+  /** Width cap when reading the engine's mask (px). */
+  maskCap: number;
+  /** Temporal-blend weight of the new frame (matte-post emaWeight). */
+  emaWeight: number;
+  /** Semi-transparent fringe choke (matte-post choke). */
+  choke: number;
+  /** Levels-curve low point (matte-post curveLo). */
+  curveLo: number;
+  /** Levels-curve high point (matte-post curveHi). */
+  curveHi: number;
+  /** Feather blur passes after the curve (matte-post featherPasses). */
+  featherPasses: number;
+}
+
+export const MATTE_REFINEMENT_STEPS: readonly MatteRefinementStep[] = [
+  { maskCap: 640, emaWeight: 0.45, choke: 0.04, curveLo: 0.05, curveHi: 0.92, featherPasses: 2 },
+  { maskCap: 480, emaWeight: 0.55, choke: 0.05, curveLo: 0.06, curveHi: 0.94, featherPasses: 1 },
+  { maskCap: 384, emaWeight: 0.6, choke: 0.05, curveLo: 0.06, curveHi: 0.94, featherPasses: 1 },
+];
+export const MATTE_MAX_STEP = MATTE_REFINEMENT_STEPS.length - 1;
 export type BackgroundChangerErrorCode = "PERMISSION_DENIED" | "NO_CAMERA" | "CDN_LOAD_FAILED" | "UNSUPPORTED" | "SEGMENTATION_FAILED";
 
 /** Error with a stable machine-readable `code` for UI handling. */
@@ -162,9 +210,9 @@ export interface BackgroundChangerConfig {
   mode?: BackgroundMode;
   /** Background engine quality (see BackgroundQuality). Default 'auto'. */
   quality?: BackgroundQuality;
-  /** Fired whenever the live background engine changes ('pro' |
-   *  'standard' | 'off') — the studio shows it as the honest
-   *  "Background engine: Pro / Standard / Off" status. */
+  /** Fired whenever the live background engine changes
+   *  ('standard' | 'off') — the studio shows it as the honest
+   *  "Background engine: On / Off" status. */
   onEngineStatus?: (kind: BackgroundEngineKind) => void;
   image?: string | File | Blob | HTMLImageElement | null;
   blurAmount?: number;
@@ -182,21 +230,29 @@ export interface BackgroundChangerConfig {
 }
 
 /**
- * The Standard engine: MediaPipe Selfie Segmentation behind the
- * MattingEngine contract. MediaPipe is push-based (send → onResults),
- * so process() pairs one send with its results callback; a frame
- * requested while another is in flight is skipped (null), never
- * queued, and a results callback that never arrives times out into a
- * skipped frame rather than wedging the pipeline. The mask arrives
- * as a canvas whose ALPHA channel carries the person mask (the same
- * channel the composite has always keyed on); the matte is read at a
- * capped width — the mask itself is low-resolution, which is exactly
- * the roughness the Pro engine exists to fix. Flicker is calmed by
- * the shared matte post-processing (temporal blend), not here.
+ * The studio's one background engine: MediaPipe Selfie Segmentation
+ * behind the MattingEngine contract. MediaPipe is push-based
+ * (send → onResults), so process() pairs one send with its results
+ * callback; a frame requested while another is in flight is skipped
+ * (null), never queued, and a results callback that never arrives
+ * times out into a skipped frame rather than wedging the pipeline.
+ * The mask arrives as a canvas whose ALPHA channel carries the
+ * person mask (the same channel the composite has always keyed on);
+ * the matte is read at a capped width set by the live refinement
+ * step (MATTE_REFINEMENT_STEPS — a finer read is the light engine's
+ * answer to rough edges). Flicker is calmed by the shared matte
+ * post-processing (temporal blend), not here.
  */
 class MediaPipeEngine implements MattingEngine {
   readonly kind = "standard" as const;
   segmenter: MediaPipeSegmenter | null = null;
+  /** Duration (ms) of the most recent send→results round trip, or
+   *  null when no round trip has completed since the caller last
+   *  read it. The changer samples this into the perf ladder (auto
+   *  quality) and clears it back to null. */
+  lastMs: number | null = null;
+  private _maskCap = MATTE_REFINEMENT_STEPS[1].maskCap;
+  private _sentAt = 0;
   private _pending: { resolve: (m: EngineMatte | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
   private _work: HTMLCanvasElement;
   private _workCtx: CanvasRenderingContext2D;
@@ -228,9 +284,15 @@ class MediaPipeEngine implements MattingEngine {
       if (!pending) return; // a late result for a frame already given up on
       this._pending = null;
       clearTimeout(pending.timer);
+      this.lastMs = performance.now() - this._sentAt;
       pending.resolve(this._extract((results as MediaPipeResults).segmentationMask));
     });
     this.segmenter = segmenter;
+  }
+
+  /** Set the width cap used when reading the mask (refinement step). */
+  setMaskCap(px: number): void {
+    this._maskCap = Math.max(64, Math.floor(px) || 64);
   }
 
   process(video: HTMLVideoElement): Promise<EngineMatte | null> {
@@ -240,14 +302,17 @@ class MediaPipeEngine implements MattingEngine {
     return new Promise<EngineMatte | null>((resolve) => {
       const timer = setTimeout(() => {
         if (this._pending?.resolve === resolve) this._pending = null;
+        this.lastMs = performance.now() - this._sentAt; // a timed-out trip is a slow trip
         resolve(null);
       }, 1000);
       this._pending = { resolve, timer };
+      this._sentAt = performance.now();
       segmenter.send({ image: video }).catch(() => {
         if (this._pending?.resolve === resolve) {
           this._pending = null;
           clearTimeout(timer);
         }
+        this.lastMs = performance.now() - this._sentAt;
         resolve(null);
       });
     });
@@ -257,7 +322,7 @@ class MediaPipeEngine implements MattingEngine {
     const srcW = mask?.width ?? 0;
     const srcH = mask?.height ?? 0;
     if (!srcW || !srcH) return null;
-    const w = Math.min(srcW, 480);
+    const w = Math.min(srcW, this._maskCap);
     const h = Math.max(1, Math.round((srcH * w) / srcW));
     if (this._work.width !== w || this._work.height !== h) {
       this._work.width = w;
@@ -309,8 +374,8 @@ export class BackgroundChanger {
   outputStream: MediaStream | null = null;
   segmenter: MediaPipeSegmenter | null = null;
   private _engineError: BackgroundChangerError | null = null;
-  /* The live background engine (Pro / Standard) behind the shared
-     MattingEngine contract; null = raw camera ("Off"). */
+  /* The live background engine behind the shared MattingEngine
+     contract (the one MediaPipe engine); null = raw camera ("Off"). */
   private _engine: MattingEngine | null = null;
   private _engineKind: BackgroundEngineKind = "off";
   /* Bumped on every engine swap/stop so in-flight frames from a
@@ -318,8 +383,9 @@ export class BackgroundChanger {
   private _engineEpoch = 0;
   private _busy = false;
   private readonly _frameStall = new FrameStallTracker(0);
-  private _degrading = false;
-  private readonly _perf = new PerfLadder({ maxStep: RVM_MAX_STEP });
+  /* Governs the matte-refinement steps in 'auto' quality: sustained
+     slowness sheds edge work, sustained speed restores it. */
+  private readonly _perf = new PerfLadder({ maxStep: MATTE_MAX_STEP });
   private readonly _mattePost = new MattePostProcessor();
   private _matteCanvas: HTMLCanvasElement;
   private _matteCtx: CanvasRenderingContext2D;
@@ -437,7 +503,7 @@ export class BackgroundChanger {
     // plainly. _selectEngine never throws.
     //
     // Raw sessions (mode "none") skip the engine ENTIRELY (Lane F
-    // audit, Flag E-1): no ~37 MB download, no inference CPU for a
+    // audit, Flag E-1): no engine download, no inference CPU for a
     // matte that is never drawn. The engine loads lazily when the
     // first backdrop mode is picked (see setMode).
     this._engineError = null;
@@ -654,9 +720,19 @@ export class BackgroundChanger {
     return this._engineError;
   }
 
-  /** Which background engine is live: 'pro' | 'standard' | 'off'. */
+  /** Whether the background engine is live: 'standard' | 'off'. */
   getEngineKind(): BackgroundEngineKind {
     return this._engineKind;
+  }
+
+  /**
+   * The matte-refinement step currently in force (index into
+   * MATTE_REFINEMENT_STEPS). 'pro' pins 0 (sharpest), 'standard'
+   * pins 1 (balanced), 'auto' reports wherever the perf ladder
+   * currently sits.
+   */
+  getRefinementStep(): number {
+    return this._refinementStep();
   }
 
   /** The configured background quality ('auto' | 'pro' | 'standard'). */
@@ -666,10 +742,10 @@ export class BackgroundChanger {
 
   /**
    * Switch background quality live. Re-runs engine selection against
-   * the new setting (the camera never stops). Like start(), an engine
-   * failure lands on the ladder — Standard in auto, raw otherwise —
-   * and is reported through getEngineKind() / engineError /
-   * onEngineStatus, never thrown.
+   * the new setting (the camera never stops) and re-pins the
+   * refinement step the quality names. Like start(), an engine
+   * failure lands raw and is reported through getEngineKind() /
+   * engineError / onEngineStatus, never thrown.
    */
   async setQuality(quality: BackgroundQuality): Promise<void> {
     if (!["auto", "pro", "standard"].includes(quality)) {
@@ -720,9 +796,11 @@ export class BackgroundChanger {
   /* -------------------------------------------------------------- internal */
 
   /**
-   * Run engine selection for the configured quality. NEVER throws:
-   * every failure path lands on the ladder (Standard in auto, raw
-   * otherwise) with engineError set and onEngineStatus fired.
+   * Run engine selection. There is exactly ONE engine to select —
+   * the vendored MediaPipe segmentation engine — whatever the
+   * configured quality (quality chooses the refinement step, not
+   * an engine). NEVER throws: a load failure lands raw with
+   * engineError set and onEngineStatus fired.
    */
   private async _selectEngine(): Promise<void> {
     /* Raw mode never selects an engine (Flag E-1) — including a
@@ -731,31 +809,14 @@ export class BackgroundChanger {
       await this._teardownEngine();
       return;
     }
-    const quality = this.config.quality;
-    let firstError: unknown = null;
-    if (quality === "auto" || quality === "pro") {
-      try {
-        const engine = new RvmEngine();
-        await engine.init();
-        if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
-        await this._swapEngine(engine);
-        return;
-      } catch (err) {
-        firstError = err;
-      }
+    try {
+      const engine = new MediaPipeEngine(this.config.modelSelection);
+      await engine.init();
+      if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
+      await this._swapEngine(engine);
+    } catch (err) {
+      await this._swapEngine(null, err);
     }
-    if (quality === "auto" || quality === "standard") {
-      try {
-        const engine = new MediaPipeEngine(this.config.modelSelection);
-        await engine.init();
-        if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
-        await this._swapEngine(engine);
-        return;
-      } catch (err) {
-        firstError = firstError ?? err;
-      }
-    }
-    await this._swapEngine(null, firstError);
   }
 
   /** Live mode read for async continuations (the mode can flip while an
@@ -790,28 +851,31 @@ export class BackgroundChanger {
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
   }
 
-  /** Adopt a new live engine (or none), retiring the previous one. */
+  /** Adopt a new live engine (or none), retiring the previous one.
+   *  The only engine ever adopted is the MediaPipe engine (kind
+   *  'standard'); the shared contract's wider kind union belongs to
+   *  the still-photo path's engine, which the studio never adopts. */
   private async _swapEngine(next: MattingEngine | null, cause?: unknown): Promise<void> {
     const old = this._engine;
     this._engineEpoch++;
     this._engine = next;
-    this._engineKind = next ? next.kind : "off";
+    this._engineKind = next ? (next as MediaPipeEngine).kind : "off";
     this._busy = false;
     this._frameStall.reset(performance.now());
     this._mattePost.reset();
-    if (next?.kind === "pro") this._perf.reset();
+    if (next) {
+      /* A fresh engine starts at the refinement step its quality
+         names: the ladder restarts at the sharpest step, and the
+         pinned qualities ('pro' / 'standard') land on theirs. */
+      this._perf.reset();
+      this._applyRefinement(next as MediaPipeEngine, this._refinementStep());
+    }
     this.segmenter = next instanceof MediaPipeEngine ? next.segmenter : null;
     this._engineError = next
       ? null
       : cause instanceof BackgroundChangerError
         ? cause
-        : cause instanceof RvmEngineError
-          ? new BackgroundChangerError(
-              cause.code === "INFERENCE_FAILED" ? "SEGMENTATION_FAILED" : "CDN_LOAD_FAILED",
-              cause.message,
-              cause,
-            )
-          : new BackgroundChangerError("CDN_LOAD_FAILED", "Could not load the background-effects engine.", cause);
+        : new BackgroundChangerError("CDN_LOAD_FAILED", "Could not load the background-effects engine.", cause);
     if (old && old !== next) {
       try {
         await old.dispose();
@@ -822,31 +886,45 @@ export class BackgroundChanger {
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
   }
 
-  /** Auto-mode live degrade: Pro is too slow for this device, so the
-   *  Standard engine takes over (and the status says so). */
-  private async _degradeToStandard(): Promise<void> {
-    try {
-      const engine = new MediaPipeEngine(this.config.modelSelection);
-      await engine.init();
-      await this._swapEngine(engine);
-    } catch (err) {
-      await this._swapEngine(null, err);
-    }
+  /** The refinement step the configured quality names right now:
+   *  'pro' pins the sharpest, 'standard' pins the balanced step,
+   *  'auto' follows the perf ladder. */
+  private _refinementStep(): number {
+    const quality = this.config.quality;
+    if (quality === "pro") return 0;
+    if (quality === "standard") return 1;
+    return this._perf.step;
   }
 
-  /** Feed the Pro engine's latest inference time to the perf ladder
-   *  and act on its decision: internal step changes, or — in auto
-   *  mode only — the degrade to Standard. Pro mode steps internally
-   *  but never switches engines under the creator. */
-  private _governPerf(engine: RvmEngine): void {
-    const action = this._perf.sample(engine.lastMs);
+  /** Apply a refinement step to the live engine + matte pipeline:
+   *  the engine reads its mask at the step's width, and the matte
+   *  post-processing retunes to the step's edge settings. */
+  private _applyRefinement(engine: MediaPipeEngine, step: number): void {
+    const def = MATTE_REFINEMENT_STEPS[Math.max(0, Math.min(MATTE_MAX_STEP, step))];
+    engine.setMaskCap(def.maskCap);
+    this._mattePost.configure({
+      emaWeight: def.emaWeight,
+      choke: def.choke,
+      curveLo: def.curveLo,
+      curveHi: def.curveHi,
+      featherPasses: def.featherPasses,
+    });
+  }
+
+  /** Feed the engine's latest round-trip time to the perf ladder
+   *  and act on its decision. Auto quality only — the pinned
+   *  qualities never move. A step change retunes the refinement;
+   *  the ladder's 'degrade' verdict has nowhere lighter to go (the
+   *  lightest step IS the floor with one engine), so it is an
+   *  honest stay, never an engine swap. */
+  private _governPerf(engine: MediaPipeEngine): void {
+    if (this.config.quality !== "auto") return;
+    const ms = engine.lastMs;
+    if (ms === null) return;
+    engine.lastMs = null;
+    const action = this._perf.sample(ms);
     if (action === "step-down" || action === "step-up") {
-      engine.setStep(this._perf.step);
-    } else if (action === "degrade" && this.config.quality === "auto" && !this._degrading) {
-      this._degrading = true;
-      void this._degradeToStandard().finally(() => {
-        this._degrading = false;
-      });
+      this._applyRefinement(engine, this._perf.step);
     }
   }
 
@@ -1011,7 +1089,7 @@ export class BackgroundChanger {
       .process(this._video)
       .then((matte) => {
         if (!this._running || epoch !== this._engineEpoch) return;
-        if (engine.kind === "pro") this._governPerf(engine as RvmEngine);
+        this._governPerf(engine as MediaPipeEngine);
         if (matte) {
           this._compositeMatte(matte);
           this._noteMatteFrame();
@@ -1089,12 +1167,13 @@ export class BackgroundChanger {
   /**
    * Engine frame: post-process the alpha matte, cut the person out
    * with it, and lay the cutout over the background layer. The matte
-   * pipeline is shared by both engines: temporal blend → choke →
-   * levels curve → feather (matte-post.ts), rasterised as a white
-   * image whose alpha IS the matte, then used as the person layer's
-   * stencil ('copy' the matte in, 'source-in' the camera picture).
-   * Edge despill runs on the person layer's own pixels, keyed on its
-   * alpha band, so neither engine needs to know about it.
+   * pipeline (matte-post.ts, tuned by the live refinement step):
+   * temporal blend → choke → levels curve → feather, rasterised as
+   * a white image whose alpha IS the matte, then used as the person
+   * layer's stencil ('copy' the matte in, 'source-in' the camera
+   * picture). Edge despill runs on the person layer's own pixels,
+   * keyed on its alpha band, so the engine needs to know nothing
+   * about it.
    */
   private _compositeMatte(matte: EngineMatte): void {
     if (!this._running) return;

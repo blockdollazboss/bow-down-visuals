@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { estimateKeyColor, chromaKeyAlpha, MATTING_TIERS, tierLabel } from "./photo-matting";
+import { ortScriptUrls, rvmModelUrls, ORT_LOCAL_BASE, RVM_LOCAL_BASE } from "./stream-kit/rvm-engine";
 
 /** 4x4 image: green corners/background, red subject block in the middle. */
 function fixture(): Uint8ClampedArray {
@@ -32,5 +33,18 @@ describe("photo-matting basic color-key fallback (pure)", () => {
     expect(tierLabel("basic")).toBe("Basic color-key");
     expect(MATTING_TIERS.find((t) => t.id === "basic")!.blurb).not.toMatch(/\bAI\b/);
     expect(MATTING_TIERS.find((t) => t.id === "pro")!.blurb).toContain("matting model");
+  });
+});
+
+describe("rvm asset urls (the still-photo path's Pro engine)", () => {
+  // This pin moved here from background-changer.test.ts when the
+  // heavy engine left the Go Live studio path (Oct 18, 2026): the
+  // still-photo matting path is the engine's remaining consumer,
+  // so its vendored-first asset discipline is pinned with it.
+  it("are vendored-first for both the runtime and the model", () => {
+    expect(ortScriptUrls()[0]).toBe(`${ORT_LOCAL_BASE}/ort.all.min.js`);
+    expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp32.onnx`);
+    expect(ortScriptUrls()).toHaveLength(2);
+    expect(rvmModelUrls()).toHaveLength(2);
   });
 });

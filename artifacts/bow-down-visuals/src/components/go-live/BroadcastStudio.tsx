@@ -167,9 +167,9 @@ export default function BroadcastStudio() {
   /* True when no background engine could load: the camera runs
      plain and only the AI backdrop modes disable (one inline notice). */
   const [engineDown, setEngineDown] = useState(false);
-  /* Background engine quality the creator picked, and which engine
-     is actually live — the status line reports the LIVE one, so an
-     auto fallback is never dressed up as the better engine. */
+  /* Background quality the creator picked, and whether the engine
+     is actually live — the status line reports the LIVE state, so
+     a stalled or failed engine reads Off, never dressed up. */
   const [quality, setQualityState] = useState<BackgroundQuality>("auto");
   const [engineKind, setEngineKind] = useState<BackgroundEngineKind>("off");
   const [backdropId, setBackdropId] = useState("stage");
@@ -1650,7 +1650,7 @@ export default function BroadcastStudio() {
         </p>
         {phase !== "off" && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="engine-status">
-            Background engine: {engineKind === "pro" ? "Pro" : engineKind === "standard" ? "Standard" : "Off"}
+            Background engine: {engineKind === "standard" ? "On" : "Off"}
           </p>
         )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">

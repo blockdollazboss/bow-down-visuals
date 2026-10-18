@@ -13,6 +13,7 @@
  * script elements are captured so each test decides whether a load
  * succeeds or fails, in order.
  */
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { rnnoiseUrls, RNNOISE_LOCAL_BASE } from "./voice-isolator";
 import { SEGMENTATION_LOCAL_BASE, SEGMENTATION_CDN_BASE } from "./background-changer";
@@ -140,47 +141,6 @@ class FakeSegmenter {
   async close(): Promise<void> {}
 }
 
-/* A minimal fake ONNX Runtime Web global: enough for RvmEngine to
-   build a session and run frames. `failCreate` simulates the Pro
-   engine being unloadable; run() echoes the recurrent states back
-   and returns a mostly-opaque matte sized from the src feed. */
-class FakeTensor {
-  type: string;
-  data: Float32Array;
-  dims: number[];
-  constructor(type: string, data: Float32Array, dims: number[]) {
-    this.type = type;
-    this.data = data;
-    this.dims = dims;
-  }
-}
-function makeFakeOrt(opts: { failCreate?: boolean } = {}) {
-  return {
-    env: { wasm: {} as Record<string, unknown>, logLevel: "" },
-    Tensor: FakeTensor,
-    InferenceSession: {
-      create: async () => {
-        if (opts.failCreate) throw new Error("no session for you");
-        return {
-          run: async (feeds: Record<string, FakeTensor>) => {
-            const h = feeds.src.dims[2];
-            const w = feeds.src.dims[3];
-            return {
-              fgr: new FakeTensor("float32", new Float32Array(3 * w * h), [1, 3, h, w]),
-              pha: new FakeTensor("float32", new Float32Array(w * h).fill(0.9), [1, 1, h, w]),
-              r1o: feeds.r1i,
-              r2o: feeds.r2i,
-              r3o: feeds.r3i,
-              r4o: feeds.r4i,
-            };
-          },
-          release: async () => undefined,
-        };
-      },
-    },
-  };
-}
-
 /* ------------------------------------------------------------- test rig */
 
 const scripts: FakeScript[] = [];
@@ -236,8 +196,8 @@ afterEach(() => {
 describe("segmentation engine loading", () => {
   it("loads the vendored same-origin copy first and resolves assets locally", async () => {
     const BackgroundChanger = await loadChanger();
-    // quality:'standard' isolates the MediaPipe path (the default
-    // 'auto' tries the Pro engine first — covered separately below).
+    // quality:'standard' pins the balanced refinement step; the
+    // default 'auto' loads the same one engine — covered below.
     const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
     expect(scripts).toHaveLength(1);
@@ -298,38 +258,44 @@ describe("segmentation engine loading", () => {
   });
 });
 
-describe("pro engine + quality ladder", () => {
-  it("auto quality runs the Pro engine when it loads, and says so", async () => {
+describe("one light engine — quality is refinement, not an engine choice", () => {
+  it("auto (the default) loads ONLY the vendored MediaPipe script — the ONNX global is never even read", async () => {
     const BackgroundChanger = await loadChanger();
-    win.ort = makeFakeOrt();
-    const statuses: string[] = [];
-    const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
-    const { stream } = await changer.start();
-    expect(stream).toBeTruthy();
-    expect(changer.getEngineKind()).toBe("pro");
-    expect(changer.segmentationAvailable).toBe(true);
-    expect(changer.engineError).toBeNull();
-    expect(statuses).toEqual(["pro"]);
-    // No MediaPipe script was ever requested — Pro carried it alone.
-    expect(scripts).toHaveLength(0);
-    // A stepped frame runs an inference and composites a cutout.
-    const canvas = changer.canvas as unknown as FakeCanvas;
-    await flush();
-    const drew = canvas.ctx.calls.filter((c) => c === "drawImage").length;
-    expect(drew).toBeGreaterThan(0);
-    await changer.stop();
-    delete win.ort;
-  });
-
-  it("auto quality falls back to the Standard engine when Pro cannot load", async () => {
-    const BackgroundChanger = await loadChanger();
-    win.ort = makeFakeOrt({ failCreate: true });
+    // Booby-trap: anything in the studio path that so much as READS
+    // the heavy engine's runtime global fails this test loudly.
+    Object.defineProperty(win, "ort", {
+      configurable: true,
+      get() {
+        throw new Error("the studio must never touch the ONNX runtime");
+      },
+    });
     const statuses: string[] = [];
     const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
     const started = changer.start();
-    await flush();
-    // Pro failed inside start(); the ladder moved on to the
-    // vendored MediaPipe script.
+    try {
+      expect(scripts).toHaveLength(1);
+      expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
+      win.SelfieSegmentation = FakeSegmenter;
+      scripts[0].onload?.();
+      const { stream } = await started;
+      expect(stream).toBeTruthy();
+      expect(changer.getEngineKind()).toBe("standard");
+      expect(changer.segmentationAvailable).toBe(true);
+      expect(changer.engineError).toBeNull();
+      expect(statuses).toEqual(["standard"]);
+      // Auto starts at the sharpest refinement step.
+      expect(changer.getRefinementStep()).toBe(0);
+    } finally {
+      await changer.stop();
+      delete win.ort;
+    }
+  });
+
+  it("'pro' quality runs the SAME light engine — it pins the sharpest refinement, not a heavier engine", async () => {
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ quality: "pro", onEngineStatus: (k) => statuses.push(k) });
+    const started = changer.start();
     expect(scripts).toHaveLength(1);
     expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
     win.SelfieSegmentation = FakeSegmenter;
@@ -337,29 +303,25 @@ describe("pro engine + quality ladder", () => {
     await started;
     expect(changer.getEngineKind()).toBe("standard");
     expect(changer.segmentationAvailable).toBe(true);
+    expect(changer.engineError).toBeNull();
     expect(statuses).toEqual(["standard"]);
+    expect(changer.getRefinementStep()).toBe(0);
     await changer.stop();
-    delete win.ort;
   });
 
-  it("forced Pro NEVER silently downgrades: load failure means raw + honest error", async () => {
+  it("'standard' quality pins the balanced refinement step", async () => {
     const BackgroundChanger = await loadChanger();
-    win.ort = makeFakeOrt({ failCreate: true });
-    const statuses: string[] = [];
-    const changer = new BackgroundChanger({ quality: "pro", onEngineStatus: (k) => statuses.push(k) });
-    const { stream } = await changer.start(); // still resolves — camera runs raw
-    expect(stream).toBeTruthy();
-    expect(changer.getEngineKind()).toBe("off");
-    expect(changer.segmentationAvailable).toBe(false);
-    expect(changer.engineError?.code).toBe("CDN_LOAD_FAILED");
-    expect(statuses).toEqual(["off"]);
-    // The Standard engine was never even attempted.
-    expect(scripts).toHaveLength(0);
+    const changer = new BackgroundChanger({ quality: "standard" });
+    const started = changer.start();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.getRefinementStep()).toBe(1);
     await changer.stop();
-    delete win.ort;
   });
 
-  it("the Standard engine pairs send→results and composites the matte", async () => {
+  it("the engine pairs send→results and composites the matte", async () => {
     const BackgroundChanger = await loadChanger();
     const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
@@ -385,40 +347,52 @@ describe("pro engine + quality ladder", () => {
     await changer.stop();
   });
 
-  it("a too-slow Pro engine degrades to Standard in auto mode", async () => {
+  it("auto steps the refinement DOWN when the engine runs slow — and stops at the floor (no second engine exists)", async () => {
     const BackgroundChanger = await loadChanger();
-    win.ort = makeFakeOrt();
     const statuses: string[] = [];
     const changer = new BackgroundChanger({ onEngineStatus: (k) => statuses.push(k) });
-    // Every performance.now() call jumps 100ms, so each measured
-    // inference reads as 100ms — far over the ladder's slow line.
+    const started = changer.start();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.getRefinementStep()).toBe(0);
+    // Every performance.now() call jumps 100ms, so each send→results
+    // round trip reads as ~100ms — far over the ladder's slow line.
     let t = 0;
     const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
     try {
-      await changer.start();
-      expect(changer.getEngineKind()).toBe("pro");
-      // Step frames until the ladder gives up on Pro and the
-      // Standard engine's script load begins (or we run out of road).
-      for (let i = 0; i < 400 && changer.getEngineKind() === "pro" && scripts.length === 0; i++) {
+      const seg = FakeSegmenter.instances[0];
+      const mask = new FakeCanvas();
+      mask.width = 256;
+      mask.height = 144;
+      const stepFrame = async () => {
         rafCallbacks[rafCallbacks.length - 1]?.();
         await flush();
-      }
-      expect(scripts).toHaveLength(1);
-      expect(scripts[0].src).toBe(`${SEGMENTATION_LOCAL_BASE}/selfie_segmentation.js`);
-      win.SelfieSegmentation = FakeSegmenter;
-      scripts[0].onload?.();
-      await flush();
-      await flush();
+        seg.resultsCb?.({ image: null, segmentationMask: mask });
+        await flush();
+      };
+      // Warmup (12 samples) + one eval window (24): the ladder sheds
+      // one refinement step.
+      for (let i = 0; i < 60 && changer.getRefinementStep() === 0; i++) await stepFrame();
+      expect(changer.getRefinementStep()).toBe(1);
+      // Sustained slowness walks to the lightest step — and STAYS:
+      // the floor is an honest stay, never an engine swap or a
+      // dropout, and the status never re-reports.
+      for (let i = 0; i < 120 && changer.getRefinementStep() === 1; i++) await stepFrame();
+      expect(changer.getRefinementStep()).toBe(2);
+      for (let i = 0; i < 80; i++) await stepFrame();
+      expect(changer.getRefinementStep()).toBe(2);
       expect(changer.getEngineKind()).toBe("standard");
-      expect(statuses).toEqual(["pro", "standard"]);
+      expect(changer.segmentationAvailable).toBe(true);
+      expect(statuses).toEqual(["standard"]);
     } finally {
       nowSpy.mockRestore();
       await changer.stop();
-      delete win.ort;
     }
   }, 30000);
 
-  it("setQuality re-runs selection live (standard → pro)", async () => {
+  it("setQuality re-runs selection live and re-pins the refinement (standard → pro)", async () => {
     const BackgroundChanger = await loadChanger();
     const changer = new BackgroundChanger({ quality: "standard" });
     const started = changer.start();
@@ -426,22 +400,63 @@ describe("pro engine + quality ladder", () => {
     scripts[0].onload?.();
     await started;
     expect(changer.getEngineKind()).toBe("standard");
-    win.ort = makeFakeOrt();
+    expect(changer.getRefinementStep()).toBe(1);
     await changer.setQuality("pro");
-    expect(changer.getEngineKind()).toBe("pro");
     expect(changer.getQuality()).toBe("pro");
+    expect(changer.getEngineKind()).toBe("standard"); // the same one engine
+    expect(changer.getRefinementStep()).toBe(0);
+    // No new script was fetched for the "pro" switch.
+    expect(scripts).toHaveLength(1);
     await changer.stop();
-    delete win.ort;
   });
 });
 
-describe("rvm asset urls", () => {
-  it("are vendored-first for both the runtime and the model", async () => {
-    const { ortScriptUrls, rvmModelUrls, ORT_LOCAL_BASE, RVM_LOCAL_BASE } = await import("./rvm-engine");
-    expect(ortScriptUrls()[0]).toBe(`${ORT_LOCAL_BASE}/ort.all.min.js`);
-    expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp32.onnx`);
-    expect(ortScriptUrls()).toHaveLength(2);
-    expect(rvmModelUrls()).toHaveLength(2);
+describe("matte refinement steps (the light way to cleaner edges)", () => {
+  it("run sharpest → lightest: mask reads strictly descend, ladder index matches the table", async () => {
+    const { MATTE_REFINEMENT_STEPS, MATTE_MAX_STEP } = await import("./background-changer");
+    expect(MATTE_REFINEMENT_STEPS.length).toBeGreaterThanOrEqual(3);
+    expect(MATTE_MAX_STEP).toBe(MATTE_REFINEMENT_STEPS.length - 1);
+    for (let i = 1; i < MATTE_REFINEMENT_STEPS.length; i++) {
+      expect(MATTE_REFINEMENT_STEPS[i].maskCap).toBeLessThan(MATTE_REFINEMENT_STEPS[i - 1].maskCap);
+    }
+  });
+
+  it("the balanced step IS the behaviour that shipped before refinement steps existed", async () => {
+    const { MATTE_REFINEMENT_STEPS } = await import("./background-changer");
+    // 480px mask read (the old hard-coded cap) + the MattePostProcessor
+    // shipping defaults — 'standard' quality must not move the picture.
+    expect(MATTE_REFINEMENT_STEPS[1]).toEqual({
+      maskCap: 480,
+      emaWeight: 0.55,
+      choke: 0.05,
+      curveLo: 0.06,
+      curveHi: 0.94,
+      featherPasses: 1,
+    });
+  });
+
+  it("the sharpest step opens the edge work up: finer read, calmer blend, gentler curve, fuller feather", async () => {
+    const { MATTE_REFINEMENT_STEPS } = await import("./background-changer");
+    const [sharp, balanced] = MATTE_REFINEMENT_STEPS;
+    expect(sharp.maskCap).toBeGreaterThan(balanced.maskCap);
+    expect(sharp.emaWeight).toBeLessThan(balanced.emaWeight); // more history = less flicker
+    expect(sharp.curveHi).toBeLessThan(balanced.curveHi); // semi-transparent hair survives sooner
+    expect(sharp.featherPasses).toBeGreaterThan(balanced.featherPasses);
+  });
+});
+
+describe("one-engine truth (source contract)", () => {
+  const src = readFileSync(new URL("./background-changer.ts", import.meta.url), "utf8");
+
+  it("the heavy engine is never constructed, stepped, or degraded to in the studio path", () => {
+    expect(src).not.toContain("new RvmEngine");
+    expect(src).not.toContain("RVM_MAX_STEP");
+    expect(src).not.toContain("RvmEngineError");
+    expect(src).not.toContain("_degradeToStandard");
+  });
+
+  it("the shared matting contract is imported type-only (erased at runtime)", () => {
+    expect(src).toContain('import type { EngineMatte, MattingEngine } from "./rvm-engine";');
   });
 });
 

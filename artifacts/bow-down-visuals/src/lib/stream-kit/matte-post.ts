@@ -1,13 +1,14 @@
 /**
- * matte-post.ts — matte post-processing shared by both background
- * engines (the Pro video-matting engine and the Standard segmentation
- * fallback). Pure math on Float32Array alpha mattes (values 0..1),
- * no DOM — unit-tested directly.
+ * matte-post.ts — matte post-processing for the matting paths: the
+ * Go Live studio's segmentation engine (background-changer.ts) and
+ * the still-photo matting path (photo-matting.ts). Pure math on
+ * Float32Array alpha mattes (values 0..1), no DOM — unit-tested
+ * directly.
  *
  * The pipeline, in order:
- *   1. Temporal blend (EMA) — cross-frame smoothing. The Pro engine
- *      is temporally coherent on its own; the Standard engine's mask
- *      flickers frame to frame, and blending is what calms it.
+ *   1. Temporal blend (EMA) — cross-frame smoothing. The studio
+ *      engine's mask flickers frame to frame, and blending is what
+ *      calms it. (Single-frame callers pass emaWeight 1.)
  *   2. Choke — a small constant subtracted from semi-transparent
  *      pixels only. Kills the background-colored fringe that clings
  *      to edges without touching the solid core or true hair detail
@@ -35,11 +36,11 @@ export interface MattePostOptions {
 }
 
 export class MattePostProcessor {
-  private readonly _emaWeight: number;
-  private readonly _choke: number;
-  private readonly _lo: number;
-  private readonly _hi: number;
-  private readonly _featherPasses: number;
+  private _emaWeight: number;
+  private _choke: number;
+  private _lo: number;
+  private _hi: number;
+  private _featherPasses: number;
   private _ema: Float32Array | null = null;
   private _out: Float32Array | null = null;
   private _scratch: Float32Array | null = null;
@@ -52,6 +53,21 @@ export class MattePostProcessor {
     this._lo = clamp01(options.curveLo ?? 0.06);
     this._hi = clamp01(options.curveHi ?? 0.94);
     this._featherPasses = Math.max(0, Math.floor(options.featherPasses ?? 1));
+  }
+
+  /**
+   * Retune the pipeline live (the studio's matte-refinement steps —
+   * background-changer.ts MATTE_REFINEMENT_STEPS). Only the fields
+   * present in `options` change; the temporal-blend state is kept
+   * (a geometry change still reseeds it inside process(), as
+   * before), so a step change never ghosts the previous matte.
+   */
+  configure(options: MattePostOptions): void {
+    if (options.emaWeight !== undefined) this._emaWeight = clamp01(options.emaWeight);
+    if (options.choke !== undefined) this._choke = Math.max(0, options.choke);
+    if (options.curveLo !== undefined) this._lo = clamp01(options.curveLo);
+    if (options.curveHi !== undefined) this._hi = clamp01(options.curveHi);
+    if (options.featherPasses !== undefined) this._featherPasses = Math.max(0, Math.floor(options.featherPasses));
   }
 
   /** Forget all temporal state (camera switch, resize, engine swap). */

@@ -67,6 +67,44 @@ describe("temporal blend (EMA)", () => {
   });
 });
 
+describe("configure() — live retune (refinement steps)", () => {
+  it("a retuned EMA weight applies to the very next frame", () => {
+    const p = new MattePostProcessor({ emaWeight: 0.5, featherPasses: 0 });
+    expect(p.process(filled(1), 8, 8)[0]).toBe(1);
+    p.configure({ emaWeight: 1 });
+    // Weight 1 = no history: the new frame lands whole (0), where
+    // the old weight would have blended to ~0.443.
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+  });
+
+  it("retunes choke + curve without touching the other settings", () => {
+    const p = new MattePostProcessor({ featherPasses: 0 });
+    p.configure({ choke: 0.2, curveLo: 0, curveHi: 1 });
+    // Identity curve + choke 0.2: a mid pixel loses exactly the choke.
+    expect(p.process(filled(0.5), 8, 8)[0]).toBeCloseTo(0.3, 5);
+    p.reset();
+    // The EMA weight was NOT in the configure call: still the 0.55
+    // default, so a 0 -> 1 jump blends (0.55) instead of landing
+    // whole, then loses the choke: 0.55 - 0.2 = 0.35.
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+    expect(p.process(filled(1), 8, 8)[0]).toBeCloseTo(0.35, 5);
+  });
+
+  it("feather passes can be raised live (softer rim on the next frame)", () => {
+    const w = 16;
+    const h = 4;
+    const edge = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 8; x < w; x++) edge[y * w + x] = 1;
+    const p = new MattePostProcessor({ emaWeight: 1, choke: 0, curveLo: 0, curveHi: 1, featherPasses: 0 });
+    const hard = p.process(edge, w, h);
+    expect(hard[1 * w + 7]).toBe(0); // no feather: the edge stays a cliff
+    p.configure({ featherPasses: 1 });
+    const soft = p.process(edge, w, h);
+    expect(soft[1 * w + 7]).toBeGreaterThan(0); // feathered: spill across the edge
+    expect(soft[1 * w + 7]).toBeLessThan(0.5);
+  });
+});
+
 describe("featherPass", () => {
   it("softens a hard step edge over ~2px and leaves the far field exact", () => {
     const w = 16;
