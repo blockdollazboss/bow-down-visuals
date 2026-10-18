@@ -6,7 +6,6 @@ import {
   type CreatorTier,
   meetsTier,
   tierFromLegacyPlan,
-  maxStarsForTier,
 } from "../lib/platform-fees";
 import { logger } from "../lib/logger";
 
@@ -67,10 +66,9 @@ export async function resolveCreatorTier(
   }
 }
 
-/** Is `stars` (1–6 creator level) allowed on `tier`? */
-export function tierAllowsStars(tier: CreatorTier, stars: number): boolean {
-  return stars <= maxStarsForTier(tier);
-}
+/* Stars are EARNED RANK (owner ruling 2026-10-17) and are never gated
+   by tier — the former tierAllowsStars cap helper is abolished along
+   with TIER_MAX_STARS. This middleware gates paid plan features only. */
 
 /**
  * Express middleware: require at least `required` tier.

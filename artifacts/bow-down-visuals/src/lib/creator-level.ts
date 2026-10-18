@@ -71,47 +71,15 @@ export function levelInfo(stars: StarLevel): CreatorLevelInfo {
   return CREATOR_LEVELS[stars - 1];
 }
 
-/** The earned-rank DTO returned by GET /api/retention/rank — mirrors
- *  the server's RankResult in lib/creator-rank.ts. */
-export interface CreatorRankGateDto {
-  key: "businessResults" | "publishedWorks";
-  label: string;
-  have: number;
-  need: number;
-  met: boolean;
-}
-
-export interface CreatorRankDto {
-  stars: number;
-  points: number;
-  counts: Record<string, number>;
-  breakdown: Record<string, number>;
-  businessResults: number;
-  publishedWorks: number;
-  next: {
-    stars: number;
-    pointsAt: number;
-    pointsNeeded: number;
-    gates: CreatorRankGateDto[];
-  } | null;
-  hints: string[];
-}
-
-function clampStars(n: number): StarLevel {
-  if (!Number.isFinite(n)) return 1;
-  return Math.min(6, Math.max(1, Math.floor(n))) as StarLevel;
-}
-
-/**
- * Gate stars — the grandfather rule in one line. Control exposure never
- * shrinks the day earned rank ships: a creator keeps every control
- * their saved (pre-earned-rank) level already exposed, and earned stars
- * take over as soon as they pass it. The saved level is a floor for
- * exposure only; it is never rank.
- */
-export function gateStarsFor(earnedStars: number, legacyFloor: number): StarLevel {
-  return clampStars(Math.max(clampStars(earnedStars), clampStars(legacyFloor)));
-}
+/* The rank DTO + the grandfather math live in the pure module
+   (lib/creator-rank.ts) so tests can pin them without importing JSX;
+   re-exported here for existing consumers. */
+export {
+  gateStarsFor,
+  clampStars,
+  type CreatorRankDto,
+  type CreatorRankGateDto,
+} from "@/lib/creator-rank";
 
 /** True when the user's GATE stars (earned, grandfather-floored) reach
  *  `level`. Control-exposure checks use this — see the header. */

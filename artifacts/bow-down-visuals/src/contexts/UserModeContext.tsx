@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { gateStarsFor, type CreatorRankDto } from "@/lib/creator-level";
+import { gateStarsFor, type CreatorRankDto } from "@/lib/creator-rank";
 
 /**
  * Site-wide Creator Level — EARNED RANK (owner ruling, 2026-10-17).
