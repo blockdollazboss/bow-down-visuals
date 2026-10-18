@@ -14,6 +14,16 @@ import {
   type Leaderboard,
   type TreasuryHistory,
 } from "@/lib/world/treasury-quests";
+import {
+  normalizeStreakStatus,
+  type StreakStatusShape,
+} from "@/lib/world/objective-strip";
+import {
+  evaluateStreakCrossing,
+  readSeenStreakMilestone,
+  writeSeenStreakMilestone,
+  type StreakMomentVerdict,
+} from "@/lib/world/streak-moment";
 
 /* ─── TreasuryQuestDepths — the Quest Board's depth (Ring 2) ───────
    Under the board's active objectives, three more ways to READ
@@ -57,11 +67,20 @@ function fmtDate(iso: string | null | undefined): string {
 
 export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
   const { t } = useTranslation();
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, user } = useAuth();
   const [tab, setTab] = useState<DepthsTab>("trophies");
   const [history, setHistory] = useState<TreasuryHistory | null>(null);
   const [historyFailed, setHistoryFailed] = useState(false);
   const [streak, setStreak] = useState<StreakStatusDto | null>(null);
+  /* The streak MOMENT (Lane K2, item 3): the normalized server
+     streak shape + the crossing verdict this device hasn't shown
+     yet. Personal to the achiever — see lib/world/streak-moment
+     for why this never becomes a room broadcast. */
+  const [streakShape, setStreakShape] = useState<StreakStatusShape | null>(null);
+  const [streakMoment, setStreakMoment] = useState<Extract<
+    StreakMomentVerdict,
+    { kind: "crossed" }
+  > | null>(null);
   const [lastDailyClaim, setLastDailyClaim] = useState<string | null>(null);
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
@@ -89,8 +108,11 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
         setHistory(normalized);
         setHistoryFailed(false);
         if (streakRes.ok) {
-          const s = (await streakRes.json()) as StreakStatusDto;
+          const rawStreak: unknown = await streakRes.json();
+          const s = rawStreak as StreakStatusDto;
           if (!cancelled && s && Array.isArray(s.milestones)) setStreak(s);
+          const shaped = normalizeStreakStatus(rawStreak);
+          if (!cancelled && shaped) setStreakShape(shaped);
         }
         if (bonusRes.ok) {
           const b = (await bonusRes.json()) as { lastDailyClaim?: string | null };
@@ -129,6 +151,31 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  /* The crossing verdict: server state vs this device's seen
+     baseline (the level-watch pattern). A baseline verdict is
+     stored silently; a crossing is presented once, here, and the
+     baseline moves past it. */
+  useEffect(() => {
+    if (!streakShape || !user) return;
+    let verdict: StreakMomentVerdict;
+    try {
+      verdict = evaluateStreakCrossing(
+        readSeenStreakMilestone(window.localStorage, user.id),
+        streakShape,
+      );
+      if (verdict.kind === "baseline") {
+        writeSeenStreakMilestone(window.localStorage, user.id, verdict.milestoneDays);
+        return;
+      }
+      if (verdict.kind === "crossed") {
+        writeSeenStreakMilestone(window.localStorage, user.id, verdict.milestone.days);
+        setStreakMoment(verdict);
+      }
+    } catch {
+      /* storage unavailable — no moment this visit, nothing breaks */
+    }
+  }, [streakShape, user]);
+
   const questTitle = (key: string | null): string => {
     if (!key) return "";
     const display = QUEST_DISPLAY[key];
@@ -155,6 +202,39 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="mt-4 space-y-3" data-testid="world-treasury-depths">
+      {streakMoment && (
+        <div
+          className={`flex flex-wrap items-center gap-3 rounded-2xl border-2 px-4 py-3 ${
+            isLight
+              ? "border-[#d4af37] bg-[#fdf3d0]"
+              : "border-[#d4af37]/70 bg-[#d4af37]/10"
+          }`}
+          data-testid="world-treasury-streak-moment"
+          role="status"
+        >
+          <Flame className="h-7 w-7 shrink-0 text-[#d4af37]" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+              Streak moment — your flame stepped up
+            </p>
+            <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+              Your creation streak crossed {streakMoment.milestone.days} days — you&rsquo;re
+              on a {streakMoment.currentStreak}-day streak.{" "}
+              {streakMoment.milestone.claimed
+                ? `Its ${streakMoment.milestone.reward.toLocaleString("en-US")} VB is already claimed — it's on your shelf below.`
+                : `${streakMoment.milestone.reward.toLocaleString("en-US")} VB is waiting — claim it on the streak board.`}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="world-treasury-streak-moment-dismiss"
+            onClick={() => setStreakMoment(null)}
+            className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          >
+            Keep it burning
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {tabBtn("trophies", "Trophies")}
         {tabBtn("catalog", "Quest catalog")}

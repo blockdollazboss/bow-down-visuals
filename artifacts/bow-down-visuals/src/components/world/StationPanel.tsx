@@ -45,6 +45,8 @@ import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
+import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
+import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
    A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
@@ -208,7 +210,7 @@ function GuestPitch({ station, isLight }: { station: PalaceStation; isLight: boo
         your own name on it.
       </p>
       <Link
-        href="/login"
+        href={GUEST_SIGN_IN_HREF}
         className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105"
       >
         <LogIn className="h-4 w-4" /> Sign in to open it
@@ -227,16 +229,21 @@ function KingdomBoard({
   directory,
   currentRoomId,
   isLight,
+  isGuest,
 }: {
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
   isLight: boolean;
+  isGuest: boolean;
 }) {
   if (directory.length === 0) {
     return (
-      <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        The board is quiet — the directory hasn&rsquo;t spoken yet.
-      </p>
+      <div>
+        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+          The board is quiet — the directory hasn&rsquo;t spoken yet.
+        </p>
+        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
+      </div>
     );
   }
   return (
@@ -279,6 +286,7 @@ function KingdomBoard({
         The board follows the palace live — walk through a door and your name moves with you. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
+      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
     </div>
   );
 }
@@ -936,7 +944,7 @@ function JukeboxPanel(props: StationPanelProps) {
         </p>
         {isGuest ? (
           <p className={`mt-1.5 text-sm ${muted}`}>
-            Guests listen in — <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
+            Guests listen in — <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
             to feed the jukebox. The queue is published songs only: yours, and everyone&rsquo;s on a public profile.
           </p>
         ) : catalogFailed ? (
@@ -1169,7 +1177,7 @@ export default function StationPanel(props: StationPanelProps) {
         switch (resolution.id) {
           case "kingdom-board":
             return (
-              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} />
             );
           case "front-row":
             return (

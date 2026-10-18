@@ -115,6 +115,13 @@ import {
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
+import { ObjectiveStrip } from "@/components/world/ObjectiveStrip";
+import {
+  GUEST_EMOTE_PITCH,
+  GUEST_SIGN_IN_HREF,
+  GUEST_SPEAK_PITCH,
+  memberControlsVisible,
+} from "@/lib/world/guest-honest";
 
 /* ─── The World — the palace (/world) ───────────────────────────────────────
    One shared VR palace: the King's Hall (a stage and a big screen —
@@ -299,6 +306,12 @@ export default function WorldPage() {
      performance. The client relays it to the room; the scene
      performs it on my figure in the same breath. */
   const performAction = (id: WorldActionId) => {
+    /* Guests hold no hand (access law, owner default 3): an emote
+       press from a guest — button, controller, any caller — is
+       never relayed and never performed locally. The action bar
+       itself renders the sign-in pitch for guests, so this guard
+       is the backstop, not the message. */
+    if (!memberControlsVisible(isGuest)) return;
     const client = clientRef.current;
     const scene = sceneRef.current;
     if (!client || !scene) return;
@@ -1589,6 +1602,16 @@ export default function WorldPage() {
         <SwitchToWebsite isLight={isLight} />
       </header>
 
+      {/* The Objective Strip (THE-GAME §5(a)): pinned in the chrome
+          across every room — your current quest, your streak's next
+          milestone, and the palace's next event, each named from
+          its server rail. Guests see only the palace slot plus the
+          sign-in pitch: they hold no hand, so there is no objective
+          and no streak to name for them. */}
+      {status === "inside" && (
+        <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} />
+      )}
+
       {/* Walk in as — members pick a Creative Vault character (or the
           house avatar) as who they stand in the hall as. Guests and
           signed-out visitors never see the row. */}
@@ -1672,7 +1695,7 @@ export default function WorldPage() {
                 waiting.
               </p>
               <Link
-                href="/login"
+                href={`/login?next=${encodeURIComponent(`/world?party=${partyInviteCode}`)}`}
                 className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
               >
                 Sign in to join the table
@@ -2254,7 +2277,7 @@ export default function WorldPage() {
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}
-            <Link href="/login" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>{" "}
+            <Link href={GUEST_SIGN_IN_HREF} className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>{" "}
             to walk in with your name, talk, and be heard.
           </p>
         ) : null}
@@ -2267,7 +2290,7 @@ export default function WorldPage() {
         {/* The action bar: what your figure can DO, seen by the
             whole room. One-shots play out and settle; Dance and Sit
             hold until pressed again — or until you walk off. */}
-        {status === "inside" && (
+        {status === "inside" && !isGuest && (
           <div
             className="mb-2 flex flex-wrap items-center gap-1.5"
             data-testid="world-action-bar"
@@ -2290,7 +2313,33 @@ export default function WorldPage() {
             )}
           </div>
         )}
+        {/* Guests get no action bar (access law, owner default 3):
+            emotes are a member act, so in its place stands the
+            honest pitch — never buttons that silently do nothing. */}
+        {status === "inside" && isGuest && (
+          <p
+            className={`mb-2 inline-flex flex-wrap items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
+            data-testid="world-guest-action-pitch"
+          >
+            {GUEST_EMOTE_PITCH}
+            <Link href={GUEST_SIGN_IN_HREF} className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
+          {/* The say box's guest state: no composer, no dead input —
+              the pitch stands where the composer would, with the
+              sign-in action that brings you back here a member. */}
+          {isGuest && status === "inside" && (
+            <p
+              className={`inline-flex min-w-[220px] flex-1 flex-wrap items-center gap-2 text-sm font-semibold sm:max-w-md ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
+              data-testid="world-guest-say-pitch"
+            >
+              {GUEST_SPEAK_PITCH}
+              <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
+                Sign in to speak
+              </Link>
+            </p>
+          )}
           {!isGuest && status === "inside" && (
             <form
               className="flex min-w-[220px] flex-1 items-center gap-2 sm:max-w-md"
