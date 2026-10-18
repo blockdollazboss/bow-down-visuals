@@ -320,17 +320,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  }
 
  return (
- <div className="min-h-screen bg-black text-white">
- <style>{`
- /* POLISH 2026-10-11: the floating theme toggle sits fixed at top-left
- (16px from the edge, 44px wide) and overlaps Thy Cheat Code's collapsed
- "TIPS FOR THIS PAGE" banner (absolute top-2 left-4 in the app shell).
- Shift the banner right while the coach page is mounted — the toggle
- itself stays exactly where it is. */
- div:has(> button > span > span.tcc-accent) {
- margin-left: 3.5rem;
- }
- `}</style>
+ <div className="bg-black text-white">
 
  <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}

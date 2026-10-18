@@ -450,7 +450,7 @@ function AppShell() {
   const hideFooter = location.startsWith("/video-editor") || location.startsWith("/review");
   /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
-  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
+  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals"]
     .includes(location.split("?")[0].split("#")[0]);
   return (
     <>
@@ -565,14 +565,12 @@ function AppShell() {
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
           <Route path="/cursor-lab"><CursorLab /></Route>
           <Route path="/tour"><TourPlanner /></Route>
-          <Route path="/coach"><MonetizationCoach /></Route>
           {/* Phase 2: de-hosted money-hub pages — real routes, no
               ProtectedRoute (parity with their Coach-tab rendering;
               the pages own their signed-out states). */}
           <Route path="/brand-deals"><BrandDealsRoute /></Route>
           <Route path="/distribute"><DistributeRoute /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
-          <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
@@ -751,6 +749,8 @@ function AppShell() {
                     signed-out lock (GuestGate judges by path, above both
                     Switches) — now inside AuthedLayout. */}
                 <Route path="/promote"><Promote /></Route>
+                <Route path="/coach"><MonetizationCoach /></Route>
+                <Route path="/academy"><CreatorAcademy /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>

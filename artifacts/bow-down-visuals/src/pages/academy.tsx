@@ -316,7 +316,7 @@ function AcademyMain() {
  }, [progress]);
 
  return (
- <div className="min-h-screen bg-black text-white">
+ <div className="bg-black text-white">
 
  <main className="relative mx-auto max-w-5xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}
@@ -890,7 +890,7 @@ export default function CreatorAcademy() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="bg-black text-white">
       <div className="mx-auto max-w-5xl px-4 pt-8">
         <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4">
           {TABS.map(({ key, label }) => (

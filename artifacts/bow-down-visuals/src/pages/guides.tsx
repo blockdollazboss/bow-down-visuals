@@ -27,7 +27,7 @@ export default function Guides() {
   }, [t]);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="bg-black text-white">
 
       {/* ── HERO ── */}
       <section className="max-w-3xl mx-auto px-5 md:px-8 pt-16 pb-12 text-center">
