@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
    so a label that doesn't say "live" can never be found by typing "live".
    These pins hold the real feature names in the nav, the new front doors
    in their home sections, the legacy-route redirects, and the one-website
-   shell wrap for the pages the nav now leads to. */
+   shell wrap for the pages the nav now leads to. The shell wrap gained a
+   second ring later the same day: sixteen more pages moved inside
+   AuthedLayout, and /beats + /shoutouts got their sidebar doors with it. */
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const readJson = (rel: string) => JSON.parse(read(rel)) as Record<string, any>;
@@ -24,6 +26,7 @@ const WIRED_KEYS = [
   "creatorAcademy", "library", "pricing", "visualBucHistory",
   "makeSong", "beatMaker", "earnings", "quests", "allFeatures",
   "memberships", "team", "tips", "community", "liveShopping", "nfcCards",
+  "beatsMarketplace", "fanShoutouts",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
@@ -49,6 +52,8 @@ describe("findability — nav labels are the features' real names", () => {
     expect(nav.earnings).toBe("Earnings");
     expect(nav.quests).toBe("Quests");
     expect(nav.allFeatures).toBe("All Features");
+    expect(nav.beatsMarketplace).toBe("Beats Marketplace");
+    expect(nav.fanShoutouts).toBe("Fan Shoutouts");
   });
 
   it("page titles carry the same real names in en", () => {
@@ -86,6 +91,8 @@ describe("findability — nav labels are the features' real names", () => {
       ["earnings", "earnings"],
       ["makeSong", "song"],
       ["beatMaker", "beat"],
+      ["beatsMarketplace", "beat"],
+      ["fanShoutouts", "shoutout"],
       ["monetizationCoach", "coach"],
       ["creatorAcademy", "academy"],
       ["pricing", "pricing"],
@@ -111,6 +118,8 @@ describe("findability — the doors are hung in their home sections", () => {
       ["/team", "nav.team"],
       ["/tips", "nav.tips"],
       ["/features", "nav.allFeatures"],
+      ["/beats", "nav.beatsMarketplace"],
+      ["/shoutouts", "nav.fanShoutouts"],
     ];
     for (const [href, labelKey] of doors) {
       expect(sidebar, `${href} / ${labelKey}`).toContain(
@@ -125,6 +134,15 @@ describe("findability — the doors are hung in their home sections", () => {
     for (const href of ["/earnings", "/memberships", "/team", "/tips"]) {
       expect(section).toContain(`href: "${href}"`);
     }
+  });
+
+  it("puts Beats Marketplace in Create and Fan Shoutouts in Social", () => {
+    const beatsAt = sidebar.indexOf('href: "/beats"');
+    expect(beatsAt).toBeGreaterThan(sidebar.indexOf('titleKey: "nav.create"'));
+    expect(beatsAt).toBeLessThan(sidebar.indexOf('titleKey: "nav.branding"'));
+    const shoutoutsAt = sidebar.indexOf('href: "/shoutouts"');
+    expect(shoutoutsAt).toBeGreaterThan(sidebar.indexOf('titleKey: "nav.social"'));
+    expect(shoutoutsAt).toBeLessThan(sidebar.indexOf('titleKey: "nav.getPaid"'));
   });
 
   it("puts Live Shopping beside Go Live in Promote", () => {
@@ -155,6 +173,21 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
     const inShell = app.slice(shellAt);
     const outsideShell = app.slice(0, shellAt);
     for (const route of ["/earnings", "/memberships", "/team", "/tips", "/nfc-cards", "/features"]) {
+      expect(inShell, `${route} inside shell`).toContain(`<Route path="${route}">`);
+      expect(outsideShell, `${route} not outside shell`).not.toContain(`<Route path="${route}">`);
+    }
+  });
+
+  it("renders the second ring of pages inside AuthedLayout (shell wrap, 2026-10-18)", () => {
+    const shellAt = app.indexOf("<AuthedLayout>");
+    expect(shellAt).toBeGreaterThan(-1);
+    const inShell = app.slice(shellAt);
+    const outsideShell = app.slice(0, shellAt);
+    for (const route of [
+      "/hooks", "/scheduler", "/analytics-hub", "/referrals", "/press-kit",
+      "/email-list", "/collabs", "/contests", "/storefronts", "/my-shop",
+      "/arcade", "/party", "/copyright", "/llc-guide", "/beats", "/shoutouts",
+    ]) {
       expect(inShell, `${route} inside shell`).toContain(`<Route path="${route}">`);
       expect(outsideShell, `${route} not outside shell`).not.toContain(`<Route path="${route}">`);
     }

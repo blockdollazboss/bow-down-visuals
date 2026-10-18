@@ -539,7 +539,6 @@ function AppShell() {
           <Route path="/privacy"><Privacy /></Route>
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Redirect to="/hooks?tab=dice" /></Route>
-          <Route path="/hooks"><HookStudio /></Route>
           <Route path="/sounds"><Redirect to="/audio-studio?tab=sounds" /></Route>
           {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
           <Route path="/shorts"><ShortsFeed /></Route>
@@ -572,17 +571,6 @@ function AppShell() {
               the pages own their signed-out states). */}
           <Route path="/brand-deals"><BrandDealsRoute /></Route>
           <Route path="/distribute"><DistributeRoute /></Route>
-          <Route path="/beats"><Beats /></Route>
-          <Route path="/shoutouts"><Shoutouts /></Route>
-          <Route path="/referrals"><Referrals /></Route>
-          <Route path="/press-kit"><PressKit /></Route>
-          <Route path="/email-list"><EmailList /></Route>
-          <Route path="/collabs"><Collabs /></Route>
-          <Route path="/contests"><Contests /></Route>
-          <Route path="/arcade"><ProtectedRoute><ArcadePage /></ProtectedRoute></Route>
-          <Route path="/party"><ProtectedRoute><PartyPage /></ProtectedRoute></Route>
-          <Route path="/storefronts"><Storefronts /></Route>
-          <Route path="/my-shop"><MyShop /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
@@ -592,7 +580,6 @@ function AppShell() {
           <Route path="/unlock/:slug"><UnlockGate /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
-          <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
           <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
           <Route path="/trending"><Trending /></Route>
           <Route path="/remix"><Remix /></Route>
@@ -610,11 +597,8 @@ function AppShell() {
           <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
           <Route path="/branding-kit"><BrandingKit /></Route>
           <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality" /></Route>
-          <Route path="/analytics-hub"><AnalyticsHub /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
           <Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>
-          <Route path="/copyright"><CopyrightAssistant /></Route>
-          <Route path="/llc-guide"><LlcGuide /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:handle"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
@@ -736,6 +720,31 @@ function AppShell() {
                 <Route path="/tips"><Tips /></Route>
                 <Route path="/nfc-cards"><ProtectedRoute><NfcCards /></ProtectedRoute></Route>
                 <Route path="/features"><Features /></Route>
+                {/* One-website shell, second ring (2026-10-18): Hook
+                    Studio, the scheduler, the analytics hub, the
+                    promote/social tools, the shops, the games and the
+                    legal guides rendered OUTSIDE the sidebar layout
+                    too — following the nav dropped the menu and the
+                    page felt like a separate website. Same pages, same
+                    elements, same protection — now inside AuthedLayout.
+                    /beats and /shoutouts gain their sidebar doors with
+                    this wrap (Create and Social sections). */}
+                <Route path="/hooks"><HookStudio /></Route>
+                <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
+                <Route path="/analytics-hub"><AnalyticsHub /></Route>
+                <Route path="/referrals"><Referrals /></Route>
+                <Route path="/press-kit"><PressKit /></Route>
+                <Route path="/email-list"><EmailList /></Route>
+                <Route path="/collabs"><Collabs /></Route>
+                <Route path="/contests"><Contests /></Route>
+                <Route path="/storefronts"><Storefronts /></Route>
+                <Route path="/my-shop"><MyShop /></Route>
+                <Route path="/arcade"><ProtectedRoute><ArcadePage /></ProtectedRoute></Route>
+                <Route path="/party"><ProtectedRoute><PartyPage /></ProtectedRoute></Route>
+                <Route path="/copyright"><CopyrightAssistant /></Route>
+                <Route path="/llc-guide"><LlcGuide /></Route>
+                <Route path="/beats"><Beats /></Route>
+                <Route path="/shoutouts"><Shoutouts /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>

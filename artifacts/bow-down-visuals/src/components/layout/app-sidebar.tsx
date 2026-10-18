@@ -238,6 +238,10 @@ const SECTIONS: NavSection[] = [
          deep inside the hub and the Audio Studio tab strip. */
       { href: "/create?panel=song", labelKey: "nav.makeSong", icon: Music2 },
       { href: "/audio-studio?tab=aiaudio&sub=beats", labelKey: "nav.beatMaker", icon: Drum },
+      /* The beat shelf gets its own front door with the shell wrap
+         (2026-10-18): creators pick beats for their songs here; the
+         page used to render outside the sidebar shell entirely. */
+      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3 },
       { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
@@ -283,6 +287,10 @@ const SECTIONS: NavSection[] = [
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      /* Fan Shoutouts joins Social with the shell wrap (2026-10-18) —
+         the marketplace page used to render outside the shell and had
+         no sidebar door at all. */
+      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone },
       { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW" },
       { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW" },
       /* Quests live on the dashboard surface — this is their front door
