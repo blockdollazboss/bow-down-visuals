@@ -12,6 +12,7 @@ import { memoryLocation } from "wouter/memory-location";
 import {
   X, Loader2, Crown, Users, Play, Pause, SkipForward, XCircle,
   Gift, Flame, ListMusic, Plus, LogIn, DoorOpen, AlertTriangle,
+  CalendarDays, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
@@ -40,6 +41,22 @@ import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
+import {
+  buildListeningPartyBody,
+  listeningPartyErrorCopy,
+  movePartyQueueItem,
+  normalizeMyParties,
+  parsePartyStartInput,
+  partyStartInputValue,
+  playlistQueueFold,
+  togglePartyQueueItem,
+  PARTY_DURATION_PRESETS_MIN,
+  PARTY_QUEUE_MAX,
+  type MyParty,
+  type PartyQueueItem,
+} from "@/lib/world/listening-party";
+import { parseShelfPlaylists, type ShelfPlaylistSummary } from "@/lib/world/shelf";
+import { fetchPlaylist } from "@/lib/streaming";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
@@ -848,6 +865,27 @@ function JukeboxPanel(props: StationPanelProps) {
 
   return (
     <div className="space-y-3">
+      {jukebox?.party ? (
+        <div
+          data-testid="world-jukebox-party"
+          className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${
+            isLight ? "border-[#C9A84C]/60 bg-[#d4af37]/15" : "border-[#d4af37]/40 bg-[#d4af37]/10"
+          }`}
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d4af37]/20">
+            <CalendarDays className="h-5 w-5 text-[#d4af37]" />
+          </span>
+          <div className="min-w-0">
+            <p className={`truncate text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+              Listening party: {jukebox.party.title}
+            </p>
+            <p className={`truncate text-xs ${muted}`}>
+              Hosted by {jukebox.party.hostName} — the queue below is the party&rsquo;s program until it ends.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {cur ? (
         <div className={rowCls}>
           {cur.entry.track.artworkUrl ? (
@@ -971,6 +1009,488 @@ function JukeboxPanel(props: StationPanelProps) {
           </div>
         )}
       </div>
+
+      <ListeningPartySection
+        isLight={isLight}
+        isGuest={isGuest}
+        catalog={catalog}
+        authHeaders={authHeaders}
+      />
+    </div>
+  );
+}
+
+/* ─── Listening parties (World Events 3.2) ──────────────────────────
+   The booking door for the backbone the server already runs: a
+   member books the Music Hall with a queue (their published songs —
+   picked here one by one, or folded in from one of their site
+   playlists), the palace board carries it, and at the hour the
+   scheduler hands the queue to this room's jukebox under the host's
+   name. All rules (window, queue cap, one event per room) are the
+   server's; lib/world/listening-party mirrors them so the form
+   refuses a bad booking in the same words before it round-trips. */
+
+function fmtPartyWhen(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+}
+
+function ListeningPartySection(props: {
+  isLight: boolean;
+  isGuest: boolean;
+  catalog: { mine: JukeboxCatalogItem[]; public: JukeboxCatalogItem[] } | null;
+  authHeaders: () => Promise<Record<string, string>>;
+}) {
+  const { isLight, isGuest, catalog, authHeaders } = props;
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [startValue, setStartValue] = useState(() => partyStartInputValue(Date.now()));
+  const [durationMin, setDurationMin] = useState<number>(60);
+  const [queue, setQueue] = useState<PartyQueueItem[]>([]);
+  const [playlistId, setPlaylistId] = useState<string | null>(null);
+  const [playlists, setPlaylists] = useState<ShelfPlaylistSummary[] | null>(null);
+  const [pickedPlaylist, setPickedPlaylist] = useState("");
+  const [playlistNote, setPlaylistNote] = useState<string | null>(null);
+  const [mine, setMine] = useState<MyParty[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const headingCls = `text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
+  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+    isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+  }`;
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+    isLight
+      ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]"
+      : "border-white/10 bg-white/5 text-white [color-scheme:dark]"
+  }`;
+
+  const refreshMine = async () => {
+    try {
+      const res = await fetch("/api/world/events/mine", { headers: await authHeaders() });
+      if (!res.ok) return;
+      setMine(normalizeMyParties(await res.json(), Date.now()));
+    } catch {
+      /* The list is a courtesy read — a failure leaves the last one. */
+    }
+  };
+
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    void refreshMine();
+    (async () => {
+      try {
+        const res = await fetch("/api/playlists/mine", { headers: await authHeaders() });
+        if (!res.ok) return;
+        const parsed = parseShelfPlaylists(await res.json());
+        if (!cancelled) setPlaylists(parsed);
+      } catch {
+        if (!cancelled) setPlaylists([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest]);
+
+  if (isGuest) {
+    return (
+      <div>
+        <p className={headingCls}>Listening parties</p>
+        <p className={`mt-1.5 text-sm ${muted}`}>
+          Members book this hall for an hour and the room hears their queue together —{" "}
+          <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
+          to host one. Tonight&rsquo;s parties are on the palace board.
+        </p>
+      </div>
+    );
+  }
+
+  const pickFromCatalog = (item: JukeboxCatalogItem) => {
+    const result = togglePartyQueueItem(queue, {
+      id: item.id,
+      title: item.title,
+      creatorName: item.creatorName,
+      durationSec: item.durationSec,
+    });
+    if (result.outcome === "full") {
+      setError(`The queue is full — ${PARTY_QUEUE_MAX} songs is a party's whole program.`);
+      return;
+    }
+    setError(null);
+    setQueue(result.queue);
+  };
+
+  const applyPlaylist = async () => {
+    if (!pickedPlaylist) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const got = await fetchPlaylist(pickedPlaylist);
+      if (!got) {
+        setError("That playlist wouldn't open — pick songs by hand instead.");
+        return;
+      }
+      const fold = playlistQueueFold(got.playlist);
+      if (fold.items.length === 0) {
+        setError("None of that playlist's songs can ride the jukebox — it plays published tracks only.");
+        return;
+      }
+      setQueue(fold.items);
+      setPlaylistId(pickedPlaylist);
+      setPlaylistNote(
+        `${fold.items.length} song${fold.items.length === 1 ? "" : "s"} from “${got.playlist.title}” are in the queue.` +
+          (fold.skipped > 0
+            ? ` ${fold.skipped} item${fold.skipped === 1 ? "" : "s"} couldn't come along (videos and unpublished tracks stay behind).`
+            : ""),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submit = async () => {
+    setError(null);
+    setNotice(null);
+    const startsAtMs = parsePartyStartInput(startValue);
+    if (startsAtMs === null) {
+      setError("Pick a start time for the party.");
+      return;
+    }
+    const built = buildListeningPartyBody(
+      { title, startsAtMs, durationMin, queue, playlistId },
+      Date.now(),
+    );
+    if (!built.ok) {
+      setError(built.error);
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/world/events", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify(built.body),
+      });
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(listeningPartyErrorCopy(res.status, data));
+        return;
+      }
+      setNotice(`Booked — the Music Hall is yours ${fmtPartyWhen(built.body.startsAt)}. It's on the palace board now.`);
+      setOpen(false);
+      setTitle("");
+      setQueue([]);
+      setPlaylistId(null);
+      setPlaylistNote(null);
+      await refreshMine();
+    } catch {
+      setError("The booking didn't land — nothing was scheduled. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async (party: MyParty) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/world/events/${encodeURIComponent(party.id)}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) {
+        setError("That party wouldn't cancel — try again.");
+        return;
+      }
+      setNotice(`“${party.title}” is cancelled — the slot is open again.`);
+      await refreshMine();
+    } catch {
+      setError("That party wouldn't cancel — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const queueIndex = new Map(queue.map((q, i) => [q.id, i]));
+  const pickSection = (label: string, items: JukeboxCatalogItem[]) =>
+    items.length === 0 ? null : (
+      <div key={label}>
+        <p className={`text-[11px] font-bold ${muted}`}>{label}</p>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {items.map((item) => {
+            const at = queueIndex.get(item.id);
+            const picked = at !== undefined;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                data-testid="world-party-pick"
+                onClick={() => pickFromCatalog(item)}
+                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  picked
+                    ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]"
+                    : isLight
+                      ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                      : "border-white/15 text-white/75 hover:text-white"
+                }`}
+              >
+                {picked ? (
+                  <span className="text-[10px] font-black">{at + 1}</span>
+                ) : (
+                  <Plus className="h-3.5 w-3.5 shrink-0 text-[#d4af37]" />
+                )}
+                <span className="truncate">{item.title}</span>
+                {item.durationSec > 0 ? <span className="opacity-50">{fmtClock(item.durationSec)}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className={headingCls}>Listening parties</p>
+        {!open && (
+          <button
+            type="button"
+            data-testid="world-party-open"
+            onClick={() => {
+              setOpen(true);
+              setError(null);
+              setNotice(null);
+            }}
+            className={`${chipBtn} ml-auto`}
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-[#d4af37]" /> Book the hall
+          </button>
+        )}
+      </div>
+
+      {notice && (
+        <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{notice}</p>
+      )}
+
+      {mine && mine.length > 0 && (
+        <div className="space-y-1.5">
+          {mine.map((party) => (
+            <div
+              key={party.id}
+              data-testid="world-party-mine"
+              className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
+                isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"
+              }`}
+            >
+              <span className={`min-w-0 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                {party.title}
+              </span>
+              <span className={`truncate text-xs ${muted}`}>
+                {party.status === "live" ? "Live now" : fmtPartyWhen(party.startsAt)} · {party.trackCount} song
+                {party.trackCount === 1 ? "" : "s"}
+              </span>
+              <button
+                type="button"
+                data-testid="world-party-cancel"
+                disabled={busy}
+                onClick={() => void cancel(party)}
+                className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                  isLight
+                    ? "border-red-800/30 text-red-900/80 hover:text-red-900"
+                    : "border-red-400/40 text-red-300 hover:text-red-200"
+                }`}
+              >
+                <X className="h-3 w-3" /> Cancel
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="space-y-3">
+          <div>
+            <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-title">Party name</label>
+            <input
+              id="party-title"
+              data-testid="world-party-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={120}
+              placeholder="Album Night"
+              className={`${inputCls} mt-1`}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-44 flex-1">
+              <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-start">Starts</label>
+              <input
+                id="party-start"
+                data-testid="world-party-start"
+                type="datetime-local"
+                value={startValue}
+                onChange={(e) => setStartValue(e.target.value)}
+                className={`${inputCls} mt-1`}
+              />
+            </div>
+            <div>
+              <p className={`text-[11px] font-bold ${muted}`}>Length</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {PARTY_DURATION_PRESETS_MIN.map((min) => (
+                  <button
+                    key={min}
+                    type="button"
+                    data-testid="world-party-duration"
+                    onClick={() => setDurationMin(min)}
+                    className={`${chipBtn} ${durationMin === min ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]" : ""}`}
+                  >
+                    {min >= 60 ? `${min / 60} hr` : `${min} min`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {playlists && playlists.length > 0 && (
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-44 flex-1">
+                <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-playlist">
+                  Start from one of your playlists
+                </label>
+                <select
+                  id="party-playlist"
+                  data-testid="world-party-playlist"
+                  value={pickedPlaylist}
+                  onChange={(e) => setPickedPlaylist(e.target.value)}
+                  className={`${inputCls} mt-1`}
+                >
+                  <option value="">Choose a playlist…</option>
+                  {playlists.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({p.itemCount})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                data-testid="world-party-playlist-use"
+                disabled={busy || !pickedPlaylist}
+                onClick={() => void applyPlaylist()}
+                className={chipBtn}
+              >
+                Use its songs
+              </button>
+            </div>
+          )}
+          {playlistNote && <p className={`px-1 text-xs ${muted}`}>{playlistNote}</p>}
+
+          <div>
+            <p className={`text-[11px] font-bold ${muted}`}>
+              The queue — plays in order ({queue.length}/{PARTY_QUEUE_MAX})
+            </p>
+            {queue.length === 0 ? (
+              <p className={`mt-1 text-sm ${muted}`}>Nothing picked yet — tap songs below to line them up.</p>
+            ) : (
+              <div className="mt-1 space-y-1.5">
+                {queue.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
+                      isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"
+                    }`}
+                  >
+                    <span className={`text-xs font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
+                    <span className={`min-w-0 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                      {item.title}
+                    </span>
+                    {item.durationSec > 0 && <span className={`text-xs ${muted}`}>{fmtClock(item.durationSec)}</span>}
+                    <span className="ml-auto inline-flex gap-1">
+                      <button
+                        type="button"
+                        aria-label="Move up"
+                        disabled={i === 0}
+                        onClick={() => setQueue(movePartyQueueItem(queue, i, -1))}
+                        className={chipBtn}
+                      >
+                        <ArrowUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Move down"
+                        disabled={i === queue.length - 1}
+                        onClick={() => setQueue(movePartyQueueItem(queue, i, 1))}
+                        className={chipBtn}
+                      >
+                        <ArrowDown className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Remove"
+                        onClick={() => setQueue(queue.filter((q) => q.id !== item.id))}
+                        className={chipBtn}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {catalog === null ? (
+              <p className={`inline-flex items-center gap-2 text-sm ${muted}`}>
+                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the catalog…
+              </p>
+            ) : (
+              <>
+                {pickSection("Yours", catalog.mine)}
+                {pickSection("From the palace", catalog.public)}
+              </>
+            )}
+          </div>
+
+          {error && (
+            <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              data-testid="world-party-submit"
+              disabled={busy}
+              onClick={() => void submit()}
+              className={`inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/20 px-4 py-2 text-xs font-black text-[#d4af37] transition hover:bg-[#d4af37]/30 disabled:opacity-50`}
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarDays className="h-3.5 w-3.5" />}
+              Book this party
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className={chipBtn}
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

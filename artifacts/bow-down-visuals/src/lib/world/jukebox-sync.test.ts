@@ -70,10 +70,13 @@ describe("jukeboxNeedsSeek", () => {
 
 describe("jukeboxDeniedCopy", () => {
   it("speaks every refusal the room can send", () => {
-    for (const reason of ["guests", "unplayable", "queue-full", "not-yours"]) {
+    for (const reason of ["guests", "unplayable", "queue-full", "not-yours", "listening-party"]) {
       expect(jukeboxDeniedCopy(reason)).not.toContain(reason);
       expect(jukeboxDeniedCopy(reason).length).toBeGreaterThan(10);
     }
+  });
+  it("names the party when a party owns the queue", () => {
+    expect(jukeboxDeniedCopy("listening-party")).toContain("listening party");
   });
   it("shrugs honestly at an unknown reason", () => {
     expect(jukeboxDeniedCopy("???")).toContain("said no");

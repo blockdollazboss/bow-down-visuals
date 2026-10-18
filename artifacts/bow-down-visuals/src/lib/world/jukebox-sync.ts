@@ -65,6 +65,8 @@ export function jukeboxDeniedCopy(reason: string): string {
       return "That song can't play here — it isn't a published track the room can reach.";
     case "queue-full":
       return "The queue is full — twenty songs deep is the room's whole evening.";
+    case "listening-party":
+      return "A listening party owns the queue right now — the host's program plays out first.";
     case "not-yours":
       return "That hand isn't yours — the song's adder (or the host) works this transport.";
     default:
