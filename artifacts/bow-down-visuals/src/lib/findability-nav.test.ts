@@ -8,7 +8,10 @@ import { describe, expect, it } from "vitest";
    in their home sections, the legacy-route redirects, and the one-website
    shell wrap for the pages the nav now leads to. The shell wrap gained a
    second ring later the same day: sixteen more pages moved inside
-   AuthedLayout, and /beats + /shoutouts got their sidebar doors with it. */
+   AuthedLayout, and /beats + /shoutouts got their sidebar doors with it.
+   The final ring wrapped the big four — /promote, /coach, /academy,
+   /branding-kit — including the no-double-host pin for the two pages
+   that used to draw the shell-level marketing Cheat Code host. */
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const readJson = (rel: string) => JSON.parse(read(rel)) as Record<string, any>;
@@ -190,6 +193,72 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
     ]) {
       expect(inShell, `${route} inside shell`).toContain(`<Route path="${route}">`);
       expect(outsideShell, `${route} not outside shell`).not.toContain(`<Route path="${route}">`);
+    }
+  });
+
+  it("renders the big four inside AuthedLayout (shell wrap, final ring, 2026-10-18)", () => {
+    const shellAt = app.indexOf("<AuthedLayout>");
+    expect(shellAt).toBeGreaterThan(-1);
+    const inShell = app.slice(shellAt);
+    const outsideShell = app.slice(0, shellAt);
+    for (const route of ["/promote", "/coach", "/academy", "/branding-kit"]) {
+      expect(inShell, `${route} inside shell`).toContain(`<Route path="${route}">`);
+      expect(outsideShell, `${route} not outside shell`).not.toContain(`<Route path="${route}">`);
+    }
+  });
+
+  it("keeps the six branding-kit redirect aliases landing on ?tab= routes", () => {
+    for (const alias of [
+      '<Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>',
+      '<Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>',
+      '<Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>',
+      '<Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>',
+      '<Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>',
+    ]) {
+      expect(app, alias).toContain(alias);
+    }
+    expect(app).toContain('to="/branding-kit?tab=shop&subtab=merch"');
+  });
+
+  it("never double-hosts Thy Cheat Code on /coach or /academy (no-double-host pin)", () => {
+    /* The shell renders a marketing ThyCheatCodeHost for the routes in
+       marketingCoachRoute AND an in-main host inside AuthedLayout. A
+       wrapped page still listed there would render the host twice. */
+    const listAt = app.indexOf("const marketingCoachRoute = [");
+    expect(listAt).toBeGreaterThan(-1);
+    const list = app.slice(listAt, app.indexOf("]", listAt));
+    expect(list).not.toContain('"/coach"');
+    expect(list).not.toContain('"/academy"');
+    for (const kept of ['"/pricing"', '"/shows"', '"/brand-deals"']) {
+      expect(list, `${kept} keeps the marketing host`).toContain(kept);
+    }
+  });
+
+  it("drops the full-viewport roots the shell panel makes redundant (big four)", () => {
+    /* Inside the content panel a min-h-screen root forces a viewport-tall
+       block mid-page (dead scroll). The wrapped pages and the roots
+       embedded in them shed it; the panel supplies the min-height. */
+    for (const page of ["coach", "academy", "guides", "branding-kit", "branding-shop"]) {
+      expect(read(`../pages/${page}.tsx`), `${page} root`).not.toContain(
+        '<div className="min-h-screen bg-black text-white">',
+      );
+    }
+    expect(read("../pages/promote.tsx")).not.toContain("min-h-screen ${isLight");
+    const jewelry = read("../pages/jewelry.tsx");
+    expect(jewelry).not.toContain("min-h-screen text-[#2A1E07]");
+    expect(jewelry).not.toContain("min-h-screen bg-black text-zinc-100");
+    /* Coach's chip-shift <style> hack is retired with the wrap: inside the
+       shell the chip sits in <main>, right of the sidebar, clear of the
+       fixed theme toggle it was dodging at the viewport's top-left. */
+    const coach = read("../pages/coach.tsx");
+    expect(coach).not.toContain("div:has(> button > span > span.tcc-accent)");
+    expect(coach).not.toContain("margin-left: 3.5rem");
+    /* The standalone page wrappers of the embedded branding tools keep
+       their own roots — only the embedded roots were stripped. */
+    for (const page of ["logo-maker", "intros-outros", "stream-pack"]) {
+      expect(read(`../pages/${page}.tsx`), `${page} standalone root kept`).toContain(
+        '<div className="min-h-screen bg-black text-white">',
+      );
     }
   });
 });
