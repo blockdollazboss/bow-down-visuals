@@ -18,6 +18,7 @@ import {
 } from "./CreateDeskShared";
 import { StoryboardBench } from "./StoryboardBench";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
+import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
@@ -100,6 +101,11 @@ import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib
 export interface CreateDeskProps {
   isLight: boolean;
   onJukeboxAdd: (trackId: string) => void;
+  /** The palace's one Shelf player (the StationPanel host's),
+   *  threaded so the Audio Desk's tabs can audition pack samples
+   *  and play library rows on the same player the Booth uses.
+   *  Optional: desks that don't play through it ignore it. */
+  shelfPlayer?: ShelfPlayerController;
   /** Step through to the Visual Vibes editor (the host swaps the
    *  panel target to the editor station; its newest-project seed
    *  resolves on open — desks save their result as that project
