@@ -131,6 +131,9 @@ export interface PalaceDirectoryEntry {
   live: boolean;
   /** This room's booked slate (live + upcoming), when any. */
   events?: PalaceDirectoryEvent[];
+  /** Creator rooms only (Ring 2, 3.5): the room owner's profile
+   *  slug — present while someone stands in a creator's room. */
+  slug?: string;
 }
 
 /** The hall's id — the palace's front door and its one stage room. */

@@ -45,7 +45,19 @@ import {
   jukeboxNeedsSeek,
 } from "@/lib/world/jukebox-sync";
 import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
-import { GAME_ROOMS_ID, MUSIC_HALL_ID } from "@/lib/world/palace-layout";
+import {
+  GAME_ROOMS_ID,
+  MUSIC_HALL_ID,
+  isCreatorRoomId,
+  creatorSlugFromRoomId,
+  registerCreatorRoomLayout,
+} from "@/lib/world/palace-layout";
+import {
+  creatorRoomId,
+  fetchCreatorRoomDetail,
+  parseCreatorRoomParam,
+  type CreatorRoomDetail,
+} from "@/lib/world/creator-rooms";
 import {
   parsePartyInvite,
   parsePartyRoomSnapshot,
@@ -411,6 +423,65 @@ export default function WorldPage() {
   const [partyInviteCode] = useState<string | null>(() =>
     parsePartyInvite(window.location.search),
   );
+  /* A Creator Rooms deep entry (Ring 2, 3.5): /world?creator=<slug>
+     lands the walker in that creator's room — the param is the
+     contract the profiles' "Visit in the World" door points at.
+     The slug is never trusted from the link alone: the room's data
+     read enforces publicness from the profile record, and only a
+     room that answers gets entered. An unknown/private slug lands
+     in the hall with an honest note (the banner below). */
+  const [creatorParam] = useState<string | null>(() =>
+    parseCreatorRoomParam(window.location.search),
+  );
+  const [creatorNote, setCreatorNote] = useState<string | null>(null);
+  const creatorEntryAttemptedRef = useRef(false);
+  /* Room data already read this visit (the dressing source) — a
+     room change back into a visited room re-dresses instantly. */
+  const creatorDetailsRef = useRef(new Map<string, CreatorRoomDetail>());
+  const [mySlug, setMySlug] = useState<string | null>(null);
+
+  /* Dress the template shell as the room's host: their name over
+     the door, their accent on the runner, their portrait in the
+     frame, their featured video on the room's screen. */
+  const dressCreatorRoom = useCallback((detail: CreatorRoomDetail) => {
+    creatorDetailsRef.current.set(detail.slug, detail);
+    sceneRef.current?.setCreatorRoomDressing({
+      displayName: detail.displayName,
+      roomName: detail.roomName,
+      accentHex: detail.theme.accent,
+      primaryHex: detail.theme.primary,
+      portraitUrl: detail.bannerUrl ?? detail.avatarUrl,
+      screenVideoUrl: detail.featuredVideo?.videoUrl ?? null,
+    });
+  }, []);
+
+  /* Walk into a creator's room: read the room first (the read is
+     what proves the room is open — and it materializes the server
+     instance), lay the floor plan under the slug, dress the
+     template, then the doorway transfer does the walking. A room
+     that doesn't answer leaves the walker where they stand, with
+     the honest note. */
+  const enterCreatorRoom = useCallback(
+    async (slug: string): Promise<boolean> => {
+      const cached = creatorDetailsRef.current.get(slug);
+      const detail = cached ?? (await fetchCreatorRoomDetail(slug));
+      if (!detail) {
+        setCreatorNote(
+          "That creator's room isn't open — their profile is private or doesn't exist. You're still in the palace.",
+        );
+        return false;
+      }
+      registerCreatorRoomLayout(detail.slug, detail.displayName);
+      dressCreatorRoom(detail);
+      setCreatorNote(null);
+      setPanelTarget(null);
+      clientRef.current?.enterRoom(creatorRoomId(detail.slug));
+      return true;
+    },
+    [dressCreatorRoom],
+  );
+  const enterCreatorRoomRef = useRef(enterCreatorRoom);
+  enterCreatorRoomRef.current = enterCreatorRoom;
   const [inviteRoom, setInviteRoom] = useState<PartyOpenRoom | null>(null);
   const [inviteResolved, setInviteResolved] = useState(false);
   const [inviteDismissed, setInviteDismissed] = useState(false);
@@ -526,6 +597,17 @@ export default function WorldPage() {
     const station = STATION_BY_ID.get("marble-table");
     if (station) setPanelTarget({ kind: "station", station });
   }, [roomId]);
+
+  /* The Creator Rooms deep entry, once we're inside: walk the
+     param's room in (enterCreatorRoom verifies it against the
+     profile record first). Attempted once per visit — a refused
+     door (full room) or a closed one leaves the walker in the
+     hall with the note enterCreatorRoom set, never a retry loop. */
+  useEffect(() => {
+    if (!creatorParam || status !== "inside" || creatorEntryAttemptedRef.current) return;
+    creatorEntryAttemptedRef.current = true;
+    void enterCreatorRoomRef.current(creatorParam);
+  }, [creatorParam, status]);
 
   /* Follow the site theme live — the floating toggle (and every other
      theme control) flips the <html> class; watch it the same way the
@@ -991,6 +1073,7 @@ export default function WorldPage() {
         if (s === "inside" && client.self) {
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
+          setMySlug(client.self.profileSlug);
           setStageScreen(client.screen);
           setHostMuted(client.self.hostMuted);
           hostMutedRef.current = client.self.hostMuted;
@@ -1024,6 +1107,20 @@ export default function WorldPage() {
         }
         setRoomId(room.id);
         setRoomName(room.name);
+        /* A creator room dresses the template as its host. The
+           pick/deep-entry paths dressed it before the transfer;
+           a walk back in through the arch (or a cold landing)
+           re-dresses from the cached read, or reads the room now. */
+        if (isCreatorRoomId(room.id)) {
+          const slug = creatorSlugFromRoomId(room.id);
+          const cached = slug ? creatorDetailsRef.current.get(slug) : undefined;
+          if (slug && cached) dressCreatorRoom(cached);
+          else if (slug) {
+            void fetchCreatorRoomDetail(slug).then((detail) => {
+              if (detail && !cancelled) dressCreatorRoom(detail);
+            });
+          }
+        }
         // The old room's doors close with it: an open panel and the
         // walk-up prompt belong to the room they stand in.
         setPanelTarget(null);
@@ -1638,6 +1735,36 @@ export default function WorldPage() {
         </div>
       )}
 
+      {/* The Creator Rooms note (3.5): a deep entry or an arch pick
+          named a room that isn't open — said plainly, once, with
+          the way to a room that is. */}
+      {creatorNote && status === "inside" && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#f6ead0]"
+              : "border-[#d4af37]/40 bg-[#171106]"
+          }`}
+          data-testid="world-creator-note"
+        >
+          <DoorOpen className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+            {creatorNote}
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreatorNote(null)}
+            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                : "border-white/15 text-white/70"
+            }`}
+          >
+            Got it
+          </button>
+        </div>
+      )}
+
       {/* ── The room ── */}
       <div ref={roomRef} className={`relative flex-1 ${isLight ? "bg-[#e9dcbc]" : "bg-black"}`} style={{ minHeight: "62vh" }}>
         <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" data-testid="world-canvas" />
@@ -2105,6 +2232,10 @@ export default function WorldPage() {
           onOpenStation={(stationId) => {
             const station = STATION_BY_ID.get(stationId);
             if (station) setPanelTarget({ kind: "station", station });
+          }}
+          mySlug={mySlug}
+          onEnterCreatorRoom={(slug) => {
+            void enterCreatorRoomRef.current(slug);
           }}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}

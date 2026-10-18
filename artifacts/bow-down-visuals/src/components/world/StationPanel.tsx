@@ -32,6 +32,11 @@ import {
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
+import {
+  CreatorRoomsDirectory,
+  CreatorRoomStation,
+} from "@/components/world/native/CreatorRooms";
+import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
@@ -98,6 +103,14 @@ export interface StationPanelProps {
    *  desks' editor chip uses, generalized). Optional — hosts
    *  without it leave quest actions as explicit transfers. */
   onOpenStation?: (stationId: string) => void;
+  /** Creator Rooms (Ring 2, 3.5): the Courtyard arch panel's pick —
+   *  the page registers the room's floor plan, dresses the scene
+   *  and runs the doorway transfer. Optional — a host without it
+   *  leaves the directory as a look-only board. */
+  onEnterCreatorRoom?: (slug: string) => void;
+  /** The signed-in walker's own profile slug — the arch panel
+   *  pins "Your room" first when it matches a listed room. */
+  mySlug?: string | null;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -1174,6 +1187,41 @@ export default function StationPanel(props: StationPanelProps) {
             return <TreasuryQuests isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "jukebox":
             return <JukeboxPanel {...props} />;
+          case "creator-rooms":
+            return (
+              <CreatorRoomsDirectory
+                isLight={isLight}
+                mySlug={props.mySlug ?? null}
+                onEnterCreatorRoom={props.onEnterCreatorRoom ?? (() => undefined)}
+              />
+            );
+          case "creator-music":
+          case "creator-screen":
+          case "creator-store":
+          case "creator-front-row": {
+            /* Inside a creator's room (3.5): the room the walker
+             * stands in names the host — the slug rides the room
+             * id itself. */
+            const slug = creatorSlugFromRoomId(props.currentRoomId);
+            if (!slug) {
+              return (
+                <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                  This door belongs to a creator&rsquo;s room — step through the Courtyard
+                  arch and pick whose place you&rsquo;re visiting.
+                </p>
+              );
+            }
+            return (
+              <CreatorRoomStation
+                stationId={resolution.id}
+                slug={slug}
+                isLight={isLight}
+                isGuest={isGuest}
+                shelfPlayer={shelfPlayer}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            );
+          }
           default:
             return (
               <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
@@ -1217,12 +1265,12 @@ export default function StationPanel(props: StationPanelProps) {
         </button>
       </div>
       {/* The Shelf's Now Playing card: rendered by the host for
-          whichever native surface set the player (the Booth, the
-          Charts board's Play) — one player, one card, above the
-          station's own body. */}
-      {resolution?.type === "native" && shelfPlayer.current && (
-        <NowPlayingCard player={shelfPlayer} isLight={isLight} />
-      )}
+          whichever surface set the player (the Booth, the Charts
+          board's Play, a creator room's music rail and screen) —
+          one player, one card, above the station's own body. */}
+      {(resolution?.type === "native" ||
+        (resolution?.type === "custom" && resolution.id.startsWith("creator-"))) &&
+        shelfPlayer.current && <NowPlayingCard player={shelfPlayer} isLight={isLight} />}
       {body}
       {/* The standard transfer footer — native panels only, exactly
           one, always the frame's last row (NATIVE-PLAN §3.0). The

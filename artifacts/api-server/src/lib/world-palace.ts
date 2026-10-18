@@ -38,6 +38,7 @@ import {
   WorldRoom,
   WORLD_PRESENCE_CAP,
   WORLD_ROOM_ID,
+  type WorldDropClaimer,
   type WorldIdentity,
   type WorldRoomOptions,
 } from "./world-room";
@@ -137,18 +138,89 @@ export interface PalaceDirectoryEntry {
   live: boolean;
   /** This room's booked slate (live + upcoming), when any. */
   events?: PalaceDirectoryEvent[];
+  /** Creator rooms only: the room owner's profile slug — the
+   *  directory row IS a creator's place, and surfaces that render
+   *  it (the entry strip, the Kingdom Board) link it to the room's
+   *  data by this slug. Absent on the eight palace rooms. */
+  slug?: string;
+}
+
+/* ── Creator Rooms (Ring 2, item 3.5) ───────────────────────────────
+ * One room template, instantiated per creator: room id
+ * `creator:<slug>` for any creator with a PUBLIC Grand Stage
+ * profile. The instance is a plain WorldRoom on the template's
+ * bounds/spawn (the client's floor plan carries the same numbers —
+ * artifacts/bow-down-visuals/src/lib/world/palace-layout.ts,
+ * CREATOR_ROOM_TEMPLATE) with NO stage and NO jukebox: those are
+ * hall-locked / Music-Hall-locked authorities and a creator room
+ * never pretends to either. Voice is per-room like everywhere —
+ * a creator room is a room.
+ *
+ * Instances are created on demand, two ways:
+ *  - `noteCreatorRoom` (sync): the world-shaped HTTP reads
+ *    (GET /api/world/creator-rooms/:slug) call it once the profile
+ *    record has proven public, so a walker who read the room's data
+ *    can always transfer in.
+ *  - the injected `resolveCreatorRoom` (async): a `room.enter` for
+ *    a `creator:<slug>` nobody has materialized yet resolves the
+ *    slug against the profile record first, then transfers — a
+ *    private or unknown slug resolves null and the walker simply
+ *    stays where they stand (the transfer never happens). */
+export const CREATOR_ROOM_PREFIX = "creator:";
+export const CREATOR_ROOM_BOUNDS = { minX: 2.4, maxX: 16.6, minZ: 26.2, maxZ: 38.2 };
+export const CREATOR_ROOM_SPAWN = { x: 9.5, z: 28.6 };
+
+export function creatorRoomIdForSlug(slug: string): string {
+  return `${CREATOR_ROOM_PREFIX}${slug}`;
+}
+
+export function creatorSlugFromRoomId(roomId: string): string | null {
+  if (!roomId.startsWith(CREATOR_ROOM_PREFIX)) return null;
+  const slug = roomId.slice(CREATOR_ROOM_PREFIX.length);
+  return slug.length > 0 ? slug : null;
+}
+
+/** The room's display name: the creator's place, named for them. */
+export function creatorRoomName(displayName: string): string {
+  const name = displayName.trim() || "Creator";
+  return `${name}'s Room`;
+}
+
+export interface CreatorRoomResolution {
+  displayName: string;
 }
 
 const DIRECTORY_MEMBER_NAMES = 12;
 
 export class WorldPalace {
   private rooms = new Map<string, WorldRoom>();
+  /** Creator room instances by slug (the dynamic ring — see the
+   *  Creator Rooms note above). The same instances live in
+   *  `rooms` under their `creator:<slug>` ids; this index is how
+   *  the directory names them. */
+  private creatorRooms = new Map<string, { room: WorldRoom; displayName: string }>();
+  /** Slugs with a creator-room resolution already in flight — a
+   *  burst of room.enter frames for one unmaterialized room
+   *  resolves the profile once, not once per frame. */
+  private creatorResolutions = new Set<string>();
   /** The hall — the palace's front door and its one stage. */
   readonly hallRoom: WorldRoom;
+
+  /** The drop-claim rail, kept from the constructor deps: creator
+   *  rooms are built later, on demand, and a drop spectacle can
+   *  land in any room — the creator rooms carry the claimer like
+   *  every other room, and nothing else. */
+  private dropClaimer: WorldDropClaimer | undefined;
 
   constructor(
     private hub: RoomHub,
     deps: ConstructorParameters<typeof WorldRoom>[1] = {},
+    private palaceDeps: {
+      /** Resolve a creator slug to a room host, or null when the
+       *  slug has no PUBLIC Grand Stage profile (unknown and
+       *  private are the same answer — the room does not exist). */
+      resolveCreatorRoom?: (slug: string) => Promise<CreatorRoomResolution | null>;
+    } = {},
   ) {
     for (const def of PALACE_ROOM_DEFS) {
       const { roomId, name, ...opts } = def;
@@ -183,6 +255,39 @@ export class WorldPalace {
       this.rooms.set(roomId, room);
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
+    this.dropClaimer = deps.claimWorldDrop;
+  }
+
+  /**
+   * Materialize (or fetch) the creator room for a slug whose
+   * public profile the caller has already verified. Idempotent —
+   * the first display name wins until the room exists; a room is
+   * never renamed out from under the people standing in it.
+   */
+  noteCreatorRoom(slug: string, displayName: string): WorldRoom {
+    const existing = this.creatorRooms.get(slug);
+    if (existing) return existing.room;
+    const roomId = creatorRoomIdForSlug(slug);
+    const room = new WorldRoom(
+      this.hub,
+      { claimWorldDrop: this.dropClaimer },
+      {
+        roomId,
+        name: creatorRoomName(displayName),
+        bounds: { ...CREATOR_ROOM_BOUNDS },
+        spawn: { ...CREATOR_ROOM_SPAWN },
+      },
+    );
+    room.onChange = () => this.broadcastDirectory();
+    this.rooms.set(roomId, room);
+    this.creatorRooms.set(slug, { room, displayName });
+    return room;
+  }
+
+  /** The creator room instance for a slug, when one is
+   *  materialized — the HTTP reads report its occupant count. */
+  creatorRoom(slug: string): WorldRoom | undefined {
+    return this.creatorRooms.get(slug)?.room;
   }
 
   room(roomId: string): WorldRoom | undefined {
@@ -227,7 +332,7 @@ export class WorldPalace {
   }
 
   directory(): PalaceDirectoryEntry[] {
-    return PALACE_ROOM_DEFS.map((def) => {
+    const entries: PalaceDirectoryEntry[] = PALACE_ROOM_DEFS.map((def) => {
       const room = this.rooms.get(def.roomId)!;
       const events = this.directoryEvents.get(def.roomId);
       return {
@@ -239,6 +344,23 @@ export class WorldPalace {
         ...(events && events.length > 0 ? { events } : {}),
       };
     });
+    /* Creator rooms join the directory when someone is home —
+     * an empty instance is a place that exists (its data answers
+     * at GET /api/world/creator-rooms), not a crowd signal, and
+     * the strip would drown in every public creator's name. The
+     * moment a walker stands in one, it lists like any room. */
+    for (const [slug, entry] of this.creatorRooms) {
+      if (entry.room.size() === 0) continue;
+      entries.push({
+        id: entry.room.roomId,
+        name: entry.room.roomName,
+        count: entry.room.size(),
+        members: entry.room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
+        live: false,
+        slug,
+      });
+    }
+    return entries;
   }
 
   private broadcastDirectory(): void {
@@ -275,10 +397,45 @@ export class WorldPalace {
       /* not JSON — the room's own parser will ignore it too */
     }
     if (type === "room.enter") {
+      /* A creator room nobody has materialized yet: resolve the
+       * slug against the profile record first (async), then run
+       * the ordinary transfer. Unknown/private resolves null and
+       * nothing moves — the walker keeps their place, and no frame
+       * ever confirms whether the slug exists at all. */
+      const slug = typeof roomId === "string" ? creatorSlugFromRoomId(roomId) : null;
+      if (slug && !this.creatorRooms.has(slug) && this.palaceDeps.resolveCreatorRoom) {
+        this.resolveThenTransfer(socket, slug, x, z, rotY);
+        return;
+      }
       this.transfer(socket, roomId, x, z, rotY);
       return;
     }
     this.roomOf(socket)?.handleFrame(socket, raw, now);
+  }
+
+  private resolveThenTransfer(
+    socket: WsClientSocket,
+    slug: string,
+    xRaw: unknown,
+    zRaw: unknown,
+    rotYRaw: unknown,
+  ): void {
+    if (this.creatorResolutions.has(slug)) return;
+    this.creatorResolutions.add(slug);
+    const resolve = this.palaceDeps.resolveCreatorRoom!;
+    void resolve(slug)
+      .then((resolution) => {
+        this.creatorResolutions.delete(slug);
+        if (!resolution) return;
+        this.noteCreatorRoom(slug, resolution.displayName);
+        /* The walker may have left (or walked elsewhere) while
+         * the profile read ran — transfer() re-finds their room
+         * and no-ops when they're gone, so this stays honest. */
+        this.transfer(socket, creatorRoomIdForSlug(slug), xRaw, zRaw, rotYRaw);
+      })
+      .catch(() => {
+        this.creatorResolutions.delete(slug);
+      });
   }
 
   private transfer(socket: WsClientSocket, roomIdRaw: unknown, xRaw: unknown, zRaw: unknown, rotYRaw: unknown): void {
