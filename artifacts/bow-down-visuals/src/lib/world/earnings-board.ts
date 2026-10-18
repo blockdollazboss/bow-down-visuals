@@ -16,10 +16,29 @@
  * Permanence elections and claim management stay on the website
  * (plan §3.1: read-only in-world; managing them is the transfer's
  * job) — nothing in this module or its board writes to either rail.
+ *
+ * The LOADS below carry the earnings page's patience discipline
+ * (lib/earnings-data's loadEarnings — the page was fixed Oct 17
+ * after its one-shot fetch painted a dead board on a waking box):
+ * several attempts, growing backoff, a per-attempt timeout, and a
+ * FRESH token per attempt, with the numbers imported from that one
+ * module so the page and this board can never drift apart. The
+ * board's rails are plain REST GETs (the room socket carries
+ * presence, not money data), so the discipline transfers as-is:
+ * the headline rides loadEarnings itself, and the board's other
+ * rails ride the same loop via fetchBoardJson / loadBoardLedger.
+ * Only genuine exhaustion surfaces the board's honest error states.
  */
-import { normalizeEarningsResponse, type EarningsResponse } from "../earnings-data";
+import {
+  normalizeEarningsResponse,
+  EarningsLoadCancelled,
+  EARNINGS_LOAD_ATTEMPTS,
+  EARNINGS_LOAD_BACKOFF_MS,
+  EARNINGS_ATTEMPT_TIMEOUT_MS,
+  type EarningsResponse,
+} from "../earnings-data";
 
-export { normalizeEarningsResponse };
+export { normalizeEarningsResponse, EarningsLoadCancelled };
 export type { EarningsResponse };
 
 /* ─── Money formatting ────────────────────────────────────────────── */
@@ -215,6 +234,112 @@ export function normalizePermanence(payload: unknown): PermanenceStatus | null {
   }
   if (catalog === null && releases.length === 0) return null;
   return { catalogElection: catalog, releases };
+}
+
+/* ─── The board's patient loads ─────────────────────────────────────
+   The loop below is loadEarnings' shape (lib/earnings-data) with the
+   attempt body swapped: one fresh token per attempt (the token leg
+   is part of the failure surface — a null token 401s and the retry
+   asks again), one AbortController timeout per attempt (a hung
+   request retries instead of stranding the board on its loading
+   line forever), growing backoff between attempts, and
+   EarningsLoadCancelled the moment the walker leaves — cancellation
+   is silence, never an error state. */
+
+export interface BoardLoadDeps {
+  /** Fresh token per attempt; a null (or a throw) is just a failed
+   *  attempt — the next try asks again. */
+  getToken: () => Promise<string | null>;
+  /** Defaults to the ambient fetch. Injected in tests. */
+  fetchFn?: (input: string, init: RequestInit) => Promise<Response>;
+  /** Injected in tests so backoff never slows the suite. */
+  sleep?: (ms: number) => Promise<void>;
+  isCancelled?: () => boolean;
+  /** Fires when another attempt is about to start (attempt ≥ 2). */
+  onRetry?: (nextAttempt: number) => void;
+}
+
+export interface BoardLoadOptions {
+  attempts?: number;
+  backoffMs?: readonly number[];
+  attemptTimeoutMs?: number;
+}
+
+interface BoardAttemptCtx {
+  token: string | null;
+  signal: AbortSignal;
+  fetchFn: (input: string, init: RequestInit) => Promise<Response>;
+}
+
+async function withBoardRetries<T>(
+  deps: BoardLoadDeps,
+  options: BoardLoadOptions,
+  attempt: (ctx: BoardAttemptCtx) => Promise<T>,
+): Promise<T> {
+  const fetchFn = deps.fetchFn ?? ((input: string, init: RequestInit) => fetch(input, init));
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const attempts = options.attempts ?? EARNINGS_LOAD_ATTEMPTS;
+  const backoffMs = options.backoffMs ?? EARNINGS_LOAD_BACKOFF_MS;
+  const attemptTimeoutMs = options.attemptTimeoutMs ?? EARNINGS_ATTEMPT_TIMEOUT_MS;
+
+  let lastError: unknown = null;
+  for (let n = 1; n <= attempts; n++) {
+    if (deps.isCancelled?.()) throw new EarningsLoadCancelled();
+    try {
+      const token = await deps.getToken().catch(() => null);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
+      try {
+        return await attempt({ token, signal: controller.signal, fetchFn });
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (err) {
+      lastError = err;
+      if (n >= attempts) break;
+      if (deps.isCancelled?.()) throw new EarningsLoadCancelled();
+      deps.onRetry?.(n + 1);
+      await sleep(backoffMs[n - 1] ?? backoffMs[backoffMs.length - 1] ?? 0);
+    }
+  }
+  throw lastError ?? new Error("board load failed");
+}
+
+const bearer = (token: string | null): Record<string, string> =>
+  token ? { Authorization: `Bearer ${token}` } : {};
+
+/** One board rail's JSON, ridden out patiently. Throws the last
+ *  error on exhaustion; the caller decides whether that is an error
+ *  state (the ledger) or a quiet note (the status rails). */
+export async function fetchBoardJson(
+  deps: BoardLoadDeps,
+  path: string,
+  options: BoardLoadOptions = {},
+): Promise<unknown> {
+  return withBoardRetries(deps, options, async ({ token, signal, fetchFn }) => {
+    const res = await fetchFn(path, { headers: bearer(token), signal });
+    if (!res.ok) throw new Error(`board fetch failed (${res.status})`);
+    return res.json();
+  });
+}
+
+/** The Ledger as ONE retryable unit — both rails per attempt on the
+ *  attempt's fresh token: both are required (a half-ledger would
+ *  misread as the whole story), so a failure on either rail retries
+ *  the pair, exactly like loadEarnings treats its whole load. */
+export async function loadBoardLedger(
+  deps: BoardLoadDeps,
+  options: BoardLoadOptions = {},
+): Promise<LedgerEntry[]> {
+  return withBoardRetries(deps, options, async ({ token, signal, fetchFn }) => {
+    const headers = bearer(token);
+    const [creditsRes, paymentsRes] = await Promise.all([
+      fetchFn("/api/credits/history", { headers, signal }),
+      fetchFn("/api/payments/history", { headers, signal }),
+    ]);
+    if (!creditsRes.ok || !paymentsRes.ok) throw new Error("ledger failed");
+    return normalizeLedger(await creditsRes.json(), await paymentsRes.json());
+  });
 }
 
 export interface ClaimStatus {

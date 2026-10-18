@@ -1166,7 +1166,7 @@ export default function StationPanel(props: StationPanelProps) {
                 shelfPlayer={shelfPlayer}
               />
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
-              <EarningsBoard isLight={isLight} />
+              <EarningsBoard isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (

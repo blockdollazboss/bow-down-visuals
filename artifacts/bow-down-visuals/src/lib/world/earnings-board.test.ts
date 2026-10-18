@@ -11,13 +11,22 @@
  * - statement years + the PDF path (a file download, not a page);
  * - permanence + claims normalize to READ-ONLY status: the board
  *   component's source contains no write to either rail (no PATCH
- *   claims, no PUT permanence) — management stays the transfer's job.
+ *   claims, no PUT permanence) — management stays the transfer's job;
+ * - the board's loads carry the earnings page's patience discipline
+ *   (the page's Oct 17 fix): the headline rides loadEarnings itself
+ *   and the other rails ride the same loop here — 4 attempts, the
+ *   page's own backoff numbers (imported, never re-typed), a 45s
+ *   per-attempt timeout, a fresh token per attempt — and a guest
+ *   gets the sign-in pitch with no fetch fired at all.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   describeLedgerUsage,
   earningsSourceRows,
+  EarningsLoadCancelled,
+  fetchBoardJson,
+  loadBoardLedger,
   normalizeClaims,
   normalizeEarningsResponse,
   normalizeLedger,
@@ -25,11 +34,13 @@ import {
   statementPdfPath,
   statementYears,
   usd,
+  type BoardLoadDeps,
 } from "./earnings-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const boardSrc = read("../../components/world/native/boards/EarningsBoard.tsx");
 const stationPanelSrc = read("../../components/world/StationPanel.tsx");
+const boardLibSrc = read("./earnings-board.ts");
 
 const EARNINGS_PAYLOAD = {
   currency: "USD",
@@ -155,14 +166,209 @@ describe("read-only status rows", () => {
   });
 });
 
+/* ─── The patient loads ─────────────────────────────────────────────
+ * The board used to fire ONE fetch per rail (the page's pre-fix
+ * shape): a waking box's 502 or a null-token 401 painted the error
+ * card for good. These pin the recovery contract it now shares
+ * with the page — same loop, same numbers. */
+
+const jsonRes = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+function boardDeps(overrides: Partial<BoardLoadDeps>): BoardLoadDeps {
+  return {
+    getToken: async () => "tok",
+    sleep: async () => {},
+    ...overrides,
+  };
+}
+
+describe("fetchBoardJson — one rail, ridden patiently", () => {
+  it("succeeds on the first attempt and sends the bearer token", async () => {
+    const fetchFn = vi.fn(async (_input: string, init: RequestInit) => {
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+      return jsonRes({ catalog: { election: "permanent" }, releases: [] });
+    });
+    const payload = await fetchBoardJson(boardDeps({ fetchFn }), "/api/distribution/permanence");
+    expect(normalizePermanence(payload)).toEqual({ catalogElection: "permanent", releases: [] });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("rides out a waking box and re-asks the token every attempt", async () => {
+    let call = 0;
+    const fetchFn = vi.fn(async () => (++call === 1 ? jsonRes({ error: "booting" }, 502) : jsonRes({ claims: [] })));
+    const delays: number[] = [];
+    const retries: number[] = [];
+    let tokenCalls = 0;
+    const payload = await fetchBoardJson(
+      boardDeps({
+        fetchFn,
+        getToken: async () => {
+          tokenCalls++;
+          return "tok";
+        },
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+        onRetry: (n) => {
+          retries.push(n);
+        },
+      }),
+      "/api/content-id/claims",
+      { backoffMs: [10, 20, 30] },
+    );
+    expect(normalizeClaims(payload)).toEqual([]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(tokenCalls).toBe(2); // the token is re-asked every attempt
+    expect(delays).toEqual([10]);
+    expect(retries).toEqual([2]);
+  });
+
+  it("default discipline IS the page's: 4 attempts, 2s/5s/12s backoff", async () => {
+    const fetchFn = vi.fn(async () => jsonRes({ error: "booting" }, 503));
+    const delays: number[] = [];
+    await expect(
+      fetchBoardJson(boardDeps({ fetchFn, sleep: async (ms) => { delays.push(ms); } }), "/api/content-id/claims"),
+    ).rejects.toThrow(/503/);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    expect(delays).toEqual([2_000, 5_000, 12_000]);
+  });
+
+  it("a hung attempt is cut by the per-attempt timeout and retried", async () => {
+    let call = 0;
+    const fetchFn = vi.fn((_input: string, init: RequestInit) => {
+      call++;
+      if (call === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            const e = new Error("The operation was aborted");
+            e.name = "AbortError";
+            reject(e);
+          });
+        });
+      }
+      return Promise.resolve(jsonRes({ claims: [] }));
+    });
+    const payload = await fetchBoardJson(boardDeps({ fetchFn }), "/api/content-id/claims", {
+      attemptTimeoutMs: 25,
+      backoffMs: [1],
+    });
+    expect(normalizeClaims(payload)).toEqual([]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancellation during backoff stops the loop — no further fetches", async () => {
+    let cancelled = false;
+    const fetchFn = vi.fn(async () => jsonRes({ error: "booting" }, 503));
+    await expect(
+      fetchBoardJson(
+        boardDeps({
+          fetchFn,
+          isCancelled: () => cancelled,
+          sleep: async () => {
+            cancelled = true;
+          },
+        }),
+        "/api/content-id/claims",
+        { backoffMs: [1] },
+      ),
+    ).rejects.toBeInstanceOf(EarningsLoadCancelled);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("loadBoardLedger — the pair as one retryable unit", () => {
+  const credits = { usage: [{ id: "u1", createdAt: "2026-10-15T10:00:00Z", action: "Admin grant", creditsUsed: -1000 }] };
+  const payments = {
+    payments: [
+      { id: "p1", createdAt: "2026-10-14T10:00:00Z", creditPack: "Royal", creditsAmount: 5000, amountTotal: 2499, currency: "USD", status: "paid" },
+    ],
+  };
+
+  it("both rails ride one attempt on that attempt's single fresh token", async () => {
+    const seen: Array<{ path: string; auth?: string }> = [];
+    let tokenCalls = 0;
+    const fetchFn = vi.fn(async (input: string, init: RequestInit) => {
+      seen.push({ path: input, auth: (init.headers as Record<string, string>).Authorization });
+      return input.includes("credits") ? jsonRes(credits) : jsonRes(payments);
+    });
+    const entries = await loadBoardLedger(
+      boardDeps({
+        fetchFn,
+        getToken: async () => `tok-${++tokenCalls}`,
+      }),
+    );
+    expect(entries.map((e) => e.id)).toEqual(["usage:u1", "payment:p1"]);
+    expect(tokenCalls).toBe(1); // one token per attempt — shared by both rails
+    expect(seen).toEqual([
+      { path: "/api/credits/history", auth: "Bearer tok-1" },
+      { path: "/api/payments/history", auth: "Bearer tok-1" },
+    ]);
+  });
+
+  it("a failure on EITHER rail retries the pair — a half-ledger never renders", async () => {
+    let paymentsCalls = 0;
+    let tokenCalls = 0;
+    const fetchFn = vi.fn(async (input: string, init: RequestInit) => {
+      const auth = (init.headers as Record<string, string>).Authorization;
+      if (input.includes("payments")) {
+        paymentsCalls++;
+        if (paymentsCalls === 1) return jsonRes({ error: "booting" }, 500);
+        expect(auth).toBe("Bearer tok-2"); // the retry carries the NEXT fresh token
+        return jsonRes(payments);
+      }
+      return jsonRes(credits);
+    });
+    const entries = await loadBoardLedger(
+      boardDeps({
+        fetchFn,
+        getToken: async () => `tok-${++tokenCalls}`,
+      }),
+      { backoffMs: [1] },
+    );
+    expect(entries).toHaveLength(2);
+    expect(tokenCalls).toBe(2);
+    expect(paymentsCalls).toBe(2);
+  });
+
+  it("persistent failure on one rail exhausts the attempts and throws", async () => {
+    const fetchFn = vi.fn(async (input: string) =>
+      input.includes("payments") ? jsonRes({ error: "down" }, 500) : jsonRes(credits),
+    );
+    await expect(loadBoardLedger(boardDeps({ fetchFn }), { attempts: 3, backoffMs: [1, 1] })).rejects.toThrow(/ledger/);
+    expect(fetchFn).toHaveBeenCalledTimes(6); // 3 attempts × both rails
+  });
+});
+
 describe("the EarningsBoard surface (source pins)", () => {
   it("rides the plan's endpoints", () => {
-    expect(boardSrc).toContain('fetch("/api/earnings"');
-    expect(boardSrc).toContain('fetch("/api/credits/history"');
-    expect(boardSrc).toContain('fetch("/api/payments/history"');
-    expect(boardSrc).toContain('fetch("/api/distribution/permanence"');
-    expect(boardSrc).toContain('fetch("/api/content-id/claims"');
     expect(boardSrc).toContain("statementPdfPath(year)");
+    expect(boardSrc).toContain('fetchBoardJson(deps, "/api/distribution/permanence")');
+    expect(boardSrc).toContain('fetchBoardJson(deps, "/api/content-id/claims")');
+    expect(boardLibSrc).toContain('fetchFn("/api/credits/history"');
+    expect(boardLibSrc).toContain('fetchFn("/api/payments/history"');
+  });
+
+  it("the headline rides the page's own loader — no one-shot fetch remains", () => {
+    expect(boardSrc).toContain("loadEarnings(");
+    expect(boardSrc).not.toContain('fetch("/api/earnings"');
+    expect(boardSrc).toContain("loadBoardLedger(");
+    expect(boardSrc).not.toContain('fetch("/api/credits/history"');
+    expect(boardSrc).not.toContain('fetch("/api/payments/history"');
+  });
+
+  it("the retry numbers come from the page's module — one source, never re-typed", () => {
+    expect(boardLibSrc).toContain("EARNINGS_LOAD_ATTEMPTS");
+    expect(boardLibSrc).toContain("EARNINGS_LOAD_BACKOFF_MS");
+    expect(boardLibSrc).toContain("EARNINGS_ATTEMPT_TIMEOUT_MS");
+    expect(boardLibSrc).toContain('from "../earnings-data"');
+  });
+
+  it("guests get the pitch and no fetch fires for them", () => {
+    expect(boardSrc).toContain("isGuest");
+    expect(boardSrc).toContain("GUEST_SIGN_IN_HREF");
+    expect(boardSrc).toContain("Sign in to see them");
+    expect(boardSrc).toContain("if (isGuest) return;");
   });
 
   it("is READ-ONLY on the management rails — no claim or permanence writes anywhere", () => {
@@ -180,6 +386,6 @@ describe("the EarningsBoard surface (source pins)", () => {
 
   it("the host dispatches the board pattern's get-paid station to it", () => {
     expect(stationPanelSrc).toContain('resolution.pattern === "board" && station.id === "get-paid-room"');
-    expect(stationPanelSrc).toContain("<EarningsBoard isLight={isLight} />");
+    expect(stationPanelSrc).toContain("<EarningsBoard isLight={isLight} isGuest={isGuest} />");
   });
 });

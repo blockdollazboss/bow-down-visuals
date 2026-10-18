@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Link } from "wouter";
+import { Download, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   NativeBoard,
@@ -9,11 +10,13 @@ import {
   NativeErrorState,
   NativeLoadingState,
 } from "@/components/world/native";
+import { loadEarnings, EarningsLoadCancelled } from "@/lib/earnings-data";
+import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import {
   earningsSourceRows,
+  fetchBoardJson,
+  loadBoardLedger,
   normalizeClaims,
-  normalizeEarningsResponse,
-  normalizeLedger,
   normalizePermanence,
   statementPdfPath,
   statementYears,
@@ -34,7 +37,15 @@ import {
    is management, and management is what the transfer footer is
    for (this board never writes to either rail). The statement
    button downloads a PDF file (plan §3.9: a download is not a
-   pull-up) using the documents panel's own blob pattern. */
+   pull-up) using the documents panel's own blob pattern.
+   Every load rides the earnings page's patience discipline
+   (lib/earnings-data): the headline IS the page's loadEarnings,
+   the other rails ride the same loop in lib/world/earnings-board —
+   several attempts, growing backoff, a per-attempt timeout, a
+   fresh token per attempt — so a waking box or a token hiccup
+   reads as "still trying", never as a dead board. Guests hold no
+   hand: earnings are member data, so a guest gets the sign-in
+   pitch and no fetch ever fires for them. */
 
 type EarningsTab = "earnings" | "ledger";
 
@@ -48,11 +59,12 @@ function fmtDate(iso: string | null): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function EarningsBoard({ isLight }: { isLight: boolean }) {
+export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<EarningsTab>("earnings");
   const [earnings, setEarnings] = useState<EarningsResponse | null>(null);
   const [earningsFailed, setEarningsFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [permanenceNote, setPermanenceNote] = useState<string[] | null>(null);
   const [claimsNote, setClaimsNote] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerEntry[] | null>(null);
@@ -62,44 +74,48 @@ export function EarningsBoard({ isLight }: { isLight: boolean }) {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfNote, setPdfNote] = useState<string | null>(null);
 
-  const authHeaders = async (): Promise<Record<string, string>> => {
-    const token = await getAccessToken().catch(() => null);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
-  /* The headline + sources. A payload the guard can't normalize is
-     a failed load — the honest error state, never $NaN rows. */
+  /* The headline + sources — the page's own loadEarnings, verbatim:
+     a payload the guard can't normalize is a failed ATTEMPT (it
+     retries, never renders), and only exhaustion lands on the
+     honest error state below, never $NaN rows. */
   useEffect(() => {
+    if (isGuest) return;
     let cancelled = false;
+    setRetrying(false);
     (async () => {
       try {
-        const res = await fetch("/api/earnings", { headers: await authHeaders() });
-        if (!res.ok) throw new Error("earnings");
-        const normalized = normalizeEarningsResponse(await res.json());
-        if (!normalized) throw new Error("earnings payload");
+        const normalized = await loadEarnings({
+          getToken: () => getAccessToken(),
+          isCancelled: () => cancelled,
+          onRetry: () => {
+            if (!cancelled) setRetrying(true);
+          },
+        });
         if (!cancelled) {
           setEarnings(normalized);
           setEarningsFailed(false);
         }
-      } catch {
-        if (!cancelled) setEarningsFailed(true);
+      } catch (err) {
+        if (!cancelled && !(err instanceof EarningsLoadCancelled)) setEarningsFailed(true);
       }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+  }, [tick, isGuest]);
 
-  /* The read-only status rows: secondary rails — each degrades to
-     its own quiet line, never taking the board down with it. */
+  /* The read-only status rows: secondary rails — each rides the
+     same patient loop (a sleeping box shouldn't paint a false
+     "didn't answer"), then degrades to its own quiet line on
+     exhaustion, never taking the board down with it. */
   useEffect(() => {
+    if (isGuest) return;
     let cancelled = false;
+    const deps = { getToken: () => getAccessToken(), isCancelled: () => cancelled };
     (async () => {
       try {
-        const res = await fetch("/api/distribution/permanence", { headers: await authHeaders() });
-        if (!res.ok) throw new Error("permanence");
-        const status = normalizePermanence(await res.json());
+        const status = normalizePermanence(await fetchBoardJson(deps, "/api/distribution/permanence"));
         if (cancelled) return;
         if (!status) {
           setPermanenceNote(["No permanence election recorded — your catalog rides the standard terms."]);
@@ -114,9 +130,7 @@ export function EarningsBoard({ isLight }: { isLight: boolean }) {
         if (!cancelled) setPermanenceNote(["Permanence status didn't answer — your elections are unchanged."]);
       }
       try {
-        const res = await fetch("/api/content-id/claims", { headers: await authHeaders() });
-        if (!res.ok) throw new Error("claims");
-        const claims = normalizeClaims(await res.json());
+        const claims = normalizeClaims(await fetchBoardJson(deps, "/api/content-id/claims"));
         if (cancelled) return;
         if (claims.length === 0) {
           setClaimsNote("No matches or claims recorded — your catalog is clear.");
@@ -134,35 +148,35 @@ export function EarningsBoard({ isLight }: { isLight: boolean }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+  }, [tick, isGuest]);
 
   /* The Ledger tab's two rails — both required, like the page's:
-     a half-ledger would misread as the whole story. */
+     a half-ledger would misread as the whole story. The pair rides
+     as one retryable unit (loadBoardLedger): fresh token per
+     attempt, one timeout per attempt, exhaustion → the error
+     state below with its working Try again. */
   useEffect(() => {
-    if (tab !== "ledger" || ledger !== null) return;
+    if (isGuest || tab !== "ledger" || ledger !== null) return;
     let cancelled = false;
     (async () => {
       try {
-        const headers = await authHeaders();
-        const [creditsRes, paymentsRes] = await Promise.all([
-          fetch("/api/credits/history", { headers }),
-          fetch("/api/payments/history", { headers }),
-        ]);
-        if (!creditsRes.ok || !paymentsRes.ok) throw new Error("ledger");
-        const entries = normalizeLedger(await creditsRes.json(), await paymentsRes.json());
+        const entries = await loadBoardLedger({
+          getToken: () => getAccessToken(),
+          isCancelled: () => cancelled,
+        });
         if (!cancelled) {
           setLedger(entries);
           setLedgerFailed(false);
         }
-      } catch {
-        if (!cancelled) setLedgerFailed(true);
+      } catch (err) {
+        if (!cancelled && !(err instanceof EarningsLoadCancelled)) setLedgerFailed(true);
       }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, tick]);
+  }, [tab, tick, isGuest]);
 
   /* The statement PDF: fetch the file with the member's token and
      hand it to the browser's save dialog — the documents panel's
@@ -204,6 +218,26 @@ export function EarningsBoard({ isLight }: { isLight: boolean }) {
     }`;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
 
+  /* Guests hold no hand: every number on this board is the member's
+     own money, so a guest sees the pitch, never a board that fires
+     doomed fetches and lands on an error card whose Try again can
+     never succeed (the Kingdom Board standings' own treatment). */
+  if (isGuest) {
+    return (
+      <NativeBoard isLight={isLight} title="Your earnings">
+        <p className={`inline-flex flex-wrap items-center gap-2 px-1 py-1 text-sm ${muted}`}>
+          Your earnings are members&rsquo; business — sales, tips and Visual Bucs live behind your account.
+          <Link
+            href={GUEST_SIGN_IN_HREF}
+            className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
+          >
+            <LogIn className="h-3 w-3" /> Sign in to see them
+          </Link>
+        </p>
+      </NativeBoard>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Earnings">
@@ -224,7 +258,10 @@ export function EarningsBoard({ isLight }: { isLight: boolean }) {
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : earnings === null ? (
-          <NativeLoadingState isLight={isLight} message="Counting your earnings…" />
+          <NativeLoadingState
+            isLight={isLight}
+            message={retrying ? "Still counting — a sleeping server can take a moment to wake." : "Counting your earnings…"}
+          />
         ) : (
           <>
             <NativeBoard
