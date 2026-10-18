@@ -52,6 +52,7 @@ import {
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
+  creatorSlugFromRoomId,
 } from "./palace-layout";
 
 /** The seven shared in-world patterns every native station is
@@ -404,13 +405,84 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "board" },
     websitePath: "/earnings",
   },
+  {
+    id: "creator-rooms",
+    roomId: COURTYARD_ID,
+    name: "Creator Rooms",
+    tagline: "The creators' own rooms — pick a creator and walk into their place.",
+    x: 9.5,
+    z: 24.4,
+    membersOnly: false,
+    panel: { kind: "custom", id: "creator-rooms" },
+    websitePath: null,
+  },
 ];
+
+/* ── Creator-room stations (Ring 2, item 3.5) ────────────────────────
+ * The template's four doors, laid out on the template floor plan
+ * (palace-layout CREATOR_ROOM_TEMPLATE: interior x 2.6..16.4,
+ * z 26.4..38.0, the arch on its north wall at x 9.5). They can't
+ * live in PALACE_STATIONS — their room id is dynamic
+ * (`creator:<slug>`) — so they're built per room id here, in the
+ * same shape, and `stationsInRoom`/`nearestStation` fold them in
+ * for creator rooms. All four are CUSTOM panels fed by the room's
+ * data endpoint (lib/world/creator-rooms): the music rail plays on
+ * the Shelf player, the screen is the creator's featured video,
+ * the store door is their storefront on the shop rails, the Front
+ * Row is their court as Portrait Cards. None of them is
+ * membersOnly: a creator's public place is look-and-listen for
+ * guests, exactly like their public profile. */
+export function creatorRoomStations(roomId: string): PalaceStation[] {
+  const slug = creatorSlugFromRoomId(roomId);
+  if (!slug) return [];
+  const base = { roomId, membersOnly: false, websitePath: null as string | null };
+  return [
+    {
+      ...base,
+      id: "creator-front-row",
+      name: "Their Front Row",
+      tagline: "The creators they keep closest — portrait by portrait.",
+      x: 3.9,
+      z: 29.6,
+      panel: { kind: "custom", id: "creator-front-row" } as StationPanel,
+    },
+    {
+      ...base,
+      id: "creator-music",
+      name: "Their Music",
+      tagline: "Their published songs — press play and listen right here.",
+      x: 3.9,
+      z: 34.6,
+      panel: { kind: "custom", id: "creator-music" } as StationPanel,
+    },
+    {
+      ...base,
+      id: "creator-screen",
+      name: "Their Screen",
+      tagline: "Their featured video — the piece they put on the wall.",
+      x: 9.5,
+      z: 36.7,
+      panel: { kind: "custom", id: "creator-screen" } as StationPanel,
+    },
+    {
+      ...base,
+      id: "creator-store",
+      name: "Their Store",
+      tagline: "Their shopfront — what's for sale, on the palace's shop rails.",
+      x: 15.1,
+      z: 34.6,
+      panel: { kind: "custom", id: "creator-store" } as StationPanel,
+    },
+  ];
+}
 
 export const STATION_BY_ID = new Map(PALACE_STATIONS.map((s) => [s.id, s]));
 
-/** Stations standing in one room, in registry order. */
+/** Stations standing in one room, in registry order. Creator
+ *  rooms answer with the template's four doors. */
 export function stationsInRoom(roomId: string): PalaceStation[] {
-  return PALACE_STATIONS.filter((s) => s.roomId === roomId);
+  const fixed = PALACE_STATIONS.filter((s) => s.roomId === roomId);
+  return [...fixed, ...creatorRoomStations(roomId)];
 }
 
 /** The station a walker is close enough to use, or null. Nearest
@@ -424,8 +496,7 @@ export function nearestStation(
 ): PalaceStation | null {
   let best: PalaceStation | null = null;
   let bestDist = radius;
-  for (const s of PALACE_STATIONS) {
-    if (s.roomId !== roomId) continue;
+  for (const s of stationsInRoom(roomId)) {
     const d = Math.hypot(s.x - x, s.z - z);
     if (d <= bestDist) {
       best = s;

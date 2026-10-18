@@ -233,16 +233,114 @@ export const PALACE_DOORS: PalaceDoor[] = [
   },
 ];
 
+/* ── Creator Rooms (Ring 2, item 3.5) ──────────────────────────────
+ * One room TEMPLATE south of the Courtyard, through the arch that
+ * stood sealed there: a real room on the floor plan (interior
+ * x 2.6..16.4, z 26.4..38.0 — the same numbers the server clamps
+ * to, artifacts/api-server/src/lib/world-palace.ts
+ * CREATOR_ROOM_BOUNDS/SPAWN) whose IDENTITY is dynamic. The room
+ * instance is `creator:<slug>`; which creator that is belongs to
+ * the walker, not the floor plan — presence is room-scoped
+ * server-side, so two creators' rooms never share a crowd, and
+ * this client only ever stands in one at a time. Registering a
+ * slug lays the template's walk rect + the arch doorway under
+ * that slug's id; registering another replaces it (one template,
+ * one current host). The server template bounds are a touch
+ * generous at the aprons, like every room's. */
+export const CREATOR_ROOM_PREFIX = "creator:";
+
+export function creatorRoomId(slug: string): string {
+  return `${CREATOR_ROOM_PREFIX}${slug}`;
+}
+
+export function creatorSlugFromRoomId(roomId: string): string | null {
+  if (!roomId.startsWith(CREATOR_ROOM_PREFIX)) return null;
+  const slug = roomId.slice(CREATOR_ROOM_PREFIX.length);
+  return slug.length > 0 ? slug : null;
+}
+
+export function isCreatorRoomId(roomId: string): boolean {
+  return creatorSlugFromRoomId(roomId) !== null;
+}
+
+/** The one template's geometry — every creator's room stands here,
+ *  dressed in their name and colors by the scene. */
+export const CREATOR_ROOM_TEMPLATE = {
+  interior: { minX: 2.6, maxX: 16.4, minZ: 26.4, maxZ: 38.0 },
+  walk: { minX: 2.95, maxX: 16.05, minZ: 26.8, maxZ: 37.65 },
+  camClamp: { minX: 2.85, maxX: 16.15, minZ: 26.6, maxZ: 37.75 },
+  spawn: { x: 9.5, z: 28.6 },
+  /** The arch in the Courtyard's south wall (x 9.5, z 26). */
+  door: { plane: 26.2, spanMin: 8.45, spanMax: 10.55 },
+} as const;
+
+/** The currently registered creator-room layout + door, if any.
+ *  Module state on purpose: the movement resolver, the scene and
+ *  the page all read the same floor plan, and the plan's dynamic
+ *  ring is exactly one room deep. */
+let dynamicRoom: PalaceRoomLayout | null = null;
+let dynamicDoor: PalaceDoor | null = null;
+
+/** Lay the template under a creator's slug. Returns the layout.
+ *  Re-registering (another creator, or the same) replaces the
+ *  previous registration wholesale. */
+export function registerCreatorRoomLayout(slug: string, displayName?: string): PalaceRoomLayout {
+  const id = creatorRoomId(slug);
+  const name = displayName?.trim() ? `${displayName.trim()}'s Room` : "Creator Room";
+  dynamicRoom = {
+    id,
+    name,
+    walk: { ...CREATOR_ROOM_TEMPLATE.walk },
+    interior: { ...CREATOR_ROOM_TEMPLATE.interior },
+    camClamp: { ...CREATOR_ROOM_TEMPLATE.camClamp },
+    spawn: { ...CREATOR_ROOM_TEMPLATE.spawn },
+  };
+  dynamicDoor = {
+    roomId: id,
+    axis: "z",
+    plane: CREATOR_ROOM_TEMPLATE.door.plane,
+    spanMin: CREATOR_ROOM_TEMPLATE.door.spanMin,
+    spanMax: CREATOR_ROOM_TEMPLATE.door.spanMax,
+    portal: { minX: 8.4, maxX: 10.6, minZ: 25.55, maxZ: 26.9 },
+    /* Membership by the plane rule roomAt applies (along < plane
+     * → negRoom): the Courtyard lies NORTH of this wall (smaller
+     * z), the creator room SOUTH of it. */
+    negRoom: COURTYARD_ID,
+    posRoom: id,
+  };
+  return dynamicRoom;
+}
+
+/** The registered creator room's layout, when the id is its. */
+export function creatorRoomLayout(roomId: string): PalaceRoomLayout | null {
+  return dynamicRoom && dynamicRoom.id === roomId ? dynamicRoom : null;
+}
+
+/** Any room's layout: the fixed eight from the plan, or the
+ *  registered creator room. */
+export function palaceRoomLayout(roomId: string): PalaceRoomLayout | undefined {
+  return PALACE_LAYOUT[roomId] ?? creatorRoomLayout(roomId) ?? undefined;
+}
+
+function allRooms(): PalaceRoomLayout[] {
+  const rooms = Object.values(PALACE_LAYOUT);
+  return dynamicRoom ? [...rooms, dynamicRoom] : rooms;
+}
+
+function allDoors(): PalaceDoor[] {
+  return dynamicDoor ? [...PALACE_DOORS, dynamicDoor] : PALACE_DOORS;
+}
+
 export function pointInRect(x: number, z: number, r: PalaceRect): boolean {
   return x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
 }
 
 /** Standing room: inside some room's walk rect, or in a doorway. */
 export function isWalkable(x: number, z: number): boolean {
-  for (const room of Object.values(PALACE_LAYOUT)) {
+  for (const room of allRooms()) {
     if (pointInRect(x, z, room.walk)) return true;
   }
-  for (const door of PALACE_DOORS) {
+  for (const door of allDoors()) {
     if (pointInRect(x, z, door.portal)) return true;
   }
   return false;
@@ -255,13 +353,13 @@ export function isWalkable(x: number, z: number): boolean {
  * geometry alone can't claim you there.
  */
 export function roomAt(x: number, z: number, fallback: string): string {
-  for (const door of PALACE_DOORS) {
+  for (const door of allDoors()) {
     if (pointInRect(x, z, door.portal)) {
       const along = door.axis === "x" ? x : z;
       return along < door.plane ? door.negRoom : door.posRoom;
     }
   }
-  for (const room of Object.values(PALACE_LAYOUT)) {
+  for (const room of allRooms()) {
     if (pointInRect(x, z, room.walk)) return room.id;
   }
   return fallback;
@@ -269,7 +367,7 @@ export function roomAt(x: number, z: number, fallback: string): string {
 
 /** Clamp a position into a room's walk rect. */
 export function clampToRoom(roomId: string, x: number, z: number): { x: number; z: number } {
-  const room = PALACE_LAYOUT[roomId] ?? PALACE_LAYOUT[HALL_ROOM_ID]!;
+  const room = palaceRoomLayout(roomId) ?? PALACE_LAYOUT[HALL_ROOM_ID]!;
   return {
     x: Math.min(room.walk.maxX, Math.max(room.walk.minX, x)),
     z: Math.min(room.walk.maxZ, Math.max(room.walk.minZ, z)),

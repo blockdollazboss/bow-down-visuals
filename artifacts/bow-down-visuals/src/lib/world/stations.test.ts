@@ -41,7 +41,7 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    expect(PALACE_STATIONS.length).toBe(27);
+    expect(PALACE_STATIONS.length).toBe(28);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -65,7 +65,9 @@ describe("the station registry", () => {
       expect(s.panel.kind, s.id).not.toBe("page");
     }
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(6);
+    /* Six original customs + the Creator Rooms arch (Ring 2, 3.5),
+     * born world-native like the six — it never had a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(7);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -127,6 +129,7 @@ describe("the station registry", () => {
       "community-hall": "/community",
       "promote-room": "/promote",
       "get-paid-room": "/earnings",
+      "creator-rooms": null,
     };
     expect(Object.keys(table).length).toBe(PALACE_STATIONS.length);
     for (const s of PALACE_STATIONS) {
