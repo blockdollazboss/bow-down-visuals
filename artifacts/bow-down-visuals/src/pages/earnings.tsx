@@ -17,7 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
    this page's honest failure / per-source error states, never render
    $NaN totals. */
 import {
-  normalizeEarningsResponse,
+  loadEarnings,
+  EarningsLoadCancelled,
   type EarningsResponse,
   type SourceErr,
   type SourceOk,
@@ -48,28 +49,36 @@ export default function Earnings() {
   const { user, loading: authLoading, getAccessToken } = useAuth();
   const [data, setData] = useState<EarningsResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   /* Guest honesty (access lockdown Lane 3): /api/earnings is
      member-only, so a signed-out visit used to fire a doomed fetch and
      land on the failure card below. Signed-out visitors get a sign-in
-     pitch instead, and the fetch never fires without a session. */
+     pitch instead, and the fetch never fires without a session.
+     The load itself is patient (lib/earnings-data loadEarnings): a
+     waking free-tier box answers 502s / drops requests for its first
+     seconds, and one burned attempt used to paint the failure card
+     for good. Retries with backoff ride that out; only exhaustion
+     lands here — with a working Try again, not just the words. */
   useEffect(() => {
     if (authLoading || !user) return;
+    let cancelled = false;
+    setRetrying(false);
     (async () => {
       try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/earnings", {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        const normalized = await loadEarnings({
+          getToken: () => getAccessToken(),
+          isCancelled: () => cancelled,
+          onRetry: () => { if (!cancelled) setRetrying(true); },
         });
-        if (!res.ok) throw new Error("earnings failed");
-        const normalized = normalizeEarningsResponse(await res.json());
-        if (!normalized) throw new Error("earnings payload incomplete");
-        setData(normalized);
-      } catch {
-        setFailed(true);
+        if (!cancelled) setData(normalized);
+      } catch (err) {
+        if (!cancelled && !(err instanceof EarningsLoadCancelled)) setFailed(true);
       }
     })();
-  }, [getAccessToken, user, authLoading]);
+    return () => { cancelled = true; };
+  }, [getAccessToken, user, authLoading, reloadKey]);
 
   if (!authLoading && !user) {
     return (
@@ -92,6 +101,13 @@ export default function Earnings() {
       <div className="mx-auto max-w-3xl p-6">
         <h1 className="text-2xl font-bold">Earnings</h1>
         <p className="mt-4 text-destructive">Couldn&apos;t load your earnings — try again in a moment.</p>
+        <button
+          type="button"
+          className="mt-4 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium"
+          onClick={() => { setFailed(false); setData(null); setReloadKey((k) => k + 1); }}
+        >
+          Try again
+        </button>
       </div>
     );
   }
@@ -100,6 +116,9 @@ export default function Earnings() {
       <div className="mx-auto max-w-3xl p-6">
         <h1 className="text-2xl font-bold">Earnings</h1>
         <p className="mt-4 text-muted-foreground">Loading your money picture…</p>
+        {retrying && (
+          <p className="mt-1 text-sm text-muted-foreground">Still trying — a sleeping server can take a moment to wake.</p>
+        )}
       </div>
     );
   }
