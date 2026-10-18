@@ -45,6 +45,7 @@ const EVENT_KIND_LABELS: Record<string, string> = {
   stage_show: "Stage show",
   listening_party: "Listening party",
   drop: "Drop",
+  contest: "Contest",
 };
 
 export function KingdomBoardBlocks({

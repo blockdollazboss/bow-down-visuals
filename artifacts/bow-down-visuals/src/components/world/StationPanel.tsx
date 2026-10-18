@@ -46,6 +46,7 @@ import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
+import { WinnersCirclePanel } from "@/components/world/native/WinnersCirclePanel";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
@@ -1194,6 +1195,8 @@ export default function StationPanel(props: StationPanelProps) {
                 onPlayTrack={props.onJukeboxAdd}
               />
             );
+          case "winners-circle":
+            return <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />;
           case "treasury-daily":
             return <TreasuryDaily isLight={isLight} />;
           case "treasury-shark":

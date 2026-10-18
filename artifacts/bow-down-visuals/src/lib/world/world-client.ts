@@ -1717,7 +1717,8 @@ export async function fetchWorldDirectory(signal?: AbortSignal): Promise<PalaceD
  *  slate serves it — mirrors the DTO in routes/world-events. */
 export interface WorldEventDto {
   id: string;
-  kind: "stage_show" | "listening_party" | "drop";
+  /* 'contest' joined the calendar in 0158 (World Contests, 2.24). */
+  kind: "stage_show" | "listening_party" | "drop" | "contest";
   roomId: string;
   hostUserId: string;
   hostName: string;

@@ -324,6 +324,17 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "shop" },
     websitePath: "/memberships",
   },
+  {
+    id: "winners-circle",
+    roomId: ROYAL_COURT_ID,
+    name: "The Winners' Circle",
+    tagline: "The palace's contests — enter a work on a stage, and see who took the honors.",
+    x: 19,
+    z: -13.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "winners-circle" },
+    websitePath: null,
+  },
 
   /* ── Branding Atelier ────────────────────────────────────────── */
   {

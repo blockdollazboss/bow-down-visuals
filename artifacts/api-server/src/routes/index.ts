@@ -318,6 +318,7 @@ import profileWebsiteRouter from "./profile-website";
 import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
 import worldEventsRouter from "./world-events";
+import worldContestsRouter from "./world-contests";
 import worldTutorialRouter from "./world-tutorial";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
@@ -630,6 +631,7 @@ router.use(profileWebsiteRouter);           // /api/creator-profiles layout/them
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
 router.use(worldEventsRouter);                // /api/world/events (World Events — the palace calendar, 0145)
+router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)

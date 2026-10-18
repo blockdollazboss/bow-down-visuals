@@ -4,6 +4,7 @@ import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
 import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler } from "./routes/world";
+import { registerWorldContestAnnouncer } from "./lib/world-contests";
 import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
@@ -76,6 +77,10 @@ startWorldEventScheduler(worldPalace);
    palace day-turn, heralded palace-wide, with the hall's claim
    window riding the weekly quest pool. */
 startKingMomentScheduler(worldPalace);
+/* World Contests (2.24): when a host names the winners, the palace
+   hears it — the contests route speaks through this hook (the
+   Winners' Circle rows are the durable record; this is the moment). */
+registerWorldContestAnnouncer((announcement) => worldPalace.announce(announcement));
 registerPartyWs(wsGateway);
 registerStageWs(wsGateway);
 wsGateway.attach(server);

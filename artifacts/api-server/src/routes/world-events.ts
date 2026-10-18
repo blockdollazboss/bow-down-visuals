@@ -25,7 +25,7 @@
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, worldEventsTable, creatorProfilesTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
@@ -138,7 +138,10 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
     }
 
     /* One room, one event at a time: any live or scheduled event in
-     * the same room whose window overlaps refuses the booking. */
+     * the same room whose window overlaps refuses the booking.
+     * Contests are exempt: a contest is a standing competition on
+     * the room's board, not a stage booking — its days-long entry
+     * window must never lock the stage (routes/world-contests). */
     const roomEvents = await db
       .select()
       .from(worldEventsTable)
@@ -146,6 +149,7 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
         and(
           eq(worldEventsTable.roomId, roomId),
           inArray(worldEventsTable.status, ["scheduled", "live"]),
+          ne(worldEventsTable.kind, "contest"),
         ),
       );
     const conflict = roomEvents.find((e) =>

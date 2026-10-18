@@ -62,6 +62,10 @@ import { logger } from "./logger";
 
 export const MUSIC_HALL_ROOM_ID = "world:music-hall";
 
+/** A contest's theme is a headline, not a speech — the same cap
+ *  the palace herald carries (lib/world-palace HERALD_MAX_CHARS). */
+export const CONTEST_THEME_MAX_CHARS = 140;
+
 /** How often the scheduler looks at the calendar. One indexed select
  *  per tick against a small, ephemeral table — deliberately cheap. */
 export const WORLD_EVENT_TICK_MS = 10_000;
@@ -83,6 +87,14 @@ export function bookingRuleFor(kind: WorldEventKind): BookingRule {
     case "listening_party":
       return { requiredRoomId: MUSIC_HALL_ROOM_ID, privilege: "member" };
     case "drop":
+      return { requiredRoomId: null, privilege: "admin" };
+    case "contest":
+      /* Contests are booked through the contests route (routes/
+       * world-contests), which applies the per-stage rule (Throne
+       * Hall: Front Row + house; Music Hall: any member). The
+       * generic events route never accepts this kind (its zod enum
+       * is closed); this row exists so the switch stays exhaustive,
+       * pinned admin-only as a belt-and-braces default. */
       return { requiredRoomId: null, privilege: "admin" };
   }
 }
@@ -130,6 +142,19 @@ export function sanitizeEventPayload(kind: WorldEventKind, raw: unknown): Payloa
         ? p["playlistId"].trim().slice(0, 96)
         : null;
     return { ok: true, payload: { trackIds, playlistId } };
+  }
+  if (kind === "contest") {
+    const theme = typeof p["theme"] === "string" ? p["theme"].trim() : "";
+    if (!theme) {
+      return { ok: false, error: "A contest needs a theme — the one line entrants create under." };
+    }
+    if (theme.length > CONTEST_THEME_MAX_CHARS) {
+      return {
+        ok: false,
+        error: `A contest theme is at most ${CONTEST_THEME_MAX_CHARS} characters.`,
+      };
+    }
+    return { ok: true, payload: { theme } };
   }
   // drop
   const amountVb = p["amountVb"];
@@ -487,6 +512,11 @@ export class WorldEventScheduler {
     if (row.kind === "listening_party") {
       return palace.room(MUSIC_HALL_ROOM_ID)?.listeningPartyEventId() === row.id;
     }
+    if (row.kind === "contest") {
+      /* A contest carries no room state — the room's board shows
+       * it, nothing in the room plays it. Always carried. */
+      return true;
+    }
     return palace.room(row.roomId)?.activeDropEventId() === row.id;
   }
 
@@ -496,6 +526,9 @@ export class WorldEventScheduler {
       palace.room(WORLD_ROOM_ID)?.endScheduledShow(row.id, "The show has ended.");
     } else if (row.kind === "listening_party") {
       palace.room(MUSIC_HALL_ROOM_ID)?.endListeningParty(row.id);
+    } else if (row.kind === "contest") {
+      /* Nothing to release: a contest never took the room. */
+      return;
     } else {
       palace.room(row.roomId)?.endDrop(row.id);
     }
@@ -503,6 +536,13 @@ export class WorldEventScheduler {
 
   private async startInRoom(row: WorldEventRow, nowMs: number): Promise<boolean> {
     const palace = this.deps.palace;
+    if (row.kind === "contest") {
+      /* The entry window opening IS the start — no screen, no
+       * jukebox, no drop to drive. The status flip this returns
+       * true for is the whole ceremony; judging belongs to the
+       * host through the contests route, after the deadline. */
+      return true;
+    }
     const profile = await this.store.hostProfile(row.hostUserId).catch(() => null);
     const hostName = profile?.displayName ?? "Creator";
     const hostSlug = profile?.slug ?? null;
