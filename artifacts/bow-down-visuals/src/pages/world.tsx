@@ -5,7 +5,7 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X,
+  Megaphone, Bell, BellOff, X, Coins,
 } from "lucide-react";
 import {
   WORLD_ACTIONS,
@@ -56,6 +56,11 @@ import {
   kingMomentLine,
   kingStripLine,
 } from "@/lib/world/king-moment";
+import {
+  STAGE_TIP_PRESETS,
+  stageTippedLine,
+  stageTipDeniedLine,
+} from "@/lib/world/stage-tip";
 import {
   nearestStation,
   STATION_BY_ID,
@@ -328,6 +333,10 @@ export default function WorldPage() {
    * lands in kingNote, in plain words. */
   const [kingMoment, setKingMoment] = useState<WorldKingMomentState | null>(null);
   const [kingNote, setKingNote] = useState<string | null>(null);
+  /* Stage tips (Ring 3, item 3.3): the refusal of MY tip, in plain
+   * words, on the tip bar. Landed tips speak for themselves — the
+   * room witnesses them (the log + the moment toast). */
+  const [tipNote, setTipNote] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -1353,6 +1362,23 @@ export default function WorldPage() {
         if (cancelled) return;
         setKingNote(kingDeniedLine(reason));
       };
+      /* A stage tip landed in this room (Ring 3, item 3.3) —
+       * witnessed publicly: the room log keeps the line under the
+       * Palace and the moment toast names it. A refusal of MY tip
+       * says why on the tip bar, in plain words. */
+      client.onStageTipped = (tip) => {
+        if (cancelled) return;
+        const line = stageTippedLine(tip);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
+        showMomentLine(line);
+      };
+      client.onStageTipDenied = (reason) => {
+        if (cancelled) return;
+        setTipNote(stageTipDeniedLine(reason));
+      };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
         setHostMuted(mutedNow);
@@ -1830,6 +1856,57 @@ export default function WorldPage() {
             >
               Gift claimed
             </span>
+          )}
+        </div>
+      )}
+
+      {/* Stage tips from seats (Ring 3, item 3.3): while someone
+          ELSE holds this room's stage, the tip bar stands in the
+          chrome — preset Visual Bucs amounts, one tap. The room
+          verifies everything (member, held stage, bounds, pace)
+          and the transfer moves server-side; a landed tip is
+          witnessed by the whole room. Guests get the honest line:
+          tipping is members' business. Your own stage never shows
+          the bar — you can't tip yourself. */}
+      {status === "inside" && stageHolder && !iHoldStage && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-2 border-b px-4 py-2 ${
+            isLight
+              ? "border-[#C9A84C]/50 bg-[#FBF6E9]"
+              : "border-[#d4af37]/25 bg-[#070605]"
+          }`}
+          data-testid="world-stage-tip-bar"
+        >
+          <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white/90"}`}>
+            <Coins className="h-4 w-4 text-[#d4af37]" />
+            Tip {stageHolder.name}
+          </span>
+          {isGuest ? (
+            <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+              Members tip the stage in Visual Bucs — sign in to tip the show.
+            </span>
+          ) : (
+            <>
+              {STAGE_TIP_PRESETS.map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => {
+                    setTipNote(null);
+                    clientRef.current?.tipStage(amount);
+                  }}
+                  data-testid={`world-stage-tip-${amount}`}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                >
+                  {amount.toLocaleString("en-US")} VB
+                </button>
+              ))}
+              {tipNote && (
+                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-stage-tip-note">
+                  {tipNote}
+                </span>
+              )}
+            </>
           )}
         </div>
       )}

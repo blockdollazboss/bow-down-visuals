@@ -270,6 +270,9 @@ export class WorldPalace {
             ? {
                 resolveJukeboxTrack: deps.resolveJukeboxTrack,
                 claimWorldDrop: deps.claimWorldDrop,
+                /* The Music Hall holds the palace's second stage —
+                 * its performers take seat tips like the hall's. */
+                tipStagePerformer: deps.tipStagePerformer,
                 resolveStars: deps.resolveStars,
                 findRecentQuestClaim: deps.findRecentQuestClaim,
               }

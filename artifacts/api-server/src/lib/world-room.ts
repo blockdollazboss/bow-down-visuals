@@ -81,6 +81,16 @@
  *                                            from the week's quest
  *                                            pool by the injected
  *                                            claimer — Ring 3)
+ *     { type: "stage.tip", amountVb }        tip the member holding
+ *                                            THIS room's stage, from
+ *                                            your seat (members only,
+ *                                            never your own stage;
+ *                                            the house tip bounds —
+ *                                            lib/live-config's
+ *                                            100–1,000,000 VB; the
+ *                                            transfer itself runs on
+ *                                            the injected tipper —
+ *                                            Ring 3, item 3.3)
  *     { type: "moment.celebrate", kind }      ask the room to witness
  *                                            a win: kind "quest" (a
  *                                            quest reward I just
@@ -187,6 +197,17 @@
  *                                            (guests / no-moment /
  *                                            closed / already /
  *                                            pool / error)
+ *     { type: "stage.tipped", tip }           a stage tip landed,
+ *                                            witnessed by the room:
+ *                                            tip.name (the tipper) +
+ *                                            tip.performerName +
+ *                                            tip.amountVb are server
+ *                                            truth
+ *     { type: "stage.tip.denied", reason }    a tip was refused
+ *                                            (guests / no-stage /
+ *                                            self / amount /
+ *                                            too-fast / insufficient /
+ *                                            disabled / error)
  *     { type: "peer.moment", moment }         a win, witnessed by the
  *                                            room (THE-GAME §5(a)):
  *                                            moment.kind "quest" →
@@ -284,7 +305,9 @@
  * all times: instant takeover, screen override, ending a show,
  * muting a voice, removing a person.
  */
+import { randomUUID } from "node:crypto";
 import { RoomHub, WS_OPEN, type WsClientSocket } from "./live-ws";
+import { LIVE_TIP_MINIMUM_VB, LIVE_TIP_MAXIMUM_VB } from "./live-config";
 
 export const WORLD_ROOM_ID = "world:kings-hall";
 export const WORLD_PRESENCE_CAP = 30;
@@ -631,6 +654,35 @@ export type WorldKingMomentClaimer = (
   nowMs: number,
 ) => Promise<WorldKingMomentClaimResult>;
 
+/* ── Stage tips from seats (Ring 3, item 3.3) ─────────────────────
+ * A member in the audience tips the member holding the stage, in
+ * Visual Bucs, within the house tip bounds (lib/live-config). The
+ * room owns the moment — members only, a stage actually held,
+ * never your own stage, one tip per member per pace window — and
+ * the injected tipper (lib/world-stage-tips) owns the transfer:
+ * debit, ledger row, performer credit, with refunds on any
+ * failure. A landed tip is WITNESSED: the room sees who tipped,
+ * who holds the stage, and the amount. */
+
+export type WorldStageTipResult =
+  | { ok: true }
+  | { ok: false; reason: "insufficient" | "disabled" | "error" };
+
+/** Injected by the route layer: move one stage tip. `attemptKey`
+ *  is minted fresh by the room per attempt — the transfer's
+ *  idempotency keys all derive from it. */
+export type WorldStageTipper = (input: {
+  fromUserId: string;
+  toUserId: string;
+  amountVb: number;
+  roomId: string;
+  attemptKey: string;
+}) => Promise<WorldStageTipResult>;
+
+/** The pace between one member's stage tips in a room — tips are
+ *  applause with weight, not a faucet to hold open. */
+export const STAGE_TIP_MIN_INTERVAL_MS = 2_000;
+
 /* ── Witnessed moments (THE-GAME §5(a)) ────────────────────────────
  * Wins are public, progress is private (owner default, §5 Q3): when
  * a member claims a quest reward or their Creator Level rises, the
@@ -846,6 +898,10 @@ interface WorldPeer extends WorldIdentity {
   /** The last moment.celebrate attempt (rate gate — see
    *  MOMENT_MIN_INTERVAL_MS). */
   lastMomentAt: number;
+  /** The last stage.tip attempt (pace gate — see
+   *  STAGE_TIP_MIN_INTERVAL_MS). Set when the attempt is taken,
+   *  before the async transfer runs. */
+  lastTipAt: number;
   /** The last quest claim this session witnessed, keyed
    *  `<questKey>@<claimedAtMs>` — one claim, one moment, even if
    *  the intent is re-sent inside the freshness window. */
@@ -1018,6 +1074,7 @@ export class WorldRoom {
       resolveJukeboxTrack?: WorldJukeboxTrackResolver;
       claimWorldDrop?: WorldDropClaimer;
       claimKingMoment?: WorldKingMomentClaimer;
+      tipStagePerformer?: WorldStageTipper;
       resolveStars?: WorldStarsResolver;
       findRecentQuestClaim?: WorldQuestClaimFinder;
     } = {},
@@ -1181,6 +1238,7 @@ export class WorldRoom {
        * level you walked in with is never "news" to announce. */
       announcedStars: carry?.announcedStars ?? stars ?? 0,
       lastMomentAt: 0,
+      lastTipAt: 0,
       lastQuestMomentKey: null,
       x: at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1,
       y: 0,
@@ -2354,6 +2412,65 @@ export class WorldRoom {
             moment.claimedUserIds.delete(userId);
             const claimant = this.peerForUserId(userId);
             if (claimant) this.send(claimant, { type: "king.denied", reason: "error" });
+          });
+        return;
+      }
+      case "stage.tip": {
+        /* Tip the stage from your seat (Ring 3, item 3.3). Members
+         * only, a stage actually held in THIS room, never your own
+         * stage, the house bounds (lib/live-config — the same
+         * 100–1,000,000 VB the live-stream tips run), one tip per
+         * pace window. The transfer itself (debit → ledger →
+         * performer credit, refunds on failure) is the injected
+         * tipper's; the room just witnesses the landing. The
+         * performer is captured at send time: if they step down
+         * mid-transfer, the tip still lands for the performance
+         * it applauded. */
+        const denyTip = (reason: string) =>
+          this.send(peer, { type: "stage.tip.denied", reason });
+        if (!this.stageEnabled) return denyTip("no-stage");
+        if (peer.guest || !peer.userId) return denyTip("guests");
+        const holder = this.stageHolder;
+        if (!holder) return denyTip("no-stage");
+        if (holder.userId === peer.userId) return denyTip("self");
+        const amountVb = frame["amountVb"];
+        if (
+          typeof amountVb !== "number" ||
+          !Number.isInteger(amountVb) ||
+          amountVb < LIVE_TIP_MINIMUM_VB ||
+          amountVb > LIVE_TIP_MAXIMUM_VB
+        ) {
+          return denyTip("amount");
+        }
+        if (now - peer.lastTipAt < STAGE_TIP_MIN_INTERVAL_MS) return denyTip("too-fast");
+        const tipper = this.deps.tipStagePerformer;
+        if (!tipper) return denyTip("error");
+        peer.lastTipAt = now;
+        const fromUserId = peer.userId;
+        const fromName = peer.displayName;
+        void tipper({
+          fromUserId,
+          toUserId: holder.userId,
+          amountVb,
+          roomId: this.roomId,
+          attemptKey: randomUUID(),
+        })
+          .then((result) => {
+            if (!result.ok) {
+              const tipperPeer = this.peerForUserId(fromUserId);
+              if (tipperPeer) {
+                this.send(tipperPeer, { type: "stage.tip.denied", reason: result.reason });
+              }
+              return;
+            }
+            this.hub.broadcast(this.roomId, {
+              type: "stage.tipped",
+              tip: { name: fromName, performerName: holder.name, amountVb },
+            });
+          })
+          .catch(() => {
+            const tipperPeer = this.peerForUserId(fromUserId);
+            if (tipperPeer) this.send(tipperPeer, { type: "stage.tip.denied", reason: "error" });
           });
         return;
       }

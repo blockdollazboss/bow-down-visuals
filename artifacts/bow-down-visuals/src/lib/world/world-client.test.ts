@@ -1822,3 +1822,37 @@ describe("the King's daily moment (Ring 3)", () => {
     expect(guestRun.socket.sent).toEqual([]);
   });
 });
+
+describe("stage tips from seats (Ring 3, item 3.3)", () => {
+  it("stage.tipped + stage.tip.denied reach their handlers with server truth", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const tipped: unknown[] = [];
+    const denied: string[] = [];
+    client.onStageTipped = (t) => tipped.push(t);
+    client.onStageTipDenied = (r) => denied.push(r);
+    socket.receive({
+      type: "stage.tipped",
+      tip: { name: "Fan", performerName: "Star", amountVb: 250 },
+    });
+    socket.receive({ type: "stage.tipped", tip: { name: "Fan" } });
+    socket.receive({ type: "stage.tip.denied", reason: "insufficient" });
+    socket.receive({ type: "stage.tip.denied" });
+    expect(tipped).toEqual([{ name: "Fan", performerName: "Star", amountVb: 250 }]);
+    expect(denied).toEqual(["insufficient", "error"]);
+  });
+
+  it("tipStage sends for a member inside with a whole amount; guests and bad amounts send nothing", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    client.tipStage(250);
+    expect(socket.sent).toEqual([{ type: "stage.tip", amountVb: 250 }]);
+    socket.sent = [];
+    client.tipStage(100.5);
+    client.tipStage(0);
+    client.tipStage(-100);
+    expect(socket.sent).toEqual([]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true }, [OTHER]);
+    guestRun.client.tipStage(250);
+    expect(guestRun.socket.sent).toEqual([]);
+  });
+});

@@ -600,6 +600,12 @@ export class WorldClient {
   /** My gift claim was refused (guests / no-moment / closed /
    *  already / pool / error). */
   onKingDenied: ((reason: string) => void) | null = null;
+  /** A stage tip landed in this room — witnessed publicly
+   *  (tipper name + performer name + amount are server truth). */
+  onStageTipped: ((tip: { name: string; performerName: string; amountVb: number }) => void) | null = null;
+  /** My stage tip was refused (guests / no-stage / self / amount /
+   *  too-fast / insufficient / disabled / error). */
+  onStageTipDenied: ((reason: string) => void) | null = null;
   /** A palace-wide announcement landed (any room's moment, the
    *  King's daily moment, the host's herald). */
   onAnnounce: ((announce: WorldAnnouncement) => void) | null = null;
@@ -1137,6 +1143,18 @@ export class WorldClient {
     this.send({ type: "king.claim" });
   }
 
+  /* ── Stage tips from seats (Ring 3, item 3.3) ──────────────────
+   * One intent with the amount; the room enforces members-only,
+   * a held stage, never your own stage, the house bounds and the
+   * pace — and the transfer moves the money server-side. */
+
+  /** Tip the member holding this room's stage. */
+  tipStage(amountVb: number): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    if (!Number.isInteger(amountVb) || amountVb <= 0) return;
+    this.send({ type: "stage.tip", amountVb });
+  }
+
   /* ── Witnessed moments (THE-GAME §5(a)) ───────────────────────
    * Bare intents: "a win just happened — witness it if it's real."
    * They carry NO facts (no quest name, no reward, no level): the
@@ -1521,6 +1539,28 @@ export class WorldClient {
       }
       case "king.denied": {
         this.onKingDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "error");
+        return;
+      }
+      case "stage.tipped": {
+        const tip = frame["tip"];
+        if (tip && typeof tip === "object") {
+          const t = tip as Record<string, unknown>;
+          if (
+            typeof t.name === "string" &&
+            typeof t.performerName === "string" &&
+            typeof t.amountVb === "number"
+          ) {
+            this.onStageTipped?.({
+              name: t.name,
+              performerName: t.performerName,
+              amountVb: t.amountVb,
+            });
+          }
+        }
+        return;
+      }
+      case "stage.tip.denied": {
+        this.onStageTipDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "error");
         return;
       }
       case "drop.landed": {

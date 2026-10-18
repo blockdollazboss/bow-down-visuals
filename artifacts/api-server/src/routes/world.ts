@@ -65,6 +65,7 @@ import {
   KING_MOMENT_TICK_MS,
   createKingMomentClaimer,
 } from "../lib/world-king-moment";
+import { createStageTipper } from "../lib/world-stage-tips";
 
 const router = Router();
 
@@ -1203,6 +1204,12 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
        * the grant (lib/world-king-moment). Only the hall receives
        * the full deps object, so only the hall can hold court. */
       claimKingMoment: createKingMomentClaimer(),
+      /* Stage tips from seats (Ring 3, item 3.3): the transfer
+       * (debit → world_stage_tips ledger → performer credit,
+       * refunds on failure) lives in lib/world-stage-tips; the
+       * palace hands it to the two stage rooms (hall + Music
+       * Hall). No fee — no house rule prices a cut of VB tips. */
+      tipStagePerformer: createStageTipper(),
       /* Witnessed moments (THE-GAME §5(a)): the rooms verify quest +
        * levelup intents against these rails. A failed stars read is
        * "no level on record" — the moment is refused, never guessed. */
