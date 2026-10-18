@@ -73,6 +73,10 @@ import {
   KING_MOMENT_TICK_MS,
   createKingMomentClaimer,
 } from "../lib/world-king-moment";
+import {
+  CourtSeasonScheduler,
+  COURT_SEASON_TICK_MS,
+} from "../lib/world-court-season";
 import { createStageTipper } from "../lib/world-stage-tips";
 import { createTutorialActionNotifier } from "../lib/world-tutorial";
 
@@ -1553,6 +1557,31 @@ export function startKingMomentScheduler(palace: WorldPalace): { stop: () => voi
   };
   run();
   const timer = setInterval(run, KING_MOMENT_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start the court season scheduler (Ring 4, lib/world-court-season):
+ * every COURT_SEASON_TICK_MS it settles the oldest ended season
+ * that has no frozen settlement yet — the standings freeze into
+ * court_season_settlements (migration 0153) and the court is
+ * heralded through the announce channel, exactly once per season
+ * (the settlement row's primary key is the idempotency). Called
+ * once from index.ts after the WS mount — tests drive the
+ * scheduler class directly, so no interval runs under vitest. The
+ * first tick runs immediately: a restart after a season's turn
+ * settles it on boot.
+ */
+export function startCourtSeasonScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new CourtSeasonScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[court-season] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, COURT_SEASON_TICK_MS);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

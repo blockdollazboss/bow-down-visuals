@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
-import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler } from "./routes/world";
+import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler } from "./routes/world";
 import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
@@ -76,6 +76,10 @@ startWorldEventScheduler(worldPalace);
    palace day-turn, heralded palace-wide, with the hall's claim
    window riding the weekly quest pool. */
 startKingMomentScheduler(worldPalace);
+/* Court seasons (Ring 4): at each season's turn the standings
+   freeze into the marks wall's record and the court is heralded —
+   once per season, by the settlement row's primary key. */
+startCourtSeasonScheduler(worldPalace);
 registerPartyWs(wsGateway);
 registerStageWs(wsGateway);
 wsGateway.attach(server);

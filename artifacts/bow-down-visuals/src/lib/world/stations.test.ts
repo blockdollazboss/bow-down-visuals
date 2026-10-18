@@ -41,7 +41,7 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    expect(PALACE_STATIONS.length).toBe(28);
+    expect(PALACE_STATIONS.length).toBe(29);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -65,9 +65,10 @@ describe("the station registry", () => {
       expect(s.panel.kind, s.id).not.toBe("page");
     }
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
-    /* Six original customs + the Creator Rooms arch (Ring 2, 3.5),
-     * born world-native like the six — it never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(7);
+    /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
+     * + the Season Marks Wall (Ring 4), born world-native like the
+     * six — they never had a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(8);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -121,6 +122,7 @@ describe("the station registry", () => {
       "shark-drops": null,
       "quest-board": null,
       "front-row-gallery": null,
+      "season-marks-wall": null,
       "crowns-desk": "/memberships",
       "branding-kit-desk": "/branding-kit",
       "branding-shop-desk": "/branding-kit?tab=shop",
@@ -144,6 +146,11 @@ describe("the station registry", () => {
     expect(byId("jukebox").roomId).toBe("world:music-hall");
     expect(byId("front-row-gallery").panel).toEqual({ kind: "custom", id: "front-row" });
     expect(byId("front-row-gallery").roomId).toBe("world:royal-court");
+    /* The Season Marks Wall (Ring 4): same chamber, open to
+     * everyone — standings are public spectacle, guests included. */
+    expect(byId("season-marks-wall").panel).toEqual({ kind: "custom", id: "season-marks" });
+    expect(byId("season-marks-wall").roomId).toBe("world:royal-court");
+    expect(byId("season-marks-wall").membersOnly).toBe(false);
     for (const [id, customId] of [
       ["daily-drop", "treasury-daily"],
       ["shark-drops", "treasury-shark"],
