@@ -22,9 +22,10 @@ import {
    React nodes — text is escaped, nothing is ever injected as HTML —
    with the King's shortcodes (:king-laugh:, :gif-king-bow:) lit up as
    his sticker/GIF art. Bodies still travel as plain text, so no
-   protocol change. The panel is dark-styled by design (it sits on
-   streaming surfaces) and carries data-dark-lock so the light theme
-   never repaints it — its King art is pinned to the dark set. */
+   protocol change. The panel follows the house theme like every
+   other studio panel: its bg-[#0d0a04] ground is repainted by the
+   §18 sweep in light theme (the data-dark-lock it used to carry
+   made it stay black on the cream studio — removed Oct 18, 2026). */
 
 export default function LiveChatPanel({ streamId, className = "" }: { streamId: string; className?: string }) {
   const { user, getAccessToken } = useAuth();
@@ -116,7 +117,6 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
 
   return (
     <section
-      data-dark-lock
       className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#C9A84C]/25 bg-[#0d0a04] text-white ${className}`}
       data-testid="live-chat-panel"
     >

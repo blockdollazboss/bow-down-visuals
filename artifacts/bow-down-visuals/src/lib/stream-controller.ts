@@ -54,6 +54,13 @@ export interface ControllerState {
   activeSceneId: string | null;
   previewSceneId: string | null;
   micMuted: boolean;
+  /**
+   * A real mic input exists right now (mixer present, studio phase not
+   * "off"). Optional because older snapshots omit it — and an omitted
+   * or false value must read as NO mic (the deck shows "Off"), never
+   * as a defaulted live mic. See micReadout().
+   */
+  micPresent?: boolean;
   cameraOn: boolean;
   recording: boolean;
   /** When the current broadcast started (ms epoch), or null. */
@@ -86,6 +93,22 @@ export interface ControllerClientDeps {
 
 export const ACK_TIMEOUT_MS = 3000;
 const RECONNECT_MS = [1500, 4000, 8000];
+/** A socket that hasn't opened within this window is a stalled
+    handshake: retire it by hand (it may never fire onclose) and climb
+    the reconnect ladder instead of hanging on "connecting…" forever. */
+export const HANDSHAKE_TIMEOUT_MS = 8000;
+
+/**
+ * The deck's mic readout, derived from reality: only a state that
+ * carries a REAL mic input may read "live" or "muted". No state yet,
+ * or a state whose mic doesn't exist (mixer absent, phase "off", or
+ * an older snapshot that never said) reads "off" — a fallback must
+ * never present as an affirmative Live.
+ */
+export function micReadout(state: ControllerState | null): "live" | "muted" | "off" {
+  if (!state || state.micPresent !== true) return "off";
+  return state.micMuted ? "muted" : "live";
+}
 
 function defaultSocketUrl(locationLike: { protocol: string; host: string }, role: "stage" | "remote", token: string): string {
   const scheme = locationLike.protocol === "https:" ? "wss:" : "ws:";
@@ -125,7 +148,23 @@ export class ControllerRemoteClient {
   private _stopped = false;
   private _reconnectTimer: ReturnType<typeof setTimeout> | number | null = null;
   private _reconnectStep = 0;
+  private _handshakeTimer: ReturnType<typeof setTimeout> | number | null = null;
   private _seq = 0;
+
+  /** True once the reconnect ladder is exhausted: the link is
+      unavailable right now (the ladder keeps retrying at its last
+      rung, and a later open clears this). Labels read this instead
+      of saying "connecting…" forever. */
+  get linkUnavailable(): boolean {
+    return this._reconnectStep >= RECONNECT_MS.length;
+  }
+
+  private clearHandshakeTimer(): void {
+    if (this._handshakeTimer) {
+      (this.deps.clearTimeoutFn ?? clearTimeout)(this._handshakeTimer);
+      this._handshakeTimer = null;
+    }
+  }
 
   constructor(
     private deps: ControllerClientDeps,
@@ -142,6 +181,7 @@ export class ControllerRemoteClient {
       (this.deps.clearTimeoutFn ?? clearTimeout)(this._reconnectTimer);
       this._reconnectTimer = null;
     }
+    this.clearHandshakeTimer();
     const socket = this._socket;
     this._socket = null;
     if (socket) {
@@ -157,21 +197,47 @@ export class ControllerRemoteClient {
   private async connect(): Promise<void> {
     if (this._stopped || this._socket) return;
     const token = await this.deps.getAccessToken().catch(() => null);
-    if (!token || this._stopped) return;
+    if (this._stopped) return;
+    if (!token) {
+      // A missing/rejected token is a failed attempt, not a dead
+      // end: climb the same reconnect ladder onclose uses.
+      this.scheduleReconnect();
+      return;
+    }
     let socket: ControllerSocketLike;
     try {
       socket = this.deps.openSocket(this.deps.socketUrl("remote"));
     } catch {
+      this.scheduleReconnect();
       return;
     }
     this._socket = socket;
+    const setTimeoutFn = this.deps.setTimeoutFn ?? setTimeout;
+    this._handshakeTimer = setTimeoutFn(() => {
+      this._handshakeTimer = null;
+      if (this._stopped || this._socket !== socket) return;
+      // Stalled handshake: the socket never opened and may never
+      // fire onclose. Retire it by hand and climb the ladder.
+      socket.onclose = null;
+      this._socket = null;
+      this.socketUp = false;
+      try {
+        socket.close();
+      } catch {
+        /* already gone */
+      }
+      this.onChange();
+      this.scheduleReconnect();
+    }, HANDSHAKE_TIMEOUT_MS);
     socket.onopen = () => {
+      this.clearHandshakeTimer();
       this.socketUp = true;
       this._reconnectStep = 0;
       this.onChange();
     };
     socket.onmessage = (ev) => this.handleFrame(ev.data);
     socket.onclose = () => {
+      this.clearHandshakeTimer();
       if (this._socket === socket) this._socket = null;
       this.socketUp = false;
       this.onChange();
@@ -195,6 +261,9 @@ export class ControllerRemoteClient {
       this._reconnectTimer = null;
       void this.connect();
     }, delay);
+    // Surface the step change: at the ladder's top, linkUnavailable
+    // flips and the label must stop saying "connecting…".
+    this.onChange();
   }
 
   private handleFrame(data: unknown): void {
@@ -328,6 +397,22 @@ export class ControllerStageClient {
   private _stopped = false;
   private _reconnectTimer: ReturnType<typeof setTimeout> | number | null = null;
   private _reconnectStep = 0;
+  private _handshakeTimer: ReturnType<typeof setTimeout> | number | null = null;
+
+  /** True once the reconnect ladder is exhausted: the link is
+      unavailable right now (the ladder keeps retrying at its last
+      rung, and a later open clears this). The studio's link label
+      reads this instead of saying "connecting…" forever. */
+  get linkUnavailable(): boolean {
+    return this._reconnectStep >= RECONNECT_MS.length;
+  }
+
+  private clearHandshakeTimer(): void {
+    if (this._handshakeTimer) {
+      (this.deps.clearTimeoutFn ?? clearTimeout)(this._handshakeTimer);
+      this._handshakeTimer = null;
+    }
+  }
 
   constructor(
     private deps: ControllerClientDeps,
@@ -346,6 +431,7 @@ export class ControllerStageClient {
       (this.deps.clearTimeoutFn ?? clearTimeout)(this._reconnectTimer);
       this._reconnectTimer = null;
     }
+    this.clearHandshakeTimer();
     const socket = this._socket;
     this._socket = null;
     if (socket) {
@@ -361,15 +447,40 @@ export class ControllerStageClient {
   private async connect(): Promise<void> {
     if (this._stopped || this._socket) return;
     const token = await this.deps.getAccessToken().catch(() => null);
-    if (!token || this._stopped) return;
+    if (this._stopped) return;
+    if (!token) {
+      // A missing/rejected token is a failed attempt, not a dead
+      // end: climb the same reconnect ladder onclose uses.
+      this.scheduleReconnect();
+      return;
+    }
     let socket: ControllerSocketLike;
     try {
       socket = this.deps.openSocket(this.deps.socketUrl("stage"));
     } catch {
+      this.scheduleReconnect();
       return;
     }
     this._socket = socket;
+    const setTimeoutFn = this.deps.setTimeoutFn ?? setTimeout;
+    this._handshakeTimer = setTimeoutFn(() => {
+      this._handshakeTimer = null;
+      if (this._stopped || this._socket !== socket) return;
+      // Stalled handshake: the socket never opened and may never
+      // fire onclose. Retire it by hand and climb the ladder.
+      socket.onclose = null;
+      this._socket = null;
+      this.socketUp = false;
+      try {
+        socket.close();
+      } catch {
+        /* already gone */
+      }
+      this.onChange();
+      this.scheduleReconnect();
+    }, HANDSHAKE_TIMEOUT_MS);
     socket.onopen = () => {
+      this.clearHandshakeTimer();
       this.socketUp = true;
       this._reconnectStep = 0;
       this.publish();
@@ -389,6 +500,7 @@ export class ControllerStageClient {
       }
     };
     socket.onclose = () => {
+      this.clearHandshakeTimer();
       if (this._socket === socket) this._socket = null;
       this.socketUp = false;
       this.onChange();
@@ -412,6 +524,9 @@ export class ControllerStageClient {
       this._reconnectTimer = null;
       void this.connect();
     }, delay);
+    // Surface the step change: at the ladder's top, linkUnavailable
+    // flips and the label must stop saying "connecting…".
+    this.onChange();
   }
 
   /** Publish the studio's current confirmed state to my remotes. */

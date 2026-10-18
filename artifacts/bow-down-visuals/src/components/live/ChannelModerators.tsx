@@ -89,7 +89,6 @@ export default function ChannelModerators({ className = "" }: { className?: stri
 
   return (
     <section
-      data-dark-lock
       className={`rounded-2xl border border-[#C9A84C]/25 bg-[#0d0a04] p-4 text-white ${className}`}
       data-testid="channel-moderators"
     >

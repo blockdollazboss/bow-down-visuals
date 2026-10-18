@@ -9,9 +9,39 @@ import {
   ControllerRemoteClient,
   ControllerStageClient,
   expectFor,
+  micReadout,
+  HANDSHAKE_TIMEOUT_MS,
+  type ControllerClientDeps,
   type ControllerSocketLike,
   type ControllerState,
 } from "./stream-controller";
+
+/** Deterministic timers: clients under test never touch real clocks. */
+class TimerWheel {
+  private seq = 0;
+  private timers = new Map<number, { fn: () => void; ms: number }>();
+  set = (fn: () => void, ms: number): number => {
+    const id = ++this.seq;
+    this.timers.set(id, { fn, ms });
+    return id;
+  };
+  clear = (id: unknown): void => {
+    this.timers.delete(id as number);
+  };
+  /** Fire every pending timer armed with exactly this delay. */
+  fireByMs(ms: number): void {
+    const due = [...this.timers.entries()].filter(([, t]) => t.ms === ms);
+    for (const [id, t] of due) {
+      this.timers.delete(id);
+      t.fn();
+    }
+  }
+  delays(): number[] {
+    return [...this.timers.values()].map((t) => t.ms);
+  }
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 class FakeSocket implements ControllerSocketLike {
   readyState = 1;
@@ -138,6 +168,150 @@ describe("ControllerRemoteClient", () => {
     expect(h.client.state).not.toBeNull();
     h.socket.emit({ type: "presence", stageConnected: false, stageCount: 0 });
     expect(h.client.state).toBeNull();
+  });
+});
+
+describe("micReadout — the deck never defaults to Live", () => {
+  it("no state yet reads off", () => {
+    expect(micReadout(null)).toBe("off");
+  });
+
+  it("a state that never claims a mic reads off (older snapshots omit micPresent)", () => {
+    expect(micReadout(baseState())).toBe("off");
+    expect(micReadout(baseState({ micMuted: false }))).toBe("off");
+  });
+
+  it("mic absent reads off even when the mute flag is false", () => {
+    expect(micReadout(baseState({ micPresent: false, micMuted: false }))).toBe("off");
+  });
+
+  it("only a real mic reads live or muted", () => {
+    expect(micReadout(baseState({ micPresent: true, micMuted: false }))).toBe("live");
+    expect(micReadout(baseState({ micPresent: true, micMuted: true }))).toBe("muted");
+  });
+});
+
+describe("connect failures climb the ladder (no silent dead ends)", () => {
+  function stageHarness(over: Partial<ControllerClientDeps> = {}) {
+    const wheel = new TimerWheel();
+    const sockets: FakeSocket[] = [];
+    const deps: ControllerClientDeps = {
+      getAccessToken: async () => "tok",
+      socketUrl: () => "ws://test/controller?role=stage",
+      openSocket: () => {
+        const s = new FakeSocket();
+        sockets.push(s);
+        return s;
+      },
+      setTimeoutFn: wheel.set,
+      clearTimeoutFn: wheel.clear,
+      ...over,
+    };
+    const client = new ControllerStageClient(deps, () => undefined, () => baseState(), () => undefined);
+    return { wheel, sockets, client };
+  }
+
+  it("stage: a rejected token schedules a reconnect instead of exiting silently", async () => {
+    const h = stageHarness({ getAccessToken: async () => null });
+    await h.client.start();
+    expect(h.sockets).toHaveLength(0);
+    expect(h.wheel.delays()).toContain(1500);
+    expect(h.client.linkUnavailable).toBe(false);
+    // Second failure climbs to the next rung.
+    h.wheel.fireByMs(1500);
+    await flush();
+    expect(h.wheel.delays()).toContain(4000);
+    expect(h.client.linkUnavailable).toBe(false);
+    // Third failure exhausts the ladder: the link admits unavailability.
+    h.wheel.fireByMs(4000);
+    await flush();
+    expect(h.wheel.delays()).toContain(8000);
+    expect(h.client.linkUnavailable).toBe(true);
+  });
+
+  it("stage: an openSocket throw schedules a reconnect", async () => {
+    const h = stageHarness({
+      openSocket: () => {
+        throw new Error("no socket for you");
+      },
+    });
+    await h.client.start();
+    expect(h.wheel.delays()).toContain(1500);
+    expect(h.client.linkUnavailable).toBe(false);
+  });
+
+  it("stage: a stalled handshake is retired at the deadline and retried", async () => {
+    const h = stageHarness();
+    await h.client.start();
+    expect(h.sockets).toHaveLength(1);
+    // The socket never opens; only the handshake deadline is pending.
+    expect(h.wheel.delays()).toEqual([HANDSHAKE_TIMEOUT_MS]);
+    h.wheel.fireByMs(HANDSHAKE_TIMEOUT_MS);
+    // Retired by hand: its close handler is detached, and a retry is armed.
+    expect(h.sockets[0].onclose).toBeNull();
+    expect(h.wheel.delays()).toContain(1500);
+    h.wheel.fireByMs(1500);
+    await flush();
+    expect(h.sockets).toHaveLength(2);
+  });
+
+  it("stage: repeated drops exhaust the ladder, and a later open recovers", async () => {
+    const h = stageHarness();
+    await h.client.start();
+    h.sockets[0].onopen?.();
+    expect(h.client.linkUnavailable).toBe(false);
+    h.sockets[0].close(); // drop 1 → rung 1500
+    h.wheel.fireByMs(1500);
+    await flush();
+    h.sockets[1].close(); // drop 2 → rung 4000
+    h.wheel.fireByMs(4000);
+    await flush();
+    h.sockets[2].close(); // drop 3 → ladder exhausted
+    expect(h.client.linkUnavailable).toBe(true);
+    h.wheel.fireByMs(8000);
+    await flush();
+    h.sockets[3].onopen?.();
+    expect(h.client.socketUp).toBe(true);
+    expect(h.client.linkUnavailable).toBe(false);
+  });
+
+  it("remote: a rejected token climbs the ladder too", async () => {
+    const wheel = new TimerWheel();
+    const client = new ControllerRemoteClient(
+      {
+        getAccessToken: async () => null,
+        socketUrl: () => "ws://test/controller?role=remote",
+        openSocket: () => new FakeSocket(),
+        setTimeoutFn: wheel.set,
+        clearTimeoutFn: wheel.clear,
+      },
+      () => undefined,
+    );
+    await client.start();
+    expect(wheel.delays()).toContain(1500);
+    wheel.fireByMs(1500);
+    await flush();
+    wheel.fireByMs(4000);
+    await flush();
+    expect(client.linkUnavailable).toBe(true);
+  });
+
+  it("remote: an openSocket throw schedules a reconnect", async () => {
+    const wheel = new TimerWheel();
+    const client = new ControllerRemoteClient(
+      {
+        getAccessToken: async () => "tok",
+        socketUrl: () => "ws://test/controller?role=remote",
+        openSocket: () => {
+          throw new Error("no socket for you");
+        },
+        setTimeoutFn: wheel.set,
+        clearTimeoutFn: wheel.clear,
+      },
+      () => undefined,
+    );
+    await client.start();
+    expect(wheel.delays()).toContain(1500);
   });
 });
 

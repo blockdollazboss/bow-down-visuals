@@ -21,7 +21,7 @@ import {
   Square,
   Wand2,
 } from "lucide-react";
-import type { ControllerCommand, ControllerState } from "@/lib/stream-controller";
+import { micReadout, type ControllerCommand, type ControllerState } from "@/lib/stream-controller";
 
 export interface StreamDeckProps {
   /** Confirmed studio state; null = no studio state yet. */
@@ -42,6 +42,9 @@ const HOLD_MS = 900;
 export default function StreamDeck({ state, canControl, unavailableNote, isPending, notice, onCommand }: StreamDeckProps) {
   const disabled = !canControl || !state;
   const pending = (cmd: ControllerCommand, sceneId?: string) => !!isPending?.(cmd, sceneId);
+  /* Mic truth: no real mic input in the state ⇒ "Off". Only a
+     present, unmuted mic may read "Live" (micReadout's law). */
+  const mic = micReadout(state);
 
   /* End Stream is press-and-hold — ending a broadcast is the one
      button a stray tap must never fire. */
@@ -150,14 +153,14 @@ export default function StreamDeck({ state, canControl, unavailableNote, isPendi
           disabled={disabled}
           onClick={() => onCommand("mic.toggle")}
           data-testid="deck-mic"
-          aria-pressed={!!state?.micMuted}
+          aria-pressed={mic === "muted"}
           className={`${tile} ${disabled ? tileOff : ""} ${
-            state?.micMuted ? "border-red-300/40 bg-red-500/10 text-red-200" : tileIdle
+            mic === "muted" ? "border-red-300/40 bg-red-500/10 text-red-200" : tileIdle
           }`}
         >
-          {pending("mic.toggle") ? <Loader2 className="h-5 w-5 animate-spin" /> : state?.micMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          {pending("mic.toggle") ? <Loader2 className="h-5 w-5 animate-spin" /> : mic === "live" ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
           <span className="text-xs font-bold">Mic</span>
-          <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{state?.micMuted ? "Muted" : "Live"}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{mic === "muted" ? "Muted" : mic === "live" ? "Live" : "Off"}</span>
         </button>
         <button
           type="button"

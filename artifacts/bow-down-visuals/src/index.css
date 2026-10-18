@@ -874,6 +874,7 @@ html, body {
 /* Additional dark hex backgrounds → marble white */
 .light .bg-\[\#111\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#0d0a02\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#0d0a04\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#14100a\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#080808\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#141414\]:not([data-dark-lock]):not([data-dark-lock] *),

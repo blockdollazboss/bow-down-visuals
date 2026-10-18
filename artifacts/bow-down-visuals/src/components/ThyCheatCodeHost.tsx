@@ -75,7 +75,7 @@ export function ThyCheatCodeHost() {
   /* ── Collapsed: slim floating chip (overlays hero, no flow space) ── */
   if (dismissed) {
     return (
-      <div className="absolute top-2 left-4 sm:left-6 lg:left-8 z-[30]">
+      <div className="absolute top-6 left-8 md:top-8 md:left-10 z-[30]">
         <button
           onClick={expand}
           className={`inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 py-1.5 pl-2 pr-4 text-sm transition hover:border-[#C9A84C]/70 ${

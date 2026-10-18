@@ -87,7 +87,6 @@ export default function StreamWidgetsPanel({ streamId }: { streamId: string | nu
 
   return (
     <section
-      data-dark-lock
       className="rounded-2xl border border-[#C9A84C]/25 bg-[#0d0a04] p-4 text-white"
       data-testid="stream-widgets-panel"
     >

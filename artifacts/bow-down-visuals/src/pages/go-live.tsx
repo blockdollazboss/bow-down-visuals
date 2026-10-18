@@ -419,6 +419,7 @@ function GoLiveMain() {
 
 /* ─── Tabbed wrapper ─── */
 export default function GoLive() {
+  const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   /* Phase 2 bookmark shim: Live Shopping is a real route now —
@@ -476,17 +477,21 @@ export default function GoLive() {
       <div className="mx-auto max-w-5xl px-4 pt-4">
         <Link
           href="/world"
-          className="group flex flex-wrap items-center gap-3 rounded-2xl border border-[#d4af37]/40 bg-gradient-to-r from-[#d4af37]/[0.13] via-[#0a0908] to-[#0a0908] px-5 py-4 transition hover:border-[#d4af37]/70"
+          className={`group flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 transition hover:border-[#d4af37]/70 ${
+            isLight
+              ? "border-[#C9A84C]/40 bg-gradient-to-r from-[#FCF7EA] to-[#F4E7C3]"
+              : "border-[#d4af37]/40 bg-gradient-to-r from-[#d4af37]/[0.13] via-[#0a0908] to-[#0a0908]"
+          }`}
           data-testid="world-entry"
         >
           <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10">
             <Crown className="h-5 w-5 text-[#d4af37]" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-black tracking-wide text-white">
+            <span className={`block text-base font-black tracking-wide ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
               The World — step into the King's Hall
             </span>
-            <span className="block text-sm text-white/50">
+            <span className={`block text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
               One room, everybody in it together: walk the hall, watch the big screen, talk by proximity. Works on this screen — and in a VR headset if you've got one.
             </span>
           </span>

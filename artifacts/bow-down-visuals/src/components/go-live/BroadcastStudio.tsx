@@ -244,6 +244,7 @@ export default function BroadcastStudio() {
     activeSceneId: null,
     previewSceneId: null,
     micMuted: false,
+    micPresent: false,
     cameraOn: false,
     recording: false,
     liveSince: null,
@@ -253,6 +254,7 @@ export default function BroadcastStudio() {
   >(async () => undefined);
   const controllerClientRef = useRef<ControllerStageClient | null>(null);
   const [controllerLinkUp, setControllerLinkUp] = useState(false);
+  const [controllerLinkDown, setControllerLinkDown] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -264,7 +266,10 @@ export default function BroadcastStudio() {
       },
       (command, args) => controllerExecRef.current(command, args),
       () => controllerBuildRef.current(),
-      () => setControllerLinkUp(client.socketUp),
+      () => {
+        setControllerLinkUp(client.socketUp);
+        setControllerLinkDown(client.linkUnavailable);
+      },
     );
     controllerClientRef.current = client;
     void client.start();
@@ -1015,6 +1020,10 @@ export default function BroadcastStudio() {
      phone remote render, and the executor that runs their commands
      through the studio's OWN handlers — a remote Go Live is this
      page's goLive(), transports, destinations and all. */
+  /* The mic readout must come from a REAL input: no mixer (or the
+     studio still off) means there is no mic to be live or muted —
+     micPresent says so, and the deck reads Off from it. */
+  const micInput = phase !== "off" ? (mixerRef.current?.getInputState("mic") ?? null) : null;
   const controllerState: ControllerState = {
     stageId: controllerStageIdRef.current,
     label: isLivePhase ? title.trim() || "Your stream" : "Your studio",
@@ -1023,7 +1032,8 @@ export default function BroadcastStudio() {
     scenes: (stageRef.current?.scenes ?? []).map((s) => ({ id: s.id, name: s.name })),
     activeSceneId: stageRef.current?.programId ?? null,
     previewSceneId: stageRef.current?.previewId ?? null,
-    micMuted: mixerRef.current?.getInputState("mic")?.muted ?? false,
+    micMuted: micInput?.muted ?? false,
+    micPresent: micInput !== null,
     cameraOn: phase !== "off",
     recording: recPhase === "recording" || isLivePhase,
     liveSince: isLivePhase ? Date.now() - elapsed * 1000 : null,
@@ -1543,8 +1553,12 @@ export default function BroadcastStudio() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Stream Controller</h3>
           <span className={`flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`} role="status">
-            <span className={`inline-block h-2 w-2 rounded-full ${controllerLinkUp ? "bg-emerald-500" : "bg-white/30"}`} />
-            {controllerLinkUp ? "Phone remote link: ready" : "Phone remote link: connecting…"}
+            <span className={`inline-block h-2 w-2 rounded-full ${controllerLinkUp ? "bg-emerald-500" : controllerLinkDown ? "bg-red-400" : "bg-white/30"}`} />
+            {controllerLinkUp
+              ? "Phone remote link: ready"
+              : controllerLinkDown
+                ? "Phone remote link: unavailable — the controls on this screen still run your show"
+                : "Phone remote link: connecting…"}
           </span>
         </div>
         <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
