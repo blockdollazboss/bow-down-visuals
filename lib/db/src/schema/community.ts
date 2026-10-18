@@ -158,3 +158,24 @@ export const messagesTable = pgTable("messages", {
 export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messagesTable.$inferSelect;
+
+/* DM reply drafts (STACK-20 #15, migration 0157): ONE in-progress reply
+   per member per conversation, held server-side so a half-written
+   answer survives a closed panel, a rejoin and a phone reload — and
+   comes back on any device. A draft is private scratch: the row is
+   keyed by (conversation, author) and the routes only ever read or
+   write the caller's own row. A landed send deletes the sender's row;
+   saving an empty body deletes it too. Deleting the conversation
+   cascades the draft away with it. */
+export const dmDraftsTable = pgTable("dm_drafts", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
+  userId:         uuid("user_id").notNull(),
+  body:           text("body").notNull(),
+  updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("dm_drafts_conversation_user_uidx").on(t.conversationId, t.userId),
+  index("dm_drafts_user_idx").on(t.userId),
+]);
+
+export type DmDraft = typeof dmDraftsTable.$inferSelect;

@@ -12,6 +12,7 @@ import {
   eventRsvpsTable,
   conversationsTable,
   messagesTable,
+  dmDraftsTable,
   creatorProfilesTable,
   profileVideosTable,
   followsTable,
@@ -85,6 +86,9 @@ function param(req: Request, name: string): string {
        POST   /dm/:id/accept                 (auth; request recipient)
        POST   /dm/:id/decline                (auth; request recipient)
        POST   /dm/:id/block                  (auth; participant)
+       GET    /dm/:id/draft                  (auth; participant) — my saved reply draft
+       PUT    /dm/:id/draft      { body }    (auth; participant) — save (empty body clears)
+       DELETE /dm/:id/draft                  (auth; participant) — clear my draft
      Explore:
        GET    /explore  blended trending payload (public)
      Profiles (link-graph glue):
@@ -920,6 +924,103 @@ router.get("/dm/:id/messages", requireAuth, async (req, res) => {
   }
 });
 
+/* ── DM reply drafts (STACK-20 #15) ──────────────────────────────────
+   One in-progress reply per member per thread, held on the server so
+   a half-written answer survives a closed panel, a rejoin and a
+   phone reload — and comes back on any device. Private scratch: the
+   participant gate (getConversation) decides who may touch the
+   thread's drafts at all, and every read/write is then keyed by the
+   caller's OWN user id, so the other participant can neither read
+   nor overwrite my draft — they only ever see their own. Saving an
+   empty (or all-whitespace) body IS clearing: the composer going
+   blank retires the row, so cleared words can never resurrect on the
+   next open. A landed send retires the sender's draft too (see the
+   send handler). The body cap is the composer's own 2,000 chars. */
+
+const dmDraftSchema = z.object({
+  body: z.string().max(2000),
+});
+
+type DmDraftRow = typeof dmDraftsTable.$inferSelect;
+
+function toDraftDto(row: DmDraftRow) {
+  return { body: row.body, updated_at: row.updatedAt };
+}
+
+async function readOwnDraft(conversationId: string, userId: string) {
+  const rows = await db.select().from(dmDraftsTable)
+    .where(and(
+      eq(dmDraftsTable.conversationId, conversationId),
+      eq(dmDraftsTable.userId, userId),
+    ))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function clearOwnDraft(conversationId: string, userId: string) {
+  await db.delete(dmDraftsTable)
+    .where(and(
+      eq(dmDraftsTable.conversationId, conversationId),
+      eq(dmDraftsTable.userId, userId),
+    ));
+}
+
+/** Read my saved reply draft for this thread (or null). */
+router.get("/dm/:id/draft", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { conv, error } = await getConversation(param(req, "id"), userId);
+    if (error || !conv) { res.status(error ?? 404).json({ error: "Conversation not found." }); return; }
+    const row = await readOwnDraft(conv.id, userId);
+    res.json({ draft: row ? toDraftDto(row) : null });
+  } catch (err) {
+    console.error("[community] GET /dm/:id/draft failed", err);
+    res.status(500).json({ error: "Couldn't load your draft — try again." });
+  }
+});
+
+/** Save my reply draft for this thread. An empty body clears it. */
+router.put("/dm/:id/draft", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { conv, error } = await getConversation(param(req, "id"), userId);
+    if (error || !conv) { res.status(error ?? 404).json({ error: "Conversation not found." }); return; }
+    const { body } = dmDraftSchema.parse(req.body);
+    if (body.trim().length === 0) {
+      await clearOwnDraft(conv.id, userId);
+      res.json({ draft: null });
+      return;
+    }
+    const now = new Date();
+    const [row] = await db.insert(dmDraftsTable)
+      .values({ conversationId: conv.id, userId, body, updatedAt: now })
+      .onConflictDoUpdate({
+        target: [dmDraftsTable.conversationId, dmDraftsTable.userId],
+        set: { body, updatedAt: now },
+      })
+      .returning();
+    res.json({ draft: row ? toDraftDto(row) : { body, updated_at: now } });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Keep your draft under 2000 characters." }); return; }
+    console.error("[community] PUT /dm/:id/draft failed", err);
+    res.status(500).json({ error: "Couldn't save your draft — try again." });
+  }
+});
+
+/** Clear my reply draft for this thread. */
+router.delete("/dm/:id/draft", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { conv, error } = await getConversation(param(req, "id"), userId);
+    if (error || !conv) { res.status(error ?? 404).json({ error: "Conversation not found." }); return; }
+    await clearOwnDraft(conv.id, userId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[community] DELETE /dm/:id/draft failed", err);
+    res.status(500).json({ error: "Couldn't clear your draft — try again." });
+  }
+});
+
 /* ── DM attachment upload (2.17) ─────────────────────────────────────
    The Post Office's own parcel window: multipart field "file", the
    sender's own work only. Rides the site's established upload path
@@ -1013,6 +1114,17 @@ router.post("/dm/:id/send", requireAuth, dmSendLimiter, async (req, res) => {
     await db.update(conversationsTable)
       .set({ lastMessageAt: new Date() })
       .where(eq(conversationsTable.id, conv.id));
+    /* A landed send retires the SENDER's saved draft for this thread
+       (STACK-20 #15): the words live in the thread now, so the draft
+       bench must not hand them back at the next open. Only the
+       sender's own row goes — the other participant's draft is
+       untouched. Best-effort: the message already landed, so a failed
+       clear is logged, never a failed send. */
+    try {
+      await clearOwnDraft(conv.id, userId);
+    } catch (draftErr) {
+      console.error("[community] send landed but the draft clear failed", draftErr);
+    }
     res.status(201).json({ message: msg ? await toMessageDtoFresh(msg) : msg });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Keep it under 2000 characters." }); return; }

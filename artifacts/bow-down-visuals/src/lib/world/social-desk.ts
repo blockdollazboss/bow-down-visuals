@@ -14,6 +14,9 @@
  *   POST /api/dm/start                    { user_id }
  *   GET  /api/profiles/resolve?slug=…     → { user_id }
  *   POST /api/dm/:id/accept · /decline · /block
+ *   GET  /api/dm/:id/draft                → { draft } (STACK-20 #15: my saved reply)
+ *   PUT  /api/dm/:id/draft                { body } (an empty body clears it)
+ *   DELETE /api/dm/:id/draft              (clear my saved reply)
  *
  * Community rails (pages/community.tsx + pages/scheduler.tsx +
  * components/social/PostCard.tsx, verbatim):
@@ -109,6 +112,47 @@ export type DmRequestAction = "accept" | "decline" | "block";
 
 export function dmRequestActionPath(conversationId: string, action: DmRequestAction): string {
   return `/api/dm/${encodeURIComponent(conversationId)}/${action}`;
+}
+
+/* ─── DM reply drafts (STACK-20 #15) ────────────────────────────────
+   The composer's in-progress reply, held on the SERVER — one draft
+   per member per thread — so a half-written answer survives the
+   panel closing, a rejoin, a phone reload, and comes back on any
+   device. Before this rail the draft was one shared useState for the
+   whole desk: switching threads carried the words across, and any
+   unmount lost them. GET reads mine, PUT saves (an empty body
+   clears), DELETE clears; a landed send clears server-side too. */
+
+export function dmDraftPath(conversationId: string): string {
+  return `/api/dm/${encodeURIComponent(conversationId)}/draft`;
+}
+
+export interface DmDraft {
+  body: string;
+  updatedAt: string | null;
+}
+
+/** Guard a draft payload into the one saved reply (or null): anything
+ *  that isn't exactly the server's shape reads as "no draft" — never
+ *  a crash, and never junk text landing in the composer. A saved draft
+ *  is never empty (the server clears instead of storing blanks). */
+export function normalizeDmDraft(payload: unknown): DmDraft | null {
+  const d = (payload as { draft?: unknown } | null | undefined)?.draft;
+  if (!d || typeof d !== "object") return null;
+  const body = (d as { body?: unknown }).body;
+  if (typeof body !== "string" || body.length === 0) return null;
+  const updatedAt = (d as { updated_at?: unknown }).updated_at;
+  return { body, updatedAt: typeof updatedAt === "string" ? updatedAt : null };
+}
+
+/** What the desk owes the server for the composer's current text:
+ *  "skip" — the server already holds exactly this text; "clear" —
+ *  the composer went blank over a saved draft, so retire it (a PUT
+ *  with an empty body); "save" — new words to persist. */
+export type DmDraftSaveDecision = "skip" | "clear" | "save";
+export function dmDraftSaveDecision(text: string, savedText: string): DmDraftSaveDecision {
+  if (text === savedText) return "skip";
+  return text.trim().length === 0 ? "clear" : "save";
 }
 
 export function profileResolvePath(slug: string): string {
