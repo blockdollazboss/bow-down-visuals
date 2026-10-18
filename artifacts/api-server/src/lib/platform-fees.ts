@@ -101,9 +101,9 @@ export function tierFromLegacyPlan(plan: string | null | undefined): CreatorTier
 
 /**
  * Map the 1–6 plan ladder (Supabase profiles.plan_tier) onto canonical
- * creator tiers, using the same star caps as TIER_MAX_STARS: ladder
- * tiers 1–3 top out where free does (3★), 4–5 where pro does (5★),
- * and 6 (Kingpin) is elite.
+ * creator tiers: ladder tiers 1–3 read as free, 4–5 as pro, and 6 as
+ * elite. (The ladder number is a plan record, not a rank — Creator
+ * Level stars are earned separately and no tier moves them.)
  */
 export function tierFromPlanTier(planTier: number | null | undefined): CreatorTier {
   const t = typeof planTier === "number" && Number.isFinite(planTier) ? Math.floor(planTier) : 1;
@@ -125,16 +125,10 @@ export function legacyPlanNameForTier(tier: CreatorTier): string {
   return "free";
 }
 
-/** Difficulty-ladder ceiling: highest creator-level star a tier may use. ★ APPROVED 2026-10-07 */
-export const TIER_MAX_STARS: Record<CreatorTier, number> = {
-  free: 3, // 1–3★ Street Punk → Gangster
-  pro: 5, // 4–5★ Shot Caller → Crime Boss
-  elite: 6, // 6★ Kingpin
-};
-
-export function maxStarsForTier(tier: CreatorTier): number {
-  return TIER_MAX_STARS[tier];
-}
+/* Creator Level stars are EARNED RANK (owner ruling 2026-10-17) and are
+ * never sold or capped by a tier — the former TIER_MAX_STARS ceiling is
+ * abolished. Tiers sell fees, boosts, domains and themes; rank comes
+ * only from recorded work (lib/creator-rank.ts). */
 
 /** AI promotion boosts included per month. ★ APPROVED 2026-10-07 */
 export const TIER_AI_BOOSTS: Record<CreatorTier, number> = {
@@ -162,7 +156,6 @@ export interface TierPlanDef {
   /** Env var holding the Stripe TEST price id; null for free. */
   priceIdEnv: string | null;
   feeBps: number;
-  maxStars: number;
   aiBoostsPerMonth: number;
   features: TierFeature[];
 }
@@ -175,7 +168,6 @@ export const TIER_PLANS: TierPlanDef[] = [
     priceUsdPerMonth: null,
     priceIdEnv: null,
     feeBps: TIER_FEE_BPS.free,
-    maxStars: TIER_MAX_STARS.free,
     aiBoostsPerMonth: TIER_AI_BOOSTS.free,
     features: [
       { label: "Your own subdomain site (you.bowdownvisuals.com)", detailsUrl: "/creator-pricing#feature-site" },
@@ -184,7 +176,6 @@ export const TIER_PLANS: TierPlanDef[] = [
       { label: "Basic site themes", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Basic analytics (plays, views, sales)", detailsUrl: "/analytics" },
       { label: "3 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
-      { label: "Stars 1–3 controls (AI autopilot → guided tweaks)", detailsUrl: "/creator-pricing#stars" },
       { label: "Full earnings dashboard — your money is never gated", detailsUrl: "/creator-pricing#money-math" },
     ],
   },
@@ -195,7 +186,6 @@ export const TIER_PLANS: TierPlanDef[] = [
     priceUsdPerMonth: 12, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_PRO",
     feeBps: TIER_FEE_BPS.pro,
-    maxStars: TIER_MAX_STARS.pro,
     aiBoostsPerMonth: TIER_AI_BOOSTS.pro,
     features: [
       { label: "Everything in Free, plus:", detailsUrl: "/creator-pricing#money-math" },
@@ -205,7 +195,6 @@ export const TIER_PLANS: TierPlanDef[] = [
       { label: "Premium gold-luxury themes", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Pro analytics dashboard (funnels, sources, cohorts)", detailsUrl: "/analytics" },
       { label: "25 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
-      { label: "Stars 4–5 controls (advanced panels, pro model pickers)", detailsUrl: "/creator-pricing#stars" },
     ],
   },
   {
@@ -215,7 +204,6 @@ export const TIER_PLANS: TierPlanDef[] = [
     priceUsdPerMonth: 29, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_ELITE",
     feeBps: TIER_FEE_BPS.elite,
-    maxStars: TIER_MAX_STARS.elite,
     aiBoostsPerMonth: TIER_AI_BOOSTS.elite,
     features: [
       { label: "Everything in Pro, plus:", detailsUrl: "/creator-pricing#money-math" },
@@ -223,7 +211,6 @@ export const TIER_PLANS: TierPlanDef[] = [
       { label: "Priority placement in discovery", detailsUrl: "/creator-pricing#feature-discovery" },
       { label: "Dedicated support badge + priority support", detailsUrl: "/creator-pricing#feature-support" },
       { label: "100 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
-      { label: "Star 6 Kingpin controls (every knob, experimental)", detailsUrl: "/creator-pricing#stars" },
     ],
   },
 ];

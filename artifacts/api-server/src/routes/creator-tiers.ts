@@ -17,7 +17,6 @@ import {
   monthlySavingsUsd,
   formatUsd,
   feeSplitForTier,
-  maxStarsForTier,
   TIER_AI_BOOSTS,
   type CreatorTier,
 } from "../lib/platform-fees";
@@ -85,7 +84,6 @@ router.get("/creator-tiers/plans", publicApiLimiter, (_req, res) => {
       priceConfigured: p.priceIdEnv ? !!process.env[p.priceIdEnv] : true,
       feeBps: p.feeBps,
       feePct: bpsToPct(p.feeBps),
-      maxStars: p.maxStars,
       aiBoostsPerMonth: p.aiBoostsPerMonth,
       features: p.features,
       // The money math: at what monthly sales does the fee drop pay for the sub?
@@ -113,7 +111,6 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
     status: row?.status ?? "active",
     feeBps: TIER_FEE_BPS[tier],
     feePct: bpsToPct(TIER_FEE_BPS[tier]),
-    maxStars: maxStarsForTier(tier),
     aiBoostsPerMonth: TIER_AI_BOOSTS[tier],
     currentPeriodEnd: row?.currentPeriodEnd ?? null,
     profileId,

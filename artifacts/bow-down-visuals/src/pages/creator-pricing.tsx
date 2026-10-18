@@ -31,7 +31,6 @@ interface Plan {
   priceConfigured: boolean;
   feeBps: number;
   feePct: string;
-  maxStars: number;
   aiBoostsPerMonth: number;
   features: PlanFeature[];
   breakEvenSalesUsd: number | null;
@@ -313,18 +312,20 @@ export default function CreatorPricing() {
           <div className="mt-4 rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>
         )}
 
-        {/* difficulty ladder → tier mapping, visible */}
+        {/* earned rank — stars come from work, never from a tier */}
         <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
-          <h2 className="text-2xl font-black">Higher tiers unlock higher stars</h2>
+          <h2 className="text-2xl font-black">Stars are earned — never sold</h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
-            The 6-star difficulty ladder stays simple by default. When you want the deep controls,
-            your tier sets the ceiling — <strong className="text-white">Pro unlocks 4–5 star controls, Elite unlocks all 6.</strong>{" "}
-            Your earnings and payouts are never gated — only the pro knobs are.
+            Creator Level is rank, and rank comes from your work: published tracks and videos,
+            completed exports, followers, streams, tips, sales and paid memberships.{" "}
+            <strong className="text-white">No plan raises your stars and no plan caps them</strong> — a Free
+            creator can earn all six. Deeper controls unlock as you climb, and your earnings
+            and payouts are never gated at any rank.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {STAR_RANKS.map((rank, i) => {
               const stars = i + 1;
-              const tierNeeded = stars <= 3 ? "Free" : stars <= 5 ? "Pro" : "Elite";
+              const cost = ["Starting rank", "25 pts of work", "100 pts of work", "300 pts of work", "700 pts + first sales", "1,400 pts + a real business"][i];
               return (
                 <div key={rank} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-white/10 bg-black/40"}`}>
                   <div className="flex items-center gap-1" aria-label={`${stars} stars`}>
@@ -334,13 +335,8 @@ export default function CreatorPricing() {
                   </div>
                   <div className="mt-2 font-black">{stars}★ {rank}</div>
                   <div className="text-sm text-white/50">{STAR_BLURBS[i]}</div>
-                  <div className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-xs font-black uppercase tracking-wider ${
-                    tierNeeded === "Free"
-                    ? isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/20 text-white/60"
-                    : isLight ? "border-[#C9A84C]/60 text-[#7A5A12]" : tierNeeded === "Pro" ? "border-amber-400/40 text-amber-300"
-                    : "border-amber-300/60 text-amber-200"
-                  }`}>
-                    {tierNeeded}
+                  <div className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-xs font-black uppercase tracking-wider ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/20 text-white/60"}`}>
+                    {cost}
                   </div>
                 </div>
               );

@@ -23,7 +23,6 @@ import {
   db,
   artistVaultsTable,
   creatorProfilesTable,
-  levelCelebrationsTable,
   liveStreamsTable,
   profileTracksTable,
   profileVideosTable,
@@ -32,6 +31,7 @@ import {
   shopsTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
+import { getCreatorRank } from "../lib/creator-rank";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -963,27 +963,19 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
 }
 
 /**
- * The Creator Level stars the API itself has on record for a member
- * (THE-GAME §5(a)): the highest level in level_celebrations — the
- * table the /api/retention/level-check rails write when a level-up
- * is celebrated and read back on every check. There is no second
- * level computation to port: this IS the API's level record. A
- * member with nothing recorded stands at 1 star, the product's
- * new-creator default (the frontend's UserModeContext seeds the
- * same). Throws on DB failure — the door degrades to a starless
- * member identity (see registerWorldWs); the moment verifier treats
- * a failed read as "no level on record" and witnesses nothing.
+ * The member's Creator Level stars (THE-GAME §5(a)) — EARNED rank,
+ * computed on the server from recorded work by lib/creator-rank.ts
+ * (the single ladder). Until the earned-rank rewire this read the
+ * highest level in level_celebrations, which the old self-picked dial
+ * could write at will — a claim, not a record. Celebrations now only
+ * witness crossings of this computation; they no longer define it.
+ * A member with no recorded work stands at 1 star. Throws on DB
+ * failure — the door degrades to a starless member identity (see
+ * registerWorldWs); the moment verifier treats a failed read as "no
+ * level on record" and witnesses nothing.
  */
 export async function resolveCreatorStars(userId: string): Promise<number> {
-  const rows = await db
-    .select({ level: levelCelebrationsTable.level })
-    .from(levelCelebrationsTable)
-    .where(eq(levelCelebrationsTable.userId, userId));
-  let stars = 1;
-  for (const r of rows) {
-    if (r.level >= 1 && r.level <= 6 && r.level > stars) stars = r.level;
-  }
-  return stars;
+  return (await getCreatorRank(userId)).stars;
 }
 
 /**

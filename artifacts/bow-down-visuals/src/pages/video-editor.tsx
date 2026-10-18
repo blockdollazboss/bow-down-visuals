@@ -319,7 +319,7 @@ export default function VideoEditor() {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
-  const { isSimple, setMode, maxStars } = useUserMode();
+  const { isSimple, setMode, gateStars } = useUserMode();
   /** Simple mode hides the technical/advanced panels behind the mode toggle
    *  (the sidebar Creator Level picker + the in-editor Simple/Pro switch in
    *  the top bar below); the underlying settings/tabs are untouched so
@@ -2101,7 +2101,7 @@ export default function VideoEditor() {
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
                 </button>
-                {maxStars >= 4 ? (
+                {gateStars >= 4 ? (
                   <button
                     type="button"
                     role="radio"
@@ -2114,9 +2114,9 @@ export default function VideoEditor() {
                   </button>
                 ) : (
                   <Link
-                    href="/pricing"
+                    href="/dashboard"
                     className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
-                    title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks with a higher Creator Level plan" })}
+                    title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks at Creator Level 4 (Shot Caller) — stars are earned from your work" })}
                     data-testid="editor-mode-pro-locked"
                   >
                     <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Advanced" })}

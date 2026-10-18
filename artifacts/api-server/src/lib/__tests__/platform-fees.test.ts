@@ -8,7 +8,6 @@ import {
   formatUsd,
   meetsTier,
   tierFromLegacyPlan,
-  maxStarsForTier,
   breakEvenSalesUsd,
   monthlySavingsUsd,
   TIER_PLANS,
@@ -61,10 +60,13 @@ describe("platform-fees: single source of truth", () => {
     expect(tierFromLegacyPlan(null)).toBe("free");
   });
 
-  it("star ceilings are proposed free≤3 / pro≤5 / elite=6", () => {
-    expect(maxStarsForTier("free")).toBe(3);
-    expect(maxStarsForTier("pro")).toBe(5);
-    expect(maxStarsForTier("elite")).toBe(6);
+  it("the tier catalog sells no stars — rank is earned, never a tier perk", () => {
+    for (const p of TIER_PLANS) {
+      expect(p).not.toHaveProperty("maxStars");
+      for (const f of p.features) {
+        expect(f.label).not.toMatch(/stars? \d/i);
+      }
+    }
   });
 
   it("pays-for-itself math: pro pays off at $400/mo, elite at $580/mo", () => {
@@ -82,10 +84,9 @@ describe("platform-fees: single source of truth", () => {
     expect(formatUsd(0)).toBe("$0.00");
   });
 
-  it("tier catalog carries honest fee + star data for every tier", () => {
+  it("tier catalog carries honest fee data for every tier", () => {
     for (const p of TIER_PLANS) {
       expect(p.feeBps).toBe(TIER_FEE_BPS[p.tier]);
-      expect(p.maxStars).toBe(maxStarsForTier(p.tier));
       expect(p.features.length).toBeGreaterThan(3);
       for (const f of p.features) {
         expect(f.detailsUrl.length).toBeGreaterThan(0);

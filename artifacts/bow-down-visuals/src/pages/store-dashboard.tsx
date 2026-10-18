@@ -385,7 +385,7 @@ function ConnectPayoutCard() {
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
   const isLight = useIsLightTheme();
   const getToken = useToken();
-  const { stars } = useUserMode();
+  const { gateStars: stars } = useUserMode();
   const [products, setProducts] = useState<StoreProductDTO[] | null>(null);
   /* Product-list load failures are NOT "your shelves are empty" — they
      get their own error state with a retry, scoped to the list only
@@ -988,7 +988,7 @@ export default function StoreDashboard() {
   usePageTitle("Store Dashboard — Get Paid", "Your store earnings, orders, products, and discount codes. The Get Paid finale.");
   const isLight = useIsLightTheme();
   const getToken = useToken();
-  const { stars } = useUserMode();
+  const { gateStars: stars } = useUserMode();
   const search = useSearch();
   const initialTab = useMemo<Tab>(() => {
     const t = new URLSearchParams(search).get("tab");
@@ -1254,7 +1254,7 @@ async function digitalAuthed(path: string, token: string | null, init?: RequestI
 function DigitalSalesTab() {
   const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
-  const { stars } = useUserMode();
+  const { gateStars: stars } = useUserMode();
   const [data, setData] = useState<DigitalSalesData | null>(null);
   const [checklist, setChecklist] = useState<DigitalChecklistStep[] | null>(null);
   const [checklistComplete, setChecklistComplete] = useState(false);

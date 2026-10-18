@@ -1,10 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import {
   db,
   sharkDropsTable,
-  levelCelebrationsTable,
   retentionPrefsTable,
   generationsTable,
   exportJobsTable,
@@ -13,6 +12,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { getCreatorRank } from "../lib/creator-rank";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -20,8 +20,14 @@ const router = Router();
 /* ─── Retention Delight systems ───────────────────────────────────────────
    GET  /api/retention/shark-drop            — pending drop or 15% dice roll
    POST /api/retention/shark-drop/claim      — claim a pending drop ({ dropId })
-   GET  /api/retention/level-check?currentLevel=N — uncelebrated level-ups
-   POST /api/retention/level-check/celebrate — record a celebration ({ level })
+   GET  /api/retention/rank — the caller's EARNED rank (stars, points,
+        per-source breakdown, what the next star takes)
+   GET  /api/retention/level-check — uncelebrated EARNED level-ups
+        (stars are computed server-side from recorded work in
+        lib/creator-rank.ts; a client-supplied level is never trusted —
+        the legacy ?currentLevel= param is accepted and ignored)
+   POST /api/retention/level-check/celebrate — record a celebration
+        ({ level }); refused when the level is above the earned rank
    GET  /api/retention/leaderboard           — weekly top 10 (STATUS ONLY, no VB)
    GET  /api/retention/delight-prefs         — prefs for these three systems
    PATCH /api/retention/delight-prefs        — toggle them
@@ -310,43 +316,78 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
 
 /* ── System 2: Level-up Events ─────────────────────────────────────────── */
 
-const levelQuerySchema = z.object({ currentLevel: z.coerce.number().int().min(1).max(6) });
 const celebrateSchema = z.object({ level: z.number().int().min(1).max(6) });
 
-/* GET /api/retention/level-check?currentLevel=N — every level ≤ N that was
-   never celebrated, highest first. Exactly-once is enforced by recording the
-   celebration the moment the modal mounts. */
-router.get("/retention/level-check", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
-  const parsed = levelQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+/* The earned-rank rails below read/write through raw SQL (db.execute),
+   the house pattern for aggregate reads (cf. routes/earnings.ts):
+   level_celebrations_enabled from retention_prefs (default true when
+   no row exists — the same default getDelightPrefs applies), the
+   celebrated-level set, and the celebration insert. */
+async function readLevelCelebrationsEnabled(userId: string): Promise<boolean> {
+  const res = await db.execute(
+    sql`SELECT level_celebrations_enabled AS enabled FROM retention_prefs WHERE user_id = ${userId} LIMIT 1`,
+  );
+  const row = (res.rows as any[])[0];
+  return row?.enabled ?? true;
+}
+
+async function readCelebratedLevels(userId: string): Promise<Set<number>> {
+  const res = await db.execute(
+    sql`SELECT level FROM level_celebrations WHERE user_id = ${userId}`,
+  );
+  return new Set((res.rows as any[]).map((r) => Number(r.level)));
+}
+
+/* GET /api/retention/rank — the caller's earned rank, in full: stars,
+   points, the per-source counts and point contributions behind them, and
+   exactly what the next star takes (points still needed + any unmet
+   gate). This is the read the sidebar rank display and the nameplate
+   rails stand on. */
+router.get("/retention/rank", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const rank = await getCreatorRank(req.userId!);
+    res.json({ rank });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention-delight] rank read failed");
+    res.status(500).json({ error: "Could not load your rank" });
   }
+});
+
+/* GET /api/retention/level-check — every EARNED level (2..stars) that was
+   never celebrated, highest first. The earned stars are computed on the
+   server from recorded work; a ?currentLevel= claim from the client is
+   accepted for backward compatibility and ignored — under the old dial
+   regime this endpoint trusted it, which is exactly what made the old
+   celebrations fiction. Level 1 is the starting rank, never a crossing,
+   so it is never "uncelebrated". Exactly-once is enforced by recording
+   the celebration the moment the modal mounts. The response carries the
+   earned `stars` + `points` so callers (the World's level watch) can
+   compare against their own baseline without a second read. */
+router.get("/retention/level-check", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!;
-    const prefs = await getDelightPrefs(userId);
-    if (!prefs.levelCelebrationsEnabled) {
-      res.json({ uncelebrated: [], disabled: true });
+    const rank = await getCreatorRank(userId);
+    if (!(await readLevelCelebrationsEnabled(userId))) {
+      res.json({ uncelebrated: [], disabled: true, stars: rank.stars, points: rank.points });
       return;
     }
-    const celebrated = await db
-      .select({ level: levelCelebrationsTable.level })
-      .from(levelCelebrationsTable)
-      .where(eq(levelCelebrationsTable.userId, userId));
-    const seen = new Set(celebrated.map((c) => c.level));
+    const seen = await readCelebratedLevels(userId);
     const uncelebrated: number[] = [];
-    for (let lvl = parsed.data.currentLevel; lvl >= 1; lvl--) {
+    for (let lvl = rank.stars; lvl >= 2; lvl--) {
       if (!seen.has(lvl)) uncelebrated.push(lvl);
     }
-    res.json({ uncelebrated });
+    res.json({ uncelebrated, stars: rank.stars, points: rank.points });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention-delight] level-check failed");
     res.status(500).json({ error: "Could not check level celebrations" });
   }
 });
 
-/* POST /api/retention/level-check/celebrate — idempotent via the
-   (user_id, level) primary key. */
+/* POST /api/retention/level-check/celebrate — records a celebration for
+   a level the caller has actually EARNED. A claim above the earned rank
+   is refused (400): celebrations are the server's witness of a real
+   crossing, not a client assertion. Idempotent via the (user_id, level)
+   primary key. */
 router.post("/retention/level-check/celebrate", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = celebrateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -355,15 +396,20 @@ router.post("/retention/level-check/celebrate", requireAuth, publicApiLimiter, a
   }
   try {
     const userId = req.userId!;
-    const prefs = await getDelightPrefs(userId);
-    if (!prefs.levelCelebrationsEnabled) {
+    if (!(await readLevelCelebrationsEnabled(userId))) {
       res.status(403).json({ error: "Level celebrations are turned off" });
       return;
     }
-    await db
-      .insert(levelCelebrationsTable)
-      .values({ userId, level: parsed.data.level })
-      .onConflictDoNothing();
+    const rank = await getCreatorRank(userId);
+    if (parsed.data.level > rank.stars) {
+      res.status(400).json({
+        error: `Level ${parsed.data.level} has not been earned yet (current rank: ${rank.stars} stars)`,
+      });
+      return;
+    }
+    await db.execute(
+      sql`INSERT INTO level_celebrations (user_id, level) VALUES (${userId}, ${parsed.data.level}) ON CONFLICT DO NOTHING`,
+    );
     res.json({ celebrated: true, level: parsed.data.level });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention-delight] celebrate failed");

@@ -1139,13 +1139,18 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
   return new Blob([ab], { type: "audio/wav" });
 }
 
-/* ─── Advanced-mode gate ────────────────────────────────────────────────────
-   Shown instead of the step sequencer when the user is below Creator Level 6.
-   One tap flips the site into Advanced mode (clamped to the plan's max). */
+/* ─── Earned-rank gate ──────────────────────────────────────────────────────
+   Shown instead of the step sequencer below Creator Level 6. Stars are
+   EARNED rank (server-computed from recorded work) — there is no switch
+   that grants them, so this gate explains the requirement and points
+   at the rank display instead of flipping a dial. Accounts whose saved
+   pre-rank level already exposed the sequencer keep it via gate stars
+   (the grandfather rule in contexts/UserModeContext). */
 
-function SequencerGate({ onEnable }: { onEnable: () => void }) {
+function SequencerGate() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
+  const { rank } = useUserMode();
   return (
     <div className={`rounded-2xl border p-8 text-center space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/30 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="mx-auto w-12 h-12 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center">
@@ -1156,13 +1161,16 @@ function SequencerGate({ onEnable }: { onEnable: () => void }) {
         <p className="text-white/50 text-sm mt-1 max-w-md mx-auto">
           {t("beatMaker.gateBody")}
         </p>
+        {rank?.hints?.[0] && (
+          <p className="text-primary/80 text-sm mt-2 max-w-md mx-auto">{rank.hints[0]}</p>
+        )}
       </div>
-      <Button
-        onClick={onEnable}
-        className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
       >
         <SlidersHorizontal className="w-4 h-4 mr-2" /> {t("beatMaker.gateButton")}
-      </Button>
+      </Link>
     </div>
   );
 }
@@ -1178,15 +1186,8 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
       return "ai";
     }
   });
-  const { stars, setStars } = useUserMode();
-  const advanced = stars >= 6;
-
-  // Drop back to the AI tab if the user leaves Advanced mode mid-session.
-  useEffect(() => {
-    if (!advanced && tab === "seq") setTab("ai");
-  }, [advanced, tab]);
-
-  const enableAdvanced = () => setStars(6);
+  const { gateStars } = useUserMode();
+  const advanced = gateStars >= 6;
 
   return (
     <div className="space-y-6">
@@ -1225,7 +1226,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
         ) : (
           <button
             type="button"
-            onClick={enableAdvanced}
+            onClick={() => setTab("seq")}
             title={t("beatMaker.sequencerTooltip")}
             className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white/60 hover:text-white"
           >
@@ -1242,7 +1243,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
       ) : advanced ? (
         <SequencerTab onGenerated={onGenerated} />
       ) : (
-        <SequencerGate onEnable={enableAdvanced} />
+        <SequencerGate />
       )}
     </div>
   );
