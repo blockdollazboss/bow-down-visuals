@@ -32,6 +32,7 @@ import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIs
 import { RvmEngine, RvmEngineError, RVM_MAX_STEP, type EngineMatte, type MattingEngine } from "./rvm-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
 import { PerfLadder } from "./perf-ladder";
+import { FrameStallTracker } from "./frame-stall";
 
 /* The segmentation engine is VENDORED same-origin (public/engines/
    selfie-segmentation — @mediapipe/selfie_segmentation 0.1.1675465747)
@@ -316,6 +317,7 @@ export class BackgroundChanger {
      retired engine can never composite (or un-block the loop). */
   private _engineEpoch = 0;
   private _busy = false;
+  private readonly _frameStall = new FrameStallTracker(0);
   private _degrading = false;
   private readonly _perf = new PerfLadder({ maxStep: RVM_MAX_STEP });
   private readonly _mattePost = new MattePostProcessor();
@@ -448,6 +450,7 @@ export class BackgroundChanger {
     this.outputStream = this.canvas.captureStream(this.config.fps);
     await this._syncAudioTracks();
     this._running = true;
+    this._frameStall.reset(performance.now());
     this._loop();
     return { stream: this.outputStream, changer: this };
   }
@@ -773,6 +776,7 @@ export class BackgroundChanger {
     this._engine = null;
     this._engineKind = "off";
     this._busy = false;
+    this._frameStall.reset(performance.now());
     this.segmenter = null;
     this._engineError = null;
     this._mattePost.reset();
@@ -793,6 +797,7 @@ export class BackgroundChanger {
     this._engine = next;
     this._engineKind = next ? next.kind : "off";
     this._busy = false;
+    this._frameStall.reset(performance.now());
     this._mattePost.reset();
     if (next?.kind === "pro") this._perf.reset();
     this.segmenter = next instanceof MediaPipeEngine ? next.segmenter : null;
@@ -969,21 +974,37 @@ export class BackgroundChanger {
   private _loop(): void {
     if (!this._running) return;
     this._rafId = requestAnimationFrame(() => this._loop());
-    if (this._video.readyState < 2) return;
     if (this.mode === "none") {
       // Raw mode: the raw frame, never an inference (Flag E-1) — even
       // if an engine somehow exists, it does not run here.
-      this._compositeRaw();
+      if (this._video.readyState >= 2) this._compositeRaw();
       return;
     }
     const engine = this._engine;
     if (!engine) {
       // Engine down: draw the raw frame (with the camera-effect finish)
       // so the camera — and everything built on its canvas — stays live.
-      this._compositeRaw();
+      if (this._video.readyState >= 2) this._compositeRaw();
       return;
     }
-    if (this._busy) return;
+    if (this._video.readyState < 2) {
+      // The camera frame isn't there to composite — counts toward the
+      // stall clock like any other frameless pass.
+      this._noteFrameMiss();
+      return;
+    }
+    // Stall fallback: while the engine produces nothing, keep the live
+    // raw picture on the canvas instead of a blank (or frozen) frame.
+    // Inference attempts continue below, so a recovered engine takes
+    // over again on its next landed matte.
+    if (this._frameStall.stalled) this._compositeRaw();
+    if (this._busy) {
+      // An inference is in flight. Its wait still counts toward the
+      // stall clock — a hung inference must trip the fallback, not
+      // wedge the canvas blank forever.
+      this._noteFrameMiss();
+      return;
+    }
     this._busy = true;
     const epoch = this._engineEpoch;
     engine
@@ -991,14 +1012,46 @@ export class BackgroundChanger {
       .then((matte) => {
         if (!this._running || epoch !== this._engineEpoch) return;
         if (engine.kind === "pro") this._governPerf(engine as RvmEngine);
-        if (matte) this._compositeMatte(matte);
+        if (matte) {
+          this._compositeMatte(matte);
+          this._noteMatteFrame();
+        } else {
+          this._noteFrameMiss();
+        }
       })
       .catch(() => {
-        /* transient inference failure — the next frame retries */
+        /* transient inference failure — the next frame retries; the
+           stall tracker decides when silence becomes a fallback */
+        if (epoch === this._engineEpoch) this._noteFrameMiss();
       })
       .finally(() => {
         if (epoch === this._engineEpoch) this._busy = false;
       });
+  }
+
+  /**
+   * One loop pass produced no matte composite. When the frameless
+   * passes add up to a stall (frame-stall.ts), say so ONCE through
+   * the engine-status channel: the studio drops to its engine-down
+   * presentation ("Background engine: Off", camera running plain)
+   * for the length of the episode, while the loop paints the raw
+   * camera — the feed is never dressed up as effects-active while
+   * no effects frames are flowing.
+   */
+  private _noteFrameMiss(): void {
+    if (!this._frameStall.noteMiss(performance.now())) return;
+    if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus("off");
+  }
+
+  /**
+   * A matte-composited frame landed. When it ends a stall episode,
+   * restore the live engine status through the same channel — the
+   * effects look is claimed again only now that composited frames
+   * are actually flowing.
+   */
+  private _noteMatteFrame(): void {
+    if (!this._frameStall.noteMatte(performance.now())) return;
+    if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
   }
 
   /** Engine-down frame: the untouched camera picture, finished with the
