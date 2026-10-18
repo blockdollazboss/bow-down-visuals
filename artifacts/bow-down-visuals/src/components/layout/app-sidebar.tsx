@@ -86,6 +86,7 @@ import {
   Users,
   Trophy,
   Ticket,
+  Nfc,
   Copyright,
   Scale,
   UsersRound,
@@ -232,6 +233,11 @@ const SECTIONS: NavSection[] = [
     titleKey: "nav.create",
     links: [
       { href: "/create", labelKey: "nav.create", icon: Layers },
+      /* The two headline creation verbs get their own front doors
+         (findability fix, 2026-10-18) — they used to sit 2–3 layers
+         deep inside the hub and the Audio Studio tab strip. */
+      { href: "/create?panel=song", labelKey: "nav.makeSong", icon: Music2 },
+      { href: "/audio-studio?tab=aiaudio&sub=beats", labelKey: "nav.beatMaker", icon: Drum },
       { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
@@ -247,6 +253,7 @@ const SECTIONS: NavSection[] = [
       { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
       { href: "/storefronts", labelKey: "nav.storefronts", icon: Store },
       { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag },
+      { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc },
     ],
   },
   {
@@ -256,6 +263,7 @@ const SECTIONS: NavSection[] = [
       { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
+      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
       { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
     ],
@@ -270,12 +278,16 @@ const SECTIONS: NavSection[] = [
       { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard },
       { href: "/explore", labelKey: "nav.explore", icon: Compass },
       { href: "/groups", labelKey: "nav.groups", icon: Users },
+      { href: "/community", labelKey: "nav.community", icon: MessageSquareReply },
       { href: "/events", labelKey: "nav.events", icon: CalendarDays },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy },
       { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW" },
       { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW" },
+      /* Quests live on the dashboard surface — this is their front door
+         (findability fix, 2026-10-18); the World Quest Board is the other. */
+      { href: "/dashboard", labelKey: "nav.quests", icon: ClipboardCheck },
       { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
     ],
   },
@@ -283,6 +295,13 @@ const SECTIONS: NavSection[] = [
     titleKey: "nav.getPaid",
     links: [
       { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      /* The money-ops cluster gets real doors (findability fix,
+         2026-10-18): Earnings had NO website link anywhere; Memberships
+         and Tips were footer-only; Team hid inside the Coach. */
+      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet },
+      { href: "/memberships", labelKey: "nav.memberships", icon: Ticket },
+      { href: "/team", labelKey: "nav.team", icon: Users },
+      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake },
       { href: "/brand-deals", labelKey: "nav.brandDeals", icon: Handshake },
       { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
       { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
@@ -293,6 +312,9 @@ const SECTIONS: NavSection[] = [
 
 const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
+  /* The safety net: the /features registry names every feature by its
+     real name (findability fix, 2026-10-18). */
+  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid },
   { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
   { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true },

@@ -588,18 +588,18 @@
     "partyGames": "Party Games",
     "contests": "Contests",
     "coverArt": "Cover Art",
-    "create": "Thy Lab",
+    "create": "Create",
     "creatorVault": "Creative Vault",
     "creditHistory": "Credit History",
     "credits": "Visual Bucs",
     "dailyBonus": "Daily Bonus",
-    "dashboard": "Thy Throne Room",
+    "dashboard": "Dashboard",
     "earn": "Earn",
     "grow": "Grow",
     "help": "Help",
     "home": "Home",
     "homeOfGamers": "Home of Gamers",
-    "hookStudio": "Thy Hook Vault",
+    "hookStudio": "Hook Studio",
     "hourlyCrate": "Hourly Crate",
     "jewelry": "Jewelry",
     "locations": "Locations",
@@ -607,9 +607,9 @@
     "logout": "Log Out",
     "lyricVideoMaker": "Lyric Video Maker",
     "merch": "Merch",
-    "monetizationCoach": "Thy Money Room",
+    "monetizationCoach": "Monetization Coach",
     "myClips": "My Clips",
-    "myProjects": "Thy Vision",
+    "myProjects": "My Projects",
     "nfcCards": "NFC Cards",
     "profile": "Profile",
     "promoClipMaker": "Clip Maker",
@@ -621,9 +621,9 @@
     "songs": "Songs",
     "spotlight": "Spotlight",
     "thumbnailMaker": "Thumbnail Maker",
-    "thumbnailStudio": "Thy Click Magnets",
+    "thumbnailStudio": "Thumbnail Studio",
     "carouselMaker": "Carousel Maker",
-    "thyBooks": "Thy Books",
+    "thyBooks": "Books",
     "titleStudio": "Title Studio",
     "translator": "Translator",
     "videoEditor": "Visual Vibes",
@@ -635,7 +635,7 @@
     "soundFinder": "Sound Finder",
     "analyticsHub": "Analytics Hub",
     "playlistPitcher": "Playlist Pitcher",
-    "goLive": "Thy Stage",
+    "goLive": "Go Live",
     "showFinder": "Show Finder",
     "discordBot": "Discord Bot",
     "monetize": "Monetize",
@@ -671,7 +671,7 @@
     "learn": "Learn",
     "guidesServices": "Guides & Services",
     "groups": "Groups",
-    "creatorAcademy": "Thy Playbook",
+    "creatorAcademy": "Creator Academy",
     "copyright": "Copyright",
     "llcGuide": "LLC Guide",
     "tools": "Tools",
@@ -680,18 +680,23 @@
     "watermarkRemoval": "Watermark Removal",
     "vocalRemoval": "Vocal Removal",
     "aiMastering": "Mastering",
-    "brandingKit": "Thy Crown",
+    "brandingKit": "Branding Kit",
     "podcastStudio": "Podcast Studio",
-    "audioStudio": "Thy Booth",
+    "audioStudio": "Audio Studio",
     "aiAudio": "Generate Audio",
-    "pricing": "Thy Rank",
-    "visualBucHistory": "Thy Visual Bucs",
+    "pricing": "Pricing",
+    "visualBucHistory": "Visual Bucs History",
     "cursorStyle": "Cursor Style",
     "cartoonStudio": "Cartoon Studio",
-    "library": "Thy Library"
+    "library": "Library",
+    "makeSong": "Make Song",
+    "beatMaker": "Beat Maker",
+    "earnings": "Earnings",
+    "quests": "Quests",
+    "allFeatures": "All Features"
   },
   "academy": {
-    "pageTitle": "Thy Playbook",
+    "pageTitle": "Creator Academy",
     "pageDescription": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
     "levels": {
       "beginner": "Beginner",
@@ -2022,7 +2027,7 @@
   },
   "brandingKit": {
     "eyebrow": "Brand Identity",
-    "pageTitle": "Thy Crown",
+    "pageTitle": "Branding Kit",
     "subtitle": "Everything your channel needs to look premium — logos, video stings, and a full stream bundle, all generated in one matching identity.",
     "tabs": {
       "intros": {
@@ -2038,7 +2043,7 @@
         "label": "Headshots"
       }
     },
-    "title": "Thy Crown"
+    "title": "Branding Kit"
   },
   "brandingShop": {
     "addToCart": "Add to cart",
@@ -2826,7 +2831,7 @@
   "create": {
     "pageTitle": "Create",
     "pageDescription": "Start anything: a song + video, a song, a video, or the guided Creation Hub.",
-    "title": "Thy Lab",
+    "title": "Create",
     "subtitle": "One studio, nine ways to start. Pick a lane — every finished piece flows into its natural next step.",
     "backToDashboard": "Back to Dashboard",
     "modes": {
@@ -2913,7 +2918,7 @@
     "no_saved_projects_yet": "No saved projects yet.",
     "start_your_first_project": "Start your first project",
     "getting_started": "Getting Started",
-    "metaTitle": "Thy Throne Room",
+    "metaTitle": "Dashboard",
     "metaDescription": "Your creator command center — every AI tool in one place.",
     "command_center": "Command Center",
     "greet_night": "Up late, {{name}}?",
@@ -3415,7 +3420,7 @@
     "download": "Download"
   },
   "goLive": {
-    "pageTitle": "Thy Stage",
+    "pageTitle": "Go Live",
     "pageDescription": "Stream dashboard — announce your Discord streams and hype your community.",
     "untitledStream": "Untitled stream",
     "failedToPostDiscord": "Failed to post to Discord.",
@@ -8402,9 +8407,9 @@
     "noMembers": "No members tracked yet."
   },
   "myProjects": {
-    "pageTitle": "Thy Vision",
+    "pageTitle": "My Projects",
     "pageDescription": "All your songs, videos, and creative projects in one place.",
-    "heading": "Thy Vision",
+    "heading": "My Projects",
     "subheading": "Saved projects, unsaved drafts, and all your generated scene clips — all in one place.",
     "backToDashboard": "Back to Dashboard",
     "tabProjects": "Projects",
@@ -9047,7 +9052,7 @@
       "offerCatalogName": "Bow Down Visuals Plans"
     },
     "pageDescription": "Choose your rank — six star-rated creator plans.",
-    "pageTitle": "Thy Rank",
+    "pageTitle": "Pricing",
     "planCard": {
       "bestFor": "Best for: {{bestFor}}",
       "perMonth": "/month",
@@ -11444,7 +11449,7 @@
   },
   "audioStudio": {
     "back": "Back",
-    "title": "Thy Booth",
+    "title": "Audio Studio",
     "subtitle": "Clean up, split, and master your audio — every tool in one place.",
     "tabs": {
       "cleanup": "Cleanup",
@@ -11500,7 +11505,7 @@
     }
   },
   "thumbnailStudio": {
-    "title": "Thy Click Magnets",
+    "title": "Thumbnail Studio",
     "subtitle": "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
     "tabs": {
       "generate": "Generate",
@@ -11922,7 +11927,7 @@
     "tplLuxeDesc": "Quiet luxury. Paper tones, gold ink."
   },
   "library": {
-    "pageTitle": "Thy Library",
+    "pageTitle": "Library",
     "pageDescription": "Templates, presets, and fonts for creators.",
     "kicker": "Thy creative arsenal",
     "headingA": "Thy",

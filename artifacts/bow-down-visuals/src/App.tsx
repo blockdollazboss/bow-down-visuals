@@ -90,7 +90,6 @@ const PostPage = lazyWithRetry(() => import("@/pages/post"));
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
 const Create        = lazyWithRetry(() => import("@/pages/create"));
-const VideoStudio   = lazyWithRetry(() => import("@/pages/video-studio"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
 const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
 const VideoEditor   = lazyWithRetry(() => import("@/pages/video-editor"));
@@ -149,7 +148,6 @@ const World = lazyWithRetry(() => import("@/pages/world"));
 const StreamControllerPage = lazyWithRetry(() => import("@/pages/stream-controller"));
 const LiveWatch = lazyWithRetry(() => import("@/pages/live-watch"));
 const PremierePage = lazyWithRetry(() => import("@/pages/premiere"));
-const BroadcastPage = lazyWithRetry(() => import("@/pages/broadcast"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
@@ -559,7 +557,10 @@ function AppShell() {
           <Route path="/watch/:id"><StreamWatchPage /></Route>
           <Route path="/live/:id"><LiveWatch /></Route>
           <Route path="/premiere/:id"><PremierePage /></Route>
-          <Route path="/broadcast"><ProtectedRoute><BroadcastPage /></ProtectedRoute></Route>
+          {/* Legacy broadcast page retired (findability fix, 2026-10-18):
+              the live studio is /go-live's Broadcast tab. The old path
+              keeps working as a redirect — no inbound link breaks. */}
+          <Route path="/broadcast"><Redirect to="/go-live" /></Route>
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
@@ -571,12 +572,9 @@ function AppShell() {
               the pages own their signed-out states). */}
           <Route path="/brand-deals"><BrandDealsRoute /></Route>
           <Route path="/distribute"><DistributeRoute /></Route>
-          <Route path="/tips"><Tips /></Route>
           <Route path="/beats"><Beats /></Route>
-          <Route path="/memberships"><Memberships /></Route>
           <Route path="/shoutouts"><Shoutouts /></Route>
           <Route path="/referrals"><Referrals /></Route>
-          <Route path="/team"><TeamPage /></Route>
           <Route path="/press-kit"><PressKit /></Route>
           <Route path="/email-list"><EmailList /></Route>
           <Route path="/collabs"><Collabs /></Route>
@@ -585,7 +583,6 @@ function AppShell() {
           <Route path="/party"><ProtectedRoute><PartyPage /></ProtectedRoute></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/my-shop"><MyShop /></Route>
-          <Route path="/earnings"><Earnings /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
@@ -621,12 +618,10 @@ function AppShell() {
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:handle"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
-          <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
-          <Route path="/nfc-cards"><ProtectedRoute><NfcCards /></ProtectedRoute></Route>
           <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
@@ -660,7 +655,10 @@ function AppShell() {
                 <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
                 <Route path="/make-song"><CreateRedirect to="/create?panel=song" /></Route>
                 <Route path="/make-video"><CreateRedirect to="/create?panel=video" /></Route>
-                <Route path="/video-studio"><ProtectedRoute><VideoStudio /></ProtectedRoute></Route>
+                {/* Legacy video-studio surface retired (findability fix,
+                    2026-10-18): Visual Vibes at /video-editor is the one
+                    video editor. The old path keeps working as a redirect. */}
+                <Route path="/video-studio"><Redirect to="/video-editor" /></Route>
                 <Route path="/song-and-video"><CreateRedirect to="/create?panel=song-video" /></Route>
                 <Route path="/create"><ProtectedRoute><Create /></ProtectedRoute></Route>
                 <Route path="/promo-clip"><QueryPreservingRedirect to="/video-editor?tab=promo-clips" /></Route>
@@ -727,6 +725,17 @@ function AppShell() {
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
+                {/* One-website shell (findability fix, 2026-10-18): the
+                    money-ops doors and the feature registry used to render
+                    OUTSIDE the sidebar layout, so following the nav dropped
+                    the menu and the page felt like a separate website.
+                    Same pages, same elements — now inside AuthedLayout. */}
+                <Route path="/earnings"><Earnings /></Route>
+                <Route path="/memberships"><Memberships /></Route>
+                <Route path="/team"><TeamPage /></Route>
+                <Route path="/tips"><Tips /></Route>
+                <Route path="/nfc-cards"><ProtectedRoute><NfcCards /></ProtectedRoute></Route>
+                <Route path="/features"><Features /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>

@@ -575,7 +575,7 @@
     "aiStudio": "Studio IA",
     "aiThumbnailGenerator": "Generatore IA di Miniature",
     "analytics": "Thy Receipts",
-    "beatMaker": "Beat Maker",
+    "beatMaker": "Creatore di Beat",
     "bowRace": "Gara Bow",
     "brandDeals": "Accordi di Marca",
     "captionStyler": "Stilista di Sottotitoli",
@@ -584,19 +584,19 @@
     "contentRandomizer": "Randomizzatore di Contenuti",
     "contests": "Concorsi",
     "coverArt": "Copertina",
-    "create": "Thy Lab",
+    "create": "Crea",
     "creationHub": "Hub di Creazione",
     "creatorVault": "Vault del Creatore",
     "creditHistory": "Cronologia Crediti",
     "credits": "Crediti",
     "dailyBonus": "Bonus Giornaliero",
-    "dashboard": "Thy Throne Room",
+    "dashboard": "Dashboard",
     "earn": "Guadagna",
     "grow": "Cresci",
     "help": "Aiuto",
     "home": "Home",
     "homeOfGamers": "Casa dei Gamer",
-    "hookStudio": "Thy Hook Vault",
+    "hookStudio": "Studio Hook",
     "hourlyCrate": "Cassa Oraria",
     "jewelry": "Gioielli",
     "locations": "Luoghi",
@@ -605,7 +605,7 @@
     "lyricVideoMaker": "Creatore di Lyric Video",
     "makeSong": "Crea Canzone",
     "merch": "Merch",
-    "monetizationCoach": "Thy Money Room",
+    "monetizationCoach": "Coach Monetizzazione",
     "myClips": "Le Mie Clip",
     "myProjects": "I Miei Progetti",
     "nfcCards": "Carte NFC",
@@ -635,7 +635,7 @@
     "viralityCheck": "Controllo Viralità",
     "analyticsHub": "Hub Analytics",
     "playlistPitcher": "Pitch per Playlist",
-    "goLive": "Thy Stage",
+    "goLive": "Go Live",
     "showFinder": "Trova Concerti",
     "discordBot": "Discord Bot",
     "monetize": "Monetizza",
@@ -660,7 +660,7 @@
     "team": "Team",
     "learn": "Impara",
     "guidesServices": "Guide & Servizi",
-    "creatorAcademy": "Thy Playbook",
+    "creatorAcademy": "Creator Academy",
     "copyright": "Copyright",
     "llcGuide": "Guida LLC",
     "tools": "Strumenti",
@@ -675,13 +675,26 @@
     "sfxGenerator": "Generatore SFX",
     "samplePacks": "Sample Pack",
     "logoMaker": "Creatore di Loghi",
-    "brandingKit": "Thy Crown",
+    "brandingKit": "Kit di Branding",
     "introsOutros": "Intro & Outro",
     "streamPack": "Pacchetto Stream",
     "thumbnailABTest": "Test A/B Thumbnail",
     "podcastStudio": "Podcast Studio",
     "carouselMaker": "Carousel Maker",
-    "library": "Thy Library"
+    "library": "Libreria",
+    "audioStudio": "Studio Audio",
+    "thumbnailStudio": "Studio Miniature",
+    "thyBooks": "Libri",
+    "pricing": "Prezzi",
+    "visualBucHistory": "Cronologia Visual Bucs",
+    "earnings": "Guadagni",
+    "quests": "Missioni",
+    "allFeatures": "Tutte le Funzionalità",
+    "myStudio": "Il Mio Studio",
+    "branding": "Branding",
+    "promote": "Promuovi",
+    "social": "Social",
+    "getPaid": "Business / Guadagna"
   },
   "academy": {
     "pageTitle": "Creator Academy",
@@ -6891,5 +6904,24 @@
     "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
     "publicCtaButton": "Make my sync one-sheet",
     "madeWith": "Made with Bow Down Visuals"
+  },
+  "pricing": {
+    "pageTitle": "Prezzi"
+  },
+  "myProjects": {
+    "pageTitle": "I Miei Progetti",
+    "heading": "I Miei Progetti"
+  },
+  "create": {
+    "title": "Crea"
+  },
+  "audioStudio": {
+    "title": "Studio Audio"
+  },
+  "thumbnailStudio": {
+    "title": "Studio Miniature"
+  },
+  "library": {
+    "pageTitle": "Libreria"
   }
 }

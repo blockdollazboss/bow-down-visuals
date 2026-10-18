@@ -584,19 +584,19 @@
     "contentRandomizer": "Aleatorizador de Conteúdo",
     "contests": "Concursos",
     "coverArt": "Arte de Capa",
-    "create": "Thy Lab",
+    "create": "Criar",
     "creationHub": "Central de Criação",
     "creatorVault": "Cofre do Criador",
     "creditHistory": "Histórico de Créditos",
     "credits": "Créditos",
     "dailyBonus": "Bônus Diário",
-    "dashboard": "Thy Throne Room",
+    "dashboard": "Painel",
     "earn": "Ganhar",
     "grow": "Crescer",
     "help": "Ajuda",
     "home": "Início",
     "homeOfGamers": "Casa dos Gamers",
-    "hookStudio": "Thy Hook Vault",
+    "hookStudio": "Estúdio de Ganchos",
     "hourlyCrate": "Caixa Horária",
     "jewelry": "Joias",
     "locations": "Locais",
@@ -605,7 +605,7 @@
     "lyricVideoMaker": "Criador de Lyric Videos",
     "makeSong": "Criar Música",
     "merch": "Merch",
-    "monetizationCoach": "Thy Money Room",
+    "monetizationCoach": "Coach de Monetização",
     "myClips": "Meus Clips",
     "myProjects": "Meus Projetos",
     "nfcCards": "Cartões NFC",
@@ -631,7 +631,7 @@
     "audioCleanup": "Limpeza de Áudio",
     "beatsMarketplace": "Mercado de Beats",
     "brandDealFinder": "Caçador de Parcerias",
-    "brandingKit": "Thy Crown",
+    "brandingKit": "Kit de Marca",
     "brandingShop": "Loja de Branding",
     "channelAudit": "Auditoria do Canal",
     "chromeExtension": "Extensão do Chrome",
@@ -639,12 +639,12 @@
     "commentReplies": "Respostas a Comentários",
     "contentRepurposer": "Reaproveitador de Conteúdo",
     "copyright": "Direitos Autorais",
-    "creatorAcademy": "Thy Playbook",
+    "creatorAcademy": "Academia de Criadores",
     "discordBot": "Bot do Discord",
     "distributeMusic": "Distribuir Música",
     "emailList": "Lista de E-mails",
     "fanShoutouts": "Recados para Fãs",
-    "goLive": "Thy Stage",
+    "goLive": "Entrar ao Vivo",
     "guidesServices": "Guias & Serviços",
     "introsOutros": "Intros & Outros",
     "learn": "Aprender",
@@ -673,7 +673,7 @@
     "streamPack": "Pacote de Stream",
     "team": "Equipe",
     "thumbnailABTest": "Teste A/B de Miniaturas",
-    "tips": "Dicas",
+    "tips": "Gorjetas",
     "tools": "Ferramentas",
     "trendPredictor": "Previsor de Tendências",
     "upscaleClean": "Upscale & Limpeza",
@@ -681,7 +681,20 @@
     "vocalRemoval": "Remoção de Voz",
     "watermarkRemoval": "Remoção de Marca d'Água",
     "carouselMaker": "Carousel Maker",
-    "library": "Thy Library"
+    "library": "Biblioteca",
+    "audioStudio": "Estúdio de Áudio",
+    "thumbnailStudio": "Estúdio de Miniaturas",
+    "thyBooks": "Livros",
+    "pricing": "Preços",
+    "visualBucHistory": "Histórico de Visual Bucs",
+    "earnings": "Ganhos",
+    "quests": "Missões",
+    "allFeatures": "Todos los Recursos",
+    "myStudio": "Meu Estúdio",
+    "branding": "Branding",
+    "promote": "Promover",
+    "social": "Social",
+    "getPaid": "Negócios / Ganhar"
   },
   "academy": {
     "pageTitle": "Academia de Criadores",
@@ -6891,5 +6904,24 @@
     "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
     "publicCtaButton": "Make my sync one-sheet",
     "madeWith": "Made with Bow Down Visuals"
+  },
+  "pricing": {
+    "pageTitle": "Preços"
+  },
+  "myProjects": {
+    "pageTitle": "Meus Projetos",
+    "heading": "Meus Projetos"
+  },
+  "create": {
+    "title": "Criar"
+  },
+  "audioStudio": {
+    "title": "Estúdio de Áudio"
+  },
+  "thumbnailStudio": {
+    "title": "Estúdio de Miniaturas"
+  },
+  "library": {
+    "pageTitle": "Biblioteca"
   }
 }

@@ -584,19 +584,19 @@
     "contentRandomizer": "Aleatorizador de Contenido",
     "contests": "Concursos",
     "coverArt": "Arte de Portada",
-    "create": "Thy Lab",
+    "create": "Crear",
     "creationHub": "Centro de Creación",
     "creatorVault": "Bóveda del Creador",
     "creditHistory": "Historial de Créditos",
     "credits": "Créditos",
     "dailyBonus": "Bono Diario",
-    "dashboard": "Thy Throne Room",
+    "dashboard": "Panel",
     "earn": "Ganar",
     "grow": "Crecer",
     "help": "Ayuda",
     "home": "Inicio",
     "homeOfGamers": "Hogar de Gamers",
-    "hookStudio": "Thy Hook Vault",
+    "hookStudio": "Estudio de Hooks",
     "hourlyCrate": "Caja Horaria",
     "jewelry": "Joyería",
     "locations": "Ubicaciones",
@@ -605,7 +605,7 @@
     "lyricVideoMaker": "Creador de Videos con Letras",
     "makeSong": "Crear Canción",
     "merch": "Merch",
-    "monetizationCoach": "Thy Money Room",
+    "monetizationCoach": "Coach de Monetización",
     "myClips": "Mis Clips",
     "myProjects": "Mis Proyectos",
     "nfcCards": "Tarjetas NFC",
@@ -635,7 +635,7 @@
     "viralityCheck": "Chequeo de Viralidad",
     "analyticsHub": "Centro de Analíticas",
     "playlistPitcher": "Pitcher de Playlists",
-    "goLive": "Thy Stage",
+    "goLive": "En Vivo",
     "showFinder": "Buscador de Shows",
     "discordBot": "Bot de Discord",
     "monetize": "Monetizar",
@@ -660,7 +660,7 @@
     "team": "Equipo",
     "learn": "Aprender",
     "guidesServices": "Guías y Servicios",
-    "creatorAcademy": "Thy Playbook",
+    "creatorAcademy": "Academia del Creador",
     "copyright": "Derechos de Autor",
     "llcGuide": "Guía LLC",
     "tools": "Herramientas",
@@ -675,13 +675,26 @@
     "sfxGenerator": "Generador de SFX",
     "samplePacks": "Packs de Samples",
     "logoMaker": "Creador de Logos",
-    "brandingKit": "Thy Crown",
+    "brandingKit": "Kit de Branding",
     "introsOutros": "Intros y Outros",
     "streamPack": "Pack de Stream",
     "thumbnailABTest": "Prueba A/B de Miniaturas",
     "podcastStudio": "Estudio de Podcast",
     "carouselMaker": "Carousel Maker",
-    "library": "Thy Library"
+    "library": "Biblioteca",
+    "audioStudio": "Estudio de Audio",
+    "thumbnailStudio": "Estudio de Miniaturas",
+    "thyBooks": "Libros",
+    "pricing": "Precios",
+    "visualBucHistory": "Historial de Visual Bucs",
+    "earnings": "Ganancias",
+    "quests": "Misiones",
+    "allFeatures": "Todas las Funciones",
+    "myStudio": "Mi Estudio",
+    "branding": "Branding",
+    "promote": "Promocionar",
+    "social": "Social",
+    "getPaid": "Negocios / Ganar Dinero"
   },
   "academy": {
     "pageTitle": "Academia del Creador",
@@ -6879,9 +6892,9 @@
     "noMembers": "No members tracked yet."
   },
   "myProjects": {
-    "pageTitle": "My Projects",
+    "pageTitle": "Mis Proyectos",
     "pageDescription": "All your songs, videos, and creative projects in one place.",
-    "heading": "My Projects",
+    "heading": "Mis Proyectos",
     "subheading": "Saved projects, unsaved drafts, and all your generated scene clips — all in one place.",
     "backToDashboard": "Back to Dashboard",
     "tabProjects": "Projects",
@@ -7327,7 +7340,7 @@
       "offerCatalogName": "Bow Down Visuals Plans"
     },
     "pageDescription": "Choose your rank — six star-rated creator plans.",
-    "pageTitle": "Pricing",
+    "pageTitle": "Precios",
     "planCard": {
       "bestFor": "Best for: {{bestFor}}",
       "perMonth": "/month",
@@ -8402,5 +8415,17 @@
     "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
     "publicCtaButton": "Make my sync one-sheet",
     "madeWith": "Made with Bow Down Visuals"
+  },
+  "create": {
+    "title": "Crear"
+  },
+  "audioStudio": {
+    "title": "Estudio de Audio"
+  },
+  "thumbnailStudio": {
+    "title": "Estudio de Miniaturas"
+  },
+  "library": {
+    "pageTitle": "Biblioteca"
   }
 }
