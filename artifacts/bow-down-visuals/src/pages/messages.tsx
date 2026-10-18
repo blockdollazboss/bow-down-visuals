@@ -10,6 +10,7 @@ import {
 import { usePageTitle } from "@/hooks/use-page-title";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
+import { MessageDraftSync, messageDraftPath } from "@/lib/message-drafts";
 
 /* ─── /messages — DMs ──────────────────────────────────────────────────────
    Inbox + requests tabs, thread view, rate-limited sends. Every thread
@@ -47,6 +48,35 @@ export default function Messages() {
   const draftRef = useRef<HTMLInputElement>(null);
   const threadReqRef = useRef(0);
 
+  /* Server-backed composer drafts (STACK-20 #20): the words rest on
+     the server, one draft per conversation — switching threads
+     flushes the outgoing words to THEIR thread and restores the
+     incoming thread's, and a reload no longer loses them. The sync
+     controller (lib/message-drafts) owns the lifecycle; every rail
+     failure degrades silently to the old in-memory behavior. */
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const draftSyncRef = useRef<MessageDraftSync | null>(null);
+  if (!draftSyncRef.current) {
+    draftSyncRef.current = new MessageDraftSync({
+      rail: {
+        load: (id) => apiRef.current.get(messageDraftPath(id)),
+        save: (id, body) => apiRef.current.put(messageDraftPath(id), { body }),
+        clear: (id) => apiRef.current.del(messageDraftPath(id)),
+      },
+      onRestore: (_id, body) => setDraft(body),
+    });
+  }
+
+  /* Every composer edit flows through here so the draft sync hears
+     about it. Restores and the post-send clear use setDraft directly:
+     a restore is the sync's own doing, and a landed send retires the
+     draft through sent() — neither is a fresh edit to save. */
+  function updateDraft(value: string) {
+    setDraft(value);
+    draftSyncRef.current?.type(value);
+  }
+
   async function loadConvs() {
     try {
       const d = (await api.get("/api/dm/conversations")) as { inbox: Conv[]; requests: Conv[] };
@@ -81,7 +111,15 @@ export default function Messages() {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
-  useEffect(() => { if (activeId) loadThread(activeId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeId]);
+  useEffect(() => {
+    draftSyncRef.current?.open(activeId);
+    setDraft("");
+    if (activeId) loadThread(activeId);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [activeId]);
+
+  /* Leaving the page: flush whatever draft is still unsaved. */
+  useEffect(() => () => { draftSyncRef.current?.dispose(); }, []);
 
   async function startByUserId(targetId: string) {
     try {
@@ -106,7 +144,7 @@ export default function Messages() {
   function insertDraftToken(token: string) {
     const el = draftRef.current;
     const next = insertAtCursor(draft, token, el?.selectionStart ?? null, el?.selectionEnd ?? null, 2000);
-    setDraft(next.value);
+    updateDraft(next.value);
     requestAnimationFrame(() => {
       if (el) {
         el.focus();
@@ -119,6 +157,7 @@ export default function Messages() {
     if (!draft.trim() || !activeId) return;
     try {
       await api.post(`/api/dm/${activeId}/send`, { body: draft.trim() });
+      draftSyncRef.current?.sent();
       setDraft("");
       await loadThread(activeId);
       await loadConvs();
@@ -286,7 +325,7 @@ export default function Messages() {
                 {canChat ? (
                   <div className="flex items-center gap-2 border-t border-white/10 p-4">
                     <EmojiTray onPickToken={insertDraftToken} />
-                    <input ref={draftRef} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message…"
+                    <input ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
                       maxLength={2000} className={goldInput} onKeyDown={(e) => e.key === "Enter" && send()} />
                     <button type="button" onClick={send} disabled={!draft.trim()} className={goldButton}>
                       <Send className="h-4 w-4" />
