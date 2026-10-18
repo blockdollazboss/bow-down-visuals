@@ -32,6 +32,12 @@ import {
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
 import { getCreatorRank, starTitle, type RankResult } from "../lib/creator-rank";
+import {
+  decideRoomDressingWrite,
+  resolveRoomDressing,
+  ROOM_DRESSING_CONFIG_KEY,
+  type WorldRoomDressingDto,
+} from "../lib/world-room-dressing";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -658,6 +664,12 @@ export interface WorldCreatorRoomDetail {
   frontRow: WorldCreatorRoomFrontRowMember[];
   storefront: { id: string; handle: string; name: string } | null;
   evolution: WorldCreatorRoomEvolution | null;
+  /** The room's dressing (THE-GAME Ring 4): the owner's picked
+   *  template variant within their tier, resolved server-side
+   *  (lib/world-room-dressing) so every visitor sees the host's
+   *  choice — the band default when nothing is picked, null when
+   *  the room is unmeasured and nothing is stored. */
+  dressing: WorldRoomDressingDto | null;
 }
 
 type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
@@ -887,6 +899,11 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
      * transfer (which follows this fetch in every entry flow)
      * lands in a real instance. */
     const room = activePalace?.noteCreatorRoom(profile.slug, profile.displayName);
+    /* The room's evolution (Ring 3, Phase 5): the owner's
+     * earned rank off lib/creator-rank — the dressing and the
+     * panels read it from here, nowhere else. Hoisted: the
+     * dressing resolution below reads the same stars. */
+    const evolution = await resolveCreatorRoomEvolution(profile.userId);
     const detail: WorldCreatorRoomDetail = {
       roomId: creatorRoomIdForSlug(profile.slug),
       slug: profile.slug,
@@ -903,15 +920,98 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
       tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),
       frontRow,
       storefront: shop ? { id: shop.id, handle: shop.handle, name: shop.name } : null,
-      /* The room's evolution (Ring 3, Phase 5): the owner's
-       * earned rank off lib/creator-rank — the dressing and the
-       * panels read it from here, nowhere else. */
-      evolution: await resolveCreatorRoomEvolution(profile.userId),
+      evolution,
+      /* The room's dressing (Ring 4): the owner's stored pick
+       * from theme_config, else the default of their earned
+       * band, else null for an unmeasured room. */
+      dressing: resolveRoomDressing({
+        themeConfig: profile.themeConfig,
+        earnedStars: evolution?.stars ?? null,
+      }),
     };
     res.json(await refreshSupabaseStorageUrlsDeep({ room: detail }));
   } catch (err) {
     logger.error({ err }, "[world] creator-room detail failed");
     res.status(500).json({ error: "Couldn't load that creator's room. Try again." });
+  }
+});
+
+/* ── Creator Room dressing — the owner's pick (THE-GAME Ring 4) ─────
+ * PUT /api/world/creator-rooms/:slug/dressing { variantId, savedDial? }
+ *
+ * Changing a room's dressing is the OWNER's action only (the room
+ * authority rule): the decider in lib/world-room-dressing rules the
+ * closed door for anyone else — a profile that is missing OR not
+ * the caller's is the same 404 the room reads give, so a stranger
+ * learns nothing and changes nothing. The variant must be a real
+ * catalog template and must stand at or below the owner's gate —
+ * gate stars being the earned-rank build's own rule, max(earned,
+ * saved dial): the dial is the client-held grandfather floor
+ * (localStorage bdv_user_mode_*), asserted on the write exactly as
+ * every exposure gate in the house trusts it; it gates a cosmetic
+ * template choice and can never raise the displayed rank, which
+ * stays earned-only on the room's rank plate.
+ *
+ * The pick persists in the profile's theme_config under the
+ * dressing key — the room's existing state store, merged in place
+ * so nothing else the config carries moves. The answer is the
+ * freshly resolved dressing, the same DTO the room read carries,
+ * so the owner's own walls re-dress from the server's word. */
+router.put("/world/creator-rooms/:slug/dressing", requireAuth, async (req, res) => {
+  try {
+    const slug = String(req.params["slug"] ?? "");
+    const callerUserId = req.userId!;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, slug))
+      .limit(1);
+    /* The rank read runs only for the room's own host (the
+     * decider rules on ownership before it ever looks at the
+     * gate, so the placeholder below is never consulted for a
+     * non-owner), and a failed read is an honest retry — never a
+     * fabricated gate that waves a pick through or locks one
+     * out sight unseen. */
+    let earnedStars = 1;
+    if (profile && profile.userId === callerUserId) {
+      try {
+        earnedStars = (await getCreatorRank(profile.userId)).stars;
+      } catch (err) {
+        logger.warn({ err, slug }, "[world] creator-room dressing rank read failed");
+        res.status(503).json({
+          error: "Couldn't check your rank just now — your dressing is unchanged. Try again.",
+        });
+        return;
+      }
+    }
+    const decision = decideRoomDressingWrite({
+      profile: profile ?? null,
+      callerUserId,
+      variantId: body["variantId"],
+      earnedStars,
+      savedDial: body["savedDial"],
+    });
+    if (!decision.ok) {
+      res.status(decision.status).json({ error: decision.error });
+      return;
+    }
+    /* decision.ok only ever rules for the caller's own profile. */
+    const own = profile!;
+    const nextConfig: Record<string, unknown> = {
+      ...(own.themeConfig ?? {}),
+      [ROOM_DRESSING_CONFIG_KEY]: decision.variant.id,
+    };
+    await db
+      .update(creatorProfilesTable)
+      .set({ themeConfig: nextConfig, updatedAt: new Date() })
+      .where(eq(creatorProfilesTable.id, own.id));
+    res.json({
+      dressing: resolveRoomDressing({ themeConfig: nextConfig, earnedStars }),
+    });
+  } catch (err) {
+    logger.error({ err }, "[world] creator-room dressing write failed");
+    res.status(500).json({ error: "Couldn't save your room's dressing. Try again." });
   }
 });
 

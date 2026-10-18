@@ -109,6 +109,7 @@ import {
   creatorRoomRankLine,
   creatorRoomTierDressing,
 } from "@/lib/world/creator-room-tier";
+import { creatorRoomDressingSceneParams } from "@/lib/world/creator-room-dressing";
 import {
   parsePartyInvite,
   parsePartyRoomSnapshot,
@@ -590,6 +591,11 @@ export default function WorldPage() {
       tierTrimHex: detail.evolution
         ? creatorRoomTierDressing(detail.evolution.stars).trimHex
         : null,
+      /* The room's dressing choice (Ring 4): the owner's picked
+       * template variant, resolved server-side onto the same DTO
+       * — its palette / trim / banner parameters ride along; a
+       * null dressing wears the classic tuple. */
+      ...creatorRoomDressingSceneParams(detail.dressing),
     });
   }, []);
 
@@ -620,6 +626,23 @@ export default function WorldPage() {
   );
   const enterCreatorRoomRef = useRef(enterCreatorRoom);
   enterCreatorRoomRef.current = enterCreatorRoom;
+
+  /* The owner changed their room's dressing (Ring 4): drop the
+   * cached read and re-dress the template from a fresh one, so
+   * the walls move while the host stands in them. The picker
+   * only exists inside that room's own stations, so the walker
+   * is by construction standing in the room that changed; the
+   * template only ever shows inside a creator room, and entering
+   * any room re-dresses it from its own read regardless. */
+  const refreshCreatorRoomDressing = useCallback(
+    (slug: string) => {
+      creatorDetailsRef.current.delete(slug);
+      void fetchCreatorRoomDetail(slug).then((detail) => {
+        if (detail) dressCreatorRoom(detail);
+      });
+    },
+    [dressCreatorRoom],
+  );
   const [inviteRoom, setInviteRoom] = useState<PartyOpenRoom | null>(null);
   const [inviteResolved, setInviteResolved] = useState(false);
   const [inviteDismissed, setInviteDismissed] = useState(false);
@@ -2900,6 +2923,7 @@ export default function WorldPage() {
           onEnterCreatorRoom={(slug) => {
             void enterCreatorRoomRef.current(slug);
           }}
+          onRoomDressingChanged={refreshCreatorRoomDressing}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
