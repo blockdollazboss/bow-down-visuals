@@ -18,6 +18,10 @@
  *   thread search, the FULL thread (no preview cap), the reply
  *   bench's batching + server-priced seam, and the follow-on log
  *   keeping only moderation transfer-only;
+ * - STACK-20 #15: the composer's reply draft persists server-side —
+ *   the draft rail's path, payload guard and save-decision seam, and
+ *   the desk wiring (restore on open, debounced save, flush on
+ *   switch/close, markers cleared on send);
  * - source pins: the desk components ride these builders, the host
  *   dispatches pattern "social" to them, and the host still renders
  *   the ONE TransferFooter for native resolutions.
@@ -31,6 +35,7 @@ import {
   dmUnreadTotal, dmFindConversation, normalizeDmConversations,
   dmMessageAttachment, dmAttachmentKindForMime, dmAttachmentKindForUrl,
   dmAttachmentNameForUrl, dmWorkLabel, dmFilterMessages, dmConversationMatches,
+  dmDraftPath, normalizeDmDraft, dmDraftSaveDecision,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
   REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
@@ -262,6 +267,49 @@ describe("DM thread search (2.17)", () => {
   });
 });
 
+describe("DM reply drafts (STACK-20 #15) — the composer's words, persisted", () => {
+  it("the draft rail is the thread's own sub-path", () => {
+    expect(dmDraftPath("c1")).toBe("/api/dm/c1/draft");
+    expect(dmDraftPath("c 1/x")).toBe("/api/dm/c%201%2Fx/draft");
+  });
+
+  it("a saved draft reads back exactly; anything malformed reads as no draft", () => {
+    expect(normalizeDmDraft({ draft: { body: "half a thought", updated_at: "2026-10-18T19:00:00.000Z" } }))
+      .toEqual({ body: "half a thought", updatedAt: "2026-10-18T19:00:00.000Z" });
+    expect(normalizeDmDraft({ draft: { body: "no stamp" } })).toEqual({ body: "no stamp", updatedAt: null });
+    expect(normalizeDmDraft({ draft: null })).toBeNull();
+    expect(normalizeDmDraft({ draft: { body: "" } })).toBeNull();
+    expect(normalizeDmDraft({ draft: { body: 42 } })).toBeNull();
+    expect(normalizeDmDraft({})).toBeNull();
+    expect(normalizeDmDraft(null)).toBeNull();
+    expect(normalizeDmDraft(undefined)).toBeNull();
+  });
+
+  it("the save decision: skip what's saved, save new words, clear a blanked composer", () => {
+    expect(dmDraftSaveDecision("same words", "same words")).toBe("skip");
+    expect(dmDraftSaveDecision("", "")).toBe("skip");
+    expect(dmDraftSaveDecision("new words", "")).toBe("save");
+    expect(dmDraftSaveDecision("edited words", "old words")).toBe("save");
+    expect(dmDraftSaveDecision("", "old words")).toBe("clear");
+    expect(dmDraftSaveDecision("   ", "old words")).toBe("clear");
+  });
+
+  it("the desk wires the whole lifecycle: restore on open, save, flush, clear-on-send", () => {
+    /* Restore: opening a thread fetches its draft and normalizes it. */
+    expect(deskSrc).toContain("normalizeDmDraft(d)");
+    expect(deskSrc).toContain("setDraft(saved.body)");
+    /* Save + flush: one persist helper on the builder path, consulted
+       by the debounce, the switch flush and the unmount flush. */
+    expect(deskSrc).toContain("dmDraftPath(convId)");
+    expect(deskSrc).toContain('method: "PUT", body: { body: text }');
+    expect(deskSrc).toContain("dmDraftSaveDecision(");
+    expect(deskSrc).toContain("void persistDraft(prevId, prevText)");
+    expect(deskSrc).toContain("void persistDraft(id, draftTextRef.current)");
+    /* Send: the server cleared the row; the local markers agree. */
+    expect(deskSrc).toContain("savedTextRef.current = \"\";");
+  });
+});
+
 describe("reply-drafts bench seam (2.19)", () => {
   it("the tones mirror the server's enum, in order", () => {
     expect(REPLY_DRAFT_TONES.map((t) => t.key)).toEqual(["hype", "grateful", "playful", "professional"]);
@@ -298,7 +346,7 @@ describe("source pins — the desk and its host dispatch", () => {
       "profileResolvePath", "COMMUNITY_SUPERFANS_PATH", "COMMUNITY_SENTIMENT_PATH",
       "GENERATE_COMMUNITY_POST_PATH", "POSTS_PATH", "feedPath", "postRepliesPath",
       "DM_ATTACHMENT_UPLOAD_PATH", "postReplyPath", "COMMENT_REPLIES_PATH",
-      "COMMENT_REPLIES_META_PATH",
+      "COMMENT_REPLIES_META_PATH", "dmDraftPath",
     ]) {
       expect(deskSrc, needle).toContain(needle);
     }

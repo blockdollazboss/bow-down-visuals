@@ -15,6 +15,7 @@ import {
   dmMessagesPath, dmSendPath, dmRequestActionPath, profileResolvePath,
   dmConversationName, dmCanChat, dmNeedsAnswer, dmCanSendDraft, dmUnreadTotal,
   dmFindConversation, normalizeDmConversations, DM_DRAFT_MAX,
+  dmDraftPath, normalizeDmDraft, dmDraftSaveDecision,
   dmMessageAttachment, dmAttachmentKindForMime, dmAttachmentKindForUrl,
   dmAttachmentNameForUrl, dmWorkLabel, dmFilterMessages, dmConversationMatches,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
@@ -187,6 +188,94 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
   useEffect(() => { void loadConvs(); }, [loadConvs]);
   useEffect(() => { if (activeId) void loadThread(activeId); }, [activeId, loadThread]);
 
+  /* ── Reply drafts (STACK-20 #15) ──────────────────────────────────
+     The composer's words rest on the server, one draft per thread:
+     typed words save (debounced), switching threads flushes the
+     outgoing words to THEIR thread and restores the incoming
+     thread's saved words, and closing the panel flushes on unmount.
+     draftTextRef mirrors the latest text, draftThreadRef the thread
+     it belongs to, savedTextRef the last text the server confirmed
+     for that thread — the flush and the debounce both consult
+     dmDraftSaveDecision against it, so the desk never saves what the
+     server already holds and never resurrects cleared words. */
+  const draftTextRef = useRef("");
+  const draftThreadRef = useRef<string | null>(null);
+  const savedTextRef = useRef("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistDraft = useCallback(async (convId: string, text: string) => {
+    try {
+      await apiJson(authHeaders, dmDraftPath(convId), { method: "PUT", body: { body: text } });
+      if (draftThreadRef.current === convId && draftTextRef.current === text) {
+        savedTextRef.current = text.trim().length === 0 ? "" : text;
+      }
+    } catch { /* the words stay on screen; the next change, switch or close retries */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Debounced save. Declared BEFORE the thread-switch effect so a
+     switch commit never schedules the old thread's words into the
+     new thread: at that point draftThreadRef still names the old
+     thread and this effect stands down. The timer re-validates at
+     fire time for the same reason. */
+  useEffect(() => {
+    if (!activeId || draftThreadRef.current !== activeId) return;
+    draftTextRef.current = draft;
+    if (dmDraftSaveDecision(draft, savedTextRef.current) === "skip") return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (draftThreadRef.current === activeId && draftTextRef.current === draft) {
+        void persistDraft(activeId, draft);
+      }
+    }, 900);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [draft, activeId, persistDraft]);
+
+  /* Thread switch: flush the outgoing thread, restore the incoming
+     thread's saved draft. Also covers first open and closing a
+     thread (activeId → null just flushes). */
+  useEffect(() => {
+    const prevId = draftThreadRef.current;
+    if (prevId && prevId !== activeId) {
+      const prevText = draftTextRef.current;
+      if (dmDraftSaveDecision(prevText, savedTextRef.current) !== "skip") {
+        void persistDraft(prevId, prevText);
+      }
+    }
+    draftThreadRef.current = activeId;
+    draftTextRef.current = "";
+    savedTextRef.current = "";
+    setDraft("");
+    if (!activeId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await apiJson<unknown>(authHeaders, dmDraftPath(activeId));
+        const saved = normalizeDmDraft(d);
+        if (cancelled || !saved) return;
+        /* Restore only into a composer the walker hasn't already
+           started typing in since this thread opened. */
+        if (draftThreadRef.current === activeId && draftTextRef.current === "") {
+          draftTextRef.current = saved.body;
+          savedTextRef.current = saved.body;
+          setDraft(saved.body);
+        }
+      } catch { /* no restored draft — the composer simply starts empty */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, persistDraft]);
+
+  /* Panel close: the desk unmounts — flush whatever is unsaved. */
+  useEffect(() => {
+    return () => {
+      const id = draftThreadRef.current;
+      if (id && dmDraftSaveDecision(draftTextRef.current, savedTextRef.current) !== "skip") {
+        void persistDraft(id, draftTextRef.current);
+      }
+    };
+  }, [persistDraft]);
+
   const active = dmFindConversation(inbox, requests, activeId);
   const canChat = dmCanChat(threadStatus, active);
   const needsAnswer = dmNeedsAnswer(threadStatus, active);
@@ -277,6 +366,11 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         },
       });
       setDraft("");
+      /* The send cleared my saved draft server-side (STACK-20 #15);
+         the local markers agree, so the debounce never re-saves the
+         words that just landed in the thread. */
+      draftTextRef.current = "";
+      savedTextRef.current = "";
       setPendingAtt(null);
       await loadThread(activeId);
       await loadConvs();

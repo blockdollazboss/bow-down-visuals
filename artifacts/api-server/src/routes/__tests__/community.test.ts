@@ -52,6 +52,10 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "POST", path: "/dm/:id/accept" },
   { method: "POST", path: "/dm/:id/decline" },
   { method: "POST", path: "/dm/:id/block" },
+  // DM reply drafts (STACK-20 #15)
+  { method: "GET", path: "/dm/:id/draft" },
+  { method: "PUT", path: "/dm/:id/draft" },
+  { method: "DELETE", path: "/dm/:id/draft" },
   // Explore + link-graph glue
   { method: "GET", path: "/explore" },
   { method: "GET", path: "/profiles/resolve" },
