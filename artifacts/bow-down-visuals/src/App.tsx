@@ -602,7 +602,6 @@ function AppShell() {
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:handle"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
-          <Route path="/promote"><Promote /></Route>
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
@@ -745,6 +744,13 @@ function AppShell() {
                 <Route path="/llc-guide"><LlcGuide /></Route>
                 <Route path="/beats"><Beats /></Route>
                 <Route path="/shoutouts"><Shoutouts /></Route>
+                {/* One-website shell, the big four (2026-10-18): the last
+                    four nav-led pages that still rendered OUTSIDE the
+                    sidebar layout — /promote, /coach, /academy and
+                    /branding-kit. Same pages, same elements, same
+                    signed-out lock (GuestGate judges by path, above both
+                    Switches) — now inside AuthedLayout. */}
+                <Route path="/promote"><Promote /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>

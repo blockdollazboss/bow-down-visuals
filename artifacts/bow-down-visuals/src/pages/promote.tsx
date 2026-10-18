@@ -182,7 +182,7 @@ export default function Promote() {
       : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white");
 
   return (
-    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
+    <div className={`${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <section className="relative overflow-hidden">
         <div
