@@ -9,6 +9,7 @@ import {
   fetchPlaylist,
   fetchTrack,
   fetchVideo,
+  getMyReferralCode,
   mintStoreDownloadLink,
   recordPlay,
   shareUrl,
@@ -17,6 +18,7 @@ import {
 import {
   downloadMintCopy,
   isSameShelfItem,
+  myMusicSharePath,
   parseDownloadMint,
   parseMyMusic,
   parseShelfPlaylists,
@@ -73,7 +75,18 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
  * own tracks from GET /api/world/my-music, unpublished included and
  * badged, playable only because that endpoint enforces ownership
  * server-side. Non-media purchases (courses, packs) sit on the
- * shelf honestly: share-only, no fake Play button. */
+ * shelf honestly: share-only, no fake Play button.
+ *
+ * Track extras on Your Songs (2.15): a PUBLISHED song also carries
+ * Share — the website's own share surface (shareUrl + the walker's
+ * referral code: the link the /track/:id share menu and the owner's
+ * Get Paid finale build). Unpublished songs carry none: their
+ * public page doesn't exist yet, and a dead-end link is not an
+ * extra. Lyrics and stems are not wired, because the site stores
+ * neither per profile track — lyrics live on library songs and
+ * distribution releases (neither keyed to a track), stems are a
+ * paid splitter job's output (already benched at the Audio Desk).
+ * No honest rail, no pretend button. */
 
 export interface ListeningBoothProps {
   isLight: boolean;
@@ -233,6 +246,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [sharedId, setSharedId] = useState<string | null>(null);
+  const [sharedMusicId, setSharedMusicId] = useState<string | null>(null);
   const [queuedId, setQueuedId] = useState<string | null>(null);
   const [pickerFor, setPickerFor] = useState<PickerTarget | null>(null);
   const [playlists, setPlaylists] = useState<ShelfPlaylistSummary[] | null>(null);
@@ -428,6 +442,24 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     if (ok) {
       setSharedId(p.id);
       setTimeout(() => setSharedId((cur) => (cur === p.id ? null : cur)), 2500);
+    } else {
+      setNote("The link wouldn't copy — the share rails hiccuped. The song itself is fine.");
+    }
+  };
+
+  /** Share one of your own songs (track extras, 2.15): the
+   *  website's share surface — the referral-coded link to its
+   *  public page, exactly what the /track/:id share menu and the
+   *  Get Paid finale copy. Published rows only: the seam returns
+   *  no path for an unpublished song, whose page doesn't exist. */
+  const shareMyMusic = async (row: MyMusicTrack) => {
+    const path = myMusicSharePath(row);
+    if (!path) return;
+    const code = await getMyReferralCode(getAccessToken);
+    const ok = await copyText(shareUrl(path, code));
+    if (ok) {
+      setSharedMusicId(row.id);
+      setTimeout(() => setSharedMusicId((cur) => (cur === row.id ? null : cur)), 2500);
     } else {
       setNote("The link wouldn't copy — the share rails hiccuped. The song itself is fine.");
     }
@@ -650,6 +682,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
             {(myMusic ?? []).map((row) => {
               const input = playInputFromMyMusic(row);
               const isCurrent = !!input && !!shelfPlayer.current && isSameShelfItem(shelfPlayer.current, input);
+              const sharePath = myMusicSharePath(row);
               return (
                 <div key={row.id}>
                   <NativeShelfRow
@@ -696,6 +729,17 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                         >
                           <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" /> Add to playlist
                         </button>
+                        {sharePath && (
+                          <button
+                            type="button"
+                            data-testid="world-my-music-share"
+                            onClick={() => void shareMyMusic(row)}
+                            className={chipBtn}
+                          >
+                            <Link2 className="h-3.5 w-3.5 text-[#d4af37]" />
+                            {sharedMusicId === row.id ? "Link copied!" : "Share"}
+                          </button>
+                        )}
                         {!row.isPublished && (
                           <span className="inline-flex items-center rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
                             Not published yet

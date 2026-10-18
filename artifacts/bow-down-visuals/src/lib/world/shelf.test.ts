@@ -8,7 +8,8 @@
  * /track/:id and /watch/:id in; play inputs resolve their src
  * through the media rails and refuse src-less media; the transport
  * maths clamps; the comment preview is a short list with an honest
- * hidden count. Plus source pins: the booth dispatches from the
+ * hidden count; your own songs' one honest extra — a published song
+ * carries a share path, an unpublished one none. Plus source pins: the booth dispatches from the
  * StationPanel host on pattern "shelf", and the store download
  * token is never used as a playback source anywhere in the booth.
  */
@@ -37,6 +38,7 @@ import {
   removeFromQueue,
   parseMyMusic,
   playInputFromMyMusic,
+  myMusicSharePath,
   parseShelfPlaylists,
   playInputsFromPlaylist,
   shelfEmbedCode,
@@ -321,6 +323,30 @@ describe("my music (2.14) — the owned-but-unpublished seam", () => {
   });
 });
 
+describe("track extras on your own songs (2.15) — the share path gate", () => {
+  it("a published own song shares at its public track page", () => {
+    expect(myMusicSharePath({ id: "d9", isPublished: true })).toBe("/track/d9");
+  });
+
+  it("an unpublished own song has NO share path — its public page doesn't exist yet", () => {
+    expect(myMusicSharePath({ id: "d1", isPublished: false })).toBeNull();
+  });
+
+  it("the id is URL-encoded into the path, like every other page path here", () => {
+    expect(myMusicSharePath({ id: "a b/c", isPublished: true })).toBe("/track/a%20b%2Fc");
+  });
+
+  it("a parsed my-music row feeds the gate unchanged: live rows share, drafts don't", () => {
+    const rows = parseMyMusic({
+      tracks: [
+        { id: "d1", title: "Draft", audioUrl: "https://cdn.example.com/d1.mp3", isPublished: false },
+        { id: "d9", title: "Live", audioUrl: "https://cdn.example.com/d9.mp3", isPublished: true },
+      ],
+    });
+    expect(rows.map((r) => myMusicSharePath(r))).toEqual([null, "/track/d9"]);
+  });
+});
+
 describe("playlists (2.12) — summaries and the resolved-items fold", () => {
   it("summaries read item_count, fall back to items length, and drop id-less rows", () => {
     const rows = parseShelfPlaylists({
@@ -497,5 +523,30 @@ describe("source pins — the Now Playing card's thread (2.13, stack-20 hardenin
     expect(memberBranchAt).toBeGreaterThan(-1);
     expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeGreaterThan(memberBranchAt);
     expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeLessThan(pitchAt);
+  });
+});
+
+describe("source pins — track extras on Your Songs (2.15)", () => {
+  const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+
+  it("the booth offers Share on a your-songs row, behind the seam's published gate", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain('data-testid="world-my-music-share"');
+    expect(booth).toContain("const sharePath = myMusicSharePath(row);");
+    expect(booth).toContain("{sharePath && (");
+  });
+
+  it("the share link rides the website's share surface — referral-coded, like the track page", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain("getMyReferralCode(getAccessToken)");
+    expect(booth).toContain("shareUrl(path, code)");
+    expect(booth).toContain("copyText(shareUrl(path, code))");
+  });
+
+  it("no lyrics or stems affordance is faked onto the row — those rails don't exist per track", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).not.toContain("world-my-music-lyrics");
+    expect(booth).not.toContain("world-my-music-stems");
+    expect(booth).not.toContain("/api/stems");
   });
 });

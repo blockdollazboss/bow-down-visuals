@@ -341,6 +341,25 @@ export function playInputFromMyMusic(row: MyMusicTrack): ShelfPlayInput | null {
   };
 }
 
+/** The share path for one of your own songs (track extras, 2.15):
+ *  its public /track/:id page — the page the website's share
+ *  surface points at — for a PUBLISHED song only. An unpublished
+ *  song has no public page (the media detail 404s it by design),
+ *  so it earns no share path: a link that dead-ends is not an
+ *  extra, it's a trap. The Booth folds this path into the full
+ *  share link through lib/streaming's shareUrl with the walker's
+ *  referral code — the exact link the /track/:id share menu and
+ *  the owner's Get Paid finale build. Lyrics and stems are
+ *  deliberately NOT extras here: the site stores no lyrics on a
+ *  profile track (lyrics live on library songs and distribution
+ *  releases, neither keyed to a track) and no stems per track
+ *  (stems are a paid splitter job's output, benched at the Audio
+ *  Desk) — no honest rail exists to ride, so no button pretends. */
+export function myMusicSharePath(row: Pick<MyMusicTrack, "id" | "isPublished">): string | null {
+  if (!row.isPublished || !row.id) return null;
+  return `/track/${encodeURIComponent(row.id)}`;
+}
+
 /* ─── Playlists (2.12 — the site's playlist rails, in-world) ────────
    The rails EXIST on the server (routes/creator-platform.ts):
      GET  /api/playlists/mine        → { playlists: [StreamPlaylist] }
