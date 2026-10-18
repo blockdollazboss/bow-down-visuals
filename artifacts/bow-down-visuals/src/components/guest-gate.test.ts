@@ -23,6 +23,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loginPathWithNext, postLoginPath, safeNextPath } from "../lib/auth-next";
+import { resolveRouteRedirect } from "../lib/public-routes";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const gateSource = read("./GuestGate.tsx");
@@ -142,6 +143,70 @@ describe("GuestGate — the AppShell choke point (audit §4.1)", () => {
     // SiteModeGate renders INSTEAD of AppShell on creator custom domains.
     expect(appSource).toMatch(/<SiteModeGate>\s*<AppShell \/>\s*<\/SiteModeGate>/);
     expect(siteModeSource).not.toContain("GuestGate");
+  });
+});
+
+describe("GuestGate — alias resolution precedes the verdict (fix 2026-10-18)", () => {
+  it("consults the matrix resolver from lib/public-routes (no hardcoded alias paths)", () => {
+    expect(gateSource).toContain(
+      'import { resolveRouteRedirect } from "@/lib/public-routes";',
+    );
+    expect(gateSource).toContain(
+      "const aliasTarget = resolveRouteRedirect(location);",
+    );
+    expect(gateSource).toContain("if (aliasTarget) {");
+    expect(gateSource).toContain("<Redirect to={aliasTarget} />");
+    // The aliases themselves are data (ROUTE_MATRIX), never literals
+    // in the gate: adding an alias tomorrow needs no gate change.
+    expect(gateSource).not.toContain('"/broadcast"');
+    expect(gateSource).not.toContain('"/video-studio"');
+    expect(gateSource).not.toContain('"/go-live"');
+  });
+
+  it("orders the checks: loader → signed-in passthrough → alias → allowlist → bounce", () => {
+    const loaderAt = gateSource.indexOf("if (loading)");
+    const userAt = gateSource.indexOf("if (user)");
+    const aliasAt = gateSource.indexOf("resolveRouteRedirect(location)");
+    const allowlistAt = gateSource.indexOf("isPublicPath(location)");
+    const bounceAt = gateSource.indexOf("loginPathWithNext(location, search)");
+    expect(loaderAt).toBeGreaterThan(-1);
+    expect(userAt).toBeGreaterThan(loaderAt);
+    expect(aliasAt).toBeGreaterThan(userAt);
+    expect(allowlistAt).toBeGreaterThan(aliasAt);
+    expect(bounceAt).toBeGreaterThan(allowlistAt);
+  });
+
+  it("gives a guest the target's chain: /broadcast ends at /login?next=%2Fgo-live", () => {
+    // The gate hands the guest to the resolved target, then judges
+    // the target: /go-live is locked, so the bounce is built from
+    // /go-live — composing the two shipped helpers the gate uses.
+    const target = resolveRouteRedirect("/broadcast");
+    expect(target).toBe("/go-live");
+    expect(loginPathWithNext(target!)).toBe("/login?next=%2Fgo-live");
+    // The pre-fix chain fed the builder the alias itself; that output
+    // is exactly what must never be produced for an alias again.
+    expect(loginPathWithNext("/broadcast")).toBe("/login?next=%2Fbroadcast");
+  });
+
+  it("gives a guest the target's chain: /video-studio ends at /login?next=%2Fvideo-editor", () => {
+    const target = resolveRouteRedirect("/video-studio");
+    expect(target).toBe("/video-editor");
+    expect(loginPathWithNext(target!)).toBe("/login?next=%2Fvideo-editor");
+    expect(loginPathWithNext("/video-studio")).toBe(
+      "/login?next=%2Fvideo-studio",
+    );
+  });
+
+  it("leaves the router owning the aliases for signed-in visitors (gate passes them through)", () => {
+    // Signed-in visitors never reach the resolver (the `if (user)`
+    // passthrough above it returns children untouched), so App.tsx's
+    // own redirect routes remain their one alias mechanism.
+    expect(appSource).toContain(
+      '<Route path="/broadcast"><Redirect to="/go-live" /></Route>',
+    );
+    expect(appSource).toContain(
+      '<Route path="/video-studio"><Redirect to="/video-editor" /></Route>',
+    );
   });
 });
 

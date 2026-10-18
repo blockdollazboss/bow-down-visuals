@@ -23,6 +23,7 @@ import {
   ROUTE_MATRIX,
   effectiveDisposition,
   isPublicPath,
+  resolveRouteRedirect,
   type RouteMatrixEntry,
 } from "./public-routes";
 
@@ -179,6 +180,78 @@ describe("the census — App.tsx route table ↔ ROUTE_MATRIX", () => {
     expect(entry).toBeDefined();
     expect(entry?.disposition).toBe("locked");
     expect(isPublicPath("/definitely-not-a-real-route")).toBe(false);
+  });
+});
+
+describe("resolveRouteRedirect — aliases resolve before the gate judges (fix 2026-10-18)", () => {
+  it("resolves the two findability aliases to the targets App.tsx declares", () => {
+    // The proven defect: a guest at /broadcast was bounced to
+    // /login?next=%2Fbroadcast because the gate judged the alias path
+    // before the router's redirect could run. /video-studio sits in
+    // the inner Switch, /broadcast in the outer — the gate wraps
+    // both, so both carried the identical defect.
+    expect(resolveRouteRedirect("/broadcast")).toBe("/go-live");
+    expect(resolveRouteRedirect("/video-studio")).toBe("/video-editor");
+  });
+
+  it("resolves every matrix alias to exactly its declared target", () => {
+    const aliases = ROUTE_MATRIX.filter(
+      (entry) => entry.disposition === "redirect",
+    );
+    expect(aliases.length).toBeGreaterThan(40);
+    for (const entry of aliases) {
+      expect(resolveRouteRedirect(entry.path), entry.path).toBe(
+        entry.redirectTo,
+      );
+    }
+  });
+
+  it("returns the target exactly as written, query included", () => {
+    expect(resolveRouteRedirect("/randomizer")).toBe("/hooks?tab=dice");
+    expect(resolveRouteRedirect("/shows")).toBe("/go-live?tab=shows");
+  });
+
+  it("resolves no non-alias path — public, locked, target, or nonsense", () => {
+    expect(resolveRouteRedirect("/")).toBeNull();
+    expect(resolveRouteRedirect("/world")).toBeNull();
+    expect(resolveRouteRedirect("/charts")).toBeNull();
+    expect(resolveRouteRedirect("/dashboard")).toBeNull();
+    // The targets themselves are destinations, not aliases.
+    expect(resolveRouteRedirect("/go-live")).toBeNull();
+    expect(resolveRouteRedirect("/video-editor")).toBeNull();
+    expect(resolveRouteRedirect("/definitely-not-a-real-route")).toBeNull();
+    expect(resolveRouteRedirect("/broadcast/extra")).toBeNull();
+  });
+
+  it("mirrors the matcher's tolerances: query/hash ignored, one trailing slash", () => {
+    expect(resolveRouteRedirect("/broadcast?from=old-link")).toBe("/go-live");
+    expect(resolveRouteRedirect("/broadcast#top")).toBe("/go-live");
+    expect(resolveRouteRedirect("/video-studio/")).toBe("/video-editor");
+  });
+
+  it("resolves nothing malformed — default-deny, same as the matcher", () => {
+    expect(resolveRouteRedirect("")).toBeNull();
+    expect(resolveRouteRedirect("broadcast")).toBeNull();
+    expect(resolveRouteRedirect("https://evil.example/broadcast")).toBeNull();
+    expect(resolveRouteRedirect("//evil.example/broadcast")).toBeNull();
+    expect(resolveRouteRedirect("/broadcast//")).toBeNull();
+  });
+
+  it("never makes an alias public — resolution is a hand-off, not an opening", () => {
+    expect(isPublicPath("/broadcast")).toBe(false);
+    expect(isPublicPath("/video-studio")).toBe(false);
+    for (const entry of ROUTE_MATRIX) {
+      if (entry.disposition !== "redirect") continue;
+      expect(isPublicPath(entry.path), entry.path).toBe(false);
+    }
+  });
+
+  it("is single-hop: no alias targets another alias, so the gate terminates at the target", () => {
+    for (const entry of ROUTE_MATRIX) {
+      if (entry.disposition !== "redirect" || !entry.redirectTo) continue;
+      const targetPath = entry.redirectTo.split(/[?#]/)[0];
+      expect(resolveRouteRedirect(targetPath), entry.path).toBeNull();
+    }
   });
 });
 

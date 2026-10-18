@@ -405,3 +405,44 @@ export function effectiveDisposition(
   }
   return entry.disposition;
 }
+
+/**
+ * Resolve a redirect alias to its target, per ROUTE_MATRIX — the
+ * ordering half of the access law (fix, 2026-10-18).
+ *
+ * The GuestGate wraps both Switches, so it judges the raw location
+ * before the router's own `<Redirect>` route for an alias can render.
+ * An alias path is not on the allowlist (its disposition lives on its
+ * target), so without this step a guest hitting an alias was bounced
+ * to /login?next=<alias> and the alias never resolved. The gate now
+ * consults this resolver first: an alias hands the visitor to its
+ * target, and the gate re-judges THERE — a locked target bounces to
+ * /login?next=<target>, a public target renders.
+ *
+ * Single-hop by construction: the visitor is sent to the target
+ * exactly as written in App.tsx (query included), and the target is
+ * judged on arrival; if a future alias ever points at another alias,
+ * the same step simply runs again at the new location. The census
+ * test pins that no current alias targets another alias.
+ *
+ * Matching mirrors `isPublicPath` exactly: query/hash ignored, one
+ * trailing slash tolerated, segment-exact with `:param` support, and
+ * anything malformed (no leading slash, empty segments,
+ * protocol-relative "//…") resolves to null — never to a target.
+ */
+export function resolveRouteRedirect(pathname: string): string | null {
+  if (typeof pathname !== "string" || pathname.length === 0) return null;
+  let path = pathname;
+  const queryAt = path.search(/[?#]/);
+  if (queryAt !== -1) path = path.slice(0, queryAt);
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+  if (path === "/") return null;
+  const segments = splitSegments(path);
+  if (segments.some((segment) => segment.length === 0)) return null;
+  for (const entry of ROUTE_MATRIX) {
+    if (entry.disposition !== "redirect" || !entry.redirectTo) continue;
+    if (patternMatches(entry.path, segments)) return entry.redirectTo;
+  }
+  return null;
+}
