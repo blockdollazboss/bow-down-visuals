@@ -8,7 +8,7 @@
  * each catalog entity opts in by exposing download_price_cents + a file URL.
  *
  * Money rules (standing):
- *  - Platform fee: 10% of every sale, taken from the SELLER's cut — the buyer
+ *  - Platform fee: 5% of every sale, taken from the SELLER's cut — the buyer
  *    never pays extra. Reuses STOREFRONT_PLATFORM_FEE_BPS (same knob as
  *    customer storefronts) so the fee is identical site-wide; env-overridable.
  *  - Music/content SALES = real money via Stripe. Visual Bucs = AI credits.
@@ -52,7 +52,7 @@ import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail
 const router = Router();
 
 /* ── Platform economics ──────────────────────────────────────────────────
-   10% platform fee (same knob as storefronts — one fee site-wide). Fee comes
+   5% platform fee (same knob as storefronts — one fee site-wide). Fee comes
    out of the seller's cut; the buyer pays the listed price, nothing extra. */
 const PLATFORM_FEE_BPS = STOREFRONT_PLATFORM_FEE_BPS;
 export const PLATFORM_FEE_PCT = PLATFORM_FEE_BPS / 100;

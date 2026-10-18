@@ -572,7 +572,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
               Cancel
             </button>
           </div>
-          <p className="mt-2 text-[10px] text-white/30">Real-money listing via Stripe · {usd(0).slice(0, 1)}10% platform fee comes out of your cut · never Visual Bucs.</p>
+          <p className="mt-2 text-[10px] text-white/30">Real-money listing via Stripe · {usd(0).slice(0, 1)}5% platform fee comes out of your cut · never Visual Bucs.</p>
         </div>
       )}
 
@@ -812,7 +812,7 @@ function OrdersTab() {
         </div>
       )}
       <p className="mt-3 text-[11px] text-white/35">
-        Honest math on every row: what the buyer paid, what the platform kept ({totals?.platformFeePct ?? 10}%), what's yours. Real dollars via Stripe — never Visual Bucs.
+        Honest math on every row: what the buyer paid, what the platform kept ({totals?.platformFeePct ?? 5}%), what's yours. Real dollars via Stripe — never Visual Bucs.
       </p>
     </div>
   );

@@ -203,8 +203,8 @@ describe("POST /storefronts/checkout — pending first, real session", () => {
     expect(json.paid).toBe(false);
     expect(json.status).toBe("pending_payment");
     expect(json.gross_cents).toBe(4500);
-    expect(json.platform_fee_cents).toBe(450);
-    expect(json.seller_net_cents).toBe(4050);
+    expect(json.platform_fee_cents).toBe(225);
+    expect(json.seller_net_cents).toBe(4275);
     expect(json.url).toBe(`https://checkout.example.com/pay/${json.sessionId}`);
     expect(json.checkoutUrl).toBe(json.url);
     expect(json.testMode).toBe(true);
@@ -227,7 +227,7 @@ describe("POST /storefronts/checkout — pending first, real session", () => {
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.event_type === "pending_sale" && r.payment_status === "pending")).toBe(true);
     expect(rows.every((r) => r.stripe_session_id === json.sessionId)).toBe(true);
-    expect(rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 400, quantity: 2 });
+    expect(rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 200, quantity: 2 });
   });
 
   it("keeps the legacy single-line shape working", async () => {
@@ -302,7 +302,7 @@ describe("verify + status — the paid flip, exactly once", () => {
     h.sessions.get(sessionId).payment_status = "paid";
 
     const v1 = await req("POST", "/storefronts/checkout/verify", { sessionId });
-    expect(v1.json).toMatchObject({ paid: true, status: "paid", duplicate: false, gross_cents: 4500, platform_fee_cents: 450, seller_net_cents: 4050 });
+    expect(v1.json).toMatchObject({ paid: true, status: "paid", duplicate: false, gross_cents: 4500, platform_fee_cents: 225, seller_net_cents: 4275 });
     expect(v1.json.lines.map((l: any) => l.productName)).toEqual(["Hoodie", "Cap"]);
 
     const rows = await eventsFor(shopId);

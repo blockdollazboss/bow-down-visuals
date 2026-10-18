@@ -16,7 +16,7 @@ import { creatorProfilesTable } from "./creator-platform";
  *
  * Money rules (standing): SALES = real money via Stripe; Visual Bucs = AI
  * credits. The two economies are NEVER mixed in UI copy or accounting.
- * Platform fee (default 10%, STOREFRONT_PLATFORM_FEE_BPS) comes out of the
+ * Platform fee (default 5%, STOREFRONT_PLATFORM_FEE_BPS) comes out of the
  * SELLER's cut — the buyer pays the listed price. Creator payouts need
  * Stripe Connect — NOT built here; creator_amount_cents is a pending balance.
  *

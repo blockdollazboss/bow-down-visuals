@@ -44,7 +44,7 @@ vi.mock("../../lib/logger", () => ({
 }));
 
 vi.mock("../generate/storefronts", () => ({
-  STOREFRONT_PLATFORM_FEE_BPS: 1000,
+  STOREFRONT_PLATFORM_FEE_BPS: 500,
 }));
 
 vi.mock("../../lib/job-notifications", () => ({
@@ -194,9 +194,9 @@ describe("store checkout with PWYW", () => {
     expect(res.status).toBe(200);
     expect(res.data.amountCents).toBe(5000);
     expect(h.state.stripeCreateParams.line_items[0].price_data.unit_amount).toBe(5000);
-    /* Fee split follows the charged amount: 10% platform fee. */
-    expect(h.state.stripeCreateParams.metadata.platform_fee_cents).toBe("500");
-    expect(h.state.stripeCreateParams.metadata.creator_amount_cents).toBe("4500");
+    /* Fee split follows the charged amount: 5% platform fee. */
+    expect(h.state.stripeCreateParams.metadata.platform_fee_cents).toBe("250");
+    expect(h.state.stripeCreateParams.metadata.creator_amount_cents).toBe("4750");
   });
 
   it("checkout below the minimum is refused before any session exists", async () => {

@@ -705,7 +705,7 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
 
 /* ── Platform economics — env-overridable without a deploy ─────────────── */
 export const STOREFRONT_PLATFORM_FEE_BPS =
-  Number(process.env["STOREFRONT_PLATFORM_FEE_BPS"]) || 1000; // 1000 bps = 10%
+  Number(process.env["STOREFRONT_PLATFORM_FEE_BPS"]) || 500; // 500 bps = 5% (owner ruling 2026-10-18)
 export const PLATFORM_FEE_PCT = STOREFRONT_PLATFORM_FEE_BPS / 100;
 
 /**
@@ -983,7 +983,7 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
    the same guarded flip in lib/market-sale.
    Amounts are ALWAYS computed here from shop_products.price_cents —
    the client sends product ids and quantities, never money.
-   The 10% platform fee comes out of the SELLER's cut; the buyer pays
+   The 5% platform fee comes out of the SELLER's cut; the buyer pays
    the listed price. All money math in integer cents.
    Seller side: the house's Stripe Connect is recipient/transfers-only
    (money-out — see lib/stripe-connect); there are NO destination

@@ -16,7 +16,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
    Anyone can view. No auth required. Cart is local-only (localStorage).
    Checkout is a real card checkout via /api/storefronts/checkout (0144):
    the order is recorded pending, the buyer pays the listed price on the
-   hosted payment page, and Bow Down Visuals takes a 10% platform fee
+   hosted payment page, and Bow Down Visuals takes a 5% platform fee
    from the seller's cut. Returning with ?session_id= verifies the
    payment server-side — only a confirmed payment shows as paid here. */
 
@@ -80,7 +80,7 @@ export default function ShopStorefront() {
         if (!cancelled) {
           setShop(data.shop);
           setProducts(data.products ?? []);
-          setFeePct(data.platformFeePct ?? 10);
+          setFeePct(data.platformFeePct ?? 5);
         }
       } catch {
         if (!cancelled) setNotFound(true);

@@ -160,7 +160,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       if (!data.shop) throw new Error("stand");
       setShop(data.shop);
       setProducts(Array.isArray(data.products) ? data.products : []);
-      setFeePct(data.platformFeePct ?? 10);
+      setFeePct(data.platformFeePct ?? 5);
       setStandState("ready");
       /* An unfinished checkout from an earlier visit refreshes from
          server truth the moment the stand reopens. */

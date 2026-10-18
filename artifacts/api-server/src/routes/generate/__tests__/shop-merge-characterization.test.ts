@@ -166,7 +166,7 @@ describe("storefronts surface over the shared shops tables", () => {
     const handle = mine.json.shops[0].handle;
     const { status, json } = await req("GET", `/storefronts/slug/${handle}`);
     expect(status).toBe(200);
-    expect(json.platformFeePct).toBe(10);
+    expect(json.platformFeePct).toBe(5);
     expect(json.shop.id).toBe(shopId);
     expect(json.shop.user_id).toBeUndefined();
     expect(json.products).toHaveLength(1);
@@ -174,15 +174,15 @@ describe("storefronts surface over the shared shops tables", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("POST /storefronts/checkout records a PENDING order at the 10% platform fee, and only a paid verify lands the sale (0144)", async () => {
+  it("POST /storefronts/checkout records a PENDING order at the 5% platform fee, and only a paid verify lands the sale (0144)", async () => {
     const { shopId, productId } = await seedShopWithProduct(2000);
     const { status, json } = await req("POST", "/storefronts/checkout", {
       shopId, productId, quantity: 2, buyerEmail: "fan@example.com",
     });
     expect(status).toBe(201);
     expect(json.gross_cents).toBe(4000);
-    expect(json.platform_fee_cents).toBe(400);
-    expect(json.seller_net_cents).toBe(3600);
+    expect(json.platform_fee_cents).toBe(200);
+    expect(json.seller_net_cents).toBe(3800);
     /* Updated 0144: at click time the order is pending — NOT a sale.
        (This characterization previously pinned the record-at-click
        behavior; the real card checkout supersedes it deliberately.) */
@@ -191,7 +191,7 @@ describe("storefronts surface over the shared shops tables", () => {
     expect(json.url).toContain("https://checkout.example.com/pay/");
     const ev = await testState.db.execute(sql`SELECT amount_cents, platform_fee_cents, event_type FROM shop_events WHERE shop_id = ${shopId}`);
     expect(ev.rows).toHaveLength(1);
-    expect(ev.rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 400, event_type: "pending_sale" });
+    expect(ev.rows[0]).toMatchObject({ amount_cents: 4000, platform_fee_cents: 200, event_type: "pending_sale" });
     // The paid session flips it into the sale the ledger reads.
     stripeH.sessions.get(json.sessionId).payment_status = "paid";
     const v = await req("POST", "/storefronts/checkout/verify", { sessionId: json.sessionId });

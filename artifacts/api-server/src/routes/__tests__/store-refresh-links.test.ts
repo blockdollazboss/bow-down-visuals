@@ -70,7 +70,7 @@ vi.mock("../../lib/logger", () => ({
 }));
 
 vi.mock("../generate/storefronts", () => ({
-  STOREFRONT_PLATFORM_FEE_BPS: 1000,
+  STOREFRONT_PLATFORM_FEE_BPS: 500,
 }));
 
 vi.mock("../../lib/job-notifications", () => ({

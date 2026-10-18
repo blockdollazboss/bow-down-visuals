@@ -353,7 +353,7 @@ export default function StorefrontBuilder() {
                       <input className={`${inputClass} mt-3`} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder={t("storefrontBuilder.productDescPlaceholder")} maxLength={500} />
                       {p.price && dollarsToCents(p.price) != null && (
                         <p className="mt-1.5 text-xs text-white/40">
-                          {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.9)) })}
+                          {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.95)) })}
                         </p>
                       )}
                     </div>
