@@ -66,6 +66,15 @@ import {
   formatSongDuration,
   type LibrarySong,
 } from "@/lib/song-library";
+import {
+  AUDIO_DESK_TABS,
+  type AudioDeskTabId,
+} from "@/lib/world/audio-desk-tabs";
+import {
+  parseMyMusic,
+  type MyMusicTrack,
+} from "@/lib/world/shelf";
+import { LibraryTab, SoundPacksTab, StemsTab } from "./AudioDeskTabs";
 
 /* ─── Audio Studio Desk — the QUICK BENCH (NATIVE-PLAN §3.6) ───────
    Pick a song or file, then one bench action: clean it up, de-reverb
@@ -74,7 +83,10 @@ import {
    and price its Audio Studio / AI Audio page uses. The full
    multi-tool audio workbench (mix/master, stems, arrangement, voice
    benches) is deliberately NOT here — it is a named native
-   follow-on, and the desk's transfer footer reaches it meanwhile. */
+   follow-on, and the desk's transfer footer reaches it meanwhile.
+   STACK-20 #18 docks three more sections beside the benches
+   (AudioDeskTabs.tsx, seam lib/world/audio-desk-tabs): Sound packs,
+   Library, and the Stem splitter — each on the website's own rails. */
 
 type BenchTool = "cleanup" | "deverb" | "finish" | "beat" | "sfx";
 
@@ -133,6 +145,38 @@ export function AudioDesk(props: CreateDeskProps) {
   const [gateNote, setGateNote] = useState<string | null>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* STACK-20 #18: the desk's sections — Benches (everything this
+     desk already was) plus the Song Desk's three tabs: Sound packs,
+     Library, Stem splitter. The Library + Stems tabs share ONE
+     my-music fetch (the Booth's rail, GET /api/world/my-music),
+     made once here; each tab renders its own honest state from it. */
+  const [deskTab, setDeskTab] = useState<AudioDeskTabId>("benches");
+  const [myMusic, setMyMusic] = useState<MyMusicTrack[] | null>(null);
+  const [myMusicFailed, setMyMusicFailed] = useState(false);
+  const [myMusicTick, setMyMusicTick] = useState(0);
+  const [stemTrack, setStemTrack] = useState<MyMusicTrack | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/world/my-music", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("my-music");
+        const rows = parseMyMusic(await res.json().catch(() => ({})));
+        if (!cancelled) {
+          setMyMusic(rows);
+          setMyMusicFailed(false);
+        }
+      } catch {
+        if (!cancelled) setMyMusicFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myMusicTick]);
 
   const isFileTool = tool === "cleanup" || tool === "deverb" || tool === "finish";
 
@@ -326,6 +370,30 @@ export function AudioDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-audio-desk">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Audio Desk sections">
+        {AUDIO_DESK_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={deskTab === t.id}
+            data-testid={`world-audio-desk-tab-${t.id}`}
+            onClick={() => setDeskTab(t.id)}
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition ${
+              deskTab === t.id
+                ? "border-[#d4af37] bg-[#d4af37] text-black"
+                : isLight
+                  ? "border-[#7A5A12]/40 text-[#7A5A12] hover:text-[#2a1e07]"
+                  : "border-[#d4af37]/30 text-[#e8c86a] hover:text-white"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {deskTab === "benches" && (
+        <>
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Audio bench tools">
         {(Object.keys(TOOL_LABELS) as BenchTool[]).map((t) => (
           <button
@@ -553,6 +621,35 @@ export function AudioDesk(props: CreateDeskProps) {
         </p>
       )}
       <AudioFullBench isLight={isLight} file={file} sourceSongId={sourceSongId} sourceSong={pickedSong} />
+        </>
+      )}
+
+      {deskTab === "packs" && <SoundPacksTab isLight={isLight} shelfPlayer={props.shelfPlayer} />}
+
+      {deskTab === "library" && (
+        <LibraryTab
+          isLight={isLight}
+          shelfPlayer={props.shelfPlayer}
+          rows={myMusic}
+          failed={myMusicFailed}
+          onRetry={() => setMyMusicTick((n) => n + 1)}
+          onSplitStems={(row) => {
+            setStemTrack(row);
+            setDeskTab("stems");
+          }}
+        />
+      )}
+
+      {deskTab === "stems" && (
+        <StemsTab
+          isLight={isLight}
+          rows={myMusic}
+          failed={myMusicFailed}
+          onRetry={() => setMyMusicTick((n) => n + 1)}
+          picked={stemTrack}
+          onPick={setStemTrack}
+        />
+      )}
     </div>
   );
 }

@@ -1154,6 +1154,7 @@ export default function StationPanel(props: StationPanelProps) {
                 isLight={isLight}
                 onJukeboxAdd={props.onJukeboxAdd}
                 onOpenEditor={props.onOpenEditorStation}
+                shelfPlayer={shelfPlayer}
               />
             ) : resolution.pattern === "shop" ? (
               <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
