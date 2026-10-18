@@ -380,3 +380,50 @@ describe("source pins — the booth is wired, the token is not a stream", () => 
     expect(booth).not.toContain("fetch(`/api/store/token`");
   });
 });
+
+describe("source pins — playlists + queue-next are wired in the booth (2.12)", () => {
+  const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+
+  it("the booth builds on the site's playlist rails — no parallel store", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain("fetchMyPlaylists");
+    expect(booth).toContain("createPlaylist");
+    expect(booth).toContain("addItemToPlaylist");
+    expect(booth).toContain("fetchPlaylist");
+    expect(booth).toContain("playInputsFromPlaylist");
+    expect(booth).toContain("parseShelfPlaylists");
+  });
+
+  it("every shelf row offers queue-next and add-to-playlist; the picker can create", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain('data-testid="world-shelf-queue-next"');
+    expect(booth).toContain('data-testid="world-my-music-queue-next"');
+    expect(booth).toContain('data-testid="world-shelf-add-to-playlist"');
+    expect(booth).toContain('data-testid="world-my-music-add-to-playlist"');
+    expect(booth).toContain('data-testid="world-shelf-playlist-picker"');
+    expect(booth).toContain('data-testid="world-shelf-playlist-create"');
+    expect(booth).toContain("shelfPlayer.queueNext");
+  });
+
+  it("playing a playlist puts the first item on and the rest in the queue, in order", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain('data-testid="world-shelf-playlist-play"');
+    expect(booth).toContain("shelfPlayer.play(first!)");
+    expect(booth).toContain("shelfPlayer.replaceQueue(rest)");
+  });
+
+  it("the player advances when an item ends and shows the queue in the card", () => {
+    const player = read("../../components/world/native/ShelfPlayer.tsx");
+    expect(player).toContain("onEnded: () => player.advance()");
+    expect(player).toContain("takeQueueNext");
+    expect(player).toContain("queueUpNext");
+    expect(player).toContain('data-testid="world-shelf-queue"');
+    expect(player).toContain('data-testid="world-shelf-queue-remove"');
+  });
+
+  it("the booth is a members-only door, so guests meet the pitch, never the picker", () => {
+    const stations = read("./stations.ts");
+    const boothDef = stations.slice(stations.indexOf('id: "listening-booth"'));
+    expect(boothDef.slice(0, boothDef.indexOf("},"))).toContain("membersOnly: true");
+  });
+});
