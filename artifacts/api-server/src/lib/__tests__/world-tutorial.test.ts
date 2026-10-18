@@ -180,6 +180,7 @@ describe("the completion reward", () => {
     questClaimsVb: async () => spend,
     kingClaimsVb: async () => 0,
     tutorialClaimsVb: async () => 0,
+    dailyClaimsVb: async () => 0,
   });
 
   it("an unfinished line refuses not-completed and pays nothing", async () => {
@@ -240,6 +241,7 @@ describe("the shared pool (lib/quest-pool)", () => {
       questClaimsVb: async () => 120,
       kingClaimsVb: async () => 50,
       tutorialClaimsVb: async () => 30,
+      dailyClaimsVb: async () => 0,
     };
     await expect(questPoolSpendVb(pool, "user-a", "2026-10-12")).resolves.toBe(200);
   });

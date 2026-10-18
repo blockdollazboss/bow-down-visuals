@@ -12,6 +12,10 @@
  *            the Treasury), else the first incomplete quest in
  *            catalog order, named with its progress and the room /
  *            station questDestination() says it completes in.
+ *            Since Ring 4 the Daily Trio (GET
+ *            /api/retention/quests/daily) stands in front of the
+ *            weekly pick: a trio step expires at the day-turn, so
+ *            it is always the more urgent next thing.
  *   STREAK — GET /api/retention/streak: the creation-streak rail.
  *            Its `milestones` array (STREAK_MILESTONES server-side:
  *            days → VB, each reached/claimed flagged by the server)
@@ -98,6 +102,80 @@ export function normalizeQuestsStatus(raw: unknown): QuestsStatusShape | null {
   };
 }
 
+/* ─── DAILY slot input: /api/retention/quests/daily ─────────────
+   The Daily Quest Trio (Ring 4): three day-scoped quests dealt by
+   the date's rotation. The strip's quest slot PREFERS a trio step
+   over the weekly slate — the trio expires at the day-turn, so
+   today's step is always the most time-critical next thing: a
+   claimable daily (VB waiting, gone at midnight UTC) first, then
+   an active daily, then the week's own next objective. */
+
+export interface DailyQuestStatusRow extends QuestStatusRow {
+  /** The server's display name for the daily def (its titles are
+   *  the def's own — DAILY_QUEST_DEFS carry no locale keys). */
+  name: string;
+  /** The weekly quest whose desk performs this verb — the
+   *  destination resolves from it, never from the daily key. */
+  baseKey: string;
+  /** Non-VB marks banked on claim (the trio's own counter). */
+  marks: number;
+  /** The reward the strip names — the daily def's VB (the weekly
+   *  row's `reward` field carries the same number). */
+}
+
+export interface DailyQuestsStatusShape {
+  enabled: boolean;
+  date: string;
+  quests: DailyQuestStatusRow[];
+  marksTotal: number;
+  pool: { capVb: number; spentVb: number; remainingVb: number };
+}
+
+/** Normalize a GET /api/retention/quests/daily payload
+ *  ({ enabled, daily: { date, quests[], marksTotal, pool } });
+ *  null when it isn't one — the strip then falls back to the
+ *  weekly slot alone, never a half-shaped trio. */
+export function normalizeDailyQuestsStatus(raw: unknown): DailyQuestsStatusShape | null {
+  if (!isRecord(raw) || !isRecord(raw.daily) || !Array.isArray(raw.daily.quests)) return null;
+  const quests: DailyQuestStatusRow[] = [];
+  for (const q of raw.daily.quests) {
+    if (!isRecord(q)) return null;
+    const key = str(q.key);
+    const name = str(q.name);
+    const baseKey = str(q.baseKey);
+    const target = num(q.target);
+    const rewardVb = num(q.rewardVb);
+    const marks = num(q.marks);
+    const progress = num(q.progress);
+    if (!key || !name || !baseKey || target === null || rewardVb === null || marks === null || progress === null) {
+      return null;
+    }
+    quests.push({
+      key,
+      name,
+      baseKey,
+      target,
+      reward: rewardVb,
+      marks,
+      progress,
+      completed: q.completed === true,
+      claimed: q.claimed === true,
+    });
+  }
+  const poolRaw = isRecord(raw.daily.pool) ? raw.daily.pool : null;
+  return {
+    enabled: raw.enabled !== false,
+    date: typeof raw.daily.date === "string" ? raw.daily.date : "",
+    quests,
+    marksTotal: num(raw.daily.marksTotal) ?? 0,
+    pool: {
+      capVb: poolRaw ? (num(poolRaw.capVb) ?? 0) : 0,
+      spentVb: poolRaw ? (num(poolRaw.spentVb) ?? 0) : 0,
+      remainingVb: poolRaw ? (num(poolRaw.remainingVb) ?? 0) : 0,
+    },
+  };
+}
+
 export type NextObjective =
   /** Finished, unclaimed: the next thing is the claim (in the Treasury). */
   | {
@@ -105,6 +183,9 @@ export type NextObjective =
       quest: QuestStatusRow;
       objective: QuestObjective;
       destination: QuestDestination | null;
+      /** The server's own name for the quest, when the row is a
+       *  daily def (its title lives on the def, not in a locale). */
+      title?: string;
     }
   /** The first quest not yet finished, in catalog order. */
   | {
@@ -112,6 +193,7 @@ export type NextObjective =
       quest: QuestStatusRow;
       objective: QuestObjective;
       destination: QuestDestination | null;
+      title?: string;
     }
   /** Every quest claimed — the next slate is next week's. */
   | { kind: "all-done" }
@@ -120,8 +202,38 @@ export type NextObjective =
   /** The rail answered with an empty catalog — nothing to name. */
   | { kind: "none" };
 
-export function nextObjective(status: QuestsStatusShape): NextObjective {
+export function nextObjective(
+  status: QuestsStatusShape,
+  daily?: DailyQuestsStatusShape | null,
+): NextObjective {
   if (!status.enabled) return { kind: "off" };
+  /* The trio first (Ring 4): it expires at the day-turn, so a
+   * daily step outranks the week's — claimable before active,
+   * exactly the weekly order, one scope tighter. */
+  if (daily && daily.enabled && daily.quests.length > 0) {
+    const claimable = daily.quests.find((q) => q.completed && !q.claimed);
+    if (claimable) {
+      return {
+        kind: "claimable",
+        quest: claimable,
+        objective: questObjective(claimable),
+        destination: questDestination(claimable.baseKey),
+        title: claimable.name,
+      };
+    }
+    const active = daily.quests.find((q) => !q.completed && !q.claimed);
+    if (active) {
+      return {
+        kind: "active",
+        quest: active,
+        objective: questObjective(active),
+        destination: questDestination(active.baseKey),
+        title: active.name,
+      };
+    }
+    /* A fully-claimed trio falls through: the week still names
+     * its next thing. */
+  }
   if (status.quests.length === 0) return { kind: "none" };
   const claimable = status.quests.find((q) => q.completed && !q.claimed);
   if (claimable) {

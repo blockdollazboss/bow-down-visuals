@@ -1,9 +1,13 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2 } from "lucide-react";
+import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { questDestination, claimableVb } from "@/lib/world/treasury-quests";
+import {
+  normalizeDailyQuestsStatus,
+  type DailyQuestsStatusShape,
+} from "@/lib/world/objective-strip";
 import { dispatchQuestClaimed } from "@/lib/world/moments";
 
 interface Quest {
@@ -59,6 +63,12 @@ export default function QuestsWidget({
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [data, setData] = useState<QuestsData | null>(null);
+  /* The Daily Quest Trio (Ring 4): today's three day-scoped
+   * quests, dealt by the date's rotation on the server. Shown
+   * distinctly above the weekly slate — the trio turns at the
+   * day-turn (00:00 UTC), the week on Monday. */
+  const [daily, setDaily] = useState<DailyQuestsStatusShape | null>(null);
+  const [claimingDaily, setClaimingDaily] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(() => {
     try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; }
@@ -73,8 +83,14 @@ export default function QuestsWidget({
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/retention/quests", { headers: await authHeaders() });
+      const headers = await authHeaders();
+      const [res, dailyRes] = await Promise.all([
+        fetch("/api/retention/quests", { headers }),
+        fetch("/api/retention/quests/daily", { headers }),
+      ]);
       if (res.ok) setData((await res.json()) as QuestsData);
+      /* A failed trio read hides the trio, never the board. */
+      if (dailyRes.ok) setDaily(normalizeDailyQuestsStatus(await dailyRes.json()));
     } catch { /* widget stays empty on failure */ }
   }, [authHeaders]);
 
@@ -123,6 +139,33 @@ export default function QuestsWidget({
       setToast(t("retention.claim_failed"));
     } finally {
       setClaiming(null);
+    }
+  }, [authHeaders, load, onBalanceChange, t]);
+
+  const claimDaily = useCallback(async (questKey: string) => {
+    setClaimingDaily(questKey);
+    try {
+      const res = await fetch("/api/retention/quests/daily/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ questKey }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { amountVb?: number; marks?: number; error?: string };
+      if (res.ok && typeof body.amountVb === "number") {
+        setToast(`Daily quest claimed — ${body.amountVb} Visual Bucs and ${body.marks ?? 0} marks banked.`);
+        onBalanceChange?.();
+        /* The witnessed moment, same as a weekly claim: the room
+           verifies against the server's records before it hears
+           anything (the finder reads daily claims too). */
+        dispatchQuestClaimed({ questKey, reward: body.amountVb });
+        await load();
+      } else {
+        setToast(body.error ?? t("retention.claim_failed"));
+      }
+    } catch {
+      setToast(t("retention.claim_failed"));
+    } finally {
+      setClaimingDaily(null);
     }
   }, [authHeaders, load, onBalanceChange, t]);
 
@@ -192,6 +235,84 @@ export default function QuestsWidget({
 
       {!collapsed && (
         <div className="mt-4 space-y-2.5">
+          {daily && daily.enabled && daily.quests.length > 0 && (
+            <div data-testid="world-daily-trio" className="space-y-2.5 rounded-2xl border border-amber-300/30 bg-amber-300/[0.05] p-3">
+              <div className="flex items-center gap-2 px-1">
+                <Sun className="h-4 w-4 text-amber-300 shrink-0" />
+                <p className="text-[11px] font-black uppercase tracking-wide text-amber-200">Today&rsquo;s Trio</p>
+                <span className="text-[10px] font-bold text-white/40">Fresh at the day-turn · claims draw from this week&rsquo;s quest pool</span>
+                <span className="ml-auto text-[10px] font-black uppercase tracking-wide text-amber-300/80 shrink-0">
+                  {daily.marksTotal.toLocaleString("en-US")} marks banked
+                </span>
+              </div>
+              {daily.quests.map((q) => {
+                const meta = QUEST_META[q.baseKey];
+                const dest = inWorld ? questDestination(q.baseKey) : null;
+                const Icon = meta?.icon ?? Target;
+                const pct = q.target > 0 ? Math.min(100, (q.progress / q.target) * 100) : 0;
+                const canClaim = q.completed && !q.claimed;
+                const poolDry = canClaim && daily.pool.remainingVb < q.reward;
+                return (
+                  <div key={q.key} data-testid={`world-daily-quest-${q.key}`} className={`rounded-2xl border p-3.5 flex items-center gap-3 transition-colors ${
+                    canClaim ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2]" : "border-primary bg-primary/[0.16]") : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
+                  }`}>
+                    <div className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 ${
+                      q.claimed ? "bg-emerald-500/[0.10] border-emerald-500/25 text-emerald-400"
+                      : canClaim ? "bg-primary/[0.12] border-primary/30 text-primary"
+                      : "bg-white/[0.04] border-white/[0.08] text-white/50"
+                    }`}>
+                      {q.claimed ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[13px] font-black text-white truncate">{q.name}</p>
+                        <span className="text-[11px] font-bold text-amber-300/90 shrink-0">{q.reward} VB + {q.marks} marks</span>
+                      </div>
+                      <p className="text-[11px] text-white/45 truncate">{meta ? t(meta.descKey) : ""}</p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${q.completed ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : "bg-gradient-to-r from-amber-500 to-primary"}`}
+                            style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[10px] font-bold text-white/45 shrink-0">{t("retention.quests_progress", { progress: q.progress, target: q.target })}</span>
+                      </div>
+                      {poolDry && (
+                        <p className="mt-1 text-[10px] font-bold text-amber-300/80">This week&rsquo;s quest pool is spent — the finish stands, its VB waits for next week.</p>
+                      )}
+                    </div>
+                    {q.claimed ? (
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wide shrink-0">{t("retention.quests_claimed")}</span>
+                    ) : canClaim ? (
+                      <button type="button" onClick={() => void claimDaily(q.key)} disabled={claimingDaily === q.key}
+                        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60">
+                        {claimingDaily === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}
+                      </button>
+                    ) : meta ? (
+                      inWorld && dest?.kind === "station" && onGoToStation ? (
+                        <button type="button" data-testid={`world-daily-go-${q.key}`}
+                          onClick={() => onGoToStation(dest.stationId)}
+                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+                          {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
+                      ) : inWorld ? (
+                        <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer">
+                          <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                            <ArrowUpRight className="h-4 w-4" />
+                          </span>
+                        </a>
+                      ) : (
+                        <Link href={meta.href}>
+                          <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                            <ArrowUpRight className="h-4 w-4" />
+                          </span>
+                        </Link>
+                      )
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {data.quests.map((q) => {
             const meta = QUEST_META[q.key];
             const dest = inWorld ? questDestination(q.key) : null;

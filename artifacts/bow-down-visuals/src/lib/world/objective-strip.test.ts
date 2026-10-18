@@ -28,6 +28,7 @@ import {
   mergeSlates,
   nextObjective,
   nextStreakStep,
+  normalizeDailyQuestsStatus,
   normalizeQuestsStatus,
   normalizeStreakStatus,
   normalizeWorldEventSlate,
@@ -174,6 +175,94 @@ describe("quest slot — the next objective, from the retention quest rail", () 
     expect(nextObjective(normalizeQuestsStatus({ ...QUESTS, enabled: false })!).kind).toBe("off");
     expect(nextObjective(normalizeQuestsStatus({ enabled: true, weekStart: "", quests: [] })!).kind).toBe("none");
     expect(destinationLabel(null)).toBe("the Treasury");
+  });
+});
+
+/* ─── DAILY TRIO in the quest slot (Ring 4) ──────────────────────── */
+
+const DAILY = {
+  enabled: true,
+  daily: {
+    date: "2026-10-18",
+    quests: [
+      { key: "daily-first-frame", name: "First Frame", baseKey: "make-thumbnail", target: 1, rewardVb: 10, marks: 5, progress: 0, completed: false, claimed: false },
+      { key: "daily-song-spark", name: "Song Spark", baseKey: "generate-song", target: 1, rewardVb: 10, marks: 5, progress: 0, completed: false, claimed: false },
+      { key: "daily-ship-it", name: "Ship It", baseKey: "export-video", target: 1, rewardVb: 10, marks: 5, progress: 0, completed: false, claimed: false },
+    ],
+    marksTotal: 15,
+    pool: { capVb: 300, spentVb: 40, remainingVb: 260 },
+  },
+};
+
+describe("quest slot — the Daily Trio stands in front (Ring 4)", () => {
+  it("normalizes the trio payload and refuses junk", () => {
+    const s = normalizeDailyQuestsStatus(DAILY);
+    expect(s?.quests).toHaveLength(3);
+    expect(s?.quests[0]).toMatchObject({ key: "daily-first-frame", reward: 10, marks: 5, baseKey: "make-thumbnail" });
+    expect(s?.marksTotal).toBe(15);
+    expect(s?.pool.remainingVb).toBe(260);
+    expect(normalizeDailyQuestsStatus(null)).toBeNull();
+    expect(normalizeDailyQuestsStatus({ daily: { quests: "nope" } })).toBeNull();
+    expect(normalizeDailyQuestsStatus({ daily: { quests: [{ key: "x" }] } })).toBeNull();
+  });
+
+  it("an active daily beats the weekly pick — today's step is the urgent one", () => {
+    const weekly = normalizeQuestsStatus(QUESTS)!;
+    const next = nextObjective(weekly, normalizeDailyQuestsStatus(DAILY));
+    expect(next.kind).toBe("active");
+    if (next.kind === "active") {
+      expect(next.quest.key).toBe("daily-first-frame");
+      expect(next.title).toBe("First Frame");
+      /* The destination resolves from the BASE quest's desk. */
+      expect(next.destination).toMatchObject({ kind: "station", stationId: "thumbnail-desk" });
+    }
+  });
+
+  it("a claimable daily beats everything — its VB expires at the day-turn", () => {
+    const payload = {
+      ...DAILY,
+      daily: {
+        ...DAILY.daily,
+        quests: DAILY.daily.quests.map((q) =>
+          q.key === "daily-song-spark" ? { ...q, progress: 1, completed: true } : q,
+        ),
+      },
+    };
+    /* The weekly slate ALSO has a claimable quest standing. */
+    const weeklyPayload = {
+      ...QUESTS,
+      quests: QUESTS.quests.map((q) =>
+        q.key === "generate-song" ? { ...q, progress: 1, completed: true } : q,
+      ),
+    };
+    const next = nextObjective(normalizeQuestsStatus(weeklyPayload)!, normalizeDailyQuestsStatus(payload));
+    expect(next.kind).toBe("claimable");
+    if (next.kind === "claimable") {
+      expect(next.quest.key).toBe("daily-song-spark");
+      expect(next.title).toBe("Song Spark");
+    }
+  });
+
+  it("a fully-claimed trio falls through to the week's own next thing", () => {
+    const payload = {
+      ...DAILY,
+      daily: {
+        ...DAILY.daily,
+        quests: DAILY.daily.quests.map((q) => ({ ...q, progress: q.target, completed: true, claimed: true })),
+      },
+    };
+    const next = nextObjective(normalizeQuestsStatus(QUESTS)!, normalizeDailyQuestsStatus(payload));
+    expect(next.kind).toBe("active");
+    if (next.kind === "active") expect(next.quest.key).toBe("make-thumbnail");
+  });
+
+  it("no trio (null) or a switched-off trio leaves the weekly pick untouched", () => {
+    const weekly = normalizeQuestsStatus(QUESTS)!;
+    expect(nextObjective(weekly, null).kind).toBe("active");
+    const off = normalizeDailyQuestsStatus({ ...DAILY, enabled: false });
+    const next = nextObjective(weekly, off);
+    expect(next.kind).toBe("active");
+    if (next.kind === "active") expect(next.quest.key).toBe("make-thumbnail");
   });
 });
 
@@ -467,6 +556,8 @@ describe("guest honest-states — look and listen only, said out loud", () => {
     expect(stripSrc).toContain('data-testid="world-objective-guest-pitch"');
     expect(stripSrc).toContain('fetch("/api/retention/quests"');
     expect(stripSrc).toContain('fetch("/api/retention/streak"');
+    /* Ring 4: the trio read rides the same member-only load. */
+    expect(stripSrc).toContain('fetch("/api/retention/quests/daily"');
     expect(stripSrc).toContain("fetchWorldEvents()");
     expect(stripSrc).toContain("if (isGuest) return;");
     // The strip names the next thing; it never claims anything.

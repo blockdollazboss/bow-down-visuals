@@ -319,6 +319,7 @@ import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
 import worldEventsRouter from "./world-events";
 import worldTutorialRouter from "./world-tutorial";
+import dailyQuestsRouter from "./daily-quests";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
 import discoveryRouter from "./discovery";
@@ -631,6 +632,7 @@ router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 H
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
 router.use(worldEventsRouter);                // /api/world/events (World Events — the palace calendar, 0145)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
+router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Daily Quest Trio, 0150)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)
 router.use("/discovery", discoveryRouter);  // /api/discovery/*
