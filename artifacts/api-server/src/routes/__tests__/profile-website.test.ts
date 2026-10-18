@@ -361,6 +361,26 @@ describe("#2 layout model", () => {
     expect(json.maxBlocks).toBeGreaterThanOrEqual(json.blockTypes.length);
   });
 
+  it("serves the untouched default layout to a GUEST with the memberships block visible", async () => {
+    /* The Oct 17 flag, pinned: a guest reported no Memberships section
+       on a creator profile. The guest read is THIS route with no
+       credentials at all — for an untouched profile it must carry the
+       memberships block, visible, in its Grand Stage slot (right after
+       the store), or the block can never mount for a visitor. (Whether
+       the section then renders tiers is the tiers read's business —
+       an empty club hides by design; a missing block is a defect.) */
+    const { status, json } = await call("GET", "/creator-profiles/owner-creator/layout");
+    expect(status).toBe(200);
+    expect(json.isDefault).toBe(true);
+    const types = json.layout.map((b: any) => b.type);
+    const at = types.indexOf("memberships");
+    expect(at).toBeGreaterThan(-1);
+    expect(types[at - 1]).toBe("store");
+    const memberships = json.layout.find((b: any) => b.type === "memberships");
+    expect(memberships.visible).toBe(true);
+    expect(memberships.title).toBe("Memberships");
+  });
+
   it("a profile with no saved sections gets the Grand Stage order over its starter sections", async () => {
     const { json } = await call("GET", "/creator-profiles/me/layout", { user: FAN_USER });
     expect(json.layout.map((b: any) => b.type)).toEqual([
