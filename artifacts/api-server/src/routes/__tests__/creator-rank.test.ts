@@ -63,6 +63,7 @@ CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL);
 CREATE TABLE live_streams (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 CREATE TABLE tip_jar_tips (id uuid PRIMARY KEY, page_user_id uuid NOT NULL, status text NOT NULL DEFAULT 'pending_payment');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, creator_credited_at timestamptz);
+CREATE TABLE world_stage_tips (id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL, amount_vb integer NOT NULL, room_id text NOT NULL, idempotency_key text NOT NULL, creator_credited_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE level_celebrations (user_id uuid NOT NULL, level integer NOT NULL, celebrated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (user_id, level));
 CREATE TABLE retention_prefs (
   user_id uuid PRIMARY KEY,
@@ -256,6 +257,48 @@ describe("GET /retention/rank", () => {
       streamsHosted: 1,
     });
     expect(json.rank.businessResults).toBe(3);
+  });
+
+  it("world stage tips feed the SAME tipsReceived source — credited ones only", async () => {
+    const db = testState.db;
+    /* 3 stage tips whose credit landed on the caller. */
+    for (let i = 0; i < 3; i++) {
+      await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, room_id, idempotency_key, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 500, 'throne-hall', ${`k-stage-${i}`}, now())`);
+    }
+    /* An in-flight stage tip (row stands, credit not yet landed) is not a received tip. */
+    await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, room_id, idempotency_key, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 500, 'throne-hall', 'k-stage-inflight', NULL)`);
+    /* Stage tips that landed on someone else never count. */
+    for (let i = 0; i < 2; i++) {
+      await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, room_id, idempotency_key, creator_credited_at) VALUES (${randomUUID()}, ${USER}, ${OTHER}, 500, 'throne-hall', ${`k-stage-other-${i}`}, now())`);
+    }
+    /* The two older sources still count in the same union. */
+    await db.execute(sql`INSERT INTO tip_jar_tips (id, page_user_id, status) VALUES (${randomUUID()}, ${USER}, 'paid')`);
+    await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, creator_credited_at) VALUES (${randomUUID()}, ${USER}, now())`);
+
+    const { status, json } = await get("/retention/rank");
+    expect(status).toBe(200);
+    /* 3 stage + 1 jar + 1 stream = 5 landed tip events, 5 pts each. */
+    expect(json.rank.counts.tipsReceived).toBe(5);
+    expect(json.rank.breakdown.tipsReceived).toBe(25);
+    /* Those 25 points are the creator's whole record: exactly the ★2 line. */
+    expect(json.rank.points).toBe(25);
+    expect(json.rank.stars).toBe(2);
+  });
+
+  it("the 100-point tips cap is shared across all three tip sources", async () => {
+    const db = testState.db;
+    /* 15 credited stage tips + 10 credited stream tips = 25 landed
+       events = 125 raw points — the one source cap stops it at 100.
+       Stage tips get no second helping of their own. */
+    for (let i = 0; i < 15; i++) {
+      await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, room_id, idempotency_key, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 100, 'music-hall', ${`k-cap-stage-${i}`}, now())`);
+    }
+    for (let i = 0; i < 10; i++) {
+      await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, creator_credited_at) VALUES (${randomUUID()}, ${USER}, now())`);
+    }
+    const { json } = await get("/retention/rank");
+    expect(json.rank.counts.tipsReceived).toBe(25);
+    expect(json.rank.breakdown.tipsReceived).toBe(100);
   });
 });
 

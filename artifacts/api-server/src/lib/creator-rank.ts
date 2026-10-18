@@ -18,7 +18,8 @@
      completed exports     export_jobs.state = 'done'                        5     150
      followers             follows (rows on the creator's profiles)          1     200
      streams hosted        live_streams rows for the user                   10     100
-     tips received         tip_jar_tips paid + live_stream_tips credited     5     100
+     tips received         tip_jar_tips paid + live_stream_tips credited
+                           + world_stage_tips credited                       5     100
      store/shop sales      store_orders completed + shop_events 'sale'      20     400
      memberships sold      fan_members paid joins (stripe session set)      25     500
      ────────────────────  max attainable points: 2,050
@@ -295,6 +296,8 @@ export async function countRankSources(userId: string): Promise<RankCounts> {
          WHERE page_user_id = ${userId} AND status = 'paid') AS jar_tips,
       (SELECT COUNT(*)::int FROM live_stream_tips
          WHERE creator_user_id = ${userId} AND creator_credited_at IS NOT NULL) AS stream_tips,
+      (SELECT COUNT(*)::int FROM world_stage_tips
+         WHERE to_user_id = ${userId} AND creator_credited_at IS NOT NULL) AS stage_tips,
       (SELECT COUNT(*)::int FROM store_orders o
          JOIN creator_profiles cp ON cp.id = o.profile_id
          WHERE cp.user_id = ${userId} AND o.status = 'completed') AS store_sales,
@@ -312,7 +315,7 @@ export async function countRankSources(userId: string): Promise<RankCounts> {
     exports: n(row.exports_done),
     followers: n(row.followers),
     streamsHosted: n(row.streams_hosted),
-    tipsReceived: n(row.jar_tips) + n(row.stream_tips),
+    tipsReceived: n(row.jar_tips) + n(row.stream_tips) + n(row.stage_tips),
     sales: n(row.store_sales) + n(row.shop_sales),
     membershipsSold: n(row.memberships_sold),
   };
