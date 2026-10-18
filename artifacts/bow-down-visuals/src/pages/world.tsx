@@ -2284,7 +2284,7 @@ export default function WorldPage() {
         {padConnected && status === "inside" && (
           <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
             <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, A steps voice (off · proximity · lobby · deafen), Y switches view, LB opens the door you&rsquo;re standing at, D-pad and face buttons perform the actions below.
+            Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB opens the door you&rsquo;re standing at, D-pad and face buttons perform the actions below.
           </p>
         )}
         {/* The action bar: what your figure can DO, seen by the
@@ -2537,6 +2537,21 @@ export default function WorldPage() {
                   </>
                 )}
               </>
+            )}
+            {isGuest && status === "inside" && (
+              /* Guest honesty (access lockdown Lane 3, AUDIT §3.4): voice
+                 enforcement is already total — guests never see the voice
+                 controls above — but nothing explained that voice exists
+                 and is members-only. This disabled-looking chip sits in
+                 the voice row's place and links to sign-in. */
+              <Link
+                href="/login?next=/world"
+                data-testid="world-guest-voice-chip"
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold opacity-70 transition ${isLight ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36]" : "border-white/20 bg-white/5 text-white/60"}`}
+              >
+                <MicOff className="h-4 w-4" />
+                Voice is for members — sign in to talk
+              </Link>
             )}
             {xrSupported ? (
               <button type="button" onClick={enterVr} className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-4 py-2 text-sm font-bold text-[#e8c86a] transition hover:bg-[#d4af37]/20">

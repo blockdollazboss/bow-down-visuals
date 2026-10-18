@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -44,11 +45,16 @@ function SourceCard({ title, source, detail }: { title: string; source: SourceOk
 }
 
 export default function Earnings() {
-  const { getAccessToken } = useAuth();
+  const { user, loading: authLoading, getAccessToken } = useAuth();
   const [data, setData] = useState<EarningsResponse | null>(null);
   const [failed, setFailed] = useState(false);
 
+  /* Guest honesty (access lockdown Lane 3): /api/earnings is
+     member-only, so a signed-out visit used to fire a doomed fetch and
+     land on the failure card below. Signed-out visitors get a sign-in
+     pitch instead, and the fetch never fires without a session. */
   useEffect(() => {
+    if (authLoading || !user) return;
     (async () => {
       try {
         const token = await getAccessToken();
@@ -63,8 +69,24 @@ export default function Earnings() {
         setFailed(true);
       }
     })();
-  }, [getAccessToken]);
+  }, [getAccessToken, user, authLoading]);
 
+  if (!authLoading && !user) {
+    return (
+      <div className="mx-auto max-w-3xl p-6" data-testid="earnings-signin">
+        <h1 className="text-2xl font-bold">Earnings</h1>
+        <p className="mt-4 text-muted-foreground">
+          Sign in to see your earnings — sales, memberships, tips and brand deals, all in one picture.
+        </p>
+        <Link
+          href="/login?next=/earnings"
+          className="mt-4 inline-block rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+        >
+          Sign in to view earnings
+        </Link>
+      </div>
+    );
+  }
   if (failed) {
     return (
       <div className="mx-auto max-w-3xl p-6">
