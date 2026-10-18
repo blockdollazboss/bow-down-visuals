@@ -44,7 +44,7 @@ export default function BrandingKit() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="bg-black text-white">
 
       {/* Hero */}
       <div className="relative mx-auto max-w-5xl px-4 pt-12 pb-6 text-center">

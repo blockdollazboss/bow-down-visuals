@@ -520,7 +520,7 @@ export default function BrandingShop() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="bg-black text-white">
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10">
         {orderSuccess && !cartOpen && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">

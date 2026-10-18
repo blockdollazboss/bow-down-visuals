@@ -593,7 +593,6 @@ function AppShell() {
           <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
           <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
           <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
-          <Route path="/branding-kit"><BrandingKit /></Route>
           <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality" /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
           <Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>
@@ -751,6 +750,7 @@ function AppShell() {
                 <Route path="/promote"><Promote /></Route>
                 <Route path="/coach"><MonetizationCoach /></Route>
                 <Route path="/academy"><CreatorAcademy /></Route>
+                <Route path="/branding-kit"><BrandingKit /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>

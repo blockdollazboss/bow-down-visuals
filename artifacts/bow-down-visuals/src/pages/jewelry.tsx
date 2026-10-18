@@ -287,7 +287,7 @@ export default function JewelryStudio() {
     }`;
 
   return (
-    <div className={`${isLight ? "min-h-screen text-[#2A1E07]" : "min-h-screen bg-black text-zinc-100"}`}>
+    <div className={`${isLight ? "text-[#2A1E07]" : "bg-black text-zinc-100"}`}>
       {/* Header */}
       <div className={`${isLight ? "border-b border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-b border-[#C9A84C]/20 bg-gradient-to-b from-[#171208]/40 to-black"} px-4 py-8 text-center`}>
         <div className="mx-auto max-w-4xl">
