@@ -30,6 +30,7 @@ import {
   dailyQuestProgressTable,
   royalCourtTable,
   shopsTable,
+  worldEventsTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
 import { dailyQuestDef } from "../lib/daily-quests";
@@ -653,6 +654,23 @@ export interface WorldCreatorRoomFrontRowMember {
   avatarUrl: string | null;
 }
 
+/** A room's office hours (UPGRADE-PROGRAM 3.7): the current or next
+ *  booked session in this room, off the palace calendar
+ *  (world_events, kind "office_hours"). `state` is the SCHEDULED
+ *  window's truth — "in-session" when now falls inside
+ *  [startsAt, endsAt), else "upcoming". It names the booking, never
+ *  the host's body: whether the host is actually standing in the
+ *  room is the presence layer's read (occupantCount and the room's
+ *  live roster), and nothing here claims it. */
+export interface WorldCreatorRoomOfficeHours {
+  id: string;
+  title: string;
+  note: string | null;
+  startsAt: string;
+  endsAt: string;
+  state: "in-session" | "upcoming";
+}
+
 export interface WorldCreatorRoomDetail {
   roomId: string;
   slug: string;
@@ -676,6 +694,7 @@ export interface WorldCreatorRoomDetail {
    *  choice — the band default when nothing is picked, null when
    *  the room is unmeasured and nothing is stored. */
   dressing: WorldRoomDressingDto | null;
+  officeHours: WorldCreatorRoomOfficeHours | null;
 }
 
 type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
@@ -910,6 +929,41 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
      * panels read it from here, nowhere else. Hoisted: the
      * dressing resolution below reads the same stars. */
     const evolution = await resolveCreatorRoomEvolution(profile.userId);
+    /* Office hours (3.7): this room's current-or-next session off
+     * the palace calendar. The state is computed from the booked
+     * window itself, so the marker never waits on — or contradicts —
+     * the scheduler tick's status flip. */
+    const officeNow = new Date();
+    const officeRows = await db
+      .select()
+      .from(worldEventsTable)
+      .where(
+        and(
+          eq(worldEventsTable.roomId, creatorRoomIdForSlug(profile.slug)),
+          eq(worldEventsTable.kind, "office_hours"),
+          inArray(worldEventsTable.status, ["scheduled", "live"]),
+        ),
+      )
+      .orderBy(asc(worldEventsTable.startsAt));
+    const officeRow = officeRows.find(
+      (r) => new Date(r.endsAt).getTime() > officeNow.getTime(),
+    );
+    const officeHours: WorldCreatorRoomOfficeHours | null = officeRow
+      ? {
+          id: officeRow.id,
+          title: officeRow.title,
+          note:
+            typeof (officeRow.payload as Record<string, unknown> | null)?.["note"] === "string"
+              ? ((officeRow.payload as Record<string, unknown>)["note"] as string)
+              : null,
+          startsAt: new Date(officeRow.startsAt).toISOString(),
+          endsAt: new Date(officeRow.endsAt).toISOString(),
+          state:
+            new Date(officeRow.startsAt).getTime() <= officeNow.getTime()
+              ? "in-session"
+              : "upcoming",
+        }
+      : null;
     const detail: WorldCreatorRoomDetail = {
       roomId: creatorRoomIdForSlug(profile.slug),
       slug: profile.slug,
@@ -934,6 +988,7 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
         themeConfig: profile.themeConfig,
         earnedStars: evolution?.stars ?? null,
       }),
+      officeHours,
     };
     res.json(await refreshSupabaseStorageUrlsDeep({ room: detail }));
   } catch (err) {

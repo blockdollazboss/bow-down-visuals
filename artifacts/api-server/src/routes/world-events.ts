@@ -15,8 +15,11 @@
  * members (the King's court — server truth via isKingFrontRowMember)
  * or an admin may hold one; a listening_party books the Music Hall
  * and any member may hold one; a drop spectacle may land in any
- * palace room and is admin-only. One room, one event at a time:
- * overlapping bookings in the same room conflict (409).
+ * palace room and is admin-only; office_hours anchor to the host's
+ * OWN creator room ("creator:<their slug>", read off their profile
+ * server-side) and the profile must be public — a private profile's
+ * room isn't open. One room, one event at a time: overlapping
+ * bookings in the same room conflict (409).
  *
  * The events themselves are RUN by the scheduler tick in
  * lib/world-events (started from routes/world.ts) — this file only
@@ -30,7 +33,11 @@ import { db, worldEventsTable, creatorProfilesTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
-import { PALACE_ROOM_DEFS } from "../lib/world-palace";
+import {
+  PALACE_ROOM_DEFS,
+  creatorRoomIdForSlug,
+  creatorSlugFromRoomId,
+} from "../lib/world-palace";
 import {
   bookingRuleFor,
   isKingFrontRowMember,
@@ -48,7 +55,7 @@ const PALACE_ROOM_IDS = new Set(PALACE_ROOM_DEFS.map((r) => r.roomId));
 const ROOM_NAMES = new Map(PALACE_ROOM_DEFS.map((r) => [r.roomId, r.name]));
 
 const createSchema = z.object({
-  kind: z.enum(["stage_show", "listening_party", "drop"]),
+  kind: z.enum(["stage_show", "listening_party", "drop", "office_hours"]),
   roomId: z.string().min(1).max(64),
   title: z.string().trim().min(1).max(120),
   startsAt: z.string().datetime(),
@@ -93,17 +100,59 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
     const endsAt = new Date(parsed.data.endsAt);
     const isAdmin = isWorldAdminEmail(req.userEmail);
 
-    if (!PALACE_ROOM_IDS.has(roomId)) {
-      res.status(400).json({ error: "UNKNOWN_ROOM", message: "That room isn't in the palace." });
-      return;
-    }
     const rule = bookingRuleFor(kind);
-    if (rule.requiredRoomId && rule.requiredRoomId !== roomId) {
-      res.status(400).json({
-        error: "ROOM_MISMATCH",
-        message: `That kind of event belongs in ${ROOM_NAMES.get(rule.requiredRoomId) ?? rule.requiredRoomId}.`,
-      });
-      return;
+    if (rule.roomKind === "own-creator-room") {
+      /* Office hours: the room is the CALLER'S creator room. The
+       * slug is read off their profile server-side — submitting a
+       * room id is never proof it's yours. */
+      if (!creatorSlugFromRoomId(roomId)) {
+        res.status(400).json({
+          error: "UNKNOWN_ROOM",
+          message: "Office hours are held in a creator room — that room id isn't one.",
+        });
+        return;
+      }
+      const [profile] = await db
+        .select({
+          slug: creatorProfilesTable.slug,
+          isPublic: creatorProfilesTable.isPublic,
+        })
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.userId, userId))
+        .limit(1);
+      if (!profile) {
+        res.status(403).json({
+          error: "NO_CREATOR_ROOM",
+          message: "Office hours live in your Creator Room — set up your creator profile first.",
+        });
+        return;
+      }
+      if (roomId !== creatorRoomIdForSlug(profile.slug)) {
+        res.status(403).json({
+          error: "NOT_YOUR_ROOM",
+          message: "Office hours are held in your own room — that room belongs to another creator.",
+        });
+        return;
+      }
+      if (!profile.isPublic) {
+        res.status(400).json({
+          error: "ROOM_NOT_OPEN",
+          message: "Your room isn't open while your profile is private — make it public to hold office hours.",
+        });
+        return;
+      }
+    } else {
+      if (!PALACE_ROOM_IDS.has(roomId)) {
+        res.status(400).json({ error: "UNKNOWN_ROOM", message: "That room isn't in the palace." });
+        return;
+      }
+      if (rule.requiredRoomId && rule.requiredRoomId !== roomId) {
+        res.status(400).json({
+          error: "ROOM_MISMATCH",
+          message: `That kind of event belongs in ${ROOM_NAMES.get(rule.requiredRoomId) ?? rule.requiredRoomId}.`,
+        });
+        return;
+      }
     }
     /* Privilege — the booking rules, enforced here, server-side.
      * A denial names the standing that's missing; nothing about the
@@ -194,7 +243,7 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
 router.get("/world/events", publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const roomId = typeof req.query["roomId"] === "string" ? req.query["roomId"] : null;
-    if (roomId && !PALACE_ROOM_IDS.has(roomId)) {
+    if (roomId && !PALACE_ROOM_IDS.has(roomId) && !creatorSlugFromRoomId(roomId)) {
       res.status(400).json({ error: "UNKNOWN_ROOM", message: "That room isn't in the palace." });
       return;
     }

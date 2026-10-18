@@ -61,6 +61,7 @@ const EVENT_KIND_LABELS: Record<string, string> = {
   listening_party: "Listening party",
   drop: "Drop",
   contest: "Contest",
+  office_hours: "Office hours",
 };
 
 export function KingdomBoardBlocks({
@@ -168,10 +169,14 @@ export function KingdomBoardBlocks({
     [restEvents, directory],
   );
 
-  const roomNameFor = (roomId: string): string =>
-    directory.find((r) => r.id === roomId)?.name ??
-    PALACE_LAYOUT[roomId]?.name ??
-    "the palace";
+  const roomNameFor = (roomId: string, hostName?: string): string =>
+    /* A creator room ("creator:<slug>") is named for its host —
+     * it stands in no palace directory, by design. */
+    roomId.startsWith("creator:")
+      ? `${hostName?.trim() || "Creator"}'s Room`
+      : (directory.find((r) => r.id === roomId)?.name ??
+        PALACE_LAYOUT[roomId]?.name ??
+        "the palace");
 
   const standings = board ? kingdomStandings(board) : null;
 
@@ -274,7 +279,7 @@ export function KingdomBoardBlocks({
             <NativeEmptyState
               isLight={isLight}
               message="Nothing on today's slate at the palace."
-              detail="Booked shows, listening parties and drops will read here on their day."
+              detail="Booked shows, listening parties, office hours and drops will read here on their day."
             />
           ) : (
             today.map((e) => (
@@ -282,7 +287,7 @@ export function KingdomBoardBlocks({
                 key={e.id}
                 isLight={isLight}
                 title={e.title}
-                detail={`${EVENT_KIND_LABELS[e.kind] ?? "Palace event"} · ${roomNameFor(e.roomId)}${e.hostName ? ` · hosted by ${e.hostName}` : ""}`}
+                detail={`${EVENT_KIND_LABELS[e.kind] ?? "Palace event"} · ${roomNameFor(e.roomId, e.hostName)}${e.hostName ? ` · hosted by ${e.hostName}` : ""}`}
                 meta={
                   e.status === "live" ? "LIVE now" : formatEventTime(e.startsAt)
                 }

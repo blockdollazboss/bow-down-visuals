@@ -26,6 +26,14 @@ import { sql } from "drizzle-orm";
  *                       world_contest_winners. A contest holds no
  *                       stage — the scheduler only flips its status
  *                       with the window (see lib/world-events).
+ *  - office_hours     — a creator holds court in their OWN room
+ *                       (migration 0159, UPGRADE-PROGRAM 3.7):
+ *                       room_id is the host's creator room id
+ *                       ("creator:<slug>"), payload { note? } is an
+ *                       optional agenda line. Nothing takes the room
+ *                       over at the hour — the scheduler only flips
+ *                       the status; the session is the room standing
+ *                       open under its host's name on the calendar.
  *
  * room_id is a palace room id ("world:kings-hall", "world:music-hall",
  * …) — plain text, because rooms are socket state, not rows; the
@@ -38,7 +46,7 @@ import { sql } from "drizzle-orm";
  *   scheduled → live → done, with cancelled reachable from scheduled
  *   or live (host or admin). The tick is the only writer of live/done.
  */
-export const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest"] as const;
+export const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest", "office_hours"] as const;
 export type WorldEventKind = (typeof WORLD_EVENT_KINDS)[number];
 
 export const WORLD_EVENT_STATUSES = ["scheduled", "live", "done", "cancelled"] as const;
@@ -49,7 +57,8 @@ export type WorldEventPayload =
   | { contentRef: string } // stage_show: "live" | "video:<uuid>" | "replay:<uuid>"
   | { trackIds: string[]; playlistId?: string | null } // listening_party
   | { amountVb: number; claimCap: number } // drop
-  | { theme: string }; // contest: the theme works are entered under
+  | { theme: string } // contest: the theme works are entered under
+  | { note?: string }; // office_hours: an optional agenda line
 
 export const worldEventsTable = pgTable(
   "world_events",
@@ -70,10 +79,11 @@ export const worldEventsTable = pgTable(
     index("world_events_status_starts_idx").on(t.status, t.startsAt),
     index("world_events_host_idx").on(t.hostUserId),
     /* Migration 0145: kinds and statuses are closed sets.
-     * Migration 0158 admits 'contest' (World Contests, 2.24). */
+     * Migration 0158 admits 'contest' (World Contests, 2.24);
+     * migration 0159 admits 'office_hours' (3.7) and keeps 'contest'. */
     check(
       "world_events_kind_check",
-      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'contest')`,
+      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'contest', 'office_hours')`,
     ),
     check(
       "world_events_status_check",

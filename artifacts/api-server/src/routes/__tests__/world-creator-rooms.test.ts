@@ -30,6 +30,7 @@ const h = vi.hoisted(() => ({
     videos: [] as Array<Record<string, unknown>>,
     court: [] as Array<Record<string, unknown>>,
     shops: [] as Array<Record<string, unknown>>,
+    events: [] as Array<Record<string, unknown>>,
   },
 }));
 
@@ -48,6 +49,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
     profileVideosTable,
     royalCourtTable,
     shopsTable,
+    worldEventsTable,
   } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
@@ -84,6 +86,20 @@ vi.mock("@workspace/db", async (importOriginal) => {
     if (table === shopsTable) {
       const userId = String(params[0] ?? "");
       return state.shops.filter((s) => s["user_id"] === userId);
+    }
+    if (table === worldEventsTable) {
+      /* The office-hours read: room + kind + open statuses ride the
+       * params in order; the handler picks the first whose window
+       * hasn't ended, off startsAt order. */
+      const roomId = String(params[0] ?? "");
+      const kind = String(params[1] ?? "");
+      const statuses = params.slice(2).map(String);
+      return state.events
+        .filter(
+          (e) =>
+            e["roomId"] === roomId && e["kind"] === kind && statuses.includes(String(e["status"])),
+        )
+        .sort((a, b) => String(a["startsAt"]).localeCompare(String(b["startsAt"])));
     }
     return [];
   }
@@ -237,6 +253,7 @@ beforeEach(() => {
   h.state.shops = [
     { id: "shop-1", user_id: USER_NOVA, handle: "nova-goods", name: "Nova Goods" },
   ];
+  h.state.events = [];
 });
 
 async function get(path: string) {
@@ -323,6 +340,88 @@ describe("GET /api/world/creator-rooms/:slug — one room's data", () => {
     expect(json.room.tracks).toEqual([]);
     expect(json.room.featuredTrack).toBeNull();
     expect(json.room.featuredVideo).toBeNull();
+  });
+});
+
+describe("office hours on the room's data (UPGRADE-PROGRAM 3.7)", () => {
+  const HOUR = 3600_000;
+  function officeRow(over: Record<string, unknown> = {}): Record<string, unknown> {
+    const start = Date.now() + 2 * HOUR;
+    return {
+      id: "evt-oh-1",
+      kind: "office_hours",
+      roomId: "creator:nova-reyes",
+      hostUserId: USER_NOVA,
+      title: "Office hours — ask me anything",
+      startsAt: new Date(start).toISOString(),
+      endsAt: new Date(start + HOUR).toISOString(),
+      payload: { note: "Mixing questions welcome" },
+      status: "scheduled",
+      createdAt: new Date(Date.now() - HOUR).toISOString(),
+      ...over,
+    };
+  }
+
+  it("no booked session reads as an honest null", async () => {
+    const { status, json } = await get("/world/creator-rooms/nova-reyes");
+    expect(status).toBe(200);
+    expect(json.room.officeHours).toBeNull();
+  });
+
+  it("an upcoming session rides the DTO with its agenda line, state from the window", async () => {
+    h.state.events = [officeRow()];
+    const { json } = await get("/world/creator-rooms/nova-reyes");
+    expect(json.room.officeHours).toMatchObject({
+      id: "evt-oh-1",
+      title: "Office hours — ask me anything",
+      note: "Mixing questions welcome",
+      state: "upcoming",
+    });
+  });
+
+  it("a session whose window holds the clock reads in-session", async () => {
+    const now = Date.now();
+    h.state.events = [
+      officeRow({
+        status: "live",
+        startsAt: new Date(now - 30 * 60_000).toISOString(),
+        endsAt: new Date(now + 30 * 60_000).toISOString(),
+      }),
+    ];
+    const { json } = await get("/world/creator-rooms/nova-reyes");
+    expect(json.room.officeHours.state).toBe("in-session");
+  });
+
+  it("ended, cancelled, other-room and other-kind rows never name this room's hours", async () => {
+    const now = Date.now();
+    h.state.events = [
+      officeRow({
+        id: "evt-ended",
+        startsAt: new Date(now - 3 * HOUR).toISOString(),
+        endsAt: new Date(now - 2 * HOUR).toISOString(),
+        status: "live",
+      }),
+      officeRow({ id: "evt-cancelled", status: "cancelled" }),
+      officeRow({ id: "evt-other-room", roomId: "creator:fan-favorite" }),
+      officeRow({ id: "evt-other-kind", kind: "drop" }),
+    ];
+    const { json } = await get("/world/creator-rooms/nova-reyes");
+    expect(json.room.officeHours).toBeNull();
+  });
+
+  it("the soonest open session wins when two stand", async () => {
+    const now = Date.now();
+    h.state.events = [
+      officeRow({
+        id: "evt-later",
+        title: "Later hours",
+        startsAt: new Date(now + 5 * HOUR).toISOString(),
+        endsAt: new Date(now + 6 * HOUR).toISOString(),
+      }),
+      officeRow({ id: "evt-sooner", title: "Sooner hours" }),
+    ];
+    const { json } = await get("/world/creator-rooms/nova-reyes");
+    expect(json.room.officeHours.id).toBe("evt-sooner");
   });
 });
 

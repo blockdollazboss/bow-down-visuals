@@ -1774,6 +1774,7 @@ export default function StationPanel(props: StationPanelProps) {
                 isGuest={isGuest}
                 isOwnRoom={(props.mySlug ?? null) === slug}
                 onDressingChanged={props.onRoomDressingChanged}
+                mySlug={props.mySlug ?? null}
                 shelfPlayer={shelfPlayer}
                 onPlayTrack={props.onJukeboxAdd}
               />
