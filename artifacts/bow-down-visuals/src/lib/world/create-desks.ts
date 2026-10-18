@@ -480,19 +480,95 @@ export function buildThumbnailPayload(
   };
 }
 
-/** ai-audio.tsx's beat body (its AiBeatTab generate). */
+/* ─── The beat bench's numbers — ONE truth, the website's own ─────
+   ai-audio.tsx's AiBeatTab is the site's beat surface: BPM is a
+   number input clamped to 60–200 on change, the key is a select
+   over the twelve major keys, the length is a select over four
+   fixed durations, and the title is free text the endpoint caps
+   at 200 chars (its zod beatTitle max). The Audio Desk's beat
+   bench speaks these exact ranges, so a number chosen in the
+   World is the number the server runs — never a value the server
+   silently clamps or rejects after the fact. The endpoint's own
+   clamps (beat.ts: bpm 60–200 into the prompt, length 10–180 s)
+   sit inside/behind these, so anything built here is in range
+   before it is posted. */
+export const BEAT_BPM_MIN = 60;
+export const BEAT_BPM_MAX = 200;
+export const BEAT_BPM_DEFAULT = 140;
+export const BEAT_KEYS = [
+  "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+] as const;
+export const BEAT_LENGTHS = [
+  { value: 30, label: "30 sec" },
+  { value: 60, label: "1 min" },
+  { value: 120, label: "2 min" },
+  { value: 180, label: "3 min" },
+] as const;
+export const BEAT_LENGTH_DEFAULT = 60;
+export const BEAT_TITLE_MAX = 200;
+
+/** The page's BPM clamp, shared: a finite number rounds into
+ *  60–200; anything else falls back to the 140 default (the
+ *  endpoint's clampBpm bounds, the page's `|| 140`). */
+export function clampBeatBpm(raw: unknown): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return BEAT_BPM_DEFAULT;
+  return Math.min(BEAT_BPM_MAX, Math.max(BEAT_BPM_MIN, Math.round(n)));
+}
+
+/** The desk's BPM text field on change: digits only (the desk
+ *  field's standing strip), then the page's clamp — the state can
+ *  never hold a number the bench would refuse to post. */
+export function beatBpmInputOf(raw: string): number {
+  return clampBeatBpm(Number(raw.replace(/[^0-9]/g, "")) || BEAT_BPM_DEFAULT);
+}
+
+/** A length is one of the page's four durations, or the default —
+ *  a length the website doesn't offer is never posted. */
+export function beatLengthOf(raw: unknown): number {
+  const n = Number(raw);
+  return (BEAT_LENGTHS as ReadonlyArray<{ value: number }>).some((d) => d.value === n)
+    ? n
+    : BEAT_LENGTH_DEFAULT;
+}
+
+/** A key is one of the page's twelve, or the default C. */
+export function beatKeyOf(raw: string | undefined): string {
+  return raw !== undefined && (BEAT_KEYS as readonly string[]).includes(raw) ? raw : "C";
+}
+
+/** ai-audio.tsx's beat body (its AiBeatTab generate), with the
+ *  numbers normalized to the ranges above: the posted payload is
+ *  the creator's chosen numbers, always in range. */
 export function buildBeatPayload(
   prompt: string,
   opts: { genre?: string; bpm?: number; musicalKey?: string; lengthSeconds?: number; title?: string } = {},
 ): Record<string, unknown> {
+  const title = opts.title?.trim().slice(0, BEAT_TITLE_MAX) || undefined;
   return {
     vibe: prompt.trim(),
     genre: opts.genre ?? "trap",
-    bpm: opts.bpm ?? 140,
-    musicalKey: opts.musicalKey ?? "C",
-    lengthSeconds: opts.lengthSeconds ?? 60,
-    beatTitle: opts.title?.trim() || undefined,
+    bpm: clampBeatBpm(opts.bpm ?? BEAT_BPM_DEFAULT),
+    musicalKey: beatKeyOf(opts.musicalKey),
+    lengthSeconds: beatLengthOf(opts.lengthSeconds ?? BEAT_LENGTH_DEFAULT),
+    beatTitle: title,
   };
+}
+
+/** The result label for a landed beat — the page's card shape:
+ *  the chosen title (or its "{{genre}} beat · {{bpm}} BPM"
+ *  default) with the maker's numbers behind it, never the bench's
+ *  silent defaults. */
+export function beatResultTitleOf(opts: {
+  title?: string;
+  genre: string;
+  bpm: number;
+  musicalKey: string;
+  lengthSeconds: number;
+}): string {
+  const meta = `${opts.genre} · ${opts.bpm} BPM · ${opts.musicalKey} · ${opts.lengthSeconds}s`;
+  const chosen = opts.title?.trim();
+  return chosen ? `${chosen} · ${meta}` : `${opts.genre} beat · ${opts.bpm} BPM · ${opts.musicalKey} · ${opts.lengthSeconds}s`;
 }
 
 /** ai-audio.tsx's SFX body (its SfxTab generate). */

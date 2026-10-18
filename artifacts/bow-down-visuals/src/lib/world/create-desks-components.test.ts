@@ -68,6 +68,25 @@ describe("2.6–2.8 audio desk contracts", () => {
     expect(audioDesk).toContain("lengthSeconds: beatLength");
     expect(audioDesk).toContain("title: beatTitle");
   });
+
+  it("stack-20 #11: the beat fields speak the website's ranges, and the result wears them", () => {
+    /* BPM runs through the shared page clamp — the raw text-field
+       math (`|| 140` with no range) is gone. */
+    expect(audioDesk).toContain("setBeatBpm(beatBpmInputOf(v))");
+    expect(audioDesk).not.toContain('label="BPM" value={String(beatBpm)} onChange={(v) => setBeatBpm(Number(v.replace(/[^0-9]/g, "")) || 140)}');
+    /* Key + length are selects over the page's own lists, sourced
+       from the shared constants — the desk's old private lists
+       (18 keys incl. minors, free-text seconds) are gone. */
+    expect(audioDesk).toContain("options={BEAT_KEYS.map((k) => ({ value: k, label: k }))}");
+    expect(audioDesk).not.toContain('"Cm", "Dm", "Em", "Fm", "Gm", "Am"');
+    expect(audioDesk).toContain("options={BEAT_LENGTHS.map((d) => ({ value: String(d.value), label: d.label }))}");
+    expect(audioDesk).not.toContain('label="Length (seconds)"');
+    /* The title is capped at the panel at the endpoint's max. */
+    expect(audioDesk).toContain("setBeatTitle(v.slice(0, BEAT_TITLE_MAX))");
+    /* The landed beat is labelled with the chosen title + numbers. */
+    expect(audioDesk).toContain("beatResultTitleOf({");
+    expect(audioDesk).not.toContain('isBeat ? "Your beat" : "Your sound effect"');
+  });
 });
 
 describe("2.9–2.11 thumbnail + cover contracts", () => {

@@ -27,6 +27,14 @@ import {
   buildRunwayClipPayload,
   buildSfxPayload,
   buildBeatPayload,
+  BEAT_KEYS,
+  BEAT_LENGTHS,
+  BEAT_TITLE_MAX,
+  beatBpmInputOf,
+  beatKeyOf,
+  beatLengthOf,
+  beatResultTitleOf,
+  clampBeatBpm,
   buildSongPayloadAdvanced,
   buildSongPayloadTurbo,
   buildSongVideoPayloadAdvanced,
@@ -220,6 +228,84 @@ describe("payload builders mirror the pages (pin b)", () => {
       durationSeconds: 3,
       category: "impacts",
     });
+  });
+
+  it("the posted beat payload carries the creator's chosen numbers exactly", () => {
+    expect(
+      buildBeatPayload("dark vibe", {
+        genre: "drill",
+        bpm: 128,
+        musicalKey: "F#",
+        lengthSeconds: 120,
+        title: "  Midnight Run  ",
+      }),
+    ).toEqual({
+      vibe: "dark vibe",
+      genre: "drill",
+      bpm: 128,
+      musicalKey: "F#",
+      lengthSeconds: 120,
+      beatTitle: "Midnight Run",
+    });
+  });
+});
+
+describe("stack-20 #11 — the beat numbers speak the website's ranges", () => {
+  it("the ranges are the AI audio page's own (AiBeatTab)", () => {
+    /* ai-audio.tsx: KEYS (12 majors), DURATIONS (30/60/120/180),
+       BPM input min 60 max 200, endpoint title cap 200. */
+    expect([...BEAT_KEYS]).toEqual(["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]);
+    expect(BEAT_LENGTHS.map((d) => d.value)).toEqual([30, 60, 120, 180]);
+    expect(BEAT_TITLE_MAX).toBe(200);
+  });
+
+  it("BPM clamps to 60–200 like the page; junk falls back to 140", () => {
+    expect(clampBeatBpm(128)).toBe(128);
+    expect(clampBeatBpm(999)).toBe(200);
+    expect(clampBeatBpm(30)).toBe(60);
+    expect(clampBeatBpm(0)).toBe(140);
+    expect(clampBeatBpm(Number.NaN)).toBe(140);
+    expect(beatBpmInputOf("128")).toBe(128);
+    expect(beatBpmInputOf("999")).toBe(200);
+    expect(beatBpmInputOf("")).toBe(140);
+    expect(beatBpmInputOf("abc")).toBe(140);
+    expect(beatBpmInputOf("12a8")).toBe(128);
+  });
+
+  it("lengths and keys the page doesn't offer are never posted", () => {
+    expect(beatLengthOf(30)).toBe(30);
+    expect(beatLengthOf(180)).toBe(180);
+    expect(beatLengthOf(45)).toBe(60);
+    expect(beatLengthOf(600)).toBe(60);
+    expect(beatKeyOf("G")).toBe("G");
+    expect(beatKeyOf("Am")).toBe("C");
+    expect(beatKeyOf(undefined)).toBe("C");
+    expect(buildBeatPayload("vibe", { bpm: 999, musicalKey: "Am", lengthSeconds: 45 })).toEqual({
+      vibe: "vibe",
+      genre: "trap",
+      bpm: 200,
+      musicalKey: "C",
+      lengthSeconds: 60,
+      beatTitle: undefined,
+    });
+  });
+
+  it("an over-long title is trimmed to the endpoint's cap, never a 400", () => {
+    const long = "x".repeat(BEAT_TITLE_MAX + 50);
+    const payload = buildBeatPayload("vibe", { title: long });
+    expect((payload.beatTitle as string).length).toBe(BEAT_TITLE_MAX);
+  });
+
+  it("the result label shows the chosen title and numbers, not the defaults", () => {
+    expect(
+      beatResultTitleOf({ title: "Midnight Run", genre: "drill", bpm: 128, musicalKey: "F#", lengthSeconds: 120 }),
+    ).toBe("Midnight Run · drill · 128 BPM · F# · 120s");
+    expect(
+      beatResultTitleOf({ genre: "drill", bpm: 128, musicalKey: "F#", lengthSeconds: 120 }),
+    ).toBe("drill beat · 128 BPM · F# · 120s");
+    expect(
+      beatResultTitleOf({ title: "   ", genre: "trap", bpm: 140, musicalKey: "C", lengthSeconds: 60 }),
+    ).toBe("trap beat · 140 BPM · C · 60s");
   });
 });
 
