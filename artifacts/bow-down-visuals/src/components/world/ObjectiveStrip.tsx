@@ -23,7 +23,9 @@ import { PALACE_LAYOUT } from "@/lib/world/palace-layout";
 import {
   fetchWorldEvents,
   type PalaceDirectoryEntry,
+  type WorldKingMomentState,
 } from "@/lib/world/world-client";
+import { kingStripLine } from "@/lib/world/king-moment";
 import {
   GUEST_SIGN_IN_HREF,
   GUEST_SPEAK_PITCH,
@@ -48,10 +50,16 @@ export function ObjectiveStrip({
   isLight,
   isGuest,
   directory,
+  kingMoment,
 }: {
   isLight: boolean;
   isGuest: boolean;
   directory: PalaceDirectoryEntry[];
+  /** The King's daily moment (Ring 3), mirrored by the page from
+   *  the world client — while its window stands in the hall, the
+   *  strip carries the king line ahead of the palace slot. Null
+   *  (or past its deadline) renders no king chip at all. */
+  kingMoment?: WorldKingMomentState | null;
 }) {
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
@@ -272,6 +280,14 @@ export function ObjectiveStrip({
             <Flame className="h-3 w-3" /> Streak
           </span>
           {streakSlot()}
+        </span>
+      )}
+      {kingStripLine(kingMoment ?? null, nowMs, isGuest) && (
+        <span className={slotCls} data-testid="world-objective-king">
+          <span className={labelCls}>
+            <Crown className="h-3 w-3" /> King
+          </span>
+          <span>{kingStripLine(kingMoment ?? null, nowMs, isGuest)}</span>
         </span>
       )}
       {slots.palace && (

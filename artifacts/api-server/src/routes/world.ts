@@ -60,6 +60,11 @@ import {
   WORLD_EVENT_TICK_MS,
   claimSpectacleDrop,
 } from "../lib/world-events";
+import {
+  KingMomentScheduler,
+  KING_MOMENT_TICK_MS,
+  createKingMomentClaimer,
+} from "../lib/world-king-moment";
 
 const router = Router();
 
@@ -1192,6 +1197,12 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
       /* Drop spectacles (3.4) pay through the existing drop rails —
        * the claimer owns the weekly budget check + grant + ledger. */
       claimWorldDrop: claimSpectacleDrop,
+      /* The King's daily moment (Ring 3): the hall's gift claims
+       * pay through the weekly quest pool — the claimer owns the
+       * window check, the pool envelope, the once-a-day ledger and
+       * the grant (lib/world-king-moment). Only the hall receives
+       * the full deps object, so only the hall can hold court. */
+      claimKingMoment: createKingMomentClaimer(),
       /* Witnessed moments (THE-GAME §5(a)): the rooms verify quest +
        * levelup intents against these rails. A failed stars read is
        * "no level on record" — the moment is refused, never guessed. */
@@ -1306,6 +1317,30 @@ export function startWorldEventScheduler(palace: WorldPalace): { stop: () => voi
   };
   run();
   const timer = setInterval(run, WORLD_EVENT_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start the King's daily moment scheduler (Ring 3, lib/
+ * world-king-moment): every KING_MOMENT_TICK_MS it fires the day's
+ * moment if the palace hasn't held it yet (herald through the
+ * announce channel + the hall's claim window opens) and keeps the
+ * hall's standing window in step with the durable king_moments
+ * row. Called once from index.ts after the WS mount — tests drive
+ * the scheduler class directly, so no interval runs under vitest.
+ * The first tick runs immediately: a restart mid-window repairs
+ * the hall's claim state from the row.
+ */
+export function startKingMomentScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new KingMomentScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[king-moment] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, KING_MOMENT_TICK_MS);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

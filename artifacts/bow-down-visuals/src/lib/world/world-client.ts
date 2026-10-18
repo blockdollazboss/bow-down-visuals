@@ -261,6 +261,27 @@ export interface WorldDropState {
   claimsLeft: number;
 }
 
+/** The King's daily moment standing in the hall (Ring 3) — the
+ *  design of `WorldKingMomentBroadcast` in the room source.
+ *  `claimed` answers for THIS client. Null when no court stands. */
+export interface WorldKingMomentState {
+  /** The palace day (UTC, YYYY-MM-DD) the moment belongs to. */
+  date: string;
+  /** When the claim window closes (ms epoch, server clock). */
+  claimDeadlineMs: number;
+  claimed: boolean;
+}
+
+/** Normalize one kingMoment payload (welcome / king.state) — an
+ *  unrecognized shape reads as "no moment", never as a guess. */
+function normalizeKingMoment(value: unknown): WorldKingMomentState | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.date !== "string" || v.date.length === 0) return null;
+  if (typeof v.claimDeadlineMs !== "number" || !Number.isFinite(v.claimDeadlineMs)) return null;
+  return { date: v.date, claimDeadlineMs: v.claimDeadlineMs, claimed: v.claimed === true };
+}
+
 export interface WorldSocketLike {
   readyState: number;
   send(data: string): void;
@@ -506,6 +527,10 @@ export class WorldClient {
   /** The drop spectacle standing in the room I'm in, when one has
    *  landed (welcome snapshot, then drop.* frames). */
   drop: WorldDropState | null = null;
+  /** The King's daily moment standing in the hall, while its claim
+   *  window stands (the hall welcome, then king.* frames; any other
+   *  room's welcome clears it — the court is the hall's). */
+  kingMoment: WorldKingMomentState | null = null;
   /** The last win the room witnessed (a quest completion or a
    *  level-up), as last broadcast by the server. */
   lastMoment: WorldMoment | null = null;
@@ -566,6 +591,15 @@ export class WorldClient {
   /** My claim was refused (guests / no-drop / already-claimed /
    *  claimed-out / budget). */
   onDropDenied: ((reason: string) => void) | null = null;
+  /** The King's moment changed (hall welcome / king.state) — the
+   *  new standing state, or null when the court closed. */
+  onKingMoment: ((moment: WorldKingMomentState | null) => void) | null = null;
+  /** A member claimed the King's gift in the hall — witnessed
+   *  publicly (name + amount are server truth). */
+  onKingClaimed: ((claim: { name: string; amountVb: number }) => void) | null = null;
+  /** My gift claim was refused (guests / no-moment / closed /
+   *  already / pool / error). */
+  onKingDenied: ((reason: string) => void) | null = null;
   /** A palace-wide announcement landed (any room's moment, the
    *  King's daily moment, the host's herald). */
   onAnnounce: ((announce: WorldAnnouncement) => void) | null = null;
@@ -1093,6 +1127,16 @@ export class WorldClient {
     this.send({ type: "drop.claim" });
   }
 
+  /* ── The King's daily moment (Ring 3) ──────────────────────────
+   * One intent; the hall enforces members-only, in-window, once a
+   * day, and the quest-pool envelope on it. */
+
+  /** Claim the King's audience gift while his moment stands. */
+  claimKingGift(): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    this.send({ type: "king.claim" });
+  }
+
   /* ── Witnessed moments (THE-GAME §5(a)) ───────────────────────
    * Bare intents: "a win just happened — witness it if it's real."
    * They carry NO facts (no quest name, no reward, no level): the
@@ -1236,6 +1280,11 @@ export class WorldClient {
           frame["drop"] && typeof frame["drop"] === "object"
             ? (frame["drop"] as WorldDropState)
             : null;
+        /* The King's moment rides the HALL welcome the same way;
+         *  any other room's welcome clears it — the court stays in
+         *  the hall it opened in. */
+        this.kingMoment = normalizeKingMoment(frame["kingMoment"]);
+        this.onKingMoment?.(this.kingMoment);
         this.peers.clear();
         /* A transfer welcome starts a new room's voice world: the
          * old mesh membership is gone with the old room. */
@@ -1440,6 +1489,38 @@ export class WorldClient {
           this.nowPlaying = frame["moment"] as WorldNowPlayingMoment;
           this.onNowPlaying?.(this.nowPlaying);
         }
+        return;
+      }
+      case "king.state": {
+        /* The room's copy is anonymous (claimed:false); my own
+         * answered copy carries my flag. A same-day state that
+         * would un-claim me is a broadcast, not my answer — keep a
+         * landed claim landed. */
+        const next = normalizeKingMoment(frame["kingMoment"]);
+        if (
+          next &&
+          this.kingMoment?.date === next.date &&
+          this.kingMoment.claimed &&
+          !next.claimed
+        ) {
+          next.claimed = true;
+        }
+        this.kingMoment = next;
+        this.onKingMoment?.(next);
+        return;
+      }
+      case "king.claimed": {
+        const claim = frame["claim"];
+        if (claim && typeof claim === "object") {
+          const c = claim as Record<string, unknown>;
+          if (typeof c.name === "string" && typeof c.amountVb === "number") {
+            this.onKingClaimed?.({ name: c.name, amountVb: c.amountVb });
+          }
+        }
+        return;
+      }
+      case "king.denied": {
+        this.onKingDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "error");
         return;
       }
       case "drop.landed": {

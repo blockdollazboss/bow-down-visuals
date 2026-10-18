@@ -1772,3 +1772,53 @@ describe("palace announcements (Ring 3)", () => {
     expect(admin.socket.sent[0].text).toHaveLength(140);
   });
 });
+
+describe("the King's daily moment (Ring 3)", () => {
+  const MOMENT = { date: "2026-10-17", claimDeadlineMs: 9_999_999, claimed: false };
+
+  it("king.state sets the standing moment and fires onKingMoment; a malformed state reads as no moment", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const seen: unknown[] = [];
+    client.onKingMoment = (m) => seen.push(m);
+    socket.receive({ type: "king.state", kingMoment: MOMENT });
+    expect(client.kingMoment).toEqual(MOMENT);
+    socket.receive({ type: "king.state", kingMoment: { date: 42 } });
+    expect(client.kingMoment).toBeNull();
+    socket.receive({ type: "king.state", kingMoment: MOMENT });
+    socket.receive({ type: "king.state", kingMoment: null });
+    expect(client.kingMoment).toBeNull();
+    expect(seen).toEqual([MOMENT, null, MOMENT, null]);
+  });
+
+  it("a same-day broadcast never un-claims me — my answered copy wins", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    socket.receive({ type: "king.state", kingMoment: { ...MOMENT, claimed: true } });
+    expect(client.kingMoment?.claimed).toBe(true);
+    socket.receive({ type: "king.state", kingMoment: MOMENT });
+    expect(client.kingMoment?.claimed).toBe(true);
+  });
+
+  it("king.claimed + king.denied reach their handlers with server truth", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const claims: unknown[] = [];
+    const denied: string[] = [];
+    client.onKingClaimed = (c) => claims.push(c);
+    client.onKingDenied = (r) => denied.push(r);
+    socket.receive({ type: "king.claimed", claim: { name: "Nova", amountVb: 25 } });
+    socket.receive({ type: "king.claimed", claim: { name: "Nova" } });
+    socket.receive({ type: "king.denied", reason: "pool" });
+    socket.receive({ type: "king.denied" });
+    expect(claims).toEqual([{ name: "Nova", amountVb: 25 }]);
+    expect(denied).toEqual(["pool", "error"]);
+  });
+
+  it("claimKingGift sends for a member inside; a guest sends nothing", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    client.claimKingGift();
+    expect(socket.sent).toEqual([{ type: "king.claim" }]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true }, [OTHER]);
+    guestRun.client.claimKingGift();
+    expect(guestRun.socket.sent).toEqual([]);
+  });
+});

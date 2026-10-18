@@ -51,10 +51,16 @@ export function KingdomBoardBlocks({
   directory,
   isLight,
   isGuest,
+  kingLine,
 }: {
   directory: PalaceDirectoryEntry[];
   isLight: boolean;
   isGuest: boolean;
+  /** The King's daily moment line (Ring 3) — while his claim
+   *  window stands in the hall it leads the today block (the
+   *  page builds it from the hall's kingMoment state). Null =
+   *  no court stands; the block reads as before. */
+  kingLine?: string | null;
 }) {
   const { getAccessToken } = useAuth();
   const [board, setBoard] = useState<Leaderboard | null>(null);
@@ -202,7 +208,16 @@ export function KingdomBoardBlocks({
       {/* ── Today at the palace ── */}
       <div data-testid="world-kingdom-today">
         <NativeBoard isLight={isLight} title="Today at the palace">
-          {today.length === 0 ? (
+          {kingLine && (
+            <NativeBoardRow
+              isLight={isLight}
+              title="The King's daily moment"
+              detail={kingLine}
+              meta="LIVE now"
+              highlighted
+            />
+          )}
+          {today.length === 0 && !kingLine ? (
             <NativeEmptyState
               isLight={isLight}
               message="Nothing on today's slate at the palace."

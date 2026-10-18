@@ -76,6 +76,11 @@ export interface StationPanelProps {
   /* The Kingdom Board's data + the room the walker stands in. */
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
+  /** The King's daily moment line (Ring 3) for the Kingdom Board's
+   *  "Today at the palace" block — the page builds it from the
+   *  hall's standing kingMoment state. Null/absent = no court
+   *  stands; the block renders exactly as before. */
+  kingLine?: string | null;
   /* The Music Hall jukebox: the room's state, the last refusal in
      plain words, and the transport intents (the client enforces
      the room's rules; the server re-verifies). */
@@ -230,11 +235,13 @@ function KingdomBoard({
   currentRoomId,
   isLight,
   isGuest,
+  kingLine,
 }: {
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
   isLight: boolean;
   isGuest: boolean;
+  kingLine?: string | null;
 }) {
   if (directory.length === 0) {
     return (
@@ -242,7 +249,7 @@ function KingdomBoard({
         <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
           The board is quiet — the directory hasn&rsquo;t spoken yet.
         </p>
-        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
+        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} />
       </div>
     );
   }
@@ -286,7 +293,7 @@ function KingdomBoard({
         The board follows the palace live — walk through a door and your name moves with you. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
-      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
+      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} />
     </div>
   );
 }
@@ -1177,7 +1184,7 @@ export default function StationPanel(props: StationPanelProps) {
         switch (resolution.id) {
           case "kingdom-board":
             return (
-              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} />
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} kingLine={props.kingLine} />
             );
           case "front-row":
             return (

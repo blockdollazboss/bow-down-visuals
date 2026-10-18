@@ -45,8 +45,17 @@ import {
   type WorldAnnouncement,
   type WorldScreenState,
   type WorldJukeboxState,
+  type WorldKingMomentState,
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
+import {
+  isKingMomentLive,
+  kingClaimedLine,
+  kingDeniedLine,
+  kingMomentHeadline,
+  kingMomentLine,
+  kingStripLine,
+} from "@/lib/world/king-moment";
 import {
   nearestStation,
   STATION_BY_ID,
@@ -312,6 +321,13 @@ export default function WorldPage() {
    * host server-side regardless of what this form allows. */
   const [heraldDraft, setHeraldDraft] = useState("");
   const [heraldNote, setHeraldNote] = useState<string | null>(null);
+  /* The King's daily moment (Ring 3): the hall's standing state as
+   * the client reports it (hall welcome + king frames) — the hall
+   * card, the objective strip's king line and the Kingdom Board's
+   * today line all read this one mirror. A refusal of MY claim
+   * lands in kingNote, in plain words. */
+  const [kingMoment, setKingMoment] = useState<WorldKingMomentState | null>(null);
+  const [kingNote, setKingNote] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -1313,6 +1329,30 @@ export default function WorldPage() {
         if (cancelled) return;
         setHeraldNote("The palace didn't take that herald — one at a time; give it a few seconds and try again.");
       };
+      /* The King's daily moment (Ring 3): the hall's standing
+       * state mirrors into the chrome (the hall card + the strip's
+       * king line). A claim landing in the hall is witnessed
+       * publicly — the room log keeps the line under the Palace;
+       * my own landed claim also raises the moment toast. A
+       * refusal of my claim says why, in plain words, on the card. */
+      client.onKingMoment = (moment) => {
+        if (cancelled) return;
+        setKingMoment(moment);
+        if (!moment) setKingNote(null);
+      };
+      client.onKingClaimed = (claim) => {
+        if (cancelled) return;
+        const line = kingClaimedLine(claim);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
+        showMomentLine(line);
+      };
+      client.onKingDenied = (reason) => {
+        if (cancelled) return;
+        setKingNote(kingDeniedLine(reason));
+      };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
         setHostMuted(mutedNow);
@@ -1695,7 +1735,7 @@ export default function WorldPage() {
           sign-in pitch: they hold no hand, so there is no objective
           and no streak to name for them. */}
       {status === "inside" && (
-        <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} />
+        <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} kingMoment={kingMoment} />
       )}
 
       {/* The palace announcement (Ring 3, THE-GAME §5(b)): the
@@ -1741,6 +1781,56 @@ export default function WorldPage() {
           >
             <X className="h-3.5 w-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* The King's daily moment (Ring 3): while his claim window
+          stands in the hall, the court card stands in the chrome —
+          members standing here claim today's audience gift (one
+          per member, drawn from the week's quest pool; the server
+          verifies all of it), guests witness and get the honest
+          sign-in line. The card is the hall's: walk out of the
+          hall and it goes with the room's state. */}
+      {status === "inside" && inHall && isKingMomentLive(kingMoment, Date.now()) && kingMoment && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#FBF6E9]"
+              : "border-[#d4af37]/40 bg-[#0d0a05]"
+          }`}
+          data-testid="world-king-card"
+          role="status"
+        >
+          <Crown className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white/90"}`}>
+              {kingMomentHeadline(kingMoment, isGuest)}
+            </p>
+            <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+              {kingNote ?? kingMomentLine(kingMoment, isGuest)}
+            </p>
+          </div>
+          {!isGuest && !kingMoment.claimed && (
+            <button
+              type="button"
+              onClick={() => {
+                setKingNote(null);
+                clientRef.current?.claimKingGift();
+              }}
+              data-testid="world-king-claim"
+              className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+            >
+              Claim today&rsquo;s gift
+            </button>
+          )}
+          {!isGuest && kingMoment.claimed && (
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12]" : "border-[#d4af37]/40 text-[#e8c86a]"}`}
+              data-testid="world-king-claimed"
+            >
+              Gift claimed
+            </span>
+          )}
         </div>
       )}
 
@@ -2431,6 +2521,7 @@ export default function WorldPage() {
           onClose={() => setPanelTarget(null)}
           directory={directory}
           currentRoomId={roomId}
+          kingLine={kingStripLine(kingMoment, Date.now(), isGuest)}
           jukebox={jukebox}
           jukeboxDenied={jukeboxDenied}
           myPeerId={myPeerId}

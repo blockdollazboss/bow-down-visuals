@@ -73,6 +73,14 @@
  *                                            that landed in THIS room
  *                                            (members only, first-come;
  *                                            World Events, item 3.4)
+ *     { type: "king.claim" }                  claim the King's daily
+ *                                            audience gift while his
+ *                                            moment stands in THIS
+ *                                            room (the hall; members
+ *                                            only, once per day, paid
+ *                                            from the week's quest
+ *                                            pool by the injected
+ *                                            claimer — Ring 3)
  *     { type: "moment.celebrate", kind }      ask the room to witness
  *                                            a win: kind "quest" (a
  *                                            quest reward I just
@@ -164,6 +172,21 @@
  *                                            (guests / no-drop /
  *                                            already-claimed /
  *                                            claimed-out / budget)
+ *     { type: "king.state", kingMoment }      the King's moment in
+ *                                            this room now (also
+ *                                            inside `welcome`);
+ *                                            null = no moment stands.
+ *                                            `claimed` is per-peer:
+ *                                            this copy answers for
+ *                                            the peer it is sent to
+ *     { type: "king.claimed", claim }         a gift was claimed,
+ *                                            witnessed by the room:
+ *                                            claim.name + claim.
+ *                                            amountVb are server truth
+ *     { type: "king.denied", reason }         a gift claim was refused
+ *                                            (guests / no-moment /
+ *                                            closed / already /
+ *                                            pool / error)
  *     { type: "peer.moment", moment }         a win, witnessed by the
  *                                            room (THE-GAME §5(a)):
  *                                            moment.kind "quest" →
@@ -572,6 +595,42 @@ export type WorldDropClaimer = (
   eventId: string,
 ) => Promise<{ ok: true } | { ok: false; reason: "budget" | "error" }>;
 
+/* ── The King's daily moment (Ring 3) ─────────────────────────────
+ * Once a day the King holds court in the hall (the scheduler in
+ * lib/world-king-moment owns the firing + the durable record; this
+ * room owns the standing window and the claims of the members
+ * physically present — you had to BE at court). The gift is paid
+ * by the injected claimer through the week's quest pool: no new
+ * issuance, enforced there. Claims are reserved synchronously
+ * (claimedUserIds moves BEFORE the async payout), the drop
+ * pattern, so two fast claims can't both take the gift; a failed
+ * payout rolls its reservation back. */
+
+/** The moment standing in this room, as a client renders it.
+ *  `claimed` answers for the peer the copy is sent to. */
+export interface WorldKingMomentBroadcast {
+  /** The palace day (UTC, YYYY-MM-DD) this moment belongs to. */
+  date: string;
+  /** When the claim window closes (ms epoch, server clock). */
+  claimDeadlineMs: number;
+  claimed: boolean;
+}
+
+export type WorldKingMomentClaimResult =
+  | { ok: true; amountVb: number }
+  | { ok: false; reason: "closed" | "pool" | "already" | "error" };
+
+/** Injected by the route layer: pay one audience gift through the
+ *  weekly quest pool (window + pool envelope + once-a-day ledger +
+ *  atomic grant live in lib/world-king-moment). The room calls it
+ *  only for a member standing in the hall, inside the window, who
+ *  hasn't claimed. */
+export type WorldKingMomentClaimer = (
+  userId: string,
+  date: string,
+  nowMs: number,
+) => Promise<WorldKingMomentClaimResult>;
+
 /* ── Witnessed moments (THE-GAME §5(a)) ────────────────────────────
  * Wins are public, progress is private (owner default, §5 Q3): when
  * a member claims a quest reward or their Creator Level rises, the
@@ -939,6 +998,16 @@ export class WorldRoom {
     claimsLeft: number;
     claimedUserIds: Set<string>;
   } | null = null;
+  /** The King's daily moment standing in this room (the hall),
+   *  when its claim window is open. Set by the scheduler through
+   *  beginKingMoment; the durable truth (fired? paid?) lives in
+   *  king_moments / king_moment_claims — this is only the room's
+   *  standing copy, repaired by the scheduler after a restart. */
+  private kingMoment: {
+    date: string;
+    claimDeadlineMs: number;
+    claimedUserIds: Set<string>;
+  } | null = null;
 
   constructor(
     private hub: RoomHub,
@@ -948,6 +1017,7 @@ export class WorldRoom {
       resolveScreenVideo?: WorldScreenVideoResolver;
       resolveJukeboxTrack?: WorldJukeboxTrackResolver;
       claimWorldDrop?: WorldDropClaimer;
+      claimKingMoment?: WorldKingMomentClaimer;
       resolveStars?: WorldStarsResolver;
       findRecentQuestClaim?: WorldQuestClaimFinder;
     } = {},
@@ -1145,6 +1215,11 @@ export class WorldRoom {
       // A drop standing in the room greets a late joiner too — the
       // chest is part of the room's state, not a one-off frame.
       ...(this.activeDrop ? { drop: this.dropBroadcast() } : {}),
+      // The King's moment, while its window stands in this room:
+      // the joiner's copy answers `claimed` for THEM.
+      ...(this.kingMoment
+        ? { kingMoment: this.kingMomentBroadcast(identity.userId) }
+        : {}),
     });
     // The joiner never hears its own join — `welcome` already told it
     // everything about itself; peer.join is strictly for the room.
@@ -1550,6 +1625,67 @@ export class WorldRoom {
     if (!this.activeDrop || this.activeDrop.eventId !== eventId) return false;
     this.activeDrop = null;
     this.hub.broadcast(this.roomId, { type: "drop.state", drop: null });
+    return true;
+  }
+
+  /* ── The King's daily moment (the scheduler's hands) ────────────
+   * The King holds court in the HALL only: the moment is the
+   * throne's, and beginKingMoment refuses on any other room rather
+   * than letting a second court stand somewhere else. */
+
+  /** The palace day whose moment stands in this room, if any. */
+  activeKingMomentDate(): string | null {
+    return this.kingMoment?.date ?? null;
+  }
+
+  /** The moment as one peer's client renders it (`claimed` answers
+   *  for that peer — a guest's copy always reads unclaimed, since
+   *  guests never claim). */
+  kingMomentBroadcast(forUserId?: string | null): WorldKingMomentBroadcast | null {
+    if (!this.kingMoment) return null;
+    return {
+      date: this.kingMoment.date,
+      claimDeadlineMs: this.kingMoment.claimDeadlineMs,
+      claimed: forUserId != null && this.kingMoment.claimedUserIds.has(forUserId),
+    };
+  }
+
+  private broadcastKingState(): void {
+    /* The broadcast copy is the anonymous shape (claimed:false) —
+     * the per-peer flag rides welcomes and the claimer's own
+     * answer; nobody else's claim state is the room's business
+     * beyond the witnessed king.claimed line. */
+    this.hub.broadcast(this.roomId, {
+      type: "king.state",
+      kingMoment: this.kingMomentBroadcast(null),
+    });
+  }
+
+  /**
+   * Open the King's moment in this room (the scheduler fired it —
+   * or is repairing a window a restart lost). Idempotent for the
+   * same day; a stale earlier day still standing is replaced (the
+   * scheduler closes days in order, but a replaced copy can never
+   * take a claim: claims re-verify the date's row in the claimer).
+   */
+  beginKingMoment(input: { date: string; claimDeadlineMs: number }): boolean {
+    if (!this.stageEnabled) return false;
+    if (this.kingMoment?.date === input.date) return true;
+    this.kingMoment = {
+      date: input.date,
+      claimDeadlineMs: input.claimDeadlineMs,
+      claimedUserIds: new Set(),
+    };
+    this.broadcastKingState();
+    return true;
+  }
+
+  /** Close the moment (its window ran out). Late claims after this
+   *  find no court — king.denied "no-moment". */
+  endKingMoment(date: string): boolean {
+    if (!this.kingMoment || this.kingMoment.date !== date) return false;
+    this.kingMoment = null;
+    this.broadcastKingState();
     return true;
   }
 
@@ -2146,6 +2282,78 @@ export class WorldRoom {
             drop.claimsLeft++;
             const claimant = this.peerForUserId(userId);
             if (claimant) this.send(claimant, { type: "drop.denied", reason: "error" });
+          });
+        return;
+      }
+      case "king.claim": {
+        /* Claim the King's daily audience gift. Members only, and
+         * only the members STANDING IN THE HALL while the window
+         * stands — you had to be at court (guests watch the moment;
+         * they hold no hand, THE-GAME §5 Q5). First the room's own
+         * truths (moment standing? window open? already claimed?),
+         * then the injected claimer re-verifies all of it against
+         * the durable rows and enforces the quest-pool envelope.
+         * The reservation (claimedUserIds) moves synchronously,
+         * before the async payout — the drop pattern — and a failed
+         * payout rolls it back so the member may retry inside the
+         * window. A landed claim is WITNESSED: the room sees who
+         * stood at court and what the gift was. */
+        if (peer.guest || !peer.userId) {
+          this.send(peer, { type: "king.denied", reason: "guests" });
+          return;
+        }
+        const moment = this.kingMoment;
+        if (!moment) {
+          this.send(peer, { type: "king.denied", reason: "no-moment" });
+          return;
+        }
+        if (now > moment.claimDeadlineMs) {
+          /* The window closed between ticks — sweep it now rather
+           * than make the claim wait for the scheduler. */
+          this.endKingMoment(moment.date);
+          this.send(peer, { type: "king.denied", reason: "closed" });
+          return;
+        }
+        if (moment.claimedUserIds.has(peer.userId)) {
+          this.send(peer, { type: "king.denied", reason: "already" });
+          return;
+        }
+        const claimer = this.deps.claimKingMoment;
+        if (!claimer) {
+          this.send(peer, { type: "king.denied", reason: "error" });
+          return;
+        }
+        moment.claimedUserIds.add(peer.userId);
+        const userId = peer.userId;
+        const claimName = peer.displayName;
+        void claimer(userId, moment.date, now)
+          .then((result) => {
+            if (this.kingMoment !== moment) return; // swept mid-payout — the grant stands, the court has moved on
+            if (!result.ok) {
+              moment.claimedUserIds.delete(userId);
+              const claimant = this.peerForUserId(userId);
+              if (claimant) {
+                this.send(claimant, { type: "king.denied", reason: result.reason });
+              }
+              return;
+            }
+            this.hub.broadcast(this.roomId, {
+              type: "king.claimed",
+              claim: { name: claimName, amountVb: result.amountVb },
+            });
+            const claimant = this.peerForUserId(userId);
+            if (claimant) {
+              this.send(claimant, {
+                type: "king.state",
+                kingMoment: this.kingMomentBroadcast(userId),
+              });
+            }
+          })
+          .catch(() => {
+            if (this.kingMoment !== moment) return;
+            moment.claimedUserIds.delete(userId);
+            const claimant = this.peerForUserId(userId);
+            if (claimant) this.send(claimant, { type: "king.denied", reason: "error" });
           });
         return;
       }

@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
-import { registerWorldWs, startWorldEventScheduler } from "./routes/world";
+import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler } from "./routes/world";
 import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
@@ -72,6 +72,10 @@ const worldPalace = registerWorldWs(wsGateway);
    listening parties and drop spectacles are driven into their
    rooms by this tick — cheap, one indexed select per interval. */
 startWorldEventScheduler(worldPalace);
+/* The King's daily moment (Ring 3): fires once a day at the
+   palace day-turn, heralded palace-wide, with the hall's claim
+   window riding the weekly quest pool. */
+startKingMomentScheduler(worldPalace);
 registerPartyWs(wsGateway);
 registerStageWs(wsGateway);
 wsGateway.attach(server);
