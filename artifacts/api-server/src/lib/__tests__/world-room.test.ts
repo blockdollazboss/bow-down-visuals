@@ -22,9 +22,12 @@ import { RoomHub, type WsClientSocket } from "../live-ws";
 import {
   WorldRoom,
   tintForKey,
+  worldIdentityKey,
   WORLD_TINTS,
   WORLD_PRESENCE_CAP,
   WORLD_VOICE_CAP,
+  WORLD_PEER_STALE_MS,
+  WORLD_REPLACED_CLOSE_CODE,
   HALL_BOUNDS,
   type WorldIdentity,
 } from "../world-room";
@@ -1082,5 +1085,80 @@ describe("session keepalive", () => {
     const stranger = fakeSocket();
     frame(stranger, room, { type: "ping" });
     expect(stranger.sent).toEqual([]);
+  });
+});
+
+describe("presence truth — the staleness sweep", () => {
+  it("reaps a peer that went frame-silent past the stale window: terminate + peer.leave, count drops", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const ghost = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(ghost, guest());
+    expect(room.size()).toBe(2);
+    a.sent = [];
+    const t0 = Date.now();
+
+    // The ghost says nothing ever again (dead tab: its socket
+    // still claims open — the hosting router answers the pings
+    // for it). Alpha keeps pinging on the client's cadence.
+    frame(a, room, { type: "ping" }, t0 + 80_000);
+    const reaped = room.sweepStalePeers(t0 + WORLD_PEER_STALE_MS + 1_000);
+
+    expect(reaped).toBe(1);
+    expect(room.size()).toBe(1);
+    expect(ghost.readyState).toBe(3); // terminated, not politely closed
+    expect(a.sent.some((m) => m.type === "peer.leave")).toBe(true);
+  });
+
+  it("never reaps a peer still inside its window — a fresh join is untouchable", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    const t0 = Date.now();
+    expect(room.sweepStalePeers(t0 + WORLD_PEER_STALE_MS - 1)).toBe(0);
+    expect(room.size()).toBe(1);
+    expect(a.readyState).toBe(1);
+  });
+
+  it("any frame counts as life — a move at the edge of the window keeps the peer", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    const t0 = Date.now();
+    frame(a, room, { type: "move", x: 1, z: 2, rotY: 0 }, t0 + WORLD_PEER_STALE_MS - 5_000);
+    expect(room.sweepStalePeers(t0 + WORLD_PEER_STALE_MS + 1_000)).toBe(0);
+    expect(room.size()).toBe(1);
+  });
+});
+
+describe("presence truth — identity eviction", () => {
+  it("evicts the older socket for the same member: replaced frame, 4414 close, room told", () => {
+    const room = new WorldRoom(new RoomHub());
+    const oldSock = fakeSocket();
+    const newSock = fakeSocket();
+    const bystander = fakeSocket();
+    room.attach(oldSock, member("Alpha"));
+    room.attach(bystander, member("Beta"));
+    oldSock.sent = [];
+    bystander.sent = [];
+
+    const n = room.evictIdentity("u:user-Alpha", newSock);
+    expect(n).toBe(1);
+    expect(oldSock.sent).toEqual([{ type: "replaced" }]);
+    expect(oldSock.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
+    expect(bystander.sent.some((m) => m.type === "peer.leave")).toBe(true);
+    expect(room.size()).toBe(1);
+  });
+
+  it("never evicts the joining socket itself, and a null key evicts nobody", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const anon = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(anon, guest()); // no session id → no key
+    expect(room.evictIdentity("u:user-Alpha", a)).toBe(0);
+    expect(room.size()).toBe(2);
+    expect(worldIdentityKey(guest())).toBeNull();
   });
 });

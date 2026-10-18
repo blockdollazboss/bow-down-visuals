@@ -192,6 +192,10 @@
  *                                            by a non-host
  *     { type: "removed", reason } then close 4413 — the host removed
  *                                            this peer from the hall
+ *     { type: "replaced" } then close 4414 — this peer's own
+ *                                            identity rejoined on a
+ *                                            newer connection; this
+ *                                            copy stepped aside
  *     { type: "room_full", cap } then close 4429 when at presence cap
  *     { type: "pong" }                       answer to the client's
  *                                            keepalive ping
@@ -207,6 +211,17 @@
  * data frames: they cross every leg, keep the path warm, and give
  * the client positive proof the path still carries frames — silence
  * past its liveness window means the path is dead, not quiet.
+ *
+ * The same router fact cuts the other way for PRESENCE: the router
+ * answers the gateway's pings, so a dead or frozen browser's socket
+ * can look alive to the server indefinitely — its close never
+ * arrives and its peer would stand in the hall forever (measured
+ * live, 2026-10-17: spawn-frozen guest ghosts an hour+ old; the
+ * headcount lied). So frames are the only presence truth here
+ * too: every inbound frame stamps the peer's lastSeenAt, the
+ * palace sweeps peers silent past WORLD_PEER_STALE_MS, and a
+ * rejoining identity (member account / guest tab session)
+ * replaces its own ghost on the spot (see evictIdentity).
  *
  * House rules baked in: presence cap 30 with an honest full state,
  * voice mesh cap 12 (a mesh beyond that melts phones), guests are
@@ -277,6 +292,25 @@ export interface WorldIdentity {
    *  admin identity (ADMIN_EMAILS) at the handshake — a client can
    *  never claim it, and a guest is never an admin. */
   admin?: boolean;
+  /** A guest's per-tab session id (the `?guest=` handshake param,
+   *  sanitized by the route layer). Members never need it — their
+   *  userId is their presence key. It exists so a guest's rejoin
+   *  (reload, reconnect) can REPLACE its own lingering ghost peer
+   *  instead of stacking a second "Guest" next to it: one tab,
+   *  one presence. Two tabs hold two ids and stay two guests. */
+  guestSessionId?: string | null;
+}
+
+/** The presence key two connections with the same identity share:
+ *  members by account, guests by their tab's session id, and null
+ *  for a connection carrying neither (a raw probe — it can linger
+ *  only until the staleness sweep, never evict anyone). */
+export function worldIdentityKey(
+  identity: Pick<WorldIdentity, "userId" | "guestSessionId">,
+): string | null {
+  if (identity.userId) return `u:${identity.userId}`;
+  if (identity.guestSessionId) return `g:${identity.guestSessionId}`;
+  return null;
 }
 
 /** A Creative Vault character a member walks in as. Resolved
@@ -708,6 +742,11 @@ interface WorldPeer extends WorldIdentity {
   rotY: number;
   lastMoveAt: number;
   lastSayAt: number;
+  /** The last time ANY frame arrived from this peer (attach counts
+   *  as arrival). The staleness sweep reads it — see
+   *  WORLD_PEER_STALE_MS for why frames, not socket state, are
+   *  the presence truth. */
+  lastSeenAt: number;
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -722,6 +761,31 @@ function finiteOr(v: unknown, fallback: number): number {
  *  same family as room_full's 4429): the client shows its honest
  *  "removed by the host" card for it. */
 export const WORLD_REMOVED_CLOSE_CODE = 4413;
+
+/** Close code when a peer is REPLACED by its own identity rejoining
+ *  (same account, or same guest tab session): the evicted client
+ *  shows its honest "you're in the World in another tab" card and
+ *  never auto-reconnects — otherwise two tabs of one person would
+ *  evict each other forever. */
+export const WORLD_REPLACED_CLOSE_CODE = 4414;
+
+/** How long a peer may go without a single inbound frame before
+ *  the palace declares it gone and reaps it. Presence truth lives
+ *  or dies on this number, because the socket's own close event
+ *  cannot be trusted to arrive: the hosting router answers the
+ *  gateway's protocol pings on its own leg, so a browser that
+ *  died, froze or was discarded can leave a server-side socket
+ *  that looks alive forever while its peer stands in the hall
+ *  (measured live 2026-10-17: five spawn-frozen guest ghosts
+ *  outlived their sessions by an hour+ and a returning owner was
+ *  told "12 people" were inside). The ONLY liveness signal that
+ *  crosses the router is application data — the client's app
+ *  keepalive pings every 25 s inside (and ~60 s from a throttled
+ *  background tab), and any other frame counts too. 90 s is
+ *  three missed foreground pings with margin over the background
+ *  cadence; a client wrongly reaped anyway recovers through its
+ *  quiet reconnect, while a corpse is gone from the count. */
+export const WORLD_PEER_STALE_MS = 90_000;
 
 interface StageHolder {
   peerId: string;
@@ -994,6 +1058,7 @@ export class WorldRoom {
       rotY: carry?.at?.rotY ?? 0,
       lastMoveAt: 0,
       lastSayAt: 0,
+      lastSeenAt: Date.now(),
     };
     this.peers.set(socket, peer);
     this.byPeerId.set(peerId, peer);
@@ -1101,6 +1166,55 @@ export class WorldRoom {
     }
     this.hub.broadcast(this.roomId, { type: "peer.leave", peerId: peer.peerId });
     this.onChange?.();
+  }
+
+  /** Reap every peer that has gone frame-silent past
+   *  WORLD_PEER_STALE_MS: its client is dead, frozen or discarded,
+   *  whatever its socket still claims (see the constant for the
+   *  router evidence). The detach is the truth-telling — the count
+   *  and the directory drop the ghost the moment this runs — and
+   *  the terminate buries the socket so its close handler meets
+   *  an already-empty chair (detach is idempotent). Returns how
+   *  many ghosts were reaped. */
+  sweepStalePeers(now = Date.now()): number {
+    const stale = [...this.peers.values()].filter((p) => now - p.lastSeenAt > WORLD_PEER_STALE_MS);
+    for (const peer of stale) {
+      this.detach(peer.socket);
+      try {
+        peer.socket.terminate();
+      } catch {
+        /* already gone — the detach was the point */
+      }
+    }
+    return stale.length;
+  }
+
+  /** Evict this room's peer for an identity key when that identity
+   *  is rejoining on a DIFFERENT socket: a rejoin replaces its own
+   *  ghost instead of stacking beside it. The evicted peer gets
+   *  the `replaced` frame and a WORLD_REPLACED close so a live
+   *  client (the same person in a second tab) lands on its honest
+   *  replaced card instead of reconnect-fighting its replacement;
+   *  a corpse never reads the frame and is simply gone from the
+   *  count. Returns how many peers were evicted. */
+  evictIdentity(key: string, exceptSocket: WsClientSocket): number {
+    const matches = [...this.peers.values()].filter(
+      (p) => p.socket !== exceptSocket && worldIdentityKey(p) === key,
+    );
+    for (const peer of matches) {
+      try {
+        peer.socket.send(JSON.stringify({ type: "replaced" }));
+      } catch {
+        /* a corpse can't read — the detach below is the point */
+      }
+      this.detach(peer.socket);
+      try {
+        peer.socket.close(WORLD_REPLACED_CLOSE_CODE, "replaced");
+      } catch {
+        /* already gone */
+      }
+    }
+    return matches.length;
   }
 
   /* ── The stage + screen ─────────────────────────────────────────── */
@@ -1494,6 +1608,10 @@ export class WorldRoom {
   handleFrame(socket: WsClientSocket, raw: string, now = Date.now()): void {
     const peer = this.peers.get(socket);
     if (!peer || raw.length > MAX_FRAME_CHARS) return;
+    /* Any arrived frame — parsed or not, keepalive ping included —
+     * is proof of life at the only layer that crosses the hosting
+     * router. The staleness sweep reads this stamp. */
+    peer.lastSeenAt = now;
     if (now > this.frameNow) this.frameNow = now;
     let frame: Record<string, unknown>;
     try {

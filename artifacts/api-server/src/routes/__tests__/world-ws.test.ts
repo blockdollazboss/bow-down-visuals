@@ -15,12 +15,16 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
 import { LiveWsGateway } from "../../lib/live-ws";
+import { WORLD_PEER_STALE_MS } from "../../lib/world-room";
+import type { WorldPalace } from "../../lib/world-palace";
 import { registerWorldWs, pickScreenContent, WORLD_FEATURED_VIDEO_URL } from "../world";
 
 const MEMBER = "00000000-0000-4000-8000-0000000000aa";
+const MEMBER2 = "00000000-0000-4000-8000-0000000000bb";
 
 let server: Server;
 let gateway: LiveWsGateway;
+let palace: WorldPalace;
 let port = 0;
 const clients: WebSocket[] = [];
 
@@ -57,9 +61,13 @@ async function waitFor(client: Client, pred: (m: any) => boolean, ms = 3000): Pr
 
 beforeAll(async () => {
   gateway = new LiveWsGateway();
-  registerWorldWs(gateway, {
+  palace = registerWorldWs(gateway, {
     verifyToken: async (token) =>
-      token === "good-token" ? { userId: MEMBER, email: "member@example.io" } : null,
+      token === "good-token"
+        ? { userId: MEMBER, email: "member@example.io" }
+        : token === "member-two"
+          ? { userId: MEMBER2, email: "two@example.io" }
+          : null,
     resolveIdentity: async (userId) => ({
       userId,
       displayName: "Hall Member",
@@ -122,7 +130,7 @@ describe("WS /api/world/ws", () => {
 
   it("relays voice signaling between two members who joined voice", async () => {
     const a = connect("/api/world/ws?token=good-token");
-    const b = connect("/api/world/ws?token=good-token");
+    const b = connect("/api/world/ws?token=member-two");
     const welcomeA = await waitFor(a, (m) => m.type === "welcome");
     const welcomeB = await waitFor(b, (m) => m.type === "welcome");
 
@@ -180,5 +188,76 @@ describe("pickScreenContent — the big screen never fakes live", () => {
     const s = pickScreenContent({ id: "stream-2", title: "Warming Up", creatorName: null, hlsUrl: null });
     expect(s.mode).toBe("featured");
     expect(s.videoUrl).toBe(WORLD_FEATURED_VIDEO_URL);
+  });
+});
+
+describe("presence truth over the wire", () => {
+  it("a guest tab's rejoin replaces its own ghost — replaced frame, 4414 close, no stacked peer", async () => {
+    const first = connect("/api/world/ws?guest=wire-tab-1");
+    const w1 = await waitFor(first, (m) => m.type === "welcome");
+    const second = connect("/api/world/ws?guest=wire-tab-1");
+    const w2 = await waitFor(second, (m) => m.type === "welcome");
+
+    expect(w2.peerId).not.toBe(w1.peerId);
+    // The ghost is NOT in the replacement's snapshot — eviction
+    // ran before the second attach, so the count never stacked.
+    expect(w2.peers.map((p: any) => p.peerId)).not.toContain(w1.peerId);
+    await waitFor(first, (m) => m.type === "replaced");
+    await expect(first.closed).resolves.toBe(4414);
+    second.ws.close();
+    await second.closed;
+  });
+
+  it("a member's second connection replaces the first", async () => {
+    const first = connect("/api/world/ws?token=good-token");
+    await waitFor(first, (m) => m.type === "welcome");
+    const second = connect("/api/world/ws?token=good-token");
+    await waitFor(second, (m) => m.type === "welcome");
+    await waitFor(first, (m) => m.type === "replaced");
+    await expect(first.closed).resolves.toBe(4414);
+    second.ws.close();
+    await second.closed;
+  });
+
+  it("a malformed guest param is ignored — the guest enters anonymously and replaces nobody", async () => {
+    const junk = encodeURIComponent("bad id!$%");
+    const g1 = connect(`/api/world/ws?guest=${junk}`);
+    await waitFor(g1, (m) => m.type === "welcome");
+    const g2 = connect(`/api/world/ws?guest=${junk}`);
+    await waitFor(g2, (m) => m.type === "welcome");
+    // If the junk had been honored as a key, g2's arrival would
+    // have evicted g1 synchronously. Give it a beat to prove not.
+    await new Promise((r) => setTimeout(r, 250));
+    expect(g1.messages.some((m) => m.type === "replaced")).toBe(false);
+    g1.ws.close();
+    await g1.closed;
+    g2.ws.close();
+    await g2.closed;
+  });
+
+  it("a frame-silent client is reaped by the sweep even though its socket stays open", async () => {
+    const frozen = connect("/api/world/ws?guest=wire-frozen-1");
+    const wf = await waitFor(frozen, (m) => m.type === "welcome");
+    const watcher = connect("/api/world/ws");
+    const ww = await waitFor(watcher, (m) => m.type === "welcome");
+    expect(ww.peers.map((p: any) => p.peerId)).toContain(wf.peerId);
+
+    // The frozen client now sends NOTHING ever again. Its socket
+    // stays open — the ws library even answers protocol pings for
+    // it, the same trick the hosting router plays for a dead
+    // browser. Only frame silence can tell the truth, so drive
+    // the palace sweep with the clock advanced past the window
+    // (the registered 15 s tick runs this same method live).
+    const reaped = palace.sweepStalePeers(Date.now() + WORLD_PEER_STALE_MS + 1_000);
+    expect(reaped).toBeGreaterThanOrEqual(1);
+    await waitFor(watcher, (m) => m.type === "peer.leave" && m.peerId === wf.peerId);
+    await expect(frozen.closed).resolves.toBe(1006); // terminated — abnormal closure
+    try {
+      watcher.ws.close();
+    } catch {
+      /* the same sweep may have reaped the watcher too — it was
+       * equally silent under the advanced clock */
+    }
+    await watcher.closed;
   });
 });

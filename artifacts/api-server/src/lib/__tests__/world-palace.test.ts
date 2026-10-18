@@ -19,7 +19,12 @@
 import { describe, it, expect } from "vitest";
 import { RoomHub, type WsClientSocket } from "../live-ws";
 import { WorldPalace, PALACE_ROOM_DEFS } from "../world-palace";
-import { WORLD_ROOM_ID, type WorldIdentity } from "../world-room";
+import {
+  WORLD_ROOM_ID,
+  WORLD_PEER_STALE_MS,
+  WORLD_REPLACED_CLOSE_CODE,
+  type WorldIdentity,
+} from "../world-room";
 
 interface FakeSocket extends WsClientSocket {
   sent: any[];
@@ -412,5 +417,114 @@ describe("the second ring (palace follow-on)", () => {
     const state = s.sent.filter((m) => m.type === "jukebox.state").pop();
     expect(state.jukebox.current.entry.track.id).toBe("track:good");
     expect(state.jukebox.current.playback.playing).toBe(true);
+  });
+});
+
+describe("presence truth — rejoins replace, ghosts get reaped", () => {
+  const guestTab = (sid: string | null): WorldIdentity => ({
+    userId: null,
+    displayName: "Guest",
+    avatarUrl: null,
+    profileSlug: null,
+    guestSessionId: sid,
+  });
+
+  function directoryTotal(socket: FakeSocket): number {
+    const dir = socket.sent.filter((m) => m.type === "palace.directory").pop();
+    expect(dir, "a directory snapshot").toBeTruthy();
+    return dir.rooms.reduce((n: number, r: any) => n + r.count, 0);
+  }
+
+  it("a member's rejoin evicts their own ghost — the headcount never stacks", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const watcher = fakeSocket();
+    enter(palace, watcher, "Watcher");
+    const first = fakeSocket();
+    enter(palace, first, "Alpha");
+    expect(directoryTotal(watcher)).toBe(2);
+    first.sent = [];
+
+    // Same account, new connection (a reload whose old socket's
+    // close never reached the server).
+    const second = fakeSocket();
+    expect(palace.enterHall(second, member("Alpha"))).toBe(true);
+
+    expect(first.sent).toEqual([{ type: "replaced" }]);
+    expect(first.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
+    expect(second.sent.some((m) => m.type === "welcome")).toBe(true);
+    expect(palace.hallRoom.size()).toBe(2); // watcher + ONE Alpha
+    expect(directoryTotal(watcher)).toBe(2);
+  });
+
+  it("the eviction finds the ghost wherever it stands — a side room is no hiding place", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const first = fakeSocket();
+    enter(palace, first, "Alpha");
+    frame(palace, first, { type: "room.enter", roomId: MUSIC, x: -16, z: -2 });
+    expect(palace.roomOf(first)?.roomId).toBe(MUSIC);
+    first.sent = [];
+
+    const second = fakeSocket();
+    expect(palace.enterHall(second, member("Alpha"))).toBe(true);
+    expect(first.sent).toEqual([{ type: "replaced" }]);
+    expect(first.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
+    expect(palace.directory().find((r) => r.id === MUSIC)?.count).toBe(0);
+    expect(palace.hallRoom.size()).toBe(1);
+  });
+
+  it("guest tabs replace by session id; anonymous guests and other tabs coexist untouched", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const tabA1 = fakeSocket();
+    const tabA2 = fakeSocket();
+    const tabB = fakeSocket();
+    const anon1 = fakeSocket();
+    const anon2 = fakeSocket();
+    expect(palace.enterHall(tabA1, guestTab("tab-session-a"))).toBe(true);
+    expect(palace.enterHall(tabB, guestTab("tab-session-b"))).toBe(true);
+    expect(palace.enterHall(anon1, guestTab(null))).toBe(true);
+    expect(palace.enterHall(anon2, guestTab(null))).toBe(true);
+    tabA1.sent = [];
+
+    // Tab A reloads: same session id, new socket.
+    expect(palace.enterHall(tabA2, guestTab("tab-session-a"))).toBe(true);
+    expect(tabA1.sent).toEqual([{ type: "replaced" }]);
+    expect(tabA1.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
+    // Tab B and both anonymous guests are exactly where they were.
+    expect(tabB.closedWith).toBeNull();
+    expect(palace.hallRoom.size()).toBe(4);
+  });
+
+  it("join/leave storm: twelve enter, seven die silent — one sweep leaves the true five", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const sockets: FakeSocket[] = [];
+    for (let i = 0; i < 12; i++) {
+      const s = fakeSocket();
+      sockets.push(s);
+      expect(palace.enterHall(s, member(`P${i}`))).toBe(true);
+    }
+    expect(palace.hallRoom.size()).toBe(12);
+    const t0 = Date.now();
+
+    // Five keep living on the client's ping cadence; seven never
+    // send another byte (killed tabs whose closes never arrived).
+    for (let i = 0; i < 5; i++) {
+      frame(palace, sockets[i], { type: "ping" }, t0 + 80_000);
+    }
+    const reaped = palace.sweepStalePeers(t0 + WORLD_PEER_STALE_MS + 1_000);
+
+    expect(reaped).toBe(7);
+    expect(palace.hallRoom.size()).toBe(5);
+    for (let i = 5; i < 12; i++) expect(sockets[i].readyState).toBe(3);
+    for (let i = 0; i < 5; i++) expect(sockets[i].readyState).toBe(1);
+    // And the directory the room reads agrees with the truth.
+    expect(directoryTotal(sockets[0])).toBe(5);
+  });
+
+  it("the sweeper lifecycle is safe to start twice and dispose", () => {
+    const palace = new WorldPalace(new RoomHub());
+    palace.startPresenceSweeper();
+    palace.startPresenceSweeper();
+    palace.dispose();
+    palace.dispose();
   });
 });
