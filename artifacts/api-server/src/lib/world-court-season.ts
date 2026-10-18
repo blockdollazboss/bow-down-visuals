@@ -377,6 +377,7 @@ export const dbCourtSeasonStore: CourtSeasonStore = {
         COALESCE(ls.c, 0) AS streams_hosted,
         COALESCE(jt.c, 0) AS jar_tips,
         COALESCE(lst.c, 0) AS stream_tips,
+        COALESCE(wst.c, 0) AS stage_tips,
         COALESCE(so.c, 0) AS store_sales,
         COALESCE(se.c, 0) AS shop_sales,
         COALESCE(fm.c, 0) AS memberships_sold
@@ -421,6 +422,13 @@ export const dbCourtSeasonStore: CourtSeasonStore = {
         GROUP BY creator_user_id
       ) lst ON lst.user_id = cp.user_id
       LEFT JOIN (
+        SELECT to_user_id AS user_id, COUNT(*)::int AS c FROM world_stage_tips
+        WHERE creator_credited_at IS NOT NULL
+          AND creator_credited_at >= ${s}::timestamptz
+          AND creator_credited_at < ${e}::timestamptz
+        GROUP BY to_user_id
+      ) wst ON wst.user_id = cp.user_id
+      LEFT JOIN (
         SELECT profile_id, COUNT(*)::int AS c FROM store_orders
         WHERE status = 'completed' AND created_at >= ${s}::timestamptz AND created_at < ${e}::timestamptz
         GROUP BY profile_id
@@ -448,7 +456,7 @@ export const dbCourtSeasonStore: CourtSeasonStore = {
         exports: n(row.exports_done),
         followers: n(row.followers),
         streamsHosted: n(row.streams_hosted),
-        tipsReceived: n(row.jar_tips) + n(row.stream_tips),
+        tipsReceived: n(row.jar_tips) + n(row.stream_tips) + n(row.stage_tips),
         sales: n(row.store_sales) + n(row.shop_sales),
         membershipsSold: n(row.memberships_sold),
       },

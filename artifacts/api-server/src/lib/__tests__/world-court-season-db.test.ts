@@ -67,6 +67,11 @@ CREATE TABLE live_stream_tips (
   id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, creator_credited_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE world_stage_tips (
+  id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL,
+  amount_vb integer NOT NULL, room_id text NOT NULL, idempotency_key text NOT NULL,
+  creator_credited_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, status text NOT NULL DEFAULT 'completed',
   created_at timestamptz NOT NULL DEFAULT now()
@@ -139,6 +144,10 @@ beforeEach(async () => {
   await ins(`INSERT INTO live_stream_tips (id, creator_user_id, creator_credited_at, created_at) VALUES
     ('${u()}', '${UA}', '2026-10-08T12:00:00Z', '2026-10-08T12:00:00Z'),
     ('${u()}', '${UA}', NULL,                   '2026-10-09T12:00:00Z')`);
+  await ins(`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, room_id, idempotency_key, creator_credited_at, created_at) VALUES
+    ('${u()}', '${UB}', '${UA}', 500, 'world:throne-hall', 'k-ada-in',  '2026-10-09T12:00:00Z', '2026-10-09T12:00:00Z'),
+    ('${u()}', '${UB}', '${UA}', 500, 'world:throne-hall', 'k-ada-null', NULL,                   '2026-10-10T12:00:00Z'),
+    ('${u()}', '${UB}', '${UA}', 500, 'world:throne-hall', 'k-ada-sept', '2026-09-15T12:00:00Z', '2026-09-15T12:00:00Z')`);
   await ins(`INSERT INTO store_orders (id, profile_id, status, created_at) VALUES
     ('${u()}', '${PA}', 'completed', '2026-10-11T12:00:00Z'),
     ('${u()}', '${PA}', 'refunded',  '2026-10-11T13:00:00Z')`);
@@ -171,7 +180,7 @@ describe("seasonStandings — the ladder's sources, windowed", () => {
       exports: 1,
       followers: 1,
       streamsHosted: 1,
-      tipsReceived: 2,
+      tipsReceived: 3,
       sales: 2,
       membershipsSold: 1,
     });
@@ -213,7 +222,7 @@ describe("the settlement row — freeze + idempotency on the real table", () => 
     const first = await settleCourtSeason(dbCourtSeasonStore, S1, new Date("2026-11-01T00:01:00Z"));
     expect(first.inserted).toBe(true);
     expect(first.standings.map((s) => [s.place, s.displayName, s.points])).toEqual([
-      [1, "Ada", 116], // 10+15+5+1+10+ (2 tips ×5) + (2 sales ×20) + 25
+      [1, "Ada", 121], // 10+15+5+1+10+ (3 tips ×5) + (2 sales ×20) + 25
       [2, "Bo", 10],
     ]);
     // Ada's lifetime rank at the turn: the same sources unwindowed

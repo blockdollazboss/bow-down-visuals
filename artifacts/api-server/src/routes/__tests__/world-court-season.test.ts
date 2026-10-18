@@ -62,6 +62,11 @@ CREATE TABLE live_stream_tips (
   id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, creator_credited_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE world_stage_tips (
+  id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL,
+  amount_vb integer NOT NULL, room_id text NOT NULL, idempotency_key text NOT NULL,
+  creator_credited_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, status text NOT NULL DEFAULT 'completed',
   created_at timestamptz NOT NULL DEFAULT now()
