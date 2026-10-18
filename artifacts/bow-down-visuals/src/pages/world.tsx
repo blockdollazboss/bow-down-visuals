@@ -5,7 +5,7 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X, Coins,
+  Megaphone, Bell, BellOff, X, Coins, Gem,
 } from "lucide-react";
 import {
   WORLD_ACTIONS,
@@ -46,6 +46,7 @@ import {
   type WorldScreenState,
   type WorldJukeboxState,
   type WorldKingMomentState,
+  type WorldDropState,
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
 import {
@@ -61,6 +62,20 @@ import {
   stageTippedLine,
   stageTipDeniedLine,
 } from "@/lib/world/stage-tip";
+import {
+  EMPTY_DROP_BOOK,
+  dropBookClaimSent,
+  dropBookClaimed,
+  dropBookDenied,
+  dropBookForDrop,
+  dropClaimInFlight,
+  dropClaimView,
+  dropClaimedLine,
+  dropDeniedLine,
+  dropHeadline,
+  dropLine,
+  type DropClaimBook,
+} from "@/lib/world/drop-spectacle";
 import {
   parseTutorialStatus,
   tutorialStripLine,
@@ -347,6 +362,18 @@ export default function WorldPage() {
    * words, on the tip bar. Landed tips speak for themselves — the
    * room witnesses them (the log + the moment toast). */
   const [tipNote, setTipNote] = useState<string | null>(null);
+  /* Drop spectacles (World Events 3.4): the chest standing in THIS
+   * room as the client reports it (welcome snapshot + drop frames)
+   * — the drop card in the chrome reads this one mirror. The room
+   * enforces members-only, in-room, first-come and pays claims
+   * from the shared weekly drop pool. My own claim's bookkeeping
+   * (which chest my claim is out on, which is already in hand)
+   * lives in dropBook — the pure transitions are
+   * lib/world/drop-spectacle's. A refusal of MY claim lands in
+   * dropNote, in plain words, on the card. */
+  const [drop, setDrop] = useState<WorldDropState | null>(null);
+  const [dropBook, setDropBook] = useState<DropClaimBook>(EMPTY_DROP_BOOK);
+  const [dropNote, setDropNote] = useState<string | null>(null);
   /* "Your First 10 Minutes" (Ring 3, Phase 6): the member's
    * quest-line status from GET /api/world/tutorial — the read
    * reconciles server-side, so this page just refreshes it at the
@@ -482,6 +509,11 @@ export default function WorldPage() {
     state: null,
     at: 0,
   });
+  /* The drop mirror's anchor: the last drop state the page took
+   * from the client. The station tick reconciles against it — a
+   * reference change is the room speaking through a welcome (the
+   * snapshot path has no frame of its own). */
+  const dropAnchorRef = useRef<WorldDropState | null>(null);
   const jukeboxAudioRef = useRef<HTMLAudioElement | null>(null);
   const [jukeboxAudible, setJukeboxAudible] = useState(true);
   /* Host (admin) state: the roster for the host panel, whether the
@@ -1457,6 +1489,57 @@ export default function WorldPage() {
         if (cancelled) return;
         setTipNote(stageTipDeniedLine(reason));
       };
+      /* Drop spectacles (World Events 3.4): the chest standing in
+       * THIS room. applyDropState is the one writer of the page's
+       * mirror — the drop frames land on it, and the station tick
+       * below reconciles the welcome snapshot through it too (a
+       * drop already standing when you walk in rides the welcome,
+       * with no frame of its own; the chest stays in its room, so
+       * a doorway walk reconciles to the new room's truth — none,
+       * or that room's own chest). A claim identity change (a new
+       * chest, a sweep, a room change) retires the last refusal:
+       * the note belonged to the old chest. A landed claim is
+       * witnessed by the room — the log + the moment toast carry
+       * it; the claim is MINE when the witnessed name is my own
+       * (the frame's name + amount are server truth), and only
+       * then does my book turn. A refusal of MY claim says why on
+       * the card, in plain words. */
+      const applyDropState = (d: WorldDropState | null) => {
+        const identityChanged = dropAnchorRef.current?.eventId !== d?.eventId;
+        dropAnchorRef.current = d;
+        if (cancelled) return;
+        setDrop(d);
+        setDropBook((book) => dropBookForDrop(book, d));
+        if (identityChanged) setDropNote(null);
+      };
+      client.onDropLanded = (landed) => {
+        if (cancelled) return;
+        /* The herald words ride the palace announcement (the room
+         * hears them there); here the landing stands the card up
+         * with the fresh bookkeeping. */
+        applyDropState(landed);
+      };
+      client.onDrop = (d) => {
+        if (cancelled) return;
+        applyDropState(d);
+      };
+      client.onDropClaimed = (claim, dropState) => {
+        if (cancelled) return;
+        const line = dropClaimedLine(claim);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
+        showMomentLine(line);
+        const mine = client.self != null && claim.name === client.self.displayName;
+        const standing = dropState ?? dropAnchorRef.current;
+        setDropBook((book) => dropBookClaimed(book, standing, mine));
+      };
+      client.onDropDenied = (reason) => {
+        if (cancelled) return;
+        setDropNote(dropDeniedLine(reason));
+        setDropBook((book) => dropBookDenied(book, dropAnchorRef.current, reason));
+      };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
         setHostMuted(mutedNow);
@@ -1617,6 +1700,16 @@ export default function WorldPage() {
             setJukeboxDenied(null);
           }
         }
+        /* The drop mirror reconciles the same way: welcome stamps
+         * (a chest already standing in the room you enter, a sweep
+         * while you were quietly reconnecting) land on client.drop
+         * with no frame of their own — a reference change here is
+         * the room speaking. Live drop frames beat the tick to it
+         * through the handlers; applyDropState is the one writer
+         * either way. */
+        if (client.drop !== dropAnchorRef.current) {
+          applyDropState(client.drop);
+        }
       }, 200);
 
       await connectPromise;
@@ -1741,6 +1834,11 @@ export default function WorldPage() {
      on the screen — the host outranks the holder, always. */
   const stageHolder = stageScreen?.holder ?? null;
   const iHoldStage = !!stageHolder && stageHolder.peerId === myPeerId;
+  /* The drop card's claim state for THIS viewer (guest / claimed /
+   * out / open) + whether my claim is still out on the chest —
+   * the pure reads are lib/world/drop-spectacle's. */
+  const dropView = drop ? dropClaimView(drop, isGuest, dropBook) : null;
+  const dropInFlight = drop ? dropClaimInFlight(drop, dropBook) : false;
   const canDriveScreen = !stageHolder || iHoldStage || isAdmin;
   const stageVideoPlaying = stageScreen?.playback?.playing ?? false;
   const panelBtnCls = (active: boolean) =>
@@ -1967,6 +2065,70 @@ export default function WorldPage() {
               data-testid="world-king-claimed"
             >
               Gift claimed
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Drop spectacles (World Events 3.4): while a chest stands
+          in THIS room, the drop card stands in the chrome — in
+          whatever room the chest fell, since only the room it
+          landed in can claim it (you had to BE there). Members
+          claim with one tap; the room verifies member + room +
+          first-come and the shared weekly pool pays. Guests
+          witness and get the honest sign-in line — no claim
+          affordance. The card goes with the room's state: walk
+          out and it's gone. */}
+      {status === "inside" && drop && dropView && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#FBF6E9]"
+              : "border-[#d4af37]/40 bg-[#0d0a05]"
+          }`}
+          data-testid="world-drop-card"
+          role="status"
+        >
+          <Gem className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white/90"}`}>
+              {dropHeadline(drop)}
+            </p>
+            <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+              {dropNote ?? dropLine(drop, dropView)}
+            </p>
+          </div>
+          {dropView === "open" && (
+            <button
+              type="button"
+              disabled={dropInFlight}
+              onClick={() => {
+                setDropNote(null);
+                setDropBook((book) => dropBookClaimSent(book, drop));
+                clientRef.current?.claimDrop();
+              }}
+              data-testid="world-drop-claim"
+              className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+            >
+              {dropInFlight
+                ? "Claiming…"
+                : `Claim ${drop.amountVb.toLocaleString("en-US")} VB`}
+            </button>
+          )}
+          {dropView === "claimed" && (
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12]" : "border-[#d4af37]/40 text-[#e8c86a]"}`}
+              data-testid="world-drop-claimed"
+            >
+              Claimed
+            </span>
+          )}
+          {dropView === "out" && (
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12]" : "border-[#d4af37]/40 text-[#e8c86a]"}`}
+              data-testid="world-drop-out"
+            >
+              All claimed
             </span>
           )}
         </div>
