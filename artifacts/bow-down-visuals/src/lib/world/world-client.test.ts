@@ -1709,3 +1709,66 @@ describe("presence truth — guest session id + the replaced state", () => {
     expect(client.status).toBe("replaced");
   });
 });
+
+describe("palace announcements (Ring 3)", () => {
+  it("a palace.announce lands normalized on client.announce and fires onAnnounce", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const heard: unknown[] = [];
+    client.onAnnounce = (a) => heard.push(a);
+    socket.receive({
+      type: "palace.announce",
+      announce: {
+        kind: "drop",
+        text: "Shark Drop just landed in Music Hall — 250 VB a claim, first come.",
+        roomId: "world:music-hall",
+        roomName: "Music Hall",
+        amountVb: 250,
+        at: 123_456,
+      },
+    });
+    expect(client.announce).toEqual({
+      kind: "drop",
+      text: "Shark Drop just landed in Music Hall — 250 VB a claim, first come.",
+      roomId: "world:music-hall",
+      roomName: "Music Hall",
+      amountVb: 250,
+      at: 123_456,
+    });
+    expect(heard).toHaveLength(1);
+  });
+
+  it("a malformed announcement (unknown kind, empty text) is dropped, never presented", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const heard: unknown[] = [];
+    client.onAnnounce = (a) => heard.push(a);
+    socket.receive({ type: "palace.announce", announce: { kind: "fireworks", text: "boom", at: 1 } });
+    socket.receive({ type: "palace.announce", announce: { kind: "drop", text: "", at: 1 } });
+    socket.receive({ type: "palace.announce", announce: "not an object" });
+    expect(client.announce).toBeNull();
+    expect(heard).toEqual([]);
+  });
+
+  it("an announce.denied fires onAnnounceDenied and changes nothing else", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    let denied = 0;
+    client.onAnnounceDenied = () => denied++;
+    socket.receive({ type: "announce.denied" });
+    expect(denied).toBe(1);
+    expect(client.announce).toBeNull();
+    expect(client.status).toBe("inside");
+  });
+
+  it("herald sends only for an admin self, trimmed + capped; members and blanks send nothing", async () => {
+    const plain = await inside({ t: 0 }, SELF, [OTHER]);
+    expect(plain.client.herald("Court at eight.")).toBe(false);
+    expect(plain.socket.sent).toEqual([]);
+
+    const admin = await inside({ t: 0 }, { ...SELF, admin: true }, [OTHER]);
+    expect(admin.client.herald("   ")).toBe(false);
+    expect(admin.client.herald("  Court at eight.  ")).toBe(true);
+    expect(admin.socket.sent).toEqual([{ type: "announce.herald", text: "Court at eight." }]);
+    admin.socket.sent = [];
+    expect(admin.client.herald("x".repeat(200))).toBe(true);
+    expect(admin.socket.sent[0].text).toHaveLength(140);
+  });
+});

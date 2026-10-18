@@ -93,6 +93,15 @@
  *                                            member's voice server-side
  *     { type: "admin.remove", peerId }        host only: remove a
  *                                            person from the hall
+ *     { type: "announce.herald", text }       host only: speak to the
+ *                                            WHOLE palace at once.
+ *                                            Intercepted by the palace
+ *                                            registry (world-palace.ts)
+ *                                            like room.enter — a room
+ *                                            never sees it; the
+ *                                            registry verifies the
+ *                                            host flag and broadcasts
+ *                                            a palace.announce
  *   server → client
  *     { type: "welcome", peerId, room, you, peers }   on join (full
  *                                            snapshot; `room` names
@@ -186,6 +195,20 @@
  *                                            NOT build that channel;
  *                                            the moment speaks to
  *                                            this room only
+ *     { type: "palace.announce", announce }  a palace-wide moment
+ *                                            (Ring 3, THE-GAME §5(b)):
+ *                                            the palace speaking past
+ *                                            one room's walls — a drop
+ *                                            landing, a show starting,
+ *                                            a level rising, the King's
+ *                                            daily moment, or the
+ *                                            host's own herald text.
+ *                                            Sent by the palace
+ *                                            registry to every room;
+ *                                            see PalaceAnnouncement
+ *     { type: "announce.denied" }            a herald attempt by a
+ *                                            non-host (or too fast) —
+ *                                            the palace did not speak
  *     { type: "peer.hostmute", peerId, muted }  the host muted/unmuted
  *                                            a member's voice
  *     { type: "admin.denied" }                a host action attempted
@@ -581,6 +604,38 @@ export type WorldQuestClaimFinder = (
  *  (the levelup verification then refuses — nothing to witness). */
 export type WorldStarsResolver = (userId: string) => Promise<number | null>;
 
+/* ── Palace announcements (Ring 3, THE-GAME §5(b)) ────────────────
+ * The palace's public-address system: one announcement shape,
+ * carried palace-wide by the registry (lib/world-palace) so a drop
+ * landing two rooms over, a show starting in the hall, a level
+ * rising and the King's daily moment are heard EVERYWHERE — the
+ * spectacle items (3.4), the events backbone (3.1) and the level-up
+ * ceremony all speak through this one channel. Rooms EMIT through
+ * their onAnnounce hook (wired by the palace); the registry owns
+ * delivery (every occupied room's channel) and the host's herald
+ * intent. Every text is built server-side from server truth — the
+ * one exception is `herald`, whose text is the host's own words
+ * (host-verified at the registry, length-capped, rate-limited). */
+
+export type PalaceAnnounceKind = "herald" | "drop" | "show" | "levelup" | "king";
+
+export interface PalaceAnnouncement {
+  kind: PalaceAnnounceKind;
+  /** The headline, in plain words. */
+  text: string;
+  /** The room the moment belongs to, when it has one (a drop's
+   *  room, the hall for a show) — clients use it to point feet. */
+  roomId?: string;
+  roomName?: string;
+  /** The person the moment is about, when it has one. */
+  name?: string;
+  /** For kind "levelup": the new Creator Level stars. */
+  stars?: number;
+  /** For kind "drop": the per-claim amount — the scramble is the
+   *  point, so the size of the prize is part of the herald. */
+  amountVb?: number;
+}
+
 /** How fresh a quest claim must be for a celebrate intent to
  *  witness it. The claim flow fires the intent the moment the claim
  *  lands; two minutes leaves generous room for the round trip
@@ -818,6 +873,13 @@ export class WorldRoom {
    *  the events scheduler wires it to close the event row. Never
    *  fired for walk-in shows. */
   onScheduledShowEnded: ((eventId: string) => void) | null = null;
+  /** Fired when this room has a moment the WHOLE palace should hear
+   *  (a drop landing, a show starting, a level rising). The palace
+   *  registry wires it to its palace-wide announce delivery; a
+   *  standalone room leaves it unset and its moments stay its own —
+   *  the room-scoped frames (drop.landed, peer.moment) always fire
+   *  regardless. */
+  onAnnounce: ((announce: PalaceAnnouncement) => void) | null = null;
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
@@ -1335,6 +1397,15 @@ export class WorldRoom {
     this.screenContent = input.content;
     this.stageSeq++;
     this.broadcastScreen(`LIVE: ${input.title} by ${input.hostName}`);
+    /* A booked show starting is a palace appointment kept — the
+     * whole palace hears it through the announce channel (3.8). */
+    this.onAnnounce?.({
+      kind: "show",
+      text: `LIVE in ${this.roomName}: ${input.title} by ${input.hostName}`,
+      roomId: this.roomId,
+      roomName: this.roomName,
+      name: input.hostName,
+    });
     this.onChange?.();
     return true;
   }
@@ -1457,6 +1528,18 @@ export class WorldRoom {
       roomId: this.roomId,
       roomName: this.roomName,
       drop: this.dropBroadcast(),
+    });
+    /* The herald leaves the room (Ring 3 §5(b)): a drop landing is
+     * a palace-wide scramble, announced through the registry's
+     * channel in the same announcement shape. The room's own
+     * drop.landed above remains the claim surface — only the room
+     * the chest fell in can claim it. */
+    this.onAnnounce?.({
+      kind: "drop",
+      text: `${input.title} just landed in ${this.roomName} — ${input.amountVb} VB a claim, first come.`,
+      roomId: this.roomId,
+      roomName: this.roomName,
+      amountVb: input.amountVb,
     });
     return true;
   }
@@ -2135,6 +2218,19 @@ export class WorldRoom {
                   stars,
                 },
               });
+              /* The ceremony leaves the room (Ring 3 §5(b)): a
+               * level rising is palace news — the announce channel
+               * carries the same server-read stars past the walls.
+               * The session dedupe above is what keeps this a
+               * ceremony and not a loop: one rise, one herald. */
+              this.onAnnounce?.({
+                kind: "levelup",
+                text: `${peer.displayName} just rose to ${stars} stars`,
+                roomId: this.roomId,
+                roomName: this.roomName,
+                name: peer.displayName,
+                stars,
+              });
             })
             .catch(() => undefined);
           return;
@@ -2300,6 +2396,12 @@ export class WorldRoom {
           return;
         const takeover =
           this.stageHolder !== null && this.stageHolder.peerId !== peer.peerId;
+        /* A fresh hand on the stage (nobody held it, or a new
+         * holder displaced the old) is a show STARTING. A holder
+         * swapping their own content mid-show is not — the palace
+         * is heralded for starts, not for setlist changes. */
+        const showStarting =
+          this.stageHolder === null || this.stageHolder.peerId !== peer.peerId;
         /* A host takeover displaces a booked show (the stage is the
          * host's, always): the event closes rather than lingering
          * as a label over someone else's show. The scheduled host
@@ -2318,6 +2420,26 @@ export class WorldRoom {
         };
         this.screenContent = resolved.content;
         this.broadcastScreen(takeover ? "The host took the stage." : null);
+        /* The starting show is heralded palace-wide (3.8) — unless
+         * a BOOKED show is standing for this claim: its start was
+         * already heralded by beginScheduledShow, and the host
+         * going live over their own event pseudo-peer must not
+         * herald the same show twice. */
+        if (showStarting && !this.scheduledShow) {
+          const title =
+            resolved.content.kind === "live"
+              ? resolved.content.title
+              : resolved.content.kind === "video"
+                ? resolved.content.video.title
+                : resolved.name;
+          this.onAnnounce?.({
+            kind: "show",
+            text: `LIVE in ${this.roomName}: ${title} by ${resolved.name}`,
+            roomId: this.roomId,
+            roomName: this.roomName,
+            name: resolved.name,
+          });
+        }
         this.onChange?.();
       })
       .catch(() => undefined);

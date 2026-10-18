@@ -5,6 +5,7 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
+  Megaphone, Bell, BellOff, X,
 } from "lucide-react";
 import {
   WORLD_ACTIONS,
@@ -23,6 +24,15 @@ import {
 } from "@/lib/world/level-watch";
 import { formatMomentLine, QUEST_CLAIMED_EVENT } from "@/lib/world/moments";
 import {
+  ANNOUNCE_TTL_MS,
+  announceLine,
+  announceSpeaker,
+  cleanHeraldText,
+  isAnnounceFresh,
+  loadAnnounceMuted,
+  storeAnnounceMuted,
+} from "@/lib/world/announce";
+import {
   WorldClient,
   worldOverlay,
   defaultWorldSocketUrl,
@@ -32,6 +42,7 @@ import {
   type WorldStatus,
   type WorldSayEvent,
   type WorldPeer,
+  type WorldAnnouncement,
   type WorldScreenState,
   type WorldJukeboxState,
   type PalaceDirectoryEntry,
@@ -270,6 +281,37 @@ export default function WorldPage() {
     if (momentTimerRef.current) clearTimeout(momentTimerRef.current);
     momentTimerRef.current = setTimeout(() => setMomentLine(null), 7_000);
   }, []);
+  /* Palace announcements (Ring 3, THE-GAME §5(b)): the palace
+   * speaking past one room's walls — a drop landing elsewhere, a
+   * show starting, a level rising, the King's moment, the host's
+   * herald. The banner stands for ANNOUNCE_TTL_MS; the room log
+   * keeps the line either way. The mute is the standing rule made
+   * visible (every automated behavior ships with an on/off): it
+   * lives on this device, defaults to off, and only ever silences
+   * the banner — the log still records what the palace said. */
+  const [announce, setAnnounce] = useState<WorldAnnouncement | null>(null);
+  const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [announceMuted, setAnnounceMuted] = useState<boolean>(() => loadAnnounceMuted());
+  const announceMutedRef = useRef(announceMuted);
+  announceMutedRef.current = announceMuted;
+  const showAnnounce = useCallback((a: WorldAnnouncement) => {
+    setAnnounce(a);
+    if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = setTimeout(() => setAnnounce(null), ANNOUNCE_TTL_MS);
+  }, []);
+  const toggleAnnounceMuted = useCallback(() => {
+    setAnnounceMuted((m) => {
+      const next = !m;
+      storeAnnounceMuted(next);
+      if (next) setAnnounce(null);
+      return next;
+    });
+  }, []);
+  /* The host's herald compose (host panel): the one announcement
+   * whose words are a person's own — the registry verifies the
+   * host server-side regardless of what this form allows. */
+  const [heraldDraft, setHeraldDraft] = useState("");
+  const [heraldNote, setHeraldNote] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -1251,6 +1293,26 @@ export default function WorldPage() {
           { peerId: "hall", displayName: "The Palace", body: line },
         ]);
       };
+      /* A palace-wide announcement (Ring 3 §5(b)): whatever room
+       * the moment happened in, this room hears it — the log keeps
+       * the line under its speaker (the host for a herald, the King
+       * for his moment, the Palace for the rest) and, unless the
+       * announcements are muted on this device, the banner rises. */
+      client.onAnnounce = (a) => {
+        if (cancelled) return;
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: announceSpeaker(a), body: announceLine(a) },
+        ]);
+        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) showAnnounce(a);
+      };
+      /* My herald was refused (not the host — the server checked —
+       * or too soon after the last one): the host panel says why
+       * instead of the words just vanishing. */
+      client.onAnnounceDenied = () => {
+        if (cancelled) return;
+        setHeraldNote("The palace didn't take that herald — one at a time; give it a few seconds and try again.");
+      };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
         setHostMuted(mutedNow);
@@ -1593,6 +1655,19 @@ export default function WorldPage() {
           <Users className="h-4 w-4 text-[#d4af37]" />
           {status === "inside" ? `${peopleCount} ${inHall ? "in the hall" : `in the ${roomName}`}` : "—"}
         </span>
+        {status === "inside" && (
+          <button
+            type="button"
+            onClick={toggleAnnounceMuted}
+            data-testid="world-announce-toggle"
+            aria-pressed={!announceMuted}
+            title={announceMuted ? "Palace announcements are muted on this device — tap to hear the palace again" : "Palace announcements — tap to mute them on this device"}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+          >
+            {announceMuted ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+            {announceMuted ? "Announcements off" : "Announcements on"}
+          </button>
+        )}
         {fsSupported && (
           <button
             type="button"
@@ -1621,6 +1696,52 @@ export default function WorldPage() {
           and no streak to name for them. */}
       {status === "inside" && (
         <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} />
+      )}
+
+      {/* The palace announcement (Ring 3, THE-GAME §5(b)): the
+          palace speaking to every room at once — a drop landed
+          somewhere, a show is starting, a level rose, the King is
+          holding his moment, or the host heralded. It names the
+          room the moment belongs to when it isn't this one, and it
+          carries its own off switch (the header toggle is the
+          same switch, always in reach). Muted on this device, the
+          banner never rises — the room log still keeps the line. */}
+      {status === "inside" && announce && !announceMuted && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#f6ead0]"
+              : "border-[#d4af37]/40 bg-[#171106]"
+          }`}
+          data-testid="world-announce-banner"
+          role="status"
+        >
+          <Megaphone className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+            {announceLine(announce)}
+            {announce.roomName && announce.roomId !== roomId && (
+              <span className="opacity-75"> — in the {announce.roomName}</span>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={toggleAnnounceMuted}
+            data-testid="world-announce-mute"
+            aria-label="Mute palace announcements on this device"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+          >
+            <BellOff className="h-3.5 w-3.5" /> Mute
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnounce(null)}
+            data-testid="world-announce-dismiss"
+            aria-label="Dismiss this announcement"
+            className={`inline-flex items-center rounded-full border p-1.5 transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       )}
 
       {/* Walk in as — members pick a Creative Vault character (or the
@@ -2250,6 +2371,52 @@ export default function WorldPage() {
               </div>
             ))}
           </div>
+          {/* The herald (Ring 3 §5(b)): the host speaks to EVERY
+              room at once. The registry verifies the host server-
+              side and rate-limits heralds; a refusal lands back
+              here as a note instead of silence. */}
+          <form
+            className="mt-3"
+            data-testid="world-herald-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (clientRef.current?.herald(heraldDraft)) {
+                setHeraldDraft("");
+                setHeraldNote("The palace heard you.");
+              }
+            }}
+          >
+            <label
+              htmlFor="world-herald-input"
+              className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
+            >
+              <Megaphone className="h-4 w-4 text-[#d4af37]" /> Herald the palace
+            </label>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <input
+                id="world-herald-input"
+                data-testid="world-herald-input"
+                value={heraldDraft}
+                onChange={(e) => setHeraldDraft(e.target.value)}
+                maxLength={140}
+                placeholder="Speak to every room at once…"
+                className={`min-w-[220px] flex-1 rounded-full border px-4 py-2 text-sm font-semibold outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60" : "border-white/15 bg-white/5 text-white placeholder:text-white/35"}`}
+              />
+              <button
+                type="submit"
+                data-testid="world-herald-send"
+                disabled={!cleanHeraldText(heraldDraft)}
+                className="rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-4 py-2 text-sm font-black text-[#e8c86a] transition hover:bg-[#d4af37]/25 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Herald
+              </button>
+            </div>
+            {heraldNote && (
+              <p className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`} data-testid="world-herald-note">
+                {heraldNote}
+              </p>
+            )}
+          </form>
         </div>
       )}
 

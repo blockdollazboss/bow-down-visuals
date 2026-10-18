@@ -32,17 +32,38 @@
  * a joiner is already inside when it fires, so entry carries
  * exactly one copy), and it's served over HTTP at
  * GET /world/directory for surfaces that haven't stepped in yet.
+ *
+ * The announce channel (Ring 3, THE-GAME §5(b)) is the registry's
+ * second palace-wide signal: a `palace.announce` frame delivered to
+ * every occupied room at once. Rooms emit their moments through
+ * their onAnnounce hook (a drop landing, a show starting, a level
+ * rising); the events/king schedulers speak through `announce()`
+ * directly; and the host speaks in their own words through the
+ * `announce.herald` intent, which — like room.enter — the registry
+ * intercepts before the room ever sees it: the sender's host flag
+ * is verified against the room's own peer record (resolved at the
+ * door, never a client claim), the text is capped, and heralds are
+ * rate-limited per host so the channel stays a herald, not a horn.
  */
 import type { RoomHub, WsClientSocket } from "./live-ws";
 import {
   WorldRoom,
   WORLD_PRESENCE_CAP,
   WORLD_ROOM_ID,
+  type PalaceAnnouncement,
   type WorldDropClaimer,
   worldIdentityKey,
   type WorldIdentity,
   type WorldRoomOptions,
 } from "./world-room";
+
+/** The host's herald: at most this many characters reach the
+ *  palace — a herald is a headline, not a speech. */
+export const HERALD_MAX_CHARS = 140;
+
+/** One herald per host per this interval. The palace's ear is a
+ *  shared resource; the channel's value is that it is rare. */
+export const HERALD_MIN_INTERVAL_MS = 10_000;
 
 /** How often the palace sweeps every room for frame-silent peers
  *  (see WorldRoom.sweepStalePeers / WORLD_PEER_STALE_MS). A ghost's
@@ -259,6 +280,7 @@ export class WorldPalace {
               };
       const room = new WorldRoom(hub, roomDeps, { roomId, name, ...opts });
       room.onChange = () => this.broadcastDirectory();
+      room.onAnnounce = (announce) => this.announce(announce);
       this.rooms.set(roomId, room);
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
@@ -286,6 +308,7 @@ export class WorldPalace {
       },
     );
     room.onChange = () => this.broadcastDirectory();
+    room.onAnnounce = (announce) => this.announce(announce);
     this.rooms.set(roomId, room);
     this.creatorRooms.set(slug, { room, displayName });
     return room;
@@ -409,6 +432,83 @@ export class WorldPalace {
     }
   }
 
+  /* ── The announce channel ─────────────────────────────────────── */
+
+  /** The last herald time per host peerId (rate limit state). */
+  private heraldLastAt = new Map<string, number>();
+
+  /**
+   * Speak to the whole palace at once: one `palace.announce` frame
+   * delivered to every occupied room's channel. Rooms reach this
+   * through their onAnnounce hook; the house schedulers (events,
+   * the King's daily moment) call it directly. The announcement is
+   * stamped here (`at`, server clock) so every room hears the same
+   * moment with the same time on it.
+   */
+  announce(announcement: PalaceAnnouncement): void {
+    const payload = {
+      type: "palace.announce",
+      announce: { ...announcement, at: Date.now() },
+    };
+    for (const room of this.rooms.values()) {
+      if (room.size() > 0) this.hub.broadcast(room.roomId, payload);
+    }
+  }
+
+  private sendFrame(socket: WsClientSocket, payload: unknown): void {
+    try {
+      socket.send(JSON.stringify(payload));
+    } catch {
+      /* the close handler reaps it */
+    }
+  }
+
+  /**
+   * The host's herald intent (`announce.herald`): the one palace
+   * announcement whose text is a person's own words — so it is
+   * verified like every host power. The sender must BE the host
+   * (their room's peer record carries the door-resolved admin flag;
+   * a guest is never an admin), the text must be a non-empty
+   * headline within the cap, and the host's last herald must be at
+   * least HERALD_MIN_INTERVAL_MS ago. Any failure answers the
+   * sender alone with `announce.denied` — the palace never speaks,
+   * and nobody else hears that it refused.
+   */
+  private handleHerald(socket: WsClientSocket, rawText: unknown, now: number): void {
+    const room = this.roomOf(socket);
+    const me = room?.peerFor(socket) ?? null;
+    if (!room || !me || !me.admin) {
+      this.sendFrame(socket, { type: "announce.denied" });
+      return;
+    }
+    const text = typeof rawText === "string" ? rawText.trim().slice(0, HERALD_MAX_CHARS) : "";
+    if (!text) {
+      this.sendFrame(socket, { type: "announce.denied" });
+      return;
+    }
+    const last = this.heraldLastAt.get(me.peerId) ?? 0;
+    if (now - last < HERALD_MIN_INTERVAL_MS) {
+      this.sendFrame(socket, { type: "announce.denied" });
+      return;
+    }
+    this.heraldLastAt.set(me.peerId, now);
+    /* The rate map is keyed by session peerIds; prune dead marks
+     * opportunistically so a long-lived process doesn't accrue
+     * one entry per host session forever. */
+    if (this.heraldLastAt.size > 64) {
+      for (const [peerId, at] of this.heraldLastAt) {
+        if (now - at > HERALD_MIN_INTERVAL_MS) this.heraldLastAt.delete(peerId);
+      }
+    }
+    this.announce({
+      kind: "herald",
+      text,
+      name: me.displayName,
+      roomId: room.roomId,
+      roomName: room.roomName,
+    });
+  }
+
   /**
    * Route one frame. `room.enter` is the registry's own; everything
    * else belongs to the room the socket stands in. A room.enter for
@@ -420,6 +520,7 @@ export class WorldPalace {
     let x: unknown = null;
     let z: unknown = null;
     let rotY: unknown = null;
+    let heraldText: unknown = null;
     try {
       const parsed: unknown = JSON.parse(raw);
       if (parsed && typeof parsed === "object") {
@@ -431,9 +532,20 @@ export class WorldPalace {
           z = frame["z"];
           rotY = frame["rotY"];
         }
+        if (type === "announce.herald") {
+          heraldText = frame["text"];
+        }
       }
     } catch {
       /* not JSON — the room's own parser will ignore it too */
+    }
+    if (type === "announce.herald") {
+      /* The registry's own frame, like room.enter: the palace
+       * verifies and speaks; the room never sees it. Any other
+       * frame for a socket standing nowhere falls through to the
+       * room lookup below and dies quietly, as before. */
+      this.handleHerald(socket, heraldText, now);
+      return;
     }
     if (type === "room.enter") {
       /* A creator room nobody has materialized yet: resolve the

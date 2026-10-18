@@ -17,8 +17,15 @@
  *        doorway — the registry transfers this peer to that room),
  *        moment.celebrate (ask the room to witness a win — a quest
  *        claim or a level-up; a bare intent carrying no facts, the
- *        server verifies the win against its own records first)
+ *        server verifies the win against its own records first),
+ *        announce.herald (host only: speak to the whole palace at
+ *        once — intercepted by the palace registry, which verifies
+ *        the host flag and broadcasts a palace.announce)
  *   in:  welcome (room + self + snapshot), palace.directory,
+ *        palace.announce (a palace-wide moment — a drop landing, a
+ *        show starting, a level rising, the King's daily moment, or
+ *        the host's herald), announce.denied (my herald was
+ *        refused: not the host, blank, or too soon after the last),
  *        room.unavailable, peer.join / peer.move / peer.leave,
  *        peer.action, peer.moment (a win the room witnessed — the
  *        room's statement, built entirely from server records),
@@ -211,6 +218,36 @@ export interface WorldNowPlayingMoment {
 export type WorldMoment =
   | { kind: "quest"; peerId: string; name: string; questName: string; rewardVb: number }
   | { kind: "levelup"; peerId: string; name: string; stars: number };
+
+/** The herald cap, mirrored from the server (HERALD_MAX_CHARS in
+ *  lib/world-palace): a herald is a headline, not a speech. */
+export const HERALD_MAX_CHARS = 140;
+
+export const ANNOUNCE_KINDS = ["herald", "drop", "show", "levelup", "king"] as const;
+export type PalaceAnnounceKind = (typeof ANNOUNCE_KINDS)[number];
+
+/** A palace-wide announcement (Ring 3, THE-GAME §5(b)): the palace
+ *  speaking past one room's walls, delivered by the registry to
+ *  every occupied room at once. Every field is server-built from
+ *  server truth — the one exception is a herald's `text`, which is
+ *  the host's own words (host-verified at the registry, capped,
+ *  rate-limited). The page renders it as a banner + a line in the
+ *  room log; the mute for it is the page's (see lib/world/announce). */
+export interface WorldAnnouncement {
+  kind: PalaceAnnounceKind;
+  text: string;
+  /** The room the moment belongs to, when it has one. */
+  roomId?: string;
+  roomName?: string;
+  /** The person the moment is about, when it has one. */
+  name?: string;
+  /** For kind "levelup": the new Creator Level stars. */
+  stars?: number;
+  /** For kind "drop": the per-claim amount. */
+  amountVb?: number;
+  /** The server's stamp of the moment (ms epoch). */
+  at: number;
+}
 
 /** A drop spectacle standing in the room you're in (World Events
  *  3.4): claimable by the members standing there, first-come. */
@@ -472,6 +509,12 @@ export class WorldClient {
   /** The last win the room witnessed (a quest completion or a
    *  level-up), as last broadcast by the server. */
   lastMoment: WorldMoment | null = null;
+  /** The last palace-wide announcement, as last broadcast by the
+   *  registry (any room's moment, the King's moment, the host's
+   *  herald). The page's banner + mute read this; the socket keeps
+   *  receiving announcements while muted — the mute is the page's
+   *  presentation choice, not a server state. */
+  announce: WorldAnnouncement | null = null;
   /** The room this client stands in (set by every welcome). */
   room: PalaceRoomInfo | null = null;
   /** The palace directory — who's where — as last broadcast (and
@@ -523,6 +566,12 @@ export class WorldClient {
   /** My claim was refused (guests / no-drop / already-claimed /
    *  claimed-out / budget). */
   onDropDenied: ((reason: string) => void) | null = null;
+  /** A palace-wide announcement landed (any room's moment, the
+   *  King's daily moment, the host's herald). */
+  onAnnounce: ((announce: WorldAnnouncement) => void) | null = null;
+  /** My herald was refused by the registry (not the host, blank
+   *  text, or inside the rate-limit window). */
+  onAnnounceDenied: (() => void) | null = null;
   /** A screen action was refused: someone else holds the stage. */
   onScreenDenied: ((holderName: string | null) => void) | null = null;
   /** The host muted/unmuted ME (self only) — the page shows the
@@ -1076,6 +1125,21 @@ export class WorldClient {
     this.send({ type: "admin.remove", peerId });
   }
 
+  /** Herald the whole palace (host only): the registry intercepts
+   *  the intent, verifies the host flag against my room's peer
+   *  record, and broadcasts a palace.announce to every room. The
+   *  text is trimmed + capped here as a courtesy — the server caps
+   *  and rate-limits it regardless. Returns false without sending
+   *  when it can't land (not inside, not the host, blank), so the
+   *  compose box can stay honest. */
+  herald(text: string): boolean {
+    if (this.status !== "inside" || !this.self?.admin) return false;
+    const clean = text.trim().slice(0, HERALD_MAX_CHARS);
+    if (!clean) return false;
+    this.send({ type: "announce.herald", text: clean });
+    return true;
+  }
+
   leaveVoice(): void {
     this.send({ type: "voice.leave" });
   }
@@ -1450,6 +1514,35 @@ export class WorldClient {
           if (target) target.stars = moment.stars;
         }
         this.onMoment?.(moment);
+        return;
+      }
+      case "palace.announce": {
+        /* A palace-wide moment. Explicit normalizer (DTO
+         * discipline): a known kind and a non-empty headline or it
+         * isn't an announcement the page may present; the optional
+         * fields ride only when they're the right shape. */
+        const raw = frame["announce"];
+        if (!raw || typeof raw !== "object") return;
+        const a = raw as Record<string, unknown>;
+        const kind = typeof a["kind"] === "string" ? a["kind"] : "";
+        const text = typeof a["text"] === "string" ? a["text"] : "";
+        if (!(ANNOUNCE_KINDS as readonly string[]).includes(kind) || !text) return;
+        const announce: WorldAnnouncement = {
+          kind: kind as PalaceAnnounceKind,
+          text,
+          ...(typeof a["roomId"] === "string" ? { roomId: a["roomId"] } : {}),
+          ...(typeof a["roomName"] === "string" ? { roomName: a["roomName"] } : {}),
+          ...(typeof a["name"] === "string" ? { name: a["name"] } : {}),
+          ...(typeof a["stars"] === "number" ? { stars: a["stars"] } : {}),
+          ...(typeof a["amountVb"] === "number" ? { amountVb: a["amountVb"] } : {}),
+          at: typeof a["at"] === "number" ? a["at"] : this.now(),
+        };
+        this.announce = announce;
+        this.onAnnounce?.(announce);
+        return;
+      }
+      case "announce.denied": {
+        this.onAnnounceDenied?.();
         return;
       }
       case "screen.denied": {
