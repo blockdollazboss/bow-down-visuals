@@ -32,6 +32,11 @@ import {
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
+import {
+  CreatorRoomsDirectory,
+  CreatorRoomStation,
+} from "@/components/world/native/CreatorRooms";
+import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
@@ -39,6 +44,9 @@ import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import QuestsWidget from "@/components/QuestsWidget";
+import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
+import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
+import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
    A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
@@ -80,12 +88,31 @@ export interface StationPanelProps {
    *  editor's location with ?project=<id> so it opens where they
    *  left off. Null (or still loading) → the editor opens fresh. */
   editorProjectId?: string | null;
+  /** A party summons (program 2.23): the walker landed on a
+   *  /world?party=CODE invite; the page verified the table against
+   *  the server and threads the result here for the Marble Table.
+   *  Null when this visit carries no invite. */
+  partyInvite?: { code: string; room: import("@/lib/world/games-lobby").PartyOpenRoom | null } | null;
   /** The Create desks' Send-to-the-editor chip: step through to the
    *  Visual Vibes editor station (the page swaps the panel target;
    *  the step-through's newest-project seed resolves on open, and
    *  the desk has just saved its result as that project). Optional —
    *  hosts without an editor door simply don't offer the chip. */
   onOpenEditorStation?: () => void;
+  /** World Ring 2 (2.20): open another station's panel in-world by
+   *  registry id — the Quest Board's "Go do it" rides this to the
+   *  desk that performs the quest (the same panel-swap the Create
+   *  desks' editor chip uses, generalized). Optional — hosts
+   *  without it leave quest actions as explicit transfers. */
+  onOpenStation?: (stationId: string) => void;
+  /** Creator Rooms (Ring 2, 3.5): the Courtyard arch panel's pick —
+   *  the page registers the room's floor plan, dresses the scene
+   *  and runs the doorway transfer. Optional — a host without it
+   *  leaves the directory as a look-only board. */
+  onEnterCreatorRoom?: (slug: string) => void;
+  /** The signed-in walker's own profile slug — the arch panel
+   *  pins "Your room" first when it matches a listed room. */
+  mySlug?: string | null;
   onJukeboxAdd: (trackId: string) => void;
   onJukeboxPlayPause: (playing: boolean) => void;
   onJukeboxSkip: () => void;
@@ -183,7 +210,7 @@ function GuestPitch({ station, isLight }: { station: PalaceStation; isLight: boo
         your own name on it.
       </p>
       <Link
-        href="/login"
+        href={GUEST_SIGN_IN_HREF}
         className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105"
       >
         <LogIn className="h-4 w-4" /> Sign in to open it
@@ -202,16 +229,21 @@ function KingdomBoard({
   directory,
   currentRoomId,
   isLight,
+  isGuest,
 }: {
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
   isLight: boolean;
+  isGuest: boolean;
 }) {
   if (directory.length === 0) {
     return (
-      <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        The board is quiet — the directory hasn&rsquo;t spoken yet.
-      </p>
+      <div>
+        <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+          The board is quiet — the directory hasn&rsquo;t spoken yet.
+        </p>
+        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
+      </div>
     );
   }
   return (
@@ -254,6 +286,7 @@ function KingdomBoard({
         The board follows the palace live — walk through a door and your name moves with you. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
+      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} />
     </div>
   );
 }
@@ -686,9 +719,28 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
   );
 }
 
-function TreasuryQuests() {
+function TreasuryQuests({
+  isLight,
+  onOpenStation,
+}: {
+  isLight: boolean;
+  onOpenStation?: (stationId: string) => void;
+}) {
   const { getAccessToken, refreshProfile } = useAuth();
-  return <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} inWorld />;
+  return (
+    <div>
+      <QuestsWidget
+        getToken={getAccessToken}
+        onBalanceChange={refreshProfile}
+        inWorld
+        onGoToStation={onOpenStation}
+      />
+      {/* Ring 2 depth: the trophy ledger, the full catalog with
+          past weeks, and the week's standings — read from the
+          retention rails, under the board's live objectives. */}
+      <TreasuryQuestDepths isLight={isLight} />
+    </div>
+  );
 }
 
 /* ─── The Music Hall jukebox ───────────────────────────────────────── */
@@ -892,7 +944,7 @@ function JukeboxPanel(props: StationPanelProps) {
         </p>
         {isGuest ? (
           <p className={`mt-1.5 text-sm ${muted}`}>
-            Guests listen in — <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
+            Guests listen in — <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
             to feed the jukebox. The queue is published songs only: yours, and everyone&rsquo;s on a public profile.
           </p>
         ) : catalogFailed ? (
@@ -1083,7 +1135,7 @@ export default function StationPanel(props: StationPanelProps) {
         if (resolution.pattern === "games") {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
-              <GamesPanel stationId={station.id} isLight={isLight} />
+              <GamesPanel stationId={station.id} isLight={isLight} partyInvite={props.partyInvite ?? null} />
             </PanelBoundary>
           );
         }
@@ -1104,6 +1156,7 @@ export default function StationPanel(props: StationPanelProps) {
                 isGuest={isGuest}
                 jukeboxDenied={props.jukeboxDenied}
                 onPlayTrack={props.onJukeboxAdd}
+                shelfPlayer={shelfPlayer}
               />
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
               <EarningsBoard isLight={isLight} />
@@ -1124,7 +1177,7 @@ export default function StationPanel(props: StationPanelProps) {
         switch (resolution.id) {
           case "kingdom-board":
             return (
-              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} />
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} />
             );
           case "front-row":
             return (
@@ -1139,9 +1192,44 @@ export default function StationPanel(props: StationPanelProps) {
           case "treasury-shark":
             return <TreasuryShark isLight={isLight} />;
           case "treasury-quests":
-            return <TreasuryQuests />;
+            return <TreasuryQuests isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "jukebox":
             return <JukeboxPanel {...props} />;
+          case "creator-rooms":
+            return (
+              <CreatorRoomsDirectory
+                isLight={isLight}
+                mySlug={props.mySlug ?? null}
+                onEnterCreatorRoom={props.onEnterCreatorRoom ?? (() => undefined)}
+              />
+            );
+          case "creator-music":
+          case "creator-screen":
+          case "creator-store":
+          case "creator-front-row": {
+            /* Inside a creator's room (3.5): the room the walker
+             * stands in names the host — the slug rides the room
+             * id itself. */
+            const slug = creatorSlugFromRoomId(props.currentRoomId);
+            if (!slug) {
+              return (
+                <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                  This door belongs to a creator&rsquo;s room — step through the Courtyard
+                  arch and pick whose place you&rsquo;re visiting.
+                </p>
+              );
+            }
+            return (
+              <CreatorRoomStation
+                stationId={resolution.id}
+                slug={slug}
+                isLight={isLight}
+                isGuest={isGuest}
+                shelfPlayer={shelfPlayer}
+                onPlayTrack={props.onJukeboxAdd}
+              />
+            );
+          }
           default:
             return (
               <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
@@ -1185,12 +1273,12 @@ export default function StationPanel(props: StationPanelProps) {
         </button>
       </div>
       {/* The Shelf's Now Playing card: rendered by the host for
-          whichever native surface set the player (the Booth, the
-          Charts board's Play) — one player, one card, above the
-          station's own body. */}
-      {resolution?.type === "native" && shelfPlayer.current && (
-        <NowPlayingCard player={shelfPlayer} isLight={isLight} />
-      )}
+          whichever surface set the player (the Booth, the Charts
+          board's Play, a creator room's music rail and screen) —
+          one player, one card, above the station's own body. */}
+      {(resolution?.type === "native" ||
+        (resolution?.type === "custom" && resolution.id.startsWith("creator-"))) &&
+        shelfPlayer.current && <NowPlayingCard player={shelfPlayer} isLight={isLight} />}
       {body}
       {/* The standard transfer footer — native panels only, exactly
           one, always the frame's last row (NATIVE-PLAN §3.0). The

@@ -101,18 +101,78 @@ export function marketCartCount(lines: DetailedCartLine[]): number {
 
 export { addToCartLines, setCartLineQty };
 
-/** One recorded Marketplace sale, as POST /api/storefronts/checkout
- *  answers it (201). NOTE the honest shape: this endpoint records
- *  the sale and breaks out the fee — it returns NO hosted payment
- *  URL today (card processing is the server's Stripe Connect
- *  follow-up). The stand shows the receipt in-world; if a future
- *  response carries a URL, `hostedCheckoutUrl` picks it up and the
- *  stand opens it in a new tab like the other two stands. */
+/** One Marketplace order line/total, as POST /api/storefronts/checkout
+ *  answers it (201) since the real card checkout (0144): the order is
+ *  recorded PENDING first and the response carries the hosted payment
+ *  URL (`url` / `checkoutUrl`, read via `hostedCheckoutUrl`) — the sale
+ *  only exists once the payment confirms. A free cart answers
+ *  `free: true` + status "paid" instead: no card was needed. */
 export interface MarketSaleReceipt {
   gross_cents: number;
   platform_fee_cents: number;
   seller_net_cents: number;
   platform_fee_pct?: number;
+}
+
+/** One line of a confirmed Marketplace order — the reward moment's
+ *  raw material: the acquired item, named from server truth. */
+export interface MarketOrderLine {
+  saleId: string;
+  productId: string | null;
+  productName: string | null;
+  quantity: number;
+  gross_cents: number;
+  platform_fee_cents: number;
+  seller_net_cents: number;
+}
+
+/** An order's truth, as POST /api/storefronts/checkout/verify and
+ *  GET /api/storefronts/checkout/status report it. Only "paid" may
+ *  ever render as paid — pending and expired stay labelled as what
+ *  they are, and anything unrecognized reads as pending, never paid. */
+export type MarketOrderStatus = "paid" | "pending_payment" | "expired";
+
+export interface MarketOrder {
+  status: MarketOrderStatus;
+  paid: boolean;
+  gross_cents: number;
+  platform_fee_cents: number;
+  seller_net_cents: number;
+  lines: MarketOrderLine[];
+}
+
+export function marketOrderFromPayload(payload: unknown): MarketOrder | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const raw = (typeof p["status"] === "string" ? p["status"] : null) ??
+    (p["paid"] === true ? "paid" : null);
+  const status: MarketOrderStatus = raw === "paid" ? "paid" : raw === "expired" ? "expired" : "pending_payment";
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const linesRaw = Array.isArray(p["lines"]) ? (p["lines"] as Array<Record<string, unknown>>) : [];
+  return {
+    status,
+    /* Paid is a server claim, not a shape guess: status AND flag agree. */
+    paid: status === "paid" && p["paid"] === true,
+    gross_cents: num(p["gross_cents"]),
+    platform_fee_cents: num(p["platform_fee_cents"]),
+    seller_net_cents: num(p["seller_net_cents"]),
+    lines: linesRaw.map((l) => ({
+      saleId: String(l["saleId"] ?? ""),
+      productId: typeof l["productId"] === "string" ? l["productId"] : null,
+      productName: typeof l["productName"] === "string" ? l["productName"] : null,
+      quantity: num(l["quantity"]) || 1,
+      gross_cents: num(l["gross_cents"]),
+      platform_fee_cents: num(l["platform_fee_cents"]),
+      seller_net_cents: num(l["seller_net_cents"]),
+    })),
+  };
+}
+
+/** The localStorage key holding a shop's unfinished checkout session
+ *  at the stand, so returning/reopening refreshes ITS status from the
+ *  server instead of forgetting the order (or pretending it paid). */
+export function marketPendingKey(handle: string): string {
+  return `bdv-market-pending-${handle}`;
 }
 
 /** Sum the per-line sale receipts into the one receipt the stand

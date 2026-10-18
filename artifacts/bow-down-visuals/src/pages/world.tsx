@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
@@ -14,7 +14,14 @@ import {
 } from "@/lib/world/actions";
 import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
+import {
+  evaluateLevel,
+  readSeenLevel,
+  writeSeenLevel,
+} from "@/lib/world/level-watch";
+import { formatMomentLine, QUEST_CLAIMED_EVENT } from "@/lib/world/moments";
 import {
   WorldClient,
   worldOverlay,
@@ -38,7 +45,26 @@ import {
   jukeboxNeedsSeek,
 } from "@/lib/world/jukebox-sync";
 import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
-import { MUSIC_HALL_ID } from "@/lib/world/palace-layout";
+import {
+  GAME_ROOMS_ID,
+  MUSIC_HALL_ID,
+  isCreatorRoomId,
+  creatorSlugFromRoomId,
+  registerCreatorRoomLayout,
+} from "@/lib/world/palace-layout";
+import {
+  creatorRoomId,
+  fetchCreatorRoomDetail,
+  parseCreatorRoomParam,
+  type CreatorRoomDetail,
+} from "@/lib/world/creator-rooms";
+import {
+  parsePartyInvite,
+  parsePartyRoomSnapshot,
+  partySummonsHeadline,
+  PARTY_GAME_META,
+  type PartyOpenRoom,
+} from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
@@ -89,6 +115,13 @@ import {
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
+import { ObjectiveStrip } from "@/components/world/ObjectiveStrip";
+import {
+  GUEST_EMOTE_PITCH,
+  GUEST_SIGN_IN_HREF,
+  GUEST_SPEAK_PITCH,
+  memberControlsVisible,
+} from "@/lib/world/guest-honest";
 
 /* ─── The World — the palace (/world) ───────────────────────────────────────
    One shared VR palace: the King's Hall (a stage and a big screen —
@@ -187,6 +220,10 @@ function ActionButton({
 export default function WorldPage() {
   usePageTitle("The World — The King's Hall", "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.");
   const { user, getAccessToken } = useAuth();
+  /* My Creator Level, as this device knows it — the input to the
+     level-up detection below (the server keeps the record that
+     actually gets witnessed; see runLevelCheck). */
+  const { stars } = useUserMode();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const roomRef = useRef<HTMLDivElement | null>(null);
@@ -221,6 +258,17 @@ export default function WorldPage() {
   const [myName, setMyName] = useState("");
   const [screen, setScreen] = useState<ScreenInfo | null>(null);
   const [sayLog, setSayLog] = useState<WorldSayEvent[]>([]);
+  /* A witnessed moment (THE-GAME §5(a)): a win the room just saw —
+   * the banner line it reads as in the world chrome, fading on its
+   * own timer. The line is built from the server's broadcast
+   * (formatMomentLine) — never from anything the achiever claimed. */
+  const [momentLine, setMomentLine] = useState<string | null>(null);
+  const momentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showMomentLine = useCallback((line: string) => {
+    setMomentLine(line);
+    if (momentTimerRef.current) clearTimeout(momentTimerRef.current);
+    momentTimerRef.current = setTimeout(() => setMomentLine(null), 7_000);
+  }, []);
   const [draft, setDraft] = useState("");
   const sayInputRef = useRef<HTMLInputElement>(null);
   /* The voice control (owner's order): MODES, not just on/off —
@@ -258,6 +306,12 @@ export default function WorldPage() {
      performance. The client relays it to the room; the scene
      performs it on my figure in the same breath. */
   const performAction = (id: WorldActionId) => {
+    /* Guests hold no hand (access law, owner default 3): an emote
+       press from a guest — button, controller, any caller — is
+       never relayed and never performed locally. The action bar
+       itself renders the sign-in pitch for guests, so this guard
+       is the backstop, not the message. */
+    if (!memberControlsVisible(isGuest)) return;
     const client = clientRef.current;
     const scene = sceneRef.current;
     if (!client || !scene) return;
@@ -371,6 +425,202 @@ export default function WorldPage() {
   const walkInAsRef = useRef<string | null>(walkInAs);
   walkInAsRef.current = walkInAs;
   const [siteTheme, setSiteTheme] = useState<HallTheme>(() => currentHallTheme());
+  /* A party summons (program 2.23): this visit landed on a
+     /world?party=CODE invite link. The code is parsed once on
+     entry; the TABLE is verified against the server (never trusted
+     from the link alone) once we're inside; the summons card below
+     walks the member to the Game Rooms and the Marble Table panel
+     opens with the join pre-filled. Guests get the honest pitch:
+     party tables are members-only — sign in and the same link
+     brings them back to the table. */
+  const [partyInviteCode] = useState<string | null>(() =>
+    parsePartyInvite(window.location.search),
+  );
+  /* A Creator Rooms deep entry (Ring 2, 3.5): /world?creator=<slug>
+     lands the walker in that creator's room — the param is the
+     contract the profiles' "Visit in the World" door points at.
+     The slug is never trusted from the link alone: the room's data
+     read enforces publicness from the profile record, and only a
+     room that answers gets entered. An unknown/private slug lands
+     in the hall with an honest note (the banner below). */
+  const [creatorParam] = useState<string | null>(() =>
+    parseCreatorRoomParam(window.location.search),
+  );
+  const [creatorNote, setCreatorNote] = useState<string | null>(null);
+  const creatorEntryAttemptedRef = useRef(false);
+  /* Room data already read this visit (the dressing source) — a
+     room change back into a visited room re-dresses instantly. */
+  const creatorDetailsRef = useRef(new Map<string, CreatorRoomDetail>());
+  const [mySlug, setMySlug] = useState<string | null>(null);
+
+  /* Dress the template shell as the room's host: their name over
+     the door, their accent on the runner, their portrait in the
+     frame, their featured video on the room's screen. */
+  const dressCreatorRoom = useCallback((detail: CreatorRoomDetail) => {
+    creatorDetailsRef.current.set(detail.slug, detail);
+    sceneRef.current?.setCreatorRoomDressing({
+      displayName: detail.displayName,
+      roomName: detail.roomName,
+      accentHex: detail.theme.accent,
+      primaryHex: detail.theme.primary,
+      portraitUrl: detail.bannerUrl ?? detail.avatarUrl,
+      screenVideoUrl: detail.featuredVideo?.videoUrl ?? null,
+    });
+  }, []);
+
+  /* Walk into a creator's room: read the room first (the read is
+     what proves the room is open — and it materializes the server
+     instance), lay the floor plan under the slug, dress the
+     template, then the doorway transfer does the walking. A room
+     that doesn't answer leaves the walker where they stand, with
+     the honest note. */
+  const enterCreatorRoom = useCallback(
+    async (slug: string): Promise<boolean> => {
+      const cached = creatorDetailsRef.current.get(slug);
+      const detail = cached ?? (await fetchCreatorRoomDetail(slug));
+      if (!detail) {
+        setCreatorNote(
+          "That creator's room isn't open — their profile is private or doesn't exist. You're still in the palace.",
+        );
+        return false;
+      }
+      registerCreatorRoomLayout(detail.slug, detail.displayName);
+      dressCreatorRoom(detail);
+      setCreatorNote(null);
+      setPanelTarget(null);
+      clientRef.current?.enterRoom(creatorRoomId(detail.slug));
+      return true;
+    },
+    [dressCreatorRoom],
+  );
+  const enterCreatorRoomRef = useRef(enterCreatorRoom);
+  enterCreatorRoomRef.current = enterCreatorRoom;
+  const [inviteRoom, setInviteRoom] = useState<PartyOpenRoom | null>(null);
+  const [inviteResolved, setInviteResolved] = useState(false);
+  const [inviteDismissed, setInviteDismissed] = useState(false);
+  const invitePanelPendingRef = useRef(false);
+
+  /* ── Level-up detection (THE-GAME §5(a)) ───────────────────────
+   * On World entry, and again after each quest claim, the existing
+   * level-check rail is consulted and the current level compared
+   * against the last level this device has seen for this user
+   * (lib/world/level-watch). A RISE is recorded on the celebrate
+   * rail first — that POST is what puts the new level into the
+   * server's own record — and only then does the bare levelup
+   * intent go to the room, which verifies it against that record
+   * before witnessing anything. The first-ever sighting sets the
+   * baseline silently: no moment for a level you already had
+   * before the game could see it. */
+  const runLevelCheck = useCallback(async () => {
+    if (!user) return;
+    const current = stars;
+    try {
+      const token = await getAccessToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      await fetch(`/api/retention/level-check?currentLevel=${current}`, { headers }).catch(
+        () => undefined,
+      );
+      const verdict = evaluateLevel(readSeenLevel(window.localStorage, user.id), current);
+      if (verdict.kind === "baseline") {
+        writeSeenLevel(window.localStorage, user.id, verdict.level);
+        return;
+      }
+      if (verdict.kind !== "rise") return;
+      await fetch("/api/retention/level-check/celebrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ level: verdict.level }),
+      }).catch(() => undefined);
+      writeSeenLevel(window.localStorage, user.id, verdict.level);
+      clientRef.current?.celebrateLevelup();
+    } catch {
+      /* Detection is a courtesy: a failed check announces nothing. */
+    }
+  }, [user, stars, getAccessToken]);
+  const runLevelCheckRef = useRef(runLevelCheck);
+  runLevelCheckRef.current = runLevelCheck;
+
+  /* Entry runs the check (and a mid-visit level change re-runs it —
+   * evaluateLevel makes repeats harmless: equal is "none"). */
+  useEffect(() => {
+    if (status !== "inside" || !user) return;
+    void runLevelCheckRef.current();
+  }, [status, user, stars]);
+
+  /* A quest claimed anywhere on this page (the Treasury board's
+   * QuestsWidget fires bdv:quest-claimed on claim success): the
+   * room gets its celebrate intent, and the level is re-checked —
+   * a claim is exactly when a level tends to have moved. */
+  useEffect(() => {
+    const onQuestClaimed = () => {
+      clientRef.current?.celebrateQuest();
+      void runLevelCheckRef.current();
+    };
+    window.addEventListener(QUEST_CLAIMED_EVENT, onQuestClaimed);
+    return () => window.removeEventListener(QUEST_CLAIMED_EVENT, onQuestClaimed);
+  }, []);
+
+  useEffect(() => {
+    if (!partyInviteCode || status !== "inside" || isGuest) {
+      if (partyInviteCode && status === "inside" && isGuest) setInviteResolved(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(
+          `/api/party/rooms/${encodeURIComponent(partyInviteCode)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        if (!cancelled) {
+          setInviteRoom(res.ok ? parsePartyRoomSnapshot(await res.json()) : null);
+          setInviteResolved(true);
+        }
+      } catch {
+        if (!cancelled) setInviteResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyInviteCode, status, isGuest]);
+
+  /* The summons walk: cross into the Game Rooms if we're not there
+     (the transfer's own room-changed handler closes whatever panel
+     was open, so the Marble Table opens only once we STAND there —
+     the pending flag below), then open the table's panel with the
+     invite threaded through. */
+  const goToInvitedTable = useCallback(() => {
+    const station = STATION_BY_ID.get("marble-table");
+    if (!station) return;
+    setInviteDismissed(true);
+    if (roomId === GAME_ROOMS_ID) {
+      setPanelTarget({ kind: "station", station });
+    } else {
+      invitePanelPendingRef.current = true;
+      clientRef.current?.enterRoom(GAME_ROOMS_ID);
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (roomId !== GAME_ROOMS_ID || !invitePanelPendingRef.current) return;
+    invitePanelPendingRef.current = false;
+    const station = STATION_BY_ID.get("marble-table");
+    if (station) setPanelTarget({ kind: "station", station });
+  }, [roomId]);
+
+  /* The Creator Rooms deep entry, once we're inside: walk the
+     param's room in (enterCreatorRoom verifies it against the
+     profile record first). Attempted once per visit — a refused
+     door (full room) or a closed one leaves the walker in the
+     hall with the note enterCreatorRoom set, never a retry loop. */
+  useEffect(() => {
+    if (!creatorParam || status !== "inside" || creatorEntryAttemptedRef.current) return;
+    creatorEntryAttemptedRef.current = true;
+    void enterCreatorRoomRef.current(creatorParam);
+  }, [creatorParam, status]);
 
   /* Follow the site theme live — the floating toggle (and every other
      theme control) flips the <html> class; watch it the same way the
@@ -836,6 +1086,7 @@ export default function WorldPage() {
         if (s === "inside" && client.self) {
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
+          setMySlug(client.self.profileSlug);
           setStageScreen(client.screen);
           setHostMuted(client.self.hostMuted);
           hostMutedRef.current = client.self.hostMuted;
@@ -869,6 +1120,20 @@ export default function WorldPage() {
         }
         setRoomId(room.id);
         setRoomName(room.name);
+        /* A creator room dresses the template as its host. The
+           pick/deep-entry paths dressed it before the transfer;
+           a walk back in through the arch (or a cold landing)
+           re-dresses from the cached read, or reads the room now. */
+        if (isCreatorRoomId(room.id)) {
+          const slug = creatorSlugFromRoomId(room.id);
+          const cached = slug ? creatorDetailsRef.current.get(slug) : undefined;
+          if (slug && cached) dressCreatorRoom(cached);
+          else if (slug) {
+            void fetchCreatorRoomDetail(slug).then((detail) => {
+              if (detail && !cancelled) dressCreatorRoom(detail);
+            });
+          }
+        }
         // The old room's doors close with it: an open panel and the
         // walk-up prompt belong to the room they stand in.
         setPanelTarget(null);
@@ -959,6 +1224,21 @@ export default function WorldPage() {
          not-yours): the panel says why, in words. */
       client.onJukeboxDenied = (reason) => {
         if (!cancelled) setJukeboxDenied(reason);
+      };
+      /* A witnessed moment (THE-GAME §5(a)): a win landed in this
+         room — a quest completed, a level rose — verified and
+         broadcast by the server. The chrome shows the moment
+         banner, the room log keeps a line of it, and the
+         achiever's nameplate already restarred inside the client
+         (the peerSync below repaints it off the record). */
+      client.onMoment = (moment) => {
+        if (cancelled) return;
+        const line = formatMomentLine(moment);
+        showMomentLine(line);
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
       };
       client.onHostMuted = (mutedNow) => {
         if (cancelled) return;
@@ -1322,6 +1602,16 @@ export default function WorldPage() {
         <SwitchToWebsite isLight={isLight} />
       </header>
 
+      {/* The Objective Strip (THE-GAME §5(a)): pinned in the chrome
+          across every room — your current quest, your streak's next
+          milestone, and the palace's next event, each named from
+          its server rail. Guests see only the palace slot plus the
+          sign-in pitch: they hold no hand, so there is no objective
+          and no streak to name for them. */}
+      {status === "inside" && (
+        <ObjectiveStrip isLight={isLight} isGuest={isGuest} directory={directory} />
+      )}
+
       {/* Walk in as — members pick a Creative Vault character (or the
           house avatar) as who they stand in the hall as. Guests and
           signed-out visitors never see the row. */}
@@ -1379,6 +1669,122 @@ export default function WorldPage() {
               </span>
             );
           })}
+        </div>
+      )}
+
+      {/* The party summons (2.23): a /world?party=CODE landing. The
+          table named here is the SERVER's room snapshot, not the
+          link's claim — a closed table says so, a guest gets the
+          members-only pitch, and nobody is auto-seated: the walk
+          and the seat are the walker's own taps. */}
+      {partyInviteCode && status === "inside" && !inviteDismissed && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#f6ead0]"
+              : "border-[#d4af37]/40 bg-[#171106]"
+          }`}
+          data-testid="world-party-summons-banner"
+        >
+          <PartyPopper className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          {isGuest ? (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                A friend summoned you to their party table — but the tables are
+                members-only. Sign in, then open this same link and your seat will be
+                waiting.
+              </p>
+              <Link
+                href={`/login?next=${encodeURIComponent(`/world?party=${partyInviteCode}`)}`}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Sign in to join the table
+              </Link>
+            </>
+          ) : !inviteResolved ? (
+            <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+              You&rsquo;ve been summoned to a party table — checking that it&rsquo;s
+              still open…
+            </p>
+          ) : inviteRoom ? (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                {partySummonsHeadline(inviteRoom)} — {inviteRoom.players}/
+                {PARTY_GAME_META[inviteRoom.game].seats} seated
+                {inviteRoom.profileSlug
+                  ? `, playing at @${inviteRoom.profileSlug}`
+                  : inviteRoom.streamId
+                    ? ", on a live stream"
+                    : ""}
+                . Join your party?
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-go"
+                onClick={goToInvitedTable}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Take me to the table
+              </button>
+            </>
+          ) : (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                That party table has closed — but the Game Rooms are open, and the
+                Marble Table keeps the code filled in if it reopens.
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-go"
+                onClick={goToInvitedTable}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Go to the Game Rooms
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            aria-label="Dismiss the summons"
+            onClick={() => setInviteDismissed(true)}
+            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                : "border-white/15 text-white/70"
+            }`}
+          >
+            Not now
+          </button>
+        </div>
+      )}
+
+      {/* The Creator Rooms note (3.5): a deep entry or an arch pick
+          named a room that isn't open — said plainly, once, with
+          the way to a room that is. */}
+      {creatorNote && status === "inside" && (
+        <div
+          className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
+            isLight
+              ? "border-[#C9A84C]/60 bg-[#f6ead0]"
+              : "border-[#d4af37]/40 bg-[#171106]"
+          }`}
+          data-testid="world-creator-note"
+        >
+          <DoorOpen className="h-5 w-5 shrink-0 text-[#d4af37]" />
+          <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+            {creatorNote}
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreatorNote(null)}
+            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                : "border-white/15 text-white/70"
+            }`}
+          >
+            Got it
+          </button>
         </div>
       )}
 
@@ -1490,6 +1896,22 @@ export default function WorldPage() {
                   : `On stage: ${stageScreen.holder.name}`}
               </span>
             )}
+          </div>
+        )}
+
+        {/* The witnessed-moment banner (§5(a)): a win just landed
+            in this room — a quest completed, a level rose — stated
+            once, in the palace's voice, then gone. Wins are public;
+            the line carries no balance and no progress detail. */}
+        {status === "inside" && momentLine && (
+          <div
+            className="pointer-events-none absolute left-1/2 top-16 z-10 -translate-x-1/2"
+            data-testid="world-moment-banner"
+            role="status"
+          >
+            <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-black tracking-wide backdrop-blur-sm ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/90 text-[#7A5A12]" : "border-[#d4af37]/60 bg-black/75 text-[#e8c86a]"}`}>
+              {momentLine}
+            </span>
           </div>
         )}
 
@@ -1821,9 +2243,22 @@ export default function WorldPage() {
           myPeerId={myPeerId}
           isAdmin={isAdmin}
           editorProjectId={editorProjectId}
+          partyInvite={
+            partyInviteCode
+              ? { code: partyInviteCode, room: inviteRoom }
+              : null
+          }
           onOpenEditorStation={() => {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
+          }}
+          onOpenStation={(stationId) => {
+            const station = STATION_BY_ID.get(stationId);
+            if (station) setPanelTarget({ kind: "station", station });
+          }}
+          mySlug={mySlug}
+          onEnterCreatorRoom={(slug) => {
+            void enterCreatorRoomRef.current(slug);
           }}
           onJukeboxAdd={(trackId) => clientRef.current?.jukeboxAdd(trackId)}
           onJukeboxPlayPause={(playing) => clientRef.current?.jukeboxPlayPause(playing)}
@@ -1842,7 +2277,7 @@ export default function WorldPage() {
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}
-            <Link href="/login" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>{" "}
+            <Link href={GUEST_SIGN_IN_HREF} className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>{" "}
             to walk in with your name, talk, and be heard.
           </p>
         ) : null}
@@ -1855,7 +2290,7 @@ export default function WorldPage() {
         {/* The action bar: what your figure can DO, seen by the
             whole room. One-shots play out and settle; Dance and Sit
             hold until pressed again — or until you walk off. */}
-        {status === "inside" && (
+        {status === "inside" && !isGuest && (
           <div
             className="mb-2 flex flex-wrap items-center gap-1.5"
             data-testid="world-action-bar"
@@ -1878,7 +2313,33 @@ export default function WorldPage() {
             )}
           </div>
         )}
+        {/* Guests get no action bar (access law, owner default 3):
+            emotes are a member act, so in its place stands the
+            honest pitch — never buttons that silently do nothing. */}
+        {status === "inside" && isGuest && (
+          <p
+            className={`mb-2 inline-flex flex-wrap items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
+            data-testid="world-guest-action-pitch"
+          >
+            {GUEST_EMOTE_PITCH}
+            <Link href={GUEST_SIGN_IN_HREF} className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Sign in</Link>
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
+          {/* The say box's guest state: no composer, no dead input —
+              the pitch stands where the composer would, with the
+              sign-in action that brings you back here a member. */}
+          {isGuest && status === "inside" && (
+            <p
+              className={`inline-flex min-w-[220px] flex-1 flex-wrap items-center gap-2 text-sm font-semibold sm:max-w-md ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
+              data-testid="world-guest-say-pitch"
+            >
+              {GUEST_SPEAK_PITCH}
+              <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
+                Sign in to speak
+              </Link>
+            </p>
+          )}
           {!isGuest && status === "inside" && (
             <form
               className="flex min-w-[220px] flex-1 items-center gap-2 sm:max-w-md"

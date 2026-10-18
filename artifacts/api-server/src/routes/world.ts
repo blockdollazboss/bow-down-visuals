@@ -18,15 +18,20 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import {
   db,
   artistVaultsTable,
   creatorProfilesTable,
+  levelCelebrationsTable,
   liveStreamsTable,
   profileTracksTable,
   profileVideosTable,
+  questProgressTable,
+  royalCourtTable,
+  shopsTable,
 } from "@workspace/db";
+import { QUEST_DEFS } from "../lib/retention";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -44,11 +49,17 @@ import {
   type WorldCharacterRef,
   type WorldIdentity,
   type WorldJukeboxTrackRef,
+  type WorldQuestClaimFact,
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
-import { WorldPalace } from "../lib/world-palace";
+import { WorldPalace, creatorRoomIdForSlug } from "../lib/world-palace";
 import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
+import {
+  WorldEventScheduler,
+  WORLD_EVENT_TICK_MS,
+  claimSpectacleDrop,
+} from "../lib/world-events";
 
 const router = Router();
 
@@ -348,7 +359,7 @@ router.get("/world/screen-catalog", requireAuth, async (req, res) => {
       ...publicVideos.filter((r) => r.video.videoUrl).map((r) => catalogVideoItem(r.video, r.creatorName)),
       ...publicReplays.filter((r) => r.stream.vod_url).map((r) => catalogReplayItem(r.stream, r.creatorName)),
     ];
-    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
   } catch (err) {
     logger.error({ err }, "[world] screen catalog lookup failed");
     res.status(500).json({ error: "Couldn't load the screen catalog. Try again." });
@@ -420,12 +431,441 @@ router.get("/world/jukebox-catalog", requireAuth, async (req, res) => {
         durationSec: r.track.durationSec,
         artworkUrl: r.track.artworkUrl,
       }));
-    res.json(refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ catalog: { mine, public: pub } }));
   } catch (err) {
     logger.error({ err }, "[world] jukebox catalog lookup failed");
     res.status(500).json({ error: "Couldn't load the song catalog. Try again." });
   }
 });
+
+/* ── My music — owned playback, published or not (Ring 2, 2.14) ─────────
+ * GET /api/world/my-music — the signed-in member's OWN profile tracks,
+ * drafts and unpublished included, each with the streamable audio URL
+ * the site itself streams from (the row's audio_url, storage-refreshed
+ * at the boundary like every world payload). The public media detail
+ * (GET /api/media/track/:id) 404s unpublished tracks by design, so an
+ * owner could never hear their own unreleased songs in the palace;
+ * this is the one world-shaped read that closes that gap, following
+ * the screen-catalog precedent (requireAuth, caller's profile first).
+ *
+ * OWNERSHIP IS THE QUERY: rows are selected by the caller's own
+ * profile id and nothing else — there is no id parameter, so there is
+ * no way to ask for anyone else's music. The DTO is camelCase (the
+ * world catalogs' house shape); the client normalizes at its boundary
+ * in lib/world/shelf.ts (parseMyMusic). */
+export interface WorldMyMusicItem {
+  id: string;
+  title: string;
+  artistName: string | null;
+  artworkUrl: string | null;
+  audioUrl: string;
+  genre: string | null;
+  durationSec: number;
+  isPublished: boolean;
+  likeCount: number;
+  commentCount: number;
+  playCount: number;
+  createdAt: string;
+}
+
+type ProfileTrackRow = typeof profileTracksTable.$inferSelect;
+
+/** Pure DTO mapper (exported for route tests): one own-track row →
+ *  the world-shaped item. Dates ride as ISO strings, never Date
+ *  objects, so the wire shape is the tested shape. */
+export function myMusicItemFromTrack(row: ProfileTrackRow, artistName: string | null): WorldMyMusicItem {
+  return {
+    id: row.id,
+    title: row.title,
+    artistName,
+    artworkUrl: row.artworkUrl ?? null,
+    audioUrl: row.audioUrl,
+    genre: row.genre ?? null,
+    durationSec: row.durationSec ?? 0,
+    isPublished: row.isPublished === true,
+    likeCount: row.likeCount ?? 0,
+    commentCount: row.commentCount ?? 0,
+    playCount: row.playCount ?? 0,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+  };
+}
+
+router.get("/world/my-music", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const [myProfile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, userId))
+      .limit(1);
+    if (!myProfile) {
+      res.json({ tracks: [] });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(profileTracksTable)
+      .where(eq(profileTracksTable.profileId, myProfile.id))
+      .orderBy(desc(profileTracksTable.createdAt))
+      .limit(50);
+    const tracks = rows
+      .filter((t) => t.audioUrl)
+      .map((t) => myMusicItemFromTrack(t, myProfile.displayName));
+    /* Awaited on purpose: res.json() on the un-awaited promise would
+       serialize to {} — the stored audio_url may be a storage ref
+       that only the refresh turns into a playable URL. */
+    res.json(await refreshSupabaseStorageUrlsDeep({ tracks }));
+  } catch (err) {
+    logger.error({ err }, "[world] my-music lookup failed");
+    res.status(500).json({ error: "Couldn't load your songs. Try again." });
+  }
+});
+
+/* ── Creator Rooms — the directory + the room's data (Ring 2, 3.5) ──────
+ * GET /api/world/creator-rooms        every PUBLIC Grand Stage
+ *                                     profile's room: slug, name,
+ *                                     artwork, theme hues, whether
+ *                                     they're "home" (has published
+ *                                     work on the walls), and how
+ *                                     many people are standing in
+ *                                     their room right now.
+ * GET /api/world/creator-rooms/:slug  one room's data: the featured
+ *                                     video/track (the profile's
+ *                                     spotlight pin first, else the
+ *                                     newest published), the music
+ *                                     rail (published tracks with
+ *                                     playable URLs), the Front Row
+ *                                     (the creator's court, public
+ *                                     members only), and their
+ *                                     storefront when they run a
+ *                                     shop.
+ *
+ * Publicness is enforced from the profile record itself: a profile
+ * that is missing OR not public is the same 404 — a private
+ * creator's room does not exist, and the endpoint never confirms
+ * which half of that sentence applies. Public like the directory
+ * endpoint (guests may enter and look; member-gated stations pitch
+ * as everywhere else). Reading a room's data also materializes its
+ * palace instance (WorldPalace.noteCreatorRoom), so the doorway
+ * transfer that follows always has somewhere to land. The DTOs are
+ * camelCase, the world catalogs' house shape; the client parses at
+ * its boundary in lib/world/creator-rooms.ts. */
+export interface WorldCreatorRoomTheme {
+  primary: string;
+  accent: string;
+  background: string;
+}
+
+export interface WorldCreatorRoomSummary {
+  slug: string;
+  displayName: string;
+  roomName: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  theme: WorldCreatorRoomTheme;
+  hasContent: boolean;
+  occupantCount: number;
+}
+
+export interface WorldCreatorRoomTrack {
+  id: string;
+  title: string;
+  audioUrl: string;
+  artworkUrl: string | null;
+  durationSec: number;
+  playCount: number;
+  likeCount: number;
+  commentCount: number;
+}
+
+export interface WorldCreatorRoomVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  durationSec: number;
+  viewCount: number;
+}
+
+export interface WorldCreatorRoomFrontRowMember {
+  position: number;
+  profileId: string;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface WorldCreatorRoomDetail {
+  roomId: string;
+  slug: string;
+  displayName: string;
+  roomName: string;
+  bio: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  theme: WorldCreatorRoomTheme;
+  followerCount: number;
+  occupantCount: number;
+  featuredVideo: WorldCreatorRoomVideo | null;
+  featuredTrack: WorldCreatorRoomTrack | null;
+  tracks: WorldCreatorRoomTrack[];
+  frontRow: WorldCreatorRoomFrontRowMember[];
+  storefront: { id: string; handle: string; name: string } | null;
+}
+
+type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
+
+/** The house hues a room wears when the creator's theme_config
+ *  carries nothing usable — the palace's own gold language. */
+export const CREATOR_ROOM_DEFAULT_THEME: WorldCreatorRoomTheme = {
+  primary: "#d4af37",
+  accent: "#f0d488",
+  background: "#0d0a04",
+};
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function hexOr(value: unknown, fallback: string): string {
+  return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
+}
+
+/** Pure: a profile's theme_config → the room's hues. The config is
+ *  free-form JSONB (the profile page merges preset defaults over
+ *  it); the room reads only colors.primary/accent/background and
+ *  validates each as a hex color — anything else wears the house
+ *  gold rather than an unvalidated string. */
+export function creatorRoomThemeFromConfig(
+  themeConfig: Record<string, unknown> | null | undefined,
+): WorldCreatorRoomTheme {
+  const colors =
+    themeConfig && typeof themeConfig === "object" && !Array.isArray(themeConfig)
+      ? (themeConfig["colors"] as Record<string, unknown> | undefined)
+      : undefined;
+  return {
+    primary: hexOr(colors?.["primary"], CREATOR_ROOM_DEFAULT_THEME.primary),
+    accent: hexOr(colors?.["accent"], CREATOR_ROOM_DEFAULT_THEME.accent),
+    background: hexOr(colors?.["background"], CREATOR_ROOM_DEFAULT_THEME.background),
+  };
+}
+
+/** Pure DTO mapper (exported for route tests): one public profile
+ *  row → its creator-room directory row. */
+export function creatorRoomSummaryFromProfile(
+  profile: CreatorProfileRow,
+  parts: { hasContent: boolean; occupantCount: number },
+): WorldCreatorRoomSummary {
+  const name = profile.displayName;
+  return {
+    slug: profile.slug,
+    displayName: name,
+    roomName: `${name}'s Room`,
+    avatarUrl: profile.avatarUrl ?? null,
+    bannerUrl: profile.bannerUrl ?? null,
+    theme: creatorRoomThemeFromConfig(profile.themeConfig),
+    hasContent: parts.hasContent,
+    occupantCount: parts.occupantCount,
+  };
+}
+
+function creatorRoomTrackFromRow(row: ProfileTrackRow): WorldCreatorRoomTrack {
+  return {
+    id: row.id,
+    title: row.title,
+    audioUrl: row.audioUrl,
+    artworkUrl: row.artworkUrl ?? null,
+    durationSec: row.durationSec ?? 0,
+    playCount: row.playCount ?? 0,
+    likeCount: row.likeCount ?? 0,
+    commentCount: row.commentCount ?? 0,
+  };
+}
+
+type ProfileVideoRow = typeof profileVideosTable.$inferSelect;
+
+function creatorRoomVideoFromRow(row: ProfileVideoRow): WorldCreatorRoomVideo {
+  return {
+    id: row.id,
+    title: row.title,
+    videoUrl: row.videoUrl,
+    thumbnailUrl: row.thumbnailUrl ?? null,
+    durationSec: row.durationSec ?? 0,
+    viewCount: row.viewCount ?? 0,
+  };
+}
+
+/** Pure (exported for route tests): the featured picks. The
+ *  profile's spotlight pin wins when it names a PUBLISHED item of
+ *  its kind; otherwise the newest published item of the kind
+ *  (the rail lists arrive newest-first). A pin pointing at a
+ *  draft falls back — a room never features work its owner hasn't
+ *  published. */
+export function pickFeaturedVideo(
+  profile: Pick<CreatorProfileRow, "pinnedKind" | "pinnedItemId">,
+  publishedNewestFirst: ProfileVideoRow[],
+): WorldCreatorRoomVideo | null {
+  if (profile.pinnedKind === "video" && profile.pinnedItemId) {
+    const pinned = publishedNewestFirst.find((v) => v.id === profile.pinnedItemId);
+    if (pinned) return creatorRoomVideoFromRow(pinned);
+  }
+  const first = publishedNewestFirst[0];
+  return first ? creatorRoomVideoFromRow(first) : null;
+}
+
+export function pickFeaturedTrack(
+  profile: Pick<CreatorProfileRow, "pinnedKind" | "pinnedItemId">,
+  publishedNewestFirst: ProfileTrackRow[],
+): WorldCreatorRoomTrack | null {
+  if (profile.pinnedKind === "track" && profile.pinnedItemId) {
+    const pinned = publishedNewestFirst.find((t) => t.id === profile.pinnedItemId);
+    if (pinned) return creatorRoomTrackFromRow(pinned);
+  }
+  const first = publishedNewestFirst[0];
+  return first ? creatorRoomTrackFromRow(first) : null;
+}
+
+const CREATOR_ROOM_LIST_LIMIT = 60;
+const CREATOR_ROOM_TRACK_LIMIT = 12;
+
+router.get("/world/creator-rooms", publicApiLimiter, async (_req, res) => {
+  try {
+    const profiles = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.isPublic, true))
+      .orderBy(desc(creatorProfilesTable.followerCount))
+      .limit(CREATOR_ROOM_LIST_LIMIT);
+    /* "Home" = published work on the walls: any published track
+     * or video. One pass per kind, keyed by profile id. */
+    const withTracks = await db
+      .select({ profileId: profileTracksTable.profileId })
+      .from(profileTracksTable)
+      .where(eq(profileTracksTable.isPublished, true));
+    const withVideos = await db
+      .select({ profileId: profileVideosTable.profileId })
+      .from(profileVideosTable)
+      .where(eq(profileVideosTable.isPublished, true));
+    const home = new Set<string>([
+      ...withTracks.map((r) => r.profileId),
+      ...withVideos.map((r) => r.profileId),
+    ]);
+    const rooms = profiles.map((p) =>
+      creatorRoomSummaryFromProfile(p, {
+        hasContent: home.has(p.id),
+        occupantCount: activePalace?.creatorRoom(p.slug)?.size() ?? 0,
+      }),
+    );
+    res.json(await refreshSupabaseStorageUrlsDeep({ rooms }));
+  } catch (err) {
+    logger.error({ err }, "[world] creator-rooms directory failed");
+    res.status(500).json({ error: "Couldn't load the Creator Rooms. Try again." });
+  }
+});
+
+router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
+  try {
+    const slug = String(req.params["slug"] ?? "");
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(and(eq(creatorProfilesTable.slug, slug), eq(creatorProfilesTable.isPublic, true)))
+      .limit(1);
+    if (!profile) {
+      /* Unknown and private are one answer: the room isn't open. */
+      res.status(404).json({ error: "That creator's room isn't open — their profile is private or doesn't exist." });
+      return;
+    }
+    const [tracks, videos, courtEntries, shops] = await Promise.all([
+      db
+        .select()
+        .from(profileTracksTable)
+        .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
+        .orderBy(desc(profileTracksTable.createdAt))
+        .limit(CREATOR_ROOM_TRACK_LIMIT),
+      db
+        .select()
+        .from(profileVideosTable)
+        .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)))
+        .orderBy(desc(profileVideosTable.createdAt))
+        .limit(CREATOR_ROOM_TRACK_LIMIT),
+      db
+        .select()
+        .from(royalCourtTable)
+        .where(eq(royalCourtTable.ownerProfileId, profile.id))
+        .orderBy(asc(royalCourtTable.position)),
+      db
+        .select()
+        .from(shopsTable)
+        .where(eq(shopsTable.user_id, profile.userId))
+        .limit(1),
+    ]);
+    /* The Front Row: the creator's court, public members only —
+     * the same read rule as GET /creator-profiles/:slug/court. */
+    let frontRow: WorldCreatorRoomFrontRowMember[] = [];
+    if (courtEntries.length > 0) {
+      const memberProfiles = await db
+        .select()
+        .from(creatorProfilesTable)
+        .where(inArray(creatorProfilesTable.id, courtEntries.map((e) => e.memberProfileId)));
+      const byId = new Map(memberProfiles.map((p) => [p.id, p]));
+      frontRow = courtEntries.flatMap((entry) => {
+        const member = byId.get(entry.memberProfileId);
+        if (!member || !member.isPublic) return [];
+        return [
+          {
+            position: entry.position,
+            profileId: member.id,
+            slug: member.slug,
+            displayName: member.displayName,
+            avatarUrl: member.avatarUrl ?? null,
+          },
+        ];
+      });
+    }
+    const shop = shops[0];
+    /* The read materializes the room: the walker's doorway
+     * transfer (which follows this fetch in every entry flow)
+     * lands in a real instance. */
+    const room = activePalace?.noteCreatorRoom(profile.slug, profile.displayName);
+    const detail: WorldCreatorRoomDetail = {
+      roomId: creatorRoomIdForSlug(profile.slug),
+      slug: profile.slug,
+      displayName: profile.displayName,
+      roomName: `${profile.displayName}'s Room`,
+      bio: profile.bio ?? "",
+      avatarUrl: profile.avatarUrl ?? null,
+      bannerUrl: profile.bannerUrl ?? null,
+      theme: creatorRoomThemeFromConfig(profile.themeConfig),
+      followerCount: profile.followerCount ?? 0,
+      occupantCount: room?.size() ?? 0,
+      featuredVideo: pickFeaturedVideo(profile, videos.filter((v) => v.videoUrl)),
+      featuredTrack: pickFeaturedTrack(profile, tracks.filter((t) => t.audioUrl)),
+      tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),
+      frontRow,
+      storefront: shop ? { id: shop.id, handle: shop.handle, name: shop.name } : null,
+    };
+    res.json(await refreshSupabaseStorageUrlsDeep({ room: detail }));
+  } catch (err) {
+    logger.error({ err }, "[world] creator-room detail failed");
+    res.status(500).json({ error: "Couldn't load that creator's room. Try again." });
+  }
+});
+
+/** The palace's creator-room resolver (registerWorldWs): a slug
+ *  hosts a room exactly when a PUBLIC profile carries it — the
+ *  same record the HTTP reads enforce. */
+async function resolveCreatorRoom(slug: string): Promise<{ displayName: string } | null> {
+  try {
+    const [profile] = await db
+      .select({ displayName: creatorProfilesTable.displayName })
+      .from(creatorProfilesTable)
+      .where(and(eq(creatorProfilesTable.slug, slug), eq(creatorProfilesTable.isPublic, true)))
+      .limit(1);
+    return profile ? { displayName: profile.displayName } : null;
+  } catch (err) {
+    logger.warn({ err, slug }, "[world] creator-room resolve failed — room stays closed");
+    return null;
+  }
+}
 
 /* ── Presence socket ────────────────────────────────────────────────────── */
 
@@ -518,6 +958,70 @@ async function resolveVaultCharacter(userId: string, characterId: string): Promi
     };
   } catch (err) {
     logger.warn({ err, userId }, "[world] vault character lookup failed — pick refused");
+    return null;
+  }
+}
+
+/**
+ * The Creator Level stars the API itself has on record for a member
+ * (THE-GAME §5(a)): the highest level in level_celebrations — the
+ * table the /api/retention/level-check rails write when a level-up
+ * is celebrated and read back on every check. There is no second
+ * level computation to port: this IS the API's level record. A
+ * member with nothing recorded stands at 1 star, the product's
+ * new-creator default (the frontend's UserModeContext seeds the
+ * same). Throws on DB failure — the door degrades to a starless
+ * member identity (see registerWorldWs); the moment verifier treats
+ * a failed read as "no level on record" and witnesses nothing.
+ */
+export async function resolveCreatorStars(userId: string): Promise<number> {
+  const rows = await db
+    .select({ level: levelCelebrationsTable.level })
+    .from(levelCelebrationsTable)
+    .where(eq(levelCelebrationsTable.userId, userId));
+  let stars = 1;
+  for (const r of rows) {
+    if (r.level >= 1 && r.level <= 6 && r.level > stars) stars = r.level;
+  }
+  return stars;
+}
+
+/**
+ * The witnessed-moment quest rail (THE-GAME §5(a)): the member's
+ * most recent RECORDED quest claim at or after `sinceMs`, read from
+ * quest_progress's claimed rows — the same rows the Treasury
+ * history endpoint lists. The quest's name + reward come from
+ * QUEST_DEFS (server truth); a claim whose key has no def (a
+ * retired quest) is not witnessable and reads as no claim.
+ */
+export async function findRecentQuestClaim(
+  userId: string,
+  sinceMs: number,
+): Promise<WorldQuestClaimFact | null> {
+  try {
+    const [row] = await db
+      .select({ questKey: questProgressTable.questKey, claimedAt: questProgressTable.claimedAt })
+      .from(questProgressTable)
+      .where(
+        and(
+          eq(questProgressTable.userId, userId),
+          isNotNull(questProgressTable.claimedAt),
+          gte(questProgressTable.claimedAt, new Date(sinceMs)),
+        ),
+      )
+      .orderBy(desc(questProgressTable.claimedAt))
+      .limit(1);
+    if (!row?.claimedAt) return null;
+    const def = QUEST_DEFS.find((q) => q.key === row.questKey);
+    if (!def) return null;
+    return {
+      questKey: def.key,
+      questName: def.name,
+      rewardVb: def.reward,
+      claimedAtMs: new Date(row.claimedAt).getTime(),
+    };
+  } catch (err) {
+    logger.warn({ err, userId }, "[world] quest claim lookup failed — moment not witnessed");
     return null;
   }
 }
@@ -686,12 +1190,34 @@ async function resolveJukeboxTrack(userId: string, trackId: string): Promise<Wor
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldPalace {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
-  const palace = new WorldPalace(hub, {
-    resolveCharacter: resolveVaultCharacter,
-    resolveStageStream,
-    resolveScreenVideo,
-    resolveJukeboxTrack,
-  });
+  const palace = new WorldPalace(
+    hub,
+    {
+      resolveCharacter: resolveVaultCharacter,
+      resolveStageStream,
+      resolveScreenVideo,
+      resolveJukeboxTrack,
+      /* Drop spectacles (3.4) pay through the existing drop rails —
+       * the claimer owns the weekly budget check + grant + ledger. */
+      claimWorldDrop: claimSpectacleDrop,
+      /* Witnessed moments (THE-GAME §5(a)): the rooms verify quest +
+       * levelup intents against these rails. A failed stars read is
+       * "no level on record" — the moment is refused, never guessed. */
+      resolveStars: async (userId) => {
+        try {
+          return await resolveCreatorStars(userId);
+        } catch (err) {
+          logger.warn({ err, userId }, "[world] stars lookup failed — moment not witnessed");
+          return null;
+        }
+      },
+      findRecentQuestClaim,
+    },
+    /* Creator Rooms (3.5): doorway transfers to a `creator:<slug>`
+     * resolve the slug against the public profile record before
+     * the room materializes. */
+    { resolveCreatorRoom },
+  );
   activePalace = palace;
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
@@ -715,6 +1241,19 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
      * here, server-side, the same way the admin routes resolve it. */
     identity = { ...identity, admin: auth ? isWorldAdminEmail(auth.email) : false };
 
+    /* Creator Level stars ride the identity too — resolved here,
+     * at the door, from the API's level rails (resolveCreatorStars),
+     * never from anything the client sent. A failed read degrades
+     * to a starless member: the room still opens, the nameplate
+     * simply shows no stars yet. Guests never reach this line. */
+    if (identity.userId) {
+      try {
+        identity = { ...identity, stars: await resolveCreatorStars(identity.userId) };
+      } catch (err) {
+        logger.warn({ err, userId: identity.userId }, "[world] stars lookup failed at the door — starless member");
+      }
+    }
+
     const client = socket as unknown as WsClientSocket;
     /* Everyone enters through the hall; doorways move them after.
      * The directory rides the attach's change broadcast — the
@@ -733,6 +1272,33 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
   });
 
   return palace;
+}
+
+/**
+ * Start the palace calendar's scheduler tick (World Events, lib/
+ * world-events): every WORLD_EVENT_TICK_MS it starts due stage
+ * shows / listening parties / drops in their rooms, ends what's
+ * over, and refreshes the directory slate. Called once from
+ * index.ts after the WS mount — tests drive the scheduler class
+ * directly instead, so no interval ever runs under vitest. The
+ * first tick runs immediately: a restart mid-show re-drives the
+ * live events' room state instead of stranding them.
+ */
+export function startWorldEventScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new WorldEventScheduler({
+    palace,
+    resolveScreenVideo,
+    resolveJukeboxTrack,
+  });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[world-events] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, WORLD_EVENT_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
 }
 
 export default router;

@@ -303,11 +303,32 @@ export async function toggleRepost(
   };
 }
 
-export async function fetchComments(kind: MediaKind, id: string): Promise<MediaComment[]> {
-  const d = await getJson<any>(`/api/media/${kind}/${encodeURIComponent(id)}/comments`);
+export async function fetchComments(kind: MediaKind, id: string, limit?: number): Promise<MediaComment[]> {
+  const qs = typeof limit === "number" && Number.isFinite(limit) ? `?limit=${Math.max(1, Math.floor(limit))}` : "";
+  const d = await getJson<any>(`/api/media/${kind}/${encodeURIComponent(id)}/comments${qs}`);
   if (!d) return [];
   const list = Array.isArray(d) ? d : d.comments ?? [];
   return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Mint a store download link for a purchase (POST /api/store/token).
+ * This is the token's legitimate use — a delivery link the buyer
+ * explicitly asks for — and it is NEVER a playback source: the
+ * returned `url` is an HTML delivery page that burns one of the
+ * link's uses when opened. Returns the raw payload ({ token, url,
+ * expiresAt, maxUses }) or null when the mint fails.
+ */
+export async function mintStoreDownloadLink(
+  saleId: string,
+  headers: Record<string, string>,
+): Promise<{ token: string; url: string; expiresAt: string; maxUses: number } | null> {
+  const d = await authedJson<any>("/api/store/token", headers, {
+    method: "POST",
+    body: JSON.stringify({ saleId }),
+  });
+  if (!d || typeof d.url !== "string" || !d.url) return null;
+  return d as { token: string; url: string; expiresAt: string; maxUses: number };
 }
 
 export async function postComment(
@@ -344,11 +365,12 @@ export async function togglePlaylistFollow(
 }
 
 /* ─── Viewer playlists (add-to-playlist) ───
-   PROPOSED contract for Worker 1 — not yet on the server (2026-10-07):
-   GET  /api/playlists/mine          -> { playlists: [{id,title,cover_url,item_count}] }
+   LIVE on the server (routes/creator-platform.ts) — the contract
+   below is the real one, verified against the mounted routes:
+   GET  /api/playlists/mine          -> { playlists: [StreamPlaylist] }
    POST /api/playlists               -> { playlist }            (body: {title})
    POST /api/playlists/:id/items     -> { ok: true }            (body: {kind, id})
-   All require auth. Every caller degrades gracefully when 404. */
+   All require auth. Every caller degrades gracefully on failure. */
 
 export interface MyPlaylist {
   id: string;

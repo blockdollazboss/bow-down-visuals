@@ -50,6 +50,7 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
+import { nameplateSub, nameplateTitle, starsMark } from "./nameplate";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
 import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
@@ -100,6 +101,9 @@ import {
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
+  CREATOR_ROOM_TEMPLATE,
+  isCreatorRoomId,
+  palaceRoomLayout,
   resolvePalaceMove,
   clampToRoom,
 } from "./palace-layout";
@@ -129,6 +133,10 @@ const LOOP_SPEECH_LEVEL = 0.02;
 /** Living loops: quiet this long (ms) before a speech-suspended
  *  loop fades back in — speech gaps don't flicker the figure. */
 const LOOP_SPEECH_RESUME_MS = 300;
+/** The shell-group key for the Creator Rooms template (3.5): one
+ *  shell, dressed per host — see the scene's creatorDressing. */
+const CREATOR_SHELL_KEY = "world:creator-room-template";
+
 const LOOP_SCRATCH_SPHERE = new THREE.Sphere(new THREE.Vector3(), 1.4);
 const LOOP_SCRATCH_MAT = new THREE.Matrix4();
 /** Past this gap (m) a peer's figure snaps to its target instead
@@ -240,6 +248,33 @@ function screenIdleTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+/** A creator room's screen at rest (Ring 2, 3.5): the host's name
+ *  in the house card style — the screen is THEIRS, and when they
+ *  have no featured video it says so by wearing their name rather
+ *  than the hall's. Same canvas discipline as the hall's idle. */
+function creatorScreenIdleTexture(hostName?: string): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 440;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#050505";
+  g.fillRect(0, 0, 1024, 440);
+  g.strokeStyle = "rgba(212,175,55,0.8)";
+  g.lineWidth = 6;
+  g.strokeRect(18, 18, 988, 404);
+  g.fillStyle = "#d4af37";
+  g.font = "700 64px Georgia, 'Times New Roman', serif";
+  g.textAlign = "center";
+  const name = (hostName ?? "").trim().toUpperCase().slice(0, 26) || "A CREATOR'S ROOM";
+  g.fillText(name, 512, 205);
+  g.fillStyle = "rgba(232,200,106,0.75)";
+  g.font = "600 30px Georgia, serif";
+  g.fillText("T H E I R   S C R E E N", 512, 268);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 /** Soft radial glow — candle flames, light halos, dust motes, haze. */
 function glowTexture(stops: Array<[number, string]>): THREE.CanvasTexture {
   const c = document.createElement("canvas");
@@ -327,6 +362,10 @@ function doorPlateTexture(text: string): THREE.CanvasTexture {
 function namePlateKey(peer: WorldPeer, frontRow = false): string {
   return [
     peer.displayName,
+    /* The stars are part of the plate's identity: a witnessed
+     * level-up restars the peer record, the key changes, and the
+     * plate is redrawn with the new rank (nameplate.ts). */
+    starsMark(peer.stars),
     peer.guest ? "guest" : "",
     peer.profileSlug ?? "",
     peer.voiceOff ? "off" : "",
@@ -416,25 +455,37 @@ function nameSpriteTexture(peer: WorldPeer, frontRow = false): THREE.CanvasTextu
   g.font = "700 54px system-ui, sans-serif";
   g.lineWidth = 10;
   g.strokeStyle = "rgba(0,0,0,0.85)";
-  const name = peer.displayName.slice(0, 24);
+  /* The name line carries the creator's stars beside the name —
+   * the nameplate is the ONLY place stars render (THE-GAME §5 Q1);
+   * the label itself is built in nameplate.ts. The star marks are
+   * drawn in gold so rank reads at a glance. */
+  const name = nameplateTitle(peer);
   g.strokeText(name, 256, 58);
   g.fillStyle = "#ffffff";
   g.fillText(name, 256, 58);
+  const mark = starsMark(peer.stars);
+  if (mark) {
+    /* Repaint just the star run in house gold over the white name:
+     * measure the plain name to find where the marks begin. */
+    const nameOnly = peer.displayName.slice(0, 24);
+    const totalW = g.measureText(name).width;
+    const markW = g.measureText(` ${mark}`).width;
+    const markStart = 256 - totalW / 2 + (totalW - markW);
+    g.save();
+    g.textAlign = "left";
+    g.fillStyle = "#e8c86a";
+    g.fillText(` ${mark}`, markStart, 58);
+    g.restore();
+    g.textAlign = "center";
+  }
   g.font = "600 34px system-ui, sans-serif";
   /* Voice-off outranks the slug on the sub-line: "this person can't
    *  hear you" is the fact the hall needs at a glance. Deafened is
    *  next — same family of fact, different state (in voice, hearing
    *  nobody). A Front Row member (of the performer on stage) is named
-   *  on the plate too — the honor is visible, not just a brighter ring. */
-  const sub = peer.voiceOff
-    ? "voice off"
-    : peer.voiceDeaf
-      ? "deafened"
-      : peer.guest
-        ? "guest"
-        : [frontRow ? "Front Row" : null, peer.profileSlug ? `@${peer.profileSlug}` : null]
-            .filter(Boolean)
-            .join(" · ");
+   *  on the plate too — the honor is visible, not just a brighter ring.
+   *  (The wording lives in nameplate.ts — nameplateSub.) */
+  const sub = nameplateSub(peer, frontRow);
   g.lineWidth = 7;
   g.strokeText(sub, 256, 112);
   g.fillStyle = peer.voiceOff ? "#e08a6d" : peer.voiceDeaf ? "#a9c3d9" : peer.guest ? "#b8b0a0" : "#e8c86a";
@@ -915,6 +966,31 @@ export class KingsHallScene {
   /** The palace room the walker physically stands in. The hall is
    *  home: spawn, stage, the palace's one mirror floor. */
   private currentRoom: string = HALL_ROOM_ID;
+  /** Creator Rooms (Ring 2, 3.5): the template shell south of the
+   *  Courtyard is registered under this key — its identity is
+   *  whichever creator's room the walker stands in, and its
+   *  dressing (name plate, accent, portrait, screen) is applied
+   *  per host by setCreatorRoomDressing. The screen here is the
+   *  room's own: a second, purely local video plane fed by the
+   *  room-data endpoint — the hall's screen machinery (its
+   *  resolvers, its one video texture) is never touched. */
+  private creatorDressing: {
+    displayName: string;
+    roomName: string;
+    accentHex: string;
+    primaryHex: string;
+    portraitUrl: string | null;
+    screenVideoUrl: string | null;
+  } | null = null;
+  private creatorDressingGroup: THREE.Group | null = null;
+  /** The materials the current look's shells were built with —
+   *  kept so a host change re-dresses in the look's own gold, not
+   *  a guess. Refilled on every look build. */
+  private shellMats: LookMaterials | null = null;
+  private creatorScreenMesh: THREE.Mesh | null = null;
+  private creatorScreenVideo: HTMLVideoElement | null = null;
+  private creatorScreenTexture: THREE.VideoTexture | null = null;
+  private creatorScreenUrl = "";
   /** The room shells by room id (children of the look group, so a
    *  theme re-skin rebuilds them in the new look's materials). */
   private shellGroups = new Map<string, THREE.Group>();
@@ -1920,11 +1996,13 @@ export class KingsHallScene {
      shells get the polished overlay only, no second Reflector. */
 
   private buildRoomShells(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    this.shellMats = mats;
     this.shellGroups.clear();
     for (const roomId of [MUSIC_HALL_ID, GAME_ROOMS_ID, CREATE_WING_ID, TREASURY_ID, ROYAL_COURT_ID, BRANDING_ATELIER_ID]) {
       this.buildIndoorShell(group, look, mats, roomId);
     }
     this.buildCourtyardShell(group, look, mats, anim);
+    this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
 
@@ -2075,6 +2153,237 @@ export class KingsHallScene {
     this.shellGroups.set(roomId, g);
   }
 
+  /** The Creator Room shell (Ring 2, 3.5): the ONE template every
+   *  creator's room stands in — the palace's indoor language
+   *  (marble floor with the gold inlay, ceiling, lantern) turned
+   *  south of the Courtyard, its north wall pierced by the arch
+   *  doorway. The shell itself is anonymous; the host's dressing
+   *  (name, accent, portrait, screen) is applied into a dedicated
+   *  subgroup by applyCreatorDressing, so a theme re-skin rebuilds
+   *  the shell and the dressing re-lands on top. The screen on the
+   *  south wall is the room's own — gilt-framed, fed by the room's
+   *  featured video through a local video element (see
+   *  setCreatorRoomDressing); it is NOT the hall's screen and no
+   *  hall resolver ever hears about it. */
+  private buildCreatorRoomShell(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const g = new THREE.Group();
+    const t = CREATOR_ROOM_TEMPLATE;
+    const { interior } = t;
+    const cx = (interior.minX + interior.maxX) / 2;
+    const cz = (interior.minZ + interior.maxZ) / 2;
+    const H = 6.5;
+    const DH = PALACE_DOOR_HEIGHT;
+    const door = t.door;
+
+    this.shellFloor(g, look, mats, interior, look.floorRoughness, 7);
+
+    const ceiling = new THREE.Mesh(
+      new THREE.PlaneGeometry(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
+      mats.ceiling,
+    );
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(cx, H, cz);
+    g.add(ceiling);
+
+    // North wall (the Courtyard's south face) with the arch gap.
+    this.wallRunX(g, mats, interior.minZ - 0.2, interior.minX - 0.4, door.spanMin, 0, H, 1);
+    this.wallRunX(g, mats, interior.minZ - 0.2, door.spanMax, interior.maxX + 0.4, 0, H, 1);
+    this.wallRunX(g, mats, interior.minZ - 0.2, door.spanMin, door.spanMax, DH, H, 1);
+    this.doorArchX(g, mats, interior.minZ - 0.2, door.spanMin, door.spanMax);
+    // South wall (the screen's wall) and the two side walls.
+    this.wallRunX(g, mats, interior.maxZ + 0.2, interior.minX - 0.4, interior.maxX + 0.4, 0, H, -1);
+    this.wallRunZ(g, mats, interior.minX - 0.2, interior.minZ - 0.2, interior.maxZ + 0.2, 0, H, 1);
+    this.wallRunZ(g, mats, interior.maxX + 0.2, interior.minZ - 0.2, interior.maxZ + 0.2, 0, H, -1);
+
+    /* No static plate over this door: the spot belongs to the
+     * host's name (the dressing lays it) — an anonymous template
+     * wears nothing there, and the arch outside already says
+     * whose wing this is. */
+
+    this.shellLantern(g, look, cx, cz);
+    // Gilt frames on the side walls — the room's walls carry the
+    // host's work (the dressing fills the west one with their
+    // portrait; the east waits for their next piece, honestly
+    // empty like the fixed rooms' first frames were).
+    this.shellPanelFrame(g, mats, interior.minX + 0.06, cz, Math.PI / 2);
+    this.shellPanelFrame(g, mats, interior.maxX - 0.06, cz, -Math.PI / 2);
+
+    // The room's screen: a gilt-framed plane on the south wall.
+    // Its material is rebuilt with the shell (a theme flip
+    // re-skins the frame too); the video texture survives in its
+    // field and is re-attached here when one is live.
+    const screenMat = new THREE.MeshBasicMaterial({
+      map: this.creatorScreenTexture ?? creatorScreenIdleTexture(this.creatorDressing?.displayName),
+    });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 2.5), screenMat);
+    screen.position.set(cx, 3.15, interior.maxZ - 0.06);
+    screen.rotation.y = Math.PI;
+    g.add(screen);
+    this.creatorScreenMesh = screen;
+    const bar = (w: number, h: number, bx: number, y: number) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.1), mats.gold);
+      b.position.set(bx, y, interior.maxZ - 0.02);
+      g.add(b);
+    };
+    bar(5.95, 0.16, cx, 4.48);
+    bar(5.95, 0.16, cx, 1.82);
+    bar(0.16, 2.82, cx - 2.88, 3.15);
+    bar(0.16, 2.82, cx + 2.88, 3.15);
+
+    // The template's door-stations (markers are name plates only —
+    // the slug in the key is a placeholder; the registry answers
+    // the real room id with the same four doors).
+    this.buildStationMarkers(g, mats, "creator:template");
+
+    // The host's dressing subgroup — rebuilt per host.
+    this.creatorDressingGroup = new THREE.Group();
+    g.add(this.creatorDressingGroup);
+    if (this.creatorDressing) this.applyCreatorDressing(mats);
+
+    group.add(g);
+    this.shellGroups.set(CREATOR_SHELL_KEY, g);
+  }
+
+  /** Dress the template as its host's BASE: their name over the
+   *  door, their accent on the runner and the screen banners,
+   *  their portrait in the west frame. Called by the page when a
+   *  creator room is entered (the room-data read carries
+   *  everything); null clears back to the anonymous template. */
+  setCreatorRoomDressing(
+    dressing: {
+      displayName: string;
+      roomName: string;
+      accentHex: string;
+      primaryHex: string;
+      portraitUrl: string | null;
+      screenVideoUrl: string | null;
+    } | null,
+  ): void {
+    this.creatorDressing = dressing;
+    this.setCreatorRoomScreen(dressing?.screenVideoUrl ?? null, dressing?.displayName);
+    /* The shell may not be built yet (first entry races the first
+     * look build) — buildCreatorRoomShell applies the dressing
+     * when it lands, with the look's own materials. */
+    if (this.creatorDressingGroup && this.shellMats) {
+      this.applyCreatorDressing(this.shellMats);
+    }
+  }
+
+  /** (Re)build the dressing subgroup from the current host. The
+   *  old subgroup's contents are disposed — a host change never
+   *  leaves the previous creator's colors on the walls. */
+  private applyCreatorDressing(mats: LookMaterials): void {
+    const host = this.creatorDressingGroup;
+    if (!host) return;
+    while (host.children.length > 0) {
+      const child = host.children[0]!;
+      host.remove(child);
+      disposeObjectTree(child);
+    }
+    const d = this.creatorDressing;
+    if (!d) return;
+    const t = CREATOR_ROOM_TEMPLATE;
+    const { interior } = t;
+    const cx = (interior.minX + interior.maxX) / 2;
+
+    // Their name over the door, inside — you are in THEIR place.
+    // (Just proud of the wall's inner face, the house plate offset.)
+    this.doorPlate(host, d.roomName.toUpperCase(), cx, PALACE_DOOR_HEIGHT + 0.66, interior.minZ + 0.13, 0, 5.2);
+
+    const accent = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(d.accentHex),
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+    const primary = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(d.primaryHex),
+      roughness: 0.6,
+      metalness: 0.25,
+    });
+    // The runner: door to screen, in their accent.
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 8.6), accent);
+    runner.rotation.x = -Math.PI / 2;
+    runner.position.set(cx, 0.018, 32.4);
+    runner.renderOrder = 2;
+    host.add(runner);
+    // Banners in their primary, flanking the screen.
+    for (const bx of [cx - 3.9, cx + 3.9]) {
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.1, 0.06), primary);
+      banner.position.set(bx, 3.5, interior.maxZ - 0.1);
+      host.add(banner);
+      const rod = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.09), mats.gold);
+      rod.position.set(bx, 5.1, interior.maxZ - 0.1);
+      host.add(rod);
+    }
+    // Their portrait in the west frame: the creator's own image,
+    // standing in their room whether or not they're home — their
+    // place stands. A failed load leaves the gilt frame honestly
+    // empty rather than a broken texture.
+    if (d.portraitUrl) {
+      const portraitMat = new THREE.MeshBasicMaterial({ color: 0x14100a });
+      const portrait = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 3.3), portraitMat);
+      portrait.position.set(interior.minX + 0.1, 3.1, (interior.minZ + interior.maxZ) / 2);
+      portrait.rotation.y = Math.PI / 2;
+      host.add(portrait);
+      new THREE.TextureLoader().load(
+        d.portraitUrl,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          portraitMat.map = tex;
+          portraitMat.color.set(0xffffff);
+          portraitMat.needsUpdate = true;
+        },
+        undefined,
+        () => undefined,
+      );
+    }
+  }
+
+  /** The room screen's feed: the host's featured video, looping
+   *  muted like every ambient screen (the panel's player carries
+   *  the sound and the transport). A null url parks the screen on
+   *  its idle card. Entirely local — the hall's screen element,
+   *  texture and resolvers are separate machinery. */
+  private setCreatorRoomScreen(url: string | null, hostName?: string): void {
+    const key = url ?? "";
+    if (key === this.creatorScreenUrl && url !== null) return;
+    this.creatorScreenUrl = key;
+    if (!url) {
+      this.creatorScreenVideo?.pause();
+      if (this.creatorScreenTexture) {
+        this.creatorScreenTexture.dispose();
+        this.creatorScreenTexture = null;
+      }
+      if (this.creatorScreenMesh) {
+        const mat = this.creatorScreenMesh.material as THREE.MeshBasicMaterial;
+        if (mat.map && mat.map !== this.creatorScreenTexture) mat.map.dispose();
+        mat.map = creatorScreenIdleTexture(hostName);
+        mat.needsUpdate = true;
+      }
+      return;
+    }
+    if (!this.creatorScreenVideo) {
+      const video = document.createElement("video");
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.crossOrigin = "anonymous";
+      this.creatorScreenVideo = video;
+    }
+    const video = this.creatorScreenVideo;
+    video.src = url;
+    if (!this.creatorScreenTexture) {
+      this.creatorScreenTexture = new THREE.VideoTexture(video);
+      this.creatorScreenTexture.colorSpace = THREE.SRGBColorSpace;
+    }
+    if (this.creatorScreenMesh) {
+      const mat = this.creatorScreenMesh.material as THREE.MeshBasicMaterial;
+      mat.map = this.creatorScreenTexture;
+      mat.needsUpdate = true;
+    }
+    void video.play().catch(() => undefined);
+  }
+
   /** The access layer made physical: one marker per door-station
    *  (lib/world/stations) — a gold ring on the floor and the
    *  station's name plate floating over it, in the house plate
@@ -2135,7 +2444,12 @@ export class KingsHallScene {
     };
     lowWall(0.35, interior.maxZ - interior.minZ, -14.0, cz);
     lowWall(0.35, interior.maxZ - interior.minZ, 14.0, cz);
-    lowWall(interior.maxX - interior.minX + 0.35, 0.35, 0, interior.maxZ);
+    /* The south wall runs in two pieces now (Ring 2, 3.5): the
+     * Creator Rooms arch at x 9.5 stands OPEN — a walkable gap in
+     * the low wall where the doorway portal crosses (floor plan:
+     * palace-layout's creator-room door, span x 8.45..10.55). */
+    lowWall(22.65, 0.35, -2.85, interior.maxZ);
+    lowWall(3.65, 0.35, 12.35, interior.maxZ);
 
     // Columns where the walls turn: plinth, marble shaft, gold cap —
     // the hall's column language at garden scale.
@@ -2216,13 +2530,14 @@ export class KingsHallScene {
     this.shellGroups.set(COURTYARD_ID, g);
   }
 
-  /** The Creator Rooms — PHASE 2 (the plan), and the courtyard
-   *  says so in stone: a grand arch on the far colonnade with its
-   *  double doors SHUT and sealed, plated CREATOR ROOMS with a
-   *  smaller COMING SOON beneath. Visibly reserved, honestly
-   *  closed — there is no doorway here in the floor plan and no
-   *  portal behind the slabs; when the phase lands, the doors
-   *  open for real or not at all. */
+  /** The Creator Rooms arch (Ring 2, 3.5): the grand arch on the
+   *  far colonnade, OPEN — the seal and the shut slabs of the
+   *  sealed years are gone, the double doors stand swung inward
+   *  against the room beyond, and the gold threshold runs through
+   *  the opening. Behind it is a real doorway in the floor plan
+   *  (palace-layout's creator-room door): pick a creator at the
+   *  arch's station and the palace walks you in; once a room is
+   *  yours to revisit, the arch itself is walkable both ways. */
   private buildCreatorRoomsArch(g: THREE.Group, mats: LookMaterials): void {
     const arch = new THREE.Group();
     arch.position.set(9.5, 0, 26.0);
@@ -2239,23 +2554,25 @@ export class KingsHallScene {
     const header = new THREE.Mesh(new THREE.BoxGeometry(3.62, 0.34, 0.6), mats.gold);
     header.position.set(0, 4.2, 0);
     arch.add(header);
-    // The shut doors: two dark slabs, flush, with gold furniture
-    // and the seal where the handles meet — closed, and meant to
-    // read closed.
-    for (const sx of [-0.58, 0.58]) {
+    // The doors, OPEN: each leaf swung inward toward the room,
+    // gold handle still on it — an invitation, not a barrier.
+    for (const sx of [-1, 1]) {
+      const leaf = new THREE.Group();
+      leaf.position.set(sx * 1.08, 0, 0.1);
+      leaf.rotation.y = sx * -0.98;
       const slab = new THREE.Mesh(new THREE.BoxGeometry(1.14, 3.05, 0.1), darkSlab);
-      slab.position.set(sx, 1.55, -0.05);
-      arch.add(slab);
+      slab.position.set(sx * -0.57, 1.55, 0);
+      leaf.add(slab);
       const handle = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mats.gold);
-      handle.position.set(sx > 0 ? -0.14 : 0.14, 1.55, -0.14);
-      arch.add(handle);
+      handle.position.set(sx * -0.14, 1.55, -0.1);
+      leaf.add(handle);
+      arch.add(leaf);
     }
-    const seal = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 20), mats.gold);
-    seal.rotation.x = Math.PI / 2;
-    seal.position.set(0, 1.55, -0.12);
-    arch.add(seal);
+    // The gold threshold through the opening.
+    const threshold = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.025, 1.1), mats.goldDark);
+    threshold.position.set(0, 0.015, 0.1);
+    arch.add(threshold);
     this.doorPlate(arch, "CREATOR ROOMS", 0, 4.72, -0.32, Math.PI, 3.6);
-    this.doorPlate(arch, "COMING SOON", 0, 3.62, -0.32, Math.PI, 2.0);
     g.add(arch);
   }
 
@@ -2724,7 +3041,7 @@ export class KingsHallScene {
   /** Confirm the room from the server's welcome. Movement, camera
    *  clamp and shell visibility all follow the room. */
   setRoom(roomId: string): void {
-    if (!PALACE_LAYOUT[roomId]) return;
+    if (!palaceRoomLayout(roomId)) return;
     this.currentRoom = roomId;
     this.applyRoomVisibility();
   }
@@ -2761,7 +3078,13 @@ export class KingsHallScene {
    *  shell shows (you glimpse each room through its door). */
   private applyRoomVisibility(): void {
     for (const [id, g] of this.shellGroups) {
-      g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id;
+      /* The Creator Rooms template (3.5) answers to every creator
+       * room id — and to the Courtyard, whose open arch looks
+       * straight into it. */
+      const creatorVisible =
+        id === CREATOR_SHELL_KEY &&
+        (isCreatorRoomId(this.currentRoom) || this.currentRoom === COURTYARD_ID);
+      g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible;
     }
   }
 
@@ -3320,7 +3643,7 @@ export class KingsHallScene {
     if (this.viewMode === "third") {
       /* The follow camera clamps inside the room you stand in —
        * each palace room has its own clamp, the hall's unchanged. */
-      const cc = PALACE_LAYOUT[this.currentRoom]?.camClamp ?? CAM_CLAMP;
+      const cc = palaceRoomLayout(this.currentRoom)?.camClamp ?? CAM_CLAMP;
       this.rig.updateMatrixWorld();
       SCRATCH_VEC.set(0, THIRD_CAM_HEIGHT, THIRD_CAM_DISTANCE);
       this.rig.localToWorld(SCRATCH_VEC);

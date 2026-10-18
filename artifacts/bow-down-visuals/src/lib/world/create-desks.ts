@@ -350,6 +350,9 @@ export interface CoverArtAdvanced {
   style: string;
   aspectRatio: string;
   tier: "standard" | "premium";
+  /** Ring 2 (2.11): the cover page's opt-in "Made with" attribution
+   *  toggle — rides the payload exactly as the page posts it. */
+  attribution?: boolean;
 }
 
 /** cover-art.tsx's generate body: in Turbo the prompt is the mood /
@@ -367,7 +370,61 @@ export function buildCoverArtPayload(
     style: adv.style,
     aspectRatio: adv.aspectRatio,
     tier: adv.tier,
-    attribution: false,
+    attribution: adv.attribution ?? false,
+  };
+}
+
+/** Ring 2 (2.11) — cover-art.tsx's one-tap vibe preset grid, verbatim:
+ *  picking a preset sets the desk's style + mood (prompt) fields. */
+export const COVER_ART_PRESETS: ReadonlyArray<{ label: string; style: string; mood: string }> = [
+  { label: "💎 Luxury Gold", style: "luxury-gold", mood: "luxurious and premium" },
+  { label: "🌙 Dark Moody", style: "dark-moody", mood: "dark and atmospheric" },
+  { label: "🎨 Vibrant Pop", style: "vibrant-pop", mood: "bold and energetic" },
+  { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
+];
+
+/** PublishToShowcase's publish body (POST /api/showcase/publish —
+ *  the cover page's "publish-to-showcase" rail, free). */
+export function buildShowcasePublishPayload(input: {
+  title: string;
+  description?: string;
+  mediaType: string;
+  mediaUrl: string;
+  thumbnailUrl?: string | null;
+  creatorName?: string;
+}): Record<string, unknown> {
+  return {
+    title: input.title.trim(),
+    description: (input.description ?? "").trim(),
+    mediaType: input.mediaType,
+    mediaUrl: input.mediaUrl,
+    thumbnailUrl: input.thumbnailUrl ?? null,
+    creatorName: input.creatorName?.trim() ? input.creatorName.trim() : undefined,
+  };
+}
+
+/** The published showcase slug from POST /api/showcase/publish's
+ *  response ({ item: { slug } }) — null when the publish didn't land
+ *  as a showcase item, so the desk never links to a phantom page. */
+export function showcaseSlugOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const item = (json as { item?: unknown }).item;
+  if (!item || typeof item !== "object") return null;
+  const slug = (item as { slug?: unknown }).slug;
+  return typeof slug === "string" && slug.length > 0 ? slug : null;
+}
+
+/** ShareMenu's share-tracking body (POST /api/shares — feeds the
+ *  weekly Viral Sharer quest; tracking only, never blocks sharing). */
+export function buildShareTrackPayload(input: {
+  contentType: string;
+  contentId?: string | null;
+  channel: string;
+}): Record<string, unknown> {
+  return {
+    content_type: input.contentType,
+    content_id: input.contentId ?? null,
+    channel: input.channel,
   };
 }
 
@@ -579,4 +636,824 @@ export function resultExcerpt(raw: string, maxChars = 600): string {
 export function jukeboxTrackIdOf(candidate: string | null | undefined): string | null {
   if (!candidate) return null;
   return /^track:[0-9a-fA-F-]{36}$/.test(candidate) ? candidate : null;
+}
+
+/* ─── The publish rail — Ring 2 items 2.1 + 2.2 ──────────────────────
+   The palace's central loop, closed with the SITE'S OWN rails, in
+   the SITE'S OWN order (the exact steps the 2D flow takes):
+     1. The package becomes real audio — POST /api/generate-music-audio
+        with the package's AI MUSIC PROMPT (GenerationResult's
+        "Generate real audio" step; the response carries the song
+        library row the server saved, source "generated").
+     2. The audio is published to the creator's profile —
+        POST /api/publish/track with is_published:true, the /publish
+        page's save body for audio (publish.tsx handleSave). FREE:
+        the publish route charges nothing ("uploading/publishing is
+        FREE — it's the creator's own content"); only AI extras
+        charge. The profile id comes from GET /api/creator-profiles,
+        the same lookup the publish page and the publish server use.
+     3. The publish response's track id becomes the jukebox identity
+        `track:<uuid>` — and only then may the ResultChips jukebox
+        chip light (see jukeboxTrackIdOf above). */
+
+/** The desk makes its audio at the default length: 60 seconds,
+ *  the music-audio route's own DEFAULT_LENGTH_MS. */
+export const SONG_AUDIO_LENGTH_SECONDS = 60;
+
+/** POST /api/generate-music-audio's REAL price at a length: the
+ *  registry's 400 is the ≤1-minute tier; the server's
+ *  creditCostForLength tiers 400 / 800 / 1200 at 1 and 3 minutes —
+ *  exact multiples of the registry base, never invented here. */
+export function musicAudioCost(lengthSeconds: number = SONG_AUDIO_LENGTH_SECONDS): number {
+  const base = registryCost("/api/generate-music-audio");
+  if (lengthSeconds <= 60) return base;
+  if (lengthSeconds <= 180) return base * 2;
+  return base * 3;
+}
+
+/** One ## section of a song package (the hub-song section shape). */
+export function packageSectionOf(raw: string, header: string): string {
+  const re = new RegExp(`^##\\s*${header}\\s*$`, "im");
+  const m = re.exec(raw);
+  if (!m || m.index === undefined) return "";
+  const start = m.index + m[0].length;
+  const rest = raw.slice(start);
+  const next = /^##\s+\S/m.exec(rest);
+  return (next ? rest.slice(0, next.index) : rest).trim();
+}
+
+/** The package's AI MUSIC PROMPT — the exact text GenerationResult
+ *  hands to the audio maker. Null when the package carries none
+ *  (then there is honestly nothing to make audio from). */
+export function songMusicPromptOf(rawResult: string): string | null {
+  const prompt = packageSectionOf(rawResult, "AI MUSIC PROMPT");
+  return prompt ? prompt : null;
+}
+
+/** The generate-music-audio body GenerationResult posts for a
+ *  finished package: the music prompt, the package's own lyrics as
+ *  the custom-lyrics input, and the desk's title/artist. Null when
+ *  the package has no music prompt. */
+export function buildMusicAudioPayload(input: {
+  rawResult: string;
+  artistName?: string;
+  songTitle?: string;
+}): Record<string, unknown> | null {
+  const prompt = songMusicPromptOf(input.rawResult);
+  if (!prompt) return null;
+  const lyrics = packageSectionOf(input.rawResult, "FULL LYRICS");
+  return {
+    prompt,
+    ...(lyrics ? { lyrics } : {}),
+    ...(input.artistName?.trim() ? { artistName: input.artistName.trim() } : {}),
+    ...(input.songTitle?.trim() ? { songTitle: input.songTitle.trim() } : {}),
+    lengthSeconds: SONG_AUDIO_LENGTH_SECONDS,
+  };
+}
+
+/** The /publish page's audio save body (publish.tsx handleSave,
+ *  publish=true): profile_id + title + audio_url + is_published.
+ *  Category "music" rides as the vertical; the server folds it
+ *  into tags itself. download_price_cents 0 = free download, the
+ *  page's default. */
+export function buildPublishTrackPayload(input: {
+  profileId: string;
+  title: string;
+  audioUrl: string;
+  genre?: string;
+  durationSec?: number;
+}): Record<string, unknown> {
+  return {
+    profile_id: input.profileId,
+    title: input.title.trim() || "Untitled Song",
+    audio_url: input.audioUrl,
+    genre: input.genre?.trim() ? input.genre.trim() : undefined,
+    category: "music",
+    tags: [],
+    duration_sec:
+      typeof input.durationSec === "number" && input.durationSec > 0
+        ? Math.round(input.durationSec)
+        : undefined,
+    download_price_cents: 0,
+    is_published: true,
+  };
+}
+
+/** The creator's first profile id from GET /api/creator-profiles —
+ *  the response shapes the publish page's loadProfile accepts
+ *  (array, { profiles }, or a single profile object). Null when the
+ *  creator has no profile yet: publishing honestly cannot proceed. */
+export function profileIdOfProfilesResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const list: unknown[] = Array.isArray(json)
+    ? json
+    : Array.isArray((json as { profiles?: unknown }).profiles)
+      ? ((json as { profiles: unknown[] }).profiles as unknown[])
+      : typeof (json as { id?: unknown }).id === "string"
+        ? [json]
+        : [];
+  for (const p of list) {
+    if (p && typeof p === "object" && typeof (p as { id?: unknown }).id === "string") {
+      return (p as { id: string }).id;
+    }
+  }
+  return null;
+}
+
+/** The published identity from POST /api/publish/track's response
+ *  ({ track: { id, … } }): `track:<uuid>`, passed through the
+ *  jukebox gate — anything else is not a publish the room can play,
+ *  so it reads as null and the desk must say so, never light up. */
+export function publishedTrackIdOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const track = (json as { track?: unknown }).track;
+  if (!track || typeof track !== "object") return null;
+  const id = (track as { id?: unknown }).id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+  return jukeboxTrackIdOf(`track:${String(id)}`);
+}
+
+/* ─── Ring 2 (2.3) — the Video Desk storyboard flow ─────────────────
+   make-video.tsx's actual storyboard machinery, docked:
+     lyrics → POST /api/analyze-sections (registry 100) → scenes
+     (either the video plan's parsed breakdown, POST
+     /api/generate-video-plan at videoPlanCost, or the audio flow's
+     scenes-from-audio via lib/generate-scenes-from-audio-flow) →
+     per-scene review/approval → per-scene clips (POST
+     /api/generate-runway-clip at videoClipCost each) → autosave
+     (POST /api/drafts workflow "make-video", then POST
+     /api/projects in make-video's performSave shape).
+   The step machine below is the desk's honest spine: a step is
+   only reachable when the previous step's server truth exists. */
+
+export type StoryboardStep = "intake" | "analysis" | "scenes" | "review" | "clips" | "done";
+
+export const STORYBOARD_STEPS: readonly StoryboardStep[] = [
+  "intake",
+  "analysis",
+  "scenes",
+  "review",
+  "clips",
+  "done",
+];
+
+/** POST /api/analyze-sections — registry-priced (100). */
+export function analyzeSectionsCost(): number {
+  return registryCost("/api/analyze-sections");
+}
+
+/** POST /api/transcribe — registry-priced (100). */
+export function transcribeCost(): number {
+  return registryCost("/api/transcribe");
+}
+
+/** POST /api/generate/ai-edit-plan — registry-priced (100). */
+export function aiEditPlanCost(): number {
+  return registryCost("/api/generate/ai-edit-plan");
+}
+
+/** make-video.tsx handleAnalyze's body: { lyrics } only. */
+export function buildAnalyzeSectionsPayload(lyrics: string): Record<string, unknown> {
+  return { lyrics };
+}
+
+/** The storyboard machine: given what server truth exists, the
+ *  furthest honest step. Analysis exists → scenes can be built;
+ *  scenes exist → review; every scene decided (approved or not)
+ *  and at least one approved → clips; every approved scene holding
+ *  a finished clip → done. */
+export function storyboardStepOf(state: {
+  hasLyrics: boolean;
+  hasStructure: boolean;
+  sceneCount: number;
+  decidedCount: number;
+  approvedCount: number;
+  clippedApprovedCount: number;
+}): StoryboardStep {
+  if (!state.hasLyrics) return "intake";
+  if (!state.hasStructure) return "analysis";
+  if (state.sceneCount === 0) return "scenes";
+  if (state.decidedCount < state.sceneCount || state.approvedCount === 0) return "review";
+  if (state.clippedApprovedCount < state.approvedCount) return "clips";
+  return "done";
+}
+
+/** One scene's approval flip — returns a NEW array (the page treats
+ *  scenes as immutable state; autosave diffing depends on it). */
+export function withSceneApproval<T extends { id: string; approved: boolean }>(
+  scenes: readonly T[],
+  sceneId: string,
+  approved: boolean,
+): T[] {
+  return scenes.map((s) => (s.id === sceneId ? { ...s, approved } : s));
+}
+
+/** Attach a finished clip url to its scene (the page's demoClipUrl
+ *  + generationStatus "completed" bookkeeping). */
+export function withSceneClip<T extends { id: string; demoClipUrl: string | null; generationStatus: string | null }>(
+  scenes: readonly T[],
+  sceneId: string,
+  clipUrl: string,
+): T[] {
+  return scenes.map((s) =>
+    s.id === sceneId ? { ...s, demoClipUrl: clipUrl, generationStatus: "completed" } : s,
+  );
+}
+
+/** make-video.tsx's draft autosave body: workflow "make-video",
+ *  draftData { formValues, rawResult, scenes, songStructure,
+ *  timestamp } — the page's own server-draft shape, so a storyboard
+ *  started at the desk reopens on the page and vice versa. */
+export const VIDEO_DRAFT_WORKFLOW = "make-video";
+
+export function buildStoryboardDraftPayload(input: {
+  title: string;
+  formValues: Record<string, unknown>;
+  rawResult: string;
+  scenes: unknown[];
+  songStructure: unknown;
+}): Record<string, unknown> {
+  return buildDraftPayload(VIDEO_DRAFT_WORKFLOW, input.title, {
+    formValues: input.formValues,
+    rawResult: input.rawResult,
+    scenes: input.scenes,
+    songStructure: input.songStructure,
+    timestamp: Date.now(),
+  });
+}
+
+/** make-video.tsx performSave's project body (POST /api/projects):
+ *  outputData carries the result + structure + scenes exactly as
+ *  the page saves them — the editor step-through seeds from it. */
+export function buildStoryboardProjectPayload(input: {
+  title: string;
+  artistName?: string;
+  songTitle?: string;
+  genre?: string;
+  mood?: string;
+  inputData: Record<string, unknown>;
+  resultText: string;
+  songStructure?: unknown;
+  scenes: unknown[];
+  genHistoryId?: string | null;
+}): Record<string, unknown> {
+  return {
+    projectType: "Make a Music Video",
+    title: input.title || "Untitled Project",
+    artistName: input.artistName || null,
+    songTitle: input.songTitle || null,
+    genre: input.genre || null,
+    mood: input.mood || null,
+    inputData: input.inputData,
+    outputData: {
+      result: input.resultText,
+      ...(input.songStructure ? { songStructure: input.songStructure } : {}),
+      ...(input.scenes.length > 0 ? { scenes: input.scenes } : {}),
+    },
+    creditsUsed: 1,
+    genHistoryId: input.genHistoryId ?? null,
+  };
+}
+
+/* ─── Ring 2 (2.4) — the Song + Video wizard's later steps ──────────
+   song-and-video.tsx's Simple flow, step for step: audio upload →
+   POST /api/transcribe (form field "audio", registry 100) → the
+   audio scene flow (2.3's machinery) or the text package → scene
+   review → POST /api/generate/ai-edit-plan (registry 100) applied
+   to the scenes → POST /api/projects in the page's save shape. */
+
+/** The transcribe intake's form fields (the page appends exactly
+ *  one: the audio file under "audio"). Returned as field names so
+ *  the contract is testable without a File in the test run. */
+export const TRANSCRIBE_FORM_FIELD = "audio";
+
+/** The transcript from POST /api/transcribe's response
+ *  ({ transcript }) — null when the response carries none, so the
+ *  wizard honestly stays on the intake step. */
+export function transcriptOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const t = (json as { transcript?: unknown }).transcript;
+  return typeof t === "string" && t.trim().length > 0 ? t : null;
+}
+
+/** song-and-video.tsx's auto-edit plan body, field for field: the
+ *  scene descriptions are "section · lyric · action · mood" joined,
+ *  falling back to "Scene N". */
+export function buildAiEditPlanPayload(input: {
+  style: string;
+  styleName: string;
+  scenes: ReadonlyArray<{ section?: string; lyricLine?: string; action?: string; mood?: string }>;
+  audioFound: boolean;
+  captionStyle: string;
+  currentEffects: unknown;
+  artistName?: string;
+  songTitle?: string;
+  lyricsText?: string;
+}): Record<string, unknown> {
+  const sceneDescriptions = input.scenes.map(
+    (s, i) => [s.section, s.lyricLine, s.action, s.mood].filter(Boolean).join(" · ") || `Scene ${i + 1}`,
+  );
+  return {
+    style: input.style,
+    styleName: input.styleName,
+    sceneCount: input.scenes.length,
+    sceneDescriptions,
+    audioFound: input.audioFound,
+    captionsFound: false,
+    captionCount: 0,
+    captionStyle: input.captionStyle,
+    currentEffects: input.currentEffects,
+    artistName: input.artistName ?? "",
+    songTitle: input.songTitle ?? "",
+    lyricsText: input.lyricsText ?? "",
+  };
+}
+
+/** The plan from POST /api/generate/ai-edit-plan's response
+ *  ({ plan }) — null when absent (the page treats a missing plan as
+ *  non-fatal: the project still saves, the desk says so). */
+export function aiEditPlanOfResponse(json: unknown): unknown {
+  if (!json || typeof json !== "object") return null;
+  return (json as { plan?: unknown }).plan ?? null;
+}
+
+/** song-and-video.tsx's project save body (POST /api/projects):
+ *  outputData { result, songStructure?, scenes, editorSettings }. */
+export function buildSongVideoProjectPayload(input: {
+  title: string;
+  artistName?: string;
+  genre: string;
+  mood: string;
+  inputData: Record<string, unknown>;
+  resultText: string;
+  songStructure?: unknown;
+  scenes: unknown[];
+  editorSettings: unknown;
+  genHistoryId?: string | null;
+}): Record<string, unknown> {
+  return {
+    projectType: "Make Song + Video",
+    title: input.title || "Untitled Project",
+    artistName: input.artistName || null,
+    songTitle: null,
+    genre: input.genre,
+    mood: input.mood,
+    inputData: input.inputData,
+    outputData: {
+      result: input.resultText,
+      ...(input.songStructure ? { songStructure: input.songStructure } : {}),
+      scenes: input.scenes,
+      editorSettings: input.editorSettings,
+    },
+    creditsUsed: 2,
+    genHistoryId: input.genHistoryId ?? null,
+  };
+}
+
+/* ─── Ring 2 (2.5) — Song Desk tabs: Inspo / Mashup / Hum-to-Song ───
+   The generation endpoints behind make-song.tsx's tabs, docked:
+   InspoTab.tsx (analyze FREE per the registry, generate 200),
+   SongMashup.tsx (POST /api/mashup, registry 400), HumToSong.tsx
+   (POST /api/hum-to-song two-step: analyzeOnly is free, the
+   generate charges the registry's 500). Plus Artist Vault preset
+   loading (GET /api/artist-vaults, the selector's own rail) and
+   the upload + transcription intake (POST /api/transcribe). */
+
+export function inspoAnalyzeCost(): number {
+  return registryCost("/api/song-inspo/analyze");
+}
+export function inspoGenerateCost(): number {
+  return registryCost("/api/song-inspo/generate");
+}
+export function mashupCost(): number {
+  return registryCost("/api/mashup");
+}
+export function humToSongCost(): number {
+  return registryCost("/api/hum-to-song");
+}
+
+/** InspoTab analyzeVibe's body: { playlistInput, notes }. */
+export function buildInspoAnalyzePayload(playlistInput: string, notes = ""): Record<string, unknown> {
+  return { playlistInput: playlistInput.trim(), notes: notes.trim() };
+}
+
+/** InspoTab generateFromDna's body (via callGenerateApi):
+ *  { styleDna, notes, artistName, songTitle }. */
+export function buildInspoGeneratePayload(input: {
+  styleDna: unknown;
+  notes?: string;
+  artistName?: string;
+  songTitle?: string;
+}): Record<string, unknown> {
+  return {
+    styleDna: input.styleDna,
+    notes: (input.notes ?? "").trim(),
+    artistName: (input.artistName ?? "").trim(),
+    songTitle: (input.songTitle ?? "").trim(),
+  };
+}
+
+/** InspoTab savePreset's body (POST /api/song-inspo/presets, free):
+ *  { name, styleDna }. */
+export function buildInspoPresetPayload(name: string, styleDna: unknown): Record<string, unknown> {
+  return { name: name.trim(), styleDna };
+}
+
+/** The style DNA from POST /api/song-inspo/analyze's response
+ *  ({ styleDna }) — null when the analysis carried none. */
+export function styleDnaOfResponse(json: unknown): Record<string, unknown> | null {
+  if (!json || typeof json !== "object") return null;
+  const dna = (json as { styleDna?: unknown }).styleDna;
+  return dna && typeof dna === "object" ? (dna as Record<string, unknown>) : null;
+}
+
+/** SongMashup's generate body: two library songs + blend controls;
+ *  the custom blend point rides only in custom mode with a known
+ *  duration, exactly as the page folds it. */
+export function buildMashupPayload(input: {
+  songAId: string;
+  songBId: string;
+  style: string;
+  balance: number;
+  crossfadeSec: number;
+  mode?: string;
+  blendPct?: number;
+  durationA?: number;
+  title?: string;
+}): Record<string, unknown> {
+  return {
+    songA: { songId: input.songAId },
+    songB: { songId: input.songBId },
+    style: input.style,
+    balance: input.balance,
+    crossfadeSec: input.crossfadeSec,
+    ...(input.mode === "custom" && (input.durationA ?? 0) > 0
+      ? { blendPointSec: Math.round((((input.blendPct ?? 50) / 100) * (input.durationA ?? 0)) * 10) / 10 }
+      : {}),
+    ...(input.title?.trim() ? { title: input.title.trim() } : {}),
+  };
+}
+
+/** The mashup result song from POST /api/mashup's response
+ *  ({ song: { audio_url, title } }) — null when it didn't land. */
+export function mashupResultOfResponse(json: unknown): { audioUrl: string; title: string } | null {
+  if (!json || typeof json !== "object") return null;
+  const song = (json as { song?: unknown }).song;
+  if (!song || typeof song !== "object") return null;
+  const url = (song as { audio_url?: unknown }).audio_url;
+  if (typeof url !== "string" || !url) return null;
+  const title = (song as { title?: unknown }).title;
+  return { audioUrl: url, title: typeof title === "string" ? title : "Your mashup" };
+}
+
+/** HumToSong's two form posts, as testable field lists (the File
+ *  itself is attached by the component under the named field):
+ *  analyze = hum file + analyzeOnly "true" (free, skipConfirm on
+ *  the page); generate = humRef + mode + the custom fields only in
+ *  custom mode, exactly as the page appends them. */
+export function humAnalyzeFields(): Array<[string, string]> {
+  return [["analyzeOnly", "true"]];
+}
+export const HUM_FORM_FIELD = "hum";
+
+export function humGenerateFields(input: {
+  humRef: string;
+  mode: string;
+  stylePrompt?: string;
+  vocalGender?: string;
+  instrumental?: boolean;
+  lyrics?: string;
+  songTitle?: string;
+  artistName?: string;
+}): Array<[string, string]> {
+  const fields: Array<[string, string]> = [
+    ["humRef", input.humRef],
+    ["mode", input.mode],
+  ];
+  if (input.mode === "custom") {
+    if (input.stylePrompt?.trim()) fields.push(["stylePrompt", input.stylePrompt.trim()]);
+    if (input.vocalGender) fields.push(["vocalGender", input.vocalGender]);
+    if (input.instrumental) fields.push(["instrumental", "true"]);
+    if (input.lyrics?.trim()) fields.push(["lyrics", input.lyrics.trim()]);
+  }
+  if (input.songTitle?.trim()) fields.push(["songTitle", input.songTitle.trim()]);
+  if (input.artistName?.trim()) fields.push(["artistName", input.artistName.trim()]);
+  return fields;
+}
+
+/** The hum analysis from POST /api/hum-to-song's analyze response
+ *  ({ humRef, humUrl, analysis }) — null unless BOTH the ref and
+ *  the analysis landed (the page refuses an incomplete analysis). */
+export function humAnalysisOfResponse(
+  json: unknown,
+): { humRef: string; humUrl: string | null; analysis: Record<string, unknown> } | null {
+  if (!json || typeof json !== "object") return null;
+  const ref = (json as { humRef?: unknown }).humRef;
+  const analysis = (json as { analysis?: unknown }).analysis;
+  if (typeof ref !== "string" || !ref || !analysis || typeof analysis !== "object") return null;
+  const url = (json as { humUrl?: unknown }).humUrl;
+  return { humRef: ref, humUrl: typeof url === "string" ? url : null, analysis: analysis as Record<string, unknown> };
+}
+
+/** The finished hum song's url from the generate response
+ *  ({ url, … }) — null when it didn't land. */
+export function humSongUrlOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const url = (json as { url?: unknown }).url;
+  return typeof url === "string" && url ? url : null;
+}
+
+/** Artist Vault preset loading: the vault list from
+ *  GET /api/artist-vaults (the selector accepts an array or
+ *  { vaults }). Only rows with an id + artist_name are loadable. */
+export function vaultsOfResponse(json: unknown): Array<{ id: string; artistName: string }> {
+  if (!json || typeof json !== "object") return [];
+  const list: unknown[] = Array.isArray(json)
+    ? json
+    : Array.isArray((json as { vaults?: unknown }).vaults)
+      ? ((json as { vaults: unknown[] }).vaults as unknown[])
+      : [];
+  const out: Array<{ id: string; artistName: string }> = [];
+  for (const v of list) {
+    if (v && typeof v === "object") {
+      const id = (v as { id?: unknown }).id;
+      const name = (v as { artist_name?: unknown }).artist_name;
+      if (typeof id === "string" && typeof name === "string") out.push({ id, artistName: name });
+    }
+  }
+  return out;
+}
+
+/** make-song.tsx posts the loaded vault object itself as
+ *  `artistVault` — the desk's payload builders keep it null, so
+ *  loading a preset swaps the whole vault in, untouched. */
+export function withArtistVault(
+  payload: Record<string, unknown>,
+  vault: unknown,
+): Record<string, unknown> {
+  return { ...payload, artistVault: vault ?? null };
+}
+
+/* ─── Ring 2 (2.9 + 2.10) — Thumbnail Desk benches ──────────────────
+   thumbnail-studio.tsx's own endpoints:
+   - the 4-variation Thumbnail Maker: POST /api/thumbnail-generator
+     (multipart; registry 200) returns { images: [{url, variation}] }
+     — prompt / stylePreset / aspectRatio / overlayText (the
+     text-overlay field the server renders) / facePhoto / attribution;
+   - the A/B variants bench: POST /api/wave8/thumbnail-ab/variants
+     (registry) returns { variants: [{url, label, prompt}] };
+   - the CTR prediction bench: POST /api/thumbnail-test (multipart
+     "thumbnails", registry 200) — the page's honest framing: a
+     PREDICTION from thumbnail best practices, never a guarantee —
+     returns { result: { analyses, winnerIndex, confidence,
+     reasoning, disclaimer } }; its improve rail is
+     POST /api/thumbnail-test/improve (registry 200). */
+
+export function thumbnailGeneratorCost(): number {
+  return registryCost("/api/thumbnail-generator");
+}
+export function thumbnailVariantsCost(): number {
+  return registryCost("/api/wave8/thumbnail-ab/variants");
+}
+export function thumbnailTestCost(): number {
+  return registryCost("/api/thumbnail-test");
+}
+export function thumbnailImproveCost(): number {
+  return registryCost("/api/thumbnail-test/improve");
+}
+
+/** The maker form's text fields, in the page's append order (the
+ *  facePhoto File rides under "facePhoto" when one is picked;
+ *  attribution rides as the "true"/"false" string the server
+ *  coerces, exactly as the page appends it). */
+export function thumbnailGeneratorFields(input: {
+  prompt: string;
+  stylePreset: string;
+  aspectRatio: string;
+  overlayText?: string;
+  attribution?: boolean;
+}): Array<[string, string]> {
+  const fields: Array<[string, string]> = [
+    ["prompt", input.prompt.trim()],
+    ["stylePreset", input.stylePreset],
+    ["aspectRatio", input.aspectRatio],
+  ];
+  if (input.overlayText?.trim()) fields.push(["overlayText", input.overlayText.trim()]);
+  fields.push(["attribution", input.attribution ? "true" : "false"]);
+  return fields;
+}
+export const THUMBNAIL_FACE_FIELD = "facePhoto";
+
+/** The maker's images from its response ({ images }) — only rows
+ *  with a real url count as variations. */
+export function thumbnailImagesOfResponse(
+  json: unknown,
+): Array<{ url: string; variation: string }> {
+  if (!json || typeof json !== "object") return [];
+  const images = (json as { images?: unknown }).images;
+  if (!Array.isArray(images)) return [];
+  const out: Array<{ url: string; variation: string }> = [];
+  for (const img of images) {
+    if (img && typeof img === "object") {
+      const url = (img as { url?: unknown }).url;
+      if (typeof url === "string" && url) {
+        const v = (img as { variation?: unknown }).variation;
+        out.push({ url, variation: typeof v === "string" ? v : `variation-${out.length + 1}` });
+      }
+    }
+  }
+  return out;
+}
+
+/** The wave8 A/B variants body (JSON): source + title + niche,
+ *  the title capped at 200 chars exactly as the page caps it. */
+export function buildThumbnailVariantsPayload(input: {
+  sourceImageUrl: string;
+  title: string;
+  niche: string;
+}): Record<string, unknown> {
+  return {
+    sourceImageUrl: input.sourceImageUrl,
+    title: input.title.slice(0, 200),
+    niche: input.niche,
+  };
+}
+
+export function thumbnailVariantsOfResponse(
+  json: unknown,
+): Array<{ url: string; label: string; prompt: string }> {
+  if (!json || typeof json !== "object") return [];
+  const variants = (json as { variants?: unknown }).variants;
+  if (!Array.isArray(variants)) return [];
+  const out: Array<{ url: string; label: string; prompt: string }> = [];
+  for (const v of variants) {
+    if (v && typeof v === "object") {
+      const url = (v as { url?: unknown }).url;
+      if (typeof url === "string" && url) {
+        const label = (v as { label?: unknown }).label;
+        const prompt = (v as { prompt?: unknown }).prompt;
+        out.push({
+          url,
+          label: typeof label === "string" ? label : `Variant ${out.length + 1}`,
+          prompt: typeof prompt === "string" ? prompt : "",
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** The CTR prediction from POST /api/thumbnail-test's response
+ *  ({ result }) — the winner + confidence + per-image overall
+ *  scores. Null when the response carries no usable result, so
+ *  the desk never presents an invented prediction. */
+export interface CtrPrediction {
+  winnerIndex: number;
+  confidence: number;
+  reasoning: string;
+  disclaimer: string;
+  overallScores: number[];
+}
+
+export function ctrPredictionOfResponse(json: unknown): CtrPrediction | null {
+  if (!json || typeof json !== "object") return null;
+  const result = (json as { result?: unknown }).result;
+  if (!result || typeof result !== "object") return null;
+  const r = result as {
+    winnerIndex?: unknown;
+    confidence?: unknown;
+    reasoning?: unknown;
+    disclaimer?: unknown;
+    analyses?: unknown;
+  };
+  if (typeof r.winnerIndex !== "number" || !Array.isArray(r.analyses)) return null;
+  const overallScores: number[] = [];
+  for (const a of r.analyses) {
+    const scores = a && typeof a === "object" ? (a as { scores?: unknown }).scores : null;
+    const overall = scores && typeof scores === "object" ? (scores as { overall?: unknown }).overall : null;
+    overallScores.push(typeof overall === "number" ? overall : 0);
+  }
+  return {
+    winnerIndex: r.winnerIndex,
+    confidence: typeof r.confidence === "number" ? r.confidence : 0,
+    reasoning: typeof r.reasoning === "string" ? r.reasoning : "",
+    disclaimer: typeof r.disclaimer === "string" ? r.disclaimer : "",
+    overallScores,
+  };
+}
+
+/** The thumbnail-test form's text fields (the image Files ride
+ *  under "thumbnails", 2–4 of them, the page's own bounds). */
+export const THUMBNAIL_TEST_FIELD = "thumbnails";
+export const THUMBNAIL_TEST_MIN_FILES = 2;
+export const THUMBNAIL_TEST_MAX_FILES = 4;
+
+export function thumbnailTestFields(input: {
+  title?: string;
+  niche?: string;
+}): Array<[string, string]> {
+  const fields: Array<[string, string]> = [];
+  if (input.title?.trim()) fields.push(["title", input.title.trim()]);
+  if (input.niche?.trim()) fields.push(["niche", input.niche.trim()]);
+  return fields;
+}
+
+/* ─── THE-GAME §5(a) — the desk result quest-progress chip ──────────
+   When a desk job finishes, the desk checks the member's quest
+   rails (GET /api/retention/quests — the same status the Treasury
+   board reads) against the snapshot taken when the job started.
+   The chip speaks ONLY from that server diff: a quest whose
+   progress moved, or that flipped to completed, is named; no
+   movement → no chip (never a fake "quest advanced!" line). */
+
+export interface QuestProgress {
+  key: string;
+  target: number;
+  reward: number;
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
+}
+
+/** The quest rows from GET /api/retention/quests ({ quests: [...] })
+ *  — malformed rows are dropped, never guessed at. */
+export function questsOfResponse(json: unknown): QuestProgress[] {
+  if (!json || typeof json !== "object") return [];
+  const quests = (json as { quests?: unknown }).quests;
+  if (!Array.isArray(quests)) return [];
+  const out: QuestProgress[] = [];
+  for (const q of quests) {
+    if (!q || typeof q !== "object") continue;
+    const r = q as Record<string, unknown>;
+    if (typeof r["key"] !== "string") continue;
+    out.push({
+      key: r["key"] as string,
+      target: typeof r["target"] === "number" ? (r["target"] as number) : 0,
+      reward: typeof r["reward"] === "number" ? (r["reward"] as number) : 0,
+      progress: typeof r["progress"] === "number" ? (r["progress"] as number) : 0,
+      completed: r["completed"] === true,
+      claimed: r["claimed"] === true,
+    });
+  }
+  return out;
+}
+
+/** Human names for the weekly quest keys (QuestsWidget's own
+ *  QUEST_META titles, in plain words). Unknown keys humanize. */
+export const QUEST_TITLES: Readonly<Record<string, string>> = {
+  "make-thumbnail": "Make a thumbnail",
+  "generate-song": "Generate a song",
+  "export-video": "Export a video",
+  "viral-sharer": "Share your work",
+};
+
+export function questTitleOf(key: string): string {
+  return QUEST_TITLES[key] ?? key.replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+}
+
+export interface QuestAdvance {
+  key: string;
+  title: string;
+  progress: number;
+  target: number;
+  completedNow: boolean;
+}
+
+/** The honest diff: quests present in BOTH snapshots whose progress
+ *  strictly increased or that newly completed. A quest that only
+ *  exists afterwards (first snapshot failed) is NOT claimed as
+ *  advanced — without a before, the desk cannot prove the job did
+ *  it, so the chip stays silent. */
+export function questAdvancesBetween(
+  before: readonly QuestProgress[] | null,
+  after: readonly QuestProgress[],
+): QuestAdvance[] {
+  if (!before) return [];
+  const prev = new Map(before.map((q) => [q.key, q]));
+  const out: QuestAdvance[] = [];
+  for (const q of after) {
+    const p = prev.get(q.key);
+    if (!p) continue;
+    const completedNow = q.completed && !p.completed;
+    if (q.progress > p.progress || completedNow) {
+      out.push({
+        key: q.key,
+        title: questTitleOf(q.key),
+        progress: q.progress,
+        target: q.target,
+        completedNow: completedNow || (q.completed && q.progress >= q.target && p.progress < p.target),
+      });
+    }
+  }
+  return out;
+}
+
+/** The chip's line for one advance — the completed form is the
+ *  THE-GAME wording: the quest is named and the claim lives at the
+ *  Treasury. */
+export function questChipLine(advance: QuestAdvance): string {
+  if (advance.completedNow) {
+    return `That finished your quest — “${advance.title}” is complete. Claim it at the Treasury.`;
+  }
+  return `Quest progress — “${advance.title}” is now ${advance.progress} of ${advance.target}.`;
 }

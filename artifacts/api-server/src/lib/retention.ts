@@ -6,8 +6,8 @@
    Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
    recordCreation() is fire-and-forget safe: it never throws. */
 
-import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable } from "@workspace/db";
+import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
 import { logger } from "./logger";
 
@@ -24,6 +24,11 @@ export const STREAK_MILESTONES = [
 /* ── Weekly quests: fixed, simple set. Reset every Monday (UTC). ───────── */
 export interface QuestDef {
   key: string;
+  /** Display name — mirrors the en locale quest titles
+   *  (retention.quest_*_title). The World room's witnessed-moment
+   *  broadcast (lib/world-room.ts) speaks this name from server
+   *  records, so it lives on the def, not in any client. */
+  name: string;
   target: number;
   reward: number;
   kinds: CreationKind[];
@@ -32,10 +37,10 @@ export interface QuestDef {
    Rebalanced 2026-10-11 per owner approval (option A: fit viral-sharer
    inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300. */
 export const QUEST_DEFS: QuestDef[] = [
-  { key: "make-thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
-  { key: "generate-song",  target: 1, reward: 80,  kinds: ["song"] },
-  { key: "export-video",   target: 1, reward: 120, kinds: ["export"] },
-  { key: "viral-sharer",   target: 3, reward: 60,  kinds: ["share"] },
+  { key: "make-thumbnail", name: "Make a thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
+  { key: "generate-song",  name: "Generate a song",  target: 1, reward: 80,  kinds: ["song"] },
+  { key: "export-video",   name: "Export a video",   target: 1, reward: 120, kinds: ["export"] },
+  { key: "viral-sharer",   name: "Viral Sharer",     target: 3, reward: 60,  kinds: ["share"] },
 ];
 
 function todayKey(): string {
@@ -454,6 +459,120 @@ export async function claimQuestReward(
   }
   logger.info({ userId, questKey, reward: def.reward }, "[retention] quest reward claimed");
   return { reward: def.reward };
+}
+
+/* ── TREASURY HISTORY (World Ring 2, items 2.21 + 2.22) ──────────────────
+   One read for the Treasury counter's trophy ledger + full quest
+   catalog: every claim the retention/bonus tables honestly record,
+   plus quest progress for past weeks (quest_progress carries a row
+   per user × quest × week, so past weeks are real data, not a
+   reconstruction).
+
+   What is NOT here, deliberately: daily-drop claims. The bonus
+   system stores only profiles.last_daily_claim (a single date) —
+   there is no per-claim row to list, so no daily entries are
+   invented. The ledger's daily line comes from /api/bonus/status,
+   which already reports that date truthfully. */
+
+export interface TreasuryHistoryEntry {
+  kind: "quest" | "shark-drop" | "crate";
+  /** Quest key for kind "quest"; null otherwise. */
+  key: string | null;
+  /** Visual Bucs paid — always the amount the source table recorded
+   *  (quest def reward, drop amount, crate prize). Never derived. */
+  amount: number;
+  /** ISO timestamp the claim landed. */
+  at: string;
+}
+
+export interface TreasuryHistoryWeek {
+  weekStart: string;
+  quests: (QuestStatus & { claimedAt: string | null })[];
+}
+
+export interface TreasuryHistory {
+  catalog: { key: string; target: number; reward: number; kinds: CreationKind[] }[];
+  weeks: TreasuryHistoryWeek[];
+  entries: TreasuryHistoryEntry[];
+}
+
+const TREASURY_ENTRY_CAP = 50;
+const TREASURY_WEEK_CAP = 8;
+
+export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {
+  const [questRows, dropRows, crateRows] = await Promise.all([
+    db
+      .select()
+      .from(questProgressTable)
+      .where(eq(questProgressTable.userId, userId))
+      .orderBy(desc(questProgressTable.weekStart))
+      .limit(400),
+    db
+      .select()
+      .from(sharkDropsTable)
+      .where(and(eq(sharkDropsTable.userId, userId), isNotNull(sharkDropsTable.claimedAt)))
+      .orderBy(desc(sharkDropsTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(hourlyCrateClaimsTable)
+      .where(eq(hourlyCrateClaimsTable.claimed_by, userId))
+      .orderBy(desc(hourlyCrateClaimsTable.claimed_at))
+      .limit(25),
+  ]);
+
+  /* Weeks: newest first, capped — each week carries the FULL def
+     set (a quest with no row that week reads as untouched, exactly
+     like getQuestsStatus reads the current week). */
+  const byWeek = new Map<string, Map<string, (typeof questRows)[number]>>();
+  for (const r of questRows) {
+    let m = byWeek.get(r.weekStart);
+    if (!m) {
+      m = new Map();
+      byWeek.set(r.weekStart, m);
+    }
+    m.set(r.questKey, r);
+  }
+  const weeks: TreasuryHistoryWeek[] = [...byWeek.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .slice(0, TREASURY_WEEK_CAP)
+    .map(([weekStart, byKey]) => ({
+      weekStart,
+      quests: QUEST_DEFS.map((q) => {
+        const r = byKey.get(q.key);
+        return {
+          key: q.key,
+          target: q.target,
+          reward: q.reward,
+          progress: r?.progress ?? 0,
+          completed: r?.completed ?? false,
+          claimed: r?.claimedAt != null,
+          claimedAt: r?.claimedAt ? new Date(r.claimedAt).toISOString() : null,
+        };
+      }),
+    }));
+
+  const entries: TreasuryHistoryEntry[] = [];
+  for (const r of questRows) {
+    if (!r.claimedAt) continue;
+    const def = QUEST_DEFS.find((q) => q.key === r.questKey);
+    if (!def) continue;
+    entries.push({ kind: "quest", key: r.questKey, amount: def.reward, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of dropRows) {
+    if (!r.claimedAt) continue;
+    entries.push({ kind: "shark-drop", key: null, amount: r.amount, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of crateRows) {
+    entries.push({ kind: "crate", key: null, amount: r.prize_credits, at: new Date(r.claimed_at).toISOString() });
+  }
+  entries.sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  return {
+    catalog: QUEST_DEFS.map((q) => ({ key: q.key, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
+    weeks,
+    entries: entries.slice(0, TREASURY_ENTRY_CAP),
+  };
 }
 
 /* ── PREFS ─────────────────────────────────────────────────────────────── */

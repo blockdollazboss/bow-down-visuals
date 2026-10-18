@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Target, ChevronDown, X, Check, Loader2, Image as ImageIcon, Music2, Clapperboard, ArrowUpRight, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { questDestination, claimableVb } from "@/lib/world/treasury-quests";
+import { dispatchQuestClaimed } from "@/lib/world/moments";
 
 interface Quest {
   key: string;
@@ -34,6 +36,7 @@ export default function QuestsWidget({
   getToken,
   onBalanceChange,
   inWorld = false,
+  onGoToStation,
 }: {
   getToken: () => Promise<string | null>;
   onBalanceChange?: () => void;
@@ -43,6 +46,15 @@ export default function QuestsWidget({
    *  same-tab navigation out of /world. Claim, toggle and hide
    *  behave identically everywhere. */
   inWorld?: boolean;
+  /** World Ring 2 (2.20): the palace host's station opener. When
+   *  a quest's destination is an in-world station (see
+   *  lib/world/treasury-quests), "Go do it" opens that station's
+   *  native panel in-world instead of transferring out. Quests
+   *  with no in-world performer — and any render without this
+   *  handler — keep the explicit transfer. Completion is counted
+   *  server-side wherever the action happens; the board re-reads
+   *  server truth on return (this widget refetches on mount). */
+  onGoToStation?: (stationId: string) => void;
 }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
@@ -97,6 +109,12 @@ export default function QuestsWidget({
       if (res.ok && typeof body.reward === "number") {
         setToast(t("retention.claim_success", { reward: body.reward }));
         onBalanceChange?.();
+        /* The witnessed-moment trigger (THE-GAME §5(a)): a claim
+           just landed — announce it to anyone listening. The World
+           page turns this into the room's celebrate intent (the
+           server verifies the claim against its own records before
+           the room hears anything); the 2D site ignores it. */
+        dispatchQuestClaimed({ questKey, reward: body.reward });
         await load();
       } else {
         setToast(body.error ?? t("retention.claim_failed"));
@@ -134,6 +152,12 @@ export default function QuestsWidget({
   }
 
   const totalReward = data.quests.filter((q) => !q.claimed).reduce((s, q) => s + q.reward, 0);
+  /* The completion MOMENT (World Ring 2 addendum): in-world, a
+     claimable objective announces itself at the top of the board
+     with the VB waiting — the amount is the server payload's own
+     sum (claimableVb), never a stored figure. The claim itself
+     still lands through the row's claim button + toast. */
+  const claimableTotal = inWorld ? claimableVb(data.quests) : 0;
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.10] via-primary/[0.04] to-transparent p-5 md:p-6">
@@ -157,10 +181,20 @@ export default function QuestsWidget({
         </button>
       </div>
 
+      {claimableTotal > 0 && (
+        <div data-testid="world-quest-claimable-banner"
+          className="mt-4 rounded-2xl border border-primary bg-primary/[0.16] px-4 py-3 text-center shadow-[0_0_0_1px_rgba(212,175,55,0.55)]">
+          <p className="text-sm font-black text-amber-200">
+            🏆 {t("retention.quest_objective_complete", { total: claimableTotal.toLocaleString("en-US") })}
+          </p>
+        </div>
+      )}
+
       {!collapsed && (
         <div className="mt-4 space-y-2.5">
           {data.quests.map((q) => {
             const meta = QUEST_META[q.key];
+            const dest = inWorld ? questDestination(q.key) : null;
             const Icon = meta?.icon ?? Target;
             const pct = q.target > 0 ? Math.min(100, (q.progress / q.target) * 100) : 0;
             const canClaim = q.completed && !q.claimed;
@@ -205,8 +239,14 @@ export default function QuestsWidget({
                     {claiming === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}
                   </button>
                 ) : meta ? (
-                  inWorld ? (
-                    <a href={meta.href} target="_blank" rel="noopener noreferrer">
+                  inWorld && dest?.kind === "station" && onGoToStation ? (
+                    <button type="button" data-testid={`world-quest-go-${q.key}`}
+                      onClick={() => onGoToStation(dest.stationId)}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+                      {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
+                    </button>
+                  ) : inWorld ? (
+                    <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer">
                       <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
                         <ArrowUpRight className="h-4 w-4" />
                       </span>

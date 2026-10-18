@@ -1,0 +1,129 @@
+/**
+ * market-sale.ts — the shared paid-flip for Marketplace (customer shop)
+ * sales, migration 0146.
+ *
+ * A card checkout through POST /api/storefronts/checkout writes its lines
+ * into shop_events as event_type='pending_sale' BEFORE the Stripe session
+ * opens. Those rows are NOT sales: analytics, earnings and payouts only
+ * ever read event_type='sale'. The flip below is the one and only path
+ * from pending to sale, and both confirmation doors run it:
+ *   - POST /api/storefronts/checkout/verify (the buyer returning), and
+ *   - the central Stripe webhook (checkout.session.completed).
+ * The UPDATE is guarded on event_type='pending_sale', so webhook replays,
+ * double verify calls and verify+webhook races all land exactly once —
+ * the loser simply reads back the already-paid rows.
+ *
+ * Queries use raw SQL via db.execute(sql``) — the shop surface's own
+ * convention (pg-mem cannot run the drizzle query builder here).
+ */
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
+export interface MarketSaleRow {
+  id: string;
+  shop_id: string;
+  user_id: string;
+  product_id: string | null;
+  product_name: string | null;
+  quantity: number;
+  amount_cents: number;
+  platform_fee_cents: number;
+  buyer_email: string | null;
+  event_type: string;
+  payment_status: string | null;
+  stripe_session_id: string | null;
+  checkout_group_id: string | null;
+  paid_at: string | null;
+  created_at: string;
+}
+
+const SALE_COLUMNS = sql`
+  e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
+  e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email,
+  e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
+  e.paid_at, e.created_at
+`;
+
+export async function fetchMarketSaleBySession(sessionId: string): Promise<MarketSaleRow[]> {
+  const r = await db.execute(sql`
+    SELECT ${SALE_COLUMNS}
+    FROM shop_events e
+    LEFT JOIN shop_products p ON p.id = e.product_id
+    WHERE e.stripe_session_id = ${sessionId}
+    ORDER BY e.created_at ASC
+  `);
+  return r.rows as unknown as MarketSaleRow[];
+}
+
+/** True once every row for the session is a recorded (paid) sale. */
+export function marketSaleIsPaid(rows: MarketSaleRow[]): boolean {
+  return rows.length > 0 && rows.every((r) => r.event_type === "sale");
+}
+
+/**
+ * Flip a session's pending lines to paid sales, exactly once.
+ * Returns the rows as they stand after the attempt plus how many lines
+ * this call actually flipped (0 on a replay — the rows are already sales).
+ */
+export async function markMarketSalePaid(
+  sessionId: string,
+): Promise<{ flipped: number; rows: MarketSaleRow[] }> {
+  const updated = await db.execute(sql`
+    UPDATE shop_events
+    SET event_type = 'sale', payment_status = 'paid', paid_at = COALESCE(paid_at, now())
+    WHERE stripe_session_id = ${sessionId} AND event_type = 'pending_sale'
+    RETURNING id
+  `);
+  const rows = await fetchMarketSaleBySession(sessionId);
+  return { flipped: updated.rows.length, rows };
+}
+
+/** An abandoned/expired session: its lines stay pending_sale forever
+ *  (never a sale) but are labelled honestly as expired. */
+export async function markMarketSaleExpired(sessionId: string): Promise<void> {
+  await db.execute(sql`
+    UPDATE shop_events
+    SET payment_status = 'expired'
+    WHERE stripe_session_id = ${sessionId} AND event_type = 'pending_sale'
+  `);
+}
+
+export interface MarketSaleReceipt {
+  status: "paid" | "pending_payment" | "expired";
+  paid: boolean;
+  gross_cents: number;
+  platform_fee_cents: number;
+  seller_net_cents: number;
+  lines: Array<{
+    saleId: string;
+    productId: string | null;
+    productName: string | null;
+    quantity: number;
+    gross_cents: number;
+    platform_fee_cents: number;
+    seller_net_cents: number;
+  }>;
+}
+
+/** The one receipt shape every surface renders from server truth. */
+export function marketSaleReceipt(rows: MarketSaleRow[]): MarketSaleReceipt {
+  const paid = marketSaleIsPaid(rows);
+  const expired = !paid && rows.some((r) => r.payment_status === "expired");
+  const lines = rows.map((r) => ({
+    saleId: String(r.id),
+    productId: r.product_id ? String(r.product_id) : null,
+    productName: r.product_name ?? null,
+    quantity: Number(r.quantity) || 1,
+    gross_cents: Number(r.amount_cents),
+    platform_fee_cents: Number(r.platform_fee_cents),
+    seller_net_cents: Number(r.amount_cents) - Number(r.platform_fee_cents),
+  }));
+  return {
+    status: paid ? "paid" : expired ? "expired" : "pending_payment",
+    paid,
+    gross_cents: lines.reduce((s, l) => s + l.gross_cents, 0),
+    platform_fee_cents: lines.reduce((s, l) => s + l.platform_fee_cents, 0),
+    seller_net_cents: lines.reduce((s, l) => s + l.seller_net_cents, 0),
+    lines,
+  };
+}

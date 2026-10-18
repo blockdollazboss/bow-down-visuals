@@ -14,10 +14,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
-   Checkout records a real order via /api/storefronts/checkout: the buyer
-   pays the listed price, Bow Down Visuals takes a 10% platform fee from the
-   seller's cut. Card processing via Stripe Connect is the follow-up — the
-   seller follows up to complete payment. */
+   Checkout is a real card checkout via /api/storefronts/checkout (0144):
+   the order is recorded pending, the buyer pays the listed price on the
+   hosted payment page, and Bow Down Visuals takes a 10% platform fee
+   from the seller's cut. Returning with ?session_id= verifies the
+   payment server-side — only a confirmed payment shows as paid here. */
 
 interface PublicShop {
   id: string;
@@ -126,33 +127,74 @@ export default function ShopStorefront() {
     setCart((c) => setCartLineQty(c, productId, qty));
   }
 
-  /* Real order capture: one checkout call per cart line, fee broken out
-     honestly. The buyer pays the listed price; the 10% platform fee comes
-     out of the seller's cut. Card processing (Stripe Connect) is next —
-     the seller follows up to complete payment. */
+  /* Returning from the hosted payment page: verify the session with
+     the server — the paid panel below renders ONLY from a confirmed
+     payment, never from the redirect alone. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (!sessionId || params.get("checkout") !== "paid") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/storefronts/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data.paid === true) {
+          const lines = Array.isArray(data.lines) ? data.lines : [];
+          setOrderDone({
+            lines: lines.reduce((s: number, l: { quantity?: number }) => s + (l.quantity ?? 1), 0) || 1,
+            gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0,
+          });
+          setCart([]);
+          setCartOpen(true);
+        } else {
+          setOrderError("That payment hasn't confirmed yet — if you completed it, give it a moment and reopen your cart.");
+          setCartOpen(true);
+        }
+      } catch {
+        if (!cancelled) setOrderError("Your payment couldn't be confirmed just now — the order stays pending until it does.");
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Real card checkout: ONE call for the whole cart. The server prices
+     it from its own product rows, records the order as pending, and
+     answers the hosted payment page — the browser goes there to pay.
+     A free cart completes in place. Failure leaves the cart untouched. */
   async function placeOrder() {
     if (!shop || cartDetailed.length === 0) return;
     setPlacing(true);
     setOrderError(null);
     try {
-      let gross = 0, fee = 0, net = 0;
-      for (const l of cartDetailed) {
-        const res = await fetch("/api/storefronts/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shopId: shop.id,
-            productId: l.productId,
-            quantity: l.qty,
-            buyerEmail: buyerEmail.trim() || undefined,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || t("shop.errorOrderFailed"));
-        gross += data.gross_cents; fee += data.platform_fee_cents; net += data.seller_net_cents;
+      const res = await fetch("/api/storefronts/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId: shop.id,
+          items: cartDetailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
+          buyerEmail: buyerEmail.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("shop.errorOrderFailed"));
+      if (data.free === true && data.paid === true) {
+        setOrderDone({ lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0 });
+        setCart([]);
+        return;
       }
-      setOrderDone({ lines: cartDetailed.length, gross, fee, net });
-      setCart([]);
+      const url = typeof data.url === "string" ? data.url : typeof data.checkoutUrl === "string" ? data.checkoutUrl : null;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      throw new Error(t("shop.errorOrderFailed"));
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : t("shop.errorOrderFailedRetry"));
     } finally {
