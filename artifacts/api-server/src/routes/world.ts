@@ -18,7 +18,7 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import {
   db,
   artistVaultsTable,
@@ -26,6 +26,8 @@ import {
   liveStreamsTable,
   profileTracksTable,
   profileVideosTable,
+  royalCourtTable,
+  shopsTable,
 } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
@@ -47,7 +49,7 @@ import {
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
-import { WorldPalace } from "../lib/world-palace";
+import { WorldPalace, creatorRoomIdForSlug } from "../lib/world-palace";
 import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 import {
   WorldEventScheduler,
@@ -515,6 +517,352 @@ router.get("/world/my-music", requireAuth, async (req, res) => {
   }
 });
 
+/* ── Creator Rooms — the directory + the room's data (Ring 2, 3.5) ──────
+ * GET /api/world/creator-rooms        every PUBLIC Grand Stage
+ *                                     profile's room: slug, name,
+ *                                     artwork, theme hues, whether
+ *                                     they're "home" (has published
+ *                                     work on the walls), and how
+ *                                     many people are standing in
+ *                                     their room right now.
+ * GET /api/world/creator-rooms/:slug  one room's data: the featured
+ *                                     video/track (the profile's
+ *                                     spotlight pin first, else the
+ *                                     newest published), the music
+ *                                     rail (published tracks with
+ *                                     playable URLs), the Front Row
+ *                                     (the creator's court, public
+ *                                     members only), and their
+ *                                     storefront when they run a
+ *                                     shop.
+ *
+ * Publicness is enforced from the profile record itself: a profile
+ * that is missing OR not public is the same 404 — a private
+ * creator's room does not exist, and the endpoint never confirms
+ * which half of that sentence applies. Public like the directory
+ * endpoint (guests may enter and look; member-gated stations pitch
+ * as everywhere else). Reading a room's data also materializes its
+ * palace instance (WorldPalace.noteCreatorRoom), so the doorway
+ * transfer that follows always has somewhere to land. The DTOs are
+ * camelCase, the world catalogs' house shape; the client parses at
+ * its boundary in lib/world/creator-rooms.ts. */
+export interface WorldCreatorRoomTheme {
+  primary: string;
+  accent: string;
+  background: string;
+}
+
+export interface WorldCreatorRoomSummary {
+  slug: string;
+  displayName: string;
+  roomName: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  theme: WorldCreatorRoomTheme;
+  hasContent: boolean;
+  occupantCount: number;
+}
+
+export interface WorldCreatorRoomTrack {
+  id: string;
+  title: string;
+  audioUrl: string;
+  artworkUrl: string | null;
+  durationSec: number;
+  playCount: number;
+  likeCount: number;
+  commentCount: number;
+}
+
+export interface WorldCreatorRoomVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  durationSec: number;
+  viewCount: number;
+}
+
+export interface WorldCreatorRoomFrontRowMember {
+  position: number;
+  profileId: string;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface WorldCreatorRoomDetail {
+  roomId: string;
+  slug: string;
+  displayName: string;
+  roomName: string;
+  bio: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  theme: WorldCreatorRoomTheme;
+  followerCount: number;
+  occupantCount: number;
+  featuredVideo: WorldCreatorRoomVideo | null;
+  featuredTrack: WorldCreatorRoomTrack | null;
+  tracks: WorldCreatorRoomTrack[];
+  frontRow: WorldCreatorRoomFrontRowMember[];
+  storefront: { id: string; handle: string; name: string } | null;
+}
+
+type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
+
+/** The house hues a room wears when the creator's theme_config
+ *  carries nothing usable — the palace's own gold language. */
+export const CREATOR_ROOM_DEFAULT_THEME: WorldCreatorRoomTheme = {
+  primary: "#d4af37",
+  accent: "#f0d488",
+  background: "#0d0a04",
+};
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function hexOr(value: unknown, fallback: string): string {
+  return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
+}
+
+/** Pure: a profile's theme_config → the room's hues. The config is
+ *  free-form JSONB (the profile page merges preset defaults over
+ *  it); the room reads only colors.primary/accent/background and
+ *  validates each as a hex color — anything else wears the house
+ *  gold rather than an unvalidated string. */
+export function creatorRoomThemeFromConfig(
+  themeConfig: Record<string, unknown> | null | undefined,
+): WorldCreatorRoomTheme {
+  const colors =
+    themeConfig && typeof themeConfig === "object" && !Array.isArray(themeConfig)
+      ? (themeConfig["colors"] as Record<string, unknown> | undefined)
+      : undefined;
+  return {
+    primary: hexOr(colors?.["primary"], CREATOR_ROOM_DEFAULT_THEME.primary),
+    accent: hexOr(colors?.["accent"], CREATOR_ROOM_DEFAULT_THEME.accent),
+    background: hexOr(colors?.["background"], CREATOR_ROOM_DEFAULT_THEME.background),
+  };
+}
+
+/** Pure DTO mapper (exported for route tests): one public profile
+ *  row → its creator-room directory row. */
+export function creatorRoomSummaryFromProfile(
+  profile: CreatorProfileRow,
+  parts: { hasContent: boolean; occupantCount: number },
+): WorldCreatorRoomSummary {
+  const name = profile.displayName;
+  return {
+    slug: profile.slug,
+    displayName: name,
+    roomName: `${name}'s Room`,
+    avatarUrl: profile.avatarUrl ?? null,
+    bannerUrl: profile.bannerUrl ?? null,
+    theme: creatorRoomThemeFromConfig(profile.themeConfig),
+    hasContent: parts.hasContent,
+    occupantCount: parts.occupantCount,
+  };
+}
+
+function creatorRoomTrackFromRow(row: ProfileTrackRow): WorldCreatorRoomTrack {
+  return {
+    id: row.id,
+    title: row.title,
+    audioUrl: row.audioUrl,
+    artworkUrl: row.artworkUrl ?? null,
+    durationSec: row.durationSec ?? 0,
+    playCount: row.playCount ?? 0,
+    likeCount: row.likeCount ?? 0,
+    commentCount: row.commentCount ?? 0,
+  };
+}
+
+type ProfileVideoRow = typeof profileVideosTable.$inferSelect;
+
+function creatorRoomVideoFromRow(row: ProfileVideoRow): WorldCreatorRoomVideo {
+  return {
+    id: row.id,
+    title: row.title,
+    videoUrl: row.videoUrl,
+    thumbnailUrl: row.thumbnailUrl ?? null,
+    durationSec: row.durationSec ?? 0,
+    viewCount: row.viewCount ?? 0,
+  };
+}
+
+/** Pure (exported for route tests): the featured picks. The
+ *  profile's spotlight pin wins when it names a PUBLISHED item of
+ *  its kind; otherwise the newest published item of the kind
+ *  (the rail lists arrive newest-first). A pin pointing at a
+ *  draft falls back — a room never features work its owner hasn't
+ *  published. */
+export function pickFeaturedVideo(
+  profile: Pick<CreatorProfileRow, "pinnedKind" | "pinnedItemId">,
+  publishedNewestFirst: ProfileVideoRow[],
+): WorldCreatorRoomVideo | null {
+  if (profile.pinnedKind === "video" && profile.pinnedItemId) {
+    const pinned = publishedNewestFirst.find((v) => v.id === profile.pinnedItemId);
+    if (pinned) return creatorRoomVideoFromRow(pinned);
+  }
+  const first = publishedNewestFirst[0];
+  return first ? creatorRoomVideoFromRow(first) : null;
+}
+
+export function pickFeaturedTrack(
+  profile: Pick<CreatorProfileRow, "pinnedKind" | "pinnedItemId">,
+  publishedNewestFirst: ProfileTrackRow[],
+): WorldCreatorRoomTrack | null {
+  if (profile.pinnedKind === "track" && profile.pinnedItemId) {
+    const pinned = publishedNewestFirst.find((t) => t.id === profile.pinnedItemId);
+    if (pinned) return creatorRoomTrackFromRow(pinned);
+  }
+  const first = publishedNewestFirst[0];
+  return first ? creatorRoomTrackFromRow(first) : null;
+}
+
+const CREATOR_ROOM_LIST_LIMIT = 60;
+const CREATOR_ROOM_TRACK_LIMIT = 12;
+
+router.get("/world/creator-rooms", publicApiLimiter, async (_req, res) => {
+  try {
+    const profiles = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.isPublic, true))
+      .orderBy(desc(creatorProfilesTable.followerCount))
+      .limit(CREATOR_ROOM_LIST_LIMIT);
+    /* "Home" = published work on the walls: any published track
+     * or video. One pass per kind, keyed by profile id. */
+    const withTracks = await db
+      .select({ profileId: profileTracksTable.profileId })
+      .from(profileTracksTable)
+      .where(eq(profileTracksTable.isPublished, true));
+    const withVideos = await db
+      .select({ profileId: profileVideosTable.profileId })
+      .from(profileVideosTable)
+      .where(eq(profileVideosTable.isPublished, true));
+    const home = new Set<string>([
+      ...withTracks.map((r) => r.profileId),
+      ...withVideos.map((r) => r.profileId),
+    ]);
+    const rooms = profiles.map((p) =>
+      creatorRoomSummaryFromProfile(p, {
+        hasContent: home.has(p.id),
+        occupantCount: activePalace?.creatorRoom(p.slug)?.size() ?? 0,
+      }),
+    );
+    res.json(await refreshSupabaseStorageUrlsDeep({ rooms }));
+  } catch (err) {
+    logger.error({ err }, "[world] creator-rooms directory failed");
+    res.status(500).json({ error: "Couldn't load the Creator Rooms. Try again." });
+  }
+});
+
+router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
+  try {
+    const slug = String(req.params["slug"] ?? "");
+    const [profile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(and(eq(creatorProfilesTable.slug, slug), eq(creatorProfilesTable.isPublic, true)))
+      .limit(1);
+    if (!profile) {
+      /* Unknown and private are one answer: the room isn't open. */
+      res.status(404).json({ error: "That creator's room isn't open — their profile is private or doesn't exist." });
+      return;
+    }
+    const [tracks, videos, courtEntries, shops] = await Promise.all([
+      db
+        .select()
+        .from(profileTracksTable)
+        .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
+        .orderBy(desc(profileTracksTable.createdAt))
+        .limit(CREATOR_ROOM_TRACK_LIMIT),
+      db
+        .select()
+        .from(profileVideosTable)
+        .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)))
+        .orderBy(desc(profileVideosTable.createdAt))
+        .limit(CREATOR_ROOM_TRACK_LIMIT),
+      db
+        .select()
+        .from(royalCourtTable)
+        .where(eq(royalCourtTable.ownerProfileId, profile.id))
+        .orderBy(asc(royalCourtTable.position)),
+      db
+        .select()
+        .from(shopsTable)
+        .where(eq(shopsTable.user_id, profile.userId))
+        .limit(1),
+    ]);
+    /* The Front Row: the creator's court, public members only —
+     * the same read rule as GET /creator-profiles/:slug/court. */
+    let frontRow: WorldCreatorRoomFrontRowMember[] = [];
+    if (courtEntries.length > 0) {
+      const memberProfiles = await db
+        .select()
+        .from(creatorProfilesTable)
+        .where(inArray(creatorProfilesTable.id, courtEntries.map((e) => e.memberProfileId)));
+      const byId = new Map(memberProfiles.map((p) => [p.id, p]));
+      frontRow = courtEntries.flatMap((entry) => {
+        const member = byId.get(entry.memberProfileId);
+        if (!member || !member.isPublic) return [];
+        return [
+          {
+            position: entry.position,
+            profileId: member.id,
+            slug: member.slug,
+            displayName: member.displayName,
+            avatarUrl: member.avatarUrl ?? null,
+          },
+        ];
+      });
+    }
+    const shop = shops[0];
+    /* The read materializes the room: the walker's doorway
+     * transfer (which follows this fetch in every entry flow)
+     * lands in a real instance. */
+    const room = activePalace?.noteCreatorRoom(profile.slug, profile.displayName);
+    const detail: WorldCreatorRoomDetail = {
+      roomId: creatorRoomIdForSlug(profile.slug),
+      slug: profile.slug,
+      displayName: profile.displayName,
+      roomName: `${profile.displayName}'s Room`,
+      bio: profile.bio ?? "",
+      avatarUrl: profile.avatarUrl ?? null,
+      bannerUrl: profile.bannerUrl ?? null,
+      theme: creatorRoomThemeFromConfig(profile.themeConfig),
+      followerCount: profile.followerCount ?? 0,
+      occupantCount: room?.size() ?? 0,
+      featuredVideo: pickFeaturedVideo(profile, videos.filter((v) => v.videoUrl)),
+      featuredTrack: pickFeaturedTrack(profile, tracks.filter((t) => t.audioUrl)),
+      tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),
+      frontRow,
+      storefront: shop ? { id: shop.id, handle: shop.handle, name: shop.name } : null,
+    };
+    res.json(await refreshSupabaseStorageUrlsDeep({ room: detail }));
+  } catch (err) {
+    logger.error({ err }, "[world] creator-room detail failed");
+    res.status(500).json({ error: "Couldn't load that creator's room. Try again." });
+  }
+});
+
+/** The palace's creator-room resolver (registerWorldWs): a slug
+ *  hosts a room exactly when a PUBLIC profile carries it — the
+ *  same record the HTTP reads enforce. */
+async function resolveCreatorRoom(slug: string): Promise<{ displayName: string } | null> {
+  try {
+    const [profile] = await db
+      .select({ displayName: creatorProfilesTable.displayName })
+      .from(creatorProfilesTable)
+      .where(and(eq(creatorProfilesTable.slug, slug), eq(creatorProfilesTable.isPublic, true)))
+      .limit(1);
+    return profile ? { displayName: profile.displayName } : null;
+  } catch (err) {
+    logger.warn({ err, slug }, "[world] creator-room resolve failed — room stays closed");
+    return null;
+  }
+}
+
 /* ── Presence socket ────────────────────────────────────────────────────── */
 
 export interface WorldWsDeps {
@@ -774,15 +1122,22 @@ async function resolveJukeboxTrack(userId: string, trackId: string): Promise<Wor
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldPalace {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
-  const palace = new WorldPalace(hub, {
-    resolveCharacter: resolveVaultCharacter,
-    resolveStageStream,
-    resolveScreenVideo,
-    resolveJukeboxTrack,
-    /* Drop spectacles (3.4) pay through the existing drop rails —
-     * the claimer owns the weekly budget check + grant + ledger. */
-    claimWorldDrop: claimSpectacleDrop,
-  });
+  const palace = new WorldPalace(
+    hub,
+    {
+      resolveCharacter: resolveVaultCharacter,
+      resolveStageStream,
+      resolveScreenVideo,
+      resolveJukeboxTrack,
+      /* Drop spectacles (3.4) pay through the existing drop rails —
+       * the claimer owns the weekly budget check + grant + ledger. */
+      claimWorldDrop: claimSpectacleDrop,
+    },
+    /* Creator Rooms (3.5): doorway transfers to a `creator:<slug>`
+     * resolve the slug against the public profile record before
+     * the room materializes. */
+    { resolveCreatorRoom },
+  );
   activePalace = palace;
 
   gateway.register("/api/world/ws", async ({ socket, query }) => {
