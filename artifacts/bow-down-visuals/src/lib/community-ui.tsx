@@ -48,6 +48,7 @@ export function useCommunityApi() {
   return {
     get: useCallback((p: string) => call(p), [call]),
     post: useCallback((p: string, body?: unknown) => call(p, { method: "POST", body: body ?? {} }), [call]),
+    put: useCallback((p: string, body?: unknown) => call(p, { method: "PUT", body: body ?? {} }), [call]),
     del: useCallback((p: string) => call(p, { method: "DELETE" }), [call]),
   };
 }
