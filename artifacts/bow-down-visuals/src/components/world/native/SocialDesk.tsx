@@ -18,6 +18,7 @@ import {
   dmDraftPath, normalizeDmDraft, dmDraftSaveDecision,
   dmMessageAttachment, dmAttachmentKindForMime, dmAttachmentKindForUrl,
   dmAttachmentNameForUrl, dmWorkLabel, dmFilterMessages, dmConversationMatches,
+  dmThreadHighlightSegments,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
   REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
@@ -83,12 +84,34 @@ const inputCls = (isLight: boolean) =>
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
+/* ─── Search hits, lit in place (2.17) ───────────────────────────────
+   Thread search lights its matches where they sit — in the words
+   and in the work's title — with a pale-gold mark whose black text
+   reads on every bubble (my gold one, theirs dark or cream). */
+const DM_HIT_CLASS = "rounded-[3px] bg-[#ffe98a] text-black";
+
+function DmLitText({ text, query }: { text: string; query: string }) {
+  return (
+    <>
+      {dmThreadHighlightSegments(text, query).map((seg, i) =>
+        seg.hit ? (
+          <mark key={i} className={DM_HIT_CLASS} data-testid="world-dm-thread-hit">{seg.text}</mark>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 /* ─── The hand-off card (owner addendum, Oct 17) ─────────────────────
    A DM attachment is a creator handing their work to another creator —
    it renders as the work itself: titled, framed, and playable in-world
    (a beat you can press play on, a cover you can see, a clip you can
    watch), never as a bare file chip. */
-function DmWorkCard({ att, isLight, mine }: { att: DmAttachment; isLight: boolean; mine: boolean }) {
+function DmWorkCard({ att, isLight, mine, highlightQuery }: {
+  att: DmAttachment; isLight: boolean; mine: boolean; highlightQuery?: string;
+}) {
   const Icon = att.type === "audio" ? Music2 : att.type === "video" ? Clapperboard : ImageIcon;
   return (
     <div
@@ -101,7 +124,9 @@ function DmWorkCard({ att, isLight, mine }: { att: DmAttachment; isLight: boolea
         <Icon className="h-4 w-4 shrink-0 text-[#d4af37]" />
         <span className="min-w-0">
           <span className={`block truncate text-sm font-black ${isLight || mine ? "" : "text-white"}`}>
-            {att.name}
+            {highlightQuery?.trim()
+              ? <DmLitText text={att.name} query={highlightQuery} />
+              : att.name}
           </span>
           <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : mine ? "text-black/60" : "text-[#e8c86a]/80"}`}>
             {dmWorkLabel(att.type)} · hand-off
@@ -575,12 +600,13 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   className={`${inputCls(isLight)} pl-9`}
                   data-testid="world-dm-thread-search"
                 />
-                {threadQuery.trim() && threadState === "ready" && (
-                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold ${muted}`}>
-                    {visibleMsgs.length} of {msgs.length}
-                  </span>
-                )}
               </div>
+
+              {threadQuery.trim() && threadState === "ready" && (
+                <p className={`mb-2 text-[11px] font-semibold ${muted}`} data-testid="world-dm-thread-search-scope">
+                  {visibleMsgs.length} of {msgs.length} loaded messages match — search covers the latest 50 messages in this thread.
+                </p>
+              )}
 
               {needsAnswer && (
                 <div
@@ -628,10 +654,22 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                                 : "bg-white/10 text-white"
                           }`}
                         >
-                          {att && <DmWorkCard att={att} isLight={isLight} mine={mine} />}
+                          {att && <DmWorkCard att={att} isLight={isLight} mine={mine} highlightQuery={threadQuery} />}
                           {m.body && (
                             <p className={`whitespace-pre-wrap text-sm ${att ? "mt-2" : ""}`}>
-                              <KingTokenText body={m.body} theme={isLight ? "light" : "dark"} />
+                              {threadQuery.trim() ? (
+                                dmThreadHighlightSegments(m.body, threadQuery).map((seg, i) =>
+                                  seg.hit ? (
+                                    <mark key={i} className={DM_HIT_CLASS} data-testid="world-dm-thread-hit">
+                                      <KingTokenText body={seg.text} theme={isLight ? "light" : "dark"} />
+                                    </mark>
+                                  ) : (
+                                    <KingTokenText key={i} body={seg.text} theme={isLight ? "light" : "dark"} />
+                                  ),
+                                )
+                              ) : (
+                                <KingTokenText body={m.body} theme={isLight ? "light" : "dark"} />
+                              )}
                             </p>
                           )}
                         </div>

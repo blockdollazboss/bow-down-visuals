@@ -18,6 +18,10 @@
  *   thread search, the FULL thread (no preview cap), the reply
  *   bench's batching + server-priced seam, and the follow-on log
  *   keeping only moderation transfer-only;
+ * - STACK-20 R2 #6 (world half): thread search lights its matches
+ *   in place (message words + the work's title) and states its
+ *   loaded-window scope in the copy; guests resolve to the Post
+ *   Office's pitch, never to the desk;
  * - STACK-20 #15: the composer's reply draft persists server-side —
  *   the draft rail's path, payload guard and save-decision seam, and
  *   the desk wiring (restore on open, debounced save, flush on
@@ -35,6 +39,7 @@ import {
   dmUnreadTotal, dmFindConversation, normalizeDmConversations,
   dmMessageAttachment, dmAttachmentKindForMime, dmAttachmentKindForUrl,
   dmAttachmentNameForUrl, dmWorkLabel, dmFilterMessages, dmConversationMatches,
+  dmThreadHighlightSegments,
   dmDraftPath, normalizeDmDraft, dmDraftSaveDecision,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
@@ -47,6 +52,8 @@ import {
   type DmConversation, type DmMessage,
 } from "./social-desk";
 import type { FeedPost } from "@/lib/social-api";
+import { STATION_BY_ID } from "./stations";
+import { resolveStationPanel } from "./station-panel";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const deskSrc = read("../../components/world/native/SocialDesk.tsx");
@@ -264,6 +271,54 @@ describe("DM thread search (2.17)", () => {
     }), "final-mix")).toBe(true);
     expect(dmConversationMatches(conv(), "stranger")).toBe(false);
     expect(dmConversationMatches(conv(), "")).toBe(true);
+  });
+});
+
+describe("DM thread search lights its matches in place (2.17, STACK-20 R2 #6 world half)", () => {
+  it("an empty or blank query leaves the text whole and unlit", () => {
+    expect(dmThreadHighlightSegments("that hook is fire", "")).toEqual([{ text: "that hook is fire", hit: false }]);
+    expect(dmThreadHighlightSegments("that hook is fire", "   ")).toEqual([{ text: "that hook is fire", hit: false }]);
+  });
+
+  it("splits around every case-insensitive match, keeping the text intact", () => {
+    const segs = dmThreadHighlightSegments("Fire in the hook, FIRE in the bridge", "fire");
+    expect(segs.map((s) => s.text).join("")).toBe("Fire in the hook, FIRE in the bridge");
+    expect(segs.filter((s) => s.hit).map((s) => s.text)).toEqual(["Fire", "FIRE"]);
+    expect(dmThreadHighlightSegments("midnight-beat.mp3", "BEAT")).toEqual([
+      { text: "midnight-", hit: false },
+      { text: "beat", hit: true },
+      { text: ".mp3", hit: false },
+    ]);
+  });
+
+  it("no match is one unlit segment; a whole-text match is one lit segment", () => {
+    expect(dmThreadHighlightSegments("send the stems", "hook")).toEqual([{ text: "send the stems", hit: false }]);
+    expect(dmThreadHighlightSegments("hook", "hook")).toEqual([{ text: "hook", hit: true }]);
+  });
+
+  it("the desk lights matches in bodies and work titles, and states the search's scope", () => {
+    /* The splitter is the desk's own seam, used for both surfaces. */
+    expect(deskSrc).toContain("dmThreadHighlightSegments(m.body, threadQuery)");
+    expect(deskSrc).toContain("dmThreadHighlightSegments(text, query)");
+    expect(deskSrc).toContain("highlightQuery={threadQuery}");
+    expect(deskSrc).toContain('data-testid="world-dm-thread-hit"');
+    /* The scope sentence mirrors the website page's honesty: the
+       desk loads the server's default window (the latest 50) and
+       says so — older messages are not silently un-searched. */
+    expect(deskSrc).toContain('data-testid="world-dm-thread-search-scope"');
+    expect(deskSrc).toContain("loaded messages match — search covers the latest 50 messages in this thread.");
+  });
+});
+
+describe("guests never reach the Post Office desk", () => {
+  it("the station is members-only, and a guest resolves to the pitch — a member to the desk", () => {
+    const postOffice = STATION_BY_ID.get("post-office")!;
+    expect(postOffice.membersOnly).toBe(true);
+    expect(resolveStationPanel(postOffice, true).type).toBe("guest-pitch");
+    expect(resolveStationPanel(postOffice, false).type).toBe("native");
+    /* And the desk itself never fetches without a member: its rails
+       all ride the member-token header hook. */
+    expect(deskSrc).toContain("useAuthHeaders");
   });
 });
 
