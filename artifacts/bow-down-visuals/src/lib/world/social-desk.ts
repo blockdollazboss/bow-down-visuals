@@ -440,6 +440,57 @@ export function fullThread<T>(replies: readonly T[]): T[] {
   return [...replies];
 }
 
+/* ─── Full threads (2.18) — nested + honest ─────────────────────────
+   The site's data nests a conversation by reply chains: every reply
+   is itself a post carrying its own server reply_count, and its
+   children ride the same replies rail. The Hall renders that nesting
+   as-is — a node expands to fetch its own children — under two laws:
+   a count is the server's count plus the replies this session landed
+   (never a client-side guess), and a FAILED load is a failed state
+   with a retry, never an empty thread. */
+
+/** Where one node's children stand: not asked, fetching, in hand,
+ *  or failed. "failed" renders as a failure — never as "no replies". */
+export type ThreadLoadState = "idle" | "loading" | "ready" | "failed";
+
+/** The count a thread toggle states: the server's reply_count for
+ *  the post, plus each reply this session landed (the server bumps
+ *  its count by exactly one per landed reply — Now Playing honesty,
+ *  stack-20 #12's rule). */
+export function threadCountOf(serverReplyCount: number, landedReplies: number): number {
+  const server = Math.max(0, Math.floor(serverReplyCount) || 0);
+  const landed = Math.max(0, Math.floor(landedReplies) || 0);
+  return server + landed;
+}
+
+/** The toggle's words for a count: zero stays a plain invitation,
+ *  and an open thread says what tapping again does. */
+export function threadToggleLabel(count: number, open: boolean): string {
+  if (count <= 0) return "Replies";
+  const noun = count === 1 ? "reply" : "replies";
+  return open ? `Hide ${count} ${noun}` : `${count} ${noun}`;
+}
+
+/** Merge a fresh fetch of a node's children with the replies this
+ *  session landed while the node was collapsed: fetched order first
+ *  (the server's order), landed extras appended in landing order,
+ *  deduped by id — a reply that lands before the fetch returns is
+ *  in the fetch too, and must never render twice. */
+export function mergeThreadChildren<T extends { id: string }>(
+  fetched: readonly T[],
+  landed: readonly T[],
+): T[] {
+  const seen = new Set(fetched.map((r) => r.id));
+  return [...fetched, ...landed.filter((r) => !seen.has(r.id))];
+}
+
+/** Guests read the whole thread; the composer is members-only,
+ *  here and at every nested node (the reply rail is requireAuth
+ *  server-side regardless — this keeps the desk honest, not open). */
+export function threadReplyAllowed(isGuest: boolean): boolean {
+  return !isGuest;
+}
+
 /* ─── The parity follow-on log (NATIVE-PLAN §3.4, v1 scope line) ───
    Everything behind these two stations that stays TRANSFER-ONLY in
    v1, named so the next lane promotes benches deliberately, never

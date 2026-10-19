@@ -43,6 +43,7 @@ import {
   REPLY_DRAFT_TONES, replyDraftBatch,
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
   nextReactionState, fullThread,
+  threadCountOf, threadToggleLabel, mergeThreadChildren, threadReplyAllowed,
   SOCIAL_NATIVE_FOLLOW_ONS, SOCIAL_RING2_PROMOTIONS,
   type DmConversation, type DmMessage,
 } from "./social-desk";
@@ -200,6 +201,39 @@ describe("community pure helpers", () => {
   it("the full thread is the whole thread — no preview cap (2.18)", () => {
     expect(fullThread([1, 2, 3, 4, 5])).toEqual([1, 2, 3, 4, 5]);
     expect(fullThread([])).toEqual([]);
+  });
+});
+
+describe("full threads (2.18) — nested + honest", () => {
+  it("counts are the server's count plus this session's landed replies — never a guess", () => {
+    expect(threadCountOf(7, 0)).toBe(7);
+    expect(threadCountOf(7, 2)).toBe(9);
+    expect(threadCountOf(0, 1)).toBe(1);
+    expect(threadCountOf(-3, -1)).toBe(0);
+  });
+
+  it("the toggle's words follow the count and the open state", () => {
+    expect(threadToggleLabel(0, false)).toBe("Replies");
+    expect(threadToggleLabel(1, false)).toBe("1 reply");
+    expect(threadToggleLabel(4, false)).toBe("4 replies");
+    expect(threadToggleLabel(1, true)).toBe("Hide 1 reply");
+    expect(threadToggleLabel(4, true)).toBe("Hide 4 replies");
+  });
+
+  it("merging a fetch with session-landed replies dedupes by id, fetch order first", () => {
+    const a = { id: "a" };
+    const b = { id: "b" };
+    const c = { id: "c" };
+    expect(mergeThreadChildren([a, b], [c])).toEqual([a, b, c]);
+    /* A reply that landed before the fetch returned rides in both — once. */
+    expect(mergeThreadChildren([a, c], [c, b])).toEqual([a, c, b]);
+    expect(mergeThreadChildren([], [c])).toEqual([c]);
+    expect(mergeThreadChildren([a], [])).toEqual([a]);
+  });
+
+  it("guests read the whole thread but never get a composer", () => {
+    expect(threadReplyAllowed(true)).toBe(false);
+    expect(threadReplyAllowed(false)).toBe(true);
   });
 });
 
@@ -371,6 +405,30 @@ describe("source pins — the desk and its host dispatch", () => {
     expect(deskSrc).toContain("<video controls");
     expect(deskSrc).toContain("dmWorkLabel(att.type)");
     expect(deskSrc).toContain("hand-off");
+  });
+
+  it("threads are honest + nested (2.18): failed loads fail loudly, nodes open their own children", () => {
+    /* A failed thread load is a failed state with a retry — the
+       fake-empty path (catch → setReplies([])) must never return. */
+    expect(deskSrc).toContain('data-testid="world-community-thread-failed"');
+    expect(deskSrc).toContain('data-testid="world-community-node-failed"');
+    expect(deskSrc).toContain("Fetching the thread…");
+    expect(deskSrc).not.toContain("setReplies([])");
+    /* Nesting: a reply renders as a node that fetches and answers
+       its own children off the same rails, keyed by its own id. */
+    expect(deskSrc).toContain("function ThreadReplyNode");
+    expect(deskSrc).toContain("<ThreadReplyNode");
+    expect(deskSrc).toContain("postRepliesPath(reply.id)");
+    expect(deskSrc).toContain("postReplyPath(reply.id)");
+    expect(deskSrc).toContain('data-testid="world-community-reply-node"');
+    expect(deskSrc).toContain('data-testid="world-community-node-toggle"');
+    expect(deskSrc).toContain('data-testid="world-community-node-reply-send"');
+    /* Counts come from the seam (server + landed), never a
+       hand-rolled increment; guests never see a composer. */
+    expect(deskSrc).toContain("threadCountOf(post.reply_count, landedRoot.length)");
+    expect(deskSrc).toContain("threadCountOf(reply.reply_count, landed.length)");
+    expect(deskSrc).toContain("threadReplyAllowed(isGuest)");
+    expect(deskSrc).not.toContain("setReplyCount");
   });
 
   it("moderation is never called from the desk — transfer-only in v1", () => {
