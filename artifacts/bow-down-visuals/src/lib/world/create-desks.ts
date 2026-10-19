@@ -26,6 +26,7 @@
  */
 import { getCreditCost } from "../credit-costs";
 import { getCoverArtTier } from "../cover-art";
+import { buildPublishUrl } from "../publish-protocol";
 import {
   ARTIST_IMAGE_MODELS,
   type ArtistImageModel,
@@ -1320,16 +1321,15 @@ export function thumbnailGeneratorFields(input: {
 }
 export const THUMBNAIL_FACE_FIELD = "facePhoto";
 
-/** The maker's images from its response ({ images }) — only rows
- *  with a real url count as variations. */
-export function thumbnailImagesOfResponse(
-  json: unknown,
+/** One maker image row — only rows with a real url count as
+ *  variations. The server's rows carry numeric variations; the
+ *  bench names them by landing order, exactly as the page does. */
+function thumbnailImageRows(
+  rows: unknown,
 ): Array<{ url: string; variation: string }> {
-  if (!json || typeof json !== "object") return [];
-  const images = (json as { images?: unknown }).images;
-  if (!Array.isArray(images)) return [];
+  if (!Array.isArray(rows)) return [];
   const out: Array<{ url: string; variation: string }> = [];
-  for (const img of images) {
+  for (const img of rows) {
     if (img && typeof img === "object") {
       const url = (img as { url?: unknown }).url;
       if (typeof url === "string" && url) {
@@ -1339,6 +1339,81 @@ export function thumbnailImagesOfResponse(
     }
   }
   return out;
+}
+
+/** The maker's images from its response ({ images }) — only rows
+ *  with a real url count as variations. */
+export function thumbnailImagesOfResponse(
+  json: unknown,
+): Array<{ url: string; variation: string }> {
+  if (!json || typeof json !== "object") return [];
+  return thumbnailImageRows((json as { images?: unknown }).images);
+}
+
+/** The maker's PARTIAL images from a failed batch's response. The
+ *  server generates the 4 variations one at a time and stops at the
+ *  first failure: it refunds the whole batch and answers 500 with
+ *  { partialImages } — the variations that DID land, already in
+ *  permanent storage. The bench shows them as real results beside
+ *  failed slots for the rest; dropping them would waste work the
+ *  server already did and stored. */
+export function thumbnailPartialImagesOfResponse(
+  json: unknown,
+): Array<{ url: string; variation: string }> {
+  if (!json || typeof json !== "object") return [];
+  return thumbnailImageRows((json as { partialImages?: unknown }).partialImages);
+}
+
+/** The maker always runs a batch of 4 (the server's loop bound and
+ *  the registry's batch price both say so). */
+export const THUMBNAIL_BATCH_SIZE = 4;
+
+/** One slot on the 4-variation bench after a run. A ready slot is a
+ *  real generated image at its permanent url — the bench NEVER
+ *  fabricates a slot from another slot's image (no re-crops, no
+ *  duplicates): what didn't land is a failed slot with no url. */
+export type ThumbnailBenchSlot =
+  | { status: "ready"; url: string; variation: string }
+  | { status: "failed"; variation: string };
+
+export function thumbnailBenchSlots(
+  images: Array<{ url: string; variation: string }>,
+  expected: number = THUMBNAIL_BATCH_SIZE,
+): ThumbnailBenchSlot[] {
+  const slots: ThumbnailBenchSlot[] = [];
+  for (let i = 0; i < expected; i++) {
+    const img = images[i];
+    if (img) slots.push({ status: "ready", url: img.url, variation: img.variation });
+    else slots.push({ status: "failed", variation: `variation-${i + 1}` });
+  }
+  return slots;
+}
+
+/** The A/B winner's save rail is the website's own: picking a winner
+ *  on thumbnail-studio.tsx stores the winner's PERMANENT url under
+ *  this localStorage key, and video-studio.tsx reads it back as the
+ *  video's thumbnail in the packaging flow. The in-world bench
+ *  writes the exact same key with the exact same value (the server's
+ *  permanent ref — mirror-on-save already happened server-side at
+ *  generation), so a winner picked in the palace travels identically. */
+export const THUMBNAIL_WINNER_HANDOFF_KEY = "wave8_thumbnail_winner";
+
+/** The winner's publish door, the website winner bar's own protocol:
+ *  /publish prefilled as a video whose thumbnail is the winner (the
+ *  publish page then lets the creator pick the video it dresses).
+ *  Offered in-world as an explicit, user-clicked link only. */
+export function buildThumbnailWinnerPublishHref(input: {
+  winnerUrl: string;
+  title?: string;
+}): string {
+  return buildPublishUrl({
+    type: "video",
+    category: "video",
+    artworkUrl: input.winnerUrl,
+    title: input.title?.trim() ? input.title.trim().slice(0, 200) : undefined,
+    from: "/thumbnail-studio",
+    fromLabel: "Thumbnail Studio",
+  });
 }
 
 /** The wave8 A/B variants body (JSON): source + title + niche,
