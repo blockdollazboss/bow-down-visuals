@@ -25,6 +25,17 @@ import { DailyDropCard } from "@/components/DailyDropCard";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
+import {
+  DASHBOARD_SECTION_KEYS,
+  allDashboardSectionsFailed,
+  dashboardSectionStatusFromSettled,
+  dashboardSectionsToRefetch,
+  initialDashboardSectionStates,
+  markDashboardSectionLoading,
+  settleDashboardSection,
+  type DashboardSectionKey,
+  type DashboardSectionStates,
+} from "@/lib/dashboard-sections";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -95,6 +106,53 @@ function projectLabel(p: Project) {
   return p.title || [p.artist_name, p.song_title].filter(Boolean).join(" — ") || p.project_type;
 }
 
+/* ─────────────────────── SECTION FAILURE NOTE ───────────────────────
+   A failed section's own error state, rendered INSIDE that section's
+   area — never the section's empty state, never a page takeover.
+   Card-sized by default; `bare` drops the card chrome (the note sits
+   inside a card already, e.g. the money pipeline); `compact` is the
+   one-line pill for small elements like the streak chip. */
+function SectionFailureNote({ label, onRetry, isLight, compact = false, bare = false, testId }: {
+  label: string;
+  onRetry: () => void;
+  isLight: boolean;
+  compact?: boolean;
+  bare?: boolean;
+  testId: string;
+}) {
+  if (compact) {
+    return (
+      <div data-testid={testId} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/[0.08] text-xs font-bold text-red-300" title={`${label} couldn't load`}>
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span className="hidden sm:inline">{label} couldn’t load</span>
+        <button type="button" onClick={onRetry} className="font-black underline underline-offset-2 hover:text-red-100 transition-colors">Retry</button>
+      </div>
+    );
+  }
+  const body = (
+    <>
+      <AlertTriangle className="mx-auto h-7 w-7 text-primary" />
+      <p className={`mt-2 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{label} couldn’t load.</p>
+      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+        Something went wrong on our end — this section just couldn’t load. The rest of your dashboard is fine.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 font-bold text-black hover:brightness-110"
+      >
+        <RotateCcw className="h-4 w-4" /> Try again
+      </button>
+    </>
+  );
+  if (bare) return <div data-testid={testId} className="flex-1 text-center py-2">{body}</div>;
+  return (
+    <div data-testid={testId} className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+      {body}
+    </div>
+  );
+}
+
 /* ─────────────────────── SECTION LABEL ─────────────────────── */
 
 function SectionLabel({ icon: Icon, children, action }: { icon: React.ElementType; children: React.ReactNode; action?: React.ReactNode }) {
@@ -124,14 +182,12 @@ export default function Dashboard() {
   const [deals, setDeals] = useState<SponsorDeal[]>([]);
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [streak, setStreak] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  /* Section-load failures are NOT empty sections — if any core fetch
-     (projects/deals/usage/stats) rejects or answers non-OK, the
-     sections area below the header gets its own error state with a
-     retry. Genuinely empty sections render ONLY on a fully successful
-     load. */
-  const [loadError, setLoadError] = useState(false);
-  const [retryNonce, setRetryNonce] = useState(0);
+  /* Per-section load state (lib/dashboard-sections): each of the four
+     core sections settles and retries on its own. A failed section is
+     NOT an empty section — it renders its own failure note in its own
+     area, and it never takes the rest of the page down with it. The
+     full-page error card renders ONLY when all four sections failed. */
+  const [sectionStates, setSectionStates] = useState<DashboardSectionStates>(initialDashboardSectionStates);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
   const [sharkDrop, setSharkDrop] = useState<SharkDrop | null>(null);
   const [levelUp, setLevelUp] = useState<number | null>(null);
@@ -177,50 +233,97 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  /* ── Consolidated data fetch: projects, deals, usage, streak ── */
+  /* ── Per-section data fetch: projects, deals, usage, streak ──
+     Each section fetches and settles independently (the old loader
+     settled all four together and flipped ONE page-wide error flag if
+     any of them failed — one flaky endpoint nuked the whole page).
+     Data shaping per section is unchanged from that loader. */
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const fetchSection = async (key: DashboardSectionKey, headers: HeadersInit): Promise<void> => {
+    const run = async (): Promise<{ ok: boolean }> => {
+      if (key === "projects") {
+        const res = await fetch("/api/projects", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ projects: [] }));
+          if (mountedRef.current) setProjects(d.projects ?? []);
+        }
+        return res;
+      }
+      if (key === "deals") {
+        const res = await fetch("/api/wave8/sponsors/deals", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ deals: [] }));
+          if (mountedRef.current) setDeals(d.deals ?? []);
+        }
+        return res;
+      }
+      if (key === "usage") {
+        const res = await fetch("/api/credits/history", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ usage: [] }));
+          if (mountedRef.current) setUsage((d.usage ?? []).slice(0, 6));
+        }
+        return res;
+      }
+      const res = await fetch("/api/bonus/status", { headers });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (mountedRef.current) setStreak(typeof d.streak === "number" ? d.streak : 0);
+      }
+      return res;
+    };
+    const [settled] = await Promise.allSettled([run()]);
+    if (!mountedRef.current) return;
+    /* A rejected fetch OR a non-OK response fails THIS section only. */
+    setSectionStates((prev) =>
+      settleDashboardSection(prev, key, dashboardSectionStatusFromSettled(settled) === "ok"),
+    );
+  };
+
+  const loadSections = async (keys: DashboardSectionKey[]): Promise<void> => {
+    let headers: HeadersInit = {};
+    try {
+      const token = await getAccessToken();
+      headers = token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      /* No token, no sections: fail everything asked for, so the page
+         lands on its honest failure states instead of skeletons. */
+      if (mountedRef.current) {
+        setSectionStates((prev) =>
+          keys.reduce((s, k) => settleDashboardSection(s, k, false), prev),
+        );
+      }
+      return;
+    }
+    await Promise.allSettled(keys.map((k) => fetchSection(k, headers)));
+  };
+
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(false);
-    (async () => {
-      const token = await getAccessToken();
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-      const [pRes, dRes, uRes, sRes] = await Promise.allSettled([
-        fetch("/api/projects", { headers }),
-        fetch("/api/wave8/sponsors/deals", { headers }),
-        fetch("/api/credits/history", { headers }),
-        fetch("/api/bonus/status", { headers }),
-      ]);
-      if (cancelled) return;
-      /* A rejected fetch OR a non-OK response in any core section is a
-         load failure — previously each was silently skipped, leaving
-         that section rendering as if it were genuinely empty. */
-      const anyFailed = [pRes, dRes, uRes, sRes].some((r) => {
-        if (r.status === "rejected") return true;
-        return !r.value.ok;
-      });
-      if (anyFailed) setLoadError(true);
-      if (pRes.status === "fulfilled" && pRes.value.ok) {
-        const d = await pRes.value.json().catch(() => ({ projects: [] }));
-        setProjects(d.projects ?? []);
-      }
-      if (dRes.status === "fulfilled" && dRes.value.ok) {
-        const d = await dRes.value.json().catch(() => ({ deals: [] }));
-        setDeals(d.deals ?? []);
-      }
-      if (uRes.status === "fulfilled" && uRes.value.ok) {
-        const d = await uRes.value.json().catch(() => ({ usage: [] }));
-        setUsage((d.usage ?? []).slice(0, 6));
-      }
-      if (sRes.status === "fulfilled" && sRes.value.ok) {
-        const d = await sRes.value.json().catch(() => ({}));
-        setStreak(typeof d.streak === "number" ? d.streak : 0);
-      }
-      setLoading(false);
-    })().catch(() => { if (!cancelled) { setLoadError(true); setLoading(false); } });
-    return () => { cancelled = true; };
-  }, [user, getAccessToken, retryNonce]);
+    setSectionStates(initialDashboardSectionStates());
+    void loadSections([...DASHBOARD_SECTION_KEYS]);
+  }, [user, getAccessToken]);
+
+  /* A section's Retry refetches ONLY that section. */
+  const retrySection = (key: DashboardSectionKey) => {
+    setSectionStates((prev) => markDashboardSectionLoading(prev, key));
+    void loadSections(dashboardSectionsToRefetch(sectionStates, key));
+  };
+
+  /* The full-page card's Try again — that card renders only when all
+     four sections failed, so its refetch plan is all four. */
+  const retryAllSections = () => {
+    const plan = dashboardSectionsToRefetch(sectionStates);
+    setSectionStates((prev) =>
+      plan.reduce((s, k) => markDashboardSectionLoading(s, k), prev),
+    );
+    void loadSections(plan);
+  };
 
   /* ── Retention delight: shark drop dice roll + level-up check ──
      The server owns all the rules (15% drop chance, 2-per-7-day cap,
@@ -354,7 +457,9 @@ export default function Dashboard() {
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)]">
                 <Zap className="h-4 w-4" />{formatVB(balance)}
               </button>
-              {streak !== null && streak > 0 && (
+              {sectionStates.streak === "failed" ? (
+                <SectionFailureNote compact isLight={isLight} label="Streak" testId="dashboard-streak-failure" onRetry={() => retrySection("streak")} />
+              ) : streak !== null && streak > 0 && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] text-sm font-black text-orange-300" title={t("dashboard.streak_days")}>
                   <Flame className="h-4 w-4" />{streak}
                 </div>
@@ -364,6 +469,10 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          {/* Hidden while the projects section is failed — a failed
+              section must not present its "no projects" face here; its
+              own failure note sits in the Continue section below. */}
+          {sectionStates.projects !== "failed" && (
           <div className="mt-5">
             {projects[0] ? (
               <Button size="lg" onClick={() => setLocation(`/video-editor?project=${projects[0].id}`)}
@@ -378,6 +487,7 @@ export default function Dashboard() {
               </Link>
             )}
           </div>
+          )}
         </section>
 
         {/* ── RETENTION: CREATION STREAK + WEEKLY QUESTS (dismissible, toggleable) ── */}
@@ -418,7 +528,7 @@ export default function Dashboard() {
           );
         })() : null}
 
-        {loadError ? (
+        {allDashboardSectionsFailed(sectionStates) ? (
           <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
             <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
             <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
@@ -427,7 +537,7 @@ export default function Dashboard() {
             </p>
             <button
               type="button"
-              onClick={() => setRetryNonce((n) => n + 1)}
+              onClick={retryAllSections}
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
             >
               <RotateCcw className="h-4 w-4" /> Try again
@@ -440,7 +550,9 @@ export default function Dashboard() {
           <SectionLabel icon={Play} action={
             <Link href="/my-projects"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.continue_title")}</SectionLabel>
-          {loading ? (
+          {sectionStates.projects === "failed" ? (
+            <SectionFailureNote isLight={isLight} label="Your projects" testId="dashboard-projects-failure" onRetry={() => retrySection("projects")} />
+          ) : sectionStates.projects === "loading" ? (
             <div className="flex gap-3 overflow-hidden">
               {[0,1,2].map(i => <div key={i} className="w-56 h-32 rounded-2xl lux-skeleton shrink-0" />)}
             </div>
@@ -477,8 +589,10 @@ export default function Dashboard() {
             <Link href="/coach"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.money_title")}</SectionLabel>
           <div className={`rounded-2xl border p-4 md:p-5 flex flex-wrap items-center gap-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
-            {loading ? (
+            {sectionStates.deals === "loading" ? (
               <div className="h-10 flex-1 rounded-xl lux-skeleton" />
+            ) : sectionStates.deals === "failed" ? (
+              <SectionFailureNote bare isLight={isLight} label="Your money pipeline" testId="dashboard-deals-failure" onRetry={() => retrySection("deals")} />
             ) : money.activeCount > 0 ? (
               <>
                 <div className="h-11 w-11 rounded-xl bg-green-500/[0.12] border border-green-500/25 flex items-center justify-center shrink-0">
@@ -577,7 +691,9 @@ export default function Dashboard() {
           <SectionLabel icon={Activity} action={
             <Link href="/credit-history"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.activity_title")}</SectionLabel>
-          {loading ? (
+          {sectionStates.usage === "failed" ? (
+            <SectionFailureNote isLight={isLight} label="Your recent activity" testId="dashboard-usage-failure" onRetry={() => retrySection("usage")} />
+          ) : sectionStates.usage === "loading" ? (
             <div className="space-y-2">{[0,1,2].map(i => <div key={i} className="h-12 rounded-xl lux-skeleton" />)}</div>
           ) : usage.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/[0.03] px-6 py-10 text-center">
