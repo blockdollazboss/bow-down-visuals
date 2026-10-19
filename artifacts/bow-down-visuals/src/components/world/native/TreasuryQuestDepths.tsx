@@ -6,6 +6,8 @@ import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import {
   QUEST_DISPLAY,
+  TUTORIAL_LEDGER_TITLE,
+  dailyQuestTitle,
   historyTotalVb,
   ledgerEntryKindLabel,
   normalizeLeaderboard,
@@ -31,7 +33,8 @@ import {
    Oct 17 2026):
 
    • Trophies (2.21): the claim-history ledger as a trophy shelf —
-     every claim the retention/bonus tables record (quest rewards,
+     every claim the tables record (weekly quest rewards, Daily
+     Quest Trio rewards, the King's gifts, the tutorial reward,
      shark drops, hourly crates) with its recorded VB amount, under
      a status strip (lifetime claimed total from those same rows,
      creation streak, milestones). Daily-drop claims are NOT rows:
@@ -302,14 +305,22 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                   <NativeEmptyState
                     isLight={isLight}
                     message="No trophies yet — finish an objective above and claim it here."
-                    detail="Quest rewards, shark drops and hourly crates you claim will line this shelf."
+                    detail="Quest rewards, daily quests, the King's gifts, the tutorial reward, shark drops and hourly crates you claim will line this shelf."
                   />
                 ) : (
                   history.entries.map((e, i) => (
                     <NativeBoardRow
                       key={`${e.kind}-${e.at}-${i}`}
                       isLight={isLight}
-                      title={e.kind === "quest" ? questTitle(e.key) : ledgerEntryKindLabel(e.kind)}
+                      title={
+                        e.kind === "quest"
+                          ? questTitle(e.key)
+                          : e.kind === "daily-quest"
+                            ? dailyQuestTitle(e.key)
+                            : e.kind === "tutorial"
+                              ? TUTORIAL_LEDGER_TITLE
+                              : ledgerEntryKindLabel(e.kind)
+                      }
                       detail={`${ledgerEntryKindLabel(e.kind)} · ${fmtDate(e.at)}`}
                       meta={`+${e.amount.toLocaleString("en-US")} VB`}
                     />
