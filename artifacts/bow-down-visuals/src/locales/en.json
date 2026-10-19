@@ -10471,7 +10471,19 @@
       "addedDesc": "{{count}} promo cards added to your release assets.",
       "captionLabel": "Suggested caption (editable)",
       "copy": "Copy",
-      "copied": "Copied"
+      "copied": "Copied",
+      "historyTitle": "Your promo cards",
+      "historyLoading": "Loading your cards…",
+      "historyFailed": "Couldn't load your promo cards.",
+      "historyRetry": "Retry",
+      "historyEmpty": "No promo cards yet — generate your first pack above and it will live here.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "Open full size",
+      "historyDelete": "Delete",
+      "historyConfirmDelete": "Delete?",
+      "historyDeleted": "Promo card deleted",
+      "historyDeleteFailed": "Couldn't delete that card — try again.",
+      "historyMoreNote": "Showing your {{limit}} most recent cards."
     }
   },
   "contentIntelligence": {

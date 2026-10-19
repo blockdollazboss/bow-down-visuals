@@ -1,14 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Megaphone, Loader2, Check, AlertCircle, Copy, Download,
-  CalendarClock, Share2, FolderPlus, Image as ImageIcon,
+  CalendarClock, Share2, FolderPlus, Image as ImageIcon, History, Trash2,
 } from "lucide-react";
 import { useHubProject } from "@/lib/hub-project";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { downloadImage } from "@/lib/download-image";
+import {
+  normalizePromoCardHistory,
+  removePromoCard,
+  promoCardFileName,
+  promoCardShareText,
+  promoCardDateLabel,
+  type PromoCardHistoryItem,
+} from "@/lib/promo-card-history";
 
 /* ─── PromoCardsPanel ───────────────────────────────────────────────────────
    DistroKid promo-cards parity, docked inside the social-kit flow on
@@ -31,6 +40,10 @@ const SIZE_IDS = ["1:1", "9:16", "16:9"] as const;
 type SizeId = (typeof SIZE_IDS)[number];
 
 interface PromoCard {
+  /** History row id once the server has recorded the card (0161);
+      null when the record write didn't land — the card still works,
+      it just can't be listed or deleted from history later. */
+  id?: string | null;
   style: string;
   size: string;
   url: string;
@@ -52,6 +65,7 @@ export function PromoCardsPanel() {
   const { t } = useTranslation();
   const { project, addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
+  const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
   const queryTitle = useMemo(() => readQueryParam("promoTitle"), []);
@@ -81,6 +95,93 @@ export function PromoCardsPanel() {
   const [caption, setCaption] = useState("");
   const [copied, setCopied] = useState(false);
   const [sharedIdx, setSharedIdx] = useState<number | null>(null);
+
+  /* ─── History (STACK-20 R2 #17) ───────────────────────────────────────
+     Every pack the server recorded for this creator (GET /api/promo-
+     cards), docked under the maker that produces them. The list is
+     the server's truth: loading / failed-with-retry / truly-empty are
+     distinct states, and a card leaves the list only after the server
+     confirms its delete. */
+  const [history, setHistory] = useState<PromoCardHistoryItem[]>([]);
+  const [historyState, setHistoryState] = useState<"loading" | "ready" | "failed">("loading");
+  const [historyLimit, setHistoryLimit] = useState<number | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [historySharedId, setHistorySharedId] = useState<string | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryState("loading");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/promo-cards", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("history");
+      const page = normalizePromoCardHistory(await res.json().catch(() => null));
+      setHistory(page.cards);
+      setHistoryLimit(page.limit);
+      setHistoryHasMore(page.hasMore);
+      setHistoryState("ready");
+    } catch {
+      setHistoryState("failed");
+    }
+  }, [getAccessToken]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  async function deleteHistoryCard(card: PromoCardHistoryItem) {
+    if (deletingId) return;
+    setDeletingId(card.id);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/promo-cards/${card.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("delete");
+      /* Only a server-confirmed delete removes the card on screen. */
+      setHistory((prev) => removePromoCard(prev, card.id));
+      setConfirmDeleteId(null);
+      toast({ title: t("hubSpine.promoCards.historyDeleted") });
+    } catch {
+      toast({ title: t("hubSpine.promoCards.historyDeleteFailed"), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function shareHistoryCard(card: PromoCardHistoryItem) {
+    const text = promoCardShareText(card);
+    const channel = typeof navigator !== "undefined" && "share" in navigator ? "native" : "copy";
+    try {
+      if (channel === "native") {
+        await navigator.share({ title: `${card.releaseTitle} — ${card.artistName}`, text, url: card.url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${card.url}`);
+      }
+      setHistorySharedId(card.id);
+      setTimeout(() => setHistorySharedId(null), 2000);
+    } catch {
+      /* user dismissed — and a dismissed share is not a share, so
+         nothing is tracked for it below */
+      return;
+    }
+    /* Ride the share rail so the action counts like every other
+       share on the site. The rail has no promo-card type, so the
+       card rides as "other" with its history id as the content id.
+       Fire-and-forget: tracking never blocks or breaks sharing. */
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ content_type: "other", content_id: card.id, channel }),
+      });
+    } catch { /* tracking is a passenger, never the driver */ }
+  }
 
   /* Deep-link: /promote#promo-cards scrolls straight to this panel. */
   useEffect(() => {
@@ -130,6 +231,9 @@ export function PromoCardsPanel() {
       setCards(list);
       setCaption(data.suggestedCaption ?? "");
       toast({ title: t("hubSpine.promoCards.doneTitle"), description: t("hubSpine.promoCards.doneDesc", { count: list.length }) });
+      /* The pack was recorded server-side in the same request — pull
+         the history list back so the new cards stand in it too. */
+      void loadHistory();
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("hubSpine.promoCards.failed");
       setError(msg === "out_of_credits" ? t("hubSpine.handoffs.outOfCredits") : msg);
@@ -425,6 +529,115 @@ export function PromoCardsPanel() {
           </div>
         </div>
       )}
+
+      {/* ─── History: every recorded pack, newest first ─────────────── */}
+      <div className="mt-10 border-t border-white/10 pt-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-white/70">
+            <History className="h-4 w-4 text-primary" /> {t("hubSpine.promoCards.historyTitle")}
+          </p>
+          {historyState === "ready" && history.length > 0 && (
+            <span className="text-xs font-bold text-white/40">{history.length}</span>
+          )}
+        </div>
+
+        {historyState === "loading" && (
+          <p className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/50">
+            <Loader2 className="h-4 w-4 animate-spin" /> {t("hubSpine.promoCards.historyLoading")}
+          </p>
+        )}
+
+        {historyState === "failed" && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm text-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0" /> {t("hubSpine.promoCards.historyFailed")}
+            </p>
+            <button
+              onClick={() => void loadHistory()}
+              className="rounded-lg border border-red-300/40 px-3 py-1.5 text-xs font-bold text-red-100 transition hover:bg-red-500/10"
+            >
+              {t("hubSpine.promoCards.historyRetry")}
+            </button>
+          </div>
+        )}
+
+        {historyState === "ready" && history.length === 0 && (
+          <p className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/45">
+            {t("hubSpine.promoCards.historyEmpty")}
+          </p>
+        )}
+
+        {historyState === "ready" && history.length > 0 && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {history.map((card) => (
+                <div key={card.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                  <a
+                    href={card.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={t("hubSpine.promoCards.historyOpen")}
+                    className="block"
+                  >
+                    <img
+                      src={card.url}
+                      alt={t("hubSpine.promoCards.cardAlt", { style: styleLabel(card.style), size: card.size })}
+                      className="aspect-square w-full object-cover"
+                      loading="lazy"
+                    />
+                  </a>
+                  <div className="p-3">
+                    <p className="truncate text-sm font-bold text-white/85">
+                      {t("hubSpine.promoCards.historyForRelease", { title: card.releaseTitle, artist: card.artistName })}
+                    </p>
+                    <p className="mb-2 mt-0.5 text-xs font-bold text-white/50">
+                      {styleLabel(card.style)} · {card.size} · {card.width}×{card.height}
+                      {promoCardDateLabel(card.createdAt) ? ` · ${promoCardDateLabel(card.createdAt)}` : ""}
+                    </p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        onClick={() => downloadImage(card.url, promoCardFileName(card))}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-2 text-xs font-black text-black transition hover:brightness-110"
+                      >
+                        <Download className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.download")}
+                      </button>
+                      <button
+                        onClick={() => void shareHistoryCard(card)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-primary/50 hover:text-primary"
+                      >
+                        {historySharedId === card.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
+                        {t("hubSpine.promoCards.share")}
+                      </button>
+                      {confirmDeleteId === card.id ? (
+                        <button
+                          onClick={() => void deleteHistoryCard(card)}
+                          disabled={deletingId === card.id}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-400/60 bg-red-500/15 px-2 py-2 text-xs font-black text-red-200 transition hover:bg-red-500/25 disabled:opacity-50"
+                        >
+                          {deletingId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          {t("hubSpine.promoCards.historyConfirmDelete")}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(card.id)}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-red-400/50 hover:text-red-200"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.historyDelete")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {historyHasMore && historyLimit !== null && (
+              <p className="mt-3 text-xs text-white/35">
+                {t("hubSpine.promoCards.historyMoreNote", { limit: historyLimit })}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
