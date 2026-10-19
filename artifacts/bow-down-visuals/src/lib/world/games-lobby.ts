@@ -343,6 +343,23 @@ export function partyTableHomeLine(room: PartyOpenRoom): string {
   return `Table ${room.code}`;
 }
 
+/** A table's seat state, for the profile/stream home (2.25): full
+ *  is a server fact — the roster count against the game's seats —
+ *  never a guess. A full table renders full and offers no seat. */
+export function partyTableSeatState(room: PartyOpenRoom): "open" | "full" {
+  return room.players >= PARTY_GAME_META[room.game].seats ? "full" : "open";
+}
+
+/** The tables homed to ONE stream (2.25): the watch page's cut of
+ *  the host's open tables — a stream-homed room carries its
+ *  streamId; rooms homed anywhere else stay off the stream's page. */
+export function partyRoomsForStream(
+  rooms: PartyOpenRoom[],
+  streamId: string,
+): PartyOpenRoom[] {
+  return rooms.filter((r) => r.streamId === streamId);
+}
+
 /** POST /api/party/rooms → the new table's code, or null. */
 export function parseCreatedPartyRoom(data: unknown): string | null {
   const code = (data as { room?: { code?: unknown } })?.room?.code;

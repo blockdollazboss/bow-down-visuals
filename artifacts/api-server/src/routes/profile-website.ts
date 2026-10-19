@@ -16,7 +16,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { arcadeStatsForUser } from "./arcade";
-import { partyStatsForUser } from "./party";
+import { partyStatsForUser, partyRooms } from "./party";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { formatUsd } from "../lib/platform-fees";
 import {
@@ -431,6 +431,32 @@ router.get("/creator-profiles/:slug/game-stats", publicApiLimiter, async (req, r
   } catch (err) {
     req.log.error({ err }, "game-stats GET error");
     res.status(500).json({ error: "Couldn't load this creator's game record. Try again." });
+  }
+});
+
+/* ═══ #4c — Open party tables homed at this profile (program 2.25) ═════
+   A party table lives at its host's place: rooms are anchored at
+   creation to a home (their stored profileSlug — the host's own
+   profile unless they homed the table elsewhere). This public read
+   lists the OPEN (lobby-phase) tables homed to this profile, in the
+   exact PartyRoomDto shape GET /party/rooms serves the Kingdom
+   Board — one room truth on every surface. Public because profiles
+   are public storefronts: a guest may SEE that a table stands here.
+   Taking a seat stays members-only where it always was — the world
+   summons re-verifies the room and the party socket refuses guests;
+   this read seats nobody. No profile (or a private one) 404s like
+   every public read on this router. */
+router.get("/creator-profiles/:slug/party-tables", publicApiLimiter, async (req, res) => {
+  try {
+    const profile = await getPublicProfileBySlug(String(req.params["slug"] ?? ""));
+    if (!profile) {
+      res.status(404).json({ error: "This creator hasn't set up shop yet — or the profile went private." });
+      return;
+    }
+    res.json({ rooms: partyRooms.listOpenRoomsForProfile(profile.slug) });
+  } catch (err) {
+    req.log.error({ err }, "party-tables GET error");
+    res.status(500).json({ error: "Couldn't load this creator's party tables. Try again." });
   }
 });
 

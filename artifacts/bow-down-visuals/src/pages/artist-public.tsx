@@ -10,6 +10,7 @@ import {
   ProfileActions, ProfileSectionByType, MadeWithBadge,
 } from "@/components/artist/profile-sections";
 import TrophyShelf from "@/components/artist/TrophyShelf";
+import PartyTableSection from "@/components/artist/PartyTableSection";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
@@ -237,6 +238,10 @@ export default function ArtistPublic() {
         return (
           <>
             <LiveNowBadge slug={slug} />
+            {/* The host's open party table lives at their place too
+                (program 2.25): it stands on the Stage beside the live
+                badge and hides itself when no table is open. */}
+            <PartyTableSection slug={slug} />
             <SpotlightPinSection slug={slug} title={block.title} />
           </>
         );
