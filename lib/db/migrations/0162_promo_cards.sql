@@ -1,4 +1,4 @@
--- 0161: Release promo card records (STACK-20 R2 item #17 — promo-card
+-- 0162: Release promo card records (STACK-20 R2 item #17 — promo-card
 -- history + per-card actions). Until now a generated promo-card pack
 -- existed only in the POST /api/promo-cards response and as objects in
 -- permanent storage: no table recorded that a card was ever made, so
