@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const h = vi.hoisted(() => ({
   state: {
     questRows: [] as any[],
+    dailyRows: [] as any[],
     dropRows: [] as any[],
     crateRows: [] as any[],
   },
@@ -30,10 +31,11 @@ vi.mock("../supabase-admin", () => ({
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { questProgressTable, sharkDropsTable, hourlyCrateClaimsTable } = actual;
+  const { questProgressTable, dailyQuestProgressTable, sharkDropsTable, hourlyCrateClaimsTable } = actual;
   const state = h.state;
   const readFor = (table: unknown) => {
     if (table === questProgressTable) return state.questRows;
+    if (table === dailyQuestProgressTable) return state.dailyRows;
     if (table === sharkDropsTable) return state.dropRows;
     if (table === hourlyCrateClaimsTable) return state.crateRows;
     return [];
@@ -59,11 +61,13 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 import { getTreasuryHistory, QUEST_DEFS } from "../retention";
+import { DAILY_QUEST_DEFS, dailyQuestDayKey, dailyTrioForDay } from "../daily-quests";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 
 beforeEach(() => {
   h.state.questRows = [];
+  h.state.dailyRows = [];
   h.state.dropRows = [];
   h.state.crateRows = [];
 });
@@ -72,8 +76,58 @@ describe("getTreasuryHistory", () => {
   it("the catalog is the server's quest defs, verbatim", async () => {
     const out = await getTreasuryHistory(USER);
     expect(out.catalog).toEqual(
-      QUEST_DEFS.map((q) => ({ key: q.key, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
+      QUEST_DEFS.map((q) => ({ key: q.key, name: q.name, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
     );
+  });
+
+  it("the daily catalog is the trio's WHOLE pool, with exactly today's rotation live", async () => {
+    const out = await getTreasuryHistory(USER);
+    expect(out.dailyCatalog).toEqual(
+      DAILY_QUEST_DEFS.map((d) => ({
+        key: d.key,
+        name: d.name,
+        baseKey: d.baseKey,
+        target: d.target,
+        rewardVb: d.rewardVb,
+        marks: d.marks,
+        kinds: [...d.kinds],
+        liveToday: dailyTrioForDay(out.today).some((t) => t.key === d.key),
+      })),
+    );
+    expect(out.dailyCatalog).toHaveLength(7);
+    expect(out.dailyCatalog.filter((d) => d.liveToday)).toHaveLength(3);
+    expect(out.today).toBe(dailyQuestDayKey(new Date()));
+  });
+
+  it("daily trio days land in their week's board with the row's own recorded amounts", async () => {
+    // 2026-10-14 (Wed) and 2026-10-15 (Thu) both sit in the week of
+    // Mon 2026-10-12 — the same week the seeded weekly row names.
+    h.state.questRows = [
+      { userId: USER, questKey: "make-thumbnail", weekStart: "2026-10-12", progress: 0, target: 1, completed: false, claimedAt: null },
+    ];
+    h.state.dailyRows = [
+      { userId: USER, questKey: "daily-song-spark", dayDate: "2026-10-14", progress: 1, target: 1, completed: true, rewardVb: 10, marks: 5, claimedAt: new Date("2026-10-14T20:00:00Z") },
+      { userId: USER, questKey: "daily-first-frame", dayDate: "2026-10-15", progress: 0, target: 1, completed: false, rewardVb: null, marks: 0, claimedAt: null },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.weeks).toHaveLength(1);
+    const week = out.weeks[0]!;
+    expect(week.weekStart).toBe("2026-10-12");
+    expect(week.daily).toEqual([
+      { day: "2026-10-15", key: "daily-first-frame", progress: 0, target: 1, completed: false, claimed: false, claimedAt: null, rewardVb: null, marks: 0 },
+      { day: "2026-10-14", key: "daily-song-spark", progress: 1, target: 1, completed: true, claimed: true, claimedAt: "2026-10-14T20:00:00.000Z", rewardVb: 10, marks: 5 },
+    ]);
+  });
+
+  it("a week lived only at day size still stands (the week set is a union)", async () => {
+    h.state.dailyRows = [
+      { userId: USER, questKey: "daily-ship-it", dayDate: "2026-09-30", progress: 1, target: 1, completed: true, rewardVb: 10, marks: 5, claimedAt: new Date("2026-09-30T12:00:00Z") },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.weeks).toHaveLength(1);
+    expect(out.weeks[0]!.weekStart).toBe("2026-09-28");
+    expect(out.weeks[0]!.quests).toHaveLength(QUEST_DEFS.length);
+    expect(out.weeks[0]!.daily).toHaveLength(1);
   });
 
   it("folds claimed quests, drops and crates into one newest-first ledger with recorded amounts", async () => {

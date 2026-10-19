@@ -29,8 +29,16 @@
  * ledger (quest rewards, shark drops, hourly crates — the claims
  * the tables record; daily-drop claims keep no per-claim row
  * anywhere, so they are not entries), the full catalog, and past
- * weeks. GET /api/retention/leaderboard is the site's weekly
- * creation leaderboard (status only, no VB). Everything here is
+ * weeks. The catalog is BOTH slates: the weekly defs and the Daily
+ * Quest Trio's whole seven-def pool with today's rotation marked
+ * live (the server deals the slate; the client never computes
+ * it), and each past week carries the member's trio days beside
+ * the weekly rows — the daily rows' own recorded progress and
+ * claim stamps. GET /api/retention/leaderboard is the site's
+ * weekly creation leaderboard (status only, no VB), and
+ * GET /api/retention/quests/leaderboard is the Quest Marks board:
+ * all-time standings summed from the trio claim rows' recorded
+ * marks (status only — marks never convert). Everything here is
  * pure shaping: malformed payloads normalize to null so the panel
  * shows its honest error state — never invented rows, never a
  * hardcoded reward.
@@ -123,19 +131,55 @@ export interface TreasuryHistoryQuest {
   claimedAt: string | null;
 }
 
+/** One day of the member's Daily Quest Trio in a past week, as
+ *  its server row recorded it. rewardVb is what the claim PAID
+ *  (null until claimed); marks is what it banked (0 until claimed). */
+export interface TreasuryHistoryDailyRow {
+  day: string;
+  key: string;
+  progress: number;
+  target: number;
+  completed: boolean;
+  claimed: boolean;
+  claimedAt: string | null;
+  rewardVb: number | null;
+  marks: number;
+}
+
 export interface TreasuryHistoryWeek {
   weekStart: string;
   quests: TreasuryHistoryQuest[];
+  daily: TreasuryHistoryDailyRow[];
 }
 
 export interface TreasuryCatalogQuest {
   key: string;
+  /** The server def's own display name — the renderer's fallback
+   *  when a quest key has no locale title here. */
+  name: string | null;
   target: number;
   reward: number;
 }
 
+/** One Daily Quest Trio definition in the full catalog: the def
+ *  verbatim (reward in VB, plus the marks a claim banks) and
+ *  whether the rotation has it standing TODAY — the server's
+ *  answer, carried on the payload, never re-dealt client-side. */
+export interface TreasuryDailyCatalogQuest {
+  key: string;
+  name: string;
+  baseKey: string;
+  target: number;
+  rewardVb: number;
+  marks: number;
+  liveToday: boolean;
+}
+
 export interface TreasuryHistory {
   catalog: TreasuryCatalogQuest[];
+  dailyCatalog: TreasuryDailyCatalogQuest[];
+  /** The palace day (YYYY-MM-DD, UTC) the liveToday flags belong to. */
+  today: string;
   weeks: TreasuryHistoryWeek[];
   entries: TreasuryHistoryEntry[];
 }
@@ -153,7 +197,12 @@ function str(v: unknown): string | null {
 }
 
 /** Normalize the history payload; null when it isn't one — the
- *  panel's error state, never a half-shaped ledger. */
+ *  panel's error state, never a half-shaped ledger. The trio
+ *  fields (dailyCatalog, today, each week's daily rows) default
+ *  to empty when ABSENT — a payload from before they were served
+ *  still reads honestly, its trio sections simply empty — but a
+ *  PRESENT field shaped wrong fails the whole payload like any
+ *  other corruption. */
 export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
   if (!isRecord(raw)) return null;
   if (!Array.isArray(raw.catalog) || !Array.isArray(raw.weeks) || !Array.isArray(raw.entries)) return null;
@@ -165,8 +214,25 @@ export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
     const target = num(c.target);
     const reward = num(c.reward);
     if (!key || target === null || reward === null) return null;
-    catalog.push({ key, target, reward });
+    catalog.push({ key, name: typeof c.name === "string" ? c.name : null, target, reward });
   }
+
+  const dailyCatalog: TreasuryDailyCatalogQuest[] = [];
+  if (raw.dailyCatalog !== undefined) {
+    if (!Array.isArray(raw.dailyCatalog)) return null;
+    for (const c of raw.dailyCatalog) {
+      if (!isRecord(c)) return null;
+      const key = str(c.key);
+      const name = str(c.name);
+      const baseKey = str(c.baseKey);
+      const target = num(c.target);
+      const rewardVb = num(c.rewardVb);
+      const marks = num(c.marks);
+      if (!key || !name || !baseKey || target === null || rewardVb === null || marks === null) return null;
+      dailyCatalog.push({ key, name, baseKey, target, rewardVb, marks, liveToday: c.liveToday === true });
+    }
+  }
+  const today = typeof raw.today === "string" ? raw.today : "";
 
   const weeks: TreasuryHistoryWeek[] = [];
   for (const w of raw.weeks) {
@@ -191,7 +257,31 @@ export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
         claimedAt: typeof q.claimedAt === "string" ? q.claimedAt : null,
       });
     }
-    weeks.push({ weekStart, quests });
+    const daily: TreasuryHistoryDailyRow[] = [];
+    if (w.daily !== undefined) {
+      if (!Array.isArray(w.daily)) return null;
+      for (const d of w.daily) {
+        if (!isRecord(d)) return null;
+        const day = str(d.day);
+        const key = str(d.key);
+        const progress = num(d.progress);
+        const target = num(d.target);
+        const marks = num(d.marks);
+        if (!day || !key || progress === null || target === null || marks === null) return null;
+        daily.push({
+          day,
+          key,
+          progress,
+          target,
+          completed: d.completed === true,
+          claimed: d.claimed === true,
+          claimedAt: typeof d.claimedAt === "string" ? d.claimedAt : null,
+          rewardVb: typeof d.rewardVb === "number" && Number.isFinite(d.rewardVb) ? d.rewardVb : null,
+          marks,
+        });
+      }
+    }
+    weeks.push({ weekStart, quests, daily });
   }
 
   const entries: TreasuryHistoryEntry[] = [];
@@ -204,7 +294,20 @@ export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
     entries.push({ kind: e.kind, key: typeof e.key === "string" ? e.key : null, amount, at });
   }
 
-  return { catalog, weeks, entries };
+  return { catalog, dailyCatalog, today, weeks, entries };
+}
+
+/** A daily quest's display name from the catalog payload — the
+ *  trio defs carry their names on the server (the weekly defs'
+ *  QuestDef.name pattern), so past days name themselves from the
+ *  catalog, never from a client-side copy of the pool. Null when
+ *  the key isn't in the catalog (the renderer falls back to the
+ *  key rather than inventing a title). */
+export function dailyQuestName(
+  dailyCatalog: TreasuryDailyCatalogQuest[],
+  key: string,
+): string | null {
+  return dailyCatalog.find((d) => d.key === key)?.name ?? null;
 }
 
 /** Total Visual Bucs the ledger records — a sum of server amounts,
@@ -302,5 +405,53 @@ export function normalizeLeaderboard(raw: unknown): Leaderboard | null {
     rows,
     viewerRank: typeof raw.viewerRank === "number" ? raw.viewerRank : null,
     viewerScore: typeof raw.viewerScore === "number" ? raw.viewerScore : 0,
+  };
+}
+
+/* ─── 2.22: the Quest Marks board ──────────────────────────────────
+   GET /api/retention/quests/leaderboard — all-time standings
+   summed server-side from the trio claim rows' recorded marks.
+   The viewer's own tally rides along even when their standing is
+   hidden by their own leaderboard-visibility choice (rank null,
+   listed false): their marks are theirs to read; the board is
+   the public part. */
+
+export interface QuestMarksRow {
+  rank: number;
+  name: string;
+  marks: number;
+  claims: number;
+  isYou: boolean;
+}
+
+export interface QuestMarksBoard {
+  rows: QuestMarksRow[];
+  viewerMarks: number;
+  viewerClaims: number;
+  viewerRank: number | null;
+  viewerListed: boolean;
+}
+
+export function normalizeQuestMarksBoard(raw: unknown): QuestMarksBoard | null {
+  if (!isRecord(raw) || !Array.isArray(raw.rows) || !isRecord(raw.viewer)) return null;
+  const rows: QuestMarksRow[] = [];
+  for (const r of raw.rows) {
+    if (!isRecord(r)) return null;
+    const rank = num(r.rank);
+    const name = str(r.name);
+    const marks = num(r.marks);
+    const claims = num(r.claims);
+    if (rank === null || !name || marks === null || claims === null) return null;
+    rows.push({ rank, name, marks, claims, isYou: r.isYou === true });
+  }
+  const viewerMarks = num(raw.viewer.marks);
+  const viewerClaims = num(raw.viewer.claims);
+  if (viewerMarks === null || viewerClaims === null) return null;
+  return {
+    rows,
+    viewerMarks,
+    viewerClaims,
+    viewerRank: typeof raw.viewer.rank === "number" ? raw.viewer.rank : null,
+    viewerListed: raw.viewer.listed === true,
   };
 }
