@@ -12,6 +12,10 @@ import {
   getRetentionPrefs,
   setRetentionPrefs,
 } from "../lib/retention";
+import {
+  dbQuestLeaderboardStore,
+  getQuestMarksBoard,
+} from "../lib/quest-leaderboard";
 
 const router = Router();
 
@@ -20,6 +24,10 @@ const router = Router();
    POST /api/retention/streak/claim  — claim a reached milestone ({ days })
    GET  /api/retention/quests        — current week's quests + progress
    POST /api/retention/quests/claim  — claim a completed quest ({ questKey })
+   GET  /api/retention/quests/history — claim ledger + full quest catalog
+                                    (weekly + Daily Trio) + past weeks
+   GET  /api/retention/quests/leaderboard — Quest Marks standings
+                                    (all-time trio marks; status only)
    GET  /api/retention/prefs         — retention on/off prefs (streaks, quests,
                                     daily drop, away digest, login streaks,
                                     share-to-earn, contests, FOMO feed)
@@ -75,6 +83,21 @@ router.get("/retention/quests/history", requireAuth, publicApiLimiter, async (re
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention] treasury history failed");
     res.status(500).json({ error: "Could not load treasury history" });
+  }
+});
+
+/* Quest Marks standings (World Ring 2, 2.22): the kingdom's trio
+   honor roll — all-time marks banked from Daily Quest Trio claims
+   (the claim rows' own stamps, summed by lib/quest-leaderboard).
+   Members-only like every retention read: a guest holds no marks
+   and no standing. Status only — marks never convert to VB and
+   nothing here pays. */
+router.get("/retention/quests/leaderboard", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    res.json(await getQuestMarksBoard(dbQuestLeaderboardStore, req.userId!));
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention] quest marks board failed");
+    res.status(500).json({ error: "Could not load the quest marks standings" });
   }
 });
 

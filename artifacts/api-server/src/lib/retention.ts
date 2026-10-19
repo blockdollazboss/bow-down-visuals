@@ -9,7 +9,13 @@
 import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable, dailyQuestProgressTable, kingMomentClaimsTable, worldTutorialProgressTable } from "@workspace/db";
 import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
-import { advanceDailyQuestsForUser, type DailyQuestDef } from "./daily-quests";
+import {
+  advanceDailyQuestsForUser,
+  DAILY_QUEST_DEFS,
+  dailyQuestDayKey,
+  dailyTrioForDay,
+  type DailyQuestDef,
+} from "./daily-quests";
 import { logger } from "./logger";
 
 export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
@@ -526,6 +532,11 @@ export async function claimQuestReward(
      - shark drops (shark_drops.amount on claimed rows — personal,
        stream and World drop-spectacle claims all land here),
      - hourly crates (hourly_crate_claims.prize_credits).
+   The catalog is BOTH slates — the weekly defs and the Daily Quest
+   Trio's whole pool with today's rotation marked — and each week
+   also carries the member's trio days (daily rows record their own
+   progress and, at claim, the exact VB + marks paid, so a past day
+   reads as it was, never re-derived).
 
    What is NOT here, deliberately: daily-drop claims. The bonus
    system stores only profiles.last_daily_claim (a single date) —
@@ -549,13 +560,47 @@ export interface TreasuryHistoryEntry {
   at: string;
 }
 
+/** One day of the member's Daily Quest Trio, as its progress row
+ *  recorded it. rewardVb / marks are the amounts the CLAIM stamped
+ *  on the row (null / 0 until claimed) — never re-derived from the
+ *  def, so a later def rebalance can't rewrite a past day. */
+export interface TreasuryHistoryDailyRow {
+  day: string;
+  key: string;
+  progress: number;
+  target: number;
+  completed: boolean;
+  claimed: boolean;
+  claimedAt: string | null;
+  rewardVb: number | null;
+  marks: number;
+}
+
 export interface TreasuryHistoryWeek {
   weekStart: string;
   quests: (QuestStatus & { claimedAt: string | null })[];
+  daily: TreasuryHistoryDailyRow[];
+}
+
+/** One Daily Quest Trio definition for the catalog: the def
+ *  verbatim, plus whether the rotation has it standing TODAY. */
+export interface TreasuryDailyCatalogQuest {
+  key: string;
+  name: string;
+  baseKey: string;
+  target: number;
+  rewardVb: number;
+  marks: number;
+  kinds: CreationKind[];
+  liveToday: boolean;
 }
 
 export interface TreasuryHistory {
-  catalog: { key: string; target: number; reward: number; kinds: CreationKind[] }[];
+  catalog: { key: string; name: string; target: number; reward: number; kinds: CreationKind[] }[];
+  dailyCatalog: TreasuryDailyCatalogQuest[];
+  /** The palace day (YYYY-MM-DD, UTC) the catalog's liveToday
+   *  flags were computed against. */
+  today: string;
   weeks: TreasuryHistoryWeek[];
   entries: TreasuryHistoryEntry[];
 }
@@ -563,13 +608,30 @@ export interface TreasuryHistory {
 const TREASURY_ENTRY_CAP = 50;
 const TREASURY_WEEK_CAP = 8;
 
+/** Monday (UTC) of the week containing a YYYY-MM-DD day key — the
+ *  quest pool's week anchor (lib/quest-pool's questPoolWeekStart
+ *  math, on a day key instead of a Date). */
+function weekStartOfDayKey(dayKey: string): string {
+  const [y, m, d] = dayKey.split("-").map((p) => Number(p));
+  const day = new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1));
+  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
+  day.setUTCDate(day.getUTCDate() - dow);
+  return day.toISOString().slice(0, 10);
+}
+
 export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {
-  const [questRows, dropRows, crateRows, dailyRows, kingRows, tutorialRows] = await Promise.all([
+  const [questRows, dailyRows, dropRows, crateRows, dailyClaimRows, kingRows, tutorialRows] = await Promise.all([
     db
       .select()
       .from(questProgressTable)
       .where(eq(questProgressTable.userId, userId))
       .orderBy(desc(questProgressTable.weekStart))
+      .limit(400),
+    db
+      .select()
+      .from(dailyQuestProgressTable)
+      .where(eq(dailyQuestProgressTable.userId, userId))
+      .orderBy(desc(dailyQuestProgressTable.dayDate))
       .limit(400),
     db
       .select()
@@ -609,7 +671,10 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
 
   /* Weeks: newest first, capped — each week carries the FULL def
      set (a quest with no row that week reads as untouched, exactly
-     like getQuestsStatus reads the current week). */
+     like getQuestsStatus reads the current week). The week set is
+     the UNION of the weeks the weekly rows name and the weeks the
+     member's daily trio days fall in, so a week lived only at day
+     size still stands here. */
   const byWeek = new Map<string, Map<string, (typeof questRows)[number]>>();
   for (const r of questRows) {
     let m = byWeek.get(r.weekStart);
@@ -618,6 +683,28 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
       byWeek.set(r.weekStart, m);
     }
     m.set(r.questKey, r);
+  }
+  const dailyByWeek = new Map<string, TreasuryHistoryDailyRow[]>();
+  for (const r of dailyRows) {
+    const day = String(r.dayDate).slice(0, 10);
+    const weekStart = weekStartOfDayKey(day);
+    if (!byWeek.has(weekStart)) byWeek.set(weekStart, new Map());
+    let list = dailyByWeek.get(weekStart);
+    if (!list) {
+      list = [];
+      dailyByWeek.set(weekStart, list);
+    }
+    list.push({
+      day,
+      key: r.questKey,
+      progress: r.progress,
+      target: r.target,
+      completed: r.completed ?? false,
+      claimed: r.claimedAt != null,
+      claimedAt: r.claimedAt ? new Date(r.claimedAt).toISOString() : null,
+      rewardVb: r.rewardVb ?? null,
+      marks: r.marks ?? 0,
+    });
   }
   const weeks: TreasuryHistoryWeek[] = [...byWeek.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1))
@@ -636,6 +723,9 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
           claimedAt: r?.claimedAt ? new Date(r.claimedAt).toISOString() : null,
         };
       }),
+      daily: (dailyByWeek.get(weekStart) ?? []).sort((a, b) =>
+        a.day !== b.day ? (a.day < b.day ? 1 : -1) : a.key < b.key ? -1 : 1,
+      ),
     }));
 
   const entries: TreasuryHistoryEntry[] = [];
@@ -652,7 +742,7 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
   for (const r of crateRows) {
     entries.push({ kind: "crate", key: null, amount: r.prize_credits, at: new Date(r.claimed_at).toISOString() });
   }
-  for (const r of dailyRows) {
+  for (const r of dailyClaimRows) {
     /* rewardVb is stamped on the row at claim time; a claimed row
        without it recorded nothing payable — never invent an amount. */
     if (!r.claimedAt || r.rewardVb == null) continue;
@@ -667,8 +757,27 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
   }
   entries.sort((a, b) => (a.at < b.at ? 1 : -1));
 
+  /* The catalogs are the server's OWN definitions, verbatim: the
+     weekly slate (QUEST_DEFS) and the Daily Quest Trio's whole
+     pool (DAILY_QUEST_DEFS) — every quest the palace runs, not
+     just the ones standing today. liveToday is the rotation's
+     answer for the palace day, computed by the same pure function
+     the board and the claimer deal from. */
+  const today = dailyQuestDayKey(new Date());
+  const liveKeys = new Set(dailyTrioForDay(today).map((d) => d.key));
   return {
-    catalog: QUEST_DEFS.map((q) => ({ key: q.key, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
+    catalog: QUEST_DEFS.map((q) => ({ key: q.key, name: q.name, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
+    dailyCatalog: DAILY_QUEST_DEFS.map((d) => ({
+      key: d.key,
+      name: d.name,
+      baseKey: d.baseKey,
+      target: d.target,
+      rewardVb: d.rewardVb,
+      marks: d.marks,
+      kinds: [...d.kinds],
+      liveToday: liveKeys.has(d.key),
+    })),
+    today,
     weeks,
     entries: entries.slice(0, TREASURY_ENTRY_CAP),
   };

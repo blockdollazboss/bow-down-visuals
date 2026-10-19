@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy, Flame, Crown, Target } from "lucide-react";
+import { Trophy, Flame, Crown, Target, Medal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
@@ -7,13 +7,16 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
 import {
   QUEST_DISPLAY,
   TUTORIAL_LEDGER_TITLE,
+  dailyQuestName,
   dailyQuestTitle,
   historyTotalVb,
   ledgerEntryKindLabel,
   normalizeLeaderboard,
+  normalizeQuestMarksBoard,
   normalizeTreasuryHistory,
   questDestination,
   type Leaderboard,
+  type QuestMarksBoard,
   type TreasuryHistory,
 } from "@/lib/world/treasury-quests";
 import {
@@ -41,11 +44,16 @@ import {
      the bonus rail keeps no per-claim record (only the last claim
      date, which the strip shows truthfully).
    • Catalog (2.22): the FULL quest catalog — every quest the
-     server runs, where each is done in the palace, and past weeks'
-     progress from quest_progress's own rows.
+     server runs (the weekly slate AND the Daily Quest Trio's
+     whole pool, today's rotation marked live), where each weekly
+     quest is done in the palace, and past weeks' progress from
+     the progress tables' own rows (weekly rows + trio days).
    • Standings (2.22): the site's weekly creation leaderboard
      (GET /api/retention/leaderboard — status only, no VB), your
-     own row lit.
+     own row lit — and under it the Quest Marks board
+     (GET /api/retention/quests/leaderboard): all-time marks
+     banked from trio claims, summed from the claim rows' own
+     stamps. Two boards, two truths, each labeled as its own.
 
    Every number on this surface comes from a server response and
    runs through the guards in lib/world/treasury-quests; a payload
@@ -87,6 +95,8 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
   const [lastDailyClaim, setLastDailyClaim] = useState<string | null>(null);
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
+  const [marks, setMarks] = useState<QuestMarksBoard | null>(null);
+  const [marksFailed, setMarksFailed] = useState(false);
   const [tick, setTick] = useState(0);
 
   const authHeaders = async (): Promise<Record<string, string>> => {
@@ -146,6 +156,32 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
         }
       } catch {
         if (!cancelled) setBoardFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  /* The Quest Marks board loads beside the creation standings —
+     its own fetch, its own honest states; one board failing never
+     takes the other down with it. */
+  useEffect(() => {
+    if (tab !== "standings" || marks) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/retention/quests/leaderboard", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("quest marks");
+        const normalized = normalizeQuestMarksBoard(await res.json());
+        if (!normalized) throw new Error("quest marks payload");
+        if (!cancelled) {
+          setMarks(normalized);
+          setMarksFailed(false);
+        }
+      } catch {
+        if (!cancelled) setMarksFailed(true);
       }
     })();
     return () => {
@@ -366,11 +402,38 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                           ? `Done at the ${dest.stationName} in ${dest.roomName} — “Go do it” on the board walks you there`
                           : "No desk in the palace performs this one yet — its board action opens it on the website"
                       }
-                      meta={c.reward > 0 ? `${c.reward.toLocaleString("en-US")} VB` : "Reward TBD"}
+                      meta={c.reward > 0 ? `${c.reward.toLocaleString("en-US")} VB · ${c.target}× a week` : "Reward TBD"}
                     />
                   );
                 })}
               </NativeBoard>
+
+              {history.dailyCatalog.length > 0 && (
+                <div data-testid="world-treasury-daily-catalog">
+                  <NativeBoard isLight={isLight} title="The Daily Quest Trio — the whole pool">
+                    {history.dailyCatalog.map((d) => (
+                      <NativeBoardRow
+                        key={d.key}
+                        isLight={isLight}
+                        title={d.name}
+                        detail={
+                          d.liveToday
+                            ? "On today's slate — finish it and claim before the day-turn"
+                            : "In the rotation — three of the seven stand each day"
+                        }
+                        meta={`${d.rewardVb.toLocaleString("en-US")} VB + ${d.marks} marks`}
+                        highlighted={d.liveToday}
+                      />
+                    ))}
+                  </NativeBoard>
+                  <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    The trio turns at the palace day-turn (00:00 UTC), and a finish left unclaimed
+                    expires with its day. Daily rewards draw from the same shared weekly pool as
+                    the weekly quests — 300 VB a week across quests, the King&rsquo;s gifts and
+                    the tutorial.
+                  </p>
+                </div>
+              )}
 
               {history.weeks.length === 0 ? (
                 <NativeEmptyState
@@ -396,6 +459,37 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                         highlighted={q.claimed}
                       />
                     ))}
+                    {week.daily.length > 0 && (
+                      <>
+                        <p
+                          className={`px-1 pt-1 text-[11px] font-black uppercase tracking-[0.14em] ${
+                            isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
+                          }`}
+                        >
+                          Daily trio
+                        </p>
+                        {week.daily.map((d) => (
+                          <NativeBoardRow
+                            key={`${d.day}-${d.key}`}
+                            isLight={isLight}
+                            title={dailyQuestName(history.dailyCatalog, d.key) ?? d.key}
+                            detail={
+                              d.claimed
+                                ? `${fmtDate(d.day)} · Claimed ${fmtDate(d.claimedAt)}`
+                                : d.completed
+                                  ? `${fmtDate(d.day)} · Finished — never claimed`
+                                  : `${fmtDate(d.day)} · ${d.progress} of ${d.target} done`
+                            }
+                            meta={
+                              d.claimed
+                                ? `+${(d.rewardVb ?? 0).toLocaleString("en-US")} VB · ${d.marks} marks`
+                                : `${d.progress}/${d.target}`
+                            }
+                            highlighted={d.claimed}
+                          />
+                        ))}
+                      </>
+                    )}
                   </NativeBoard>
                 ))
               )}
@@ -451,6 +545,62 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
               </p>
             </NativeBoard>
           )}
+
+          {/* The Quest Marks board: trio honor, all-time — a
+              different truth from the creation standings above,
+              labeled as its own. */}
+          <div data-testid="world-treasury-marks-board">
+            {marksFailed ? (
+              <NativeErrorState
+                isLight={isLight}
+                title="The quest marks wouldn't load"
+                message="Every mark you've banked is safe on the claim rows. Try again."
+                onRetry={() => {
+                  setMarksFailed(false);
+                  setMarks(null);
+                }}
+              />
+            ) : marks === null ? (
+              <NativeLoadingState isLight={isLight} message="Counting the kingdom's marks…" />
+            ) : marks.rows.length === 0 ? (
+              <NativeEmptyState
+                isLight={isLight}
+                message="No quest marks banked yet — the roll opens with the first claimed trio finish."
+                detail="Finish a Daily Quest Trio quest on the board above and claim it: its marks bank here, for good."
+              />
+            ) : (
+              <NativeBoard
+                isLight={isLight}
+                title="Quest marks — all time"
+                headline={
+                  marks.viewerRank !== null ? (
+                    <p className={`inline-flex items-center gap-2 px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                      <Medal className="h-3.5 w-3.5" /> You stand #{marks.viewerRank} — {marks.viewerMarks.toLocaleString("en-US")} marks banked from {marks.viewerClaims} trio claims
+                    </p>
+                  ) : marks.viewerMarks > 0 ? (
+                    <p className={`inline-flex items-center gap-2 px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                      <Medal className="h-3.5 w-3.5" /> You&rsquo;ve banked {marks.viewerMarks.toLocaleString("en-US")} marks — your standing is hidden by your leaderboard privacy setting
+                    </p>
+                  ) : undefined
+                }
+              >
+                {marks.rows.map((r) => (
+                  <NativeBoardRow
+                    key={r.rank}
+                    isLight={isLight}
+                    title={`#${r.rank} · ${r.name}${r.isYou ? " (you)" : ""}`}
+                    detail={`${r.claims} trio ${r.claims === 1 ? "claim" : "claims"}`}
+                    meta={`${r.marks.toLocaleString("en-US")} marks`}
+                    highlighted={r.isYou}
+                  />
+                ))}
+                <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                  <Medal className="h-3 w-3" /> Marks are banked by claiming Daily Quest Trio
+                  finishes. Honor only — they never convert to Visual Bucs.
+                </p>
+              </NativeBoard>
+            )}
+          </div>
         </>
       )}
     </div>

@@ -149,10 +149,12 @@ import {
   IN_WORLD_QUEST_KEYS,
   TUTORIAL_LEDGER_TITLE,
   claimableVb,
+  dailyQuestName,
   dailyQuestTitle,
   historyTotalVb,
   ledgerEntryKindLabel,
   normalizeLeaderboard,
+  normalizeQuestMarksBoard,
   normalizeTreasuryHistory,
   questDestination,
   questObjective,
@@ -293,7 +295,7 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
 
   it("an empty history is valid and totals zero", () => {
     const h = normalizeTreasuryHistory({ catalog: [], weeks: [], entries: [] });
-    expect(h).toEqual({ catalog: [], weeks: [], entries: [] });
+    expect(h).toEqual({ catalog: [], dailyCatalog: [], today: "", weeks: [], entries: [] });
     expect(historyTotalVb(h!.entries)).toBe(0);
   });
 
@@ -358,6 +360,94 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     // The Ring 3/4 sources render under their own names.
     expect(depthsPanel).toContain("dailyQuestTitle(e.key)");
     expect(depthsPanel).toContain("TUTORIAL_LEDGER_TITLE");
+  });
+});
+
+describe("2.22 completed — the full catalog (both slates), trio days in past weeks, the Quest Marks board", () => {
+  const fullPayload = {
+    catalog: [{ key: "generate-song", name: "Generate a song", target: 1, reward: 80, kinds: ["song"] }],
+    dailyCatalog: [
+      { key: "daily-song-spark", name: "Song Spark", baseKey: "generate-song", target: 1, rewardVb: 10, marks: 5, kinds: ["song"], liveToday: true },
+      { key: "daily-first-frame", name: "First Frame", baseKey: "make-thumbnail", target: 1, rewardVb: 10, marks: 5, kinds: ["thumbnail"], liveToday: false },
+    ],
+    today: "2026-10-19",
+    weeks: [
+      {
+        weekStart: "2026-10-12",
+        quests: [
+          { key: "generate-song", target: 1, reward: 80, progress: 1, completed: true, claimed: true, claimedAt: "2026-10-13T10:00:00.000Z" },
+        ],
+        daily: [
+          { day: "2026-10-14", key: "daily-song-spark", progress: 1, target: 1, completed: true, claimed: true, claimedAt: "2026-10-14T20:00:00.000Z", rewardVb: 10, marks: 5 },
+          { day: "2026-10-15", key: "daily-first-frame", progress: 0, target: 1, completed: false, claimed: false, claimedAt: null, rewardVb: null, marks: 0 },
+        ],
+      },
+    ],
+    entries: [],
+  };
+
+  it("the catalog carries BOTH slates — weekly defs and the trio's whole pool, live flags intact", () => {
+    const h = normalizeTreasuryHistory(fullPayload);
+    expect(h).not.toBeNull();
+    expect(h!.catalog[0]).toMatchObject({ key: "generate-song", name: "Generate a song", reward: 80 });
+    expect(h!.dailyCatalog).toHaveLength(2);
+    expect(h!.dailyCatalog[0]).toMatchObject({ key: "daily-song-spark", name: "Song Spark", rewardVb: 10, marks: 5, liveToday: true });
+    expect(h!.dailyCatalog[1]!.liveToday).toBe(false);
+    expect(h!.today).toBe("2026-10-19");
+  });
+
+  it("past weeks carry the member's trio days with their recorded claim amounts", () => {
+    const h = normalizeTreasuryHistory(fullPayload);
+    const daily = h!.weeks[0]!.daily;
+    expect(daily).toHaveLength(2);
+    expect(daily[0]).toMatchObject({ day: "2026-10-14", claimed: true, rewardVb: 10, marks: 5 });
+    expect(daily[1]).toMatchObject({ day: "2026-10-15", claimed: false, rewardVb: null, marks: 0 });
+    // A past day names itself from the catalog — never a client-side pool copy.
+    expect(dailyQuestName(h!.dailyCatalog, "daily-song-spark")).toBe("Song Spark");
+    expect(dailyQuestName(h!.dailyCatalog, "daily-unknown")).toBeNull();
+  });
+
+  it("a present-but-malformed trio field fails the payload; an absent one defaults empty", () => {
+    expect(normalizeTreasuryHistory({ ...fullPayload, dailyCatalog: [{ key: "x" }] })).toBeNull();
+    expect(normalizeTreasuryHistory({ ...fullPayload, weeks: [{ weekStart: "2026-10-12", quests: [], daily: [{ day: "x" }] }] })).toBeNull();
+    const legacy = normalizeTreasuryHistory({ catalog: [], weeks: [{ weekStart: "2026-10-12", quests: [] }], entries: [] });
+    expect(legacy).not.toBeNull();
+    expect(legacy!.dailyCatalog).toEqual([]);
+    expect(legacy!.weeks[0]!.daily).toEqual([]);
+  });
+
+  it("the Quest Marks board normalizes the server's standings and refuses junk", () => {
+    const board = normalizeQuestMarksBoard({
+      rows: [{ rank: 1, name: "Bea", marks: 45, claims: 9, isYou: false }],
+      viewer: { marks: 10, claims: 2, rank: 4, listed: true },
+    });
+    expect(board).toEqual({
+      rows: [{ rank: 1, name: "Bea", marks: 45, claims: 9, isYou: false }],
+      viewerMarks: 10,
+      viewerClaims: 2,
+      viewerRank: 4,
+      viewerListed: true,
+    });
+    expect(normalizeQuestMarksBoard({ rows: [] })).toBeNull();
+    expect(normalizeQuestMarksBoard(null)).toBeNull();
+    expect(normalizeQuestMarksBoard({ rows: [{ rank: 1 }], viewer: { marks: 0, claims: 0 } })).toBeNull();
+  });
+
+  it("the depths panel rides the marks rail and keeps the trio + marks surfaces labeled as their own", () => {
+    expect(depthsPanel).toContain('fetch("/api/retention/quests/leaderboard"');
+    expect(depthsPanel).toContain("normalizeQuestMarksBoard");
+    expect(depthsPanel).toContain('data-testid="world-treasury-daily-catalog"');
+    expect(depthsPanel).toContain('data-testid="world-treasury-marks-board"');
+    expect(depthsPanel).toContain("Quest marks — all time");
+    // The trio's amounts render from the payload — def reward + marks, row stamps.
+    expect(depthsPanel).toContain("d.marks");
+    expect(depthsPanel).toContain("d.rewardVb");
+  });
+
+  it("guests never reach the depths: the Quest Board station is members-only, so no fetch fires", () => {
+    const station = STATION_BY_ID.get("quest-board");
+    expect(station).toBeDefined();
+    expect(station!.membersOnly).toBe(true);
   });
 });
 
