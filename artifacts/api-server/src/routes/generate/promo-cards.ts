@@ -7,6 +7,8 @@ import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
+import { db, promoCardsTable } from "@workspace/db";
+import { and, desc, eq } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
@@ -166,6 +168,72 @@ const promoCardsSchema = z.object({
 
 const execFileAsync = promisify(execFile);
 
+/* ─── Card records (STACK-20 R2 #17, migration 0161) ──────────────────────
+   One promo_cards row per generated card, written in the same request
+   that mints the pack — this is the record the history list reads and
+   the delete owns. Exported so route tests can pin the record step
+   without running the image pipeline. Throws on failure; the caller
+   decides (generation has already been paid for and produced real
+   cards, so the POST logs and continues with id-less cards rather
+   than failing a finished pack). */
+export interface PromoCardPackCard {
+  style: string;
+  size: string;
+  storageRef: string;
+  width: number;
+  height: number;
+  platforms: string[];
+}
+
+export async function recordPromoCardPack(input: {
+  userId: string;
+  jobId: string;
+  releaseTitle: string;
+  artistName: string;
+  caption: string | null;
+  cards: PromoCardPackCard[];
+}): Promise<(string | null)[]> {
+  if (input.cards.length === 0) return [];
+  const rows = await db
+    .insert(promoCardsTable)
+    .values(
+      input.cards.map((c) => ({
+        userId: input.userId,
+        jobId: input.jobId,
+        style: c.style,
+        size: c.size,
+        storageRef: c.storageRef,
+        releaseTitle: input.releaseTitle,
+        artistName: input.artistName,
+        caption: input.caption,
+        width: c.width,
+        height: c.height,
+        platforms: c.platforms,
+      })),
+    )
+    .returning({ id: promoCardsTable.id });
+  return input.cards.map((_, i) => rows[i]?.id ?? null);
+}
+
+/** The history DTO: everything from the caller's own row, with the
+ *  playable URL minted fresh from the stable storage ref on every
+ *  read (a stored URL would expire; the ref never does). */
+async function promoCardDto(row: typeof promoCardsTable.$inferSelect) {
+  return {
+    id: row.id,
+    style: row.style,
+    size: row.size,
+    url: await refreshSupabaseStorageUrl(row.storageRef),
+    releaseTitle: row.releaseTitle,
+    artistName: row.artistName,
+    caption: row.caption,
+    width: row.width,
+    height: row.height,
+    platforms: row.platforms ?? [],
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+  };
+}
+
 /** Escape text for ffmpeg drawtext. */
 function escapeDrawtext(t: string): string {
   return t
@@ -303,6 +371,71 @@ router.get("/promo-cards/specs", requireAuth, (_req, res) => {
   });
 });
 
+/* ─── History (STACK-20 R2 #17) ───────────────────────────────────────────
+   The caller's own cards, newest first. Bounded: `limit` defaults to
+   50 and never exceeds 100 — the response carries the limit it applied
+   and whether more cards sit beyond it, so the bound is stated, never
+   silent. Only rows recorded at generation time (migration 0161) can
+   appear; there is no other record of a card to read. */
+const HISTORY_DEFAULT_LIMIT = 50;
+const HISTORY_MAX_LIMIT = 100;
+
+router.get("/promo-cards", requireAuth, async (req, res) => {
+  const rawLimit = Number(req.query["limit"]);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(HISTORY_MAX_LIMIT, Math.floor(rawLimit))
+    : HISTORY_DEFAULT_LIMIT;
+  try {
+    const rows = await db
+      .select()
+      .from(promoCardsTable)
+      .where(eq(promoCardsTable.userId, req.userId!))
+      .orderBy(desc(promoCardsTable.createdAt), desc(promoCardsTable.id))
+      .limit(limit + 1);
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const cards = await Promise.all(page.map(promoCardDto));
+    res.json({ cards, limit, hasMore });
+  } catch (err) {
+    req.log.error({ err }, "[promo-cards] history list failed");
+    res.status(500).json({ error: "Could not load your promo cards." });
+  }
+});
+
+/* Delete one of the caller's own cards: the ROW goes away (the card
+   leaves the creator's history); the storage object is deliberately
+   NOT purged — media removal is its own deliberate act. Another
+   member's card id, or one that never existed, is the same honest
+   404: the route never confirms a card the caller doesn't own. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+router.delete("/promo-cards/:id", requireAuth, async (req, res) => {
+  const rawId = req.params["id"];
+  const id = typeof rawId === "string" ? rawId : "";
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: "Promo card not found." });
+    return;
+  }
+  try {
+    const owned = await db
+      .select({ id: promoCardsTable.id })
+      .from(promoCardsTable)
+      .where(and(eq(promoCardsTable.id, id), eq(promoCardsTable.userId, req.userId!)))
+      .limit(1);
+    if (owned.length === 0) {
+      res.status(404).json({ error: "Promo card not found." });
+      return;
+    }
+    await db
+      .delete(promoCardsTable)
+      .where(and(eq(promoCardsTable.id, id), eq(promoCardsTable.userId, req.userId!)));
+    res.json({ ok: true, id });
+  } catch (err) {
+    req.log.error({ err }, "[promo-cards] delete failed");
+    res.status(500).json({ error: "Could not delete that promo card." });
+  }
+});
+
 router.post("/promo-cards", requireAuth, async (req, res) => {
   const parsed = promoCardsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -344,6 +477,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
 
     const jobId = randomUUID();
     const cards: Array<{
+      id: string | null;
       style: string; size: string; url: string; storageRef: string;
       width: number; height: number; platforms: string[];
     }> = [];
@@ -390,6 +524,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
       const url = await refreshSupabaseStorageUrl(storageRef);
       cards.push({
+        id: null,
         style: chosen.id, size: spec.id, url, storageRef,
         width: spec.width, height: spec.height, platforms: [...spec.platforms],
       });
@@ -399,6 +534,27 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       caption?.trim() ||
       chosen.caption(releaseTitle, artistName, milestoneLabel.toUpperCase()) +
         (attribution ? `\n${ATTRIBUTION_TEXT}` : "");
+
+    /* Record the pack (migration 0161) so these cards live in the
+       creator's history after this response is gone. Best-effort by
+       design: the pack is generated and already paid for, so a failed
+       record write must not fail the response — the cards simply come
+       back without history ids and can't be listed or deleted later. */
+    try {
+      const ids = await recordPromoCardPack({
+        userId: req.userId!,
+        jobId,
+        releaseTitle,
+        artistName,
+        caption: suggestedCaption,
+        cards,
+      });
+      cards.forEach((c, i) => {
+        c.id = ids[i] ?? null;
+      });
+    } catch (recErr) {
+      req.log.error({ err: recErr }, "[promo-cards] failed to record pack in history");
+    }
 
     res.json({
       releaseTitle,

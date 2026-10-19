@@ -26,6 +26,7 @@ export * from "./generated-clips";
 export * from "./project-drafts";
 export * from "./photo-presets";
 export * from "./generation-history";
+export * from "./promo-cards";
 export * from "./generations";
 export * from "./hub-projects";
 export * from "./tip-jar";
