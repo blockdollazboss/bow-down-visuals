@@ -30,6 +30,9 @@
  *   DELETE /api/react?target_kind=post&target_id=…
  *   GET  /api/posts/:id/replies           → { replies } (the FULL thread)
  *   POST /api/posts/:id/reply             { body }      (answer in-world)
+ *   GET  /api/posts/:id/reply-draft       → { draft } (R2 #8: my saved reply + its tone)
+ *   PUT  /api/posts/:id/reply-draft       { body, tone? } (an empty body clears it)
+ *   DELETE /api/posts/:id/reply-draft     (clear my saved reply)
  *   POST /api/comment-replies             { comments, tone, voiceNotes } → { replies }
  *   GET  /api/comment-replies/meta        → { cost, tones, maxComments }
  *
@@ -342,6 +345,65 @@ export function replyDraftBatch(text: string, maxComments: number): string[] {
     .map((c) => c.trim())
     .filter((c) => c.length > 0)
     .slice(0, cap);
+}
+
+/* ─── Post reply drafts (2.19 — the bench the words rest on) ────────
+   The per-post composer's in-progress reply, held on the SERVER —
+   one draft per member per board post (migration 0160) — so a
+   half-written answer survives the thread closing, leaving the Hall,
+   a phone reload, and comes back on any device, in the tone it was
+   drafted in. The tone rides the draft as metadata (the assistant's
+   own set, REPLY_DRAFT_TONES); no generation is wired to it. GET
+   reads mine, PUT saves (an empty body clears), DELETE clears; a
+   landed reply clears server-side too. Before this rail the composer
+   was one useState on the card: any close or unmount lost the words. */
+
+export function postReplyDraftPath(postId: string): string {
+  return `/api/posts/${encodeURIComponent(postId)}/reply-draft`;
+}
+
+/** The reply route's own cap, and the composer's (replySchema). */
+export const REPLY_DRAFT_MAX = 500;
+
+export interface PostReplyDraft {
+  body: string;
+  tone: ReplyDraftTone;
+  updatedAt: string | null;
+}
+
+/** Guard a draft payload into the one saved reply (or null): anything
+ *  that isn't the server's shape reads as "no draft" — never a crash,
+ *  and never junk text landing in the composer. The WORDS are the
+ *  valuable part: a tone string the bench doesn't know falls back to
+ *  the default tone rather than dropping the draft. A saved draft is
+ *  never empty (the server clears instead of storing blanks). */
+export function normalizePostReplyDraft(payload: unknown): PostReplyDraft | null {
+  const d = (payload as { draft?: unknown } | null | undefined)?.draft;
+  if (!d || typeof d !== "object") return null;
+  const body = (d as { body?: unknown }).body;
+  if (typeof body !== "string" || body.length === 0) return null;
+  const toneRaw = (d as { tone?: unknown }).tone;
+  const tone: ReplyDraftTone = REPLY_DRAFT_TONES.some((t) => t.key === toneRaw)
+    ? (toneRaw as ReplyDraftTone)
+    : "hype";
+  const updatedAt = (d as { updated_at?: unknown }).updated_at;
+  return { body, tone, updatedAt: typeof updatedAt === "string" ? updatedAt : null };
+}
+
+/** What the desk owes the server for the composer's current state:
+ *  "skip" — the server already holds exactly these words in this
+ *  tone (or the composer is blank over nothing saved); "clear" — the
+ *  composer went blank over a saved draft, so retire it (a PUT with
+ *  an empty body); "save" — new words, or the same words retuned. */
+export type PostReplyDraftSaveDecision = "skip" | "clear" | "save";
+export function postReplyDraftSaveDecision(
+  text: string,
+  tone: ReplyDraftTone,
+  saved: { body: string; tone: ReplyDraftTone } | null,
+): PostReplyDraftSaveDecision {
+  if (text.trim().length === 0) return saved ? "clear" : "skip";
+  if (saved && saved.body === text && saved.tone === tone) return "skip";
+  return "save";
 }
 
 export const REACT_PATH = "/api/react";

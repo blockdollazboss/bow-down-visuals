@@ -9,6 +9,8 @@ import {
   storiesTable,
   storyHighlightsTable,
   postsTable,
+  postReplyDraftsTable,
+  POST_REPLY_DRAFT_TONES,
   reactionsTable,
   savesTable,
   pollOptionsTable,
@@ -1149,6 +1151,9 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
              GET    /api/posts/:id            (public) single post + thread context
              GET    /api/posts/:id/replies    (public) thread
              POST   /api/posts/:id/reply|repost|quote (auth)
+             GET/PUT/DELETE /api/posts/:id/reply-draft (auth) my saved
+                    reply draft for the post (0160; a landed reply
+                    retires it)
              DELETE /api/posts/:id            (auth, own)
              GET    /api/posts/:id/analytics  (auth, own) engagement + earning hint
              POST   /api/posts/assist         (auth, 1 credit) AI "write it for me"
@@ -2061,6 +2066,15 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
     await db.update(postsTable)
       .set({ replyCount: sql`${postsTable.replyCount} + 1` })
       .where(eq(postsTable.id, id));
+    /* A landed reply retires the SENDER's saved draft for this post
+       (STACK-20 R2 #8, the dm_drafts lifecycle): the words live in the
+       thread now, so the bench copy goes — the sender's own row only,
+       best-effort: a clear failure never fails a reply that landed. */
+    try {
+      await clearOwnReplyDraft(id, req.userId!);
+    } catch (draftErr) {
+      logger.error({ err: draftErr, userId: req.userId }, "[social] reply landed but the draft clear failed");
+    }
     const [pa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1);
     if (pa && pa.userId !== req.userId) {
       await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`,
@@ -2070,6 +2084,114 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
     return res.status(201).json({ post: enriched });
   } catch {
     return res.status(500).json({ error: "reply_failed" });
+  }
+});
+
+/* ── Post reply drafts (STACK-20 R2 #8 — UPGRADE-PROGRAM 2.19) ──────
+   One in-progress reply per member per board post, held on the server
+   (migration 0160) so a half-written answer at the Community Board
+   survives a closed thread, leaving the Hall and a phone reload — the
+   dm_drafts lifecycle (0157) on the post rail. Private scratch: the
+   post's own visibility gate decides who may touch its drafts at all
+   (an unseen post is a 404, existence included), and every read/write
+   is then keyed by the caller's OWN user id, so another member can
+   neither read nor overwrite my draft. The draft carries a tone — the
+   Comment Reply Assistant's set — as metadata: the member's chosen
+   voice for the reply, stored with the words; no generation is wired
+   to it. Saving an empty (or all-whitespace) body IS clearing. A
+   landed reply retires the sender's row (see the reply handler
+   above). The body cap is the reply route's own 500 chars. */
+
+const replyDraftSchema = z.object({
+  body: z.string().max(500),
+  tone: z.enum(POST_REPLY_DRAFT_TONES).optional(),
+});
+
+type ReplyDraftRow = typeof postReplyDraftsTable.$inferSelect;
+
+function toReplyDraftDto(row: ReplyDraftRow) {
+  return { body: row.body, tone: row.tone, updated_at: row.updatedAt };
+}
+
+async function readOwnReplyDraft(postId: string, userId: string) {
+  const rows = await db.select().from(postReplyDraftsTable)
+    .where(and(
+      eq(postReplyDraftsTable.postId, postId),
+      eq(postReplyDraftsTable.userId, userId),
+    ))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function clearOwnReplyDraft(postId: string, userId: string) {
+  await db.delete(postReplyDraftsTable)
+    .where(and(
+      eq(postReplyDraftsTable.postId, postId),
+      eq(postReplyDraftsTable.userId, userId),
+    ));
+}
+
+/** The post a draft hangs on: it must exist AND be visible to the
+ *  caller — a scoped post is a 404 to anyone outside its audience,
+ *  drafts included, exactly like the post's own read surfaces. */
+async function replyDraftParent(req: Request, res: Response) {
+  const id = String(req.params["id"]);
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "invalid_id" }); return null; }
+  const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+  if (!parent) { res.status(404).json({ error: "not_found" }); return null; }
+  if (!(await postVisibleTo(parent, req.userId!))) { res.status(404).json({ error: "not_found" }); return null; }
+  return parent;
+}
+
+/** Read my saved reply draft for this post (or null). */
+router.get("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parent = await replyDraftParent(req, res);
+    if (!parent) return;
+    const row = await readOwnReplyDraft(parent.id, req.userId!);
+    return res.json({ draft: row ? toReplyDraftDto(row) : null });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_load_failed" });
+  }
+});
+
+/** Save my reply draft for this post. An empty body clears it; an
+ *  omitted tone keeps the tone already on the bench. */
+router.put("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parent = await replyDraftParent(req, res);
+    if (!parent) return;
+    const parsed = replyDraftSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const { body, tone } = parsed.data;
+    if (body.trim().length === 0) {
+      await clearOwnReplyDraft(parent.id, req.userId!);
+      return res.json({ draft: null });
+    }
+    const existing = tone === undefined ? await readOwnReplyDraft(parent.id, req.userId!) : null;
+    const now = new Date();
+    const [row] = await db.insert(postReplyDraftsTable)
+      .values({ postId: parent.id, userId: req.userId!, body, tone: tone ?? existing?.tone ?? "hype", updatedAt: now })
+      .onConflictDoUpdate({
+        target: [postReplyDraftsTable.postId, postReplyDraftsTable.userId],
+        set: { body, tone: tone ?? existing?.tone ?? "hype", updatedAt: now },
+      })
+      .returning();
+    return res.json({ draft: row ? toReplyDraftDto(row) : { body, tone: tone ?? existing?.tone ?? "hype", updated_at: now } });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_save_failed" });
+  }
+});
+
+/** Clear my reply draft for this post. */
+router.delete("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parent = await replyDraftParent(req, res);
+    if (!parent) return;
+    await clearOwnReplyDraft(parent.id, req.userId!);
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_clear_failed" });
   }
 });
 

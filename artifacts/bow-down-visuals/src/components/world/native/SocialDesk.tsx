@@ -21,6 +21,7 @@ import {
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
   REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
+  postReplyDraftPath, normalizePostReplyDraft, postReplyDraftSaveDecision,
   COMMENT_REPLIES_PATH, COMMENT_REPLIES_META_PATH,
   REPLY_DRAFT_TONES, replyDraftBatch,
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
@@ -783,9 +784,101 @@ function NoticePostCard({
   const [repliesOpen, setRepliesOpen] = useState(false);
   const [replyCount, setReplyCount] = useState(post.reply_count);
   const [replyDraft, setReplyDraft] = useState("");
+  const [replyTone, setReplyTone] = useState<ReplyDraftTone>("hype");
   const [replying, setReplying] = useState(false);
   const [replyNote, setReplyNote] = useState<string | null>(null);
+  /* ── The reply-drafts bench (STACK-20 R2 #8, 2.19) ──────────────
+     The composer's words rest on the server, one draft per member
+     per post, in the tone they were drafted in: typed words save
+     (debounced), opening the thread restores the saved words, and a
+     landed reply retires the row server-side — the local markers
+     below agree with that, so nothing resurrects. draftState is the
+     honest save line: it only ever says "saved" for words the server
+     confirmed holding; a failed save keeps the words in the composer
+     and says so. */
+  const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const savedReplyRef = useRef<{ body: string; tone: ReplyDraftTone } | null>(null);
+  const replyWordsRef = useRef<{ text: string; tone: ReplyDraftTone }>({ text: "", tone: "hype" });
+  const replySaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  const persistReplyDraft = useCallback(async (text: string, tone: ReplyDraftTone) => {
+    const decision = postReplyDraftSaveDecision(text, tone, savedReplyRef.current);
+    if (decision === "skip") return;
+    setDraftState("saving");
+    try {
+      if (decision === "clear") {
+        await apiJson(authHeaders, postReplyDraftPath(post.id), { method: "PUT", body: { body: "" } });
+        savedReplyRef.current = null;
+        /* Nothing is saved now — the bench is empty, so the line
+           retires instead of claiming a save. */
+        if (replyWordsRef.current.text.trim().length === 0) setDraftState("idle");
+      } else {
+        const d = await apiJson<unknown>(authHeaders, postReplyDraftPath(post.id), {
+          method: "PUT", body: { body: text, tone },
+        });
+        const saved = normalizePostReplyDraft(d);
+        savedReplyRef.current = saved ? { body: saved.body, tone: saved.tone } : { body: text, tone };
+        /* Claim "saved" only while the composer still holds what the
+           server just confirmed — newer keystrokes own the state line. */
+        if (replyWordsRef.current.text === text && replyWordsRef.current.tone === tone) {
+          setDraftState("saved");
+        }
+      }
+    } catch {
+      /* Never fake a save, never lose the words: they stay in the
+         composer, the line says the save failed, and the next change
+         (or the close/unmount flush) retries. */
+      setDraftState("failed");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
+
+  /* Restore the saved draft when the thread first opens — into a
+     composer the walker hasn't already started typing in. */
+  const restoreReplyDraft = useCallback(async () => {
+    try {
+      const d = await apiJson<unknown>(authHeaders, postReplyDraftPath(post.id));
+      const saved = normalizePostReplyDraft(d);
+      if (!saved) return;
+      savedReplyRef.current = { body: saved.body, tone: saved.tone };
+      if (replyWordsRef.current.text === "") {
+        replyWordsRef.current = { text: saved.body, tone: saved.tone };
+        setReplyDraft(saved.body);
+        setReplyTone(saved.tone);
+        setDraftState("saved");
+      }
+    } catch { /* no restored draft — the composer simply starts empty */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
+
+  /* Debounced save — the timer re-validates at fire time so a send
+     or a restore in between is never overwritten by stale words. */
+  useEffect(() => {
+    if (isGuest || !repliesOpen) return;
+    replyWordsRef.current = { text: replyDraft, tone: replyTone };
+    if (postReplyDraftSaveDecision(replyDraft, replyTone, savedReplyRef.current) === "skip") return;
+    if (replySaveTimerRef.current) clearTimeout(replySaveTimerRef.current);
+    replySaveTimerRef.current = setTimeout(() => {
+      const cur = replyWordsRef.current;
+      if (cur.text === replyDraft && cur.tone === replyTone) {
+        void persistReplyDraft(cur.text, cur.tone);
+      }
+    }, 900);
+    return () => { if (replySaveTimerRef.current) clearTimeout(replySaveTimerRef.current); };
+  }, [replyDraft, replyTone, repliesOpen, isGuest, persistReplyDraft]);
+
+  /* Card unmount (the Hall closes, the board refreshes): flush
+     whatever is unsaved, the Post Office desk's own habit. */
+  useEffect(() => {
+    return () => {
+      const cur = replyWordsRef.current;
+      if (postReplyDraftSaveDecision(cur.text, cur.tone, savedReplyRef.current) !== "skip") {
+        void persistReplyDraft(cur.text, cur.tone);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function react(next: string) {
     const prev = { emoji, counts };
@@ -820,6 +913,7 @@ function NoticePostCard({
       const d = await apiJson<{ replies: FeedPost[] }>(authHeaders, postRepliesPath(post.id));
       setReplies(Array.isArray(d.replies) ? d.replies : []);
       setRepliesOpen(true);
+      if (!isGuest) void restoreReplyDraft();
     } catch {
       setReplies([]);
       setRepliesOpen(true);
@@ -839,6 +933,13 @@ function NoticePostCard({
         setReplyCount((n) => n + 1);
       }
       setReplyDraft("");
+      /* The reply landed — the server retired the saved draft in the
+         same request; the local markers agree so the words can never
+         resurrect into the composer. (On a FAILED send nothing here
+         runs: the text and its draft stay exactly as they were.) */
+      savedReplyRef.current = null;
+      replyWordsRef.current = { text: "", tone: replyTone };
+      setDraftState("idle");
     } catch (e) {
       setReplyNote(e instanceof Error ? e.message : "The reply didn't land — try again.");
     } finally {
@@ -901,6 +1002,23 @@ function NoticePostCard({
               </p>
             ) : (
               <div className="pt-1">
+                {/* The bench's tone (2.19): the voice this reply is
+                    being drafted in — saved WITH the draft, so the
+                    words come back in their tone on any device. */}
+                <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                  {REPLY_DRAFT_TONES.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      data-testid={`world-community-reply-tone-${t.key}`}
+                      onClick={() => setReplyTone(t.key)}
+                      aria-pressed={replyTone === t.key}
+                      className={`${chipBtn(isLight)} ${replyTone === t.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex gap-2">
                   <input
                     value={replyDraft}
@@ -922,6 +1040,18 @@ function NoticePostCard({
                     Reply
                   </button>
                 </div>
+                {draftState !== "idle" && (
+                  <p
+                    className={`mt-1.5 text-[11px] ${draftState === "failed" ? `font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}` : muted}`}
+                    data-testid="world-community-reply-draft-state"
+                  >
+                    {draftState === "saving"
+                      ? "Saving your draft…"
+                      : draftState === "saved"
+                        ? "Draft saved — it's kept on the bench until you send it."
+                        : "Couldn't save your draft — your words are still here, and saving retries as you type."}
+                  </p>
+                )}
                 {replyNote && (
                   <p className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{replyNote}</p>
                 )}
