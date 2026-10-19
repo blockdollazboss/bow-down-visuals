@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
+import { UgcAdsPanel } from "@/components/hub/UgcAdsPanel";
 import { UnlockGatesPanel } from "@/components/promote/UnlockGatesPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
@@ -444,6 +445,13 @@ export default function Promote() {
             social-kit flow. Deep-linked from /distribute and /presave/:slug. */}
         <div className="mt-10">
           <PromoCardsPanel />
+        </div>
+
+        {/* UGC Product Ads (owner order Oct 19, 2026) — creator-style video
+            ads for products + the brand briefs board, in the same Promote
+            family as Promo Clips and the promo cards above. */}
+        <div className="mt-10">
+          <UgcAdsPanel />
         </div>
 
         {/* Stack 11 #8 — generalized follow/share-to-unlock gates. */}
