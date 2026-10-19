@@ -10,6 +10,7 @@ import {
   bowRaceMonthsTable,
   cheatCodeEventsTable,
   userActivityTable,
+  dailyDropArchivesTable,
 } from "@workspace/db";
 import { eq, gt, and, inArray, lte, desc } from "drizzle-orm";
 
@@ -130,6 +131,97 @@ router.get("/retention/daily-drop", requireAuth, publicApiLimiter, async (req: R
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[retention-drops] daily-drop failed");
     res.status(500).json({ error: "Could not load today's drop" });
+  }
+});
+
+/* ── Daily Drop catalogue + archives (STACK-20 R2 item #18) ────────────
+   The catalogue above is the whole slate of 30 template defs, but the
+   daily-drop route only ever surfaces TODAY's. The catalogue route
+   hands the member the full slate — every def with its real tool href
+   (USE is following that href into the tool, exactly how today's drop
+   has always been used), whether it is today's, and whether the
+   member has archived it. Archiving is per-member tidy-up state in
+   daily_drop_archives (migration 0161): presence of a row = archived;
+   it never touches the shared rotation or another member's list. */
+
+async function archivedDropKeys(userId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ dropKey: dailyDropArchivesTable.dropKey })
+    .from(dailyDropArchivesTable)
+    .where(eq(dailyDropArchivesTable.userId, userId));
+  return new Set(rows.map((r) => r.dropKey));
+}
+
+router.get("/retention/daily-drop/catalog", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const prefs = await getRetentionPrefs(userId);
+    void touchUserActivity(userId);
+    if (!prefs.daily_drop_enabled) {
+      res.json({ enabled: false });
+      return;
+    }
+    const date = utcDate();
+    const todayIndex = dropIndexForDate(date);
+    const archived = await archivedDropKeys(userId);
+    res.json({
+      enabled: true,
+      date,
+      total: DAILY_DROPS.length,
+      drops: DAILY_DROPS.map((drop, i) => ({
+        ...drop,
+        isToday: i === todayIndex,
+        archived: archived.has(drop.key),
+      })),
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention-drops] daily-drop catalog failed");
+    res.status(500).json({ error: "Could not load the drop catalogue" });
+  }
+});
+
+function catalogDropKey(req: Request, res: Response): string | null {
+  const key = (req.body as { key?: unknown } | undefined)?.key;
+  if (typeof key !== "string" || !DAILY_DROPS.some((d) => d.key === key)) {
+    res.status(400).json({ error: "Unknown drop" });
+    return null;
+  }
+  return key;
+}
+
+router.post("/retention/daily-drop/archive", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const key = catalogDropKey(req, res);
+    if (!key) return;
+    await db
+      .insert(dailyDropArchivesTable)
+      .values({ userId, dropKey: key })
+      .onConflictDoNothing();
+    res.json({ ok: true, key, archived: true });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention-drops] daily-drop archive failed");
+    res.status(500).json({ error: "Could not archive that drop" });
+  }
+});
+
+router.post("/retention/daily-drop/unarchive", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const key = catalogDropKey(req, res);
+    if (!key) return;
+    await db
+      .delete(dailyDropArchivesTable)
+      .where(
+        and(
+          eq(dailyDropArchivesTable.userId, userId),
+          eq(dailyDropArchivesTable.dropKey, key),
+        ),
+      );
+    res.json({ ok: true, key, archived: false });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[retention-drops] daily-drop unarchive failed");
+    res.status(500).json({ error: "Could not unarchive that drop" });
   }
 });
 

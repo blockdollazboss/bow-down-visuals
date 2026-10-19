@@ -675,7 +675,7 @@ router.use(fanDecoderRouter);          // /api/fan-decoder/*
 router.use(aiInterviewRouter);         // /api/ai-interview/*
 router.use(lyricStoriesRouter);        // /api/lyric-stories/*
 router.use(coverInMotionRouter);       // /api/cover-in-motion/*
-router.use(retentionDropsRouter);      // /api/retention/daily-drop, /api/retention/away-digest
+router.use(retentionDropsRouter);      // /api/retention/daily-drop (+ /catalog, /archive, /unarchive), /api/retention/away-digest
 router.use(arcadeRouter);              // /api/arcade/scores, /api/arcade/leaderboard, /api/arcade/me
 router.use(partyRouter);               // /api/party/rooms, /api/party/leaderboard, /api/party/me
 

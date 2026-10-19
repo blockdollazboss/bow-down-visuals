@@ -105,3 +105,18 @@ export const userActivityTable = pgTable("user_activity", {
   updatedAt:  timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 export type UserActivity = typeof userActivityTable.$inferSelect;
+
+/** Daily Drop catalogue archives (STACK-20 R2 item #18, migration
+ *  0161). The drop catalogue itself is code — DAILY_DROPS in the
+ *  API's retention-drops routes, 30 curated template defs rotating
+ *  by UTC day. This table is only the member's own tidy-up state:
+ *  one row per drop key archived out of their active catalogue
+ *  list. Presence = archived; deleting the row un-archives.
+ *  Owner-scoped by construction — the routes only ever read and
+ *  write the caller's rows. */
+export const dailyDropArchivesTable = pgTable("daily_drop_archives", {
+  userId:     uuid("user_id").notNull(),
+  dropKey:    text("drop_key").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.dropKey] })]);
+export type DailyDropArchive = typeof dailyDropArchivesTable.$inferSelect;
