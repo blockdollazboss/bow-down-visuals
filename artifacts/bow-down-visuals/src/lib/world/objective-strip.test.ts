@@ -150,7 +150,7 @@ describe("quest slot — the next objective, from the retention quest rail", () 
     }
   });
 
-  it("progress reads from the server row (viral-sharer 2 of 3, website transfer)", () => {
+  it("progress reads from the server row (viral-sharer 2 of 3, done at the Cover Art Desk)", () => {
     const payload = {
       ...QUESTS,
       quests: QUESTS.quests.map((q) =>
@@ -161,8 +161,9 @@ describe("quest slot — the next objective, from the retention quest rail", () 
     expect(next.kind).toBe("active");
     if (next.kind === "active") {
       expect(next.objective).toMatchObject({ progress: 2, target: 3 });
-      expect(next.destination).toEqual({ kind: "transfer", href: "/my-projects" });
-      expect(destinationLabel(next.destination)).toBe("the website");
+      expect(next.destination).toMatchObject({ kind: "station", stationId: "cover-art-desk" });
+      expect(destinationLabel(next.destination)).toContain("Cover Art Desk");
+      expect(destinationLabel(next.destination)).toContain("Create Wing");
     }
   });
 

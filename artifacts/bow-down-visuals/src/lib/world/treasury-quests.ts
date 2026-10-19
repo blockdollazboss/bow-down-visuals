@@ -13,10 +13,18 @@
  *   export-video   → the Visual Vibes Editor door (step-through —
  *                    exporting is the editor's job, and the editor
  *                    is the palace's one full-screen step-through)
- *   viral-sharer   → NO in-world performer: sharing happens from a
- *                    project's share menu, and no native panel hosts
- *                    one. Honest transfer to /my-projects (the
- *                    quest's own website door) — never a dead button.
+ *   viral-sharer   → the Cover Art Desk (Create Wing, native
+ *                    create): the desk's share chip performs a real
+ *                    share and records it on the tracked share rail
+ *                    (POST /api/shares — the rail the quest engine's
+ *                    recordShareEvent hooks), so sharing the cover
+ *                    you just made counts in-world like any creation
+ *                    at its desk. (Round 2: this mapping used to send
+ *                    the walker out to /my-projects on the claim
+ *                    that no native panel hosts a share — the Cover
+ *                    Desk's share chip proved that stale, once the
+ *                    share rail accepted the clients' "image"
+ *                    content type again.)
  *
  * An unknown quest key resolves to null and the board falls back
  * to the quest's website transfer — a future quest can never strand
@@ -48,11 +56,16 @@ const STATION_DESTINATIONS: Record<string, string> = {
   "make-thumbnail": "thumbnail-desk",
   "generate-song": "song-desk",
   "export-video": "visual-vibes-editor",
+  "viral-sharer": "cover-art-desk",
 };
 
-const TRANSFER_DESTINATIONS: Record<string, string> = {
-  "viral-sharer": "/my-projects",
-};
+/* Quests whose verb genuinely has no in-world performer keep an
+   explicit website transfer here — the board labels them "On the
+   website" instead of dressing an exit as an in-world action.
+   Empty today: every quest in the server's catalog completes at
+   a palace desk. A future quest with no desk lands here, never
+   on a dead button. */
+const TRANSFER_DESTINATIONS: Record<string, string> = {};
 
 const STATION_ROOM_NAMES: Record<string, string> = {
   "world:create-wing": "the Create Wing",

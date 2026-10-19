@@ -177,8 +177,26 @@ describe("2.20 — every quest's 'go do it' resolves somewhere honest", () => {
     }
   });
 
-  it("viral-sharer has no in-world performer — it takes the honest transfer", () => {
-    expect(questDestination("viral-sharer")).toEqual({ kind: "transfer", href: "/my-projects" });
+  it("viral-sharer completes in-world too — the Cover Art Desk's share chip records on the tracked share rail", () => {
+    expect(questDestination("viral-sharer")).toMatchObject({ kind: "station", stationId: "cover-art-desk", stationName: "Cover Art Desk" });
+  });
+
+  it("every quest in the server's weekly catalog now resolves to an in-world station (round 2)", () => {
+    /* The weekly keys are the whole catalog QUEST_DEFS serves —
+       and every daily def's baseKey is one of these four, so the
+       trio inherits the same completion paths. */
+    for (const key of ["make-thumbnail", "generate-song", "export-video", "viral-sharer"]) {
+      expect(questDestination(key)?.kind).toBe("station");
+    }
+    expect([...IN_WORLD_QUEST_KEYS].sort()).toEqual(
+      ["export-video", "generate-song", "make-thumbnail", "viral-sharer"],
+    );
+  });
+
+  it("a quest the palace can't place wears its honest label on the board — 'On the website', never a bare arrow", () => {
+    expect(questsWidget).toContain("world-quest-elsewhere-${q.key}");
+    expect(questsWidget).toContain("world-daily-elsewhere-${q.key}");
+    expect(questsWidget).toContain("On the website");
   });
 
   it("an unknown quest key resolves to null (the board falls back to the quest's own transfer — never a dead button)", () => {
