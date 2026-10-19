@@ -55,6 +55,7 @@ import {
   buildThumbnailPayload,
   buildVideoPlanPayload,
   COVER_ART_PRESETS,
+  pushCoverHistory,
   aiEditPlanOfResponse,
   coverArtCost,
   coverInMotionCost,
@@ -1177,7 +1178,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Cover art generation failed.");
       setCoverUrl(data.url);
-      setCoverHistory((h) => [data.url!, ...h].slice(0, 12));
+      setCoverHistory((h) => pushCoverHistory(h, data.url!));
       refreshProfile();
       setState("done");
       void coverQuest.checkAfter();
@@ -1185,6 +1186,24 @@ export function CoverArtDesk(props: CreateDeskProps) {
       setError(err instanceof Error ? err.message : "Cover art generation failed.");
       setState("failed");
     }
+  };
+
+  /* Session history restore (2.11): an earlier cover becomes the
+     current work again — WITHOUT the previous cover's attachments.
+     The motion video and the showcase slug belong to the cover they
+     were made/published from, so restoring a different cover clears
+     both (a restored cover must never wear another cover's "Live on
+     the showcase" link, and it gets its own Publish button back). */
+  const restoreCover = (url: string) => {
+    if (url === coverUrl) return;
+    setCoverUrl(url);
+    setState("done");
+    setError(null);
+    setMotionUrl(null);
+    setMotionState("idle");
+    setMotionError(null);
+    setShowcaseSlug(null);
+    setShareNote(null);
   };
 
   const runMotion = async () => {
@@ -1474,7 +1493,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>This session</p>
           <div className="flex flex-wrap gap-2">
             {coverHistory.map((url) => (
-              <button key={url} type="button" onClick={() => setCoverUrl(url)} className={`overflow-hidden rounded-lg border ${coverUrl === url ? "border-[#d4af37]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+              <button key={url} type="button" onClick={() => restoreCover(url)} className={`overflow-hidden rounded-lg border ${coverUrl === url ? "border-[#d4af37]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
                 <img src={url} alt="Cover from this session" className="h-12 w-12 object-cover" />
               </button>
             ))}

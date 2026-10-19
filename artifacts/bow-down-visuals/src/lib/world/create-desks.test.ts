@@ -636,6 +636,20 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(m.buildShareTrackPayload({ contentType: "image", channel: "copy" })).toEqual({ content_type: "image", content_id: null, channel: "copy" });
   });
 
+  it("2.11 cover session history: newest first, deduped, capped at the limit", async () => {
+    const m = await import("./create-desks");
+    expect(m.pushCoverHistory([], "a")).toEqual(["a"]);
+    expect(m.pushCoverHistory(["a", "b"], "c")).toEqual(["c", "a", "b"]);
+    // a re-generated URL moves to the front instead of duplicating
+    expect(m.pushCoverHistory(["a", "b", "c"], "c")).toEqual(["c", "a", "b"]);
+    // the cap holds at COVER_HISTORY_LIMIT, oldest falls off
+    const full = Array.from({ length: m.COVER_HISTORY_LIMIT }, (_, i) => `u${i}`);
+    const pushed = m.pushCoverHistory(full, "new");
+    expect(pushed).toHaveLength(m.COVER_HISTORY_LIMIT);
+    expect(pushed[0]).toBe("new");
+    expect(pushed).not.toContain(`u${m.COVER_HISTORY_LIMIT - 1}`);
+  });
+
   it("§5(a) quest chip: only a server diff earns a chip — completion, progress, and the silent cases", async () => {
     const m = await import("./create-desks");
     const q = (key: string, progress: number, target: number, completed = false) => ({ key, target, reward: 80, progress, completed, claimed: false });

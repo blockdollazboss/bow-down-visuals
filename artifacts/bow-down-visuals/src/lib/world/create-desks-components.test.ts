@@ -107,6 +107,26 @@ describe("2.9–2.11 thumbnail + cover contracts", () => {
     expect(desks).toContain('fetch("/api/shares"');
     expect(desks).toContain('data-testid="world-cover-history"');
   });
+
+  it("cover history restore swaps the whole work — never another cover's motion or showcase slug", () => {
+    // history entries restore through the restore handler, not a bare URL swap
+    expect(desks).toContain("onClick={() => restoreCover(url)}");
+    // slice the handler body and pin the resets INSIDE it
+    const start = desks.indexOf("const restoreCover = (url: string) => {");
+    expect(start).toBeGreaterThan(-1);
+    const body = desks.slice(start, desks.indexOf("const runMotion", start));
+    // restoring the cover already on the desk is a no-op (keeps its own live link)
+    expect(body).toContain("if (url === coverUrl) return;");
+    expect(body).toContain("setCoverUrl(url);");
+    expect(body).toContain('setState("done");');
+    expect(body).toContain("setError(null);");
+    // the previous cover's motion video + showcase slug never follow a restore
+    expect(body).toContain("setMotionUrl(null);");
+    expect(body).toContain('setMotionState("idle");');
+    expect(body).toContain("setShowcaseSlug(null);");
+    // history growth rides the dedupe/cap seam, not an inline prepend
+    expect(desks).toContain("pushCoverHistory(h, data.url!)");
+  });
 });
 
 describe("2.1 + 2.2 publish rail + jukebox chip contracts (stack-20 round 2, #3/#4)", () => {
