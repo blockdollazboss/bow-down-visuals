@@ -26,6 +26,12 @@
  *   the draft rail's path, payload guard and save-decision seam, and
  *   the desk wiring (restore on open, debounced save, flush on
  *   switch/close, markers cleared on send);
+ * - STACK-20 R2 #8 (2.19): the board's per-post reply draft persists
+ *   server-side WITH its tone — the draft rail's path, payload guard
+ *   (unknown tones fall back, words never drop) and tone-aware
+ *   save-decision seam, and the card wiring (restore on thread open,
+ *   tone chips, debounced save with an honest save line, markers
+ *   cleared on send, guests never touch the rail);
  * - source pins: the desk components ride these builders, the host
  *   dispatches pattern "social" to them, and the host still renders
  *   the ONE TransferFooter for native resolutions.
@@ -44,6 +50,7 @@ import {
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
   REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
+  postReplyDraftPath, normalizePostReplyDraft, postReplyDraftSaveDecision,
   COMMENT_REPLIES_PATH, COMMENT_REPLIES_META_PATH,
   REPLY_DRAFT_TONES, replyDraftBatch,
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
@@ -408,6 +415,72 @@ describe("reply-drafts bench seam (2.19)", () => {
     expect(replyDraftBatch(" one \n\n two\nthree ", 10)).toEqual(["one", "two", "three"]);
     expect(replyDraftBatch("a\nb\nc", 2)).toEqual(["a", "b"]);
     expect(replyDraftBatch("", 10)).toEqual([]);
+  });
+});
+
+describe("post reply drafts (STACK-20 R2 #8, 2.19) — the board composer's words, persisted with their tone", () => {
+  it("the draft rail is the post's own sub-path", () => {
+    expect(postReplyDraftPath("p1")).toBe("/api/posts/p1/reply-draft");
+    expect(postReplyDraftPath("p 1/x")).toBe("/api/posts/p%201%2Fx/reply-draft");
+  });
+
+  it("a saved draft reads back exactly — words, tone and stamp", () => {
+    expect(normalizePostReplyDraft({ draft: { body: "half a thought", tone: "playful", updated_at: "2026-10-19T16:00:00.000Z" } }))
+      .toEqual({ body: "half a thought", tone: "playful", updatedAt: "2026-10-19T16:00:00.000Z" });
+    expect(normalizePostReplyDraft({ draft: { body: "no tone, no stamp" } }))
+      .toEqual({ body: "no tone, no stamp", tone: "hype", updatedAt: null });
+  });
+
+  it("an unknown tone falls back to the default — the WORDS are never dropped over a tone string", () => {
+    expect(normalizePostReplyDraft({ draft: { body: "keep me", tone: "sarcastic" } }))
+      .toEqual({ body: "keep me", tone: "hype", updatedAt: null });
+  });
+
+  it("anything malformed reads as no draft", () => {
+    expect(normalizePostReplyDraft({ draft: null })).toBeNull();
+    expect(normalizePostReplyDraft({ draft: { body: "" } })).toBeNull();
+    expect(normalizePostReplyDraft({ draft: { body: 42 } })).toBeNull();
+    expect(normalizePostReplyDraft({})).toBeNull();
+    expect(normalizePostReplyDraft(null)).toBeNull();
+    expect(normalizePostReplyDraft(undefined)).toBeNull();
+  });
+
+  it("the save decision is tone-aware: skip what's saved, save new words or a retune, clear a blanked composer", () => {
+    const saved = { body: "same words", tone: "hype" as const };
+    expect(postReplyDraftSaveDecision("same words", "hype", saved)).toBe("skip");
+    expect(postReplyDraftSaveDecision("same words", "playful", saved)).toBe("save");
+    expect(postReplyDraftSaveDecision("edited words", "hype", saved)).toBe("save");
+    expect(postReplyDraftSaveDecision("new words", "hype", null)).toBe("save");
+    expect(postReplyDraftSaveDecision("", "hype", saved)).toBe("clear");
+    expect(postReplyDraftSaveDecision("   ", "hype", saved)).toBe("clear");
+    expect(postReplyDraftSaveDecision("", "hype", null)).toBe("skip");
+  });
+
+  it("the card wires the whole lifecycle: restore on open, tone, debounced save, honest line, clear-on-send", () => {
+    /* Restore: opening a thread fetches the post's draft and
+       normalizes it back into the composer + tone. */
+    expect(deskSrc).toContain("normalizePostReplyDraft(d)");
+    expect(deskSrc).toContain("setReplyDraft(saved.body)");
+    expect(deskSrc).toContain("setReplyTone(saved.tone)");
+    expect(deskSrc).toContain("if (!isGuest) void restoreReplyDraft()");
+    /* Tone: the bench's chips set the draft's tone. */
+    expect(deskSrc).toContain("world-community-reply-tone-");
+    expect(deskSrc).toContain("onClick={() => setReplyTone(t.key)}");
+    /* Save: one persist helper on the builder path, carrying the
+       tone, consulted by the decision seam. */
+    expect(deskSrc).toContain("postReplyDraftPath(post.id)");
+    expect(deskSrc).toContain('method: "PUT", body: { body: text, tone }');
+    expect(deskSrc).toContain("postReplyDraftSaveDecision(");
+    expect(deskSrc).toContain("void persistReplyDraft(cur.text, cur.tone)");
+    /* Honesty: a failed save is SAID, and the claim of "saved" is a
+       state the desk sets only on the server's confirmation. */
+    expect(deskSrc).toContain("world-community-reply-draft-state");
+    expect(deskSrc).toContain("Couldn't save your draft — your words are still here");
+    /* Send: the server retired the row; the local markers agree. */
+    expect(deskSrc).toContain("savedReplyRef.current = null;");
+    /* Guests: the composer (and its rail) is never rendered for
+       them — the read-only line is their whole reply surface. */
+    expect(deskSrc).toContain("sign in to add your voice to it");
   });
 });
 

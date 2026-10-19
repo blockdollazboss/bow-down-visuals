@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, primaryKey, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, primaryKey, check, uniqueIndex, index, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -87,6 +87,36 @@ export const postsTable = pgTable("posts", {
 export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true, createdAt: true, likeCount: true, repostCount: true, replyCount: true });
 export type InsertPost = z.infer<typeof insertPostSchema>;
 export type Post = typeof postsTable.$inferSelect;
+
+/** The tones a reply draft can carry — the Comment Reply Assistant's
+ *  own set (routes/generate/comment-replies TONES), stored here as
+ *  metadata on the draft. No generation is wired to a draft: the tone
+ *  is the member's chosen voice for the reply, nothing more. */
+export const POST_REPLY_DRAFT_TONES = ["hype", "grateful", "playful", "professional"] as const;
+export type PostReplyDraftTone = (typeof POST_REPLY_DRAFT_TONES)[number];
+
+/* Post reply drafts (STACK-20 R2 #8, migration 0160): ONE in-progress
+   reply per member per board post, held server-side so a half-written
+   answer at the Community Board survives a closed thread, leaving the
+   Hall and a phone reload — and comes back on any device, with the
+   tone it was drafted in. A draft is private scratch: the row is keyed
+   by (post, author) and the routes only ever read or write the
+   caller's own row. A landed reply deletes the sender's row; saving
+   an empty body deletes it too. Deleting the post cascades the draft
+   away with it. */
+export const postReplyDraftsTable = pgTable("post_reply_drafts", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  postId:    uuid("post_id").notNull().references(() => postsTable.id, { onDelete: "cascade" }),
+  userId:    uuid("user_id").notNull(),
+  body:      text("body").notNull(),
+  tone:      text("tone").notNull().default("hype"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("post_reply_drafts_post_user_uidx").on(t.postId, t.userId),
+  index("post_reply_drafts_user_idx").on(t.userId),
+]);
+
+export type PostReplyDraft = typeof postReplyDraftsTable.$inferSelect;
 
 /** Attachment shapes stored in posts.media_urls — every kind has a link target. */
 export type Attachment =
