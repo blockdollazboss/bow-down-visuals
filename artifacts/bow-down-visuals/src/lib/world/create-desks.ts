@@ -383,6 +383,16 @@ export const COVER_ART_PRESETS: ReadonlyArray<{ label: string; style: string; mo
   { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
 ];
 
+/** Session history cap for the Cover Art Desk's "This session" strip. */
+export const COVER_HISTORY_LIMIT = 12;
+
+/** The desk's session history: real generation results only, newest
+ *  first, deduped (a re-generated URL moves to the front instead of
+ *  appearing twice), capped at COVER_HISTORY_LIMIT. */
+export function pushCoverHistory(history: readonly string[], url: string): string[] {
+  return [url, ...history.filter((u) => u !== url)].slice(0, COVER_HISTORY_LIMIT);
+}
+
 /** PublishToShowcase's publish body (POST /api/showcase/publish —
  *  the cover page's "publish-to-showcase" rail, free). */
 export function buildShowcasePublishPayload(input: {
