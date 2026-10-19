@@ -26,8 +26,10 @@
  * member stands; the board re-reads server truth on return.
  *
  * 2.21 / 2.22 — GET /api/retention/quests/history serves the claim
- * ledger (quest rewards, shark drops, hourly crates — the claims
- * the tables record; daily-drop claims keep no per-claim row
+ * ledger (weekly quest rewards, Daily Quest Trio rewards, the
+ * King's gifts, the "Your First 10 Minutes" tutorial reward, shark
+ * drops, hourly crates — every claim the tables record with its
+ * paid amount stamped; daily-drop claims keep no per-claim row
  * anywhere, so they are not entries), the full catalog, and past
  * weeks. GET /api/retention/leaderboard is the site's weekly
  * creation leaderboard (status only, no VB). Everything here is
@@ -107,7 +109,7 @@ export const QUEST_DISPLAY: Record<string, { titleKey: string; href: string }> =
 /* ─── 2.21 + 2.22: history / catalog shaping ─────────────────────── */
 
 export interface TreasuryHistoryEntry {
-  kind: "quest" | "shark-drop" | "crate";
+  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate";
   key: string | null;
   amount: number;
   at: string;
@@ -197,7 +199,15 @@ export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
   const entries: TreasuryHistoryEntry[] = [];
   for (const e of raw.entries) {
     if (!isRecord(e)) return null;
-    if (e.kind !== "quest" && e.kind !== "shark-drop" && e.kind !== "crate") return null;
+    if (
+      e.kind !== "quest" &&
+      e.kind !== "daily-quest" &&
+      e.kind !== "king-gift" &&
+      e.kind !== "tutorial" &&
+      e.kind !== "shark-drop" &&
+      e.kind !== "crate"
+    )
+      return null;
     const amount = num(e.amount);
     const at = str(e.at);
     if (amount === null || !at) return null;
@@ -220,12 +230,43 @@ export function ledgerEntryKindLabel(kind: TreasuryHistoryEntry["kind"]): string
   switch (kind) {
     case "quest":
       return "Quest reward";
+    case "daily-quest":
+      return "Daily quest";
+    case "king-gift":
+      return "The King's gift";
+    case "tutorial":
+      return "Tutorial reward";
     case "shark-drop":
       return "Shark drop";
     case "crate":
       return "Hourly crate";
   }
 }
+
+/** The Daily Quest Trio's names, verbatim from the server's defs
+ *  (DAILY_QUEST_DEFS in the API's daily-quests lib). The board
+ *  itself reads names off the daily status payload; the ledger
+ *  payload carries only the quest key, so the shelf resolves the
+ *  name here — a key the palace doesn't know falls back to the
+ *  kind label, never a blank row. */
+export const DAILY_QUEST_TITLES: Record<string, string> = {
+  "daily-first-frame": "First Frame",
+  "daily-song-spark": "Song Spark",
+  "daily-ship-it": "Ship It",
+  "daily-double-frame": "Double Frame",
+  "daily-second-verse": "Second Verse",
+  "daily-loudmouth": "Loudmouth",
+  "daily-marathon-cut": "Marathon Cut",
+};
+
+export function dailyQuestTitle(key: string | null): string {
+  if (!key) return ledgerEntryKindLabel("daily-quest");
+  return DAILY_QUEST_TITLES[key] ?? key;
+}
+
+/** The tutorial's name — the shelf's title for a "tutorial" entry
+ *  (its kind label, "Tutorial reward", rides the detail line). */
+export const TUTORIAL_LEDGER_TITLE = "Your First 10 Minutes";
 
 /* ─── The current week's objectives, game-style ────────────────────
    The board's active quests as objectives: fraction + percent from

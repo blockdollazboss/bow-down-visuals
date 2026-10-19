@@ -145,8 +145,11 @@ describe("Quest Board — track and claim ride the widget's rails, in-world", ()
    against the real functions; the wiring is pinned as source
    contracts in this file's established style. */
 import {
+  DAILY_QUEST_TITLES,
   IN_WORLD_QUEST_KEYS,
+  TUTORIAL_LEDGER_TITLE,
   claimableVb,
+  dailyQuestTitle,
   historyTotalVb,
   ledgerEntryKindLabel,
   normalizeLeaderboard,
@@ -155,6 +158,7 @@ import {
   questObjective,
 } from "./treasury-quests";
 import { STATION_BY_ID } from "./stations";
+import { resolveStationPanel } from "./station-panel";
 
 const depthsPanel = read("../../components/world/native/TreasuryQuestDepths.tsx");
 const worldPage = read("../../pages/world.tsx");
@@ -245,6 +249,9 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     ],
     entries: [
       { kind: "crate", key: null, amount: 500, at: "2026-10-15T11:05:00.000Z" },
+      { kind: "daily-quest", key: "daily-song-spark", amount: 10, at: "2026-10-15T08:00:00.000Z" },
+      { kind: "king-gift", key: null, amount: 25, at: "2026-10-14T20:00:00.000Z" },
+      { kind: "tutorial", key: null, amount: 30, at: "2026-10-13T12:05:00.000Z" },
       { kind: "quest", key: "generate-song", amount: 80, at: "2026-10-06T12:00:00.000Z" },
       { kind: "shark-drop", key: null, amount: 350, at: "2026-10-04T09:30:00.000Z" },
     ],
@@ -255,8 +262,8 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     expect(h).not.toBeNull();
     expect(h!.catalog).toHaveLength(2);
     expect(h!.weeks[0]!.quests[0]).toMatchObject({ key: "generate-song", claimed: true });
-    expect(h!.entries).toHaveLength(3);
-    expect(historyTotalVb(h!.entries)).toBe(930);
+    expect(h!.entries).toHaveLength(6);
+    expect(historyTotalVb(h!.entries)).toBe(995);
   });
 
   it("malformed payloads normalize to null — the error state, never invented rows", () => {
@@ -276,6 +283,31 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     expect(ledgerEntryKindLabel("quest")).toBe("Quest reward");
     expect(ledgerEntryKindLabel("shark-drop")).toBe("Shark drop");
     expect(ledgerEntryKindLabel("crate")).toBe("Hourly crate");
+    // "daily" (the Daily Drop bonus claim) stays an invalid kind in
+    // the malformed-payload test above — it keeps no per-claim row.
+    // The Daily QUEST Trio is a different system with real rows:
+    expect(ledgerEntryKindLabel("daily-quest")).toBe("Daily quest");
+    expect(ledgerEntryKindLabel("king-gift")).toBe("The King's gift");
+    expect(ledgerEntryKindLabel("tutorial")).toBe("Tutorial reward");
+  });
+
+  it("daily-quest rows name the quest from the server's def names; the tutorial names itself", () => {
+    expect(dailyQuestTitle("daily-song-spark")).toBe("Song Spark");
+    expect(dailyQuestTitle("daily-marathon-cut")).toBe("Marathon Cut");
+    expect(Object.keys(DAILY_QUEST_TITLES)).toHaveLength(7);
+    // An unknown future key degrades to the raw key, never a blank.
+    expect(dailyQuestTitle("daily-something-new")).toBe("daily-something-new");
+    expect(dailyQuestTitle(null)).toBe("Daily quest");
+    expect(TUTORIAL_LEDGER_TITLE).toBe("Your First 10 Minutes");
+  });
+
+  it("the ledger is members-only territory — guests get the pitch and never mount the panel", () => {
+    const board = STATION_BY_ID.get("quest-board")!;
+    expect(board.membersOnly).toBe(true);
+    expect(resolveStationPanel(board, true).type).toBe("guest-pitch");
+    expect(resolveStationPanel(board, false).type).toBe("custom");
+    // …and the ledger's only read rides the member's auth headers.
+    expect(depthsPanel).toContain("Authorization: `Bearer ${token}`");
   });
 
   it("the leaderboard normalizes the site's rows and refuses junk", () => {
@@ -305,6 +337,9 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     expect(depthsPanel).toContain("historyTotalVb(history.entries)");
     expect(depthsPanel).toContain("e.amount.toLocaleString");
     expect(depthsPanel).toContain("c.reward > 0");
+    // The Ring 3/4 sources render under their own names.
+    expect(depthsPanel).toContain("dailyQuestTitle(e.key)");
+    expect(depthsPanel).toContain("TUTORIAL_LEDGER_TITLE");
   });
 });
 

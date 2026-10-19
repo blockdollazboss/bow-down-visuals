@@ -1,12 +1,15 @@
 /**
  * retention-history.test.ts — the Treasury history read (World
- * Ring 2, items 2.21 + 2.22).
+ * Ring 2, items 2.21 + 2.22; sources completed by stack-20 R2 #13).
  *
- * getTreasuryHistory folds three claim tables into one ledger:
+ * getTreasuryHistory folds the claim tables into one ledger:
  * quest_progress (claimed rows, amount = the quest def's reward),
+ * daily_quest_progress (claimed rows, amount = the reward_vb the
+ * row stamped at claim time), king_moment_claims (amount = the
+ * recorded gift), world_tutorial_progress (the stamped reward),
  * shark_drops (claimed rows, amount = the recorded drop amount),
  * hourly_crate_claims (rows claimed BY this user, amount = the
- * recorded prize). Past weeks come from the same quest rows.
+ * recorded prize). Past weeks come from the quest rows.
  * Daily-drop claims are deliberately absent: the bonus system
  * keeps no per-claim row for them (only profiles.last_daily_claim),
  * and this read invents nothing.
@@ -18,6 +21,9 @@ const h = vi.hoisted(() => ({
     questRows: [] as any[],
     dropRows: [] as any[],
     crateRows: [] as any[],
+    dailyRows: [] as any[],
+    kingRows: [] as any[],
+    tutorialRows: [] as any[],
   },
 }));
 
@@ -30,12 +36,22 @@ vi.mock("../supabase-admin", () => ({
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { questProgressTable, sharkDropsTable, hourlyCrateClaimsTable } = actual;
+  const {
+    questProgressTable,
+    sharkDropsTable,
+    hourlyCrateClaimsTable,
+    dailyQuestProgressTable,
+    kingMomentClaimsTable,
+    worldTutorialProgressTable,
+  } = actual;
   const state = h.state;
   const readFor = (table: unknown) => {
     if (table === questProgressTable) return state.questRows;
     if (table === sharkDropsTable) return state.dropRows;
     if (table === hourlyCrateClaimsTable) return state.crateRows;
+    if (table === dailyQuestProgressTable) return state.dailyRows;
+    if (table === kingMomentClaimsTable) return state.kingRows;
+    if (table === worldTutorialProgressTable) return state.tutorialRows;
     return [];
   };
   const fakeDb = {
@@ -66,6 +82,9 @@ beforeEach(() => {
   h.state.questRows = [];
   h.state.dropRows = [];
   h.state.crateRows = [];
+  h.state.dailyRows = [];
+  h.state.kingRows = [];
+  h.state.tutorialRows = [];
 });
 
 describe("getTreasuryHistory", () => {
@@ -94,6 +113,37 @@ describe("getTreasuryHistory", () => {
       { kind: "shark-drop", key: null, amount: 350, at: "2026-10-14T09:30:00.000Z" },
       { kind: "quest", key: "generate-song", amount: 80, at: "2026-10-13T10:00:00.000Z" },
     ]);
+  });
+
+  it("folds daily quests, the King's gifts and the tutorial reward in with their recorded amounts", async () => {
+    h.state.dailyRows = [
+      { userId: USER, questKey: "daily-song-spark", dayDate: "2026-10-16", progress: 1, target: 1, completed: true, rewardVb: 10, marks: 5, claimedAt: new Date("2026-10-16T08:00:00Z") },
+      // Progressed but UNclaimed: never a ledger entry.
+      { userId: USER, questKey: "daily-first-frame", dayDate: "2026-10-16", progress: 1, target: 1, completed: true, rewardVb: null, marks: 0, claimedAt: null },
+    ];
+    h.state.kingRows = [
+      { id: "k1", userId: USER, momentDate: "2026-10-15", amountVb: 25, claimedAt: new Date("2026-10-15T20:00:00Z") },
+    ];
+    h.state.tutorialRows = [
+      { userId: USER, currentStep: 7, completedAt: new Date("2026-10-14T12:00:00Z"), rewardAmountVb: 30, rewardClaimedAt: new Date("2026-10-14T12:05:00Z") },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.entries).toEqual([
+      { kind: "daily-quest", key: "daily-song-spark", amount: 10, at: "2026-10-16T08:00:00.000Z" },
+      { kind: "king-gift", key: null, amount: 25, at: "2026-10-15T20:00:00.000Z" },
+      { kind: "tutorial", key: null, amount: 30, at: "2026-10-14T12:05:00.000Z" },
+    ]);
+  });
+
+  it("a claimed daily row with no recorded reward, and a tutorial row with no reward stamp, invent nothing", async () => {
+    h.state.dailyRows = [
+      { userId: USER, questKey: "daily-ship-it", dayDate: "2026-10-16", progress: 1, target: 1, completed: true, rewardVb: null, marks: 5, claimedAt: new Date("2026-10-16T09:00:00Z") },
+    ];
+    h.state.tutorialRows = [
+      { userId: USER, currentStep: 7, completedAt: new Date("2026-10-14T12:00:00Z"), rewardAmountVb: null, rewardClaimedAt: new Date("2026-10-14T12:05:00Z") },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.entries).toEqual([]);
   });
 
   it("past weeks carry the full def set with per-week progress and claim state", async () => {

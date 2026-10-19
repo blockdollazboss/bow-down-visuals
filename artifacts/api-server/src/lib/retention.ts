@@ -6,7 +6,7 @@
    Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
    recordCreation() is fire-and-forget safe: it never throws. */
 
-import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable } from "@workspace/db";
+import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable, dailyQuestProgressTable, kingMomentClaimsTable, worldTutorialProgressTable } from "@workspace/db";
 import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
 import { advanceDailyQuestsForUser, type DailyQuestDef } from "./daily-quests";
@@ -509,25 +509,41 @@ export async function claimQuestReward(
   return { reward: def.reward };
 }
 
-/* ── TREASURY HISTORY (World Ring 2, items 2.21 + 2.22) ──────────────────
+/* ── TREASURY HISTORY (World Ring 2, items 2.21 + 2.22; completed
+   by Ring 4 / stack-20 R2 item #13) ───────────────────────────────
    One read for the Treasury counter's trophy ledger + full quest
-   catalog: every claim the retention/bonus tables honestly record,
-   plus quest progress for past weeks (quest_progress carries a row
-   per user × quest × week, so past weeks are real data, not a
-   reconstruction).
+   catalog: every claim the tables honestly record, plus quest
+   progress for past weeks (quest_progress carries a row per
+   user × quest × week, so past weeks are real data, not a
+   reconstruction). The ledger's sources, each a real per-claim
+   record with the amount stamped when it was paid:
+     - weekly quest rewards (quest_progress.claimed_at),
+     - Daily Quest Trio rewards (daily_quest_progress: reward_vb
+       recorded at claim time),
+     - the King's daily gifts (king_moment_claims.amount_vb),
+     - the "Your First 10 Minutes" tutorial reward
+       (world_tutorial_progress: reward_amount_vb + reward_claimed_at),
+     - shark drops (shark_drops.amount on claimed rows — personal,
+       stream and World drop-spectacle claims all land here),
+     - hourly crates (hourly_crate_claims.prize_credits).
 
    What is NOT here, deliberately: daily-drop claims. The bonus
    system stores only profiles.last_daily_claim (a single date) —
    there is no per-claim row to list, so no daily entries are
    invented. The ledger's daily line comes from /api/bonus/status,
-   which already reports that date truthfully. */
+   which already reports that date truthfully. Streak-milestone
+   claims likewise keep no per-claim row (creation_streaks records
+   only WHICH milestone days were claimed, never when), so they
+   stay on the streak board, not in this ledger. */
 
 export interface TreasuryHistoryEntry {
-  kind: "quest" | "shark-drop" | "crate";
-  /** Quest key for kind "quest"; null otherwise. */
+  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate";
+  /** Quest key for kinds "quest" and "daily-quest"; null otherwise. */
   key: string | null;
   /** Visual Bucs paid — always the amount the source table recorded
-   *  (quest def reward, drop amount, crate prize). Never derived. */
+   *  (quest def reward, the daily row's stamped reward_vb, the
+   *  King's recorded gift, the tutorial's stamped reward, the drop
+   *  amount, the crate prize). Never derived. */
   amount: number;
   /** ISO timestamp the claim landed. */
   at: string;
@@ -548,7 +564,7 @@ const TREASURY_ENTRY_CAP = 50;
 const TREASURY_WEEK_CAP = 8;
 
 export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {
-  const [questRows, dropRows, crateRows] = await Promise.all([
+  const [questRows, dropRows, crateRows, dailyRows, kingRows, tutorialRows] = await Promise.all([
     db
       .select()
       .from(questProgressTable)
@@ -567,6 +583,28 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
       .where(eq(hourlyCrateClaimsTable.claimed_by, userId))
       .orderBy(desc(hourlyCrateClaimsTable.claimed_at))
       .limit(25),
+    db
+      .select()
+      .from(dailyQuestProgressTable)
+      .where(and(eq(dailyQuestProgressTable.userId, userId), isNotNull(dailyQuestProgressTable.claimedAt)))
+      .orderBy(desc(dailyQuestProgressTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(kingMomentClaimsTable)
+      .where(eq(kingMomentClaimsTable.userId, userId))
+      .orderBy(desc(kingMomentClaimsTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(worldTutorialProgressTable)
+      .where(
+        and(
+          eq(worldTutorialProgressTable.userId, userId),
+          isNotNull(worldTutorialProgressTable.rewardClaimedAt),
+        ),
+      )
+      .limit(1),
   ]);
 
   /* Weeks: newest first, capped — each week carries the FULL def
@@ -613,6 +651,19 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
   }
   for (const r of crateRows) {
     entries.push({ kind: "crate", key: null, amount: r.prize_credits, at: new Date(r.claimed_at).toISOString() });
+  }
+  for (const r of dailyRows) {
+    /* rewardVb is stamped on the row at claim time; a claimed row
+       without it recorded nothing payable — never invent an amount. */
+    if (!r.claimedAt || r.rewardVb == null) continue;
+    entries.push({ kind: "daily-quest", key: r.questKey, amount: r.rewardVb, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of kingRows) {
+    entries.push({ kind: "king-gift", key: null, amount: r.amountVb, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of tutorialRows) {
+    if (!r.rewardClaimedAt || r.rewardAmountVb == null) continue;
+    entries.push({ kind: "tutorial", key: null, amount: r.rewardAmountVb, at: new Date(r.rewardClaimedAt).toISOString() });
   }
   entries.sort((a, b) => (a.at < b.at ? 1 : -1));
 
