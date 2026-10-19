@@ -18,11 +18,19 @@ const router = Router();
      streaks, and honors quests_enabled + share_to_earn_enabled.
    Free: a DB row, zero provider spend — a growth loop, not a cost center. */
 
+/* The clients' share vocabulary (ShareMenu's ShareContentType,
+   the in-world desks' buildShareTrackPayload): every type a real
+   share surface can send must be recordable — a type the enum
+   doesn't know is a 400 the clients swallow, and the share (and
+   its quest progress) silently never lands. "image" rides here
+   for cover art / image shares (the website menu and the palace's
+   Cover Art Desk both speak it). */
 const CONTENT_TYPES = [
   "video",
   "song",
   "thumbnail",
   "showcase",
+  "image",
   "review_link",
   "winner_card",
   "other",

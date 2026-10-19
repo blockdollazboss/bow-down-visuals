@@ -295,10 +295,10 @@ export default function QuestsWidget({
                           {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
                         </button>
                       ) : inWorld ? (
-                        <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer">
-                          <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
-                            <ArrowUpRight className="h-4 w-4" />
-                          </span>
+                        <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer"
+                          data-testid={`world-daily-elsewhere-${q.key}`}
+                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors">
+                          On the website <ArrowUpRight className="h-3.5 w-3.5" />
                         </a>
                       ) : (
                         <Link href={meta.href}>
@@ -307,6 +307,10 @@ export default function QuestsWidget({
                           </span>
                         </Link>
                       )
+                    ) : inWorld ? (
+                      <span data-testid={`world-daily-elsewhere-${q.key}`} className="shrink-0 text-[10px] font-black uppercase tracking-wide text-white/35">
+                        On the website
+                      </span>
                     ) : null}
                   </div>
                 );
@@ -367,10 +371,10 @@ export default function QuestsWidget({
                       {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
                     </button>
                   ) : inWorld ? (
-                    <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer">
-                      <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
-                        <ArrowUpRight className="h-4 w-4" />
-                      </span>
+                    <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer"
+                      data-testid={`world-quest-elsewhere-${q.key}`}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors">
+                      On the website <ArrowUpRight className="h-3.5 w-3.5" />
                     </a>
                   ) : (
                     <Link href={meta.href}>
@@ -379,6 +383,10 @@ export default function QuestsWidget({
                       </span>
                     </Link>
                   )
+                ) : inWorld ? (
+                  <span data-testid={`world-quest-elsewhere-${q.key}`} className="shrink-0 text-[10px] font-black uppercase tracking-wide text-white/35">
+                    On the website
+                  </span>
                 ) : null}
               </div>
             );
