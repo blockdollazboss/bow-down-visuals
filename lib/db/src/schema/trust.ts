@@ -64,6 +64,25 @@ export const legacyDesignationsTable = pgTable("legacy_designations", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("legacy_designations_user_uidx").on(t.user_id), index("legacy_designations_heir_idx").on(t.heir_user_id)]);
 
+/** Legacy CONTACT (Stack 3 succession tail, migration 0166). A different
+ *  record from the designation above: the designee there must be a Bow
+ *  Down Visuals account — an heir who accepts. A legacy contact is any
+ *  person — a partner, a family member — named by NAME + EMAIL as the
+ *  person Bow Down Visuals should CONTACT about this account and the
+ *  creator's work if the creator no longer can. The row records the
+ *  designation only: it promises no account transfer, no payout, and no
+ *  legal effect, and nothing reads it except the owner's own settings
+ *  routes — it is never joined into any public profile DTO. */
+export const legacyContactsTable = pgTable("legacy_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull(),
+  contact_name: text("contact_name").notNull(),
+  contact_email: text("contact_email").notNull(),
+  note: text("note").notNull().default(""),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("legacy_contacts_user_uidx").on(t.user_id)]);
+
 export const catalogExportJobsTable = pgTable("catalog_export_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull(),
@@ -142,5 +161,6 @@ export const videoRetentionEventsTable = pgTable("video_retention_events", {
 export type ContentIdFingerprint = typeof contentIdFingerprintsTable.$inferSelect;
 export type ContentIdMatch = typeof contentIdMatchesTable.$inferSelect;
 export type LegacyDesignation = typeof legacyDesignationsTable.$inferSelect;
+export type LegacyContact = typeof legacyContactsTable.$inferSelect;
 export type CatalogExportJob = typeof catalogExportJobsTable.$inferSelect;
 export type StageRoomRow = typeof stageRoomsTable.$inferSelect;

@@ -102,6 +102,81 @@ export function LegacySettings() {
   );
 }
 
+/* ── Stack 3 #2b Legacy contact (same Settings area as succession) ─── */
+export function LegacyContactSettings() {
+  const { getAccessToken } = useAuth();
+  const [contact, setContact] = useState<any>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/legacy/contact");
+      setContact(d.contact);
+      if (d.contact) { setName(d.contact.name); setEmail(d.contact.email); setNote(d.contact.note ?? ""); }
+    } catch { setErr("Could not load your legacy contact."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function save() {
+    setErr(null); setMsg(null); setConfirmingRemove(false);
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "PUT", "/api/legacy/contact", { name: name.trim(), email: email.trim(), note: note.trim() });
+      setContact(d.contact);
+      setMsg("Saved. This is the person we will contact about your account and your work if you no longer can.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  async function remove() {
+    setErr(null); setMsg(null);
+    try {
+      const t = await getAccessToken();
+      await api(t, "DELETE", "/api/legacy/contact");
+      setContact(null); setName(""); setEmail(""); setNote(""); setConfirmingRemove(false);
+      setMsg("Legacy contact removed.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not remove."); }
+  }
+
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Legacy contact</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Name one person — a partner, a family member, a friend — and the email where Bow Down Visuals should
+        reach them about your account and your work if you no longer can. This setting only records who we
+        should contact. It does <strong>not</strong> transfer your account, your catalog, or any money, and it
+        has no legal effect — for that, a will is the tool. Only you can see or change this; it never appears
+        on your public profile.
+      </p>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {contact && (
+        <p className="mt-3 text-sm">Current legacy contact: <strong>{contact.name}</strong> ({contact.email})</p>
+      )}
+      <div className="mt-4 grid gap-3">
+        <input className={input} placeholder="Contact's name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+        <input className={input} type="email" placeholder="Contact's email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} />
+        <textarea className={input} rows={3} placeholder="Note for us when we reach out (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btn} onClick={save} disabled={!name.trim() || !email.trim()}>Save legacy contact</button>
+          {contact && !confirmingRemove && <button type="button" className={ghost} onClick={() => setConfirmingRemove(true)}>Remove legacy contact</button>}
+          {contact && confirmingRemove && (
+            <>
+              <span className="self-center text-sm">Remove {contact.name} as your legacy contact?</span>
+              <button type="button" className={ghost} onClick={remove}>Yes, remove</button>
+              <button type="button" className={ghost} onClick={() => setConfirmingRemove(false)}>Keep</button>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Stack 11 #5 Permanence (same Settings area as succession) ─────── */
 export function PermanenceSettings() {
   const { getAccessToken } = useAuth();
