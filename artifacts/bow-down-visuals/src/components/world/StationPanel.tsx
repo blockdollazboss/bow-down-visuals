@@ -60,6 +60,7 @@ import { fetchPlaylist } from "@/lib/streaming";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
+import { DailyDropCatalog } from "@/components/world/native/DailyDropCatalog";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
@@ -583,6 +584,9 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
           the real card, in the vault. inWorld: its CTA is an
           explicit new-tab transfer, never a same-tab walk-out. */}
       <DailyDropCard inWorld />
+      {/* The whole slate under the day's card (STACK-20 R2 #18):
+          use any template, archive the ones you don't want. */}
+      <DailyDropCatalog isLight={isLight} />
     </div>
   );
 }
