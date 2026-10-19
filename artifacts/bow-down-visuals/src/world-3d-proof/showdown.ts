@@ -2,14 +2,23 @@
  * showdown.ts — PROOF v2 STAGE (branch world-3d-characters).
  *
  * The free-route showdown, same stage and angles as the v1 proof:
- *   LEFT   — today's truth: the approved guard art on a flat plane.
- *   CENTER — the BLENDER body: modeled in Blender by script (bpy) from
- *            the approved art, our own geometry + regalia, exported to
- *            GLB and skinned onto the house rig by from-glb.ts.
- *   RIGHT  — the GENERATED body: the best free image-to-3D we could
- *            actually run (a statue — no skeleton) normalized and
- *            auto-skinned onto the same rig by the same loader.
- * Both bodies play the same v2 clips (the walk now strides). Palace
+ *   LEFT       — today's truth: the approved guard art on a flat plane.
+ *   CENTER     — the BLENDER body: modeled in Blender by script (bpy)
+ *                from the approved art, our own geometry + regalia,
+ *                exported to GLB and skinned onto the house rig by
+ *                from-glb.ts.
+ *   RIGHT      — the GENERATED male guard (guard-gen.glb): the best
+ *                free image-to-3D we could actually run (a statue — no
+ *                skeleton) normalized and auto-skinned onto the same
+ *                rig by the same loader.
+ *   CENTER-LEFT — the GENERATED female guard (guard-gen-female.glb),
+ *                at the post mirroring the male's across the center, so
+ *                both generated guards stand on the stage at once. She
+ *                arrived in her own slot (see RUNBOOK's two-slot rule):
+ *                installing her never evicts him. Her current body is
+ *                v1, with known faults (fin-arm, ragged tail) — a
+ *                regeneration swaps the slot file when it lands.
+ * All bodies play the same v2 clips (the walk now strides). Palace
  * lighting: ACES + a PMREM room environment so PBR materials (gold,
  * wet shark skin, polished shoes) read at palace grade — the
  * comparison is about the bodies, not the stage.
@@ -17,7 +26,11 @@
  * Deterministic posing (same params as v1):
  *   ?cam=front|side|back|threequarter  ?action=idle|bow|walk
  *   ?t=<seconds>  ?still=1  ?speak=0..1  ?focus=flat|blender|gen
- *   ?genrot=<radians> (statue front correction, if needed)
+ *   ?genrot=<radians> (male statue front correction, if needed)
+ *   ?femrot=<radians> (female front correction; defaults to genrot
+ *   minus a quarter turn — her raw statue faces +X where his faces +Z,
+ *   per the Blender judging pass, so the offset turns her to face the
+ *   same way he does)
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -103,7 +116,10 @@ const flatFigure = (() => {
     new THREE.PlaneGeometry(0.85, 1.92),
     new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.6, metalness: 0.05, alphaTest: 0.02 }),
   );
-  flat.position.set(1.65, 0.96, 0);
+  // x=+3.3: one post further out than v2 — the +1.65 post is now the
+  // female generated guard's (the mirror of the male's -1.65), and the
+  // flat reference keeps the far-LEFT end of the row.
+  flat.position.set(3.3, 0.96, 0);
   flat.rotation.y = Math.PI; // textured side toward the front camera (the hall billboards it; from behind it simply stops existing)
   flat.castShadow = true;
   scene.add(flat);
@@ -160,15 +176,32 @@ loadGlbFigure("/world/guard-v2-blender.glb")
   })
   .catch((e) => say(`BLENDER body FAILED to load: ${e instanceof Error ? e.message : String(e)}`));
 
+const genRot = Number(params.get("genrot") ?? "0");
 loadGlbFigure("/world/guard-gen.glb", {
   targetHeight: 1.92,
-  rotY: Number(params.get("genrot") ?? "0"),
+  rotY: genRot,
 })
   .then((fig) => {
     wireFigure(fig, -1.65, true);
-    say(`GENERATED body: ${fig.triangleCount.toLocaleString()} triangles · statue auto-skinned to the house rig`);
+    say(`GENERATED body (male): ${fig.triangleCount.toLocaleString()} triangles · statue auto-skinned to the house rig`);
   })
-  .catch((e) => say(`GENERATED body not present (${e instanceof Error ? e.message : String(e)}) — center stands alone`));
+  .catch((e) => say(`GENERATED body (male) not present (${e instanceof Error ? e.message : String(e)}) — center stands alone`));
+
+/* The female generated guard, at the mirrored post (+1.65 — the flat
+   plane's old spot; the flat moved one post further out). Same loader,
+   same normalization, same clips: she is a second generated-slot
+   occupant, not a new kind of figure. Her raw statue faces +X where
+   the male's faces +Z (Blender judging pass), so her default rotY is
+   his minus a quarter turn; ?femrot= overrides it outright. */
+loadGlbFigure("/world/guard-gen-female.glb", {
+  targetHeight: 1.92,
+  rotY: Number(params.get("femrot") ?? String(genRot - Math.PI / 2)),
+})
+  .then((fig) => {
+    wireFigure(fig, 1.65, true);
+    say(`GENERATED body (female): ${fig.triangleCount.toLocaleString()} triangles · statue auto-skinned to the house rig`);
+  })
+  .catch((e) => say(`GENERATED body (female) not present (${e instanceof Error ? e.message : String(e)}) — her post stands empty`));
 
 /* ── Controls ──────────────────────────────────────────────────── */
 document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((b) =>
