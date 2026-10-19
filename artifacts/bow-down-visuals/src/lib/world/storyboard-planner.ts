@@ -6,7 +6,7 @@
  * create-desks: lyrics → AI scenes → clips → project). What it never
  * had is a plan the member authors by hand: panels with a frame, a
  * title and their own notes, in an order they control, saved on the
- * server as their storyboard (routes/storyboards, migration 0161).
+ * server as their storyboard (routes/storyboards, migration 0163).
  * This file is the client half of that bench: paths, payload builders,
  * defensive normalizers for the wire DTO, the local move math (the
  * same swap the server performs), and the handoff — panels become the
