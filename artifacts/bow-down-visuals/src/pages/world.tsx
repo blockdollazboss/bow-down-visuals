@@ -2938,6 +2938,19 @@ export default function WorldPage() {
             const station = STATION_BY_ID.get(stationId);
             if (station) setPanelTarget({ kind: "station", station });
           }}
+          onEnterRoom={(roomId) => {
+            /* The Palace Calendar's walk (3.9): a creator room is
+               entered through its doorway transfer (the read that
+               proves the room is open); a palace room is a plain
+               transfer — the panel closes as the walker leaves. */
+            const slug = creatorSlugFromRoomId(roomId);
+            if (slug) {
+              void enterCreatorRoomRef.current(slug);
+              return;
+            }
+            setPanelTarget(null);
+            clientRef.current?.enterRoom(roomId);
+          }}
           mySlug={mySlug}
           onEnterCreatorRoom={(slug) => {
             void enterCreatorRoomRef.current(slug);

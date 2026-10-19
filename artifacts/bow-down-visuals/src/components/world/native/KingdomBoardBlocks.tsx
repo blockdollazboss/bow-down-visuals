@@ -29,6 +29,7 @@ import {
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
+import { PalaceCalendarBlock } from "./PalaceCalendarBlock";
 
 /* ─── Kingdom Board blocks (Lane K2, item 2) ───────────────────────
    Blocks joining the Kingdom Board's room directory:
@@ -42,6 +43,10 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
        (GET /api/world/events + the directory frame's slate):
        shows, listening parties and drops with times and rooms,
        live ones marked live.
+     PALACE CALENDAR (3.9) — PalaceCalendarBlock below: the same
+       happenings grouped by palace day across the week ahead,
+       with the last seven days behind them, and a member's walk
+       to each one (its room, or the contest desk).
      OPEN PARTY TABLES (program 2.23's directory join) — the open
        Marble Tables off the server's own rail (GET /api/party/rooms,
        the lobby's discovery read), each with a Join that hands the
@@ -70,10 +75,23 @@ export function KingdomBoardBlocks({
   isGuest,
   kingLine,
   onJoinPartyTable,
+  currentRoomId,
+  onEnterRoom,
+  onOpenStation,
 }: {
   directory: PalaceDirectoryEntry[];
   isLight: boolean;
   isGuest: boolean;
+  /** The room the walker stands in — the calendar block marks a
+   *  happening there "You're here". Optional. */
+  currentRoomId?: string;
+  /** The Palace Calendar's walk to a happening's room (3.9) —
+   *  threaded to the calendar block. Optional: without it the
+   *  calendar reads look-only. */
+  onEnterRoom?: (roomId: string) => void;
+  /** Open a station's panel in-world — the calendar's contest
+   *  rows ride it to the Winners' Circle desk. Optional. */
+  onOpenStation?: (stationId: string) => void;
   /** The King's daily moment line (Ring 3) — while his claim
    *  window stands in the hall it leads the today block (the
    *  page builds it from the hall's kingMoment state). Null =
@@ -297,6 +315,16 @@ export function KingdomBoardBlocks({
           )}
         </NativeBoard>
       </div>
+
+      {/* ── Palace calendar (3.9) ── */}
+      <PalaceCalendarBlock
+        directory={directory}
+        currentRoomId={currentRoomId}
+        isLight={isLight}
+        isGuest={isGuest}
+        onEnterRoom={onEnterRoom}
+        onOpenStation={onOpenStation}
+      />
 
       {/* ── Open party tables ── */}
       <div data-testid="world-kingdom-party-tables">

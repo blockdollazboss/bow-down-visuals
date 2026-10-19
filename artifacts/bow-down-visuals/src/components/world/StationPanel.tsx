@@ -136,6 +136,12 @@ export interface StationPanelProps {
    *  desks' editor chip uses, generalized). Optional — hosts
    *  without it leave quest actions as explicit transfers. */
   onOpenStation?: (stationId: string) => void;
+  /** The Palace Calendar's walk (3.9): carry the walker into the
+   *  named room — a palace room id, or a creator room
+   *  ("creator:<slug>", which the page walks through its doorway
+   *  transfer). Optional — hosts without it leave the Kingdom
+   *  Board's calendar look-only. */
+  onEnterRoom?: (roomId: string) => void;
   /** Creator Rooms (Ring 2, 3.5): the Courtyard arch panel's pick —
    *  the page registers the room's floor plan, dresses the scene
    *  and runs the doorway transfer. Optional — a host without it
@@ -269,6 +275,8 @@ function KingdomBoard({
   isGuest,
   kingLine,
   onJoinPartyTable,
+  onEnterRoom,
+  onOpenStation,
 }: {
   directory: PalaceDirectoryEntry[];
   currentRoomId: string;
@@ -276,6 +284,8 @@ function KingdomBoard({
   isGuest: boolean;
   kingLine?: string | null;
   onJoinPartyTable?: (room: import("@/lib/world/games-lobby").PartyOpenRoom) => void;
+  onEnterRoom?: (roomId: string) => void;
+  onOpenStation?: (stationId: string) => void;
 }) {
   if (directory.length === 0) {
     return (
@@ -283,7 +293,7 @@ function KingdomBoard({
         <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
           The board is quiet — the directory hasn&rsquo;t spoken yet.
         </p>
-        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} />
+        <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} currentRoomId={currentRoomId} onEnterRoom={onEnterRoom} onOpenStation={onOpenStation} />
       </div>
     );
   }
@@ -327,7 +337,7 @@ function KingdomBoard({
         The board follows the palace live — walk through a door and your name moves with you. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
-      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} />
+      <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} currentRoomId={currentRoomId} onEnterRoom={onEnterRoom} onOpenStation={onOpenStation} />
     </div>
   );
 }
@@ -1725,7 +1735,7 @@ export default function StationPanel(props: StationPanelProps) {
         switch (resolution.id) {
           case "kingdom-board":
             return (
-              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} kingLine={props.kingLine} onJoinPartyTable={props.onJoinPartyTable} />
+              <KingdomBoard directory={props.directory} currentRoomId={props.currentRoomId} isLight={isLight} isGuest={isGuest} kingLine={props.kingLine} onJoinPartyTable={props.onJoinPartyTable} onEnterRoom={props.onEnterRoom} onOpenStation={props.onOpenStation} />
             );
           case "front-row":
             return (

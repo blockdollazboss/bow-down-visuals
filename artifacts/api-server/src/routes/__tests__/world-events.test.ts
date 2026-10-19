@@ -20,6 +20,10 @@
  * - payloads are validated per kind; windows have min/max lengths.
  * - the public slate is live + upcoming only, soonest first;
  *   cancel is host-or-admin and refuses strangers and repeats.
+ * - ?recent=1 (the palace calendar, 3.9) adds `recent`: done events
+ *   that ended within the last 7 days, most recent first, capped
+ *   at 20. Without the flag the answer carries no recent key and
+ *   done events stay out of the slate entirely.
  *
  * Fake db mirrors arcade.test.ts: real table objects via
  * importOriginal, rows in the shared _reach-fake-db store.
@@ -280,6 +284,73 @@ describe("the slate, mine, and cancel", () => {
     expect(musicOnly.body.events.map((e: any) => e.title)).toEqual(["Later Party"]);
     const badRoom = await req("GET", "/api/world/events?roomId=world:dungeon");
     expect(badRoom.status).toBe(400);
+  });
+
+  it("the recent window (3.9): opt-in, done-only, last 7 days, newest first, room-filtered", async () => {
+    const DAY = 24 * HOUR;
+    const now = Date.now();
+    const doneRow = (id: string, title: string, endedHoursAgo: number, over: Record<string, unknown> = {}) => ({
+      id,
+      kind: "stage_show",
+      roomId: "world:kings-hall",
+      hostUserId: FRONT,
+      title,
+      startsAt: new Date(now - endedHoursAgo * HOUR - HOUR),
+      endsAt: new Date(now - endedHoursAgo * HOUR),
+      payload: { contentRef: VIDEO_ID },
+      status: "done",
+      createdAt: new Date(now - 30 * DAY),
+      ...over,
+    });
+    h.fake.seed("worldEvents", [
+      doneRow("11111111-1111-4111-8111-111111111111", "Ended Yesterday", 26),
+      doneRow("22222222-2222-4222-8222-222222222222", "Ended Just Now", 1),
+      doneRow("33333333-3333-4333-8333-333333333333", "Ended Long Ago", 9 * 24),
+      doneRow("44444444-4444-4444-8444-444444444444", "Called Off", 2, { status: "cancelled" }),
+      doneRow("55555555-5555-4555-8555-555555555555", "Music Hall Done", 3, { roomId: "world:music-hall", kind: "listening_party", payload: { trackIds: [TRACK_ID] } }),
+    ]);
+
+    /* The default answer is untouched: no recent key, and done
+       events never leak into the slate. */
+    const plain = await req("GET", "/api/world/events");
+    expect(plain.status).toBe(200);
+    expect(plain.body.events).toEqual([]);
+    expect("recent" in plain.body).toBe(false);
+
+    const withRecent = await req("GET", "/api/world/events?recent=1");
+    expect(withRecent.status).toBe(200);
+    expect(withRecent.body.recent.map((e: any) => e.title)).toEqual([
+      "Ended Just Now",
+      "Music Hall Done",
+      "Ended Yesterday",
+    ]);
+    expect(withRecent.body.recent[0].hostName).toBe("Front Row Fran");
+    expect(withRecent.body.recent[0].status).toBe("done");
+
+    const musicOnly = await req("GET", "/api/world/events?recent=1&roomId=world:music-hall");
+    expect(musicOnly.body.recent.map((e: any) => e.title)).toEqual(["Music Hall Done"]);
+  });
+
+  it("the recent window caps at 20, keeping the newest", async () => {
+    const now = Date.now();
+    const rows = Array.from({ length: 25 }, (_, i) => ({
+      id: `66666666-6666-4666-8666-${String(i).padStart(12, "0")}`,
+      kind: "drop",
+      roomId: "world:courtyard",
+      hostUserId: ADMIN,
+      title: `Drop ${i}`,
+      startsAt: new Date(now - (i + 2) * HOUR),
+      endsAt: new Date(now - (i + 1) * HOUR),
+      payload: { amountVb: 100, claimCap: 2 },
+      status: "done",
+      createdAt: new Date(now - (i + 2) * HOUR),
+    }));
+    h.fake.seed("worldEvents", rows);
+    const r = await req("GET", "/api/world/events?recent=1");
+    expect(r.status).toBe(200);
+    expect(r.body.recent).toHaveLength(20);
+    expect(r.body.recent[0].title).toBe("Drop 0");
+    expect(r.body.recent[19].title).toBe("Drop 19");
   });
 
   it("mine lists only the caller's bookings", async () => {

@@ -6,7 +6,15 @@
  *                                     rules enforced server-side)
  *   GET    /api/world/events          the public slate: live +
  *                                     upcoming, soonest first (the
- *                                     board/directory read)
+ *                                     board/directory read). With
+ *                                     ?recent=1 the answer also
+ *                                     carries `recent`: the palace
+ *                                     calendar's look back — done
+ *                                     events that ended within the
+ *                                     last RECENT_WINDOW_DAYS days,
+ *                                     most recent first, capped at
+ *                                     RECENT_CAP (3.9). Opt-in: the
+ *                                     default answer is unchanged.
  *   GET    /api/world/events/mine     the caller's own bookings
  *   DELETE /api/world/events/:id      cancel (host or admin)
  *
@@ -240,6 +248,13 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
 
 /* ── The public slate ─────────────────────────────────────────────── */
 
+/* The calendar's look back (UPGRADE-PROGRAM 3.9): done events stay
+ * readable for one week after they end, and never more than a
+ * board's worth — the bounds are the server's, and the board's copy
+ * names them. */
+const RECENT_WINDOW_DAYS = 7;
+const RECENT_CAP = 20;
+
 router.get("/world/events", publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const roomId = typeof req.query["roomId"] === "string" ? req.query["roomId"] : null;
@@ -247,6 +262,7 @@ router.get("/world/events", publicApiLimiter, async (req: Request, res: Response
       res.status(400).json({ error: "UNKNOWN_ROOM", message: "That room isn't in the palace." });
       return;
     }
+    const wantRecent = req.query["recent"] === "1";
     const now = Date.now();
     const rows = await db
       .select()
@@ -261,9 +277,34 @@ router.get("/world/events", publicApiLimiter, async (req: Request, res: Response
       .filter((r) => new Date(r.endsAt).getTime() > now)
       .sort(byStart);
     const names = await hostNames(upcoming.map((r) => r.hostUserId));
-    res.json({
+    const body: {
+      events: ReturnType<typeof toWorldEventDto>[];
+      recent?: ReturnType<typeof toWorldEventDto>[];
+    } = {
       events: upcoming.map((r) => toWorldEventDto(r, names.get(r.hostUserId) ?? "Creator")),
-    });
+    };
+    if (wantRecent) {
+      const since = now - RECENT_WINDOW_DAYS * 24 * 3600_000;
+      const doneRows = await db
+        .select()
+        .from(worldEventsTable)
+        .where(
+          and(
+            eq(worldEventsTable.status, "done"),
+            ...(roomId ? [eq(worldEventsTable.roomId, roomId)] : []),
+          ),
+        );
+      const recent = doneRows
+        .filter((r) => {
+          const ends = new Date(r.endsAt).getTime();
+          return ends <= now && ends >= since;
+        })
+        .sort((a, b) => new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime())
+        .slice(0, RECENT_CAP);
+      const recentNames = await hostNames(recent.map((r) => r.hostUserId));
+      body.recent = recent.map((r) => toWorldEventDto(r, recentNames.get(r.hostUserId) ?? "Creator"));
+    }
+    res.json(body);
   } catch (err) {
     logger.error({ err }, "[world-events] slate read failed");
     res.status(500).json({ error: "Couldn't load the palace calendar. Try again." });
