@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  AlertTriangle, Check, ImagePlus, Loader2, Plus, RefreshCw, Save, Sparkles, X,
+  AlertTriangle, Check, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Sparkles, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -359,14 +359,26 @@ export function BrandKitPanel() {
           )}
           <div className="min-w-[220px] flex-1">
             <input className={inputCls} value={logoUrl} maxLength={2000} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/my-logo.png" />
-            <button
-              type="button"
-              onClick={() => void openPicker()}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 transition hover:border-primary/50 hover:text-primary"
-            >
-              <ImagePlus className="h-3.5 w-3.5" />
-              {t("brandingKit.brand.pickFromLibrary", { defaultValue: "Choose from my library" })}
-            </button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void openPicker()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 transition hover:border-primary/50 hover:text-primary"
+              >
+                <ImagePlus className="h-3.5 w-3.5" />
+                {t("brandingKit.brand.pickFromLibrary", { defaultValue: "Choose from my library" })}
+              </button>
+              {logoUrl.trim() && (
+                <a
+                  href={logoUrl.trim()}
+                  download="my-logo.png"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 transition hover:border-primary/50 hover:text-primary"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t("brandingKit.brand.downloadLogo", { defaultValue: "Download logo" })}
+                </a>
+              )}
+            </div>
           </div>
         </div>
         {pickerOpen && (

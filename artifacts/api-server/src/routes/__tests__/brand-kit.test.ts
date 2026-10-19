@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
   profile: null as { themeConfig: Record<string, unknown> } | null,
   charges: [] as number[],
   refunds: [] as number[],
+  uploads: [] as { bucket: string; path: string; contentType: string }[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -72,6 +73,21 @@ vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "test-model",
 }));
 
+/* Storage: mirrors the real normalizeToStorageRef contract — a URL on
+   our own storage comes back as a DIFFERENT (ref) string, anything else
+   comes back unchanged; uploads land at a permanent public URL. */
+vi.mock("../../lib/objectStorage", () => ({
+  normalizeToStorageRef: (v: string | null | undefined) => {
+    if (v == null) return null;
+    if (v.includes("storage.example/")) return `supabase://stored/${v.split("storage.example/")[1]}`;
+    return v;
+  },
+  uploadPublicMediaToR2: vi.fn(async (bucket: string, path: string, _buf: Buffer, contentType: string) => {
+    state.uploads.push({ bucket, path, contentType });
+    return `https://storage.example/${bucket}/${path}`;
+  }),
+}));
+
 vi.mock("@workspace/db", () => {
   const table = { __table: "creator_profiles", id: "id", userId: "userId", themeConfig: "themeConfig" };
   const selectChain: any = {};
@@ -103,6 +119,12 @@ let base = "";
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
+  /* A stand-in "external" logo source the re-host path can really
+     download over loopback HTTP during the mirror test. */
+  app.get("/external-logo.png", (_req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.send(Buffer.from("89504e470d0a1a0a", "hex"));
+  });
   app.use("/api", brandKitRouter);
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => resolve());
@@ -120,6 +142,7 @@ beforeEach(() => {
   state.profile = { themeConfig: { themeId: "midnight-gold", banner: { layout: "full-bleed" } } };
   state.charges = [];
   state.refunds = [];
+  state.uploads = [];
 });
 
 async function generateKit() {
@@ -263,5 +286,91 @@ describe("brand kit linkage (DE-5)", () => {
     state.authedUserId = null;
     expect((await fetch(`${base}/api/brand-kit`)).status).toBe(401);
     expect((await fetch(`${base}/api/brand-kit/apply`, { method: "POST" })).status).toBe(401);
+    expect(
+      (
+        await fetch(`${base}/api/brand-kit/logo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logoUrl: "https://storage.example/generated-clips/logos/user-1/a.png" }),
+        })
+      ).status,
+    ).toBe(401);
+  });
+});
+
+describe("POST /api/brand-kit/logo — a generated logo lands in the kit", () => {
+  async function saveLogo(logoUrl: string) {
+    const res = await fetch(`${base}/api/brand-kit/logo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logoUrl }),
+    });
+    return { res, data: await res.json() };
+  }
+
+  it("stores a logo already on our storage as-is — permanent, free, no re-host", async () => {
+    const url = "https://storage.example/generated-clips/logos/user-1/abc.png";
+    const { res, data } = await saveLogo(url);
+    expect(res.status).toBe(200);
+    expect(data.logoUrl).toBe(url);
+    expect(data.mirrored).toBe(false);
+    expect(data.replaced).toBe(false);
+    expect(data.brandKit.logoUrl).toBe(url);
+    expect(state.uploads).toEqual([]);
+    expect(state.charges).toEqual([]);
+    // It reads back from the kit like every other brand field.
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.logoUrl).toBe(url);
+  });
+
+  it("re-hosts an external (provider temp) URL into permanent storage and stores THAT", async () => {
+    const { res, data } = await saveLogo(`${base}/external-logo.png`);
+    expect(res.status).toBe(200);
+    expect(data.mirrored).toBe(true);
+    expect(data.logoUrl).toMatch(/^https:\/\/storage\.example\/generated-clips\/logos\/user-1\/.+\.png$/);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.uploads[0]!.bucket).toBe("generated-clips");
+    expect(state.uploads[0]!.path).toMatch(/^logos\/user-1\//);
+    expect(state.charges).toEqual([]);
+    const stored = (state.profile!.themeConfig as any).brandKit;
+    expect(stored.logoUrl).toBe(data.logoUrl);
+  });
+
+  it("a second save replaces the kit's one logo — never a duplicate", async () => {
+    const first = "https://storage.example/generated-clips/logos/user-1/first.png";
+    const second = "https://storage.example/generated-clips/logos/user-1/second.png";
+    await saveLogo(first);
+    const { res, data } = await saveLogo(second);
+    expect(res.status).toBe(200);
+    expect(data.replaced).toBe(true);
+    expect(data.brandKit.logoUrl).toBe(second);
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.logoUrl).toBe(second);
+    // Saving the same logo again is a no-op replace, not a duplicate.
+    const again = await saveLogo(second);
+    expect(again.data.replaced).toBe(false);
+    expect(again.data.brandKit.logoUrl).toBe(second);
+  });
+
+  it("keeps the rest of the kit when the logo lands", async () => {
+    await generateKit();
+    const { data } = await saveLogo("https://storage.example/generated-clips/logos/user-1/abc.png");
+    expect(data.brandKit.colors).toHaveLength(5);
+    expect(data.brandKit.taglines).toEqual(KIT_JSON.taglines);
+    expect(data.brandKit.logoUrl).toContain("abc.png");
+  });
+
+  it("rejects a non-URL logo with a 400 and stores nothing", async () => {
+    const { res } = await saveLogo("not-a-url");
+    expect(res.status).toBe(400);
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit).toBeNull();
+  });
+
+  it("no profile is an honest 404 NO_PROFILE", async () => {
+    state.profile = null;
+    const { res, data } = await saveLogo("https://storage.example/generated-clips/logos/user-1/abc.png");
+    expect(res.status).toBe(404);
+    expect(data.error).toBe("NO_PROFILE");
   });
 });
