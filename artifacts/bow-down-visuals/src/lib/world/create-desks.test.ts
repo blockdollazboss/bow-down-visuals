@@ -626,6 +626,66 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(m.ctrPredictionOfResponse(null)).toBeNull();
   });
 
+  it("R2 #10 thumbnail benches: partial batches stay honest, winner saves on the page's rail", async () => {
+    const m = await import("./create-desks");
+    /* Partial parse: the failed batch's landed variations ride
+       `partialImages` — rows without a real url never count, junk
+       shapes parse to nothing. */
+    expect(
+      m.thumbnailPartialImagesOfResponse({
+        error: "Variation 4 returned no image data.",
+        creditsRefunded: true,
+        partialImages: [{ url: "p1", variation: 1 }, { url: "p2", variation: 2 }, { url: "p3", variation: 3 }],
+      }),
+    ).toEqual([
+      { url: "p1", variation: "variation-1" },
+      { url: "p2", variation: "variation-2" },
+      { url: "p3", variation: "variation-3" },
+    ]);
+    expect(m.thumbnailPartialImagesOfResponse({ partialImages: [{ variation: 1 }] })).toEqual([]);
+    expect(m.thumbnailPartialImagesOfResponse({ images: [{ url: "u1" }] })).toEqual([]);
+    expect(m.thumbnailPartialImagesOfResponse(null)).toEqual([]);
+    expect(m.thumbnailPartialImagesOfResponse("nope")).toEqual([]);
+
+    /* Slot truth: a full batch is 4 ready slots; 3 landed = 3 ready
+       + 1 failed; nothing landed = 4 failed. Ready slots carry the
+       server's urls 1:1 — distinct inputs stay distinct, no slot is
+       ever filled from another slot's image (no faked variations). */
+    const four = [1, 2, 3, 4].map((i) => ({ url: `u${i}`, variation: `variation-${i}` }));
+    expect(m.thumbnailBenchSlots(four).map((s) => s.status)).toEqual(["ready", "ready", "ready", "ready"]);
+    const three = m.thumbnailBenchSlots(four.slice(0, 3));
+    expect(three.map((s) => s.status)).toEqual(["ready", "ready", "ready", "failed"]);
+    expect(three[3]).toEqual({ status: "failed", variation: "variation-4" });
+    expect(m.thumbnailBenchSlots([]).every((s) => s.status === "failed")).toBe(true);
+    const readyUrls = three.filter((s) => s.status === "ready").map((s) => (s as { url: string }).url);
+    expect(readyUrls).toEqual(["u1", "u2", "u3"]);
+    expect(new Set(readyUrls).size).toBe(readyUrls.length);
+    expect(m.THUMBNAIL_BATCH_SIZE).toBe(4);
+
+    /* Winner save: the handoff key is the website's exact key (the
+       one video-studio.tsx reads back), and the publish href is the
+       publish protocol prefilled with the winner as the thumbnail. */
+    expect(m.THUMBNAIL_WINNER_HANDOFF_KEY).toBe("wave8_thumbnail_winner");
+    const href = m.buildThumbnailWinnerPublishHref({ winnerUrl: "https://cdn.example/winner.png", title: " My Video " });
+    expect(href.startsWith("/publish?")).toBe(true);
+    const params = new URLSearchParams(href.slice("/publish?".length));
+    expect(params.get("type")).toBe("video");
+    expect(params.get("thumbnail")).toBe("https://cdn.example/winner.png");
+    expect(params.get("title")).toBe("My Video");
+    const bare = new URLSearchParams(m.buildThumbnailWinnerPublishHref({ winnerUrl: "w" }).slice("/publish?".length));
+    expect(bare.get("title")).toBeNull();
+    expect(bare.get("thumbnail")).toBe("w");
+  });
+
+  it("R2 #10 thumbnail desk: guests get the station pitch, never the bench", async () => {
+    const { resolveStationPanel } = await import("./station-panel");
+    const desk = PALACE_STATIONS.find((s) => s.id === "thumbnail-desk");
+    expect(desk).toBeDefined();
+    expect(desk!.membersOnly).toBe(true);
+    expect(resolveStationPanel(desk!, true).type).toBe("guest-pitch");
+    expect(resolveStationPanel(desk!, false).type).not.toBe("guest-pitch");
+  });
+
   it("2.11 cover rails: presets are the page's grid, attribution rides the payload, showcase/share builders", async () => {
     const m = await import("./create-desks");
     expect(m.COVER_ART_PRESETS.map((p) => p.style)).toEqual(["luxury-gold", "dark-moody", "vibrant-pop", "cinematic"]);

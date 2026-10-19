@@ -3,11 +3,16 @@ import { Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   buildThumbnailVariantsPayload,
+  buildThumbnailWinnerPublishHref,
   ctrPredictionOfResponse,
+  scheduleHrefForMedia,
+  THUMBNAIL_BATCH_SIZE,
+  thumbnailBenchSlots,
   thumbnailGeneratorCost,
   thumbnailGeneratorFields,
   THUMBNAIL_FACE_FIELD,
   thumbnailImagesOfResponse,
+  thumbnailPartialImagesOfResponse,
   THUMBNAIL_TEST_FIELD,
   THUMBNAIL_TEST_MAX_FILES,
   THUMBNAIL_TEST_MIN_FILES,
@@ -15,6 +20,7 @@ import {
   thumbnailTestFields,
   thumbnailVariantsCost,
   thumbnailVariantsOfResponse,
+  THUMBNAIL_WINNER_HANDOFF_KEY,
   type CtrPrediction,
 } from "@/lib/world/create-desks";
 import {
@@ -36,7 +42,15 @@ import {
      with a pick-the-winner tap;
    - the CTR prediction bench (POST /api/thumbnail-test) — the
      page's honest framing kept: a prediction from best practices,
-     never a guarantee. Prices from the registry, shown up front. */
+     never a guarantee. Prices from the registry, shown up front.
+   R2 #10 finish: the bench tells the truth about a batch that
+   stopped partway (the server refunds it and returns the landed
+   variations — they render as real slots beside failed ones, with
+   a fresh-batch run as the retry); the A/B pair faces off LARGE
+   with the original beside them, like the page; and picking the
+   winner SAVES it on the page's own rail — the winner's permanent
+   url rides the packaging handoff Video Studio reads back — with
+   the publish door offered as an explicit link. */
 
 const goldBtn =
   "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
@@ -59,7 +73,17 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
   const [facePreview, setFacePreview] = useState<string | null>(null);
   const [images, setImages] = useState<Array<{ url: string; variation: string }>>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  /* Slots of the batch of 4 that did NOT land (a stopped batch, or a
+     short answer) — rendered as failed slots, never filled in with
+     another slot's image. batchNote carries the refund truth when
+     the server stopped partway. */
+  const [failedCount, setFailedCount] = useState(0);
+  const [batchNote, setBatchNote] = useState<string | null>(null);
   const [variants, setVariants] = useState<Array<{ url: string; label: string; prompt: string }>>([]);
+  /* The image the current A/B pair was generated from — the
+     head-to-head's "original" card, frozen at run time so changing
+     the bench selection afterwards can't swap it. */
+  const [variantsSource, setVariantsSource] = useState<string | null>(null);
   const [winner, setWinner] = useState<string | null>(null);
   const [testFiles, setTestFiles] = useState<File[]>([]);
   const [testPreviews, setTestPreviews] = useState<string[]>([]);
@@ -70,12 +94,18 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
 
   const selectedUrl = images.find((i) => i.variation === selected)?.url ?? images[0]?.url ?? null;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  /* The bench after a run: landed variations as ready slots, the
+     rest as failed slots (thumbnailBenchSlots never fills a slot
+     from another slot's image). */
+  const slots = thumbnailBenchSlots(images);
+  const benchTouched = images.length > 0 || failedCount > 0;
 
   const runMaker = async () => {
     if (busy || prompt.trim().length < 3) return;
     setBusy("maker");
     setError(null);
     void quest.snapshot();
+    let landedThisRun = false;
     try {
       const form = new FormData();
       for (const [k, v] of thumbnailGeneratorFields({ prompt, stylePreset, aspectRatio, overlayText, attribution })) form.append(k, v);
@@ -86,16 +116,47 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Thumbnail generation failed.");
+      if (!res.ok) {
+        /* A batch that stopped partway: the server refunded it and
+           the variations that DID land ride the error body in
+           permanent storage. Show them as real results beside
+           failed slots — never dropped, never dressed up. */
+        const partial = thumbnailPartialImagesOfResponse(data);
+        if (partial.length > 0) {
+          landedThisRun = true;
+          setImages(partial);
+          setSelected(partial[0]!.variation);
+          setFailedCount(THUMBNAIL_BATCH_SIZE - partial.length);
+          setBatchNote(
+            `${partial.length} of ${THUMBNAIL_BATCH_SIZE} landed before the batch stopped — your ${thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs were refunded. What's here is real and saved; the empty slots didn't generate.`,
+          );
+          setWinner(null);
+          setVariants([]);
+          setVariantsSource(null);
+          refreshProfile();
+          void quest.checkAfter();
+          return;
+        }
+        throw new Error(data.error ?? "Thumbnail generation failed.");
+      }
       const parsed = thumbnailImagesOfResponse(data);
       if (parsed.length === 0) throw new Error("The maker came back without images — nothing to pick from.");
+      landedThisRun = true;
       setImages(parsed);
       setSelected(parsed[0]!.variation);
+      setFailedCount(THUMBNAIL_BATCH_SIZE - parsed.length);
+      setBatchNote(null);
       setWinner(null);
       setVariants([]);
+      setVariantsSource(null);
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
+      /* A run that landed nothing on an empty bench still shows its
+         outcome: a full row of failed slots with the fresh-batch
+         retry. A re-run's failure never clears a bench that already
+         holds real images. */
+      if (!landedThisRun && images.length === 0) setFailedCount(THUMBNAIL_BATCH_SIZE);
       setError(err instanceof Error ? err.message : "Thumbnail generation failed.");
     } finally {
       setBusy(null);
@@ -106,6 +167,7 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
     if (busy || !selectedUrl) return;
     setBusy("variants");
     setError(null);
+    setWinner(null);
     try {
       const res = await fetch("/api/wave8/thumbnail-ab/variants", {
         method: "POST",
@@ -115,11 +177,26 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Variant generation failed.");
       setVariants(thumbnailVariantsOfResponse(data));
+      setVariantsSource(selectedUrl);
       refreshProfile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Variant generation failed.");
     } finally {
       setBusy(null);
+    }
+  };
+
+  /* Picking the winner SAVES it, on the website's own rail: the
+     winner's permanent url rides the packaging handoff that Video
+     Studio reads back (thumbnail-studio.tsx's pickWinner writes the
+     exact same key), so a winner picked in the palace is the
+     thumbnail the packaging flow picks up. */
+  const pickWinner = (url: string) => {
+    setWinner(url);
+    try {
+      localStorage.setItem(THUMBNAIL_WINNER_HANDOFF_KEY, url);
+    } catch {
+      /* storage unavailable — the winner still shows on the bench */
     }
   };
 
@@ -195,46 +272,105 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
         Make 4 variations · {thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs
       </button>
 
-      {selectedUrl ? (
-        <div className="space-y-2">
-          <div className="relative overflow-hidden rounded-xl">
-            <img src={selectedUrl} alt="Your thumbnail" className="w-full rounded-xl object-contain" />
-            {overlayText.trim() ? (
-              <span
-                data-testid="world-thumbnail-overlay-preview"
-                className={`pointer-events-none absolute left-0 right-0 px-3 text-center text-lg font-black uppercase text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] ${
-                  overlayPosition === "top" ? "top-2" : overlayPosition === "middle" ? "top-1/2 -translate-y-1/2" : "bottom-2"
-                }`}
-              >
-                {overlayText}
-              </span>
-            ) : null}
+      {benchTouched ? (
+        <div className="space-y-2" data-testid="world-thumbnail-bench">
+          {selectedUrl ? (
+            <div className="relative overflow-hidden rounded-xl">
+              <img src={selectedUrl} alt="Your thumbnail" className="w-full rounded-xl object-contain" />
+              {overlayText.trim() ? (
+                <span
+                  data-testid="world-thumbnail-overlay-preview"
+                  className={`pointer-events-none absolute left-0 right-0 px-3 text-center text-lg font-black uppercase text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] ${
+                    overlayPosition === "top" ? "top-2" : overlayPosition === "middle" ? "top-1/2 -translate-y-1/2" : "bottom-2"
+                  }`}
+                >
+                  {overlayText}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="grid grid-cols-4 gap-2">
+            {slots.map((slot) =>
+              slot.status === "ready" ? (
+                <button key={slot.variation} type="button" onClick={() => setSelected(slot.variation)} className={`overflow-hidden rounded-lg border-2 ${selected === slot.variation ? "border-[#d4af37]" : "border-transparent"}`}>
+                  <img src={slot.url} alt={slot.variation} className="h-14 w-full object-cover" />
+                </button>
+              ) : (
+                <div
+                  key={slot.variation}
+                  data-testid="world-thumbnail-failed-slot"
+                  className={`flex h-14 items-center justify-center rounded-lg border-2 border-dashed text-center ${isLight ? "border-[#92600a]/40" : "border-white/20"}`}
+                >
+                  <span className={`px-1 text-[11px] font-bold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Didn&rsquo;t land</span>
+                </div>
+              ),
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {images.map((img) => (
-              <button key={img.variation} type="button" onClick={() => setSelected(img.variation)} className={`overflow-hidden rounded-lg border-2 ${selected === img.variation ? "border-[#d4af37]" : "border-transparent"}`}>
-                <img src={img.url} alt={img.variation} className="h-14 w-24 object-cover" />
-              </button>
-            ))}
-          </div>
-          <button type="button" data-testid="world-thumbnail-variants-run" onClick={() => void runVariants()} disabled={busy !== null} className={chipBtn(isLight)}>
-            {busy === "variants" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            Make A/B variants of this one · {thumbnailVariantsCost().toLocaleString("en-US")} Visual Bucs
-          </button>
+          {batchNote ? <p className={`text-xs ${muted}`}>{batchNote}</p> : null}
+          {failedCount > 0 ? (
+            <button type="button" data-testid="world-thumbnail-fresh-batch" onClick={() => void runMaker()} disabled={busy !== null || prompt.trim().length < 3} className={chipBtn(isLight)}>
+              {busy === "maker" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Run a fresh batch · {thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs
+            </button>
+          ) : null}
+          {selectedUrl ? (
+            <button type="button" data-testid="world-thumbnail-variants-run" onClick={() => void runVariants()} disabled={busy !== null} className={chipBtn(isLight)}>
+              {busy === "variants" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Make A/B variants of this one · {thumbnailVariantsCost().toLocaleString("en-US")} Visual Bucs
+            </button>
+          ) : null}
         </div>
       ) : null}
 
       {variants.length > 0 ? (
         <div className="space-y-2" data-testid="world-thumbnail-variants">
-          <p className={`text-xs font-semibold ${muted}`}>Tap the winner — that&rsquo;s the one to ship.</p>
-          <div className="flex flex-wrap gap-2">
+          <p className={`text-xs font-semibold ${muted}`}>Head to head — pick the winner. That&rsquo;s the one that ships.</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {variantsSource ? (
+              <div className={`overflow-hidden rounded-lg border-2 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+                <img src={variantsSource} alt="Your original thumbnail" className="aspect-video w-full object-cover" />
+                <span className="block px-1.5 py-1 text-[11px] font-bold">Your original</span>
+              </div>
+            ) : null}
             {variants.map((v) => (
-              <button key={v.url} type="button" onClick={() => setWinner(v.url)} className={`overflow-hidden rounded-lg border-2 text-left ${winner === v.url ? "border-[#d4af37]" : "border-transparent"}`}>
-                <img src={v.url} alt={v.label} className="h-16 w-28 object-cover" />
-                <span className="block px-1 py-0.5 text-[11px] font-bold">{v.label}{winner === v.url ? " — your winner" : ""}</span>
-              </button>
+              <div key={v.url} className={`overflow-hidden rounded-lg border-2 ${winner === v.url ? "border-[#d4af37]" : "border-transparent"}`}>
+                <img src={v.url} alt={v.label} className="aspect-video w-full object-cover" />
+                <div className="flex items-center justify-between gap-1 px-1.5 py-1">
+                  <span className="min-w-0 truncate text-[11px] font-bold">{v.label}</span>
+                  {winner === v.url ? (
+                    <span className="shrink-0 text-[11px] font-bold text-[#d4af37]">Your winner</span>
+                  ) : (
+                    <button type="button" data-testid="world-thumbnail-pick-winner" onClick={() => pickWinner(v.url)} className={chipBtn(isLight)}>
+                      Pick the winner
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
+          {winner ? (
+            <div data-testid="world-thumbnail-winner" className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold">
+                Winner saved — it&rsquo;s the thumbnail your video packaging flow picks up.
+              </p>
+              <a
+                href={buildThumbnailWinnerPublishHref({ winnerUrl: winner, title: overlayText || prompt })}
+                target="_blank"
+                rel="noreferrer"
+                className={chipBtn(isLight)}
+              >
+                Use as thumbnail for a video
+              </a>
+              <a
+                href={scheduleHrefForMedia(winner, "image", "My winning thumbnail — made with Bow Down Visuals")}
+                target="_blank"
+                rel="noreferrer"
+                className={chipBtn(isLight)}
+              >
+                Schedule it
+              </a>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

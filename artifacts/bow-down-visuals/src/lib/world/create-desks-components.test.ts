@@ -99,6 +99,35 @@ describe("2.9–2.11 thumbnail + cover contracts", () => {
     expect(thumbBenches).toContain("ctrPredictionOfResponse");
   });
 
+  it("R2 #10: partial batches render failed slots + a fresh-batch retry; the winner is saved, not just marked", () => {
+    /* Partial honesty: landed variations from a stopped batch are
+       parsed and shown; missing ones render as failed slots; the
+       retry is a fresh batch run (the failed one was refunded). */
+    expect(thumbBenches).toContain("thumbnailPartialImagesOfResponse");
+    expect(thumbBenches).toContain("thumbnailBenchSlots");
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-bench"');
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-failed-slot"');
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-fresh-batch"');
+    expect(thumbBenches).toContain("were refunded");
+    /* No client-side image fabrication: variations come only from
+       the server's responses — no canvas, no object-url minting of
+       results (face/candidate previews are the only createObjectURL
+       uses, both pre-existing upload previews). */
+    expect(thumbBenches).not.toContain("canvas");
+    /* Head-to-head: the A/B pair renders large (aspect-video) with
+       the frozen original beside them, and a real pick button. */
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-pick-winner"');
+    expect(thumbBenches).toContain("aspect-video w-full object-cover");
+    expect(thumbBenches).toContain("variantsSource");
+    /* The winner SAVES on the website's rail: the permanent url is
+       written to the packaging handoff key Video Studio reads, and
+       the winner bar offers the publish-protocol door. */
+    expect(thumbBenches).toContain("localStorage.setItem(THUMBNAIL_WINNER_HANDOFF_KEY, url)");
+    expect(thumbBenches).toContain('data-testid="world-thumbnail-winner"');
+    expect(thumbBenches).toContain("buildThumbnailWinnerPublishHref");
+    expect(thumbBenches).toContain("Winner saved");
+  });
+
   it("cover desk carries presets, attribution, share tracking, showcase + history", () => {
     expect(desks).toContain('data-testid="world-cover-preset-grid"');
     expect(desks).toContain("COVER_ART_PRESETS");
