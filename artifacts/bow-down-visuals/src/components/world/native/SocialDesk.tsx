@@ -26,6 +26,8 @@ import {
   REPLY_DRAFT_TONES, replyDraftBatch,
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
   BOARD_REACTIONS, nextReactionState, fullThread,
+  threadCountOf, threadToggleLabel, mergeThreadChildren, threadReplyAllowed,
+  type ThreadLoadState,
   type DmConversation, type DmMessage, type DmAttachment, type Superfan,
   type SentimentReport, type CommunityPostVariant, type ReplyDraftTone,
 } from "@/lib/world/social-desk";
@@ -36,7 +38,7 @@ import {
      list, open thread, in-world composer, new conversation by
      name, request actions — all on the messages page's own rails.
    - CommunityHallBoard (Courtyard): a notice board — recent posts
-     as readable cards with in-world react + reply preview,
+     as readable cards with in-world react + full nested threads,
      superfan/sentiment highlights run against the board's own
      posts, and a Pin-a-post composer on the generate-community-
      post family. Moderation stays transfer-only in v1 (the board
@@ -807,6 +809,178 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
 
 /* ═══ Community Hall ════════════════════════════════════════════════ */
 
+/* One reply in a thread (2.18): the site's data nests by reply
+   chains — every reply is itself a post with its own server
+   reply_count, and its children ride the same replies rail — so a
+   reply renders as a node that opens its OWN children in place,
+   under the same laws as the thread root: the count is the server's
+   plus this session's landed answers, and a failed child load is a
+   failed state with a retry, never an empty branch. Members can
+   answer any node in place; guests read only. */
+function ThreadReplyNode({
+  reply, depth, isLight, isGuest, authHeaders,
+}: {
+  reply: FeedPost;
+  depth: number;
+  isLight: boolean;
+  isGuest: boolean;
+  authHeaders: () => Promise<Record<string, string>>;
+}) {
+  const [children, setChildren] = useState<FeedPost[] | null>(null);
+  const [childState, setChildState] = useState<ThreadLoadState>("idle");
+  const [open, setOpen] = useState(false);
+  const [landed, setLanded] = useState<FeedPost[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const count = threadCountOf(reply.reply_count, landed.length);
+  const canReply = threadReplyAllowed(isGuest);
+
+  async function loadChildren() {
+    setChildState("loading");
+    try {
+      const d = await apiJson<{ replies: FeedPost[] }>(authHeaders, postRepliesPath(reply.id));
+      const fetched = Array.isArray(d.replies) ? d.replies : [];
+      setChildren(mergeThreadChildren(fetched, landed));
+      setChildState("ready");
+    } catch {
+      setChildState("failed");
+    }
+  }
+
+  function toggleChildren() {
+    if (childState === "loading") return;
+    if (childState === "ready") {
+      setOpen((v) => !v);
+      return;
+    }
+    setOpen(true);
+    void loadChildren();
+  }
+
+  async function sendNodeReply() {
+    if (sending || !postBodyReady(draft)) return;
+    setSending(true);
+    setNote(null);
+    try {
+      const d = await apiJson<{ post: FeedPost }>(authHeaders, postReplyPath(reply.id), {
+        method: "POST", body: { body: draft.trim() },
+      });
+      if (d.post) {
+        setLanded((prev) => [...prev, d.post]);
+        setChildren((prev) => (prev === null ? prev : mergeThreadChildren(prev, [d.post])));
+        if (childState === "failed") void loadChildren();
+        setOpen(true);
+      }
+      setDraft("");
+      setComposerOpen(false);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "The reply didn't land — try again.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div data-testid="world-community-reply-node">
+      <p className={`rounded-lg px-2.5 py-1.5 text-xs ${isLight ? "bg-[#C9A84C]/10 text-[#2a1e07]" : "bg-white/5 text-white/75"}`}>
+        <span className="font-bold">{reply.author?.display_name ?? "Creator"}:</span>{" "}
+        <KingTokenText body={reply.body} theme={isLight ? "light" : "dark"} />
+      </p>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-1">
+        {(count > 0 || childState !== "idle") && (
+          <button
+            type="button"
+            onClick={() => toggleChildren()}
+            className={chipBtn(isLight)}
+            data-testid="world-community-node-toggle"
+          >
+            <MessageCircle className="h-3 w-3" />
+            {threadToggleLabel(count, open && childState === "ready")}
+          </button>
+        )}
+        {canReply && (
+          <button
+            type="button"
+            onClick={() => setComposerOpen((v) => !v)}
+            className={chipBtn(isLight)}
+            data-testid="world-community-node-reply-open"
+          >
+            <Send className="h-3 w-3" /> Reply
+          </button>
+        )}
+      </div>
+      {composerOpen && canReply && (
+        <div className="mt-1.5 pl-1">
+          <div className="flex gap-2">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void sendNodeReply()}
+              placeholder="Answer this reply…"
+              maxLength={500}
+              className={inputCls(isLight)}
+              data-testid="world-community-node-reply-draft"
+            />
+            <button
+              type="button"
+              onClick={() => void sendNodeReply()}
+              disabled={sending || !postBodyReady(draft)}
+              className={goldBtn}
+              data-testid="world-community-node-reply-send"
+            >
+              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              Reply
+            </button>
+          </div>
+          {note && (
+            <p className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
+          )}
+        </div>
+      )}
+      {open && (
+        <div
+          className={`mt-1.5 space-y-1.5 ${depth < 4 ? "ml-3 border-l pl-3" : ""} ${
+            isLight ? "border-[#C9A84C]/40" : "border-white/10"
+          }`}
+        >
+          {childState === "loading" ? (
+            <NativeLoadingState isLight={isLight} message="Fetching replies…" />
+          ) : childState === "failed" ? (
+            <div data-testid="world-community-node-failed">
+              <NativeErrorState
+                isLight={isLight}
+                title="These replies wouldn't open"
+                message="The conversation is fine — the fetch slipped."
+                onRetry={() => void loadChildren()}
+              />
+            </div>
+          ) : childState === "ready" && children !== null && children.length === 0 ? (
+            <p className={`text-xs ${muted}`}>
+              {count === 0
+                ? "No replies yet — this branch starts with the next voice."
+                : "This branch's replies aren't showing right now."}
+            </p>
+          ) : childState === "ready" && children !== null ? (
+            fullThread(children).map((r) => (
+              <ThreadReplyNode
+                key={r.id}
+                reply={r}
+                depth={depth + 1}
+                isLight={isLight}
+                isGuest={isGuest}
+                authHeaders={authHeaders}
+              />
+            ))
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NoticePostCard({
   post, isLight, isGuest, authHeaders,
 }: {
@@ -818,8 +992,12 @@ function NoticePostCard({
   const [emoji, setEmoji] = useState<string | null>(post.viewer_emoji);
   const [counts, setCounts] = useState<Record<string, number>>(post.reaction_counts ?? {});
   const [replies, setReplies] = useState<FeedPost[] | null>(null);
+  const [threadState, setThreadState] = useState<ThreadLoadState>("idle");
   const [repliesOpen, setRepliesOpen] = useState(false);
-  const [replyCount, setReplyCount] = useState(post.reply_count);
+  const [landedRoot, setLandedRoot] = useState<FeedPost[]>([]);
+  /* The stated count is the server's count plus this session's
+     landed replies — never a client-side guess (seam: threadCountOf). */
+  const replyCount = threadCountOf(post.reply_count, landedRoot.length);
   const [replyDraft, setReplyDraft] = useState("");
   const [replying, setReplying] = useState(false);
   const [replyNote, setReplyNote] = useState<string | null>(null);
@@ -849,19 +1027,29 @@ function NoticePostCard({
     }
   }
 
-  async function toggleReplies() {
-    if (replies !== null) {
+  /* Load (or reload) the thread. A failure lands in the failed
+     state — the thread renders a failure with a retry, NEVER the
+     "no replies yet" copy: an unloaded thread is not an empty one. */
+  async function loadThread() {
+    setThreadState("loading");
+    try {
+      const d = await apiJson<{ replies: FeedPost[] }>(authHeaders, postRepliesPath(post.id));
+      const fetched = Array.isArray(d.replies) ? d.replies : [];
+      setReplies(mergeThreadChildren(fetched, landedRoot));
+      setThreadState("ready");
+    } catch {
+      setThreadState("failed");
+    }
+  }
+
+  function toggleReplies() {
+    if (threadState === "loading") return;
+    if (threadState === "ready") {
       setRepliesOpen((v) => !v);
       return;
     }
-    try {
-      const d = await apiJson<{ replies: FeedPost[] }>(authHeaders, postRepliesPath(post.id));
-      setReplies(Array.isArray(d.replies) ? d.replies : []);
-      setRepliesOpen(true);
-    } catch {
-      setReplies([]);
-      setRepliesOpen(true);
-    }
+    setRepliesOpen(true);
+    void loadThread();
   }
 
   async function sendReply() {
@@ -873,8 +1061,12 @@ function NoticePostCard({
         method: "POST", body: { body: replyDraft.trim() },
       });
       if (d.post) {
-        setReplies((prev) => [...(prev ?? []), d.post]);
-        setReplyCount((n) => n + 1);
+        setLandedRoot((prev) => [...prev, d.post]);
+        setReplies((prev) => (prev === null ? prev : mergeThreadChildren(prev, [d.post])));
+        /* If the thread itself failed to load, the landed reply is
+           the reason to fetch again — the refetch carries it too,
+           and the merge dedupes it against landedRoot. */
+        if (threadState === "failed") void loadThread();
       }
       setReplyDraft("");
     } catch (e) {
@@ -913,27 +1105,43 @@ function NoticePostCard({
               {(counts[r.emoji] ?? 0) > 0 ? ` ${counts[r.emoji]}` : ""}
             </button>
           ))}
-          <button type="button" onClick={() => void toggleReplies()} className={chipBtn(isLight)} data-testid="world-community-thread-toggle">
+          <button type="button" onClick={() => toggleReplies()} className={chipBtn(isLight)} data-testid="world-community-thread-toggle">
             <MessageCircle className="h-3.5 w-3.5" />
-            {replyCount > 0 ? `${replyCount} replies` : "Replies"}
+            {threadToggleLabel(replyCount, repliesOpen && threadState === "ready")}
           </button>
         </div>
-        {repliesOpen && replies !== null && (
+        {repliesOpen && (
           <div className="mt-2 space-y-1.5" data-testid="world-community-thread">
-            {replies.length === 0 ? (
-              <p className={`text-xs ${muted}`}>No replies yet — the thread starts with the next voice.</p>
-            ) : (
+            {threadState === "loading" ? (
+              <NativeLoadingState isLight={isLight} message="Fetching the thread…" />
+            ) : threadState === "failed" ? (
+              <div data-testid="world-community-thread-failed">
+                <NativeErrorState
+                  isLight={isLight}
+                  title="This thread wouldn't open"
+                  message="The conversation is fine — the fetch slipped. A thread that didn't load is never an empty thread."
+                  onRetry={() => void loadThread()}
+                />
+              </div>
+            ) : threadState === "ready" && replies !== null && replies.length === 0 ? (
+              <p className={`text-xs ${muted}`}>
+                {replyCount === 0
+                  ? "No replies yet — the thread starts with the next voice."
+                  : "This thread's replies aren't showing right now."}
+              </p>
+            ) : threadState === "ready" && replies !== null ? (
               fullThread(replies).map((r) => (
-                <p
+                <ThreadReplyNode
                   key={r.id}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs ${isLight ? "bg-[#C9A84C]/10 text-[#2a1e07]" : "bg-white/5 text-white/75"}`}
-                >
-                  <span className="font-bold">{r.author?.display_name ?? "Creator"}:</span>{" "}
-                  <KingTokenText body={r.body} theme={isLight ? "light" : "dark"} />
-                </p>
+                  reply={r}
+                  depth={0}
+                  isLight={isLight}
+                  isGuest={isGuest}
+                  authHeaders={authHeaders}
+                />
               ))
-            )}
-            {isGuest ? (
+            ) : null}
+            {!threadReplyAllowed(isGuest) ? (
               <p className={`text-[11px] ${muted}`}>
                 You&rsquo;re reading the whole thread — sign in to add your voice to it.
               </p>
