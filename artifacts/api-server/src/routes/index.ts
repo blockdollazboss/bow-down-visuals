@@ -80,6 +80,8 @@ import sharesRouter from "./shares";
 import generatedClipsRouter from "./generated-clips";
 import draftsRouter from "./drafts";
 import storyboardsRouter from "./storyboards";
+import ugcAdsRouter from "./ugc-ads";
+import ugcBriefsRouter from "./ugc-briefs";
 import generationHistoryRouter from "./generation-history";
 import assetLibraryRouter from "./asset-library";
 import thumbnailsRouter from "./thumbnails";
@@ -415,6 +417,8 @@ router.use(sharesRouter);
 router.use(generatedClipsRouter);
 router.use(draftsRouter);
 router.use(storyboardsRouter);
+router.use(ugcAdsRouter);                     // UGC Product Ads: /api/ugc-ads{,/products,/script,/persona,/:id,/:id/generate}
+router.use(ugcBriefsRouter);                  // UGC briefs board: /api/ugc-briefs{,/:id,/:id/claim,/release,/deliver,/approve,/close}
 router.use(generationHistoryRouter);
 router.use(assetLibraryRouter);
 router.use(thumbnailsRouter);

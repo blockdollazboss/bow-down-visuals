@@ -119,3 +119,4 @@ export * from "./world-king-moment";
 export * from "./world-court-season";
 export * from "./world-stage-tips";
 export * from "./world-tutorial";
+export * from "./ugc-ads";
