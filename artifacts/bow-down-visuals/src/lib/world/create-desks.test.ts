@@ -51,6 +51,7 @@ import {
   interpretJobPoll,
   interpretTaskPoll,
   isCreateDeskId,
+  jukeboxChipStateOf,
   jukeboxTrackIdOf,
   musicAudioCost,
   profileIdOfProfilesResponse,
@@ -524,6 +525,25 @@ describe("the publish rail — Ring 2 items 2.1 + 2.2 (pin g)", () => {
     expect(publishedTrackIdOfResponse({ track: {} })).toBeNull();
     expect(publishedTrackIdOfResponse({})).toBeNull();
     expect(publishedTrackIdOfResponse(null)).toBeNull();
+  });
+
+  it("the chip's three faces: live only on a published id, dark with its reason until then (round 2, #4)", () => {
+    /* No rail offered (e.g. the Audio Desk) → no chip at all,
+       whatever id the result might carry. */
+    expect(jukeboxChipStateOf({ candidate: `track:${TRACK_UUID}`, railOffered: false })).toBe("absent");
+    expect(jukeboxChipStateOf({ candidate: null, railOffered: false })).toBe("absent");
+    /* Rail offered + the publish response's id → live. This is the
+       exact value publishedTrackIdOfResponse hands the desk. */
+    expect(
+      jukeboxChipStateOf({ candidate: publishedTrackIdOfResponse({ track: { id: TRACK_UUID } }), railOffered: true }),
+    ).toBe("live");
+    /* Rail offered + anything else → dark: a fresh result, a failed
+       publish, a non-track id — the chip shows "publish first"
+       rather than disappearing or pretending to work. */
+    expect(jukeboxChipStateOf({ candidate: null, railOffered: true })).toBe("dark");
+    expect(jukeboxChipStateOf({ candidate: undefined, railOffered: true })).toBe("dark");
+    expect(jukeboxChipStateOf({ candidate: "song:123", railOffered: true })).toBe("dark");
+    expect(jukeboxChipStateOf({ candidate: publishedTrackIdOfResponse({ track: { id: 42 } }), railOffered: true })).toBe("dark");
   });
 });
 

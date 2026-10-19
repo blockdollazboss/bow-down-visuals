@@ -109,6 +109,43 @@ describe("2.9–2.11 thumbnail + cover contracts", () => {
   });
 });
 
+describe("2.1 + 2.2 publish rail + jukebox chip contracts (stack-20 round 2, #3/#4)", () => {
+  it("both song desks publish on the site's rail, with every honest state on the card", () => {
+    /* The rail: profile lookup, then the /publish page's endpoint. */
+    expect(desks).toContain('fetch("/api/creator-profiles"');
+    expect(desks).toContain('fetch("/api/publish/track"');
+    expect(desks).toContain("buildPublishTrackPayload({");
+    expect(desks).toContain("publishedTrackIdOfResponse(json)");
+    /* Already published can never publish twice from the card. */
+    expect(desks).toContain("if (!audioUrl || publishBusy || publishedTrackId) return;");
+    /* The publish chip is offered only once real audio exists and
+       retires the moment the publish lands — at BOTH song desks. */
+    expect(desks.split("onPublish={rail.audioUrl && !rail.published").length - 1).toBe(2);
+    expect(desks.split("jukeboxTrackId={rail.publishedTrackId}").length - 1).toBe(2);
+    expect(desks.split("onJukeboxAdd={rail.queueToJukebox}").length - 1).toBe(2);
+    /* Failure shows its reason on the card, never a silent dark. */
+    expect(desks).toContain('data-testid="world-create-publish-error"');
+    expect(shared).toContain('data-testid="world-create-chip-published"');
+    expect(shared).toContain("Published — live on your profile");
+    expect(shared).toContain('data-testid="world-create-chip-publish"');
+    expect(shared).toContain('props.publishBusy ? "Publishing…" : "Publish to my profile"');
+  });
+
+  it("the jukebox chip is live only behind the gate; unpublished it sits dark as a span with its reason", () => {
+    expect(shared).toContain("jukeboxChipStateOf({");
+    expect(shared).toContain('data-testid="world-create-chip-jukebox"');
+    expect(shared).toContain("onClick={() => props.onJukeboxAdd?.(trackId)}");
+    /* The dark face: its own testid, the reason on its face, and —
+       pinned by position — a <span>, not a <button>: it takes no
+       click, so it can never be a dead one. */
+    const darkAt = shared.indexOf('data-testid="world-create-chip-jukebox-dark"');
+    expect(darkAt).toBeGreaterThan(-1);
+    expect(shared.slice(shared.lastIndexOf("<span", darkAt), darkAt)).toContain("<span");
+    expect(shared).toContain("Put it on the jukebox · publish first");
+    expect(shared).toContain('aria-disabled="true"');
+  });
+});
+
 describe("§5(a) quest chip contracts", () => {
   it("the chip reads server truth via the shared hook and renders only from its lines", () => {
     expect(shared).toContain('fetch("/api/retention/quests"');

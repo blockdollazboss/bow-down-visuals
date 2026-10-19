@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, ChevronDown, Disc3, ListMusic, Music, PenLine, Rocket, Scissors, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { jukeboxTrackIdOf } from "@/lib/world/create-desks";
+import { jukeboxChipStateOf, jukeboxTrackIdOf } from "@/lib/world/create-desks";
 
 /* ─── Shared bits for the Create Wing desks (NATIVE-PLAN §3.6) ──────
    One shape for all six benches: the CreateDeskRunner prompt card,
@@ -125,10 +125,13 @@ export function AdvancedExpander({
    The in-world next steps under a finished make. Every chip is a
    real rail: Send to the editor saves the result as a project and
    steps through to the editor seeded with it; Put it on the
-   jukebox rides the room socket's jukebox.add intent and appears
-   ONLY for a published-track id (the queue's own rule); Schedule /
-   Release render only where the desk's page offers that exact rail
-   for that exact asset; Make another resets the bench. */
+   jukebox rides the room socket's jukebox.add intent and lights
+   ONLY for a published-track id (the queue's own rule) — before
+   the publish lands, the chip sits dark with its reason on its
+   face ("publish first"), a plain span that takes no click at
+   all, never a dead button; Schedule / Release render only where
+   the desk's page offers that exact rail for that exact asset;
+   Make another resets the bench. */
 
 export interface ResultChipsProps {
   isLight: boolean;
@@ -144,7 +147,9 @@ export interface ResultChipsProps {
   publishBusy?: boolean;
   published?: boolean;
   /** A published profile track id (`track:<uuid>`) — the only ids
-   *  the room jukebox accepts. Anything else hides the chip. */
+   *  the room jukebox accepts. Anything else leaves the chip dark
+   *  with its reason showing (see the dark chip below); the chip
+   *  lights the moment a gate-passing id lands here. */
   jukeboxTrackId?: string | null;
   onJukeboxAdd?: (trackId: string) => void;
   /** Explicit next-step links the desk's own page offers for this
@@ -167,6 +172,10 @@ export function ResultChips(props: ResultChipsProps) {
   const goldChipCls =
     "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50";
   const trackId = jukeboxTrackIdOf(props.jukeboxTrackId);
+  const jukeboxChip = jukeboxChipStateOf({
+    candidate: props.jukeboxTrackId,
+    railOffered: Boolean(props.onJukeboxAdd),
+  });
   return (
     <div data-testid="world-create-result-chips" className="mt-3 flex flex-wrap gap-1.5">
       {props.onSendToEditor ? (
@@ -200,7 +209,7 @@ export function ResultChips(props: ResultChipsProps) {
           <Rocket className="h-3.5 w-3.5" /> {props.publishBusy ? "Publishing…" : "Publish to my profile"}
         </button>
       ) : null}
-      {trackId && props.onJukeboxAdd ? (
+      {jukeboxChip === "live" && trackId ? (
         <button
           type="button"
           data-testid="world-create-chip-jukebox"
@@ -209,6 +218,23 @@ export function ResultChips(props: ResultChipsProps) {
         >
           <ListMusic className="h-3.5 w-3.5" /> Put it on the jukebox
         </button>
+      ) : jukeboxChip === "dark" ? (
+        /* The dark chip (stack-20 round 2, #4): the desk offers the
+           jukebox rail but this result carries no published track
+           yet, so the chip shows its face with the reason on it —
+           a span, not a button: it takes no click, so it can never
+           be a dead one. It lights into the live chip above the
+           moment the publish response's id passes the gate. */
+        <span
+          data-testid="world-create-chip-jukebox-dark"
+          aria-disabled="true"
+          title="The jukebox only plays published tracks — publish this song first"
+          className={`inline-flex cursor-not-allowed select-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold opacity-50 ${
+            isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
+          }`}
+        >
+          <ListMusic className="h-3.5 w-3.5" /> Put it on the jukebox · publish first
+        </span>
       ) : null}
       {props.scheduleHref ? (
         <a

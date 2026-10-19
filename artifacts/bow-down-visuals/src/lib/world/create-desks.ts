@@ -707,11 +707,27 @@ export function resultExcerpt(raw: string, maxChars = 600): string {
  *  profile tracks, whose ids are the catalog's `track:<uuid>` form
  *  (the server re-verifies at add time). A desk result may offer
  *  "Put it on the jukebox" ONLY when it carries such an id — a
- *  freshly generated package has none until it is published, so the
- *  chip stays hidden rather than fake. */
+ *  freshly generated package has none until it is published. */
 export function jukeboxTrackIdOf(candidate: string | null | undefined): string | null {
   if (!candidate) return null;
   return /^track:[0-9a-fA-F-]{36}$/.test(candidate) ? candidate : null;
+}
+
+/** The jukebox chip's three honest faces (stack-20 round 2, #4):
+ *  - "absent": the desk offers no jukebox rail at all — no chip.
+ *  - "live": the rail is offered AND the result carries a
+ *    gate-passing published id — the chip is a real button.
+ *  - "dark": the rail is offered but the result is unpublished —
+ *    the chip shows its face with the reason on it ("publish
+ *    first") as a non-interactive span, never a dead click.
+ *  The publish landing flips dark → live, and nothing else does. */
+export type JukeboxChipState = "live" | "dark" | "absent";
+export function jukeboxChipStateOf(args: {
+  candidate: string | null | undefined;
+  railOffered: boolean;
+}): JukeboxChipState {
+  if (!args.railOffered) return "absent";
+  return jukeboxTrackIdOf(args.candidate) ? "live" : "dark";
 }
 
 /* ─── The publish rail — Ring 2 items 2.1 + 2.2 ──────────────────────
