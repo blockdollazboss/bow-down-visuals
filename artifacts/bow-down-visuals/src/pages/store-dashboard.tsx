@@ -21,6 +21,24 @@ import {
   type MoneyChecklist, type CreateProductInput, type StoreProductKind,
 } from "@/lib/storefront-api";
 import PromoteButton from "@/components/storefront/PromoteButton";
+import {
+  allSectionsFailed, initialSectionStates, markSectionLoading, sectionsToRefetch, settleSection,
+  type SectionStates,
+} from "@/lib/dashboard-sections";
+
+/* ─── Section resilience (the shared seam, lib/dashboard-sections) ────
+   The storefront surface hangs off ONE page-level section — the money
+   checklist (GET /api/storefront/money-checklist) — feeding the
+   earnings hero, the next-move + checklist cards, and the store slug.
+   The payout card and every tab (products / orders / discounts) load
+   from their OWN endpoints and already carry their own scoped error
+   states. So the overview section settles on its own through the
+   seam: its failure renders its failure card in the overview area,
+   with its own Retry — it no longer replaces the whole page, and the
+   tabs stay open for business. The digital surface below runs the
+   same seam over its own three sections. */
+type StoreOverviewSectionKey = "overview";
+const STORE_OVERVIEW_SECTION_KEYS: readonly StoreOverviewSectionKey[] = ["overview"];
 
 /* ─── /store/dashboard — the seller dashboard, the GET PAID finale ──────
  *
@@ -1007,30 +1025,44 @@ export default function StoreDashboard() {
   const [slug, setSlug] = useState("");
   /* The money-checklist endpoint answers a genuine no-profile account
      with 404 { error: "NO_PROFILE" } — that case keeps the setup-CTA
-     box below. Every OTHER failure (500s, network) used to land in the
-     same box, telling a profile owner to "set up a creator profile"
-     during a plain outage, with no way to retry. Failures now get
-     their own error state with a retry. */
+     box below: a settled, honest state, NOT a failure, so the section
+     settles ok alongside it. Every OTHER failure (500s, network)
+     fails the overview section alone — its card renders in the
+     overview area with its own retry, and the payout card, the tabs,
+     and the digital surface keep working. */
   const [noProfile, setNoProfile] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  const [retryNonce, setRetryNonce] = useState(0);
+  const [overviewStates, setOverviewStates] = useState<SectionStates<StoreOverviewSectionKey>>(
+    () => initialSectionStates(STORE_OVERVIEW_SECTION_KEYS),
+  );
 
   const load = useCallback(async () => {
     setNoProfile(false);
-    setLoadError(false);
     try {
       const token = await getToken();
       const c = await moneyChecklist(token);
       setChecklist(c);
       const storeUrl: string = c.links.storeUrl ?? "";
       setSlug(storeUrl.split("/artist/")[1] ?? "");
+      setOverviewStates((prev) => settleSection(prev, "overview", true));
     } catch (e) {
-      if (e instanceof Error && e.message === "NO_PROFILE") setNoProfile(true);
-      else setLoadError(true);
+      if (e instanceof Error && e.message === "NO_PROFILE") {
+        setNoProfile(true);
+        setOverviewStates((prev) => settleSection(prev, "overview", true));
+      } else {
+        setOverviewStates((prev) => settleSection(prev, "overview", false));
+      }
     }
   }, [getToken]);
 
-  useEffect(() => { load(); }, [load, retryNonce]);
+  useEffect(() => { load(); }, [load]);
+
+  /* The overview card's Retry refetches the overview section alone —
+     never the payout card's or the tabs' sections. */
+  const retryOverview = () => {
+    const plan = sectionsToRefetch(STORE_OVERVIEW_SECTION_KEYS, overviewStates, "overview");
+    setOverviewStates((prev) => plan.reduce((s, k) => markSectionLoading(s, k), prev));
+    void load();
+  };
   useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
@@ -1061,22 +1093,7 @@ export default function StoreDashboard() {
         )}
       </div>
 
-      {loadError ? (
-        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
-          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
-          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
-          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-            Something went wrong on our end — your store is safe, this page just couldn't load it.
-          </p>
-          <button
-            type="button"
-            onClick={() => setRetryNonce((n) => n + 1)}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
-          >
-            <RotateCcw className="h-4 w-4" /> Try again
-          </button>
-        </div>
-      ) : noProfile ? (
+      {noProfile ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-8 text-center">
           <p className="text-sm font-bold text-white">Couldn't load your dashboard.</p>
           <p className="mt-1 text-xs text-white/50">You need a creator profile first — then this page becomes your money command center.</p>
@@ -1086,8 +1103,6 @@ export default function StoreDashboard() {
             </span>
           </Link>
         </div>
-      ) : !checklist ? (
-        <div className="flex justify-center py-20 text-white/40"><Loader2 className="h-8 w-8 animate-spin" /></div>
       ) : (
         <>
           {/* ── Revenue surface switcher ── */}
@@ -1119,7 +1134,29 @@ export default function StoreDashboard() {
 
           {surface === "storefront" && (
           <>
-          <EarningsHero data={checklist} />
+          {/* The overview section's own states: its failure card sits
+              HERE, in the overview's area — the payout card and the
+              tabs below are separate sections and stay up. */}
+          {overviewStates.overview === "failed" ? (
+            <div data-testid="store-overview-failure" className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+              <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+              <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your store overview.</p>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                Something went wrong on our end — your store is safe, and the tabs below still work. This overview just couldn't load.
+              </p>
+              <button
+                type="button"
+                onClick={retryOverview}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+              >
+                <RotateCcw className="h-4 w-4" /> Try again
+              </button>
+            </div>
+          ) : !checklist ? (
+            <div className="flex justify-center py-20 text-white/40"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : (
+            <EarningsHero data={checklist} />
+          )}
 
           <div className="mt-5"><ConnectPayoutCard /></div>
 
@@ -1139,7 +1176,7 @@ export default function StoreDashboard() {
             ))}
           </div>
 
-          {tab === "overview" && (
+          {tab === "overview" && overviewStates.overview === "ok" && checklist && (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
               <div className="lg:col-span-3"><NextMoveCard data={checklist} /></div>
               <div className="lg:col-span-2"><ChecklistCard data={checklist} /></div>
@@ -1251,6 +1288,41 @@ async function digitalAuthed(path: string, token: string | null, init?: RequestI
   });
 }
 
+/* The digital surface's three sections — one endpoint each: sales
+   (totals + recent sales), checklist (the Get Paid checklist), and
+   products (the pricing list). They settle independently through the
+   shared seam; see the state block inside DigitalSalesTab. */
+type DigitalSectionKey = "sales" | "checklist" | "products";
+const DIGITAL_SECTION_KEYS: readonly DigitalSectionKey[] = ["sales", "checklist", "products"];
+
+/* A failed digital section's own note, rendered in that section's
+   area — never the section's empty state, never a surface takeover.
+   Same shape as the page's other failure cards, in this surface's
+   amber styling, with the section's own Retry. */
+function DigitalSectionFailure({ label, onRetry, testId }: {
+  label: string;
+  onRetry: () => void;
+  testId: string;
+}) {
+  const isLight = useIsLightTheme();
+  return (
+    <div data-testid={testId} className={`mt-6 rounded-2xl border p-8 text-center ${isLight ? "border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-amber-500/30 bg-gradient-to-b from-[#171204] to-[#0d0a04]"}`}>
+      <AlertTriangle className="mx-auto h-8 w-8 text-primary" />
+      <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-amber-200"}`}>{label} couldn’t load.</p>
+      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-amber-100/60"}`}>
+        Something went wrong on our end — this section just couldn’t load. The rest of your dashboard is fine.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 font-bold text-black hover:brightness-110"
+      >
+        <RotateCcw className="h-4 w-4" /> Try again
+      </button>
+    </div>
+  );
+}
+
 function DigitalSalesTab() {
   const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
@@ -1260,53 +1332,105 @@ function DigitalSalesTab() {
   const [checklistComplete, setChecklistComplete] = useState(false);
   const [products, setProducts] = useState<DigitalProductsData | null>(null);
   const [guide, setGuide] = useState<{ smart: string; low: string; high: string; blurb: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /* Per-section load states, driven by the shared seam. The three
+     endpoints used to load in ONE Promise.all: a sales failure nuked
+     the whole surface behind an error panel (which also claimed "No
+     creator profile yet" for plain outages), while a checklist or
+     products failure was silently swallowed — the section rendered
+     missing, or the pricing list rendered as a fake empty. Now each
+     section settles on its own: a failure shows that section's own
+     note with its own Retry in its own area, and the big card is
+     reserved for all three failing at once. */
+  const [sectionStates, setSectionStates] = useState<SectionStates<DigitalSectionKey>>(
+    () => initialSectionStates(DIGITAL_SECTION_KEYS),
+  );
+  /* Every digital endpoint answers a profile-less account with the
+     same 404 { error: "NO_PROFILE" } — a settled state, not a
+     failure; it keeps the setup panel below. */
+  const [noProfile, setNoProfile] = useState(false);
   const [logging, setLogging] = useState<string | null>(null);
   const [pricing, setPricing] = useState<string | null>(null);
   const [customPrices, setCustomPrices] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await getAccessToken();
-      const [salesRes, checkRes, prodRes] = await Promise.all([
-        digitalAuthed("/api/store/sales", token),
-        digitalAuthed("/api/store/checklist", token),
-        digitalAuthed("/api/store/products", token),
-      ]);
-      const salesBody = (await salesRes.json().catch(() => ({}))) as DigitalSalesData & { error?: string; message?: string };
-      if (!salesRes.ok) throw new Error(salesBody.message || salesBody.error || "Couldn't load your sales.");
-      setData(salesBody);
-      if (checkRes.ok) {
-        const c = (await checkRes.json().catch(() => ({}))) as { steps?: DigitalChecklistStep[]; complete?: boolean };
-        setChecklist(c.steps ?? []);
-        setChecklistComplete(!!c.complete);
+  /* One section's fetch. Resolves true when the account has no
+     creator profile (the endpoint's 404 NO_PROFILE) so the caller
+     settles the section ok and the tab shows its setup panel. */
+  const fetchDigitalSection = useCallback(async (key: DigitalSectionKey): Promise<boolean> => {
+    const token = await getAccessToken();
+    if (key === "sales") {
+      const res = await digitalAuthed("/api/store/sales", token);
+      const body = (await res.json().catch(() => ({}))) as DigitalSalesData & { error?: string; message?: string };
+      if (!res.ok) {
+        if (res.status === 404 && body.error === "NO_PROFILE") return true;
+        throw new Error(body.message || body.error || "Couldn't load your sales.");
       }
-      if (prodRes.ok) {
-        const p = (await prodRes.json().catch(() => ({}))) as DigitalProductsData;
-        setProducts(p);
-        /* Empty-state guide: what creators in YOUR vertical charge. */
-        if (p.products.length === 0) {
-          const g = await fetch(`/api/store/price-guide?vertical=${encodeURIComponent(p.vertical)}&kind=track`);
-          const gb = (await g.json().catch(() => ({}))) as {
-            guide?: { track?: { smart: string; low: string; high: string; blurb: string } };
-          };
-          if (gb.guide?.track) setGuide(gb.guide.track);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load your sales.");
-    } finally {
-      setLoading(false);
+      setData(body);
+      return false;
     }
+    if (key === "checklist") {
+      const res = await digitalAuthed("/api/store/checklist", token);
+      const body = (await res.json().catch(() => ({}))) as { steps?: DigitalChecklistStep[]; complete?: boolean; error?: string };
+      if (!res.ok) {
+        if (res.status === 404 && body.error === "NO_PROFILE") return true;
+        throw new Error("Couldn't load your checklist.");
+      }
+      setChecklist(body.steps ?? []);
+      setChecklistComplete(!!body.complete);
+      return false;
+    }
+    const res = await digitalAuthed("/api/store/products", token);
+    const body = (await res.json().catch(() => ({}))) as DigitalProductsData & { error?: string };
+    if (!res.ok) {
+      if (res.status === 404 && body.error === "NO_PROFILE") return true;
+      throw new Error("Couldn't load your products.");
+    }
+    setProducts(body);
+    /* Empty-state guide: what creators in YOUR vertical charge. A
+       garnish on this section — its failure never fails the section
+       (the products themselves already loaded). */
+    if (body.products.length === 0) {
+      try {
+        const g = await fetch(`/api/store/price-guide?vertical=${encodeURIComponent(body.vertical)}&kind=track`);
+        const gb = (await g.json().catch(() => ({}))) as {
+          guide?: { track?: { smart: string; low: string; high: string; blurb: string } };
+        };
+        if (gb.guide?.track) setGuide(gb.guide.track);
+      } catch { /* the guide is a garnish — the section already loaded */ }
+    }
+    return false;
   }, [getAccessToken]);
 
+  const loadSection = useCallback(async (key: DigitalSectionKey) => {
+    setSectionStates((prev) => markSectionLoading(prev, key));
+    try {
+      const noProf = await fetchDigitalSection(key);
+      if (noProf) setNoProfile(true);
+      setSectionStates((prev) => settleSection(prev, key, true));
+    } catch {
+      setSectionStates((prev) => settleSection(prev, key, false));
+    }
+  }, [fetchDigitalSection]);
+
+  const loadAllSections = useCallback(() => {
+    void Promise.allSettled(DIGITAL_SECTION_KEYS.map((k) => loadSection(k)));
+  }, [loadSection]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    loadAllSections();
+  }, [loadAllSections]);
+
+  /* A section's Retry refetches ONLY that section. */
+  const retryDigitalSection = (key: DigitalSectionKey) => {
+    void loadSection(key);
+  };
+
+  /* The total-failure card's Try again refetches the failed set. */
+  const retryFailedDigitalSections = () => {
+    for (const k of sectionsToRefetch(DIGITAL_SECTION_KEYS, sectionStates)) {
+      void loadSection(k);
+    }
+  };
 
   async function applyPrice(kind: string, id: string, priceCents: number) {
     const key = `${kind}:${id}`;
@@ -1326,7 +1450,9 @@ function DigitalSalesTab() {
       setNotice(
         `“${body.product.title}” priced at ${body.product.price} — you keep ${body.product.youKeep} per sale. ${body.product.forSale ? "It's live. Go get paid. 👑" : "Publish it to start selling."}`
       );
-      await load();
+      /* A price change moves the products list AND the sales totals —
+         refresh exactly those two sections, not the whole surface. */
+      await Promise.allSettled([loadSection("sales"), loadSection("products")]);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Couldn't set the price.");
     } finally {
@@ -1368,7 +1494,8 @@ function DigitalSalesTab() {
       const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; entry?: { amount: string } };
       if (!res.ok) throw new Error(body.message || body.error || "Couldn't log this sale.");
       setNotice(`Logged ${body.entry?.amount ?? ""} to your Money Tracker. 💰`);
-      await load();
+      /* The logged flag lives in the sales section — refresh it alone. */
+      await loadSection("sales");
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Couldn't log this sale.");
     } finally {
@@ -1404,23 +1531,34 @@ function DigitalSalesTab() {
         </div>
       )}
 
-      {loading ? (
-        <div className="mt-16 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
-        </div>
-      ) : error ? (
+      {noProfile ? (
         <div className={`${isLight ? "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-[#0d0a04] p-10 text-center"}`}>
           <div className="text-4xl">🎤</div>
           <h2 className="mt-4 text-xl font-bold text-amber-200">No creator profile yet</h2>
           <p className="mt-2 text-amber-100/60">
             Set up your creator profile first — then every drop you sell shows up here.
           </p>
-          {/* This panel is also where genuine load failures land, and it
-              offered no way back — add a retry that re-runs the sales
-              load (which resets the loading and error states itself). */}
           <button
             type="button"
-            onClick={() => load()}
+            onClick={loadAllSections}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : allSectionsFailed(DIGITAL_SECTION_KEYS, sectionStates) ? (
+        /* The big card is reserved for a TOTAL failure — all three
+           sections down. Anything less renders the sections that
+           loaded, with notes on the ones that didn't. */
+        <div data-testid="store-digital-total-failure" className={`${isLight ? "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-10 text-center" : "mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#171204] to-[#0d0a04] p-10 text-center"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <h2 className="mt-4 text-xl font-bold text-amber-200">Couldn't load your digital sales.</h2>
+          <p className="mt-2 text-amber-100/60">
+            Something went wrong on our end — your sales are safe, this surface just couldn't reach them.
+          </p>
+          <button
+            type="button"
+            onClick={retryFailedDigitalSections}
             className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
           >
             <RotateCcw className="h-4 w-4" /> Try again
@@ -1429,7 +1567,11 @@ function DigitalSalesTab() {
       ) : (
         <>
           {/* ── GET PAID CHECKLIST — the finale, leading the dashboard ── */}
-          {checklist && (
+          {sectionStates.checklist === "failed" ? (
+            <DigitalSectionFailure testId="store-digital-checklist-failure" label="Your Get Paid checklist" onRetry={() => retryDigitalSection("checklist")} />
+          ) : sectionStates.checklist === "loading" && !checklist ? (
+            <div className="mt-6 flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-amber-400" /></div>
+          ) : checklist && (
             <div className={`${isLight ? "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]" : "mt-6 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-[#1d1606] to-[#0d0a04] p-6 shadow-[0_0_30px_rgba(201,162,39,0.15)]"}`}>
               <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
                 <ListChecks className="h-5 w-5" />
@@ -1476,6 +1618,9 @@ function DigitalSalesTab() {
           )}
 
           {/* ── PRICING — difficulty ladder ── */}
+          {sectionStates.products === "failed" ? (
+            <DigitalSectionFailure testId="store-digital-products-failure" label="Your pricing list" onRetry={() => retryDigitalSection("products")} />
+          ) : (
           <div id="pricing" className={`${isLight ? "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-6 scroll-mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-6"}`}>
             <h2 className="flex items-center gap-2 text-lg font-bold text-amber-200">
               <Tag className="h-5 w-5" /> Price your content
@@ -1489,7 +1634,9 @@ function DigitalSalesTab() {
               You always keep 90%.
             </p>
 
-            {products && products.products.length === 0 ? (
+            {sectionStates.products === "loading" && !products ? (
+              <div className="mt-4 flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-amber-400" /></div>
+            ) : products && products.products.length === 0 ? (
               <div className={`mt-4 rounded-xl border p-6 text-center ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/20 bg-black/40"}`}>
                 <div className="text-4xl">💰</div>
                 <h3 className="mt-2 text-lg font-bold text-amber-200">List your first product</h3>
@@ -1595,9 +1742,16 @@ function DigitalSalesTab() {
               </div>
             )}
           </div>
+          )}
 
-          {/* ── Totals (never gated) ── */}
-          {data && (
+          {/* ── Totals (never gated): a sales failure shows its own
+               note here — never fake zero totals in its place. ── */}
+          {sectionStates.sales === "failed" ? (
+            <DigitalSectionFailure testId="store-digital-sales-failure" label="Your sales totals" onRetry={() => retryDigitalSection("sales")} />
+          ) : sectionStates.sales === "loading" && !data ? (
+            <div className="mt-6 flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-amber-400" /></div>
+          ) : null}
+          {data && sectionStates.sales !== "failed" && (
             <>
               <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className={`${isLight ? "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-5"}`}>

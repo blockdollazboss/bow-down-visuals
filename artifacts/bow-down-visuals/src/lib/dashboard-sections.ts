@@ -1,4 +1,4 @@
-/* ─── Dashboard section resilience (owner-approved fix, Oct 19 2026) ──
+/* ─── Section resilience seam (owner-approved fix, Oct 19 2026) ─────
    The dashboard loads four sections from four endpoints — projects,
    sponsor deals, credit history (usage), and the streak off the bonus
    status. The old loader settled them in ONE Promise.allSettled and
@@ -9,7 +9,7 @@
    fine. All four endpoints were verified alive the day the owner hit
    it — the page design was the bug.
 
-   This module is the seam the page drives: each section carries its
+   This module is the seam those pages drive: each section carries its
    own loading/ok/failed state, settles independently, and retries
    independently. The laws it encodes:
 
@@ -17,12 +17,97 @@
      failure note, in its own area, with its own Retry — the
      error-vs-empty discipline that made the old code fail closed
      stays, just scoped to the section that actually failed.
-   - The full-page error card is reserved for a TOTAL failure: all
-     four sections failed (e.g. the server is unreachable). Anything
-     less renders the page with per-section notes.
+   - The full-page error card is reserved for a TOTAL failure: every
+     section failed (e.g. the server is unreachable). Anything less
+     renders the page with per-section notes.
    - A retry refetches only what it names: one section's Retry
      refetches that section alone; the full-page card's Try again
-     refetches the failed set (which, on that path, is all four). */
+     refetches the failed set.
+
+   The core below is generic over the section-key union; the dashboard
+   specialization at the bottom is the original four-key API the
+   dashboard page and its tests drive. Sibling pages (beats,
+   store-dashboard) drive the SAME core with their own key sets —
+   there is exactly one seam, never a copy. */
+
+/* ── Generic core ─────────────────────────────────────────────────── */
+
+export type SectionStatus = "loading" | "ok" | "failed";
+
+export type SectionStates<K extends string> = Record<K, SectionStatus>;
+
+/** Every section starts in flight — the page shows skeletons until
+ *  each section settles on its own. */
+export function initialSectionStates<K extends string>(keys: readonly K[]): SectionStates<K> {
+  const out = {} as SectionStates<K>;
+  for (const k of keys) out[k] = "loading";
+  return out;
+}
+
+/** Mark one section in flight again (its Retry was tapped). The other
+ *  sections' states — and their already-rendered data — are untouched.
+ *  (NoInfer on the key: K is inferred from the state map alone, so a
+ *  literal key widens to the page's full key union instead of
+ *  narrowing the map's type.) */
+export function markSectionLoading<K extends string>(
+  states: SectionStates<K>,
+  key: NoInfer<K>,
+): SectionStates<K> {
+  return { ...states, [key]: "loading" };
+}
+
+/** Fold one section's outcome into the state map. Only that section's
+ *  entry changes; a sibling's success or failure is never rewritten. */
+export function settleSection<K extends string>(
+  states: SectionStates<K>,
+  key: NoInfer<K>,
+  ok: boolean,
+): SectionStates<K> {
+  return { ...states, [key]: ok ? "ok" : "failed" };
+}
+
+/** The per-section verdict for a settled fetch, in the exact terms the
+ *  old page-wide check used: a rejected fetch OR a non-OK response is
+ *  a failure; anything else is a load. (Body PARSING never downgrades
+ *  a section — an OK answer whose payload is malformed shapes to the
+ *  section's empty data, exactly as the page always parsed it.) */
+export function sectionStatusFromSettled(
+  result: PromiseSettledResult<{ ok: boolean }>,
+): SectionStatus {
+  return result.status === "fulfilled" && result.value.ok ? "ok" : "failed";
+}
+
+/** True while any section is still in flight. */
+export function anySectionLoading<K extends string>(
+  keys: readonly K[],
+  states: SectionStates<K>,
+): boolean {
+  return keys.some((k) => states[k] === "loading");
+}
+
+/** The ONLY state in which a full-page "couldn't load" card may
+ *  render: every section failed. Anything less renders the page with
+ *  per-section notes instead. */
+export function allSectionsFailed<K extends string>(
+  keys: readonly K[],
+  states: SectionStates<K>,
+): boolean {
+  return keys.every((k) => states[k] === "failed");
+}
+
+/** Which sections a retry must refetch. Naming one section refetches
+ *  that section alone — never its siblings. Naming none refetches the
+ *  failed set (on a total-failure path that is all of them). */
+export function sectionsToRefetch<K extends string>(
+  keys: readonly K[],
+  states: SectionStates<K>,
+  only?: NoInfer<K>,
+): K[] {
+  if (only) return [only];
+  return keys.filter((k) => states[k] === "failed");
+}
+
+/* ── Dashboard specialization (the original four sections) ────────── */
 
 export type DashboardSectionKey = "projects" | "deals" | "usage" | "streak";
 
@@ -33,14 +118,14 @@ export const DASHBOARD_SECTION_KEYS: readonly DashboardSectionKey[] = [
   "streak",
 ];
 
-export type DashboardSectionStatus = "loading" | "ok" | "failed";
+export type DashboardSectionStatus = SectionStatus;
 
-export type DashboardSectionStates = Record<DashboardSectionKey, DashboardSectionStatus>;
+export type DashboardSectionStates = SectionStates<DashboardSectionKey>;
 
 /** Every section starts in flight — the page shows skeletons until
  *  each section settles on its own. */
 export function initialDashboardSectionStates(): DashboardSectionStates {
-  return { projects: "loading", deals: "loading", usage: "loading", streak: "loading" };
+  return initialSectionStates(DASHBOARD_SECTION_KEYS);
 }
 
 /** Mark one section in flight again (its Retry was tapped). The other
@@ -49,7 +134,7 @@ export function markDashboardSectionLoading(
   states: DashboardSectionStates,
   key: DashboardSectionKey,
 ): DashboardSectionStates {
-  return { ...states, [key]: "loading" };
+  return markSectionLoading(states, key);
 }
 
 /** Fold one section's outcome into the state map. Only that section's
@@ -59,7 +144,7 @@ export function settleDashboardSection(
   key: DashboardSectionKey,
   ok: boolean,
 ): DashboardSectionStates {
-  return { ...states, [key]: ok ? "ok" : "failed" };
+  return settleSection(states, key, ok);
 }
 
 /** The per-section verdict for a settled fetch, in the exact terms the
@@ -70,21 +155,21 @@ export function settleDashboardSection(
 export function dashboardSectionStatusFromSettled(
   result: PromiseSettledResult<{ ok: boolean }>,
 ): DashboardSectionStatus {
-  return result.status === "fulfilled" && result.value.ok ? "ok" : "failed";
+  return sectionStatusFromSettled(result);
 }
 
 /** True while any section is still in flight. The skeleton rule the
  *  page has always had: while ALL sections are loading, every section
  *  area shows its skeleton — nothing renders half-shaped. */
 export function anyDashboardSectionLoading(states: DashboardSectionStates): boolean {
-  return DASHBOARD_SECTION_KEYS.some((k) => states[k] === "loading");
+  return anySectionLoading(DASHBOARD_SECTION_KEYS, states);
 }
 
 /** The ONLY state in which the full-page "Couldn't load your
  *  dashboard." card may render: every section failed. One, two or
  *  three failures render the page with per-section notes instead. */
 export function allDashboardSectionsFailed(states: DashboardSectionStates): boolean {
-  return DASHBOARD_SECTION_KEYS.every((k) => states[k] === "failed");
+  return allSectionsFailed(DASHBOARD_SECTION_KEYS, states);
 }
 
 /** Which sections a retry must refetch. Naming one section refetches
@@ -94,6 +179,5 @@ export function dashboardSectionsToRefetch(
   states: DashboardSectionStates,
   only?: DashboardSectionKey,
 ): DashboardSectionKey[] {
-  if (only) return [only];
-  return DASHBOARD_SECTION_KEYS.filter((k) => states[k] === "failed");
+  return sectionsToRefetch(DASHBOARD_SECTION_KEYS, states, only);
 }

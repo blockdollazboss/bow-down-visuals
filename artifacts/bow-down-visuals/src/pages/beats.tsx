@@ -11,6 +11,21 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import {
+  initialSectionStates, markSectionLoading, settleSection,
+  type SectionStates,
+} from "@/lib/dashboard-sections";
+
+/* ─── Section resilience (the shared seam, lib/dashboard-sections) ────
+   This page loads two independent sections: the browse list
+   (GET /api/beats?…) and the seller dashboard tab
+   (GET /api/beats/mine/dashboard — one payload: my beats + sales +
+   stats). Each settles on its own through the seam: a failed section
+   shows its own failure card with its own Retry in its own area, and
+   never renders as its empty state. There is no page-wide error flag —
+   one section failing can never take the other (or the page) down. */
+type BeatsSectionKey = "browse" | "dashboard";
+const BEATS_SECTION_KEYS: readonly BeatsSectionKey[] = ["browse", "dashboard"];
 
 /* ─── Beat Marketplace ──────────────────────────────────────────────────────
    Producers list beats (free), artists browse / preview / license them.
@@ -73,14 +88,14 @@ export default function Beats() {
   const { user } = useAuth();
   const { addAsset } = useHubProject();
   const [beats, setBeats] = useState<Beat[]>([]);
-  const [loading, setLoading] = useState(true);
-  /* Beats-list load failures are NOT "no beats listed" — they get their
-     own error state with a retry, scoped to the browse list. The error
-     reflects the LATEST attempt: it clears at the start of each load and
-     on success. beatsLoadedRef guards the gate: once beats have loaded
-     successfully, a later failed reload (e.g. a filter re-run) must NOT
-     blank the beats already on screen into the error state. */
-  const [loadError, setLoadError] = useState(false);
+  /* Per-section load states, driven by the shared seam. A section's
+     failure card renders only when THAT section failed. The loaded ref
+     guards the data: once the browse list has loaded, a later failed
+     reload (e.g. a filter re-run) must NOT blank the beats already on
+     screen — the section settles back to ok and the shown data stays. */
+  const [sectionStates, setSectionStates] = useState<SectionStates<BeatsSectionKey>>(
+    () => initialSectionStates(BEATS_SECTION_KEYS),
+  );
   const beatsLoadedRef = useRef(false);
   const [tab, setTab] = useState<"browse" | "sell" | "dashboard">("browse");
 
@@ -122,18 +137,15 @@ export default function Beats() {
   const [myBeats, setMyBeats] = useState<Beat[]>([]);
   const [sales, setSales] = useState<License[]>([]);
   const [stats, setStats] = useState<{ beatCount: number; saleCount: number; grossCents: number; netCents: number } | null>(null);
-  /* Dashboard-load failures are NOT zero sales / no beats — they get
-     their own error state with a retry, scoped to the dashboard tab.
-     dashLoadedRef guards the gate: once the dashboard has loaded
-     successfully, a later failed reload (e.g. the BeatRow refresh after
-     applying AI tags) must NOT blank the dashboard already on screen. */
-  const [dashLoadError, setDashLoadError] = useState(false);
-  const [dashLoading, setDashLoading] = useState(false);
+  /* Dashboard-load failures are NOT zero sales / no beats — the
+     dashboard SECTION gets its own failure state with a retry, scoped
+     to the dashboard tab. dashLoadedRef guards the data: once the
+     dashboard has loaded, a later failed reload (e.g. the BeatRow
+     refresh after applying AI tags) must NOT blank what's on screen. */
   const dashLoadedRef = useRef(false);
 
   const fetchBeats = async () => {
-    setLoading(true);
-    setLoadError(false);
+    setSectionStates((prev) => markSectionLoading(prev, "browse"));
     try {
       const q = new URLSearchParams();
       if (genre) q.set("genre", genre);
@@ -146,10 +158,12 @@ export default function Beats() {
       const data = await res.json() as { beats?: Beat[] };
       setBeats(data.beats ?? []);
       beatsLoadedRef.current = true;
+      setSectionStates((prev) => settleSection(prev, "browse", true));
     } catch {
-      if (!beatsLoadedRef.current) setLoadError(true);
+      /* Settle to ok when beats are already on screen (their data
+         stays); only a failed FIRST load fails the section. */
+      setSectionStates((prev) => settleSection(prev, "browse", beatsLoadedRef.current));
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchBeats(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,10 +195,11 @@ export default function Beats() {
   }, []);
 
   const fetchDashboard = async () => {
-    /* Spinner gates only until the first successful load — a later
-       refresh keeps the shown dashboard on screen while it runs. */
-    if (!dashLoadedRef.current) setDashLoading(true);
-    setDashLoadError(false);
+    /* The section shows its spinner only until the first successful
+       load — a later refresh keeps the shown dashboard on screen. */
+    if (!dashLoadedRef.current) {
+      setSectionStates((prev) => markSectionLoading(prev, "dashboard"));
+    }
     try {
       const res = await fetch("/api/beats/mine/dashboard");
       if (!res.ok) throw new Error("load failed");
@@ -193,10 +208,11 @@ export default function Beats() {
       setSales(data.sales ?? []);
       setStats(data.stats ?? null);
       dashLoadedRef.current = true;
+      setSectionStates((prev) => settleSection(prev, "dashboard", true));
     } catch {
-      if (!dashLoadedRef.current) setDashLoadError(true);
-    } finally {
-      setDashLoading(false);
+      /* Same guard as browse: settle to ok when a loaded dashboard is
+         on screen; only a failed FIRST load fails the section. */
+      setSectionStates((prev) => settleSection(prev, "dashboard", dashLoadedRef.current));
     }
   };
 
@@ -401,10 +417,10 @@ export default function Beats() {
               </button>
             </div>
 
-            {loading ? (
+            {sectionStates.browse === "loading" ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
-            ) : loadError ? (
-              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            ) : sectionStates.browse === "failed" ? (
+              <div data-testid="beats-browse-failure" className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
                 <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
                 <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load beats.</p>
                 <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
@@ -551,10 +567,10 @@ export default function Beats() {
           <div className="max-w-4xl mx-auto">
             {!user ? (
               <p className="text-center text-white/40 py-12">{t("beats.signInDashboard")}</p>
-            ) : dashLoading ? (
+            ) : sectionStates.dashboard === "loading" ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
-            ) : dashLoadError ? (
-              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            ) : sectionStates.dashboard === "failed" ? (
+              <div data-testid="beats-dashboard-failure" className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
                 <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
                 <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
                 <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
