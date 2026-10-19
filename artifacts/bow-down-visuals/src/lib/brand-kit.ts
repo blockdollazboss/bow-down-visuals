@@ -130,6 +130,38 @@ export async function generateBrandKit(
   };
 }
 
+export interface SaveLogoToBrandKitResult {
+  brandKit: BrandKit;
+  /** The URL actually stored — the permanent storage URL. When the
+   *  source was an external/temp URL the server re-hosts it first
+   *  (mirror-on-save), so this can differ from the URL handed in. */
+  logoUrl: string;
+  /** True when the server re-hosted an external URL into our storage. */
+  mirrored: boolean;
+  /** True when a different logo was already in the kit and got replaced
+   *  (the kit holds ONE logo — a save never duplicates). */
+  replaced: boolean;
+}
+
+/** Save a generated logo as the kit's logo. Free. Rides
+ *  POST /api/brand-kit/logo; throws BrandKitRequestError on failure so
+ *  callers show an honest failed state with a retry. */
+export async function saveLogoToBrandKit(
+  getAccessToken: GetAccessToken,
+  logoUrl: string,
+): Promise<SaveLogoToBrandKitResult> {
+  const data = await brandKitFetch(getAccessToken, "/api/brand-kit/logo", {
+    method: "POST",
+    body: JSON.stringify({ logoUrl }),
+  });
+  return {
+    brandKit: data.brandKit as BrandKit,
+    logoUrl: data.logoUrl as string,
+    mirrored: data.mirrored === true,
+    replaced: data.replaced === true,
+  };
+}
+
 /** Save manual fields (logo, tagline pick, bio lines, press facts). Free. */
 export async function saveBrandKit(getAccessToken: GetAccessToken, patch: BrandKitPatch): Promise<BrandKit> {
   const data = await brandKitFetch(getAccessToken, "/api/brand-kit", {

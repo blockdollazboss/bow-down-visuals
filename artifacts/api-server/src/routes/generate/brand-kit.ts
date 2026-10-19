@@ -1,8 +1,10 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { normalizeToStorageRef, uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   applyBrandKitToTheme,
   blankBrandKit,
@@ -25,6 +27,10 @@ const router = Router();
                                 field, press kit, link-in-bio.
    PUT  /api/brand-kit          save manual fields (logo, chosen tagline,
                                 bio lines, press facts) — free, no charge.
+   POST /api/brand-kit/logo     save a generated logo as the kit's logo
+                                (replaces the current one; external URLs
+                                are re-hosted into permanent storage
+                                first) — free, no charge.
    POST /api/brand-kit/apply    write the kit's colors + fonts into the
                                 profile's live theme values — free.
 
@@ -119,6 +125,109 @@ router.put("/brand-kit", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "[brand-kit] save failed");
     res.status(500).json({ error: "Couldn't save your brand kit. Please try again." });
+  }
+});
+
+/* ── POST /api/brand-kit/logo — a generated logo lands in the kit ─────
+   The kit holds ONE logo (logoUrl): saving replaces the current one, so
+   a second save can never duplicate. Free — no charge.
+
+   Mirror-on-save (owner law, 2026-10-13): the kit never stores a temp
+   URL. A logo URL already on our own storage is permanent as-is; any
+   other http(s) URL (the logo generator's raw provider fallback is the
+   live case) is downloaded and re-hosted into the same bucket the logo
+   generator writes to, and the PERMANENT public URL is what the kit
+   stores. Re-hosting is best-effort exactly like mirrorMedia: a failed
+   re-host keeps the original value, logs loudly, and never fails a save
+   the creator asked for — `mirrored` in the response says which
+   happened. */
+const GENERATED_LOGOS_BUCKET = "generated-clips"; // generate/logo.ts LOGO_BUCKET
+const LOGO_MIRROR_MAX_BYTES = 200 * 1024 * 1024; // mirrorMedia's house cap
+const LOGO_EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/avif": "avif",
+};
+
+const brandKitLogoSchema = z.object({
+  logoUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2000)
+    .refine((v) => /^https?:\/\//i.test(v), { message: "logoUrl must be an http(s) URL." }),
+});
+
+function isPermanentLogoUrl(logoUrl: string): boolean {
+  if (logoUrl.startsWith("r2://") || logoUrl.startsWith("supabase://")) return true;
+  const ref = normalizeToStorageRef(logoUrl);
+  return ref !== null && ref !== logoUrl;
+}
+
+async function permanentLogoUrl(
+  userId: string,
+  logoUrl: string,
+  log: { error: (obj: unknown, msg?: string) => void },
+): Promise<{ url: string; mirrored: boolean }> {
+  if (isPermanentLogoUrl(logoUrl)) return { url: logoUrl, mirrored: false };
+  try {
+    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`source answered ${res.status}`);
+    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (contentType && !contentType.startsWith("image/")) {
+      throw new Error(`source is not an image (${contentType})`);
+    }
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared > LOGO_MIRROR_MAX_BYTES) throw new Error("source too large");
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0 || buf.length > LOGO_MIRROR_MAX_BYTES) throw new Error("bad payload");
+    const ext = LOGO_EXT_BY_CONTENT_TYPE[contentType] ?? "png";
+    const url = await uploadPublicMediaToR2(
+      GENERATED_LOGOS_BUCKET,
+      `logos/${userId}/${randomUUID()}.${ext}`,
+      buf,
+      contentType || "image/png",
+    );
+    return { url, mirrored: true };
+  } catch (err) {
+    log.error({ err, userId }, "[brand-kit] logo re-host failed — storing the original URL");
+    return { url: logoUrl, mirrored: false };
+  }
+}
+
+router.post("/brand-kit/logo", requireAuth, async (req, res) => {
+  const parsed = brandKitLogoSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  try {
+    const existing = await readBrandKit(req.userId!);
+    const { url: storedUrl, mirrored } = await permanentLogoUrl(req.userId!, parsed.data.logoUrl, req.log);
+    const replaced = !!existing?.logoUrl && existing.logoUrl !== storedUrl;
+    const nowIso = new Date().toISOString();
+    const next: StoredBrandKit = {
+      ...(existing ?? blankBrandKit(nowIso)),
+      logoUrl: storedUrl,
+      updatedAt: nowIso,
+    };
+    const saved = await writeBrandKit(req.userId!, next);
+    if (!saved) {
+      res.status(404).json({
+        error: "NO_PROFILE",
+        message: "Create your creator profile first — your brand kit saves onto it.",
+      });
+      return;
+    }
+    res.json({ brandKit: next, logoUrl: storedUrl, mirrored, replaced });
+  } catch (err) {
+    req.log.error({ err }, "[brand-kit] logo save failed");
+    res.status(500).json({ error: "Couldn't save the logo to your brand kit. Please try again." });
   }
 });
 

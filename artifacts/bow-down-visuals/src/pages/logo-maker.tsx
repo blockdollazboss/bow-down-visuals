@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Crown, Loader2, Download, AlertTriangle, CheckCircle2,
-  ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon,
+  ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Save,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { saveLogoToBrandKit } from "@/lib/brand-kit";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
@@ -36,6 +37,75 @@ const MODELS: Array<{ key: LogoModel; labelKey: string; cost: number; blurbKey: 
 ];
 
 type JobStatus = "idle" | "working" | "processing" | "done" | "failed";
+
+/* ─── Save to branding kit ────────────────────────────────────────────────
+   A generated logo lands in the creator's ONE brand record (the kit's
+   logo slot — saving replaces, never duplicates) via POST
+   /api/brand-kit/logo, so the editor, intros, press kit and bio page
+   read it from there. Honest states: saving → saved (with the way to
+   the kit) → failed with a retry. The server stores the permanent
+   storage URL — an external/provider URL is re-hosted first. */
+function SaveLogoToKitButton({ url, compact = false }: { url: string; compact?: boolean }) {
+  const { t } = useTranslation();
+  const { getAccessToken } = useAuth();
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+
+  /* A different logo in this slot starts unsaved again. */
+  useEffect(() => {
+    setState("idle");
+  }, [url]);
+
+  async function save() {
+    if (state === "saving" || state === "saved") return;
+    setState("saving");
+    try {
+      await saveLogoToBrandKit(getAccessToken, url);
+      setState("saved");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  if (state === "saved") {
+    return (
+      <span
+        data-testid="logo-save-to-kit-saved"
+        className={`inline-flex items-center gap-2 font-semibold text-green-300/90 ${compact ? "text-xs" : "text-sm"}`}
+      >
+        <CheckCircle2 className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+        {t("logoMaker.savedToKit", { defaultValue: "Saved to your branding kit" })}
+        <Link href="/branding-kit" className="text-primary underline-offset-2 hover:underline">
+          {t("logoMaker.viewKit", { defaultValue: "View kit" })}
+        </Link>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void save()}
+      disabled={state === "saving"}
+      data-testid="logo-save-to-kit"
+      className={
+        compact
+          ? "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-primary disabled:opacity-50"
+          : "inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 px-6 py-3.5 font-bold text-primary transition hover:bg-primary/10 disabled:opacity-50"
+      }
+    >
+      {state === "saving" ? (
+        <Loader2 className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} animate-spin`} />
+      ) : (
+        <Save className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      )}
+      {state === "saving"
+        ? t("logoMaker.savingToKit", { defaultValue: "Saving to branding kit…" })
+        : state === "failed"
+          ? t("logoMaker.saveToKitFailed", { defaultValue: "Couldn't save — try again" })
+          : t("logoMaker.saveToKit", { defaultValue: "Save to branding kit" })}
+    </button>
+  );
+}
 
 interface LogoResponse {
   taskId?: string;
@@ -323,6 +393,9 @@ export function LogoMakerTool() {
                 <RefreshCw className="h-4 w-4" /> {t("logoMaker.newLogo")}
               </button>
             </div>
+            <div className="flex">
+              <SaveLogoToKitButton url={outputUrl} />
+            </div>
             <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[140px]" data-testid="btn-logo-share">
                 <ShareMenu
@@ -352,10 +425,15 @@ export function LogoMakerTool() {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {recent.map((r) => (
-                <a key={r.at} href={r.url} target="_blank" rel="noreferrer" className="group">
-                  <img src={r.url} alt={r.brandName} className="aspect-square w-full rounded-xl border border-white/[0.08] object-cover group-hover:border-primary/50 transition" />
-                  <p className="text-xs text-white/50 mt-1 truncate">{r.brandName}</p>
-                </a>
+                <div key={r.at}>
+                  <a href={r.url} target="_blank" rel="noreferrer" className="group block">
+                    <img src={r.url} alt={r.brandName} className="aspect-square w-full rounded-xl border border-white/[0.08] object-cover group-hover:border-primary/50 transition" />
+                    <p className="text-xs text-white/50 mt-1 truncate">{r.brandName}</p>
+                  </a>
+                  <div className="mt-1.5">
+                    <SaveLogoToKitButton url={r.url} compact />
+                  </div>
+                </div>
               ))}
             </div>
           </div>

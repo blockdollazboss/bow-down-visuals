@@ -8,6 +8,7 @@ import {
   generateBrandKit,
   pressKitFieldsFromBrandKit,
   saveBrandKit,
+  saveLogoToBrandKit,
   type BrandKit,
 } from "./brand-kit";
 
@@ -87,6 +88,33 @@ describe("brand kit client", () => {
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body as string)).toEqual({ logoUrl: "https://cdn.example/logo.png" });
+  });
+
+  it("saveLogoToBrandKit posts the logo to the kit's logo endpoint and returns the stored URL + flags", async () => {
+    const fetchMock = stubFetch(() =>
+      okJson({ brandKit: sample, logoUrl: "https://storage.example/generated-clips/logos/user-1/x.png", mirrored: true, replaced: false }),
+    );
+    const result = await saveLogoToBrandKit(async () => "tok", "https://provider.example/temp/logo.png");
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/brand-kit/logo");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ logoUrl: "https://provider.example/temp/logo.png" });
+    expect(result.logoUrl).toBe("https://storage.example/generated-clips/logos/user-1/x.png");
+    expect(result.mirrored).toBe(true);
+    expect(result.replaced).toBe(false);
+    expect(result.brandKit).toEqual(sample);
+  });
+
+  it("saveLogoToBrandKit throws on failure (no profile) so the UI can show a failed state", async () => {
+    stubFetch(() => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "NO_PROFILE", message: "Create your creator profile first — your brand kit saves onto it." }),
+    }));
+    const err = await saveLogoToBrandKit(async () => "tok", "https://cdn.example/logo.png").catch((e) => e);
+    expect(err).toBeInstanceOf(BrandKitRequestError);
+    expect((err as BrandKitRequestError).status).toBe(404);
+    expect((err as BrandKitRequestError).code).toBe("NO_PROFILE");
   });
 
   it("applyBrandKit posts to the apply endpoint", async () => {
