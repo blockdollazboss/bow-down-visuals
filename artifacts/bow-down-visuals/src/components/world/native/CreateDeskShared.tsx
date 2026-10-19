@@ -405,6 +405,13 @@ import {
 } from "@/lib/world/create-desks";
 import { Target } from "lucide-react";
 import { peaksFromChannelData } from "@/lib/world/audio-benches";
+import {
+  abAvailability,
+  abResumePosition,
+  abSettledSide,
+  abSideAfterFlip,
+  type ABSide,
+} from "@/lib/world/audio-ab";
 
 export function useQuestProgressChip() {
   const beforeRef = useRef<QuestProgress[] | null>(null);
@@ -464,7 +471,10 @@ export function QuestProgressChip({ isLight, lines }: { isLight: boolean; lines:
    sides, draw per-bar peaks (lib/world/audio-benches shaping), and
    swap the playing source at the same position when the side
    flips. Peaks that can't decode render an honest "waveform
-   unavailable" strip instead of a fake flat line. */
+   unavailable" strip instead of a fake flat line. STACK-20 R2 #9:
+   the flip/availability/position logic lives in lib/world/audio-ab
+   and is shared with the full workbench; a missing original is
+   named in the open (the note under the tabs), never silent. */
 
 async function computePeaks(source: File | string, bars = 48): Promise<number[] | null> {
   try {
@@ -515,11 +525,18 @@ export function ABAudioPlayer(props: {
   afterUrl: string;
 }) {
   const { isLight } = props;
-  const [side, setSide] = useState<"before" | "after">("after");
+  const [side, setSide] = useState<ABSide>("after");
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [beforePeaks, setBeforePeaks] = useState<number[] | null>(null);
   const [afterPeaks, setAfterPeaks] = useState<number[] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /* STACK-20 R2 #9: availability + the honestly-shown side come
+     from the seam (lib/world/audio-ab). A missing original is
+     said out loud below — never a silently dead tab, and never
+     the finished audio playing under a "Before" face. */
+  const availability = abAvailability({ beforeSource: props.beforeSource, afterUrl: props.afterUrl });
+  const shownSide = abSettledSide(side, availability);
 
   useEffect(() => {
     if (!props.beforeSource) {
@@ -542,18 +559,20 @@ export function ABAudioPlayer(props: {
     void computePeaks(props.afterUrl).then(setAfterPeaks);
   }, [props.afterUrl]);
 
-  const flip = (next: "before" | "after") => {
+  const flip = (next: ABSide) => {
+    const target = abSideAfterFlip(shownSide, next, availability);
+    setSide(target);
+    if (target === shownSide) return;
     const el = audioRef.current;
-    setSide(next);
     if (!el) return;
     const t = el.currentTime;
     const wasPlaying = !el.paused;
     el.pause();
     window.setTimeout(() => {
-      const target = next === "after" ? props.afterUrl : beforeUrl;
-      if (!target || !audioRef.current) return;
-      audioRef.current.src = target;
-      audioRef.current.currentTime = Math.min(t, audioRef.current.duration || t);
+      const url = target === "after" ? props.afterUrl : beforeUrl;
+      if (!url || !audioRef.current) return;
+      audioRef.current.src = url;
+      audioRef.current.currentTime = abResumePosition(t, audioRef.current.duration);
       if (wasPlaying) void audioRef.current.play().catch(() => {});
     }, 0);
   };
@@ -570,15 +589,20 @@ export function ABAudioPlayer(props: {
   return (
     <div data-testid="world-audio-ab-player" className="space-y-2">
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Before and after">
-        <button type="button" role="tab" aria-selected={side === "before"} data-testid="world-audio-ab-before" onClick={() => flip("before")} disabled={!beforeUrl} className={tabCls(side === "before")}>
+        <button type="button" role="tab" aria-selected={shownSide === "before"} data-testid="world-audio-ab-before" onClick={() => flip("before")} disabled={!beforeUrl} className={tabCls(shownSide === "before")}>
           Before — {props.beforeLabel}
         </button>
-        <button type="button" role="tab" aria-selected={side === "after"} data-testid="world-audio-ab-after" onClick={() => flip("after")} className={tabCls(side === "after")}>
+        <button type="button" role="tab" aria-selected={shownSide === "after"} data-testid="world-audio-ab-after" onClick={() => flip("after")} className={tabCls(shownSide === "after")}>
           After — {props.afterLabel}
         </button>
       </div>
-      <WaveformBars peaks={side === "before" ? beforePeaks : afterPeaks} active />
-      <audio ref={audioRef} src={side === "after" ? props.afterUrl : (beforeUrl ?? undefined)} controls className="w-full" />
+      {!availability.before && (
+        <p data-testid="world-audio-ab-before-gone" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+          The original isn&rsquo;t at this desk anymore — only the {props.afterLabel} version can play, so there&rsquo;s nothing to compare against.
+        </p>
+      )}
+      <WaveformBars peaks={shownSide === "before" ? beforePeaks : afterPeaks} active />
+      <audio ref={audioRef} src={shownSide === "after" ? props.afterUrl : (beforeUrl ?? undefined)} controls className="w-full" />
     </div>
   );
 }

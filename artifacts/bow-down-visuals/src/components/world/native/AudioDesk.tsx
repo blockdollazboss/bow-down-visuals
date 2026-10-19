@@ -79,6 +79,10 @@ import {
   type AudioDeskTabId,
 } from "@/lib/world/audio-desk-tabs";
 import {
+  abAfterLabelForBench,
+  abComparableOutput,
+} from "@/lib/world/audio-ab";
+import {
   parseMyMusic,
   type MyMusicTrack,
 } from "@/lib/world/shelf";
@@ -94,7 +98,11 @@ import { LibraryTab, SoundPacksTab, StemsTab } from "./AudioDeskTabs";
    follow-on, and the desk's transfer footer reaches it meanwhile.
    STACK-20 #18 docks three more sections beside the benches
    (AudioDeskTabs.tsx, seam lib/world/audio-desk-tabs): Sound packs,
-   Library, and the Stem splitter — each on the website's own rails. */
+   Library, and the Stem splitter — each on the website's own rails.
+   STACK-20 R2 #9 extends the before/after A/B (Ring 2, 2.7) to the
+   finish tool and the full workbench's comparable benches, paired
+   against the source captured when the job started — never the
+   live picker (seam lib/world/audio-ab). */
 
 type BenchTool = "cleanup" | "deverb" | "finish" | "beat" | "sfx";
 
@@ -151,6 +159,12 @@ export function AudioDesk(props: CreateDeskProps) {
   const [sfxCategory, setSfxCategory] = useState("impacts");
   const [state, setState] = useState<CreateDeskJobState>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  /* STACK-20 R2 #9: the file the LANDED result was made from,
+     captured when its job started. The A/B player pairs against
+     this snapshot — never the live picker — so choosing another
+     song afterwards can't silently re-pair the old result with
+     a new "original". */
+  const [resultSourceFile, setResultSourceFile] = useState<File | null>(null);
   const [resultTitle, setResultTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [gateNote, setGateNote] = useState<string | null>(null);
@@ -288,6 +302,7 @@ export function AudioDesk(props: CreateDeskProps) {
     setState("running");
     setError(null);
     setResultUrl(null);
+    setResultSourceFile(isFileTool ? file : null);
     void quest.snapshot();
     try {
       if (tool === "cleanup" || tool === "deverb") {
@@ -421,6 +436,7 @@ export function AudioDesk(props: CreateDeskProps) {
               setTool(t);
               setState("idle");
               setResultUrl(null);
+              setResultSourceFile(null);
               setError(null);
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
@@ -608,14 +624,14 @@ export function AudioDesk(props: CreateDeskProps) {
         result={
           resultUrl ? (
             <div>
-              {tool === "cleanup" || tool === "deverb" ? (
+              {tool === "cleanup" || tool === "deverb" || tool === "finish" ? (
                 <div className="space-y-2">
                   <p className="text-sm font-bold">{resultTitle} — hear the difference</p>
                   <ABAudioPlayer
                     isLight={isLight}
-                    beforeLabel={tool === "cleanup" ? "Original" : "Original"}
-                    afterLabel={tool === "cleanup" ? "Cleaned" : "De-reverbed"}
-                    beforeSource={file}
+                    beforeLabel={tool === "finish" ? "Your demo" : "Original"}
+                    afterLabel={tool === "cleanup" ? "Cleaned" : tool === "deverb" ? "De-reverbed" : "Finished"}
+                    beforeSource={resultSourceFile}
                     afterUrl={resultUrl}
                   />
                 </div>
@@ -630,6 +646,7 @@ export function AudioDesk(props: CreateDeskProps) {
                 onMakeAnother={() => {
                   setState("idle");
                   setResultUrl(null);
+                  setResultSourceFile(null);
                 }}
               />
             </div>
@@ -698,6 +715,14 @@ function AudioFullBench(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AudioBenchResult | null>(null);
+  /* STACK-20 R2 #9: the source the LANDED result was made from
+     (the desk's file, or the URL bench's source URL), captured
+     when Run was pressed — a job polls for a while, and the
+     member may point the desk at another song meanwhile; the
+     A/B comparison pairs against this capture, never the live
+     picker. */
+  const [resultSource, setResultSource] = useState<File | string | null>(null);
+  const runSourceRef = useRef<File | string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* bench fields */
@@ -804,6 +829,7 @@ function AudioFullBench(props: {
       return;
     }
     setResult(read);
+    setResultSource(runSourceRef.current);
     refreshProfile();
     setBusy(false);
     void quest.checkAfter();
@@ -833,6 +859,8 @@ function AudioFullBench(props: {
     setBusy(true);
     setError(null);
     setResult(null);
+    setResultSource(null);
+    runSourceRef.current = def.input === "url" ? sourceUrl || null : def.input === "file" ? props.file : null;
     void quest.snapshot();
     try {
       /* ── arrangement: the draft rail, free ── */
@@ -968,6 +996,14 @@ function AudioFullBench(props: {
 
   const cost = def.cost(benchId === "voiceover" ? script : undefined);
 
+  /* STACK-20 R2 #9: the result's honest A/B — the one output
+     that is a treated version of the captured source, when the
+     bench carries one (lib/world/audio-ab decides). Remaining
+     outputs (harmony's stem) keep their own plain players. */
+  const comparable = result ? abComparableOutput(benchId, result) : null;
+  const comparableAfterLabel = comparable ? abAfterLabelForBench(benchId) : null;
+  const restUrls = result && comparable ? result.urls.filter((u) => u.url !== comparable.url) : [];
+
   return (
     <div data-testid="world-audio-full-bench" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
@@ -984,6 +1020,7 @@ function AudioFullBench(props: {
             onClick={() => {
               setBenchId(b.id);
               setResult(null);
+              setResultSource(null);
               setError(null);
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
@@ -1136,9 +1173,27 @@ function AudioFullBench(props: {
       {busy && def.pollPath ? <p className={`text-xs font-semibold ${muted}`}>Working on the server — it finishes even if you wander off.</p> : null}
       {result ? (
         <div className="space-y-2" data-testid="world-audio-full-bench-result">
-          {result.urls.map((u) => (
-            <AudioResult key={u.url} url={u.url} title={u.label} />
-          ))}
+          {comparable && comparableAfterLabel ? (
+            <>
+              <div className="space-y-2">
+                <p className="text-sm font-bold">{comparable.label} — hear the difference</p>
+                <ABAudioPlayer
+                  isLight={isLight}
+                  beforeLabel="Original"
+                  afterLabel={comparableAfterLabel}
+                  beforeSource={resultSource}
+                  afterUrl={comparable.url}
+                />
+              </div>
+              {restUrls.map((u) => (
+                <AudioResult key={u.url} url={u.url} title={u.label} />
+              ))}
+            </>
+          ) : (
+            result.urls.map((u) => (
+              <AudioResult key={u.url} url={u.url} title={u.label} />
+            ))
+          )}
           {result.text ? (
             <pre className={`max-h-[200px] overflow-y-auto whitespace-pre-wrap rounded-xl border p-3 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white/80"}`}>{result.text}</pre>
           ) : null}
