@@ -1717,8 +1717,10 @@ export async function fetchWorldDirectory(signal?: AbortSignal): Promise<PalaceD
  *  slate serves it — mirrors the DTO in routes/world-events. */
 export interface WorldEventDto {
   id: string;
-  /* 'contest' joined the calendar in 0158 (World Contests, 2.24). */
-  kind: "stage_show" | "listening_party" | "drop" | "contest";
+  /* 'contest' joined the calendar in 0158 (World Contests, 2.24);
+   * 'office_hours' in 0159 (3.7) — the slate has carried both
+   * since their migrations landed. */
+  kind: "stage_show" | "listening_party" | "drop" | "contest" | "office_hours";
   roomId: string;
   hostUserId: string;
   hostName: string;
@@ -1740,4 +1742,22 @@ export async function fetchWorldEvents(signal?: AbortSignal): Promise<WorldEvent
   if (!res.ok) throw new Error(`world events ${res.status}`);
   const body = (await res.json()) as { events?: WorldEventDto[] };
   return Array.isArray(body.events) ? body.events : [];
+}
+
+/** The palace calendar read (UPGRADE-PROGRAM 3.9): the same public
+ *  slate as fetchWorldEvents PLUS the server's look back — done
+ *  events that ended within the last 7 days (server-capped at 20,
+ *  most recent first) under `recent`. Public, like the slate: the
+ *  Kingdom Board's calendar reads the same for guests and members;
+ *  only the walking is members'. */
+export async function fetchWorldEventCalendar(
+  signal?: AbortSignal,
+): Promise<{ events: WorldEventDto[]; recent: WorldEventDto[] }> {
+  const res = await fetch("/api/world/events?recent=1", { signal });
+  if (!res.ok) throw new Error(`world events ${res.status}`);
+  const body = (await res.json()) as { events?: WorldEventDto[]; recent?: WorldEventDto[] };
+  return {
+    events: Array.isArray(body.events) ? body.events : [],
+    recent: Array.isArray(body.recent) ? body.recent : [],
+  };
 }
