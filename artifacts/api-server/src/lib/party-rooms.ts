@@ -304,6 +304,20 @@ export class PartyRooms {
       .map((r) => this.dto(r));
   }
 
+  /** Open lobbies homed to ONE creator profile (program 2.25): the
+   *  profile/stream home read — the same lobby truth as
+   *  listOpenRooms, scoped to the tables a place holds. A room's
+   *  home is its stored profileSlug, fixed at creation (the explicit
+   *  home the host picked, else the host's own profile). Newest
+   *  first; lobby phase only, exactly like discovery. */
+  listOpenRoomsForProfile(profileSlug: string, limit = 20): PartyRoomDto[] {
+    return [...this.rooms.values()]
+      .filter((r) => r.phase === "lobby" && r.profileSlug === profileSlug)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map((r) => this.dto(r));
+  }
+
   roomCount(): number {
     return this.rooms.size;
   }

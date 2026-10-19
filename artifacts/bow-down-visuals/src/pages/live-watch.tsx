@@ -8,6 +8,7 @@ import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
+import PartyTableSection from "@/components/artist/PartyTableSection";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
    Playback is WebRTC (WHEP) where the transport offers it; streams from
@@ -321,6 +322,14 @@ export default function LiveWatch() {
             </div>
           )}
         </div>
+        {/* A party table homed to THIS stream stands at the stream
+            (program 2.25) — the host's table, opened from in-world
+            through the same summons door as the profile and the
+            Kingdom Board. Renders nothing when no table is homed
+            here. */}
+        {creator && (
+          <PartyTableSection slug={creator.slug} streamId={stream.id} className="mt-5" />
+        )}
           </div>
           <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
         </div>
