@@ -17,6 +17,7 @@ import {
   type SongAudioState,
 } from "./CreateDeskShared";
 import { StoryboardBench } from "./StoryboardBench";
+import { StoryboardPlanner } from "./StoryboardPlanner";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
@@ -1103,6 +1104,17 @@ export function VideoDesk(props: CreateDeskProps) {
         </p>
       )}
       <StoryboardBench
+        isLight={isLight}
+        editorBusy={editor.busy}
+        onSendToEditor={
+          props.onOpenEditor
+            ? (payload) => {
+                void editor.send(payload);
+              }
+            : undefined
+        }
+      />
+      <StoryboardPlanner
         isLight={isLight}
         editorBusy={editor.busy}
         onSendToEditor={
