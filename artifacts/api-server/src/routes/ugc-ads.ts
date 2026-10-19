@@ -801,7 +801,7 @@ router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, async (req,
       { idempotencyKey: key },
     );
   } catch (err) {
-    await setGenerating({ status: "draft", generationKey: null });
+    await setGenerating({ status: ad.status, generationKey: null });
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",

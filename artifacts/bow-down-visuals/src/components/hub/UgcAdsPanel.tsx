@@ -200,6 +200,9 @@ export function UgcAdsPanel() {
       setPersonaUrl(url);
       refreshProfile();
     } catch (err) {
+      /* A failed attempt was refunded — the retry must be a NEW intent
+         (fresh idempotency key), never a replay of the refunded one. */
+      personaKeyRef.current = "";
       setMakerError(err instanceof Error ? err.message : "The persona didn't come through — try again.");
     } finally {
       setPersonaBusy(false);
