@@ -251,6 +251,33 @@ export function dmFilterMessages(messages: readonly DmMessage[], query: string):
   return messages.filter((m) => dmMessageMatches(m, query));
 }
 
+/** Split a thread text (a message body, a piece of work's title)
+ *  around every case-insensitive match so the desk can light the
+ *  match up in place inside the messages it shows — the website
+ *  page's own splitter, mirrored (dmHighlightSegments in
+ *  lib/dm-attachments). An empty query yields the whole text as
+ *  one un-hit segment. */
+export function dmThreadHighlightSegments(
+  text: string,
+  query: string,
+): { text: string; hit: boolean }[] {
+  const q = query.trim();
+  if (!q) return [{ text, hit: false }];
+  const lower = text.toLowerCase();
+  const needle = q.toLowerCase();
+  const out: { text: string; hit: boolean }[] = [];
+  let i = 0;
+  for (;;) {
+    const at = lower.indexOf(needle, i);
+    if (at === -1) break;
+    if (at > i) out.push({ text: text.slice(i, at), hit: false });
+    out.push({ text: text.slice(at, at + needle.length), hit: true });
+    i = at + needle.length;
+  }
+  if (i < text.length) out.push({ text: text.slice(i), hit: false });
+  return out.length > 0 ? out : [{ text, hit: false }];
+}
+
 /** Search the conversation list: the creator's name, their slug, the
  *  last words, or the title of the last piece of work sent. */
 export function dmConversationMatches(c: DmConversation, query: string): boolean {
