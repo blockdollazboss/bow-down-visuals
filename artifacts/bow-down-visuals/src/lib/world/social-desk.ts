@@ -580,6 +580,15 @@ export function threadReplyAllowed(isGuest: boolean): boolean {
   return !isGuest;
 }
 
+/** Guests read a reply's reaction counts; the tap itself is
+ *  members-only, here and at every nested node — a reply rides the
+ *  post reaction rail (it IS a post row), and that rail is
+ *  requireAuth server-side regardless — this keeps the desk honest,
+ *  not open. Mirrors threadReplyAllowed for the composer. */
+export function threadReactAllowed(isGuest: boolean): boolean {
+  return !isGuest;
+}
+
 /* ─── The parity follow-on log (NATIVE-PLAN §3.4, v1 scope line) ───
    Everything behind these two stations that stays TRANSFER-ONLY in
    v1, named so the next lane promotes benches deliberately, never

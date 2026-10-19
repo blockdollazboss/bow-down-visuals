@@ -28,6 +28,7 @@ import {
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
   BOARD_REACTIONS, nextReactionState, fullThread,
   threadCountOf, threadToggleLabel, mergeThreadChildren, threadReplyAllowed,
+  threadReactAllowed,
   type ThreadLoadState,
   type DmConversation, type DmMessage, type DmAttachment, type Superfan,
   type SentimentReport, type CommunityPostVariant, type ReplyDraftTone,
@@ -817,7 +818,9 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
    under the same laws as the thread root: the count is the server's
    plus this session's landed answers, and a failed child load is a
    failed state with a retry, never an empty branch. Members can
-   answer any node in place; guests read only. */
+   answer and react to any node in place — a reply IS a post row,
+   so its reactions ride the card's own rail and its counts/viewer
+   state arrive on the replies DTO; guests read only. */
 function ThreadReplyNode({
   reply, depth, isLight, isGuest, authHeaders,
 }: {
@@ -838,6 +841,44 @@ function ThreadReplyNode({
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const count = threadCountOf(reply.reply_count, landed.length);
   const canReply = threadReplyAllowed(isGuest);
+  const canReact = threadReactAllowed(isGuest);
+  /* Reaction state is the server's: the replies DTO enriches every
+     row with reaction_counts + viewer_emoji, exactly like the card. */
+  const [emoji, setEmoji] = useState<string | null>(reply.viewer_emoji);
+  const [counts, setCounts] = useState<Record<string, number>>(reply.reaction_counts ?? {});
+  const [reactNote, setReactNote] = useState<string | null>(null);
+
+  /* Same optimistic shape as the card's react(): apply the seam's
+     next state, confirm against /api/react (POST to set/swap,
+     DELETE to remove), and on failure roll back AND say so — a
+     reaction that didn't land never stands. The target is the
+     reply's own id under target_kind "post": a reply is a post row,
+     so the rail stores and counts it identically. */
+  async function react(next: string) {
+    const prev = { emoji, counts };
+    const state = nextReactionState(emoji, counts, next);
+    setEmoji(state.emoji);
+    setCounts(state.counts);
+    setReactNote(null);
+    try {
+      if (state.emoji === null) {
+        const res = await fetch(reactRemovePath(reply.id), {
+          method: "DELETE",
+          headers: await authHeaders(),
+        });
+        if (!res.ok) throw new Error("react");
+      } else {
+        await apiJson(authHeaders, REACT_PATH, {
+          method: "POST",
+          body: { target_kind: "post", target_id: reply.id, emoji: next },
+        });
+      }
+    } catch {
+      setEmoji(prev.emoji);
+      setCounts(prev.counts);
+      setReactNote("That reaction didn't land — try again.");
+    }
+  }
 
   async function loadChildren() {
     setChildState("loading");
@@ -891,6 +932,33 @@ function ThreadReplyNode({
         <KingTokenText body={reply.body} theme={isLight ? "light" : "dark"} />
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-1">
+        {BOARD_REACTIONS.map((r) =>
+          canReact ? (
+            <button
+              key={r.emoji}
+              type="button"
+              data-testid={`world-community-node-react-${r.emoji}`}
+              onClick={() => void react(r.emoji)}
+              aria-pressed={emoji === r.emoji}
+              className={`${chipBtn(isLight)} ${emoji === r.emoji ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+            >
+              <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
+              {r.label}
+              {(counts[r.emoji] ?? 0) > 0 ? ` ${counts[r.emoji]}` : ""}
+            </button>
+          ) : (counts[r.emoji] ?? 0) > 0 ? (
+            /* Guests look, never tap: the counts render as plain
+               chips — the rail is requireAuth regardless. */
+            <span
+              key={r.emoji}
+              data-testid={`world-community-node-react-count-${r.emoji}`}
+              className={chipBtn(isLight)}
+            >
+              <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
+              {r.label} {counts[r.emoji]}
+            </span>
+          ) : null,
+        )}
         {(count > 0 || childState !== "idle") && (
           <button
             type="button"
@@ -913,6 +981,14 @@ function ThreadReplyNode({
           </button>
         )}
       </div>
+      {reactNote && (
+        <p
+          className={`mt-1.5 pl-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}
+          data-testid="world-community-node-react-note"
+        >
+          {reactNote}
+        </p>
+      )}
       {composerOpen && canReply && (
         <div className="mt-1.5 pl-1">
           <div className="flex gap-2">

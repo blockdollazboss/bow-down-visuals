@@ -56,6 +56,7 @@ import {
   commentsBatchFromPosts, pinTopicReady, postBodyReady,
   nextReactionState, fullThread,
   threadCountOf, threadToggleLabel, mergeThreadChildren, threadReplyAllowed,
+  threadReactAllowed,
   SOCIAL_NATIVE_FOLLOW_ONS, SOCIAL_RING2_PROMOTIONS,
   type DmConversation, type DmMessage,
 } from "./social-desk";
@@ -248,6 +249,50 @@ describe("full threads (2.18) — nested + honest", () => {
   it("guests read the whole thread but never get a composer", () => {
     expect(threadReplyAllowed(true)).toBe(false);
     expect(threadReplyAllowed(false)).toBe(true);
+  });
+
+  it("guests read a reply's reaction counts but never get the tap", () => {
+    expect(threadReactAllowed(true)).toBe(false);
+    expect(threadReactAllowed(false)).toBe(true);
+  });
+});
+
+describe("reply reactions — every node in the thread tree (R2 residual)", () => {
+  it("the node rides the card's exact rail and reaction set — no second shape", () => {
+    /* Same seam math, same paths, same BOARD_REACTIONS set as the
+       top-level card: a reply is a post row, so the target is the
+       reply's own id under the post rail. */
+    expect(deskSrc).toContain("reactRemovePath(reply.id)");
+    expect(deskSrc).toContain('body: { target_kind: "post", target_id: reply.id, emoji: next }');
+    expect(deskSrc).toContain("world-community-node-react-${r.emoji}");
+    /* The card's chips keep their own testids — the node's are distinct. */
+    expect(deskSrc).toContain("world-community-react-${r.emoji}");
+  });
+
+  it("counts and viewer state come from the server DTO, never invented", () => {
+    expect(deskSrc).toContain("useState<string | null>(reply.viewer_emoji)");
+    expect(deskSrc).toContain("useState<Record<string, number>>(reply.reaction_counts ?? {})");
+  });
+
+  it("a failed toggle rolls back AND says so — the reaction never stands", () => {
+    expect(deskSrc).toContain("That reaction didn't land — try again.");
+    expect(deskSrc).toContain('data-testid="world-community-node-react-note"');
+    expect(deskSrc).toContain("setCounts(prev.counts)");
+  });
+
+  it("guests get read-only count chips, members get the buttons (access law)", () => {
+    expect(deskSrc).toContain("threadReactAllowed(isGuest)");
+    expect(deskSrc).toContain("world-community-node-react-count-${r.emoji}");
+  });
+
+  it("the node is recursive — reactions land at any nesting depth", () => {
+    /* ThreadReplyNode renders ThreadReplyNode for its children, so
+       the wiring above is inherited by every depth, not copied. */
+    const nodeStart = deskSrc.indexOf("function ThreadReplyNode");
+    const nodeEnd = deskSrc.indexOf("function NoticePostCard");
+    const nodeSrc = deskSrc.slice(nodeStart, nodeEnd);
+    expect(nodeSrc).toContain("<ThreadReplyNode");
+    expect(nodeSrc).toContain("world-community-node-react-");
   });
 });
 

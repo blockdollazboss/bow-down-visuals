@@ -135,12 +135,66 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
     return predicate(store, q.sql, q.params as unknown[]);
   }
 
+  function splitArgs(sql: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let cur = "";
+    for (const ch of sql) {
+      if (ch === "(") depth++;
+      if (ch === ")") depth--;
+      if (ch === "," && depth === 0) {
+        parts.push(cur);
+        cur = "";
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.trim()) parts.push(cur);
+    return parts.map((p) => p.trim());
+  }
+
+  /* Numeric set expressions: `"col" ± $n`, `"col" ± n`, bare
+     params/literals, and GREATEST/LEAST wrappers around them (the
+     reaction rail's DELETE path guards like_count with
+     GREATEST("like_count" - 1, 0)). Returns null when the shape is
+     not a plain numeric expression the fake can honor. */
+  function evalNumeric(store: TableStore, row: Row, expr: string, params: unknown[]): number | null {
+    const s = expr.trim();
+    const wrap = s.match(/^(greatest|least)\((.*)\)$/i);
+    if (wrap) {
+      const args = splitArgs(wrap[2]).map((a) => evalNumeric(store, row, a, params));
+      if (args.some((a) => a === null)) return null;
+      const nums = args as number[];
+      return wrap[1].toLowerCase() === "greatest" ? Math.max(...nums) : Math.min(...nums);
+    }
+    let m = s.match(/"(\w+)"\s*([+-])\s*\$(\d+)$/);
+    if (m) {
+      const base = Number(row[prop(store, m[1])] ?? 0);
+      const delta = Number(params[Number(m[3]) - 1]);
+      return m[2] === "+" ? base + delta : base - delta;
+    }
+    m = s.match(/"(\w+)"\s*([+-])\s*(\d+(?:\.\d+)?)$/);
+    if (m) {
+      const base = Number(row[prop(store, m[1])] ?? 0);
+      const delta = Number(m[3]);
+      return m[2] === "+" ? base + delta : base - delta;
+    }
+    m = s.match(/^\$(\d+)$/);
+    if (m) return Number(params[Number(m[1]) - 1]);
+    if (/^\d+(?:\.\d+)?$/.test(s)) return Number(s);
+    m = s.match(/^"(\w+)"$/);
+    if (m) return Number(row[prop(store, m[1])] ?? 0);
+    return null;
+  }
+
   function evalSetValue(store: TableStore, row: Row, value: unknown): unknown {
     if (value === null || value === undefined) return value;
     if (value instanceof Date || typeof value !== "object") return value;
     // SQL expression: support `"col" + $n` / `"col" - $n`.
     try {
       const q = dialect.sqlToQuery(value as never);
+      const numeric = evalNumeric(store, row, q.sql, q.params as unknown[]);
+      if (numeric !== null) return numeric;
       const m = q.sql.match(/"(\w+)"\s*([+-])\s*\$(\d+)/);
       if (m) {
         const col = prop(store, m[1]);
