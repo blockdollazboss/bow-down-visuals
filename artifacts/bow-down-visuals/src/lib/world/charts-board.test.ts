@@ -16,21 +16,26 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  chartLikeIdsParam,
+  chartLikeKey,
   chartTrackPlayInput,
   chartVideoPlayInput,
   followRequest,
   followStateFromResponse,
   followUrl,
   jukeboxTrackId,
+  likeStateFromToggle,
   normalizeChartCreators,
   normalizeChartTracks,
   normalizeChartVideos,
   normalizeFollowStates,
+  normalizeLikeStates,
 } from "./charts-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const boardSrc = read("../../components/world/native/boards/ChartsBoard.tsx");
 const stationPanelSrc = read("../../components/world/StationPanel.tsx");
+const shelfPlayerSrc = read("../../components/world/native/ShelfPlayer.tsx");
 
 const TRACKS_PAYLOAD = {
   window: "week",
@@ -233,6 +238,104 @@ describe("Ring 2 (2.27) — likes, videos, and the Shelf-player seam", () => {
     // Still no media element and no page pull-up in the board itself.
     expect(boardSrc).not.toContain("<audio");
     expect(boardSrc).not.toContain("<video");
+  });
+});
+
+describe("Ring 2 (2.27) completion — hearts open on the walker's real like state", () => {
+  const tracks = normalizeChartTracks({
+    tracks: [
+      { id: "t1", title: "One", like_count: 17, audio_url: "https://cdn.example.com/t1.mp3" },
+      { id: "t2", title: "Two", like_count: 3 },
+    ],
+  });
+  const videos = normalizeChartVideos({
+    videos: [{ id: "v1", title: "Vid", like_count: 7, video_url: "https://cdn.example.com/v1.mp4" }],
+  });
+
+  it("a heart's key is kind+id — a track and a video never share one", () => {
+    expect(chartLikeKey("track", "x1")).toBe("track:x1");
+    expect(chartLikeKey("video", "x1")).toBe("video:x1");
+    expect(chartLikeKey("track", "x1")).not.toBe(chartLikeKey("video", "x1"));
+  });
+
+  it("the batched read asks about every media row on show, once each", () => {
+    expect(chartLikeIdsParam(tracks, videos)).toBe("track:t1,track:t2,video:v1");
+    expect(chartLikeIdsParam([...tracks, ...tracks], videos)).toBe("track:t1,track:t2,video:v1");
+    expect(chartLikeIdsParam([], [])).toBeNull();
+  });
+
+  it("the like-state payload keeps only real booleans (the follow read's discipline)", () => {
+    expect(normalizeLikeStates({ "track:t1": true, "video:v1": false, "track:t2": "yes" })).toEqual({
+      "track:t1": true,
+      "video:v1": false,
+    });
+    expect(normalizeLikeStates(null)).toEqual({});
+    expect(normalizeLikeStates("nope")).toEqual({});
+  });
+
+  it("the toggle fold takes the server's answer — its count whenever it sends one", () => {
+    /* like: the server's count rules, even when it disagrees with ±1 */
+    expect(likeStateFromToggle({ liked: false, count: 17 }, { liked: true, count: 19 })).toEqual({
+      liked: true,
+      count: 19,
+    });
+    /* unlike: the same, downward */
+    expect(likeStateFromToggle({ liked: true, count: 19 }, { liked: false, count: 17 })).toEqual({
+      liked: false,
+      count: 17,
+    });
+    /* count absent: step the last known count by the server's verdict */
+    expect(likeStateFromToggle({ liked: false, count: 17 }, { liked: true, count: null })).toEqual({
+      liked: true,
+      count: 18,
+    });
+    expect(likeStateFromToggle({ liked: true, count: 1 }, { liked: false, count: null })).toEqual({
+      liked: false,
+      count: 0,
+    });
+    /* never below zero */
+    expect(likeStateFromToggle({ liked: true, count: 0 }, { liked: false, count: null }).count).toBe(0);
+  });
+
+  it("the board source: hearts seed from the batched read and fold only from the toggle's answer", () => {
+    expect(boardSrc).toContain("/api/discovery/likes?ids=");
+    expect(boardSrc).toContain("normalizeLikeStates");
+    expect(boardSrc).toContain("chartLikeIdsParam");
+    expect(boardSrc).toContain("likeStateFromToggle(current, res)");
+    /* the seed never overwrites a settled heart */
+    expect(boardSrc).toContain("if (!(key in next))");
+    /* the old inline count math is gone — the seam owns the fold */
+    expect(boardSrc).not.toContain("res.count !== null ? res.count");
+    /* a failed toggle flips nothing: its catch settles no state */
+    const toggleAt = boardSrc.indexOf("const toggleRowLike");
+    const catchAt = boardSrc.indexOf("} catch {", toggleAt);
+    const finallyAt = boardSrc.indexOf("} finally {", toggleAt);
+    expect(boardSrc.slice(catchAt, finallyAt)).not.toContain("setLikeStates");
+  });
+
+  it("the board source: guests meet the pitch for every gated act, like and watch included", () => {
+    expect(boardSrc).toContain("like a row");
+    expect(boardSrc).toContain("play or watch rows here");
+    /* row actions — Like included — render only inside the member branch */
+    const tracksAt = boardSrc.indexOf('tab === "tracks" ? (');
+    const guestGateAt = boardSrc.indexOf("isGuest ? undefined", tracksAt);
+    const likeAt = boardSrc.indexOf('likeButton("track"', tracksAt);
+    expect(guestGateAt).toBeGreaterThan(-1);
+    expect(likeAt).toBeGreaterThan(guestGateAt);
+  });
+
+  it("the host hands the Charts board the Shelf player itself — the video seam is connected, not just offered", () => {
+    const dispatchAt = stationPanelSrc.indexOf('station.id === "charts-desk"');
+    expect(dispatchAt).toBeGreaterThan(-1);
+    const block = stationPanelSrc.slice(dispatchAt, dispatchAt + 500);
+    expect(block).toContain("<ChartsBoard");
+    expect(block).toContain("shelfPlayer={shelfPlayer}");
+    expect(block).toContain("onPlayTrack={props.onJukeboxAdd}");
+  });
+
+  it("the Shelf player the board feeds really plays video in-world (a <video> element for video items)", () => {
+    expect(shelfPlayerSrc).toContain('current.kind === "video"');
+    expect(shelfPlayerSrc).toContain("<video");
   });
 });
 

@@ -10,16 +10,20 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import {
+  chartLikeIdsParam,
+  chartLikeKey,
   chartTrackPlayInput,
   chartVideoPlayInput,
   followStateFromResponse,
   followUrl,
   followRequest,
   jukeboxTrackId,
+  likeStateFromToggle,
   normalizeChartCreators,
   normalizeChartTracks,
   normalizeChartVideos,
   normalizeFollowStates,
+  normalizeLikeStates,
   type ChartCreatorRow,
   type ChartTrackRow,
   type ChartVideoRow,
@@ -46,7 +50,10 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    the Videos tab plays chart videos in-world on the Shelf player
    (the host's shelfPlayer prop — the same one player the Booth
    feeds), and tracks gain Play here / Queue next on that player
-   alongside the room-jukebox Play, which stays the shared moment. */
+   alongside the room-jukebox Play, which stays the shared moment.
+   The hearts open on the walker's REAL state: one batched read
+   (GET /api/discovery/likes — the follow read's media twin) seeds
+   them, so a row already liked shows it before the first tap. */
 
 type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners";
 
@@ -175,6 +182,43 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creatorKey, isGuest]);
 
+  /* The walker's like state for the media rows on show — one
+     batched read, members only (the follow read's pattern, media
+     twin). Seeds only hearts not already settled this sitting: a
+     toggle's server answer is never overwritten by a late seed. */
+  const likeIdsParam = chartLikeIdsParam(tracks ?? [], videos ?? []);
+  useEffect(() => {
+    if (isGuest || !likeIdsParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/discovery/likes?ids=${encodeURIComponent(likeIdsParam)}`, {
+          headers: await authHeaders(),
+        });
+        if (!res.ok) return;
+        const states = normalizeLikeStates(await res.json());
+        if (cancelled) return;
+        const countByKey = new Map<string, number>();
+        for (const r of tracks ?? []) countByKey.set(chartLikeKey("track", r.id), r.likeCount);
+        for (const r of videos ?? []) countByKey.set(chartLikeKey("video", r.id), r.likeCount);
+        setLikeStates((prev) => {
+          const next = { ...prev };
+          for (const [key, liked] of Object.entries(states)) {
+            if (!(key in next)) next[key] = { liked, count: countByKey.get(key) ?? 0 };
+          }
+          return next;
+        });
+      } catch {
+        /* unknown state — hearts open on the chart counts and the
+           toggle still settles them from the server's answer */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [likeIdsParam, isGuest]);
+
   const toggleFollow = async (row: ChartCreatorRow) => {
     if (followBusy) return;
     const following = followStates[row.id] === true;
@@ -204,19 +248,19 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
   };
 
   /* Per-row Like (2.27): the media like rails, keyed per kind+id so
-     a track and a video never share a heart. The server's count is
-     authoritative when it answers. */
+     a track and a video never share a heart. The fold takes the
+     server's answer (lib/world/charts-board likeStateFromToggle);
+     on failure nothing flips — the heart never pretends. A row not
+     yet seeded by the batched read opens unlit on its chart count,
+     and its first toggle settles it from the server's answer. */
   const toggleRowLike = async (kind: MediaKind, id: string, startCount: number) => {
-    const key = `${kind}:${id}`;
+    const key = chartLikeKey(kind, id);
     if (likeBusy === key) return;
     const current = likeStates[key] ?? { liked: false, count: startCount };
     setLikeBusy(key);
     try {
       const res = await toggleLike(kind, id, current.liked, await authHeaders());
-      setLikeStates((prev) => ({
-        ...prev,
-        [key]: { liked: res.liked, count: res.count !== null ? res.count : current.count + (res.liked ? 1 : -1) },
-      }));
+      setLikeStates((prev) => ({ ...prev, [key]: likeStateFromToggle(current, res) }));
     } catch {
       /* the heart just doesn't flip — no toast spam in-world */
     } finally {
@@ -225,7 +269,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
   };
 
   const likeButton = (kind: MediaKind, id: string, startCount: number) => {
-    const key = `${kind}:${id}`;
+    const key = chartLikeKey(kind, id);
     const state = likeStates[key] ?? { liked: false, count: startCount };
     return (
       <button
@@ -500,7 +544,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
             sign in
           </Link>{" "}
-          to put a track on the room or follow a creator.
+          to put a track on the room, play or watch rows here, like a row, or follow a creator.
         </p>
       )}
     </div>
