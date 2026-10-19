@@ -21,6 +21,13 @@
  * The claim CAS itself (NOT-@> guard / claimed_at IS NULL, zero rows =
  * already claimed) was already correct and is asserted here as the
  * no-payout-on-loss contract. Fake-db style mirrors credits-team-pool.
+ *
+ * The milestone block also pins the per-claim record (migration
+ * 0165): a paid milestone claim writes exactly one
+ * retention_claim_records row (kind "streak_milestone", ref = the
+ * milestone day count, amount = the reward paid); a refused claim
+ * and a failed payout write none. (Quest claims stamp claimed_at on
+ * their own progress row — they needed no record and write none.)
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
@@ -34,12 +41,18 @@ const h = vi.hoisted(() => ({
     updates: [] as Array<{ table: unknown; set: Record<string, unknown>; where: unknown }>,
     atomicCalls: [] as Array<{ userId: string; amount: number }>,
     rmwCalls: [] as Array<{ userId: string; amount: number }>,
+    /** retention_claim_records rows the fake db accepted (migration
+     *  0165), with the table's unique (user, kind, ref) applied. */
+    claimRecords: [] as any[],
+    /** When true, the atomic payout throws (payout-failure case). */
+    payoutFails: false,
   },
 }));
 
 vi.mock("../supabase-admin", () => ({
   addCreditsAtomic: vi.fn(async (userId: string, amount: number) => {
     h.state.atomicCalls.push({ userId, amount });
+    if (h.state.payoutFails) throw new Error("increment_credits unavailable");
     return { oldCredits: 0, newCredits: amount, created: false };
   }),
   addCreditsToProfile: vi.fn(async (userId: string, amount: number) => {
@@ -53,7 +66,7 @@ vi.mock("../supabase-admin", () => ({
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { creationStreaksTable, questProgressTable, retentionPrefsTable } = actual;
+  const { creationStreaksTable, questProgressTable, retentionPrefsTable, retentionClaimRecordsTable } = actual;
   const state = h.state;
   const fakeDb = {
     select: (_fields?: unknown) => ({
@@ -82,8 +95,22 @@ vi.mock("@workspace/db", async (importOriginal) => {
         }),
       }),
     }),
-    insert: () => {
-      throw new Error("claims must not insert");
+    insert: (table: unknown) => {
+      // The only insert a claim may make is its per-claim record
+      // (migration 0165) — anything else is still a defect here.
+      if (table !== retentionClaimRecordsTable) {
+        throw new Error("claims must not insert");
+      }
+      return {
+        values: (v: any) => ({
+          onConflictDoNothing: async () => {
+            const dupe = state.claimRecords.some(
+              (r) => r.userId === v.userId && r.kind === v.kind && r.refKey === v.refKey,
+            );
+            if (!dupe) state.claimRecords.push({ ...v });
+          },
+        }),
+      };
     },
   };
   return { ...actual, db: fakeDb };
@@ -112,6 +139,8 @@ beforeEach(() => {
   h.state.updates = [];
   h.state.atomicCalls = [];
   h.state.rmwCalls = [];
+  h.state.claimRecords = [];
+  h.state.payoutFails = false;
 });
 
 describe("claimStreakMilestone", () => {
@@ -138,10 +167,24 @@ describe("claimStreakMilestone", () => {
     expect(h.state.rmwCalls).toHaveLength(0);
   });
 
+  it("a paid claim writes its per-claim record (migration 0165): kind, milestone ref, stamped reward", async () => {
+    await claimStreakMilestone(USER, 7);
+    expect(h.state.claimRecords).toEqual([
+      { userId: USER, kind: "streak_milestone", refKey: "7", amountVb: 250 },
+    ]);
+  });
+
+  it("a failed payout records nothing — the record sits after the payout, not beside it", async () => {
+    h.state.payoutFails = true;
+    await expect(claimStreakMilestone(USER, 7)).rejects.toThrow("Visual Bucs payout failed");
+    expect(h.state.claimRecords).toEqual([]);
+  });
+
   it("CAS loss (zero rows updated) throws already-claimed and pays nothing", async () => {
     h.state.claimUpdateRows = [];
     await expect(claimStreakMilestone(USER, 3)).rejects.toThrow("Milestone already claimed");
     expect(h.state.atomicCalls).toHaveLength(0);
+    expect(h.state.claimRecords).toEqual([]);
   });
 
   it("unreached milestone throws before any update or payout", async () => {
@@ -156,6 +199,7 @@ describe("claimStreakMilestone", () => {
     await expect(claimStreakMilestone(USER, 3)).rejects.toThrow("Milestone already claimed");
     expect(h.state.updates).toHaveLength(0);
     expect(h.state.atomicCalls).toHaveLength(0);
+    expect(h.state.claimRecords).toEqual([]);
   });
 });
 

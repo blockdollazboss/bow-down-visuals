@@ -1,6 +1,7 @@
 import { sql, eq } from "drizzle-orm";
 import { db, hourlyCrateClaimsTable } from "@workspace/db";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { recordRetentionClaim } from "./claim-records";
 import { logger } from "./logger";
 
 /* ── Daily login bonus + hourly jackpot wheel ─────────────────────────────
@@ -284,6 +285,13 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
   }
 
   await addBonusCredits(userId, bonus);
+  /* Per-claim record (migration 0165): profiles.last_daily_claim
+     keeps only the claim DATE — this row stamps the amount paid,
+     for the Treasury ledger. It sits after the grant lands, at the
+     one point both claim paths (guard UPDATE / fresh-profile
+     INSERT) converge; the already-claimed returns above never
+     reach here, and a failed grant recorded nothing. */
+  await recordRetentionClaim({ userId, kind: "daily_drop", refKey: today, amountVb: bonus });
   logger.info({ userId, newStreak, bonus, freezeUsed, freezesEarned }, "[bonus] daily claim");
   return {
     claimed: true,

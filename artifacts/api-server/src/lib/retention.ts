@@ -6,9 +6,10 @@
    Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
    recordCreation() is fire-and-forget safe: it never throws. */
 
-import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable, dailyQuestProgressTable, kingMomentClaimsTable, worldTutorialProgressTable } from "@workspace/db";
+import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable, dailyQuestProgressTable, kingMomentClaimsTable, worldTutorialProgressTable, retentionClaimRecordsTable } from "@workspace/db";
 import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
 import { addCreditsAtomic } from "./supabase-admin";
+import { recordRetentionClaim } from "./claim-records";
 import {
   advanceDailyQuestsForUser,
   DAILY_QUEST_DEFS,
@@ -471,6 +472,11 @@ export async function claimStreakMilestone(
     logger.error({ err, userId, days }, "[retention] CRITICAL: streak milestone marked claimed but VB payout failed");
     throw new Error("Visual Bucs payout failed — contact support");
   }
+  /* Per-claim record (migration 0165): the milestones_claimed
+     array keeps only WHICH milestone was claimed — this row stamps
+     when and how much paid, for the Treasury ledger. Written after
+     the payout lands; the failed payout above recorded nothing. */
+  await recordRetentionClaim({ userId, kind: "streak_milestone", refKey: String(days), amountVb: milestone.reward });
   logger.info({ userId, days, reward: milestone.reward }, "[retention] streak milestone claimed");
   return { reward: milestone.reward, currentStreak: status.currentStreak };
 }
@@ -516,7 +522,8 @@ export async function claimQuestReward(
 }
 
 /* ── TREASURY HISTORY (World Ring 2, items 2.21 + 2.22; completed
-   by Ring 4 / stack-20 R2 item #13) ───────────────────────────────
+   by Ring 4 / stack-20 R2 item #13; last two sources closed by the
+   R2 follow-up, migration 0165) ───────────────────────────────
    One read for the Treasury counter's trophy ledger + full quest
    catalog: every claim the tables honestly record, plus quest
    progress for past weeks (quest_progress carries a row per
@@ -531,30 +538,36 @@ export async function claimQuestReward(
        (world_tutorial_progress: reward_amount_vb + reward_claimed_at),
      - shark drops (shark_drops.amount on claimed rows — personal,
        stream and World drop-spectacle claims all land here),
-     - hourly crates (hourly_crate_claims.prize_credits).
+     - hourly crates (hourly_crate_claims.prize_credits),
+     - Daily Drop claims + creation-streak milestone claims
+       (retention_claim_records.amount_vb — one row per claim,
+       written by the claim path itself since migration 0165).
    The catalog is BOTH slates — the weekly defs and the Daily Quest
    Trio's whole pool with today's rotation marked — and each week
    also carries the member's trio days (daily rows record their own
    progress and, at claim, the exact VB + marks paid, so a past day
    reads as it was, never re-derived).
 
-   What is NOT here, deliberately: daily-drop claims. The bonus
-   system stores only profiles.last_daily_claim (a single date) —
-   there is no per-claim row to list, so no daily entries are
-   invented. The ledger's daily line comes from /api/bonus/status,
-   which already reports that date truthfully. Streak-milestone
-   claims likewise keep no per-claim row (creation_streaks records
-   only WHICH milestone days were claimed, never when), so they
-   stay on the streak board, not in this ledger. */
+   What is still NOT here, deliberately: daily-drop and streak-
+   milestone claims from BEFORE migration 0165. Those kept no
+   per-claim row (the bonus system stored only
+   profiles.last_daily_claim, a single date; creation_streaks
+   records only WHICH milestone days were claimed, never when),
+   and no history is backfilled or invented for them — the
+   last-claim date still comes from /api/bonus/status, and past
+   milestones still read off the streak board. Only claims from
+   0165 forward carry rows here. */
 
 export interface TreasuryHistoryEntry {
-  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate";
-  /** Quest key for kinds "quest" and "daily-quest"; null otherwise. */
+  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate" | "daily-drop" | "streak-milestone";
+  /** Quest key for kinds "quest" and "daily-quest"; the milestone
+   *  day count (as text) for "streak-milestone"; null otherwise. */
   key: string | null;
   /** Visual Bucs paid — always the amount the source table recorded
    *  (quest def reward, the daily row's stamped reward_vb, the
    *  King's recorded gift, the tutorial's stamped reward, the drop
-   *  amount, the crate prize). Never derived. */
+   *  amount, the crate prize, the claim record's stamped amount_vb
+   *  for a Daily Drop or streak milestone). Never derived. */
   amount: number;
   /** ISO timestamp the claim landed. */
   at: string;
@@ -620,7 +633,7 @@ function weekStartOfDayKey(dayKey: string): string {
 }
 
 export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {
-  const [questRows, dailyRows, dropRows, crateRows, dailyClaimRows, kingRows, tutorialRows] = await Promise.all([
+  const [questRows, dailyRows, dropRows, crateRows, dailyClaimRows, kingRows, tutorialRows, claimRecordRows] = await Promise.all([
     db
       .select()
       .from(questProgressTable)
@@ -667,6 +680,12 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
         ),
       )
       .limit(1),
+    db
+      .select()
+      .from(retentionClaimRecordsTable)
+      .where(eq(retentionClaimRecordsTable.userId, userId))
+      .orderBy(desc(retentionClaimRecordsTable.createdAt))
+      .limit(25),
   ]);
 
   /* Weeks: newest first, capped — each week carries the FULL def
@@ -754,6 +773,17 @@ export async function getTreasuryHistory(userId: string): Promise<TreasuryHistor
   for (const r of tutorialRows) {
     if (!r.rewardClaimedAt || r.rewardAmountVb == null) continue;
     entries.push({ kind: "tutorial", key: null, amount: r.rewardAmountVb, at: new Date(r.rewardClaimedAt).toISOString() });
+  }
+  for (const r of claimRecordRows) {
+    /* Per-claim records (migration 0165): the amount is the one the
+       claim stamped when it paid. A kind this read doesn't know is
+       skipped, never mislabeled. The streak entry's key carries the
+       milestone day count — which milestone it was. */
+    if (r.kind === "daily_drop") {
+      entries.push({ kind: "daily-drop", key: null, amount: r.amountVb, at: new Date(r.createdAt).toISOString() });
+    } else if (r.kind === "streak_milestone") {
+      entries.push({ kind: "streak-milestone", key: r.refKey, amount: r.amountVb, at: new Date(r.createdAt).toISOString() });
+    }
   }
   entries.sort((a, b) => (a.at < b.at ? 1 : -1));
 

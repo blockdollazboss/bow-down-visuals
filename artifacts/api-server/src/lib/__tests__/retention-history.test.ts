@@ -10,9 +10,12 @@
  * shark_drops (claimed rows, amount = the recorded drop amount),
  * hourly_crate_claims (rows claimed BY this user, amount = the
  * recorded prize). Past weeks come from the quest rows.
- * Daily-drop claims are deliberately absent: the bonus system
- * keeps no per-claim row for them (only profiles.last_daily_claim),
- * and this read invents nothing.
+ * Daily-drop claims and streak-milestone claims fold in from
+ * retention_claim_records (migration 0165 — one row per claim,
+ * written by the claim path itself, amount = the claim record's
+ * stamped amount_vb). Claims from before those records existed
+ * stay absent: they kept no per-claim row, and this read invents
+ * nothing.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -25,6 +28,9 @@ const h = vi.hoisted(() => ({
     dailyRows: [] as any[],
     kingRows: [] as any[],
     tutorialRows: [] as any[],
+    claimRecordRows: [] as any[],
+    /** Every (table, where) the read issued — for scoping pins. */
+    wheres: [] as Array<{ table: unknown; cond: unknown }>,
   },
 }));
 
@@ -44,6 +50,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
     dailyQuestProgressTable,
     kingMomentClaimsTable,
     worldTutorialProgressTable,
+    retentionClaimRecordsTable,
   } = actual;
   const state = h.state;
   const readFor = (table: unknown) => {
@@ -54,12 +61,14 @@ vi.mock("@workspace/db", async (importOriginal) => {
     if (table === dailyQuestProgressTable) return state.dailyRows;
     if (table === kingMomentClaimsTable) return state.kingRows;
     if (table === worldTutorialProgressTable) return state.tutorialRows;
+    if (table === retentionClaimRecordsTable) return state.claimRecordRows;
     return [];
   };
   const fakeDb = {
     select: (_fields?: unknown) => ({
       from: (table: unknown) => ({
-        where: (_cond: unknown) => {
+        where: (cond: unknown) => {
+          state.wheres.push({ table, cond });
           const read = async () => readFor(table);
           return {
             orderBy: (..._args: unknown[]) => ({
@@ -78,6 +87,10 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import { getTreasuryHistory, QUEST_DEFS } from "../retention";
 import { DAILY_QUEST_DEFS, dailyQuestDayKey, dailyTrioForDay } from "../daily-quests";
+import { retentionClaimRecordsTable } from "@workspace/db";
+import { PgDialect } from "drizzle-orm/pg-core";
+
+const dialect = new PgDialect();
 
 const USER = "11111111-1111-4111-8111-111111111111";
 
@@ -89,6 +102,8 @@ beforeEach(() => {
   h.state.dailyRows = [];
   h.state.kingRows = [];
   h.state.tutorialRows = [];
+  h.state.claimRecordRows = [];
+  h.state.wheres = [];
 });
 
 describe("getTreasuryHistory", () => {
@@ -187,6 +202,41 @@ describe("getTreasuryHistory", () => {
       { kind: "king-gift", key: null, amount: 25, at: "2026-10-15T20:00:00.000Z" },
       { kind: "tutorial", key: null, amount: 30, at: "2026-10-14T12:05:00.000Z" },
     ]);
+  });
+
+  it("folds Daily Drop and streak-milestone claim records in with their stamped amounts, interleaved newest-first", async () => {
+    h.state.crateRows = [
+      { hour_slot: "2026-10-15T11", claimed_by: USER, claimed_at: new Date("2026-10-15T11:05:00Z"), prize_credits: 500 },
+    ];
+    h.state.claimRecordRows = [
+      { id: "r1", userId: USER, kind: "daily_drop", refKey: "2026-10-16", amountVb: 200, createdAt: new Date("2026-10-16T07:00:00Z") },
+      { id: "r2", userId: USER, kind: "streak_milestone", refKey: "7", amountVb: 250, createdAt: new Date("2026-10-15T18:30:00Z") },
+      { id: "r3", userId: USER, kind: "daily_drop", refKey: "2026-10-15", amountVb: 1000, createdAt: new Date("2026-10-15T06:00:00Z") },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.entries).toEqual([
+      { kind: "daily-drop", key: null, amount: 200, at: "2026-10-16T07:00:00.000Z" },
+      { kind: "streak-milestone", key: "7", amount: 250, at: "2026-10-15T18:30:00.000Z" },
+      { kind: "crate", key: null, amount: 500, at: "2026-10-15T11:05:00.000Z" },
+      { kind: "daily-drop", key: null, amount: 1000, at: "2026-10-15T06:00:00.000Z" },
+    ]);
+  });
+
+  it("the claim-records read is scoped to the caller — its WHERE binds this member's id on user_id", async () => {
+    await getTreasuryHistory(USER);
+    const recWhere = h.state.wheres.find((w) => w.table === retentionClaimRecordsTable);
+    expect(recWhere).toBeTruthy();
+    const rendered = dialect.sqlToQuery(recWhere!.cond as never);
+    expect(rendered.sql).toContain("user_id");
+    expect(rendered.params).toContain(USER);
+  });
+
+  it("a claim record with a kind this read does not know is skipped, never mislabeled", async () => {
+    h.state.claimRecordRows = [
+      { id: "r9", userId: USER, kind: "some_future_kind", refKey: "x", amountVb: 999, createdAt: new Date("2026-10-16T07:00:00Z") },
+    ];
+    const out = await getTreasuryHistory(USER);
+    expect(out.entries).toEqual([]);
   });
 
   it("a claimed daily row with no recorded reward, and a tutorial row with no reward stamp, invent nothing", async () => {

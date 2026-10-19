@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, date, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, date, primaryKey, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 /** Consecutive days the user created something (not just logged in). */
 export const creationStreaksTable = pgTable("creation_streaks", {
@@ -120,3 +120,32 @@ export const dailyDropArchivesTable = pgTable("daily_drop_archives", {
   archivedAt: timestamp("archived_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.dropKey] })]);
 export type DailyDropArchive = typeof dailyDropArchivesTable.$inferSelect;
+
+/** Per-claim records for the two retention awards that used to keep
+ *  no row (migration 0165, closing the Treasury ledger's documented
+ *  exclusion): Daily Drop bonus claims — whose only trace was
+ *  profiles.last_daily_claim, a single date — and creation-streak
+ *  milestone claims — creation_streaks.milestones_claimed records
+ *  WHICH milestones, never WHEN. One row per claim, written by the
+ *  claim path itself (lib/claim-records in the API) in the same
+ *  request, right after the award pays; a failed award writes
+ *  nothing. ref_key is the claim's own identity: the UTC day
+ *  (YYYY-MM-DD) for a daily drop, the milestone day count (as text)
+ *  for a streak milestone — the same identity each claim's own
+ *  guard enforces, so the unique (user_id, kind, ref_key) index
+ *  makes a replayed write a no-op. amount_vb is the amount the
+ *  award actually paid, stamped at claim time. Claims from before
+ *  0165 have no rows here and are NOT backfilled. */
+export const retentionClaimRecordsTable = pgTable("retention_claim_records", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull(),
+  /** 'daily_drop' | 'streak_milestone' (CHECK in migration 0165). */
+  kind:      text("kind").notNull(),
+  refKey:    text("ref_key").notNull(),
+  amountVb:  integer("amount_vb").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("retention_claim_records_user_kind_ref_uidx").on(t.userId, t.kind, t.refKey),
+  index("retention_claim_records_user_created_idx").on(t.userId, t.createdAt),
+]);
+export type RetentionClaimRecord = typeof retentionClaimRecordsTable.$inferSelect;

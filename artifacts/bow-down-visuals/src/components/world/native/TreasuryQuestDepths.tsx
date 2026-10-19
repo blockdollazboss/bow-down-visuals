@@ -15,6 +15,7 @@ import {
   normalizeQuestMarksBoard,
   normalizeTreasuryHistory,
   questDestination,
+  streakMilestoneTitle,
   type Leaderboard,
   type QuestMarksBoard,
   type TreasuryHistory,
@@ -38,10 +39,12 @@ import {
    • Trophies (2.21): the claim-history ledger as a trophy shelf —
      every claim the tables record (weekly quest rewards, Daily
      Quest Trio rewards, the King's gifts, the tutorial reward,
-     shark drops, hourly crates) with its recorded VB amount, under
-     a status strip (lifetime claimed total from those same rows,
-     creation streak, milestones). Daily-drop claims are NOT rows:
-     the bonus rail keeps no per-claim record (only the last claim
+     shark drops, hourly crates, and — since the claim records
+     landed — Daily Drop claims and streak milestones) with its
+     recorded VB amount, under a status strip (lifetime claimed
+     total from those same rows, creation streak, milestones).
+     Daily-drop / streak claims from before the records began are
+     NOT rows: they kept no per-claim record (only the last claim
      date, which the strip shows truthfully).
    • Catalog (2.22): the FULL quest catalog — every quest the
      server runs (the weekly slate AND the Daily Quest Trio's
@@ -341,7 +344,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                   <NativeEmptyState
                     isLight={isLight}
                     message="No trophies yet — finish an objective above and claim it here."
-                    detail="Quest rewards, daily quests, the King's gifts, the tutorial reward, shark drops and hourly crates you claim will line this shelf."
+                    detail="Quest rewards, daily quests, the King's gifts, the tutorial reward, shark drops, hourly crates, daily drops and streak milestones you claim will line this shelf."
                   />
                 ) : (
                   history.entries.map((e, i) => (
@@ -355,7 +358,9 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                             ? dailyQuestTitle(e.key)
                             : e.kind === "tutorial"
                               ? TUTORIAL_LEDGER_TITLE
-                              : ledgerEntryKindLabel(e.kind)
+                              : e.kind === "streak-milestone"
+                                ? streakMilestoneTitle(e.key)
+                                : ledgerEntryKindLabel(e.kind)
                       }
                       detail={`${ledgerEntryKindLabel(e.kind)} · ${fmtDate(e.at)}`}
                       meta={`+${e.amount.toLocaleString("en-US")} VB`}
@@ -364,8 +369,9 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                 )}
               </NativeBoard>
               <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                Daily drops pay at the Daily Drop counter — the bonus rail records only your last
-                claim date (shown above), so daily claims aren&rsquo;t listed as rows here.
+                Daily drops and streak milestones you claim now line this shelf too. Claims from
+                before the ledger began recording them kept no per-claim row — only your last
+                daily claim date (shown above) — so those aren&rsquo;t listed as rows here.
               </p>
             </>
           )}

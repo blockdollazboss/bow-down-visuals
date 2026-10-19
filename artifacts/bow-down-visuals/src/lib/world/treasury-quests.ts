@@ -36,10 +36,11 @@
  * 2.21 / 2.22 — GET /api/retention/quests/history serves the claim
  * ledger (weekly quest rewards, Daily Quest Trio rewards, the
  * King's gifts, the "Your First 10 Minutes" tutorial reward, shark
- * drops, hourly crates — every claim the tables record with its
- * paid amount stamped; daily-drop claims keep no per-claim row
- * anywhere, so they are not entries), the full catalog, and past
- * weeks. The catalog is BOTH slates: the weekly defs and the Daily
+ * drops, hourly crates, and Daily Drop + streak-milestone claims
+ * — every claim the tables record with its paid amount stamped;
+ * daily-drop / streak claims from before the per-claim records
+ * began kept no row anywhere, so those are not entries), the full
+ * catalog, and past weeks. The catalog is BOTH slates: the weekly defs and the Daily
  * Quest Trio's whole seven-def pool with today's rotation marked
  * live (the server deals the slate; the client never computes
  * it), and each past week carries the member's trio days beside
@@ -130,7 +131,7 @@ export const QUEST_DISPLAY: Record<string, { titleKey: string; href: string }> =
 /* ─── 2.21 + 2.22: history / catalog shaping ─────────────────────── */
 
 export interface TreasuryHistoryEntry {
-  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate";
+  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate" | "daily-drop" | "streak-milestone";
   key: string | null;
   amount: number;
   at: string;
@@ -308,7 +309,9 @@ export function normalizeTreasuryHistory(raw: unknown): TreasuryHistory | null {
       e.kind !== "king-gift" &&
       e.kind !== "tutorial" &&
       e.kind !== "shark-drop" &&
-      e.kind !== "crate"
+      e.kind !== "crate" &&
+      e.kind !== "daily-drop" &&
+      e.kind !== "streak-milestone"
     )
       return null;
     const amount = num(e.amount);
@@ -356,6 +359,10 @@ export function ledgerEntryKindLabel(kind: TreasuryHistoryEntry["kind"]): string
       return "Shark drop";
     case "crate":
       return "Hourly crate";
+    case "daily-drop":
+      return "Daily drop";
+    case "streak-milestone":
+      return "Streak milestone";
   }
 }
 
@@ -378,6 +385,18 @@ export const DAILY_QUEST_TITLES: Record<string, string> = {
 export function dailyQuestTitle(key: string | null): string {
   if (!key) return ledgerEntryKindLabel("daily-quest");
   return DAILY_QUEST_TITLES[key] ?? key;
+}
+
+/** A streak-milestone entry's name — the entry's key is the
+ *  milestone day count the server stamped on the claim record, so
+ *  the shelf names WHICH milestone it was ("7-day streak
+ *  milestone"). A missing or unreadable key falls back to the kind
+ *  label, never a blank row (dailyQuestTitle's discipline). */
+export function streakMilestoneTitle(key: string | null): string {
+  if (!key) return ledgerEntryKindLabel("streak-milestone");
+  const days = Number(key);
+  if (!Number.isInteger(days) || days <= 0) return ledgerEntryKindLabel("streak-milestone");
+  return `${days}-day streak milestone`;
 }
 
 /** The tutorial's name — the shelf's title for a "tutorial" entry

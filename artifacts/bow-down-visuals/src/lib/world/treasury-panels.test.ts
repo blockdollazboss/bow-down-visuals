@@ -158,6 +158,7 @@ import {
   normalizeTreasuryHistory,
   questDestination,
   questObjective,
+  streakMilestoneTitle,
 } from "./treasury-quests";
 import { STATION_BY_ID } from "./stations";
 import { resolveStationPanel } from "./station-panel";
@@ -299,16 +300,43 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     expect(historyTotalVb(h!.entries)).toBe(0);
   });
 
-  it("ledger kinds name themselves; daily claims are not a kind (no per-claim rail exists)", () => {
+  it("ledger kinds name themselves — daily drops and streak milestones included (per-claim records since 0165)", () => {
     expect(ledgerEntryKindLabel("quest")).toBe("Quest reward");
     expect(ledgerEntryKindLabel("shark-drop")).toBe("Shark drop");
     expect(ledgerEntryKindLabel("crate")).toBe("Hourly crate");
-    // "daily" (the Daily Drop bonus claim) stays an invalid kind in
-    // the malformed-payload test above — it keeps no per-claim row.
-    // The Daily QUEST Trio is a different system with real rows:
+    // "daily" stays an invalid kind in the malformed-payload test
+    // above — the Daily Drop's ledger kind is "daily-drop", the
+    // per-claim record the claim path now writes. The Daily QUEST
+    // Trio is a different system with its own rows:
     expect(ledgerEntryKindLabel("daily-quest")).toBe("Daily quest");
+    expect(ledgerEntryKindLabel("daily-drop")).toBe("Daily drop");
+    expect(ledgerEntryKindLabel("streak-milestone")).toBe("Streak milestone");
     expect(ledgerEntryKindLabel("king-gift")).toBe("The King's gift");
     expect(ledgerEntryKindLabel("tutorial")).toBe("Tutorial reward");
+  });
+
+  it("daily-drop and streak-milestone entries normalize whole; a streak entry names its milestone", () => {
+    const h = normalizeTreasuryHistory({
+      catalog: [],
+      weeks: [],
+      entries: [
+        { kind: "daily-drop", key: null, amount: 200, at: "2026-10-16T07:00:00.000Z" },
+        { kind: "streak-milestone", key: "7", amount: 250, at: "2026-10-14T09:00:00.000Z" },
+      ],
+    });
+    expect(h).not.toBeNull();
+    expect(h!.entries).toEqual([
+      { kind: "daily-drop", key: null, amount: 200, at: "2026-10-16T07:00:00.000Z" },
+      { kind: "streak-milestone", key: "7", amount: 250, at: "2026-10-14T09:00:00.000Z" },
+    ]);
+    expect(historyTotalVb(h!.entries)).toBe(450);
+    // The streak entry's key is its milestone day count — the shelf
+    // names WHICH milestone from it; a missing or unreadable key
+    // falls back to the kind label, never a blank row.
+    expect(streakMilestoneTitle("7")).toBe("7-day streak milestone");
+    expect(streakMilestoneTitle("30")).toBe("30-day streak milestone");
+    expect(streakMilestoneTitle(null)).toBe("Streak milestone");
+    expect(streakMilestoneTitle("not-a-count")).toBe("Streak milestone");
   });
 
   it("daily-quest rows name the quest from the server's def names; the tutorial names itself", () => {

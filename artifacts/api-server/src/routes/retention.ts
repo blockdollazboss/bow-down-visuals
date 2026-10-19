@@ -72,11 +72,14 @@ router.get("/retention/quests", requireAuth, publicApiLimiter, async (req: Reque
 });
 
 /* Treasury history (World Ring 2, 2.21 + 2.22; sources completed
-   by stack-20 R2 #13): the claim ledger (weekly quests, daily
-   quests, the King's gifts, the tutorial reward, shark drops and
-   hourly crates — every claim the tables record), the full quest
-   catalog, and past weeks' quest progress. Read-only; daily-drop
-   claims have no per-claim table and are not listed. */
+   by stack-20 R2 #13; last two sources closed by the R2 follow-up,
+   migration 0165): the claim ledger (weekly quests, daily
+   quests, the King's gifts, the tutorial reward, shark drops,
+   hourly crates, and Daily Drop + streak-milestone claims from
+   their per-claim records), the full quest catalog, and past
+   weeks' quest progress. Read-only; daily-drop / streak claims
+   from before the records began are not listed — they kept no
+   per-claim row, and none is invented. */
 router.get("/retention/quests/history", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     res.json(await getTreasuryHistory(req.userId!));

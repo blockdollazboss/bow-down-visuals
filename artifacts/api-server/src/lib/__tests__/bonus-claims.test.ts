@@ -25,6 +25,11 @@
  * falls back to the old read-modify-write, and any other RPC failure
  * propagates instead of being masked by the fallback. The fake tracks
  * .update() invocations so a test can prove which path a grant took.
+ *
+ * The claim assertions also pin the per-claim record (migration
+ * 0165): a paid daily claim writes exactly one retention_claim_records
+ * row (kind "daily_drop", ref = the UTC day, amount = what was paid);
+ * a refused claim writes none.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -39,6 +44,9 @@ const h = vi.hoisted(() => ({
     rpcCalls: [] as Array<{ fn: string; args: Row }>,
     /** profiles .update() invocations — the read-modify-write path's tell. */
     updateCalls: 0,
+    /** retention_claim_records rows the fake db accepted (migration
+     *  0165), with the table's unique (user, kind, ref) applied. */
+    claimRecords: [] as Row[],
   },
 }));
 
@@ -212,8 +220,22 @@ vi.mock("@workspace/db", async (importOriginal) => {
       // ensureBonusColumns + the wheel_spins analytics insert: best-effort
       // in production, no-ops here.
       execute: async () => [],
-      insert: () => {
-        throw new Error("crate insert is not exercised by these tests");
+      insert: (table: unknown) => {
+        if (table !== actual.retentionClaimRecordsTable) {
+          throw new Error("crate insert is not exercised by these tests");
+        }
+        // The claim-record write: honor ON CONFLICT DO NOTHING over
+        // the (user_id, kind, ref_key) unique index, as Postgres does.
+        return {
+          values: (v: Row) => ({
+            onConflictDoNothing: async () => {
+              const dupe = h.state.claimRecords.some(
+                (r) => r["userId"] === v["userId"] && r["kind"] === v["kind"] && r["refKey"] === v["refKey"],
+              );
+              if (!dupe) h.state.claimRecords.push({ ...v });
+            },
+          }),
+        };
       },
     },
   };
@@ -243,6 +265,7 @@ beforeEach(() => {
   h.state.rpcMode = "ok";
   h.state.rpcCalls = [];
   h.state.updateCalls = 0;
+  h.state.claimRecords = [];
 });
 
 describe("claimDailyBonus — CAS claim", () => {
@@ -259,6 +282,11 @@ describe("claimDailyBonus — CAS claim", () => {
     expect(row.bonus_credits).toBe(200);
     expect(row.last_daily_claim).toBe(utcToday());
     expect(row.daily_streak).toBe(3);
+    // And the per-claim record (migration 0165) landed exactly once,
+    // stamped with the day the claim belongs to and the amount paid.
+    expect(h.state.claimRecords).toEqual([
+      { userId: USER, kind: "daily_drop", refKey: utcToday(), amountVb: 200 },
+    ]);
   });
 
   it("already claimed today: no grant, no state change", async () => {
@@ -267,6 +295,8 @@ describe("claimDailyBonus — CAS claim", () => {
     expect(res).toMatchObject({ claimed: false, reason: "already_claimed" });
     expect(row.bonus_credits).toBe(700);
     expect(row.daily_streak).toBe(4);
+    // A refused claim records nothing.
+    expect(h.state.claimRecords).toEqual([]);
   });
 
   it("day-7 milestone pays the milestone bonus and banks a freeze", async () => {
@@ -281,6 +311,11 @@ describe("claimDailyBonus — CAS claim", () => {
       streakFreezes: 1,
     });
     expect(row.bonus_credits).toBe(1000);
+    // The record carries the amount actually paid — the milestone
+    // bonus, not the base.
+    expect(h.state.claimRecords).toEqual([
+      { userId: USER, kind: "daily_drop", refKey: utcToday(), amountVb: 1000 },
+    ]);
   });
 
   it("a missed day with a banked freeze consumes it and keeps the streak", async () => {
@@ -296,10 +331,17 @@ describe("claimDailyBonus — CAS claim", () => {
     const row = h.state.profiles.get(USER)!;
     expect(row.last_daily_claim).toBe(utcToday());
     expect(row.bonus_credits).toBe(200);
+    // The INSERT-path claim records too — both claim paths converge
+    // on the same record write.
+    expect(h.state.claimRecords).toEqual([
+      { userId: USER, kind: "daily_drop", refKey: utcToday(), amountVb: 200 },
+    ]);
     // And a second claim is refused.
     const again = await claimDailyBonus(USER);
     expect(again).toMatchObject({ claimed: false, reason: "already_claimed" });
     expect(row.bonus_credits).toBe(200);
+    // The refused repeat wrote no second record.
+    expect(h.state.claimRecords).toHaveLength(1);
   });
 });
 
