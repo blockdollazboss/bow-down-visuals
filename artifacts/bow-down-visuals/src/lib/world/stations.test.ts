@@ -179,6 +179,20 @@ describe("the station registry", () => {
     expect(byId("marketplace").roomId).toBe("world:courtyard");
     expect(byId("get-paid-room").roomId).toBe("world:courtyard");
   });
+
+  it("guests never reach the create desks — every create station is members-only (stack-20 round 2, #3/#4 gate)", () => {
+    /* The publish rail and the jukebox chip live behind these
+       doors; the gate is the registry flag the world enforces at
+       walk-up, and it must stay on for all six desks — the two
+       song desks (publish + chip) named explicitly. */
+    const createStations = PALACE_STATIONS.filter(
+      (s) => s.panel.kind === "native" && s.panel.pattern === "create",
+    );
+    expect(createStations.length).toBe(6);
+    for (const s of createStations) expect(s.membersOnly, s.id).toBe(true);
+    expect(STATION_BY_ID.get("song-desk")!.membersOnly).toBe(true);
+    expect(STATION_BY_ID.get("song-video-desk")!.membersOnly).toBe(true);
+  });
 });
 
 describe("the walk-up prompt", () => {
