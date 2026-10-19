@@ -672,6 +672,39 @@ router.get("/following", requireAuth, asyncHandler(async (req, res) => {
   res.json(Object.fromEntries(ids.map((id) => [id, set.has(id)])));
 }));
 
+/* ─── Like status (auth) ─────────────────────────────────────────────────
+   GET /likes?ids=track:<uuid>,video:<uuid> → { "track:<id>": true|false }.
+   The media twin of /following: powers per-row Like buttons that must
+   open showing the walker's REAL heart (the Charts board's rows) —
+   without it a row can only assume unliked, and re-liking an
+   already-liked upload re-fires POST /media/:kind/:id/like, whose
+   counter bump does not know the like row already existed. Malformed
+   entries are dropped, never guessed at; the answer names every valid
+   entry asked about, liked or not. */
+
+router.get("/likes", requireAuth, asyncHandler(async (req, res) => {
+  const userId = req.userId!;
+  const wanted = new Map<string, string>();
+  for (const part of String(req.query.ids ?? "").split(",")) {
+    const [kind, id] = part.trim().split(":");
+    if ((kind === "track" || kind === "video") && id && /^[0-9a-f-]{36}$/i.test(id)) {
+      wanted.set(`${kind}:${id}`, id);
+    }
+    if (wanted.size >= 50) break;
+  }
+  if (!wanted.size) {
+    res.json({});
+    return;
+  }
+  const ids = [...new Set(wanted.values())];
+  const rows = (await db.execute(sql`
+    SELECT kind, target_id AS tid FROM likes
+    WHERE user_id = ${userId}::uuid
+      AND target_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})`)).rows as unknown as Array<{ kind: string; tid: string }>;
+  const liked = new Set(rows.map((r) => `${r.kind}:${r.tid}`));
+  res.json(Object.fromEntries([...wanted.keys()].map((k) => [k, liked.has(k)])));
+}));
+
 /* ─── Play recording ──────────────────────────────────────────────────────
    POST /play { kind: 'track'|'video', mediaId } — canonical play logger.
    Inserts the play_events row AND bumps the counter columns + the profile's

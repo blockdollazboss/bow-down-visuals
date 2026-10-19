@@ -16,12 +16,13 @@
  *   GET /api/discovery/rising           (breaking creators)
  *   GET /api/discovery/rising-earners   (rising earners)
  *   GET /api/discovery/following?ids=…   (the walker's follow state)
+ *   GET /api/discovery/likes?ids=…       (the walker's like state)
  *   POST   /api/creator-profiles/:id/follow
  *   DELETE /api/creator-profiles/:id/unfollow
  * No new back-end (plan §3.0).
  */
 
-import { resolveMedia } from "@/lib/streaming";
+import { resolveMedia, type MediaKind } from "@/lib/streaming";
 import type { ShelfPlayInput } from "./shelf";
 
 /* ─── Row shapes the board renders ────────────────────────────────── */
@@ -259,4 +260,60 @@ export function normalizeFollowStates(payload: unknown): Record<string, boolean>
     if (typeof v === "boolean") out[k] = v;
   }
   return out;
+}
+
+/* ─── The Like contract ───────────────────────────────────────────────
+   A row's heart is keyed per kind+id — a track and a video never
+   share one. The STARTING state comes from the server, never from a
+   local assumption: the count off the chart row's DTO, and the
+   walker's own liked flag off the batched like-state read
+   (GET /api/discovery/likes — the /following pattern, media twin).
+   Without that read a heart could only open unlit, and re-liking an
+   already-liked upload would re-fire the like rail against a heart
+   that was already the walker's. Toggling rides the media like
+   rails (lib/streaming toggleLike: POST …/like, DELETE …/unlike),
+   and the fold below takes the SERVER's answer — its count when it
+   sends one, its liked verdict either way. */
+
+export function chartLikeKey(kind: MediaKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+/** The batched like-state query for the rows on show: one
+ *  comma-joined `kind:id` list across both media tabs (they arrive
+ *  in a single charts payload), de-duplicated. Null when there is
+ *  nothing to ask about — the caller skips the read entirely. */
+export function chartLikeIdsParam(tracks: ChartTrackRow[], videos: ChartVideoRow[]): string | null {
+  const seen = new Set<string>();
+  for (const r of tracks) seen.add(chartLikeKey("track", r.id));
+  for (const r of videos) seen.add(chartLikeKey("video", r.id));
+  return seen.size ? [...seen].join(",") : null;
+}
+
+/** Shape the batched like-state payload ({ "track:<id>": bool })
+ *  into a plain map; anything else reads as "unknown" ({}), the
+ *  same discipline as the follow-state read. */
+export function normalizeLikeStates(payload: unknown): Record<string, boolean> {
+  if (!isObj(payload)) return {};
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (typeof v === "boolean") out[k] = v;
+  }
+  return out;
+}
+
+/** Fold a like toggle's outcome into the row's heart. The server's
+ *  answer rules: its liked verdict always, its count whenever it
+ *  sends one; only when the count is absent does the fold step the
+ *  last known count by the server's verdict (±1). A failed toggle
+ *  never reaches this fold — the caller keeps the last state, so a
+ *  heart never pretends. */
+export function likeStateFromToggle(
+  current: { liked: boolean; count: number },
+  res: { liked: boolean; count: number | null },
+): { liked: boolean; count: number } {
+  return {
+    liked: res.liked,
+    count: res.count !== null ? res.count : Math.max(0, current.count + (res.liked ? 1 : -1)),
+  };
 }
