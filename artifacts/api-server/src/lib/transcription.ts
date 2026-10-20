@@ -188,7 +188,7 @@ export async function transcribeAudioTimed(input: {
   const form = new FormData();
   form.append(
     "file",
-    new Blob([input.buffer], { type: input.mimeType ?? "audio/mpeg" }),
+    new Blob([Uint8Array.from(input.buffer)], { type: input.mimeType ?? "audio/mpeg" }),
     input.filename,
   );
   form.append("model_id", getTimedTranscribeModel());
