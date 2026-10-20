@@ -873,14 +873,35 @@ router.get("/storefronts", async (req, res) => {
   const result = await db.execute(sql`
     SELECT s.id, s.name, s.handle, s.tagline, s.description,
            s.banner_color, s.accent_color, s.banner_image_url,
-           s.custom_domain, s.domain_verified, s.created_at,
-           (SELECT COUNT(*)::int FROM shop_products p WHERE p.shop_id = s.id AND p.status = 'active') AS product_count
+           s.custom_domain, s.domain_verified, s.created_at
     FROM shops s
     ${where}
     ORDER BY s.created_at DESC
     LIMIT ${limit}
   `);
-  res.json({ shops: await refreshSupabaseStorageUrlsDeep(result.rows), platformFeePct: PLATFORM_FEE_PCT });
+  /* Live-product counts in a separate grouped query (kept pg-mem
+     friendly, same as /shops/mine — the correlated-subquery form
+     this replaces could not run under the test database at all).
+     Paused products (migration 0176) are unlisted, so the public
+     count is live products only; the owner's /mine count stays the
+     owner's full truth. */
+  const counts = await db.execute(sql`
+    SELECT shop_id, COUNT(*)::int AS n
+    FROM shop_products
+    WHERE status = 'active'
+    GROUP BY shop_id
+  `);
+  const byShop = new Map<string, number>();
+  for (const row of counts.rows as unknown as Array<{ shop_id: string; n: number }>) {
+    byShop.set(row.shop_id, row.n);
+  }
+  const shopRows = (await refreshSupabaseStorageUrlsDeep(result.rows)) as Array<
+    Record<string, unknown> & { id: string }
+  >;
+  res.json({
+    shops: shopRows.map((s) => ({ ...s, product_count: byShop.get(s.id) ?? 0 })),
+    platformFeePct: PLATFORM_FEE_PCT,
+  });
 });
 
 /* ── GET /api/storefronts/slug/:slug — public storefront + view ────────────
