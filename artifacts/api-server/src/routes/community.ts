@@ -983,6 +983,43 @@ async function clearOwnDraft(conversationId: string, userId: string) {
     ));
 }
 
+export type SaveDmDraftOutcome =
+  | { kind: "saved"; draft: { body: string; updated_at: Date } }
+  | { kind: "cleared" }
+  | { kind: "not_found"; status: 404 | 403 }
+  | { kind: "invalid"; message: string };
+
+/** THE DM-draft write path — the PUT route below and the operator's
+ *  drafts.dm tool (Phase 2 Lane D) both ride this one function, so a
+ *  save means the same thing whoever asks: the participant gate
+ *  first, the composer's own schema, and the write keyed by the
+ *  caller's OWN user id — another participant's row is never the
+ *  one written. An empty body clears, exactly as the composer does. */
+export async function saveDmDraft(
+  userId: string,
+  conversationId: string,
+  input: unknown,
+): Promise<SaveDmDraftOutcome> {
+  const { conv, error } = await getConversation(conversationId, userId);
+  if (error || !conv) return { kind: "not_found", status: error ?? 404 };
+  const parsed = dmDraftSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", message: "Keep your draft under 2000 characters." };
+  const { body } = parsed.data;
+  if (body.trim().length === 0) {
+    await clearOwnDraft(conv.id, userId);
+    return { kind: "cleared" };
+  }
+  const now = new Date();
+  const [row] = await db.insert(dmDraftsTable)
+    .values({ conversationId: conv.id, userId, body, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [dmDraftsTable.conversationId, dmDraftsTable.userId],
+      set: { body, updatedAt: now },
+    })
+    .returning();
+  return { kind: "saved", draft: row ? toDraftDto(row) : { body, updated_at: now } };
+}
+
 /** Read my saved reply draft for this thread (or null). */
 router.get("/dm/:id/draft", requireAuth, async (req, res) => {
   try {
@@ -1000,26 +1037,12 @@ router.get("/dm/:id/draft", requireAuth, async (req, res) => {
 /** Save my reply draft for this thread. An empty body clears it. */
 router.put("/dm/:id/draft", requireAuth, async (req, res) => {
   try {
-    const userId = req.userId!;
-    const { conv, error } = await getConversation(param(req, "id"), userId);
-    if (error || !conv) { res.status(error ?? 404).json({ error: "Conversation not found." }); return; }
-    const { body } = dmDraftSchema.parse(req.body);
-    if (body.trim().length === 0) {
-      await clearOwnDraft(conv.id, userId);
-      res.json({ draft: null });
-      return;
-    }
-    const now = new Date();
-    const [row] = await db.insert(dmDraftsTable)
-      .values({ conversationId: conv.id, userId, body, updatedAt: now })
-      .onConflictDoUpdate({
-        target: [dmDraftsTable.conversationId, dmDraftsTable.userId],
-        set: { body, updatedAt: now },
-      })
-      .returning();
-    res.json({ draft: row ? toDraftDto(row) : { body, updated_at: now } });
+    const outcome = await saveDmDraft(req.userId!, param(req, "id"), req.body);
+    if (outcome.kind === "not_found") { res.status(outcome.status).json({ error: "Conversation not found." }); return; }
+    if (outcome.kind === "invalid") { res.status(400).json({ error: outcome.message }); return; }
+    if (outcome.kind === "cleared") { res.json({ draft: null }); return; }
+    res.json({ draft: outcome.draft });
   } catch (err) {
-    if (err instanceof z.ZodError) { res.status(400).json({ error: "Keep your draft under 2000 characters." }); return; }
     console.error("[community] PUT /dm/:id/draft failed", err);
     res.status(500).json({ error: "Couldn't save your draft — try again." });
   }
