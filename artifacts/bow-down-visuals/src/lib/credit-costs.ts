@@ -120,7 +120,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-intro-outro": { cost: 750, feature: "Intro/Outro Generator" },
   "/api/cover-art": { cost: 200, feature: "Cover Art" },
   "/api/merch/design": { cost: 300, feature: "Merch Design" },
-  "/api/stream-pack/generate": { cost: 200, feature: "Stream Pack Generator" },
+  "/api/stream-pack/generate": { cost: 100, feature: "Stream Pack Generator" },
   // PLACEHOLDER prices — the user must approve real prices before these go live.
   "/api/generate-headshot": { cost: 100, feature: "Headshot (price TBD)" },
   "/api/generate-product-photo": { cost: 100, feature: "Product Photo (Packshot) (price TBD)" },

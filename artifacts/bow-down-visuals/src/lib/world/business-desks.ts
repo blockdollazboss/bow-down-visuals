@@ -30,7 +30,9 @@ import { primaryActionFor, creatorStateSummary, type CoachCreatorState } from "@
    PRESS_KIT_* constants; promo / promo-cards / coach from
    lib/credit-costs (100 VB each); headshot from the Headshot
    Studio component + its route constant HEADSHOT_STUDIO_CREDIT_COST
-   + lib/credit-costs (100 VB in all three). */
+   + lib/credit-costs (100 VB in all three); stream pack from the
+   backend's STREAM_PACK_CREDIT_COST + its catalog endpoint (100 VB
+   in both — the credit registry's stale 200 was corrected to match). */
 
 /** Logo tiers, exactly as the Logo Maker page offers them. */
 export const LOGO_MODELS = [
@@ -264,6 +266,102 @@ export function parseHeadshotFailure(status: number, data: unknown): HeadshotFai
     return { kind: "provider", message: str(d["error"]) ?? str(d["message"]) };
   }
   return { kind: "failed", message: str(d["error"]) ?? str(d["message"]) };
+}
+
+/* ─── Stream pack bench (the Branding Kit Desk's fourth maker) ───
+   POST /api/stream-pack/generate is the Stream Pack page's own rail
+   (routes/generate/stream-pack.ts): SYNCHRONOUS — one POST answers
+   { asset, label, url, creditCost } — and the route charges
+   STREAM_PACK_CREDIT_COST (100 VB) ONLY after a successful render,
+   after a 402 pre-check. Failures charge nothing: 402 = out of
+   Visual Bucs, 400 = the pick itself is wrong (channel name /
+   asset), 500 = the render failed. The library + apply half rides
+   the shared client seam (lib/stream-pack.ts) — the same reads and
+   writes the website's Stream Pack library and the Go Live studio
+   tray use — so a graphic applied at this bench reads applied on
+   both. The desk mirrors the page's themes, assets and payload
+   shape exactly; the themes/assets below are the server catalog's
+   own lists (GET /api/stream-pack/catalog serves the same rows). */
+
+export const STREAM_PACK_COST_VISUAL_BUCS = 100;
+
+/** Themes — ids and names exactly as the server catalog names them. */
+export const STREAM_PACK_THEMES = [
+  { key: "gold-luxury", label: "Gold Luxury" },
+  { key: "neon-cyber", label: "Neon Cyber" },
+  { key: "crimson-royal", label: "Crimson Royal" },
+  { key: "emerald-empire", label: "Emerald Empire" },
+  { key: "violet-noir", label: "Violet Noir" },
+  { key: "arctic-frost", label: "Arctic Frost" },
+] as const;
+export type StreamPackThemeKey = (typeof STREAM_PACK_THEMES)[number]["key"];
+
+/** Assets — keys, labels and groups exactly as the server catalog
+ *  names them (the page groups its picker by these same groups). */
+export const STREAM_PACK_ASSETS = [
+  { key: "webcam-frame", label: "Webcam Frame", group: "Overlays" },
+  { key: "chat-frame", label: "Chat Box Frame", group: "Overlays" },
+  { key: "alert-follower", label: "New Follower Alert", group: "Alerts" },
+  { key: "alert-subscriber", label: "New Subscriber Alert", group: "Alerts" },
+  { key: "alert-donation", label: "Donation Alert", group: "Alerts" },
+  { key: "panel-about", label: "About Panel", group: "Panels" },
+  { key: "panel-rules", label: "Rules Panel", group: "Panels" },
+  { key: "panel-schedule", label: "Schedule Panel", group: "Panels" },
+  { key: "panel-socials", label: "Socials Panel", group: "Panels" },
+  { key: "screen-starting", label: "Starting Soon Screen", group: "Screens" },
+  { key: "screen-brb", label: "Be Right Back Screen", group: "Screens" },
+  { key: "screen-ending", label: "Stream Ending Screen", group: "Screens" },
+] as const;
+export type StreamPackAssetKey = (typeof STREAM_PACK_ASSETS)[number]["key"];
+
+/** The page's generate gate: a channel name is required (the route
+ *  400s without one — the graphic is branded with it). */
+export function streamPackGenerateReady(channelName: string): boolean {
+  return channelName.trim().length > 0;
+}
+
+/** POST /api/stream-pack/generate — the page's exact payload shape:
+ *  the channel name trimmed, the theme id and asset key as picked. */
+export function buildStreamPackGeneratePayload(input: {
+  channelName: string;
+  theme: string;
+  asset: string;
+}): Record<string, unknown> {
+  return {
+    channelName: input.channelName.trim(),
+    theme: input.theme,
+    asset: input.asset,
+  };
+}
+
+export type StreamPackGenerateOutcome =
+  | { kind: "succeeded"; url: string; label: string | null }
+  | { kind: "credits"; message: string | null }
+  | { kind: "failed"; message: string | null };
+
+/** The one reading of a stream-pack generate response: a 2xx with a
+ *  playable url is the made graphic (a 2xx without one is a bench
+ *  answer gone wrong, never a success); 402 (or the out_of_credits
+ *  wire word) = credits; anything else = a failed make carrying the
+ *  server's own message when it sent one. The route charges nothing
+ *  on any failure. */
+export function parseStreamPackGenerate(status: number, data: unknown): StreamPackGenerateOutcome {
+  const d = asRecord(data);
+  if (status >= 200 && status < 300) {
+    const url = str(d["url"]);
+    if (url) return { kind: "succeeded", url, label: str(d["label"]) };
+    return { kind: "failed", message: null };
+  }
+  if (status === 402 || d["error"] === "out_of_credits") {
+    return { kind: "credits", message: str(d["message"]) ?? str(d["error"]) };
+  }
+  return { kind: "failed", message: str(d["error"]) ?? str(d["message"]) };
+}
+
+/** The display name for a library record's themeId — the same names
+ *  the website library shows; an unrecorded theme reads as null. */
+export function streamPackThemeLabel(themeId: string | null): string | null {
+  return STREAM_PACK_THEMES.find((t) => t.key === themeId)?.label ?? null;
 }
 
 /* ─── Press Kit Desk ─────────────────────────────────────────────────
@@ -762,13 +860,6 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     desk: "branding-kit",
     benchPath: "/branding-kit?tab=jewelry",
     note: "The jewelry studio family (/api/jewelry/…) stays a transfer bench in v1.",
-  },
-  {
-    id: "branding-stream-pack-bench",
-    title: "NATIVE FOLLOW-ON: Branding stream-pack bench",
-    desk: "branding-kit",
-    benchPath: "/branding-kit?tab=stream",
-    note: "Stream pack generation stays a transfer bench in v1. The library + apply path now exist website-side (every generated graphic is recorded; 'Add to my studio' fills the Go Live studio's stream-pack tray) — a native in-world bench reading those same records is the follow-on.",
   },
   {
     id: "brand-kit-generate-edit-apply",

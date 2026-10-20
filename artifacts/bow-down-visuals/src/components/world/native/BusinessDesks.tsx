@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { CalendarClock, Camera, Crown, Download, FolderPlus, Megaphone, Newspaper, Palette, RefreshCw, Share2, Sparkles } from "lucide-react";
+import { CalendarClock, Camera, Check, Crown, Download, FolderPlus, Layers, Megaphone, Newspaper, Palette, Plus, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
@@ -13,6 +13,11 @@ import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./Native
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
 import { applyBrandKit, fetchBrandKit, saveBrandKit, type BrandKit } from "@/lib/brand-kit";
+import {
+  fetchMyStreamPackAssets,
+  setStreamPackAssetApplied,
+  type StreamPackAssetRecord,
+} from "@/lib/stream-pack";
 import { slugifyHandle } from "@/lib/press-kit";
 import { SITE_FEATURES } from "@/data/features";
 import { prettyDateTime, countdownLabel } from "@/lib/scheduler";
@@ -32,6 +37,13 @@ import {
   buildHeadshotPayload,
   headshotReady,
   parseHeadshotFailure,
+  STREAM_PACK_COST_VISUAL_BUCS,
+  STREAM_PACK_THEMES,
+  STREAM_PACK_ASSETS,
+  streamPackGenerateReady,
+  buildStreamPackGeneratePayload,
+  parseStreamPackGenerate,
+  streamPackThemeLabel,
   PRESS_KIT_GENERATE_COST_VISUAL_BUCS,
   PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS,
   PRESS_KIT_TONES,
@@ -221,6 +233,24 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
   const [hsUrl, setHsUrl] = useState<string | null>(null);
   const [hsError, setHsError] = useState<string | null>(null);
 
+  /* Stream pack bench (the Stream Pack page's rails, native). The
+   * generate rail is synchronous like the headshot rail — one POST
+   * settles the make — and the library + apply half rides the shared
+   * lib/stream-pack seam, the same reads and writes the website's
+   * library and the Go Live studio tray use. */
+  const [spChannel, setSpChannel] = useState("");
+  const [spTheme, setSpTheme] = useState<string>("gold-luxury");
+  const [spAsset, setSpAsset] = useState<string>("webcam-frame");
+  const [spBusy, setSpBusy] = useState(false);
+  const [spUrl, setSpUrl] = useState<string | null>(null);
+  const [spMadeLabel, setSpMadeLabel] = useState<string | null>(null);
+  const [spError, setSpError] = useState<string | null>(null);
+  const [spLibrary, setSpLibrary] = useState<StreamPackAssetRecord[] | null>(null);
+  const [spLibState, setSpLibState] = useState<"loading" | "failed" | "ready">("loading");
+  const [spLibTick, setSpLibTick] = useState(0);
+  const [spApplyingId, setSpApplyingId] = useState<string | null>(null);
+  const [spLibError, setSpLibError] = useState<string | null>(null);
+
   useEffect(() => {
     if (isGuest) return;
     let cancelled = false;
@@ -235,6 +265,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
           setLogoName((v) => v || record.brandName);
           setIntroName((v) => v || record.brandName);
           setGenName((v) => v || record.brandName);
+          setSpChannel((v) => v || record.brandName);
         }
         if (record) {
           setGenVibe((v) => v || record.vibe);
@@ -249,6 +280,29 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest, reloadTick]);
+
+  /* The stream pack shelf: the member's recorded graphics, read
+   * through the shared seam. A failed load is an honest failure with
+   * a retry — never a fake empty shelf. */
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      setSpLibState("loading");
+      try {
+        const assets = await fetchMyStreamPackAssets(getAccessToken);
+        if (cancelled) return;
+        setSpLibrary(assets);
+        setSpLibState("ready");
+      } catch {
+        if (!cancelled) setSpLibState("failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest, spLibTick]);
 
   /* Poll the logo task (Standard tier) — the page's 3s cadence. */
   useEffect(() => {
@@ -519,6 +573,72 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
       setHsError("The headshot bench didn't answer. Try again.");
     } finally {
       setHsBusy(false);
+    }
+  };
+
+  const runStreamPack = async () => {
+    if (spBusy || !streamPackGenerateReady(spChannel)) return;
+    setSpBusy(true);
+    setSpError(null);
+    setSpUrl(null);
+    setSpMadeLabel(null);
+    try {
+      const res = await confirmedFetch("/api/stream-pack/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        overrideCost: STREAM_PACK_COST_VISUAL_BUCS,
+        overrideFeature: "Stream Pack Generator",
+        body: JSON.stringify(
+          buildStreamPackGeneratePayload({ channelName: spChannel, theme: spTheme, asset: spAsset }),
+        ),
+      });
+      if (!res) return; /* the member declined the credit confirmation */
+      const data: unknown = await res.json().catch(() => ({}));
+      const outcome = parseStreamPackGenerate(res.status, data);
+      if (outcome.kind === "credits") {
+        setSpError("Out of Visual Bucs — top up and the stream pack bench is ready again.");
+        return;
+      }
+      if (outcome.kind === "failed") {
+        setSpError(
+          outcome.message ??
+            "The graphic couldn't be made — a failed make is not charged. Try again.",
+        );
+        return;
+      }
+      setSpUrl(outcome.url);
+      setSpMadeLabel(outcome.label);
+      refreshProfile();
+      /* The server recorded this graphic — refresh the shelf so it
+         shows up below as a durable, applicable asset. */
+      setSpLibTick((n) => n + 1);
+    } catch {
+      setSpError("The stream pack bench didn't answer. Try again.");
+    } finally {
+      setSpBusy(false);
+    }
+  };
+
+  /* Apply / unapply one shelf graphic for the Go Live studio tray.
+   * The server re-checks ownership and answers with the record as it
+   * now stands; the shelf renders from that answer. */
+  const toggleSpApplied = async (asset: StreamPackAssetRecord) => {
+    if (spApplyingId) return;
+    setSpApplyingId(asset.id);
+    setSpLibError(null);
+    try {
+      const updated = await setStreamPackAssetApplied(
+        getAccessToken,
+        asset.id,
+        !asset.appliedToStudio,
+      );
+      setSpLibrary((list) =>
+        (list ?? []).map((a) => (a.id === updated.id ? updated : a)),
+      );
+    } catch {
+      setSpLibError("That change didn't save — your pack is unchanged. Try again.");
+    } finally {
+      setSpApplyingId(null);
     }
   };
 
@@ -811,6 +931,151 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
             </div>
           </div>
         )}
+      </NativeCard>
+
+      <NativeCard isLight={isLight} title="Stream pack bench">
+        <div data-testid="world-stream-pack-bench" className="space-y-3">
+          <p className={`text-sm ${muted}`}>
+            Branded graphics for your stream — overlays, alerts, panels and screens, made in your
+            channel's theme. Every graphic is recorded to your pack here and on the website.
+          </p>
+          <input
+            aria-label="Channel name for the pack"
+            className={inputCls(isLight)}
+            value={spChannel}
+            maxLength={40}
+            onChange={(e) => setSpChannel(e.target.value.slice(0, 40))}
+            placeholder="Channel name"
+            disabled={spBusy}
+          />
+          <div className="flex flex-wrap gap-2">
+            <select
+              aria-label="Stream pack theme"
+              className={selectCls(isLight)}
+              value={spTheme}
+              disabled={spBusy}
+              onChange={(e) => setSpTheme(e.target.value)}
+            >
+              {STREAM_PACK_THEMES.map((theme) => (
+                <option key={theme.key} value={theme.key}>{theme.label}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Stream pack graphic"
+              className={selectCls(isLight)}
+              value={spAsset}
+              disabled={spBusy}
+              onChange={(e) => setSpAsset(e.target.value)}
+            >
+              {STREAM_PACK_ASSETS.map((asset) => (
+                <option key={asset.key} value={asset.key}>{asset.label} · {asset.group}</option>
+              ))}
+            </select>
+          </div>
+          {spError && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{spError}</p>}
+          <button
+            type="button"
+            data-testid="world-stream-pack-generate"
+            onClick={runStreamPack}
+            disabled={spBusy || !streamPackGenerateReady(spChannel)}
+            className={goldBtn}
+          >
+            <Layers className="h-4 w-4" />
+            {spBusy ? "Making your graphic…" : `Make this graphic — ${STREAM_PACK_COST_VISUAL_BUCS} Visual Bucs`}
+          </button>
+          <p className={`text-xs ${muted}`}>Charged only when the graphic is made — a failed make is never charged.</p>
+          {spUrl && (
+            <div className="flex flex-wrap items-center gap-3">
+              <img src={spUrl} alt={spMadeLabel ?? "Your new stream graphic"} className="h-24 w-40 rounded-2xl border border-[#d4af37]/40 object-cover" />
+              <div className="space-y-2">
+                <p className={`text-xs ${muted}`}>
+                  {spMadeLabel ?? "Your graphic"}, made right here in the room — it is on your shelf
+                  below and in your stream pack library on the website.
+                </p>
+                <a href={spUrl} download target="_blank" rel="noreferrer" className={goldBtn}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </a>
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-[#d4af37]/20 pt-3">
+            <p className={`mb-2 text-[11px] font-bold uppercase tracking-wider ${muted}`}>Your stream pack</p>
+            {spLibState === "loading" ? (
+              <NativeLoadingState isLight={isLight} message="Opening your stream pack…" />
+            ) : spLibState === "failed" ? (
+              <NativeErrorState
+                isLight={isLight}
+                message="Your stream pack wouldn't open — your graphics are safe on the real rails."
+                onRetry={() => setSpLibTick((n) => n + 1)}
+              />
+            ) : spLibrary !== null && spLibrary.length === 0 ? (
+              <NativeEmptyState
+                isLight={isLight}
+                message="No stream graphics yet."
+                detail="Make one above — it lands here, in your website library, and in your Go Live studio when you add it."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(spLibrary ?? []).map((asset) => {
+                  const themeName = streamPackThemeLabel(asset.themeId);
+                  return (
+                    <div
+                      key={asset.id}
+                      className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/[0.03]"}`}
+                    >
+                      <img src={asset.url} alt={asset.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />
+                      <div className="space-y-2 px-3 py-2.5">
+                        <p className={`truncate text-sm font-semibold ${strong}`}>{asset.label}</p>
+                        {(themeName || asset.channelName) && (
+                          <p className={`truncate text-xs ${muted}`}>
+                            {[themeName, asset.channelName].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                        {asset.appliedToStudio ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#d4af37]/60 bg-[#d4af37]/10 px-3 py-1.5 text-xs font-bold text-[#d4af37]">
+                              <Check className="h-3.5 w-3.5" />
+                              In your studio
+                            </span>
+                            <button
+                              type="button"
+                              data-testid={`world-stream-pack-apply-${asset.id}`}
+                              onClick={() => void toggleSpApplied(asset)}
+                              disabled={spApplyingId === asset.id}
+                              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                                isLight
+                                  ? "border-[#C9A84C]/40 text-[#6B5B36] hover:border-[#d4af37]"
+                                  : "border-white/15 text-white/60 hover:border-white/30 hover:text-white"
+                              }`}
+                            >
+                              {spApplyingId === asset.id ? "Saving…" : "Remove"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            data-testid={`world-stream-pack-apply-${asset.id}`}
+                            onClick={() => void toggleSpApplied(asset)}
+                            disabled={spApplyingId === asset.id}
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-[1.02] disabled:opacity-60"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            {spApplyingId === asset.id ? "Saving…" : "Add to my studio"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {spLibError && (
+              <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{spLibError}</p>
+            )}
+          </div>
+        </div>
       </NativeCard>
     </div>
   );
