@@ -114,7 +114,7 @@ function describeFeature(f: OperatorFeature): string {
   if (f.description) sentences.push(f.description);
   if (f.prices.length > 0) {
     const prices = f.prices
-      .slice(0, 3)
+      .slice(0, 6)
       .map((p) => (p.vb === 0 ? `${p.feature}: free` : `${p.feature}: ${p.vb.toLocaleString("en-US")} Visual Bucs`));
     sentences.push(`Prices: ${prices.join("; ")}.`);
   }
