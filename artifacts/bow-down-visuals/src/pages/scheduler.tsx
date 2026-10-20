@@ -36,9 +36,10 @@ import {
   groupPostsByDay,
   isFutureLocal,
   monthGridDays,
-  movePostToDate,
   normalizeHashtags,
+  planReschedule,
   postReleaseId,
+  postingAccountStates,
   prettyDateTime,
   timeLocal,
   todayLocal,
@@ -329,13 +330,20 @@ export default function Scheduler() {
     setPosts(data.posts);
   }, [getAccessToken]);
 
+  /* A failed accounts load is NOT "no accounts connected" — it gets
+     its own state so the posting-accounts strip can say so (and offer
+     a retry) instead of presenting a connected creator as
+     never-connected. The composer keeps its own connect prompt either
+     way. */
+  const [accountsError, setAccountsError] = useState(false);
   const loadAccounts = useCallback(async () => {
     try {
       const token = await getAccessToken();
       const data = await api<{ accounts: SocialAccountInfo[] }>("/api/social/accounts", token);
       setAccounts(data.accounts);
+      setAccountsError(false);
     } catch {
-      /* not fatal — composer shows the connect prompt */
+      setAccountsError(true);
     }
   }, [getAccessToken]);
 
@@ -405,21 +413,31 @@ export default function Scheduler() {
   async function handleReschedule(postId: string, targetDate: string) {
     const post = posts.find((p) => p.id === postId);
     if (!post?.scheduledAt) return;
-    const moved = movePostToDate(post.scheduledAt, targetDate);
-    if (!moved) return;
-    if (new Date(moved).getTime() < Date.now() + 60_000) {
+    const plan = planReschedule(post, targetDate);
+    if (plan.kind === "noop" || plan.kind === "invalid") return;
+    if (plan.kind === "past") {
       toast({ title: t("scheduler.toast.cantMove"), description: t("scheduler.toast.futureDate"), variant: "destructive" });
       return;
     }
+    const moved = plan.scheduledAt;
+    const original = post.scheduledAt;
+    /* Optimistic move: the chip lands on the new day immediately (the
+       week planner above already works this way). The write rides the
+       existing PATCH path; if it fails, the post rolls back to its
+       original time and the toast says the move didn't happen — the
+       calendar never shows a time the server doesn't hold. */
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, scheduledAt: moved } : p)));
     try {
       const token = await getAccessToken();
-      await api(`/api/scheduler/posts/${postId}`, token, {
+      const data = await api<{ post: ScheduledPostShape }>(`/api/scheduler/posts/${postId}`, token, {
         method: "PATCH",
         body: JSON.stringify({ scheduledAt: moved }),
       });
-      await loadPosts();
+      /* Reconcile with the server's own row — its word is final. */
+      setPosts((prev) => prev.map((p) => (p.id === postId ? data.post : p)));
       toast({ title: t("scheduler.toast.rescheduled"), description: prettyDateTime(moved) });
     } catch (err) {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, scheduledAt: original } : p)));
       toast({ title: t("scheduler.toast.couldntReschedule"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     }
   }
@@ -543,6 +561,14 @@ export default function Scheduler() {
           ))}
         </div>
 
+        {!loading && (
+          <PostingAccountsStrip
+            accounts={accounts}
+            loadFailed={accountsError}
+            onRetry={() => { void loadAccounts(); }}
+          />
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-24 text-white/40">
             <Loader2 className="mr-3 h-6 w-6 animate-spin" /> {t("scheduler.loading")}
@@ -642,6 +668,105 @@ export default function Scheduler() {
   );
 }
 
+
+/* ─── Posting accounts strip ─────────────────────────────────────────────
+   The scheduler's connection-status surface: which account each
+   platform's scheduled posts publish to, read from the SAME
+   GET /api/social/accounts list the composer picks from (via
+   postingAccountStates, so strip and composer can never disagree).
+   Display only — connecting and reconnecting stay where they already
+   live (Settings → Connected Accounts); this strip links there. It
+   exists because the composer silently filters expired accounts out
+   of its pickers: without the strip, an expired connection looked
+   exactly like never connecting at all. A failed accounts load says
+   so, with a retry — it never presents as "nothing connected". */
+
+function PostingAccountsStrip(props: {
+  accounts: SocialAccountInfo[];
+  loadFailed: boolean;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const states = postingAccountStates(props.accounts);
+  return (
+    <section
+      aria-label={t("scheduler.accounts.title", { defaultValue: "Posting accounts" })}
+      className={`relative mt-8 rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-lg font-black">
+          {t("scheduler.accounts.title", { defaultValue: "Posting accounts" })}
+        </h2>
+        <p className="text-[13px] text-white/45">
+          {t("scheduler.accounts.sub", { defaultValue: "Scheduled posts publish to these accounts." })}
+        </p>
+      </div>
+      {props.loadFailed ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/90">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {t("scheduler.accounts.loadFailed", { defaultValue: "Couldn't load your posting accounts — your connections may still be fine." })}
+          <button
+            type="button"
+            onClick={props.onRetry}
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 transition hover:border-primary/40 hover:text-white"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> {t("scheduler.accounts.retry", { defaultValue: "Retry" })}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {states.map((s) => {
+            const opt = PLATFORM_OPTS.find((o) => o.key === s.platform)!;
+            const Icon = opt.icon;
+            const label = t(`scheduler.platforms.${s.platform}.label`);
+            const name = s.accountLabel
+              ? s.platform === "facebook"
+                ? s.accountLabel
+                : `@${s.accountLabel}`
+              : null;
+            return (
+              <div key={s.platform} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+                <Icon className={`h-4 w-4 shrink-0 ${s.state === "none" ? "text-white/35" : "text-primary"}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-white/85">
+                    {label}
+                    {name && <span className="ml-1.5 font-semibold text-white/50">{name}</span>}
+                  </p>
+                  {s.state === "connected" && (
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-300/90">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t("scheduler.accounts.connected", { defaultValue: "Connected" })}
+                    </p>
+                  )}
+                  {s.state === "expired" && (
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-300/90">
+                      <AlertTriangle className="h-3.5 w-3.5" /> {t("scheduler.accounts.expired", { defaultValue: "Connection expired" })}
+                    </p>
+                  )}
+                  {s.state === "none" && (
+                    <p className="mt-0.5 text-xs font-semibold text-white/40">
+                      {t("scheduler.accounts.notConnected", { defaultValue: "Not connected" })}
+                    </p>
+                  )}
+                </div>
+                {s.state !== "connected" && (
+                  <a
+                    href="/settings"
+                    className="shrink-0 text-xs font-bold text-primary underline-offset-2 hover:underline"
+                  >
+                    {s.state === "expired"
+                      ? t("scheduler.accounts.reconnect", { defaultValue: "Reconnect in Settings" })
+                      : t("scheduler.accounts.connect", { defaultValue: "Connect in Settings" })}
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function CalendarTab(props: {
   gridCells: { date: string | null }[];

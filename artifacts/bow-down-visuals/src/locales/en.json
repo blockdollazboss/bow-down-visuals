@@ -9578,6 +9578,17 @@
       "more": "+{{num}} more",
       "hint": "Click a future day to schedule · drag a post to another day to move it · click a post to edit or cancel."
     },
+    "accounts": {
+      "title": "Posting accounts",
+      "sub": "Scheduled posts publish to these accounts.",
+      "connected": "Connected",
+      "expired": "Connection expired",
+      "notConnected": "Not connected",
+      "reconnect": "Reconnect in Settings",
+      "connect": "Connect in Settings",
+      "loadFailed": "Couldn't load your posting accounts — your connections may still be fine.",
+      "retry": "Retry"
+    },
     "queue": {
       "emptyTitle": "Queue is empty",
       "emptyHint": "Schedule a post and it will wait here until it fires — no tab required.",
