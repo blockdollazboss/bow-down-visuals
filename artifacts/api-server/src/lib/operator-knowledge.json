@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "6b97792597c1c67e2448ac8168b7ef1d313f83ad",
+  "baseCommit": "0088f868adcb495b909cbea7454b62f5344b6dcd",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -149,11 +149,15 @@
         "/api/admin/bow-challenge",
         "/api/admin/contact-messages",
         "/api/admin/contact-messages/:param",
+        "/api/admin/content/:param",
+        "/api/admin/content/removed",
         "/api/admin/credits/grant",
         "/api/admin/dmca-reports",
         "/api/admin/dmca-reports/:param",
         "/api/admin/import-artists",
         "/api/admin/plan/set",
+        "/api/admin/reports",
+        "/api/admin/reports/:param",
         "/api/admin/spotlight-inquiries",
         "/api/admin/spotlight-inquiries/:param",
         "/api/admin/status",
@@ -163,7 +167,8 @@
         "/api/jewelry/admin/orders",
         "/api/jewelry/admin/orders.csv",
         "/api/nfc-cards/admin/orders",
-        "/api/nfc-cards/admin/orders.csv"
+        "/api/nfc-cards/admin/orders.csv",
+        "/api/reports"
       ],
       "prices": [],
       "description": "The jackpot runs itself every month — the server creates each month's event with a fresh random code automatically. Use this panel to pause a month, or to run a special manual event with a code you choose (only a hash of a manual code is ever stored).",
@@ -3820,7 +3825,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -3919,7 +3924,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4016,7 +4021,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4113,7 +4118,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4210,7 +4215,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4307,7 +4312,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4404,7 +4409,7 @@
         },
         {
           "feature": "Stream Pack Generator",
-          "vb": 200,
+          "vb": 100,
           "endpoint": "/api/stream-pack/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
@@ -4897,7 +4902,8 @@
         "/api/copyright/ask",
         "/api/copyright/draft",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/dmca/report"
       ],
       "prices": [],
       "nextSteps": []
@@ -7547,6 +7553,7 @@
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
+        "/api/hub/projects",
         "/api/improve-prompt",
         "/api/mashup/using/:param",
         "/api/projects",
@@ -7628,6 +7635,7 @@
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
+        "/api/hub/projects",
         "/api/improve-prompt",
         "/api/mashup/using/:param",
         "/api/projects",
@@ -7707,6 +7715,7 @@
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
+        "/api/hub/projects",
         "/api/improve-prompt",
         "/api/mashup/using/:param",
         "/api/projects",
@@ -7786,6 +7795,7 @@
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
+        "/api/hub/projects",
         "/api/improve-prompt",
         "/api/mashup/using/:param",
         "/api/projects",
@@ -7861,7 +7871,6 @@
         "/api/shops/ai/product-description",
         "/api/shops/ai/product-image",
         "/api/shops/ai/shop-description",
-        "/api/shops/handle/:param",
         "/api/shops/mine",
         "/api/storefronts/:param/analytics",
         "/api/storefronts/:param/domain",
