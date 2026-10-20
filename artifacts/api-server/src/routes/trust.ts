@@ -274,21 +274,38 @@ const legacyContactBody = z.object({
   note: z.string().trim().max(1000).optional(),
 });
 
+export type SaveLegacyContactOutcome =
+  | { kind: "saved"; contact: ReturnType<typeof contactDto>; created: boolean }
+  | { kind: "invalid"; issues: z.ZodIssue[] };
+
+/** THE legacy-contact write path — the PUT route below and the
+ *  operator's settings.legacy-contact tool (Phase 2 Lane D) both
+ *  ride this one function: the settings rail's own schema, and the
+ *  upsert keyed by the caller's OWN user id (at most one row per
+ *  member — nobody else's contact is ever the row written). */
+export async function saveLegacyContact(
+  userId: string,
+  input: unknown,
+): Promise<SaveLegacyContactOutcome> {
+  const parsed = legacyContactBody.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const { name, email, note } = parsed.data;
+  const existing = await db.select().from(legacyContactsTable).where(eq(legacyContactsTable.user_id, userId)).limit(1);
+  if (existing[0]) {
+    const [row] = await db.update(legacyContactsTable)
+      .set({ contact_name: name, contact_email: email, note: note ?? "", updated_at: new Date() })
+      .where(eq(legacyContactsTable.id, existing[0].id)).returning();
+    return { kind: "saved", contact: contactDto(row!), created: false };
+  }
+  const [row] = await db.insert(legacyContactsTable).values({ user_id: userId, contact_name: name, contact_email: email, note: note ?? "" }).returning();
+  return { kind: "saved", contact: contactDto(row!), created: true };
+}
+
 router.put("/legacy/contact", requireAuth, async (req, res) => {
-  const parsed = legacyContactBody.safeParse(req.body ?? {});
-  if (!parsed.success) { res.status(400).json({ error: "Invalid legacy contact", details: parsed.error.issues }); return; }
   try {
-    const { name, email, note } = parsed.data;
-    const existing = await db.select().from(legacyContactsTable).where(eq(legacyContactsTable.user_id, req.userId!)).limit(1);
-    if (existing[0]) {
-      const [row] = await db.update(legacyContactsTable)
-        .set({ contact_name: name, contact_email: email, note: note ?? "", updated_at: new Date() })
-        .where(eq(legacyContactsTable.id, existing[0].id)).returning();
-      res.json({ contact: contactDto(row!) });
-      return;
-    }
-    const [row] = await db.insert(legacyContactsTable).values({ user_id: req.userId!, contact_name: name, contact_email: email, note: note ?? "" }).returning();
-    res.status(201).json({ contact: contactDto(row!) });
+    const outcome = await saveLegacyContact(req.userId!, req.body);
+    if (outcome.kind === "invalid") { res.status(400).json({ error: "Invalid legacy contact", details: outcome.issues }); return; }
+    res.status(outcome.created ? 201 : 200).json({ contact: outcome.contact });
   } catch (err) { logger.error({ err }, "[trust] legacy contact save failed"); res.status(500).json({ error: "Could not save your legacy contact." }); }
 });
 

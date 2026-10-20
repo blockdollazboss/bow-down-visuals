@@ -2184,6 +2184,50 @@ async function replyDraftParent(req: Request, res: Response) {
   return parent;
 }
 
+export type SaveReplyDraftOutcome =
+  | { kind: "saved"; draft: { body: string; tone: string; updated_at: Date } }
+  | { kind: "cleared" }
+  | { kind: "invalid_id" }
+  | { kind: "not_found" }
+  | { kind: "invalid"; issues: z.ZodIssue[] };
+
+/** THE post-reply-draft write path — the PUT route below and the
+ *  operator's drafts.reply tool (Phase 2 Lane D) both ride this one
+ *  function: the parent post must exist AND be visible to the caller
+ *  (a scoped post is a not_found to anyone outside its audience,
+ *  drafts included), the composer's own schema caps the words, and
+ *  the upsert is keyed by (post, the caller's OWN user id) — another
+ *  member's draft row is never the one written. An omitted tone
+ *  keeps the tone already on the bench; an empty body clears. */
+export async function savePostReplyDraft(
+  userId: string,
+  postId: string,
+  input: unknown,
+): Promise<SaveReplyDraftOutcome> {
+  if (!UUID_RE.test(postId)) return { kind: "invalid_id" };
+  const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, postId)).limit(1);
+  if (!parent) return { kind: "not_found" };
+  if (!(await postVisibleTo(parent, userId))) return { kind: "not_found" };
+  const parsed = replyDraftSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const { body, tone } = parsed.data;
+  if (body.trim().length === 0) {
+    await clearOwnReplyDraft(parent.id, userId);
+    return { kind: "cleared" };
+  }
+  const existing = tone === undefined ? await readOwnReplyDraft(parent.id, userId) : null;
+  const finalTone = tone ?? existing?.tone ?? "hype";
+  const now = new Date();
+  const [row] = await db.insert(postReplyDraftsTable)
+    .values({ postId: parent.id, userId, body, tone: finalTone, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [postReplyDraftsTable.postId, postReplyDraftsTable.userId],
+      set: { body, tone: finalTone, updatedAt: now },
+    })
+    .returning();
+  return { kind: "saved", draft: row ? toReplyDraftDto(row) : { body, tone: finalTone, updated_at: now } };
+}
+
 /** Read my saved reply draft for this post (or null). */
 router.get("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -2200,25 +2244,12 @@ router.get("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Resp
  *  omitted tone keeps the tone already on the bench. */
 router.put("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
   try {
-    const parent = await replyDraftParent(req, res);
-    if (!parent) return;
-    const parsed = replyDraftSchema.safeParse(req.body ?? {});
-    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
-    const { body, tone } = parsed.data;
-    if (body.trim().length === 0) {
-      await clearOwnReplyDraft(parent.id, req.userId!);
-      return res.json({ draft: null });
-    }
-    const existing = tone === undefined ? await readOwnReplyDraft(parent.id, req.userId!) : null;
-    const now = new Date();
-    const [row] = await db.insert(postReplyDraftsTable)
-      .values({ postId: parent.id, userId: req.userId!, body, tone: tone ?? existing?.tone ?? "hype", updatedAt: now })
-      .onConflictDoUpdate({
-        target: [postReplyDraftsTable.postId, postReplyDraftsTable.userId],
-        set: { body, tone: tone ?? existing?.tone ?? "hype", updatedAt: now },
-      })
-      .returning();
-    return res.json({ draft: row ? toReplyDraftDto(row) : { body, tone: tone ?? existing?.tone ?? "hype", updated_at: now } });
+    const outcome = await savePostReplyDraft(req.userId!, String(req.params["id"]), req.body);
+    if (outcome.kind === "invalid_id") return res.status(400).json({ error: "invalid_id" });
+    if (outcome.kind === "not_found") return res.status(404).json({ error: "not_found" });
+    if (outcome.kind === "invalid") return res.status(400).json({ error: "invalid", details: outcome.issues });
+    if (outcome.kind === "cleared") return res.json({ draft: null });
+    return res.json({ draft: outcome.draft });
   } catch {
     return res.status(500).json({ error: "reply_draft_save_failed" });
   }
