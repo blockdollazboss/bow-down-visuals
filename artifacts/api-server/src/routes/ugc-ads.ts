@@ -223,12 +223,21 @@ async function refreshOrNull(v: string | null): Promise<string | null> {
   return v ? refreshSupabaseStorageUrl(v) : null;
 }
 
-async function toDTO(row: typeof ugcAdsTable.$inferSelect) {
+async function toDTO(
+  row: typeof ugcAdsTable.$inferSelect,
+  pinnedProductId: string | null = null,
+) {
   return {
     id: row.id,
     briefId: row.briefId ?? null,
     productSource: row.productSource,
     shopProductId: row.shopProductId ?? null,
+    /* The product this ad is currently pinned to (migration 0178), or
+       null. Pin state lives on the PRODUCT row
+       (shop_products.pinned_ugc_ad_id); it is derived on every read,
+       never stored on the ad, so a re-pin can never leave two reads
+       disagreeing about which ad a product carries. */
+    pinnedProductId,
     productName: row.productName,
     productBlurb: row.productBlurb ?? null,
     productPriceCents: row.productPriceCents ?? null,
@@ -258,6 +267,51 @@ async function ownAd(userId: string, id: string) {
   return row ?? null;
 }
 
+/* ── Pin state (migration 0178) ───────────────────────────────────────
+   The pin lives on the product row; these are the only readers/writers.
+   Owner-scoped throughout: a pin only ever connects the caller's own
+   ad to the caller's own product. */
+
+/** The product (owned by userId) this ad is pinned to, if any. */
+async function pinnedProductIdFor(userId: string, adId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: shopProductsTable.id })
+    .from(shopProductsTable)
+    .where(
+      and(
+        eq(shopProductsTable.pinned_ugc_ad_id, adId),
+        eq(shopProductsTable.user_id, userId),
+      ),
+    )
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/** Batch form for the list read: adId → productId for the caller's pins. */
+async function pinnedProductIdsFor(userId: string): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ id: shopProductsTable.id, pinned: shopProductsTable.pinned_ugc_ad_id })
+    .from(shopProductsTable)
+    .where(eq(shopProductsTable.user_id, userId));
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    if (r.pinned) map.set(r.pinned, r.id);
+  }
+  return map;
+}
+
+async function clearPinsToAd(userId: string, adId: string): Promise<void> {
+  await db
+    .update(shopProductsTable)
+    .set({ pinned_ugc_ad_id: null, updated_at: new Date() })
+    .where(
+      and(
+        eq(shopProductsTable.pinned_ugc_ad_id, adId),
+        eq(shopProductsTable.user_id, userId),
+      ),
+    );
+}
+
 /** Mirror-on-save for a product photo: permanent values pass through,
     our own storage URLs normalize to their ref, anything else external
     is re-hosted into permanent storage (mirror helper keeps the
@@ -285,6 +339,9 @@ router.get("/ugc-ads/products", requireAuth, async (req, res) => {
         name: p.name,
         priceCents: p.price_cents ?? 0,
         imageUrl: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : null,
+        /* Which ad is pinned to this product, if any (migration 0178)
+           — the picker shows the pin state where the choice is made. */
+        pinnedAdId: p.pinned_ugc_ad_id ?? null,
       })),
     );
     res.json({ products });
@@ -445,7 +502,10 @@ router.get("/ugc-ads", requireAuth, async (req, res) => {
       .where(eq(ugcAdsTable.userId, req.userId!))
       .orderBy(desc(ugcAdsTable.createdAt))
       .limit(100);
-    res.json({ ads: await Promise.all(rows.map(toDTO)) });
+    const pins = await pinnedProductIdsFor(req.userId!);
+    res.json({
+      ads: await Promise.all(rows.map((r) => toDTO(r, pins.get(r.id) ?? null))),
+    });
   } catch (err) {
     logger.error({ err }, "[ugc-ads] list failed");
     res.status(500).json({ error: "Could not load your UGC ads — try again." });
@@ -579,7 +639,7 @@ router.get("/ugc-ads/:id", requireAuth, async (req, res) => {
   try {
     const mine = await ownAd(req.userId!, id);
     if (mine) {
-      res.json({ ad: await toDTO(mine) });
+      res.json({ ad: await toDTO(mine, await pinnedProductIdFor(req.userId!, id)) });
       return;
     }
     /* The one read exception: the brand a brief was delivered to may
@@ -644,7 +704,7 @@ router.patch("/ugc-ads/:id", requireAuth, async (req, res) => {
       .set(set)
       .where(and(eq(ugcAdsTable.id, id), eq(ugcAdsTable.userId, req.userId!)))
       .returning();
-    res.json({ ad: await toDTO(saved!) });
+    res.json({ ad: await toDTO(saved!, await pinnedProductIdFor(req.userId!, id)) });
   } catch (err) {
     logger.error({ err }, "[ugc-ads] patch failed");
     res.status(500).json({ error: "Could not save that edit — try again." });
@@ -660,6 +720,10 @@ router.delete("/ugc-ads/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "UGC ad not found" });
       return;
     }
+    /* A deleted ad takes its pin with it — the product keeps no
+       dangling pin (the pin is state on the product row; the video
+       object itself is never touched, per the row-only rule above). */
+    await clearPinsToAd(req.userId!, id);
     await db
       .delete(ugcAdsTable)
       .where(and(eq(ugcAdsTable.id, id), eq(ugcAdsTable.userId, req.userId!)));
@@ -667,6 +731,97 @@ router.delete("/ugc-ads/:id", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[ugc-ads] delete failed");
     res.status(500).json({ error: "Could not delete that ad — try again." });
+  }
+});
+
+/* ── POST /api/ugc-ads/:id/pin — pin a finished ad to its product ────
+   The pin verb lives on the AD record (Stack-4 wave 2 #7); the pin
+   itself is one column on the product row (migration 0178), which is
+   what makes "one pinned ad per product" structural: writing a new
+   pin replaces the old one in the same statement, and unpinning is
+   clearing the column. Rules, all owner-scoped (foreign rows are 404,
+   never forbidden-but-real):
+   - the caller owns the ad AND the product;
+   - the ad is finished (status 'ready' with a video) — a draft or a
+     failed render has nothing to show a buyer;
+   - the product is the one the ad was made for (shop_product_id):
+     an ad can only ever be pinned to the product it advertises. An
+     upload ad (no shop product) has no pin target. */
+const pinSchema = z.object({
+  productId: z.string().uuid().optional(),
+});
+
+router.post("/ugc-ads/:id/pin", publicApiLimiter, requireAuth, async (req, res) => {
+  const { id } = req.params as { id: string };
+  const parsed = pinSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid pin request.", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const ad = await ownAd(req.userId!, id);
+    if (!ad) {
+      res.status(404).json({ error: "UGC ad not found" });
+      return;
+    }
+    if (ad.status !== "ready" || !ad.videoRef) {
+      res.status(409).json({ error: "Only a finished ad can be pinned to its product." });
+      return;
+    }
+    const productId = parsed.data.productId ?? ad.shopProductId ?? null;
+    if (!productId) {
+      res.status(400).json({
+        error: "This ad wasn't made for one of your shop products — there's no product to pin it to.",
+      });
+      return;
+    }
+    if (ad.shopProductId && productId !== ad.shopProductId) {
+      res.status(400).json({
+        error: "This ad was made for a different product — an ad can only be pinned to the product it advertises.",
+      });
+      return;
+    }
+    const [product] = await db
+      .select()
+      .from(shopProductsTable)
+      .where(
+        and(eq(shopProductsTable.id, productId), eq(shopProductsTable.user_id, req.userId!)),
+      )
+      .limit(1);
+    if (!product) {
+      res.status(404).json({ error: "That product isn't in your shop." });
+      return;
+    }
+    await db
+      .update(shopProductsTable)
+      .set({ pinned_ugc_ad_id: ad.id, updated_at: new Date() })
+      .where(
+        and(eq(shopProductsTable.id, product.id), eq(shopProductsTable.user_id, req.userId!)),
+      );
+    res.json({
+      ad: await toDTO(ad, product.id),
+      product: { id: product.id, name: product.name, pinnedAdId: ad.id },
+    });
+  } catch (err) {
+    logger.error({ err }, "[ugc-ads] pin failed");
+    res.status(500).json({ error: "Could not pin that ad — try again." });
+  }
+});
+
+/* ── DELETE /api/ugc-ads/:id/pin — unpin ────────────────────────────── */
+router.delete("/ugc-ads/:id/pin", requireAuth, async (req, res) => {
+  const { id } = req.params as { id: string };
+  try {
+    const ad = await ownAd(req.userId!, id);
+    if (!ad) {
+      res.status(404).json({ error: "UGC ad not found" });
+      return;
+    }
+    await clearPinsToAd(req.userId!, id);
+    res.json({ ad: await toDTO(ad, null) });
+  } catch (err) {
+    logger.error({ err }, "[ugc-ads] unpin failed");
+    res.status(500).json({ error: "Could not unpin that ad — try again." });
   }
 });
 
@@ -735,7 +890,11 @@ router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, async (req,
   }
   if (ad.status === "ready") {
     /* Idempotent replay: the video exists — hand it back, charge nothing. */
-    res.json({ ad: await toDTO(ad), alreadyGenerated: true, creditsUsed: 0 });
+    res.json({
+      ad: await toDTO(ad, await pinnedProductIdFor(req.userId!, id)),
+      alreadyGenerated: true,
+      creditsUsed: 0,
+    });
     return;
   }
   if (ad.status === "generating") {
@@ -913,7 +1072,7 @@ router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, async (req,
     }
 
     res.json({
-      ad: await toDTO(saved),
+      ad: await toDTO(saved, await pinnedProductIdFor(req.userId!, id)),
       creditsUsed: UGC_VIDEO_CREDIT_COST,
       creditsRemaining,
     });
