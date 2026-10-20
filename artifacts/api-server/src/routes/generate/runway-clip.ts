@@ -1,5 +1,7 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
@@ -196,7 +198,7 @@ const runwayClipSchema = z.object({
   shotNumber: z.number().int().min(0).max(1000).optional().nullable(),
 });
 
-router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req, res) => {
+const submitRunwayClipHandler = async (req: Request, res: Response) => {
   const parsed = runwayClipSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -544,7 +546,21 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.post("/generate-runway-clip", requireAuth, generationLimiter, submitRunwayClipHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 generate.video tool
+   submits through this exact handler in-process (lib/rail-core) —
+   same pre-check; credits stay pending on SUCCEEDED exactly as the
+   page's flow leaves them. (HTTP rate limiting stays on the route;
+   the operator path carries the executor's own gates.) */
+export async function runSubmitRunwayClip(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(submitRunwayClipHandler as never, deps, { body });
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-runway-clip/:taskId
@@ -553,7 +569,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
    - FAILED/CANCELLED → no charge → return error
    - Still running → return { status: "processing", progress }
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
+const pollRunwayClipHandler = async (req: Request, res: Response) => {
   const { taskId } = req.params as { taskId: string };
 
   /* ── Veo 3.1 poll branch ─────────────────────────────────────────────────
@@ -660,8 +676,13 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
       if (pending && pending.userId === req.userId) {
         /* Duration-proportional cost for Seedance, flat 5 for gen4.5. */
         const cost = pending.credits ?? GEN45_CREDIT_COST;
-        /* Fresh credit read to avoid stale middleware value */
-        const { data: freshProfile } = await req.userSupabase!
+        /* Fresh credit read to avoid stale middleware value. The
+           operator's completion driver has no session client (no
+           browser token server-side), so it reads through the admin
+           client instead — this read is informational (the charge
+           itself fresh-reads inside chargeCreditsAtomic either way),
+           and real requests always carry req.userSupabase, unchanged. */
+        const { data: freshProfile } = await (req.userSupabase ?? getSupabaseAdmin())
           .from("profiles")
           .select("credits")
           .eq("id", req.userId!)
@@ -761,6 +782,19 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
     const msg = err instanceof Error ? err.message : "Failed to poll Runway task";
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.get("/generate-runway-clip/:taskId", requireAuth, pollRunwayClipHandler);
+
+/* Operator core (Phase 2 Lane E): the generate.video completion
+   driver polls through this exact handler in-process (lib/rail-core)
+   so an operator-started clip finishes — and is charged on success —
+   by the rail's own code, not a copy of it. */
+export async function runPollRunwayClip(
+  deps: RailCoreDeps,
+  taskId: string,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(pollRunwayClipHandler as never, deps, { params: { taskId } });
+}
 
 export default router;

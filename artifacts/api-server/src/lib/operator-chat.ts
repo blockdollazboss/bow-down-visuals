@@ -102,31 +102,74 @@ export function buildReplyDoors(message: string): OperatorDoor[] {
   return doors;
 }
 
-/* ── The marker ─────────────────────────────────────────────────────── */
+/* ── The marker ───────────────────────────────────────────────────────
+   [[DO:<tool-id>]] or, for tools that take details from the member's
+   message (Lane E), [[DO:<tool-id> {"prompt":"…","lengthSeconds":45}]].
+   The args are JSON the model copies out of the member's own words;
+   the server validates them in the executor (a tool with required
+   args missing proposes nothing and asks). A small hand parser
+   (not a regex) so nested JSON — a UGC script object — survives. */
 
-const MARKER_RE = /\[\[DO:\s*([a-zA-Z0-9_.-]+)(?:\s+(\{[\s\S]*?\}))?\s*\]\]/;
+const MARKER_OPEN = "[[DO:";
 
-/** Pull a [[DO:tool-id]] marker out of a model reply, with its
-    optional JSON args object. Returns the tool id and args (the
-    model's prose around a FREE tool's marker is discarded too — the
-    executor's outcome text is the reply; the prose is kept only when
-    there is no marker at all). Args that fail to parse, or parse to
-    a non-object, degrade to {} — never a partially-trusted value. */
-export function extractActionMarker(reply: string): { toolId: string; args: Record<string, unknown> } | null {
-  const m = MARKER_RE.exec(reply);
-  if (!m) return null;
+export function extractActionMarker(
+  reply: string,
+): { toolId: string; args: Record<string, unknown> } | null {
+  const start = reply.indexOf(MARKER_OPEN);
+  if (start < 0) return null;
+  let i = start + MARKER_OPEN.length;
+  const skipWs = () => {
+    while (i < reply.length && /\s/.test(reply[i]!)) i++;
+  };
+  skipWs();
+  const idStart = i;
+  while (i < reply.length && /[a-zA-Z0-9_.-]/.test(reply[i]!)) i++;
+  if (i === idStart) return null;
+  const toolId = reply.slice(idStart, i).toLowerCase();
+  skipWs();
+
   let args: Record<string, unknown> = {};
-  if (m[2]) {
+  if (reply[i] === "{") {
+    /* Balanced-brace scan, string-aware, to the matching close. */
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let end = -1;
+    for (let j = i; j < reply.length; j++) {
+      const ch = reply[j]!;
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          end = j;
+          break;
+        }
+      }
+    }
+    if (end < 0) return { toolId, args };
     try {
-      const parsed: unknown = JSON.parse(m[2]);
-      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const parsed: unknown = JSON.parse(reply.slice(i, end + 1));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         args = parsed as Record<string, unknown>;
       }
     } catch {
+      /* Malformed args JSON: behave as if no args were given — a
+         tool that needs them will ask; one that doesn't still runs. */
       args = {};
     }
+    i = end + 1;
+    skipWs();
   }
-  return { toolId: m[1].toLowerCase(), args };
+
+  if (reply.slice(i, i + 2) !== "]]") return null;
+  return { toolId, args };
 }
 
 /* ── Confirmation / cancellation wording ────────────────────────────── */
@@ -242,7 +285,10 @@ export async function processOperatorReply(input: {
   }
 
   /* Charged: this turn only PROPOSES. The proposal text is composed
-     here from the registry price — the model's words never quote it. */
+     here from the registry price — the model's words never quote it.
+     The marker's args ride along: the executor validates them first,
+     and an incomplete request proposes nothing — the member is asked
+     for the missing detail (missing_args) instead of being quoted. */
   const proposal = await proposeAction({
     userId: input.userId,
     toolId: tool.id,
@@ -251,7 +297,12 @@ export async function processOperatorReply(input: {
   });
   if (proposal.status !== "proposed") {
     return {
-      replyText: proposal.reason === "hands_disabled" ? HANDS_OFF : CANT_DO_YET,
+      replyText:
+        proposal.reason === "hands_disabled"
+          ? HANDS_OFF
+          : proposal.reason === "missing_args" && proposal.askText
+            ? proposal.askText
+            : CANT_DO_YET,
       action: { toolId: tool.id, status: "refused", reason: proposal.reason },
     };
   }

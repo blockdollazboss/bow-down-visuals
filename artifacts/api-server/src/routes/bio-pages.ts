@@ -8,6 +8,7 @@ import { db, bioPagesTable, bioLinkClicksTable, BIO_THEME_KEYS, BIO_LINK_ICON_KE
 import { eq, and, desc, sql } from "drizzle-orm";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../lib/rail-core";
 
 /* Mirror-on-save (2026-10-13 law): the page avatar is re-hosted into
    permanent storage at save time; reads re-sign the stored ref fresh.
@@ -26,7 +27,7 @@ const router = Router();
    builder's counts dashboard. */
 
 /* 100 Visual Bucs to publish a bio page. Drafting is free. */
-const PUBLISH_COST = 100;
+export const PUBLISH_COST = 100;
 
 function param(req: Request, name: string): string {
   const v = req.params[name];
@@ -284,7 +285,7 @@ router.delete("/bio-pages/:id", requireAuth, async (req: Request, res: Response)
    1. Validate + ownership. 2. Charge 100 VB (402 when broke).
    3. Flip is_published. 4. On ANY failure after the charge → auto-refund.
    Publishing an already-published page is a 409, never a re-charge. */
-router.post("/bio-publish/:id", requireAuth, async (req: Request, res: Response) => {
+const publishBioPageHandler = async (req: Request, res: Response) => {
   const id = param(req, "id");
   try {
     const [page] = await db.select().from(bioPagesTable).where(eq(bioPagesTable.id, id)).limit(1);
@@ -357,7 +358,19 @@ router.post("/bio-publish/:id", requireAuth, async (req: Request, res: Response)
     req.log.error({ err }, "[bio-pages] publish failed");
     res.status(500).json({ ok: false, error: "Could not publish the page." });
   }
-});
+};
+
+router.post("/bio-publish/:id", requireAuth, publishBioPageHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 bio.publish tool runs
+   this exact handler in-process (lib/rail-core) — same owner check,
+   same PUBLISH_COST charge, same refund when publishing fails. */
+export async function runPublishBioPage(
+  deps: RailCoreDeps,
+  pageId: string,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(publishBioPageHandler as never, deps, { params: { id: pageId } });
+}
 
 /* POST /api/bio-pages/:id/unpublish — take the page offline (free). */
 router.post("/bio-pages/:id/unpublish", requireAuth, async (req: Request, res: Response) => {
