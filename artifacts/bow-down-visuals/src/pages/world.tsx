@@ -163,6 +163,8 @@ import {
   loadStoredCharacterId,
   storeCharacterId,
   reconcileStoredPick,
+  renameVaultCharacter,
+  removeVaultCharacter,
   type VaultCharacter,
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
@@ -1082,7 +1084,7 @@ export default function WorldPage() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    fetchVaultCharacters(getAccessToken)
+    fetchVaultCharacters(getAccessToken, fetch, user.id)
       .then((chars) => {
         if (cancelled) return;
         setVaultChars(chars);
@@ -1098,6 +1100,23 @@ export default function WorldPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  /* Vault manage verbs, offered by the picker on the member's OWN
+     characters only: rename rides the vault's PUT rail, remove its
+     DELETE rail (a soft delete — hidden everywhere, data kept). A
+     rename lands in place; a removal drops the row, and if it was
+     the standing pick the pick falls back to the house guard rather
+     than pointing at a character that no longer stands. Errors
+     propagate to the picker's manage strip — never a fake success. */
+  const handleRenameVaultCharacter = async (id: string, newName: string) => {
+    const renamed = await renameVaultCharacter(getAccessToken, id, newName, user?.id ?? null);
+    setVaultChars((prev) => (prev ?? []).map((c) => (c.id === id ? { ...c, name: renamed.name } : c)));
+  };
+  const handleRemoveVaultCharacter = async (id: string) => {
+    await removeVaultCharacter(getAccessToken, id);
+    setVaultChars((prev) => (prev ?? []).filter((c) => c.id !== id));
+    if (walkInAsRef.current === id) setWalkInAs(null);
+  };
 
   /* The pick: remembered on the device, and handed to the hall
      connection whenever it changes (the client also applies it on
@@ -2236,6 +2255,8 @@ export default function WorldPage() {
           selectedId={walkInAs}
           onSelect={setWalkInAs}
           isLight={isLight}
+          onRename={handleRenameVaultCharacter}
+          onRemove={handleRemoveVaultCharacter}
         />
       ) : null}
 
@@ -2635,6 +2656,8 @@ export default function WorldPage() {
             selectedId={walkInAs}
             onSelect={setWalkInAs}
             isLight={isLight}
+            onRename={handleRenameVaultCharacter}
+            onRemove={handleRemoveVaultCharacter}
           />
         </div>
       )}

@@ -14,9 +14,18 @@
  * empty vault links straight to the Creative Vault to make one;
  * a failed load keeps the house avatar walk-in working and says
  * what happened.
+ *
+ * Managing, not just picking: a member's OWN characters carry a
+ * manage button that opens a strip under the row — rename and
+ * remove, riding the vault's own rails (PUT / DELETE
+ * /api/artist-vaults/:id). Team-shared characters get no button:
+ * those verbs are the owner's alone. Appearance — portrait, look,
+ * locked regalia, voice — is edited in the Creative Vault, never
+ * here; the strip touches the name and the row's visibility only.
  */
+import { useState } from "react";
 import { Link } from "wouter";
-import { Sparkles, Check } from "lucide-react";
+import { Sparkles, Check, Pencil, X, Trash2 } from "lucide-react";
 import { characterMonogram, type VaultCharacter } from "@/lib/world/characters";
 import {
   HOUSE_GUARD_ID,
@@ -32,9 +41,65 @@ interface WalkInAsPickerProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   isLight: boolean;
+  /** Rename one of the member's own characters (the vault PUT rail).
+   *  Omit both manage handlers and the picker is select-only. */
+  onRename?: (id: string, newName: string) => Promise<void>;
+  /** Remove one of the member's own characters (the vault DELETE
+   *  rail — a soft delete: hidden everywhere, data kept). */
+  onRemove?: (id: string) => Promise<void>;
 }
 
-export default function WalkInAsPicker({ characters, loadFailed, selectedId, onSelect, isLight }: WalkInAsPickerProps) {
+export default function WalkInAsPicker({ characters, loadFailed, selectedId, onSelect, isLight, onRename, onRemove }: WalkInAsPickerProps) {
+  const canManage = Boolean(onRename || onRemove);
+  const [manageId, setManageId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
+
+  const manageChar =
+    manageId && characters ? (characters.find((c) => c.id === manageId && c.isOwn) ?? null) : null;
+
+  const openManage = (c: VaultCharacter) => {
+    setManageId(c.id);
+    setDraftName(c.name);
+    setConfirmingRemove(false);
+    setManageError(null);
+  };
+
+  const closeManage = () => {
+    setManageId(null);
+    setConfirmingRemove(false);
+    setManageError(null);
+  };
+
+  const saveRename = async () => {
+    if (!manageChar || !onRename || manageBusy) return;
+    setManageBusy(true);
+    setManageError(null);
+    try {
+      await onRename(manageChar.id, draftName);
+      closeManage();
+    } catch (err) {
+      setManageError(err instanceof Error ? err.message : "Couldn't rename the character. Please try again.");
+    } finally {
+      setManageBusy(false);
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!manageChar || !onRemove || manageBusy) return;
+    setManageBusy(true);
+    setManageError(null);
+    try {
+      await onRemove(manageChar.id);
+      closeManage();
+    } catch (err) {
+      setManageError(err instanceof Error ? err.message : "Couldn't remove the character. Please try again.");
+    } finally {
+      setManageBusy(false);
+    }
+  };
   const tileBase =
     "group flex min-w-[148px] items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left transition";
   const tileIdle = isLight
@@ -113,10 +178,32 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
 
           {(characters ?? []).map((c) => {
             const selectable = Boolean(c.portraitUrl || c.loopUrl);
+            /* Manage is the owner's verb: own rows only, and only
+               when the host wired the vault rails in. The badge sits
+               on the tile's corner so it never steals the tile's own
+               tap (selecting who you stand as). */
+            const manageBadge =
+              canManage && c.isOwn ? (
+                <button
+                  type="button"
+                  onClick={() => (manageId === c.id ? closeManage() : openManage(c))}
+                  className={`absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border shadow ${
+                    isLight
+                      ? "border-[#7A5A12]/60 bg-[#FBF6E9] text-[#7A5A12] hover:bg-[#F7ECD2]"
+                      : "border-[#d4af37]/60 bg-[#171106] text-[#e8c86a] hover:bg-[#2a1e07]"
+                  }`}
+                  data-testid={`walk-in-manage-${c.id}`}
+                  aria-label={`Manage ${c.name}`}
+                  aria-expanded={manageId === c.id}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              ) : null;
             if (!selectable) {
               return (
+                <div key={c.id} className="relative shrink-0">
+                  {manageBadge}
                 <div
-                  key={c.id}
                   className={`${tileBase} cursor-not-allowed opacity-60 ${tileIdle}`}
                   data-testid={`walk-in-character-${c.id}`}
                   title="This character has no portrait or living loop yet"
@@ -139,11 +226,13 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                     <span className={`block truncate text-[11px] ${subCls}`}>No portrait yet</span>
                   </span>
                 </div>
+                </div>
               );
             }
             return (
+              <div key={c.id} className="relative shrink-0">
+                {manageBadge}
               <button
-                key={c.id}
                 type="button"
                 onClick={() => onSelect(c.id)}
                 className={`${tileBase} ${selectedId === c.id ? tileActive : tileIdle}`}
@@ -181,6 +270,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                   </span>
                 </span>
               </button>
+              </div>
             );
           })}
 
@@ -201,6 +291,117 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
           ) : null}
         </div>
       </div>
+
+      {/* The manage strip — rename / remove for the member's OWN
+          character, on the vault's own rails. Only ever rendered for
+          a row proven own (the server silently no-ops these verbs
+          for anyone else); errors land here, never a fake success. */}
+      {manageChar ? (
+        <div
+          className={`mt-3 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/30 bg-white/5"}`}
+          data-testid={`walk-in-manage-panel-${manageChar.id}`}
+        >
+          <div className="flex items-center gap-2">
+            <span className={`flex-1 truncate text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+              Manage {manageChar.name}
+            </span>
+            <button
+              type="button"
+              onClick={closeManage}
+              className={`flex h-6 w-6 items-center justify-center rounded-full ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
+              data-testid="walk-in-manage-close"
+              aria-label="Close character manager"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {onRename ? (
+            <form
+              className="mt-2 flex flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveRename();
+              }}
+            >
+              <input
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                maxLength={80}
+                className={`min-w-[180px] flex-1 rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+                  isLight
+                    ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]"
+                    : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"
+                }`}
+                data-testid="walk-in-rename-input"
+                aria-label="Character name"
+              />
+              <button
+                type="submit"
+                disabled={manageBusy || !draftName.trim() || draftName.trim() === manageChar.name}
+                className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="walk-in-rename-save"
+              >
+                {manageBusy ? "Saving…" : "Save name"}
+              </button>
+            </form>
+          ) : null}
+
+          {onRemove ? (
+            confirmingRemove ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                  Remove {manageChar.name}? It's hidden everywhere — this can't be undone here.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void confirmRemove()}
+                  disabled={manageBusy}
+                  className="rounded-xl border border-red-400/60 bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-500 transition hover:bg-red-500/25 disabled:opacity-50 dark:text-red-300"
+                  data-testid="walk-in-remove-confirm"
+                >
+                  {manageBusy ? "Removing…" : "Yes, remove"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingRemove(false)}
+                  disabled={manageBusy}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
+                  data-testid="walk-in-remove-keep"
+                >
+                  Keep
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingRemove(true);
+                  setManageError(null);
+                }}
+                className={`mt-2 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                  isLight
+                    ? "border-red-700/40 text-red-800 hover:bg-red-500/10"
+                    : "border-red-400/40 text-red-300 hover:bg-red-500/10"
+                }`}
+                data-testid={`walk-in-remove-${manageChar.id}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remove character
+              </button>
+            )
+          ) : null}
+
+          {manageError ? (
+            <p role="alert" className={`mt-2 text-xs font-semibold ${isLight ? "text-red-800" : "text-red-300"}`}>
+              {manageError}
+            </p>
+          ) : null}
+
+          <p className={`mt-2 text-[11px] ${subCls}`}>
+            Portrait, look and voice are edited in the Creative Vault — this only renames or removes.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
