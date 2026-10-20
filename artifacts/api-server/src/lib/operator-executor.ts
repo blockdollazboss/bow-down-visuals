@@ -169,7 +169,14 @@ function refusedOutcome(
 
 export type ProposeOutcome =
   | { status: "proposed"; pendingId: string; priceQuoted: number; expiresAt: Date }
-  | { status: "refused"; reason: "hands_disabled" | "not_charged" | "unknown_tool" };
+  | {
+      status: "refused";
+      reason: "hands_disabled" | "not_charged" | "unknown_tool" | "missing_args";
+      /** For missing_args: the question the member should be asked
+          (composed by the tool's validator from code, e.g. the real
+          tier prices) — the chat layer answers with it verbatim. */
+      askText?: string;
+    };
 
 /** Create a pending confirmation for a charged tool. The quoted price
     is the REGISTRY price at proposal time; if the registry price has
@@ -188,7 +195,18 @@ export async function proposeAction(input: {
   if (!operatorHandsEnabled()) return { status: "refused", reason: "hands_disabled" };
   if (!toolIsCharged(tool)) return { status: "refused", reason: "not_charged" };
 
-  const args = input.args ?? {};
+  /* Argument gate (Lane E): a tool that takes details from the
+     member's message validates + normalizes them BEFORE any pending
+     row exists — an incomplete request proposes nothing (the member
+     is asked, nothing is quoted, and a live earlier proposal is left
+     untouched). The normalized args are what the pending row (and
+     its hash) carries, so what was confirmed is what runs. */
+  let args = input.args ?? {};
+  if (tool.validateArgs) {
+    const verdict = await tool.validateArgs({ userId: input.userId, args });
+    if (!verdict.ok) return { status: "refused", reason: "missing_args", askText: verdict.askText };
+    args = verdict.args;
+  }
   await cancelLivePending(input.userId);
   const expiresAt = new Date(Date.now() + OPERATOR_CONFIRMATION_TTL_MS);
   const [row] = await db
@@ -346,7 +364,15 @@ export async function executeAction(input: ExecuteInput): Promise<ExecutorOutcom
 
   /* Run the rail AS THE CALLER and audit from ITS result. */
   try {
-    const result = await tool.handler({ userId: input.userId, userEmail: input.userEmail, args: runArgs });
+    const result = await tool.handler({
+      userId: input.userId,
+      userEmail: input.userEmail,
+      args: runArgs,
+      /* One idempotency key per consumed confirmation, for rails
+         that accept a client key (Lane E) — the second wall against
+         a double charge, behind this executor's single-use consume. */
+      idempotencyKey: input.pendingId ? `operator:${input.pendingId}` : null,
+    });
     await writeAudit({
       ...auditBase,
       summary: result.summary || tool.name,
