@@ -16,6 +16,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
+import ActionTrackerPanel from "@/components/coach/ActionTrackerPanel";
 import { primaryActionFor, creatorStateSummary, type CoachNextAction, type CoachCreatorState } from "@/lib/coach-next-action";
 
 /* ── Money-hub pages de-hosted in Phase 2: they are real routes now
@@ -129,11 +130,15 @@ export default function MonetizationCoach() {
  const [cadence, setCadence] = useState("3");
 
  const [plan, setPlan] = useState<CoachResponse | null>(null);
+ /* Save-the-moves: the plan's money moves persisted into the Action
+    Tracker (POST /api/coach/action-items, source 'plan'). */
+ const [savingMoves, setSavingMoves] = useState(false);
+ const [movesMsg, setMovesMsg] = useState<string | null>(null);
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
 /* ── Money-hub tab groups ─────────────────────────────────────────────── */
-type CoachTab = "plan" | "niche" | "money";
+type CoachTab = "plan" | "niche" | "money" | "actions";
 
 interface CoachTabDef { key: CoachTab; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
 interface CoachTabGroup { id: string; labelKey: string; defaultLabel: string; tabs: CoachTabDef[]; }
@@ -150,6 +155,7 @@ const COACH_TAB_GROUPS: CoachTabGroup[] = [
     id: "track", labelKey: "coach.tabGroupTrack", defaultLabel: "Track",
     tabs: [
       { key: "money", labelKey: "coach.tabMoneyTracker", defaultLabel: "Money Tracker", Icon: Wallet },
+      { key: "actions", labelKey: "coach.tabActionTracker", defaultLabel: "Action Tracker", Icon: CheckCircle2 },
     ],
   },
 ];
@@ -372,6 +378,8 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
 
  {activeTab === "money" ? (
  <MoneyTrackerPanel />
+ ) : activeTab === "actions" ? (
+ <ActionTrackerPanel />
  ) : activeTab === "niche" ? (
  <NicheAnalyzerPanel />
  ) : (
@@ -646,6 +654,63 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  ))}
  </div>
  </>
+ )}
+
+ {/* Save the moves — a plan you can't check off is a poster. The
+     moves persist in the Action Tracker tab (source 'plan'); saving
+     twice is safe (the API skips moves already tracked). */}
+ {plan.moneyMoves && plan.moneyMoves.length > 0 && user && (
+ <div className="mt-5 text-center">
+ <button
+ onClick={async () => {
+ if (savingMoves || !plan.moneyMoves) return;
+ setSavingMoves(true);
+ setMovesMsg(null);
+ try {
+ const token = await getAccessToken();
+ const res = await confirmedFetch("/api/coach/action-items", {
+ skipConfirm: true,
+ method: "POST",
+ headers: {
+ "Content-Type": "application/json",
+ ...(token ? { Authorization: `Bearer ${token}` } : {}),
+ },
+ body: JSON.stringify({ titles: plan.moneyMoves, source: "plan" }),
+ });
+ if (!res) return;
+ const data = (await res.json().catch(() => ({}))) as { items?: unknown[]; skipped?: unknown[]; error?: string };
+ if (!res.ok) throw new Error(data.error || "Couldn't save the moves.");
+ const saved = Array.isArray(data.items) ? data.items.length : 0;
+ setMovesMsg(
+ saved > 0
+ ? t("coach.movesSaved", { defaultValue: "Saved to your Action Tracker — check them off as you finish them." })
+ : t("coach.movesAlreadySaved", { defaultValue: "Those moves are already in your Action Tracker." }),
+ );
+ } catch (err) {
+ setMovesMsg(err instanceof Error ? err.message : "Couldn't save the moves.");
+ } finally {
+ setSavingMoves(false);
+ }
+ }}
+ disabled={savingMoves}
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3 text-sm font-black text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+ >
+ {savingMoves ? (
+ <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+ ) : (
+ <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+ )}
+ {t("coach.saveMoves", { defaultValue: "Save these moves to my tracker" })}
+ </button>
+ {movesMsg && (
+ <p className="mt-2.5 text-xs font-semibold text-white/60">
+ {movesMsg}{" "}
+ <button onClick={() => setActiveTab("actions")} className="font-black text-primary underline underline-offset-2">
+ {t("coach.openTracker", { defaultValue: "Open the Action Tracker" })}
+ </button>
+ </p>
+ )}
+ </div>
  )}
 
  {/* action buttons — the plan is a starting line, not a display.

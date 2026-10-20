@@ -56,9 +56,18 @@ interface NicheAnalysis {
   summary: string;
 }
 
+interface GroundedIn {
+  derivedNiche: string | null;
+  songs: number;
+  releases: number;
+  topGenres: string[];
+  signals: string[];
+}
+
 interface AnalyzeResponse {
   analysis?: NicheAnalysis;
   creditsRemaining?: number;
+  groundedIn?: GroundedIn | null;
   error?: string;
   message?: string;
 }
@@ -107,11 +116,49 @@ export default function NicheAnalyzerPanel() {
   const [niche, setNiche] = useState("");
   const [platform, setPlatform] = useState<Platform>("all");
   const [experience, setExperience] = useState<ExperienceLevel>("beginner");
+  /* Ground the analysis in the creator's own profile + catalog; the
+     niche can then be left blank and read from their real work. */
+  const [useMyData, setUseMyData] = useState(false);
+  const [groundedIn, setGroundedIn] = useState<GroundedIn | null>(null);
 
   const [analysis, setAnalysis] = useState<NicheAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  // save-the-roadmap handoff into the coach Action Tracker
+  const [savingRoadmap, setSavingRoadmap] = useState(false);
+  const [roadmapMsg, setRoadmapMsg] = useState<string | null>(null);
+
+  async function saveRoadmap() {
+    if (savingRoadmap || !analysis) return;
+    setSavingRoadmap(true);
+    setRoadmapMsg(null);
+    try {
+      const res = await confirmedFetch("/api/coach/action-items", {
+        skipConfirm: true,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titles: analysis.roadmap30Day.map((w) => `Week ${w.week}: ${w.focus}`),
+          source: "niche",
+        }),
+      });
+      if (!res) return;
+      const data = (await res.json().catch(() => ({}))) as { items?: unknown[]; error?: string };
+      if (!res.ok) throw new Error(data.error || "Couldn't save the roadmap steps.");
+      const saved = Array.isArray(data.items) ? data.items.length : 0;
+      setRoadmapMsg(
+        saved > 0
+          ? "Saved to your Action Tracker on the coach page — check each week off as you ship it."
+          : "Those weeks are already in your Action Tracker.",
+      );
+    } catch (err) {
+      setRoadmapMsg(err instanceof Error ? err.message : "Couldn't save the roadmap steps.");
+    } finally {
+      setSavingRoadmap(false);
+    }
+  }
 
   // inline idea-validator handoff
   const [idea, setIdea] = useState("");
@@ -123,22 +170,29 @@ export default function NicheAnalyzerPanel() {
   async function analyze() {
     if (loading || !user) return;
     const finalNiche = niche.trim().slice(0, 120);
-    if (finalNiche.length < 2) {
+    if (!useMyData && finalNiche.length < 2) {
       setError("Enter a niche first — e.g. fitness, indie music production, skincare.");
+      return;
+    }
+    if (useMyData && finalNiche.length === 1) {
+      setError("That niche is too short — type at least 2 characters, or clear it and let your catalog speak.");
       return;
     }
     setLoading(true);
     setError(null);
     setOutOfCredits(false);
     setVerdict(null);
+    setGroundedIn(null);
+    setRoadmapMsg(null);
     try {
       const res = await confirmedFetch("/api/analyze-niche", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          niche: finalNiche,
+          ...(finalNiche.length >= 2 ? { niche: finalNiche } : {}),
           targetPlatform: platform,
           experienceLevel: experience,
+          useMyData,
         }),
       });
       if (!res) return; // user cancelled the credit confirmation
@@ -152,6 +206,7 @@ export default function NicheAnalyzerPanel() {
         throw new Error(data.message || data.error || "Niche analysis failed. Try again.");
       }
       setAnalysis(data.analysis);
+      setGroundedIn(data.groundedIn ?? null);
       refreshProfile();
       setTimeout(() => {
         document.getElementById("niche-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -214,9 +269,32 @@ export default function NicheAnalyzerPanel() {
         value={niche}
         onChange={(e) => setNiche(e.target.value)}
         maxLength={120}
-        placeholder="e.g. fitness, indie music production, skincare, true crime…"
+        placeholder={useMyData ? "Optional — leave blank and we'll read it from your work" : "e.g. fitness, indie music production, skincare, true crime…"}
         className={inputClass}
       />
+      {/* Ground it in my real work — profile lane, media-kit niches, and
+          catalog genres/titles feed the analysis (same 150 Bucs). */}
+      <button
+        onClick={() => setUseMyData((v) => !v)}
+        aria-pressed={useMyData}
+        className={`mt-3 flex w-full items-center gap-2.5 rounded-xl border px-4 py-3 text-left transition ${
+          useMyData ? "border-primary/60 bg-primary/[0.08]" : "border-white/10 bg-white/[0.02] hover:border-primary/30"
+        }`}
+      >
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+            useMyData ? "border-primary bg-primary text-black" : "border-white/25 text-transparent"
+          }`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+        <span>
+          <span className="block text-sm font-bold text-white">Analyze my real niche</span>
+          <span className="block text-[11px] text-white/40">
+            Reads your profile lane, media-kit niches, and your catalog's genres and songs — the read is sharper than a typed guess.
+          </span>
+        </span>
+      </button>
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
@@ -290,6 +368,12 @@ export default function NicheAnalyzerPanel() {
           <p className="mx-auto mt-2 max-w-2xl text-center text-[15px] leading-relaxed text-white/70">
             {analysis.summary}
           </p>
+          {groundedIn && (
+            <p className="mx-auto mt-3 w-fit max-w-2xl rounded-full border border-primary/30 bg-primary/[0.08] px-4 py-1.5 text-center text-xs font-semibold text-primary">
+              Built from your catalog: {groundedIn.songs} song{groundedIn.songs === 1 ? "" : "s"} · {groundedIn.releases} release{groundedIn.releases === 1 ? "" : "s"}
+              {groundedIn.topGenres.length > 0 ? ` · top genre${groundedIn.topGenres.length > 1 ? "s" : ""}: ${groundedIn.topGenres.join(", ")}` : ""}
+            </p>
+          )}
 
           {/* audience + competition */}
           <div className="mt-8 grid gap-3 md:grid-cols-2">
@@ -425,6 +509,22 @@ export default function NicheAnalyzerPanel() {
                 </ul>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 text-center">
+            <button
+              onClick={saveRoadmap}
+              disabled={savingRoadmap}
+              className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3 text-sm font-black text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+            >
+              {savingRoadmap ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              )}
+              Save the roadmap weeks to my tracker
+            </button>
+            {roadmapMsg && <p className="mt-2.5 text-xs font-semibold text-white/60">{roadmapMsg}</p>}
           </div>
 
           {/* handoffs — coach workflow only, no new pages */}
