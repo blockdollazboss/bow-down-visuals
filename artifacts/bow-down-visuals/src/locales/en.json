@@ -10850,6 +10850,8 @@
       "published": "Your page is live!",
       "unpublished": "Page unpublished.",
       "alreadyPublished": "This page is already published.",
+      "statusLive": "Live — anyone with the link can see this page",
+      "statusDraft": "Draft — only you can see this page",
       "outOfCredits": "Not enough Visual Bucs to publish — top up to go live."
     },
     "analytics": {

@@ -770,6 +770,20 @@ export function LinkInBioBuilder() {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3">
+        {page && (
+          <span
+            data-testid="bio-page-status"
+            data-state={page.isPublished ? "live" : "draft"}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${
+              page.isPublished
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-white/15 bg-white/[0.04] text-white/55"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${page.isPublished ? "bg-emerald-400" : "bg-zinc-500"}`} />
+            {page.isPublished ? t("linkInBio.actions.statusLive") : t("linkInBio.actions.statusDraft")}
+          </span>
+        )}
         <button onClick={saveDraft} disabled={saving || publishing}
           className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-6 py-3 text-sm font-bold text-white transition hover:border-white/30 disabled:opacity-50">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
