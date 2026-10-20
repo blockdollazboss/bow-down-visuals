@@ -4,7 +4,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { buildChatSystemPrompt } from "../lib/ai-chat-assistant";
 import { resolveOptionalSession } from "../lib/optional-auth";
-import { processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
 import {
   OPERATOR_KB,
   findFeatures,
@@ -181,6 +181,12 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
 
   const { message, history } = parsed.data;
 
+  /* Tier 1 doors (Phase 2 Lane C): computed once from the member's own
+     message by the shared chat implementation — the same doors /api/chat
+     attaches, never a per-route variation. */
+  const doors = buildReplyDoors(message.trim());
+  const doorPayload = doors.length ? { doors } : {};
+
   /* Still free, still no gate — but a signed-in member's session
      resolves when one rides along, so the operator's hands (Phase 2)
      can act as them. Guests stay guests; nothing here can 401. */
@@ -199,7 +205,7 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
       return null;
     });
     if (preTurn) {
-      res.json({ reply: preTurn.replyText, action: preTurn.action });
+      res.json({ reply: preTurn.replyText, action: preTurn.action, ...doorPayload });
       return;
     }
 
@@ -225,7 +231,7 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
     });
     if (actionTurn) {
       logger.info({ provider }, "[chat] reply generated");
-      res.json({ reply: actionTurn.replyText, action: actionTurn.action });
+      res.json({ reply: actionTurn.replyText, action: actionTurn.action, ...doorPayload });
       return;
     }
 
@@ -240,7 +246,7 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
     }
 
     logger.info({ provider }, "[chat] reply generated");
-    res.json({ reply });
+    res.json({ reply, ...doorPayload });
   } catch (err: unknown) {
     logger.error({ err }, "[chat] failed to get chatbot reply");
     if (err instanceof Error && err.name === "AbortError") {

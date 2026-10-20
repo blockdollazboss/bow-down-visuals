@@ -32,6 +32,7 @@
 import type { OperatorChannel } from "@workspace/db";
 import { getTool } from "./operator-tools";
 import { toolIsCharged } from "./operator-tool-catalog";
+import { findFeatures } from "./operator-knowledge";
 import {
   cancelPendingAction,
   executeAction,
@@ -52,6 +53,48 @@ export interface OperatorTurnResult {
 }
 
 type ExecutorStatus = ExecutorOutcome["status"];
+
+/* ── Tier 1 doors (Phase 2 Lane C) ────────────────────────────────────
+   A reply can carry a DOOR: a one-tap button under the answer that
+   opens the exact desk/tab the answer just named. Doors are computed
+   HERE, in the shared chat implementation, from the member's own
+   message — both routes attach the result identically, and the model
+   never supplies a URL (a model-invented path is exactly the failure
+   the Phase 1 guard exists to stop).
+
+   The contract:
+   - A door exists ONLY when the knowledge base matches the message to
+     a feature that carries a path. No match (or an empty path) → no
+     doors at all.
+   - The open door's path is the feature's knowledge-base path VERBATIM
+     — deep links included (?tab= / ?panel= ride along untouched).
+   - When the matched feature's page has a "Walk me through it" Guide
+     (the KB carries guide data for 10 pages), a second door offers it:
+     same destination — the guide lives on that page — with kind
+     "guide", so the client lands the member there and starts the
+     page's own tour (the thy-tour:start convention the in-page coach
+     host uses). At most two doors ride a reply.
+   - Doors are pure navigation: no state changes, nothing to confirm,
+     and a signed-out member's door is a plain link — the site's normal
+     sign-in gate answers, exactly like any link. */
+
+export interface OperatorDoor {
+  kind: "open" | "guide";
+  label: string;
+  path: string;
+}
+
+export function buildReplyDoors(message: string): OperatorDoor[] {
+  const top = findFeatures(message, 1)[0];
+  if (!top || !top.path) return [];
+  const doors: OperatorDoor[] = [
+    { kind: "open", label: `Open ${top.name}`, path: top.path },
+  ];
+  if (top.guide) {
+    doors.push({ kind: "guide", label: "Walk me through it", path: top.path });
+  }
+  return doors;
+}
 
 /* ── The marker ─────────────────────────────────────────────────────── */
 
