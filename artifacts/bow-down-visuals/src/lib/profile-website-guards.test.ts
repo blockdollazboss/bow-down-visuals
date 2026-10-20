@@ -72,4 +72,16 @@ describe("normalizeStoreCatalog", () => {
     expect(normalizeStoreCatalog("nope")).toBeNull();
     expect(normalizeStoreCatalog(null)).toBeNull();
   });
+  it("carries a pinned UGC ad only when it has a playable video URL (0178)", () => {
+    const cat = normalizeStoreCatalog({
+      items: [
+        { kind: "product", productKind: "shop", priceCents: 100, buyUrl: "/shop/x", pinnedAd: { id: "ad-1", videoUrl: "https://signed.example/ad.mp4" } },
+        { kind: "product", productKind: "shop", priceCents: 100, buyUrl: "/shop/y", pinnedAd: { id: "ad-2", videoUrl: "" } },
+        { kind: "product", productKind: "shop", priceCents: 100, buyUrl: "/shop/z" },
+      ],
+    });
+    expect(cat?.items[0]?.pinnedAd).toEqual({ id: "ad-1", videoUrl: "https://signed.example/ad.mp4" });
+    expect(cat?.items[1]?.pinnedAd).toBeNull();
+    expect(cat?.items[2]?.pinnedAd).toBeNull();
+  });
 });

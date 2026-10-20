@@ -441,6 +441,9 @@ export interface StoreCatalogItemDto {
   compareAtCents: number | null;
   pwyw: { enabled: boolean; minCents: number } | null;
   buyUrl: string;
+  /** The finished UGC ad pinned to this shop product (migration
+      0178), or null — only shop products can carry one. */
+  pinnedAd: { id: string; videoUrl: string } | null;
 }
 
 export interface StoreCatalogDto {
@@ -478,6 +481,12 @@ export function normalizeStoreCatalog(payload: unknown): StoreCatalogDto | null 
           ? { enabled: raw.pwyw.enabled === true, minCents: finiteNum(raw.pwyw.minCents)! }
           : null,
         buyUrl: raw.buyUrl,
+        pinnedAd: isRecord(raw.pinnedAd) && typeof raw.pinnedAd.videoUrl === "string" && raw.pinnedAd.videoUrl
+          ? {
+              id: typeof raw.pinnedAd.id === "string" ? raw.pinnedAd.id : "",
+              videoUrl: raw.pinnedAd.videoUrl,
+            }
+          : null,
       });
     }
   }

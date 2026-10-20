@@ -8,6 +8,7 @@ import {
   storeProductsTable,
   shopsTable,
   shopProductsTable,
+  ugcAdsTable,
   digitalSalesTable,
   storeOrdersTable,
   retentionPrefsTable,
@@ -274,6 +275,11 @@ export interface StoreCatalogItemDto {
   compareAtCents: number | null;
   pwyw: { enabled: boolean; minCents: number } | null;
   buyUrl: string;
+  /** The finished UGC ad pinned to this shop product (migration
+      0178), or null. Only shop products can carry one; videoUrl is
+      the ad's storage ref here and is minted by the route's deep
+      refresh on the way out, like every other media field. */
+  pinnedAd: { id: string; videoUrl: string } | null;
 }
 
 export interface StoreCatalogDto {
@@ -327,6 +333,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       compareAtCents: null,
       pwyw: t.pwywEnabled ? { enabled: true, minCents: t.pwywMinCents } : null,
       buyUrl: `/store/buy/track/${t.id}`,
+      pinnedAd: null,
     });
   }
   for (const v of videos) {
@@ -342,6 +349,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       compareAtCents: null,
       pwyw: v.pwywEnabled ? { enabled: true, minCents: v.pwywMinCents } : null,
       buyUrl: `/store/buy/video/${v.id}`,
+      pinnedAd: null,
     });
   }
   for (const p of products) {
@@ -356,9 +364,35 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       compareAtCents: p.compareAtCents ?? null,
       pwyw: null,
       buyUrl: `/storefront/product/${p.id}`,
+      pinnedAd: null,
     });
   }
   if (shop) {
+    /* Pinned UGC ads (migration 0178): resolve the shop products'
+       pins in one read. The render rule matches the storefront
+       reads — the ad surfaces only while the product is 'active'
+       (a paused product is unlisted for buyers, Stack-4 #6) and the
+       ad itself is still 'ready' with a video. */
+    const pinnedIds = [
+      ...new Set(
+        shopProducts
+          .filter((sp) => sp.status === "active")
+          .map((sp) => sp.pinned_ugc_ad_id)
+          .filter((v): v is string => typeof v === "string" && v.length > 0),
+      ),
+    ];
+    const pinnedRows = pinnedIds.length
+      ? await db
+          .select({ id: ugcAdsTable.id, status: ugcAdsTable.status, videoRef: ugcAdsTable.videoRef })
+          .from(ugcAdsTable)
+          .where(inArray(ugcAdsTable.id, pinnedIds))
+      : [];
+    const pinnedById = new Map<string, { id: string; videoUrl: string }>();
+    for (const a of pinnedRows) {
+      if (a.status === "ready" && a.videoRef) {
+        pinnedById.set(a.id, { id: a.id, videoUrl: a.videoRef });
+      }
+    }
     for (const sp of shopProducts) {
       items.push({
         kind: "product",
@@ -371,6 +405,10 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
         compareAtCents: null,
         pwyw: null,
         buyUrl: `/shop/${shop.handle}`,
+        pinnedAd:
+          sp.status === "active" && sp.pinned_ugc_ad_id
+            ? (pinnedById.get(sp.pinned_ugc_ad_id) ?? null)
+            : null,
       });
     }
   }

@@ -421,7 +421,7 @@ router.use(sharesRouter);
 router.use(generatedClipsRouter);
 router.use(draftsRouter);
 router.use(storyboardsRouter);
-router.use(ugcAdsRouter);                     // UGC Product Ads: /api/ugc-ads{,/products,/script,/persona,/:id,/:id/generate}
+router.use(ugcAdsRouter);                     // UGC Product Ads: /api/ugc-ads{,/products,/script,/persona,/:id,/:id/generate,/:id/pin}
 router.use(ugcBriefsRouter);                  // UGC briefs board: /api/ugc-briefs{,/:id,/:id/claim,/release,/deliver,/approve,/close}
 router.use(generationHistoryRouter);
 router.use(assetLibraryRouter);

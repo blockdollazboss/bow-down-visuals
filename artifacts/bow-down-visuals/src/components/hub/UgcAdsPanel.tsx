@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Sparkles, User, ImageOff, Store, Upload, Share2, Trash2,
   RefreshCw, ClipboardList, Handshake, CheckCircle2, XCircle, RotateCcw, Send, Eye,
+  Pin, PinOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,9 @@ import {
   createUgcAd,
   generateUgcAdVideo,
   deleteUgcAd,
+  pinUgcAd,
+  unpinUgcAd,
+  pinActionFor,
   fetchUgcBriefs,
   postUgcBrief,
   briefAction,
@@ -269,6 +273,33 @@ export function UgcAdsPanel() {
     } catch (err) {
       toast({ title: "Generation failed", description: err instanceof Error ? err.message : "Any charge was refunded.", variant: "destructive" });
       void loadAds();
+    } finally {
+      setBusyAdId(null);
+    }
+  }
+
+  /* Pin / unpin (migration 0178): the finished ad goes ON its
+     product — the shop page and the profile store play it there.
+     State is replaced from the server's response, never guessed. */
+  async function togglePin(ad: UgcAd) {
+    const action = pinActionFor(ad);
+    if (!action) return;
+    setBusyAdId(ad.id);
+    try {
+      const saved = action === "pin"
+        ? await pinUgcAd(await token(), ad.id)
+        : await unpinUgcAd(await token(), ad.id);
+      setAds((prev) => prev.map((a) => (a.id === saved.id ? saved : a)));
+      if (latestAd?.id === saved.id) setLatestAd(saved);
+      void loadProducts();
+      toast({
+        title: action === "pin" ? "Pinned to your product" : "Unpinned",
+        description: action === "pin"
+          ? `${ad.productName} — buyers see this ad on the product now.`
+          : `${ad.productName} — the ad no longer shows on the product.`,
+      });
+    } catch (err) {
+      toast({ title: action === "pin" ? "Couldn't pin that ad" : "Couldn't unpin that ad", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setBusyAdId(null);
     }
@@ -633,6 +664,12 @@ export function UgcAdsPanel() {
                 {ad.status === "failed" && ad.lastError && (
                   <p className="mt-3 text-xs text-red-200/80">{ad.lastError} Your Visual Bucs were refunded.</p>
                 )}
+                {ad.pinnedProductId && (
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <Pin className="h-3.5 w-3.5" />
+                    Pinned to {products.find((p) => p.id === ad.pinnedProductId)?.name ?? ad.productName} — buyers see this ad on the product.
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(ad.status === "draft" || ad.status === "failed") && (
                     <button
@@ -650,6 +687,24 @@ export function UgcAdsPanel() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
                     >
                       <Share2 className="h-3.5 w-3.5" /> Share
+                    </button>
+                  )}
+                  {pinActionFor(ad) === "pin" && (
+                    <button
+                      onClick={() => void togglePin(ad)}
+                      disabled={busyAdId === ad.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+                    >
+                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />} Pin to product
+                    </button>
+                  )}
+                  {pinActionFor(ad) === "unpin" && (
+                    <button
+                      onClick={() => void togglePin(ad)}
+                      disabled={busyAdId === ad.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
+                    >
+                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PinOff className="h-3.5 w-3.5" />} Unpin
                     </button>
                   )}
                   {confirmDeleteId === ad.id ? (

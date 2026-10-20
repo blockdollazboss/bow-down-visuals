@@ -8,6 +8,7 @@ import {
   normalizeScript,
   briefActionsFor,
   briefStatusLabel,
+  pinActionFor,
   ugcAdStatusLabel,
   ugcAdShareText,
   UGC_PAYMENT_NOTE,
@@ -118,6 +119,34 @@ describe("normalizeUgcBriefs / products", () => {
     });
     expect(products).toHaveLength(1);
     expect(products[0]!.priceCents).toBe(4900);
+  });
+
+  it("products carry the pinned ad id the server sent (0178)", () => {
+    const products = normalizeUgcProducts({
+      products: [
+        { id: "p1", name: "Tee", priceCents: 4900, imageUrl: null, pinnedAdId: "ad-1" },
+        { id: "p2", name: "Cap", priceCents: 100, imageUrl: null },
+      ],
+    });
+    expect(products[0]!.pinnedAdId).toBe("ad-1");
+    expect(products[1]!.pinnedAdId).toBeNull();
+  });
+});
+
+describe("pin state (0178)", () => {
+  it("normalizeUgcAd carries pinnedProductId, defaulting to null", () => {
+    expect(normalizeUgcAd(RAW_AD)!.pinnedProductId).toBeNull();
+    const pinned = normalizeUgcAd({ ...RAW_AD, pinnedProductId: RAW_AD.shopProductId });
+    expect(pinned!.pinnedProductId).toBe(RAW_AD.shopProductId);
+  });
+
+  it("pinActionFor: only a finished shop-product ad offers an action", () => {
+    const ready = normalizeUgcAd(RAW_AD)!;
+    expect(pinActionFor(ready)).toBe("pin");
+    expect(pinActionFor({ ...ready, pinnedProductId: ready.shopProductId })).toBe("unpin");
+    expect(pinActionFor({ ...ready, status: "draft" })).toBeNull();
+    expect(pinActionFor({ ...ready, status: "failed" })).toBeNull();
+    expect(pinActionFor({ ...ready, shopProductId: null })).toBeNull();
   });
 });
 

@@ -143,6 +143,7 @@ CREATE TABLE shop_products (
   image_url text,
   image_path text,
   status text NOT NULL DEFAULT 'active',
+  pinned_ugc_ad_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );`;
