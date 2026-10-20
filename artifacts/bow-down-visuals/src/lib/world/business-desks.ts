@@ -28,7 +28,9 @@ import { primaryActionFor, creatorStateSummary, type CoachCreatorState } from "@
    pages/logo-maker MODELS; intro from pages/intros-outros
    (5s × 150 VB/s); press-kit from lib/credit-costs + the backend's
    PRESS_KIT_* constants; promo / promo-cards / coach from
-   lib/credit-costs (100 VB each). */
+   lib/credit-costs (100 VB each); headshot from the Headshot
+   Studio component + its route constant HEADSHOT_STUDIO_CREDIT_COST
+   + lib/credit-costs (100 VB in all three). */
 
 /** Logo tiers, exactly as the Logo Maker page offers them. */
 export const LOGO_MODELS = [
@@ -66,6 +68,7 @@ export type PressKitTone = (typeof PRESS_KIT_TONES)[number];
 export const PROMO_GENERATOR_COST_VISUAL_BUCS = 100;
 export const PROMO_CARDS_COST_VISUAL_BUCS = 100;
 export const COACH_COST_VISUAL_BUCS = 100;
+export const HEADSHOT_COST_VISUAL_BUCS = 100;
 
 /* ─── The shared job kit: logo + intro/outro task polling ────────────
    Both generators answer the same way (pages/logo-maker.tsx,
@@ -150,6 +153,90 @@ export function buildIntroPayload(input: {
   const logo = input.logoUrl?.trim();
   if (logo) out["referenceImageUrl"] = logo;
   return out;
+}
+
+/* ─── Headshots bench (the Branding Kit Desk's third maker) ────────
+   POST /api/generate-headshot is the Headshot Studio's own rail
+   (components/photo/HeadshotStudio.tsx + routes/generate/
+   headshot-studio.ts): SYNCHRONOUS — one POST answers with
+   { status: "succeeded", url } (parseJobStart reads it) — and the
+   route itself charges HEADSHOT_STUDIO_CREDIT_COST (100 VB) ONLY
+   on success, after a 402 pre-check. Failures charge nothing:
+   402 = out of Visual Bucs, 503 / code "provider_not_connected" =
+   the engine isn't connected. The desk mirrors the page's flows,
+   presets, engine labels and payload shape exactly. */
+
+/** The page's difficulty ladder, in the page's own words. */
+export const HEADSHOT_FLOWS = [
+  { key: "autopilot", label: "Turbo Mode" },
+  { key: "preset", label: "Style presets" },
+  { key: "manual", label: "Manual prompt" },
+] as const;
+export type HeadshotFlowKey = (typeof HEADSHOT_FLOWS)[number]["key"];
+
+/** Style presets — keys exactly as the route's schema names them. */
+export const HEADSHOT_PRESETS = [
+  { key: "studio", label: "Studio" },
+  { key: "stage", label: "Stage" },
+  { key: "street", label: "Street" },
+  { key: "luxury", label: "Luxury" },
+] as const;
+export type HeadshotPresetKey = (typeof HEADSHOT_PRESETS)[number]["key"];
+
+/** Engines — the page's own labels; the keys are the wire values. */
+export const HEADSHOT_MODELS = [
+  { key: "nano-banana-2.1", label: "Turbo Render" },
+  { key: "ideogram-4.0", label: "Portrait Render" },
+] as const;
+export type HeadshotModelKey = (typeof HEADSHOT_MODELS)[number]["key"];
+
+/** The page's generate gate: manual mode needs words first;
+ *  Turbo Mode and the presets are ready as they stand. */
+export function headshotReady(flow: string, promptText: string): boolean {
+  return flow !== "manual" || promptText.trim().length > 0;
+}
+
+/** POST /api/generate-headshot — the page's exact payload shape:
+ *  the preset rides only in preset flow, promptText only in manual
+ *  flow (trimmed), and referenceImageUrl is the trimmed face-photo
+ *  URL or null when the member left it blank. */
+export function buildHeadshotPayload(input: {
+  flow: string;
+  preset: string;
+  promptText: string;
+  model: string;
+  referenceImageUrl?: string;
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    mode: input.flow,
+    model: input.model,
+    referenceImageUrl: input.referenceImageUrl?.trim() || null,
+  };
+  if (input.flow === "preset") out["preset"] = input.preset;
+  if (input.flow === "manual") out["promptText"] = input.promptText.trim();
+  return out;
+}
+
+export type HeadshotFailureKind = "credits" | "provider" | "failed";
+export interface HeadshotFailure {
+  kind: HeadshotFailureKind;
+  message: string | null;
+}
+
+/** The one reading of a failed headshot response: 402 (or the
+ *  out_of_credits wire words) = credits; 503 / provider_not_connected
+ *  = the engine isn't connected; anything else = a failed make.
+ *  The route charges nothing on any of these. Null on a 2xx. */
+export function parseHeadshotFailure(status: number, data: unknown): HeadshotFailure | null {
+  if (status >= 200 && status < 300) return null;
+  const d = asRecord(data);
+  if (status === 402 || d["error"] === "out_of_credits" || d["code"] === "out_of_credits") {
+    return { kind: "credits", message: str(d["message"]) ?? str(d["error"]) };
+  }
+  if (status === 503 || d["code"] === "provider_not_connected") {
+    return { kind: "provider", message: str(d["error"]) ?? str(d["message"]) };
+  }
+  return { kind: "failed", message: str(d["error"]) ?? str(d["message"]) };
 }
 
 /* ─── Press Kit Desk ─────────────────────────────────────────────────
@@ -635,13 +722,6 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     desk: "press-kit",
     benchPath: "/press-kit",
     note: "The full edit form (handle, socials, achievements, quotes, tracks, photos, public toggle), press-release panel, PDF/print, copy-link and delete — v1 reads the kit, regenerates the bio, and generates a first kit.",
-  },
-  {
-    id: "branding-headshots-bench",
-    title: "NATIVE FOLLOW-ON: Branding headshots bench",
-    desk: "branding-kit",
-    benchPath: "/branding-kit?tab=headshots",
-    note: "Headshot studio (POST /api/generate-headshot family) stays a transfer bench in v1.",
   },
   {
     id: "branding-jewelry-bench",
