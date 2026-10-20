@@ -623,6 +623,180 @@ function ContactInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   );
 }
 
+/* ─── DMCA Reports — the moderation bench queue ─────────────────────────
+   Takedown reports filed through POST /api/dmca/report. Until this
+   inbox existed the reports landed in a table nothing could read;
+   the intake's operator email already pointed admins here. Working
+   a report = moving it through its workflow; the queue shows the
+   full report context (reporter, claimed-original links, the
+   allegedly infringing links, the sworn description). */
+interface DmcaReport {
+  id: string;
+  reporterName: string;
+  reporterEmail: string;
+  reporterOrg: string | null;
+  infringingUrls: string[];
+  originalUrls: string[];
+  description: string;
+  status: string;
+  createdAt: string | null;
+}
+
+const DMCA_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
+
+const DMCA_STATUS_CLS: Record<string, string> = {
+  new: "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#e8c86a]",
+  reviewing: "border-sky-400/40 bg-sky-400/10 text-sky-300",
+  actioned: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+  dismissed: "border-white/20 bg-white/5 text-white/50",
+};
+
+function DmcaReportsInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const [reports, setReports] = useState<DmcaReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /* Load failures are NOT "no reports" — they get their own error
+     state with a retry. The empty state renders ONLY for a
+     successful load with zero reports. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const res = await fetch("/api/admin/dmca-reports", { headers: await authHeaders() });
+      const data = (await res.json()) as { reports?: DmcaReport[] };
+      if (res.ok) setReports(data.reports ?? []);
+      else setLoadError(true);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders]);
+
+  useEffect(() => { void load(); }, [load, retryNonce]);
+
+  async function setStatus(id: string, status: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/dmca-reports/${id}`, {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      setReports((list) => list.map((r) => (r.id === id ? { ...r, status } : r)));
+    } catch {
+      setError(t("admin.dmca.statusError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.dmca.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">
+        {t("admin.dmca.description")}
+      </p>
+      {loading ? (
+        <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load takedown reports.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — the reports are safe, this queue just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : reports.length === 0 ? (
+        <p className="text-sm text-white/40">{t("admin.dmca.empty")}</p>
+      ) : (
+        <div className="space-y-3">
+          {reports.map((r) => (
+            <div key={r.id} className="rounded-xl border border-white/[0.08] bg-black/30 p-4">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {r.reporterName}
+                    {r.reporterOrg ? <span className="font-normal text-white/50"> · {r.reporterOrg}</span> : null}
+                  </p>
+                  <p className="text-xs text-white/50 truncate">{r.reporterEmail}</p>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${DMCA_STATUS_CLS[r.status] ?? DMCA_STATUS_CLS.new}`}>
+                  {t(`admin.dmca.status.${r.status}`, { defaultValue: r.status })}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-white/75 whitespace-pre-wrap">{r.description}</p>
+              {r.infringingUrls.length > 0 && (
+                <div className="mt-2 text-xs">
+                  <span className="text-white/40 uppercase tracking-wider font-semibold">{t("admin.dmca.infringingLabel")}</span>
+                  <div className="mt-1 flex flex-col gap-1">
+                    {r.infringingUrls.map((u) => (
+                      <a key={u} href={u} target="_blank" rel="noreferrer" className="text-[#e8c86a] underline hover:text-white break-all">
+                        {u}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {r.originalUrls.length > 0 && (
+                <div className="mt-2 text-xs">
+                  <span className="text-white/40 uppercase tracking-wider font-semibold">{t("admin.dmca.originalsLabel")}</span>
+                  <div className="mt-1 flex flex-col gap-1">
+                    {r.originalUrls.map((u) => (
+                      <a key={u} href={u} target="_blank" rel="noreferrer" className="text-[#e8c86a] underline hover:text-white break-all">
+                        {u}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="mt-2 text-xs text-white/30">
+                {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {DMCA_STATUSES.map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={r.status === s ? "default" : "outline"}
+                    disabled={busyId === r.id || r.status === s}
+                    onClick={() => { void setStatus(r.id, s); }}
+                    className="rounded-xl text-xs"
+                  >
+                    {busyId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t(`admin.dmca.status.${s}`)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 /* ─── User Management — lookup, ban, unban ──────────────────────────────── */
 interface AdminUserLookup {
   id: string;
@@ -1255,6 +1429,7 @@ export default function AdminPage() {
           <JackpotAdmin authHeaders={authHeaders} />
           <SpotlightInbox authHeaders={authHeaders} />
           <ContactInbox authHeaders={authHeaders} />
+          <DmcaReportsInbox authHeaders={authHeaders} />
           <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
           <JewelryOrdersAdmin authHeaders={authHeaders} />

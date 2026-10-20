@@ -902,6 +902,21 @@
       "markRead": "Mark read",
       "markUnread": "Mark unread"
     },
+    "dmca": {
+      "title": "DMCA Reports",
+      "description": "Copyright takedown reports filed through the site's report intake — newest first. Review the report, then move it to a decision.",
+      "empty": "No takedown reports yet.",
+      "loadError": "Could not load takedown reports.",
+      "statusError": "Could not update the report status.",
+      "infringingLabel": "Reported links",
+      "originalsLabel": "Original work",
+      "status": {
+        "new": "New",
+        "reviewing": "Reviewing",
+        "actioned": "Actioned",
+        "dismissed": "Dismissed"
+      }
+    },
     "users": {
       "title": "User Management",
       "description": "Look up a customer by email. Ban blocks them from the site.",

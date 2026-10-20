@@ -16,7 +16,7 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
-import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable } from "@workspace/db";
+import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable } from "@workspace/db";
 import { eq, isNull, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -503,6 +503,102 @@ router.patch("/admin/contact-messages/:id", requireAuth, requireAdmin, async (re
   } catch (err) {
     req.log.error({ err }, "admin: update contact message failed");
     res.status(500).json({ error: "Could not update the message." });
+  }
+});
+
+/* ─── Moderation bench: DMCA takedown report queue ────────────────────
+   Reports filed through POST /api/dmca/report (routes/creator-platform)
+   land in dmca_reports with status "new". Until this bench existed,
+   NOTHING read that table — the intake's own operator alert email
+   already told admins to "Review it in the admin panel under DMCA
+   reports", a panel that was never built. This is that panel's rail:
+   the queue (newest first, optional ?status= filter) and the one
+   action the stored data supports — moving a report through its
+   workflow. Acting on the reported content itself (removing a post
+   or media) has no admin rail anywhere in the codebase — post/media
+   deletion is author-only — so the bench deliberately has no
+   "remove" button to fake. */
+
+const DMCA_REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
+
+const DmcaStatusQuerySchema = z.object({
+  status: z.enum(DMCA_REPORT_STATUSES).optional(),
+});
+
+const dmcaReportDto = {
+  id: dmcaReportsTable.id,
+  reporterName: dmcaReportsTable.reporterName,
+  reporterEmail: dmcaReportsTable.reporterEmail,
+  reporterOrg: dmcaReportsTable.reporterOrg,
+  infringingUrls: dmcaReportsTable.infringingUrls,
+  originalUrls: dmcaReportsTable.originalUrls,
+  description: dmcaReportsTable.description,
+  status: dmcaReportsTable.status,
+  createdAt: dmcaReportsTable.createdAt,
+};
+
+/**
+ * GET /api/admin/dmca-reports?status=
+ * The takedown queue — newest first. ?status= narrows to one
+ * workflow state; an unknown state is a 400, never a silent
+ * empty queue.
+ */
+router.get("/admin/dmca-reports", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = DmcaStatusQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Invalid status filter. Must be one of: ${DMCA_REPORT_STATUSES.join(", ")}.` });
+    return;
+  }
+  try {
+    const base = db.select(dmcaReportDto).from(dmcaReportsTable);
+    const reports = parsed.data.status
+      ? await base.where(eq(dmcaReportsTable.status, parsed.data.status)).orderBy(desc(dmcaReportsTable.createdAt)).limit(200)
+      : await base.orderBy(desc(dmcaReportsTable.createdAt)).limit(200);
+    res.json({ reports });
+  } catch (err) {
+    req.log.error({ err }, "admin: list dmca reports failed");
+    res.status(500).json({ error: "Could not load DMCA reports." });
+  }
+});
+
+const DmcaStatusSchema = z.object({
+  status: z.enum(DMCA_REPORT_STATUSES),
+});
+
+/**
+ * PATCH /api/admin/dmca-reports/:id
+ * Move a report through its workflow:
+ * new → reviewing → actioned / dismissed.
+ */
+router.patch("/admin/dmca-reports/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = DmcaStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Invalid status. Must be one of: ${DMCA_REPORT_STATUSES.join(", ")}.` });
+    return;
+  }
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid report id." });
+    return;
+  }
+  try {
+    const [report] = await db
+      .update(dmcaReportsTable)
+      .set({ status: parsed.data.status })
+      .where(eq(dmcaReportsTable.id, parsedParams.data.id))
+      .returning(dmcaReportDto);
+    if (!report) {
+      res.status(404).json({ error: "Report not found." });
+      return;
+    }
+    req.log.info(
+      { admin: req.userEmail, reportId: report.id, status: report.status },
+      "admin: dmca report status updated",
+    );
+    res.json({ report });
+  } catch (err) {
+    req.log.error({ err }, "admin: update dmca report failed");
+    res.status(500).json({ error: "Could not update the report." });
   }
 });
 

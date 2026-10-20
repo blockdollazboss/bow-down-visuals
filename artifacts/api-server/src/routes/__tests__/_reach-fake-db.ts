@@ -17,16 +17,29 @@ interface TableStore {
   rows: Row[];
   colToProp: Map<string, string>; // db column name -> row prop name
   uniqueSets: string[][]; // prop-name sets treated as unique keys
+  /* Primitive column defaults (.default("new") / .default(0) / …),
+     keyed by row prop name. Postgres applies these when an INSERT
+     omits the column; the fake must too, or a row written through a
+     real route (e.g. the DMCA intake, which never sends `status`)
+     would silently lack the value every read then filters on. */
+  defaults: Map<string, unknown>;
 }
 
 export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record<string, string[][]> = {}) {
   const stores = new Map<unknown, TableStore>();
   const byName = new Map<string, TableStore>();
   for (const [name, table] of Object.entries(tables)) {
-    const cols = getTableColumns(table as never) as Record<string, { name: string }>;
+    const cols = getTableColumns(table as never) as Record<string, { name: string; default?: unknown }>;
     const colToProp = new Map<string, string>();
-    for (const [prop, col] of Object.entries(cols)) colToProp.set(col.name, prop);
-    const store: TableStore = { rows: [], colToProp, uniqueSets: uniqueKeys[name] ?? [] };
+    const defaults = new Map<string, unknown>();
+    for (const [prop, col] of Object.entries(cols)) {
+      colToProp.set(col.name, prop);
+      const d = col.default;
+      if (typeof d === "string" || typeof d === "number" || typeof d === "boolean") {
+        defaults.set(prop, d);
+      }
+    }
+    const store: TableStore = { rows: [], colToProp, uniqueSets: uniqueKeys[name] ?? [], defaults };
     stores.set(table, store);
     byName.set(name, store);
   }
@@ -282,6 +295,9 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
         const doInsert = () => {
           for (const v of list) {
             const row: Row = { id: genId(), created_at: new Date(), createdAt: new Date(), ...v };
+            for (const [propName, def] of store.defaults) {
+              if (row[propName] === undefined) row[propName] = def;
+            }
             if (!v["id"]) row.id = genId();
             else row.id = v["id"];
             const conflict = store.uniqueSets
