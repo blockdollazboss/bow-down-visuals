@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Crown, LogIn, Swords } from "lucide-react";
+import { Check, Crown, Link2, LogIn, Swords } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import {
   PARTY_GAME_META,
   parsePartyRooms,
+  partyInviteUrl,
   partyTableHomeLine,
+  partyTableSeatState,
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
 import {
@@ -54,6 +56,12 @@ import { PalaceCalendarBlock } from "./PalaceCalendarBlock";
        /world?party=CODE landing takes: across to the Game Rooms,
        the Marble Table open, the seat offered. The board never
        seats anyone itself; it names the table and the page walks.
+       Each row also carries the Invite copy the lobby rows carry —
+       the same /world?party=CODE link (partyInviteUrl), so a host
+       reading the board can summon a friend straight from the
+       directory — and a FULL table reads full and offers no seat
+       (partyTableSeatState, the profile table block's precedent):
+       the board never walks anyone to a seat that isn't there.
    Guests: the standings rail is members-only (it answers 401), so
    a guest's standings block is the sign-in pitch — no fake rows,
    no claim buttons (there are none here for anyone). The party
@@ -110,6 +118,23 @@ export function KingdomBoardBlocks({
   const [tables, setTables] = useState<PartyOpenRoom[] | null>(null);
   const [tablesFailed, setTablesFailed] = useState(false);
   const [tick, setTick] = useState(0);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  /* The row's Invite copy — the lobby rows' own gesture, verbatim:
+     the /world deep link for the table (partyInviteUrl), a brief
+     "Copied" on success, and on clipboard failure nothing breaks —
+     the table's code rides its home line for plain tables. */
+  const copyInvite = useCallback(async (code: string) => {
+    const url = partyInviteUrl(window.location.origin, code);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 2000);
+    } catch {
+      /* Clipboard unavailable — the code itself is the invite. */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -366,6 +391,7 @@ export function KingdomBoardBlocks({
           ) : (
             tables.map((room) => {
               const meta = PARTY_GAME_META[room.game];
+              const seatState = partyTableSeatState(room);
               return (
                 <NativeBoardRow
                   key={room.code}
@@ -374,16 +400,47 @@ export function KingdomBoardBlocks({
                   detail={partyTableHomeLine(room)}
                   meta={`${room.players}/${meta.seats}`}
                   action={
-                    onJoinPartyTable ? (
+                    <span className="inline-flex items-center gap-1.5">
                       <button
                         type="button"
-                        data-testid={`world-kingdom-party-join-${room.code}`}
-                        onClick={() => onJoinPartyTable(room)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                        data-testid={`world-kingdom-party-invite-${room.code}`}
+                        onClick={() => void copyInvite(room.code)}
+                        title="Copy a World invite link — it lands your friend at this table"
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                          isLight
+                            ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                            : "border-white/15 text-white/75 hover:text-white"
+                        }`}
                       >
-                        <Swords className="h-3.5 w-3.5" /> Take a seat
+                        {copiedCode === room.code ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <Link2 className="h-3.5 w-3.5" />
+                        )}
+                        {copiedCode === room.code ? "Copied" : "Invite"}
                       </button>
-                    ) : undefined
+                      {seatState === "full" ? (
+                        <span
+                          data-testid={`world-kingdom-party-full-${room.code}`}
+                          className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold opacity-70 ${
+                            isLight
+                              ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                              : "border-white/15 text-white/70"
+                          }`}
+                        >
+                          Table full
+                        </span>
+                      ) : onJoinPartyTable ? (
+                        <button
+                          type="button"
+                          data-testid={`world-kingdom-party-join-${room.code}`}
+                          onClick={() => onJoinPartyTable(room)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                        >
+                          <Swords className="h-3.5 w-3.5" /> Take a seat
+                        </button>
+                      ) : null}
+                    </span>
                   }
                 />
               );
