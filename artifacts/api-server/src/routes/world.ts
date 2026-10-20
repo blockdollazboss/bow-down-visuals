@@ -79,6 +79,7 @@ import {
   CourtSeasonScheduler,
   COURT_SEASON_TICK_MS,
 } from "../lib/world-court-season";
+import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
 import { createTutorialActionNotifier } from "../lib/world-tutorial";
 
@@ -1650,7 +1651,14 @@ export function startKingMomentScheduler(palace: WorldPalace): { stop: () => voi
  * settles it on boot.
  */
 export function startCourtSeasonScheduler(palace: WorldPalace): { stop: () => void } {
-  const scheduler = new CourtSeasonScheduler({ palace });
+  const scheduler = new CourtSeasonScheduler({
+    palace,
+    /* Lane G: the settling herald is a winner-herald duty — the
+       gate carries its switch, its dedupe and its audit row. The
+       settlement itself is never gated. */
+    heraldGate: ({ season, outcome }) =>
+      gateCourtSeasonHerald({ season, outcome }),
+  });
   const run = () => {
     void scheduler.tick().catch((err) => {
       logger.warn({ err }, "[court-season] scheduler tick failed");
