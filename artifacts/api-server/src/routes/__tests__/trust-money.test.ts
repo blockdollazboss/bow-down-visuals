@@ -127,4 +127,77 @@ describe("#5 earnings statements", () => {
     expect(json.statement.totalCents).toBe(0);
     expect(json.statement.partial).toBe(false);
   });
+
+  it("the in-page JSON and the PDF are the SAME statement — every line and the total match, from the one builder", async () => {
+    const db = testState.db;
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${PROFILE}, ${OWNER}, 'me')`);
+    await db.execute(sql`INSERT INTO store_orders (id, profile_id, creator_amount_cents, status, created_at) VALUES (${randomUUID()}, ${PROFILE}, 5000, 'completed', '2026-03-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO shop_events (id, user_id, event_type, amount_cents, platform_fee_cents, created_at) VALUES (${randomUUID()}, ${OWNER}, 'sale', 2000, 100, '2026-04-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO fan_members (id, user_id, price_cents, stripe_session_id, created_at) VALUES (${randomUUID()}, ${OWNER}, 1500, 'cs_1', '2026-05-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status, created_at) VALUES (${randomUUID()}, ${OWNER}, 4000, 'released', '2026-06-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO royalty_entries (id, user_id, song_title, platform, period_start, period_end, gross_amount) VALUES (${randomUUID()}, ${OWNER}, 'S', 'manual', '2026-01-01', '2026-01-31', 12.34)`);
+
+    const json: any = await (await realFetch(`${baseUrl}/earnings/statements/2026`)).json();
+    const pdfRes = await realFetch(`${baseUrl}/earnings/statements/2026/pdf`);
+    expect(pdfRes.headers.get("content-disposition")).toContain('filename="earnings-statement-2026.pdf"');
+    /* The PDF's content streams are uncompressed text ops, so the
+       exact strings the PDF prints are readable here. Format them
+       FROM the JSON's numbers (the PDF route's own money format)
+       and require every one inside the PDF bytes — the in-page
+       viewer's data and the PDF's data are one builder's object. */
+    const pdfText = await pdfRes.text();
+    const money = (c: number) => `$${(c / 100).toFixed(2)}`;
+    const lines: Array<[string, string]> = [
+      ["Store sales", "storeSales"],
+      ["Shop sales", "shopSales"],
+      ["Memberships", "memberships"],
+      ["Brand deals", "brandDeals"],
+      ["Royalties", "royalties"],
+    ];
+    for (const [label, key] of lines) {
+      const s = json.statement.sources[key];
+      expect(s.status).toBe("ok");
+      expect(pdfText).toContain(label);
+      expect(pdfText).toContain(`${money(s.totalCents)}  (${s.count} records)`.replace(/[()]/g, (m) => `\\${m}`));
+    }
+    expect(json.statement.totalCents).toBe(5000 + 1900 + 1500 + 4000 + 1234);
+    expect(pdfText).toContain(money(json.statement.totalCents));
+  });
+
+  it("rejects out-of-range and non-integer years on BOTH the JSON and PDF routes", async () => {
+    for (const bad of ["2019", "2101", "abcd", "2026.5"]) {
+      expect((await realFetch(`${baseUrl}/earnings/statements/${bad}`)).status).toBe(400);
+      expect((await realFetch(`${baseUrl}/earnings/statements/${bad}/pdf`)).status).toBe(400);
+    }
+  });
+
+  it("owner-scoping: another creator's recorded rows never enter your statement — each side sees only its own", async () => {
+    const db = testState.db;
+    const STRANGER_PROFILE = randomUUID();
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${PROFILE}, ${OWNER}, 'me')`);
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${STRANGER_PROFILE}, ${STRANGER}, 'them')`);
+    await db.execute(sql`INSERT INTO store_orders (id, profile_id, creator_amount_cents, status, created_at) VALUES (${randomUUID()}, ${PROFILE}, 5000, 'completed', '2026-03-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO store_orders (id, profile_id, creator_amount_cents, status, created_at) VALUES (${randomUUID()}, ${STRANGER_PROFILE}, 7777, 'completed', '2026-03-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO shop_events (id, user_id, event_type, amount_cents, platform_fee_cents, created_at) VALUES (${randomUUID()}, ${STRANGER}, 'sale', 2000, 100, '2026-04-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO fan_members (id, user_id, price_cents, stripe_session_id, created_at) VALUES (${randomUUID()}, ${STRANGER}, 3333, 'cs_9', '2026-05-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status, created_at) VALUES (${randomUUID()}, ${STRANGER}, 4444, 'released', '2026-06-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO royalty_entries (id, user_id, song_title, platform, period_start, period_end, gross_amount) VALUES (${randomUUID()}, ${STRANGER}, 'S', 'manual', '2026-01-01', '2026-01-31', 9.99)`);
+
+    const mine: any = await (await realFetch(`${baseUrl}/earnings/statements/2026`)).json();
+    expect(mine.statement.sources.storeSales.totalCents).toBe(5000);
+    expect(mine.statement.sources.shopSales.totalCents).toBe(0);
+    expect(mine.statement.sources.memberships.totalCents).toBe(0);
+    expect(mine.statement.sources.brandDeals.totalCents).toBe(0);
+    expect(mine.statement.sources.royalties.totalCents).toBe(0);
+    expect(mine.statement.totalCents).toBe(5000);
+
+    testState.userId = STRANGER;
+    const theirs: any = await (await realFetch(`${baseUrl}/earnings/statements/2026`)).json();
+    expect(theirs.statement.sources.storeSales.totalCents).toBe(7777);
+    expect(theirs.statement.sources.shopSales.totalCents).toBe(1900);
+    expect(theirs.statement.sources.memberships.totalCents).toBe(3333);
+    expect(theirs.statement.sources.brandDeals.totalCents).toBe(4444);
+    expect(theirs.statement.sources.royalties.totalCents).toBe(999);
+    expect(theirs.statement.totalCents).toBe(7777 + 1900 + 3333 + 4444 + 999);
+  });
 });
