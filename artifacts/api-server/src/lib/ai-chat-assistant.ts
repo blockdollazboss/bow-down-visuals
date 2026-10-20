@@ -1,7 +1,7 @@
 /* ─── Thy Cheat Code — the site operator (Cloud Operator Phase 1) ────────
    The chat's brain. Phase 1 is KNOWLEDGE ONLY: the operator answers and
-   guides from the generated feature knowledge base (lib/operator-knowledge
-   .ts, built from the codebase by scripts/generate-operator-knowledge.mjs).
+   guides from the generated feature knowledge base (lib/operator-knowledge.ts,
+   built from the codebase by scripts/generate-operator-knowledge.mjs).
    It has no hands yet — it cannot press buttons, start jobs, or spend
    credits for anyone, and it must never claim it did.
 
