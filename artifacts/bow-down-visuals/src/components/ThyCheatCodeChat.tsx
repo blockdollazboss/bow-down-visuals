@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { ChatVoiceButton } from "@/components/ChatVoiceButton";
+import { ChatSpeakButton } from "@/components/ChatSpeakButton";
 import type { ChatVoiceNote } from "@/lib/chat-voice";
+import {
+  CHAT_SPEAK_CASTING_COPY,
+  chatSpeakView,
+  fetchChatSpeakStatus,
+  loadChatSpeakEnabled,
+  saveChatSpeakEnabled,
+  type ChatSpeakStatus,
+} from "@/lib/chat-speak";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { X, Send, Loader2, Dices } from "lucide-react";
+import { X, Send, Loader2, Dices, Volume2, VolumeX } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -27,7 +36,13 @@ import {
 
    There is no floating launcher anymore — the in-page ThyCheatCodeHost, its
    collapsed chip, and per-step "Ask about this" buttons open the drawer.
-   Talks to POST /api/free-chat. Free via Groq (no credits). */
+   Talks to POST /api/free-chat. Free via Groq (no credits).
+
+   Voice OUT (lib/chat-speak): a header toggle (persisted per user)
+   gives every reply a speak control priced by the server
+   (GET /api/chat/speak/status) — POST /api/chat/speak charges per
+   spoken reply. Until his voice is cast the control says so and
+   charges nothing. */
 
 type ChatRole = "user" | "assistant";
 interface ChatMessage { role: ChatRole; content: string }
@@ -192,6 +207,11 @@ export function ThyCheatCodeChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [voiceNote, setVoiceNote] = useState<ChatVoiceNote | null>(null);
+  /* Voice out: the per-user toggle (persisted) + the server's word on
+     readiness and price, read fresh each time the drawer opens. */
+  const [voiceOut, setVoiceOut] = useState<boolean>(() => loadChatSpeakEnabled());
+  const [speakStatus, setSpeakStatus] = useState<ChatSpeakStatus | null>(null);
+  const [speakStatusFailed, setSpeakStatusFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   // creditCost removed: chat is now free
   const listRef = useRef<HTMLDivElement>(null);
@@ -206,6 +226,38 @@ export function ThyCheatCodeChat() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  /* Voice-out status: readiness + price come from the server, never
+     from a client constant. Refetched on each open so a voice cast
+     (or a price change) lands without a page reload. */
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchChatSpeakStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setSpeakStatus(status);
+        setSpeakStatusFailed(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSpeakStatusFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const speakView = chatSpeakView(speakStatus, speakStatusFailed);
+
+  const toggleVoiceOut = () => {
+    const next = !voiceOut;
+    setVoiceOut(next);
+    saveChatSpeakEnabled(next);
+    if (next && speakView === "casting") {
+      setVoiceNote({ tone: "info", text: CHAT_SPEAK_CASTING_COPY });
+    }
+  };
 
   /* Proactive promo nudge: once per session, shortly after the drawer
      opens, Thy Cheat Code promotes one thing himself — rotating across
@@ -392,6 +444,31 @@ export function ThyCheatCodeChat() {
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  onClick={toggleVoiceOut}
+                  aria-pressed={voiceOut}
+                  aria-label={
+                    voiceOut
+                      ? "Turn off spoken replies"
+                      : "Turn on spoken replies — hear Thy Cheat Code out loud"
+                  }
+                  title={
+                    !voiceOut
+                      ? "Hear his replies out loud"
+                      : speakView === "ready"
+                        ? `Spoken replies: ${speakStatus?.creditCost ?? 0} Visual Bucs each`
+                        : speakView === "casting"
+                          ? "His voice is still being cast"
+                          : "Spoken replies"
+                  }
+                  className={`border-2 p-1.5 transition ${
+                    voiceOut
+                      ? "border-[#C9A84C]/60 bg-[#C9A84C]/15 text-[#E8C96A]"
+                      : "border-transparent text-neutral-400 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/15 hover:text-[#E8C96A]"
+                  }`}
+                >
+                  {voiceOut ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </button>
+                <button
                   onClick={() => {
                     const pick = SURPRISE_PROMPTS[Math.floor(Math.random() * SURPRISE_PROMPTS.length)];
                     send(pick);
@@ -448,16 +525,33 @@ export function ThyCheatCodeChat() {
                     />
                   </div>
                 )}
-                <div
-                  className={
-                    m.role === "user"
-                      ? "max-w-[85%] border-2 border-[#8A6B1F] bg-[#C9A84C] px-3.5 py-2.5 text-sm font-medium text-black"
-                      : "tcc-assistant-bubble tcc-chat max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-lg leading-snug text-neutral-100"
-                  }
-                  style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
-                >
-                  {m.role === "assistant" ? renderRich(m.content) : m.content}
-                </div>
+                {m.role === "user" ? (
+                  <div
+                    className="max-w-[85%] border-2 border-[#8A6B1F] bg-[#C9A84C] px-3.5 py-2.5 text-sm font-medium text-black"
+                    style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
+                  >
+                    {m.content}
+                  </div>
+                ) : (
+                  <div className="flex max-w-[85%] flex-col items-start">
+                    <div
+                      className="tcc-assistant-bubble tcc-chat border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-lg leading-snug text-neutral-100"
+                      style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
+                    >
+                      {renderRich(m.content)}
+                    </div>
+                    {voiceOut && (
+                      <div className="mt-1.5">
+                        <ChatSpeakButton
+                          text={m.content}
+                          view={speakView}
+                          creditCost={speakStatus?.creditCost ?? 0}
+                          onNote={setVoiceNote}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             {loading && (
