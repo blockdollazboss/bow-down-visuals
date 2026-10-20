@@ -3,8 +3,9 @@ import { Link } from "wouter";
 import {
   Scale, Sparkles, Loader2, FileText, MessageCircleQuestion, CheckCircle2,
   Copy, Plus, Trash2, ShieldCheck, Clock3, BadgeDollarSign, ArrowRight,
-  ChevronDown, AlertTriangle, ListChecks, Download,
+  ChevronDown, AlertTriangle, ListChecks, Download, Flag,
 } from "lucide-react";
+import { submitDmcaReport, type DmcaReportForm } from "@/lib/dmca-report";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -89,6 +90,150 @@ const labelClass = "mb-1.5 block text-xs font-bold uppercase tracking-widest tex
 
 function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/* ── DMCA takedown report ────────────────────────────────────────────────────
+   The public intake (POST /api/dmca/report) has been live since the admin
+   DMCA bench landed, but this page never called it — the endpoint was
+   reachable only by direct API call. This section is the missing door:
+   the form rides lib/dmca-report (its payload mirrors the server's
+   contract) and shows success ONLY on the server's 201 confirmation.
+   Public by design — a rights holder reporting infringement may not have
+   an account, so the form never asks for sign-in. */
+
+const EMPTY_DMCA_FORM: DmcaReportForm = {
+  reporterName: "",
+  reporterEmail: "",
+  reporterOrg: "",
+  infringingUrlsText: "",
+  originalUrlsText: "",
+  description: "",
+  agreed: false,
+};
+
+function TakedownReportSection({ isLight }: { isLight: boolean }) {
+  const [form, setForm] = useState<DmcaReportForm>(EMPTY_DMCA_FORM);
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+
+  const set = (patch: Partial<DmcaReportForm>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  async function fileReport() {
+    if (status === "submitting") return;
+    setStatus("submitting");
+    setError(null);
+    const result = await submitDmcaReport(form);
+    if (result.status === "success") {
+      setReportId(result.id);
+      setStatus("success");
+    } else {
+      setError(result.error);
+      setStatus("error");
+    }
+  }
+
+  function fileAnother() {
+    setForm(EMPTY_DMCA_FORM);
+    setReportId(null);
+    setError(null);
+    setStatus("idle");
+  }
+
+  return (
+    <section className="mt-12 rounded-3xl border border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f]">
+          <Flag className="h-6 w-6 text-black" aria-hidden="true" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black">Report copyright infringement</h2>
+          <p className="text-sm text-white/50">
+            Someone using your work without permission? File a DMCA takedown report — it goes straight to our review team. No account needed.
+          </p>
+        </div>
+      </div>
+
+      {status === "success" ? (
+        <div className={`mt-6 rounded-2xl border p-6 text-center ${isLight ? "border-emerald-500/40 bg-emerald-500/10" : "border-emerald-500/30 bg-emerald-500/[0.07]"}`}>
+          <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-400" aria-hidden="true" />
+          <h3 className="mt-3 text-lg font-black text-white">Report filed — thank you.</h3>
+          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-white/60">
+            Your report is in the review queue and the team has been alerted. If they need anything else,
+            they&apos;ll reach you at the email you gave.
+            {reportId ? <> Reference: <span className="font-bold text-white">{reportId}</span></> : null}
+          </p>
+          <button
+            onClick={fileAnother}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-primary"
+          >
+            File another report
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass} htmlFor="dmca-name">Your full name *</label>
+              <input id="dmca-name" className={inputClass} value={form.reporterName} onChange={(e) => set({ reporterName: e.target.value })} placeholder="Legal name of the copyright owner or agent" maxLength={120} autoComplete="name" />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="dmca-email">Your email *</label>
+              <input id="dmca-email" type="email" className={inputClass} value={form.reporterEmail} onChange={(e) => set({ reporterEmail: e.target.value })} placeholder="Where the review team can reach you" maxLength={200} autoComplete="email" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-org">Organization / company (optional)</label>
+              <input id="dmca-org" className={inputClass} value={form.reporterOrg} onChange={(e) => set({ reporterOrg: e.target.value })} placeholder="Label, publisher, or company you represent — if any" maxLength={200} autoComplete="organization" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-infringing">Links to the infringing content *</label>
+              <textarea id="dmca-infringing" className={`${inputClass} min-h-[76px] resize-y`} value={form.infringingUrlsText} onChange={(e) => set({ infringingUrlsText: e.target.value })} placeholder={"One link per line — the pages on Bow Down Visuals using your work.\nhttps://bowdownvisuals.com/track/..."} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-original">Links to your original work (optional)</label>
+              <textarea id="dmca-original" className={`${inputClass} min-h-[60px] resize-y`} value={form.originalUrlsText} onChange={(e) => set({ originalUrlsText: e.target.value })} placeholder={"One link per line — where your work originally lives.\nhttps://..."} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-description">What happened? *</label>
+              <textarea id="dmca-description" className={`${inputClass} min-h-[96px] resize-y`} value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Name the work and how it's being used without permission — at least a sentence or two." maxLength={5000} />
+            </div>
+          </div>
+
+          <label className="mt-5 flex cursor-pointer items-start gap-2.5 text-sm leading-relaxed text-white/70">
+            <input
+              type="checkbox"
+              checked={form.agreed}
+              onChange={(e) => set({ agreed: e.target.checked })}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#d4af37]"
+            />
+            <span>
+              I have a good-faith belief that the use of the material described above is not authorized by the
+              copyright owner, its agent, or the law. I agree — <span className="text-white">under penalty of perjury</span> —
+              that the information in this report is accurate and that I am the copyright owner or authorized to act on their behalf.
+            </span>
+          </label>
+
+          {status === "error" && error && (
+            <p className={`mx-auto mt-5 max-w-xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm ${isLight ? "text-red-700" : "text-red-300"}`}>{error}</p>
+          )}
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={fileReport}
+              disabled={status === "submitting"}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+            >
+              {status === "submitting" ? <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" /> : <Flag className="h-6 w-6" aria-hidden="true" />}
+              {status === "submitting" ? "Filing your report…" : "File takedown report"}
+            </button>
+            <p className="mt-2.5 text-xs text-white/35">
+              Reports are reviewed by a person, not a bot. Filing a false report has legal consequences — only report work you own or represent.
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export default function CopyrightAssistant() {
@@ -583,6 +728,9 @@ export default function CopyrightAssistant() {
             ))}
           </div>
         </section>
+
+        {/* ── DMCA TAKEDOWN REPORT ── */}
+        <TakedownReportSection isLight={isLight} />
 
         {/* ── DISCLAIMER ── */}
         <div className="mt-10 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-5">
