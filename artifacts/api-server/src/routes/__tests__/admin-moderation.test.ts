@@ -61,6 +61,33 @@ vi.mock("../../lib/objectStorage", () => ({
   refreshSupabaseStorageUrlsDeep: async (v: unknown) => v,
 }));
 
+/* Extra mocks so the creator-platform router (home of the DMCA
+   intake) can mount in the same app, exactly as production mounts
+   both routers side by side. */
+vi.mock("../referrals", () => ({
+  getRecruiterBadgeForUser: async () => null,
+}));
+
+vi.mock("../generate/milestones", () => ({
+  computeAchievements: () => [],
+}));
+
+vi.mock("../../lib/email", () => ({
+  sendEmail: async () => undefined,
+  emailShell: (x: string) => x,
+  escapeHtml: (s: string) => s,
+  isEmailConfigured: () => false,
+}));
+
+vi.mock("../../lib/mirrorMedia", () => ({
+  mirrorExternalMediaUrl: async (v: unknown) => v,
+  isExternalHttpUrl: (v: unknown) =>
+    typeof v === "string" && /^https?:\/\//i.test(v),
+  isPermanentMediaValue: (v: unknown) =>
+    typeof v === "string" &&
+    (v.startsWith("r2://") || v.startsWith("supabase://")),
+}));
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const { createFakeDb } = await import("./_reach-fake-db");
@@ -75,6 +102,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 import adminRouter from "../admin";
+import creatorPlatformRouter from "../creator-platform";
 
 let base = "";
 let server: ReturnType<express.Express["listen"]>;
@@ -86,6 +114,7 @@ beforeAll(async () => {
     next();
   });
   app.use("/api", adminRouter);
+  app.use("/api", creatorPlatformRouter);
   await new Promise<void>((resolve) => { server = app.listen(0, () => resolve()); });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
@@ -212,5 +241,168 @@ describe("the admin gate on the bench's home routes", () => {
     seedMessages();
     const res = await req("PATCH", `/api/admin/contact-messages/${MSG_1}`, ADMIN, { read: "yes" });
     expect(res.status).toBe(400);
+  });
+});
+
+/* ─── The moderation bench: DMCA takedown queue ───────────────────────
+   Before the bench, POST /api/dmca/report wrote rows that no route
+   could read back. These pins cover the queue that closes that loop
+   and the authorization around it. */
+const REPORT_1 = "44444444-4444-4444-8444-444444444441";
+const REPORT_2 = "55555555-5555-4555-8555-555555555552";
+
+function seedReports() {
+  h.fake.seed("dmcaReports", [
+    {
+      id: REPORT_1,
+      reporterName: "Label Rep",
+      reporterEmail: "legal@label.example",
+      reporterOrg: "Example Records",
+      infringingUrls: ["https://bowdownvisuals.com/track/abc"],
+      originalUrls: ["https://label.example/original"],
+      description: "This upload reproduces our recording without a license.",
+      agreeUnderPenalty: "yes",
+      status: "new",
+      createdAt: new Date("2026-10-01T00:00:00Z"),
+    },
+    {
+      id: REPORT_2,
+      reporterName: "Indie Artist",
+      reporterEmail: "indie@example.test",
+      reporterOrg: null,
+      infringingUrls: ["https://bowdownvisuals.com/video/xyz", "https://bowdownvisuals.com/shorts/xyz"],
+      originalUrls: [],
+      description: "My video was re-uploaded by another account in full.",
+      agreeUnderPenalty: "yes",
+      status: "reviewing",
+      createdAt: new Date("2026-10-03T00:00:00Z"),
+    },
+  ]);
+}
+
+describe("GET /api/admin/dmca-reports — the bench queue", () => {
+  it("403s a member — the queue is not a member surface", async () => {
+    seedReports();
+    const res = await req("GET", "/api/admin/dmca-reports", MEMBER);
+    expect(res.status).toBe(403);
+  });
+
+  it("401s a guest", async () => {
+    const res = await req("GET", "/api/admin/dmca-reports", null);
+    expect(res.status).toBe(401);
+  });
+
+  it("serves an admin the full queue, newest first, with the report context", async () => {
+    seedReports();
+    const res = await req("GET", "/api/admin/dmca-reports", ADMIN);
+    expect(res.status).toBe(200);
+    expect(res.json.reports).toHaveLength(2);
+    expect(res.json.reports[0]).toEqual({
+      id: REPORT_2,
+      reporterName: "Indie Artist",
+      reporterEmail: "indie@example.test",
+      reporterOrg: null,
+      infringingUrls: ["https://bowdownvisuals.com/video/xyz", "https://bowdownvisuals.com/shorts/xyz"],
+      originalUrls: [],
+      description: "My video was re-uploaded by another account in full.",
+      status: "reviewing",
+      createdAt: "2026-10-03T00:00:00.000Z",
+    });
+    expect(res.json.reports[1].id).toBe(REPORT_1);
+  });
+
+  it("an empty queue is an honest empty list, not an error", async () => {
+    const res = await req("GET", "/api/admin/dmca-reports", ADMIN);
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ reports: [] });
+  });
+
+  it("filters to one workflow state with ?status=", async () => {
+    seedReports();
+    const res = await req("GET", "/api/admin/dmca-reports?status=new", ADMIN);
+    expect(res.status).toBe(200);
+    expect(res.json.reports.map((r: any) => r.id)).toEqual([REPORT_1]);
+  });
+
+  it("400s an unknown ?status= filter instead of silently emptying the queue", async () => {
+    seedReports();
+    const res = await req("GET", "/api/admin/dmca-reports?status=bogus", ADMIN);
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/admin/dmca-reports/:id — working the queue", () => {
+  it("403s a member trying to work the queue", async () => {
+    seedReports();
+    const res = await req("PATCH", `/api/admin/dmca-reports/${REPORT_1}`, MEMBER, { status: "dismissed" });
+    expect(res.status).toBe(403);
+    const after = await req("GET", "/api/admin/dmca-reports", ADMIN);
+    expect(after.json.reports.find((r: any) => r.id === REPORT_1).status).toBe("new");
+  });
+
+  it("moves a report through its workflow and the change persists", async () => {
+    seedReports();
+    const res = await req("PATCH", `/api/admin/dmca-reports/${REPORT_1}`, ADMIN, { status: "actioned" });
+    expect(res.status).toBe(200);
+    expect(res.json.report.id).toBe(REPORT_1);
+    expect(res.json.report.status).toBe("actioned");
+    const after = await req("GET", "/api/admin/dmca-reports?status=actioned", ADMIN);
+    expect(after.json.reports.map((r: any) => r.id)).toEqual([REPORT_1]);
+  });
+
+  it("400s a status outside the workflow vocabulary", async () => {
+    seedReports();
+    const res = await req("PATCH", `/api/admin/dmca-reports/${REPORT_1}`, ADMIN, { status: "deleted" });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s a malformed report id", async () => {
+    const res = await req("PATCH", "/api/admin/dmca-reports/not-a-uuid", ADMIN, { status: "reviewing" });
+    expect(res.status).toBe(400);
+  });
+
+  it("404s a report that does not exist", async () => {
+    const res = await req("PATCH", "/api/admin/dmca-reports/66666666-6666-4666-8666-666666666666", ADMIN, { status: "reviewing" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("the loop closes: intake → queue", () => {
+  const validReport = {
+    reporter_name: "Visiting Rights Holder",
+    reporter_email: "rights@example.test",
+    infringing_urls: ["https://bowdownvisuals.com/track/taken"],
+    original_urls: ["https://example.test/mine"],
+    description: "This track is my recording, uploaded without permission.",
+    agree_under_penalty: "yes, I agree",
+  };
+
+  it("a report filed at the public intake lands in the admin queue as 'new'", async () => {
+    const filed = await req("POST", "/api/dmca/report", null, validReport);
+    expect(filed.status).toBe(201);
+    expect(filed.json.ok).toBe(true);
+
+    const queue = await req("GET", "/api/admin/dmca-reports?status=new", ADMIN);
+    expect(queue.status).toBe(200);
+    expect(queue.json.reports).toHaveLength(1);
+    expect(queue.json.reports[0]).toMatchObject({
+      id: filed.json.id,
+      reporterName: "Visiting Rights Holder",
+      reporterEmail: "rights@example.test",
+      infringingUrls: ["https://bowdownvisuals.com/track/taken"],
+      status: "new",
+    });
+  });
+
+  it("the intake refuses a report without the perjury agreement", async () => {
+    const filed = await req("POST", "/api/dmca/report", null, { ...validReport, agree_under_penalty: "no" });
+    expect(filed.status).toBe(400);
+    const queue = await req("GET", "/api/admin/dmca-reports", ADMIN);
+    expect(queue.json.reports).toHaveLength(0);
+  });
+
+  it("the intake refuses a malformed report", async () => {
+    const filed = await req("POST", "/api/dmca/report", null, { reporter_name: "X" });
+    expect(filed.status).toBe(400);
   });
 });
