@@ -19,6 +19,8 @@ function character(partial: Partial<VaultCharacter> = {}): VaultCharacter {
     id: "vault-1",
     name: "Shark King",
     portraitUrl: "https://img.example/shark-king.png",
+    loopUrl: null,
+    isOwn: true,
     ...partial,
   };
 }
@@ -48,6 +50,7 @@ describe("the vault roster read (the picker's list)", () => {
       name: "Shark King",
       portraitUrl: "https://img.example/king.png",
       loopUrl: null,
+      isOwn: false,
     });
     /* The loop lane's identity keying rides the same roster read: a
        row's reference_video_url arrives as loopUrl. */
