@@ -301,17 +301,16 @@ function KingdomBoard({
     <div className="space-y-1.5">
       {directory.map((r) => {
         const here = r.id === currentRoomId;
-        return (
-          <div
-            key={r.id}
-            className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
-              here
-                ? "border-[#d4af37] bg-[#d4af37]/10"
-                : isLight
-                  ? "border-[#C9A84C]/40 bg-white/50"
-                  : "border-white/10 bg-white/5"
-            }`}
-          >
+        const rowClass = `flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
+          here
+            ? "border-[#d4af37] bg-[#d4af37]/10"
+            : isLight
+              ? "border-[#C9A84C]/40 bg-white/50"
+              : "border-white/10 bg-white/5"
+        }`;
+        const rowLabel = `${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"}${r.live ? ", live now" : ""}${here ? ", you're here" : ""}`;
+        const rowInner = (
+          <>
             <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{r.name}</span>
             {r.live && (
               <span className="inline-flex items-center gap-1 text-[11px] font-black text-red-400">
@@ -330,11 +329,31 @@ function KingdomBoard({
                 {r.count > 4 ? ` +${r.count - 4} more` : ""}
               </span>
             ) : null}
+          </>
+        );
+        /* A row is a door when the host wires the walk (the same
+           onEnterRoom the calendar's Walk button rides); without a
+           host the board stays the look-only directory it was. */
+        return onEnterRoom ? (
+          <button
+            key={r.id}
+            type="button"
+            data-testid="world-board-room"
+            aria-current={here ? "true" : undefined}
+            aria-label={rowLabel}
+            onClick={() => onEnterRoom(r.id)}
+            className={`w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"} ${rowClass}`}
+          >
+            {rowInner}
+          </button>
+        ) : (
+          <div key={r.id} data-testid="world-board-room" aria-current={here ? "true" : undefined} className={rowClass}>
+            {rowInner}
           </div>
         );
       })}
       <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-        The board follows the palace live — walk through a door and your name moves with you. Shows play on the
+        The board follows the palace live — {onEnterRoom ? "tap a room, or walk through a door, and your name moves with you" : "walk through a door and your name moves with you"}. Shows play on the
         hall&rsquo;s big screen; the Front Row sits in the Royal Court Chamber, east front door.
       </p>
       <KingdomBoardBlocks directory={directory} isLight={isLight} isGuest={isGuest} kingLine={kingLine} onJoinPartyTable={onJoinPartyTable} currentRoomId={currentRoomId} onEnterRoom={onEnterRoom} onOpenStation={onOpenStation} />

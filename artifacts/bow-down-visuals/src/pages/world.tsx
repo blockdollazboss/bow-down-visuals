@@ -836,6 +836,23 @@ export default function WorldPage() {
     [goToInvitedTable],
   );
 
+  /* The palace directory bar's room switch: a pill is a door, and
+     it rides the same doors the Kingdom Board's calendar walk
+     uses — a palace room takes the plain transfer, a creator room
+     goes through its doorway transfer (the read that proves the
+     room is open). While we aren't inside the client refuses on
+     its own, and the room we already stand in is a quiet no-op
+     inside enterRoom, so a tap at the wrong moment never errors. */
+  const goToDirectoryRoom = useCallback((entry: PalaceDirectoryEntry) => {
+    if (clientRef.current?.status !== "inside") return;
+    const slug = creatorSlugFromRoomId(entry.id);
+    if (slug) {
+      void enterCreatorRoomRef.current(slug);
+      return;
+    }
+    clientRef.current?.enterRoom(entry.id);
+  }, []);
+
   /* The Creator Rooms deep entry, once we're inside: walk the
      param's room in (enterCreatorRoom verifies it against the
      profile record first). Attempted once per visit — a refused
@@ -2253,10 +2270,16 @@ export default function WorldPage() {
           {directory.map((r) => {
             const here = status === "inside" && r.id === roomId;
             return (
-              <span
+              <button
                 key={r.id}
+                type="button"
                 data-testid="world-directory-room"
-                className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                aria-current={here ? "true" : undefined}
+                aria-label={`${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"} inside${r.live ? ", live now" : ""}${here ? ", you're here" : ""}`}
+                onClick={() => goToDirectoryRoom(r)}
+                className={`inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${
+                  isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"
+                } ${
                   here
                     ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                     : isLight
@@ -2280,7 +2303,7 @@ export default function WorldPage() {
                     {r.count > 3 ? ` +${r.count - 3}` : ""}
                   </span>
                 ) : null}
-              </span>
+              </button>
             );
           })}
         </div>
