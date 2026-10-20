@@ -121,3 +121,4 @@ export * from "./world-stage-tips";
 export * from "./world-tutorial";
 export * from "./ugc-ads";
 export * from "./coach-tracker";
+export * from "./content-reports";
