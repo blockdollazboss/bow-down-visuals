@@ -221,7 +221,7 @@ export async function renameVaultCharacter(
   const name = newName.trim();
   if (!name) throw new Error("Give the character a name first.");
   const token = await getAccessToken().catch(() => null);
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const listRes = await fetchFn("/api/artist-vaults", { headers });
   if (!listRes.ok) throw new Error(`artist-vaults ${listRes.status}`);
   const payload: unknown = await listRes.json();

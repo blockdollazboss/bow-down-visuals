@@ -432,7 +432,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
      carry the button alike. No referral code rides it: the board
      holds no artist slug, and an invented code is not an extra. */
   const copyRowEmbed = async (kind: MediaKind, row: ChartTrackRow | ChartVideoRow) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://bowdownvisuals.com";
+    const origin = typeof globalThis.window !== "undefined" ? globalThis.window.location.origin : "https://bowdownvisuals.com";
     if (await copyText(shelfEmbedCode({ kind, id: row.id, title: row.title }, origin))) {
       const key = chartLikeKey(kind, row.id);
       setEmbedCopiedKey(key);
@@ -748,7 +748,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         </NativeBoard>
       )}
 
-      {tab === "brands" && !isGuest && failedTab !== tab && creators["brands"] !== undefined && (
+      {tab === "brands" && !isGuest && failedKey !== loadKey && creators["brands"] !== undefined && (
         <div className="space-y-1.5 px-1">
           <p className={`text-xs ${muted}`}>
             Scouting only here — outreach lives on the website:{" "}
