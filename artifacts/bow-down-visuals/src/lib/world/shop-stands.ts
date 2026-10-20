@@ -26,6 +26,7 @@ import {
   setCartLineQty,
   cartItemCount,
   cartTotalCents,
+  dollarsToCents,
   type CartLine,
 } from "@/lib/shops";
 import {
@@ -456,4 +457,209 @@ export interface MyMembershipDto {
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   isGift: boolean;
+}
+
+/* ─── Stand management — the owner's side of the Marketplace ──────
+   The same rails the website's My Shop page manages with, ridden
+   from the stand itself (Stack-4 #7 — the parity follow-on Stack-3
+   #25 named): GET /api/shops/mine proves ownership, and product
+   create/edit/delete ride POST/PATCH/DELETE
+   /api/shops/:id/products[/:productId] with the page's exact
+   payloads. The public stand DTO never carries the owner's user_id
+   (the storefront read strips it by design), so ownership is proven
+   the only honest way available: the open shop's id appears in the
+   caller's OWN /api/shops/mine list — a server read scoped to the
+   caller. Unproven ownership (guest, non-owner, or the mine read
+   itself failed) means NO management surface at all: the gate fails
+   closed, and the buyer view is untouched either way. */
+
+/** One of MY shops, as GET /api/shops/mine returns it — the owner-
+ *  scoped read that proves a stand is the walker's own. Only the
+ *  fields the stand uses are kept; the endpoint's fuller row is
+ *  tolerated, never required. */
+export interface MineShopDto {
+  id: string;
+  name: string;
+  handle: string;
+  product_count: number;
+}
+
+/** Parse the /api/shops/mine payload tolerantly: rows without a
+ *  real id/name/handle are dropped, never repaired into existence. */
+export function parseMineShops(payload: unknown): MineShopDto[] {
+  if (!payload || typeof payload !== "object") return [];
+  const rows = (payload as { shops?: unknown }).shops;
+  if (!Array.isArray(rows)) return [];
+  const out: MineShopDto[] = [];
+  for (const r of rows as Array<Record<string, unknown>>) {
+    if (!r || typeof r !== "object") continue;
+    if (typeof r["id"] !== "string" || typeof r["name"] !== "string" || typeof r["handle"] !== "string") continue;
+    out.push({
+      id: r["id"],
+      name: r["name"],
+      handle: r["handle"],
+      product_count: typeof r["product_count"] === "number" && Number.isFinite(r["product_count"]) ? r["product_count"] : 0,
+    });
+  }
+  return out;
+}
+
+/** The ownership gate for stand management: true ONLY when the
+ *  mine read actually landed AND the open shop is in it. A null
+ *  mine (not loaded, or its load failed) is never ownership. */
+export function isOwnStand(mine: MineShopDto[] | null, shopId: string | null | undefined): boolean {
+  if (!mine || !shopId) return false;
+  return mine.some((s) => s.id === shopId);
+}
+
+/* The stand AI helpers' prices, in Visual Bucs — read off the
+   server's own constants (routes/generate/shops.ts:
+   SHOP_AI_CREDIT_COST = 100, SHOP_IMAGE_STANDARD_CREDITS = 100,
+   SHOP_IMAGE_PREMIUM_CREDITS = 200) and the shared credit-cost
+   registry (lib/credit-costs.ts registers both description
+   endpoints and the image endpoint at 100). The server constants
+   are env-overridable; these mirror the shipped defaults exactly,
+   and every run shows its price before it fires. */
+export const SHOP_AI_DESCRIPTION_COST_VB = 100;
+export const SHOP_AI_IMAGE_STANDARD_COST_VB = 100;
+export const SHOP_AI_IMAGE_PREMIUM_COST_VB = 200;
+
+/** The product form's state — the My Shop page's own fields, with
+ *  the price kept as the typed dollars string until save time. */
+export interface ProductFormState {
+  name: string;
+  price: string;
+  description: string;
+  imageUrl: string;
+  styleHint: string;
+}
+
+export function emptyProductForm(): ProductFormState {
+  return { name: "", price: "", description: "", imageUrl: "", styleHint: "" };
+}
+
+/** Prefill for an edit — the page's own derivation: the price
+ *  shows as dollars with two decimals, the rest verbatim. */
+export function productFormFromDto(p: PublicProductDto): ProductFormState {
+  return {
+    name: p.name,
+    price: (p.price_cents / 100).toFixed(2),
+    description: p.description ?? "",
+    imageUrl: p.image_url ?? "",
+    styleHint: "",
+  };
+}
+
+/** The page's two save gates, in its order (name first, then a
+ *  sane price), in the stand's plain words. Null = the form may
+ *  ride. The AI helpers share the name gate: the page refuses to
+ *  write or picture an unnamed product. */
+export function productFormProblem(form: ProductFormState): string | null {
+  if (!form.name.trim()) return "Give the product a name first.";
+  if (dollarsToCents(form.price) === null) return "Enter a valid price — dollars and cents, like 19.99.";
+  return null;
+}
+
+/** The product save body — POST and PATCH take the page's exact
+ *  shape: trimmed name/description/image_url and price_cents
+ *  parsed from the typed dollars. Null when a save gate fails. */
+export function buildProductPayload(
+  form: ProductFormState,
+): { name: string; price_cents: number; description: string; image_url: string } | null {
+  if (productFormProblem(form)) return null;
+  return {
+    name: form.name.trim(),
+    price_cents: dollarsToCents(form.price)!,
+    description: form.description.trim(),
+    image_url: form.imageUrl.trim(),
+  };
+}
+
+/** POST /api/shops/ai/product-description — the page's exact body
+ *  (it always writes in the luxury tone). */
+export function buildProductDescriptionPayload(form: ProductFormState): {
+  productName: string;
+  details: string;
+  price: string;
+  tone: "luxury";
+} {
+  return {
+    productName: form.name.trim(),
+    details: form.description.trim(),
+    price: form.price.trim(),
+    tone: "luxury",
+  };
+}
+
+/** POST /api/shops/ai/product-image — the page's exact body. */
+export function buildProductImagePayload(
+  form: ProductFormState,
+  tier: "standard" | "premium",
+): { productName: string; styleHint: string; tier: "standard" | "premium" } {
+  return { productName: form.name.trim(), styleHint: form.styleHint.trim(), tier };
+}
+
+/** The description the AI writer answered with — null when the
+ *  payload doesn't honestly carry one (the caller reports failure
+ *  instead of filling the form with a guess). */
+export function parseAiDescription(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const d = (payload as { description?: unknown }).description;
+  return typeof d === "string" && d.trim() ? d : null;
+}
+
+/** The image URL the AI image maker answered with — same rule. */
+export function parseAiImageUrl(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const u = (payload as { url?: unknown }).url;
+  return typeof u === "string" && u.trim() ? u : null;
+}
+
+/** The page's out-of-credits test, verbatim: HTTP 402, or the
+ *  payload's error flag — either one means the wallet, not the
+ *  stand, said no. */
+export function aiOutOfCredits(status: number, payload: unknown): boolean {
+  if (status === 402) return true;
+  if (!payload || typeof payload !== "object") return false;
+  return (payload as { error?: unknown }).error === "out_of_credits";
+}
+
+/** The product row a save answers with ({ product }), narrowed to
+ *  the stand's product DTO — null when the answer doesn't honestly
+ *  carry one (the caller then reports failure and keeps the list
+ *  it had, rather than inventing the row). */
+export function savedProductDto(payload: unknown): PublicProductDto | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = (payload as { product?: unknown }).product;
+  if (!p || typeof p !== "object") return null;
+  const row = p as Record<string, unknown>;
+  if (typeof row["id"] !== "string" || typeof row["name"] !== "string") return null;
+  if (typeof row["price_cents"] !== "number" || !Number.isFinite(row["price_cents"])) return null;
+  return {
+    id: row["id"],
+    name: row["name"],
+    price_cents: row["price_cents"],
+    description: typeof row["description"] === "string" ? row["description"] : null,
+    image_url: typeof row["image_url"] === "string" ? row["image_url"] : null,
+  };
+}
+
+/** Apply a confirmed save to the stand's list — the page's own
+ *  semantics: an edit replaces its row (matched on the EDITED
+ *  product's id), a create appends the server's row. The list only
+ *  ever changes from a server-confirmed product, never from the
+ *  form's local guess. */
+export function applyProductSave(
+  list: PublicProductDto[],
+  saved: PublicProductDto,
+  editingId: string | null,
+): PublicProductDto[] {
+  if (editingId) return list.map((x) => (x.id === editingId ? saved : x));
+  return [...list, saved];
+}
+
+/** Remove a product from the stand's list — called ONLY after the
+ *  server confirmed the delete. */
+export function removeProduct(list: PublicProductDto[], id: string): PublicProductDto[] {
+  return list.filter((x) => x.id !== id);
 }

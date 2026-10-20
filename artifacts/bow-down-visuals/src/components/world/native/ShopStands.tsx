@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
-  BadgeCheck, Check, Crown, Gem, Loader2, Minus, Plus, RefreshCw,
-  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload,
+  BadgeCheck, Check, Crown, Gem, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
+  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
@@ -22,9 +23,14 @@ import {
   marketCartTotalCents, marketOrderFromPayload, marketPendingKey, parseCreatorUserId,
   setBrandingCartQty, setCartLineQty,
   tierAnnualSavingLabel, tierOffersTrial, tierPriceLabel,
+  SHOP_AI_DESCRIPTION_COST_VB, SHOP_AI_IMAGE_PREMIUM_COST_VB, SHOP_AI_IMAGE_STANDARD_COST_VB,
+  aiOutOfCredits, applyProductSave, buildProductDescriptionPayload, buildProductImagePayload,
+  buildProductPayload, emptyProductForm, isOwnStand, parseAiDescription, parseAiImageUrl,
+  parseMineShops, productFormFromDto, productFormProblem, removeProduct, savedProductDto,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type HubShopDto,
-  type MarketOrder, type MembershipTierDto, type MyMembershipDto, type PublicProductDto,
+  type MarketOrder, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
+  type ProductFormState, type PublicProductDto,
   type PublicShopDto,
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
@@ -39,7 +45,16 @@ import type { CartLine } from "@/lib/shops";
    uniform label for that moment: CHECKOUT_TRANSFER_LABEL.
    Prices are the real server charges end to end — payload prices
    (Marketplace, Crowns) and the shared client catalog (Branding)
-   are displayed and charged from the same source. */
+   are displayed and charged from the same source.
+
+   Stand management (Stack-4 #7): when the walker OWNs the open
+   Marketplace stand, the stand itself becomes the shop desk —
+   product create/edit/delete and the two product AI helpers ride
+   the website's own /api/shops rails with the page's exact
+   payloads, in-world. Ownership is proven from the caller's own
+   GET /api/shops/mine list (the public stand DTO strips user_id
+   by design); guests and non-owners only ever see the buyer's
+   stand, and an unlanded ownership read fails closed. */
 
 function useAuthHeaders() {
   const { getAccessToken } = useAuth();
@@ -105,9 +120,30 @@ export function ShopStand({ station, isLight, isGuest }: ShopStandProps) {
 /* ═══ 1. The Marketplace — shopfronts as stands ════════════════════ */
 
 function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const authHeaders = useAuthHeaders();
   const [shops, setShops] = useState<HubShopDto[] | null>(null);
   const [shopsFailed, setShopsFailed] = useState(false);
   const [tick, setTick] = useState(0);
+
+  /* My shops — the ownership proof for stand management (Stack-4
+     #7). Null means the read hasn't landed OR failed: either way
+     ownership is unproven and NO management renders (fail closed).
+     Guests never fetch it at all. */
+  const [mineShops, setMineShops] = useState<MineShopDto[] | null>(null);
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/shops/mine", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("mine");
+        const data = (await res.json()) as unknown;
+        if (!cancelled) setMineShops(parseMineShops(data));
+      } catch { /* fail closed — mineShops stays null, the stand stays a buyer's stand */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest]);
 
   const [openHandle, setOpenHandle] = useState<string | null>(null);
   const [shop, setShop] = useState<PublicShopDto | null>(null);
@@ -242,6 +278,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const total = marketCartTotalCents(detailed);
   const count = marketCartCount(detailed);
 
+  /* The management gate: the open shop's id must appear in MY OWN
+     shops list — the only ownership proof the public DTO allows. */
+  const ownsStand = isOwnStand(mineShops, shop?.id);
+
   /* Checkout — the marked transfer (§3.9). ONE POST for the whole
      cart: the server records the order as PENDING, prices it from
      its own product rows, and answers the hosted payment URL, which
@@ -344,6 +384,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
               </NativeCard>
             ))}
           </div>
+        )}
+
+        {standState === "ready" && ownsStand && shop && (
+          <StandManager shop={shop} products={products} setProducts={setProducts} isLight={isLight} />
         )}
 
         {standState === "ready" && (detailed.length > 0 || paidOrder || pendingNote) && (
@@ -465,6 +509,354 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         </div>
       )}
     </div>
+  );
+}
+
+/* ═══ 1b. Stand management — the owner's desk at their own stand ══
+   Rendered ONLY for the stand's proven owner (see the gate in
+   MarketplaceStand). Every verb rides the website's own shops
+   rails with the My Shop page's exact payloads — no parallel API:
+   create/edit/delete products, plus the two product AI helpers
+   through the World's confirmed-spend seam, prices shown before
+   each run. The shelf changes ONLY from server-confirmed answers;
+   a failed save or delete reports honestly and changes nothing. */
+
+function StandManager({
+  shop,
+  products,
+  setProducts,
+  isLight,
+}: {
+  shop: PublicShopDto;
+  products: PublicProductDto[];
+  setProducts: Dispatch<SetStateAction<PublicProductDto[]>>;
+  isLight: boolean;
+}) {
+  const authHeaders = useAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<PublicProductDto | null>(null);
+  const [form, setForm] = useState<ProductFormState>(emptyProductForm());
+  const [saving, setSaving] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
+  const [manageNote, setManageNote] = useState<string | null>(null);
+  /* Two-step delete (the World's own discipline — the vault
+     characters' remove works the same way): the first tap arms the
+     row, the second fires the DELETE. Never one-click. */
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [aiDescBusy, setAiDescBusy] = useState(false);
+  const [aiImageBusy, setAiImageBusy] = useState<"standard" | "premium" | null>(null);
+
+  const set = (patch: Partial<ProductFormState>) => setForm((f) => ({ ...f, ...patch }));
+
+  const openNew = () => {
+    setEditingProduct(null);
+    setForm(emptyProductForm());
+    setManageError(null);
+    setManageNote(null);
+    setConfirmingDeleteId(null);
+    setFormOpen(true);
+  };
+  const openEdit = (p: PublicProductDto) => {
+    setEditingProduct(p);
+    setForm(productFormFromDto(p));
+    setManageError(null);
+    setManageNote(null);
+    setConfirmingDeleteId(null);
+    setFormOpen(true);
+  };
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingProduct(null);
+    setManageError(null);
+  };
+
+  /* Save — the page's flow exactly: its two gates first, then POST
+     (create) or PATCH (edit) with its body; the shelf takes the
+     SERVER's returned row, never the form's guess. Any failure
+     keeps the form open and the shelf untouched. */
+  const saveProduct = async () => {
+    if (saving) return;
+    const problem = productFormProblem(form);
+    if (problem) { setManageError(problem); return; }
+    const payload = buildProductPayload(form);
+    if (!payload) { setManageError("That product can't be saved as-is — check the name and price."); return; }
+    setSaving(true);
+    setManageError(null);
+    setManageNote(null);
+    try {
+      const res = await fetch(
+        editingProduct ? `/api/shops/${shop.id}/products/${editingProduct.id}` : `/api/shops/${shop.id}/products`,
+        {
+          method: editingProduct ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The product didn't save — nothing about your stand changed.");
+      const saved = savedProductDto(data);
+      if (!saved) throw new Error("The save came back without your product — the shelf here is unchanged. Reopen the stand to see its true state.");
+      setProducts((ps) => applyProductSave(ps, saved, editingProduct ? editingProduct.id : null));
+      setManageNote(editingProduct ? `"${saved.name}" is updated on your stand.` : `"${saved.name}" is on your stand.`);
+      setFormOpen(false);
+      setEditingProduct(null);
+    } catch (e) {
+      setManageError(e instanceof Error ? e.message : "The product didn't save — nothing about your stand changed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* Delete — fires ONLY from the armed (second) step. The row
+     leaves the shelf only after the server confirms; a failure
+     reports and the row stays. */
+  const deleteProduct = async (p: PublicProductDto) => {
+    if (deletingId) return;
+    setDeletingId(p.id);
+    setManageError(null);
+    setManageNote(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}/products/${p.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That product wouldn't come off the stand — it's still on your shelf.");
+      setProducts((ps) => removeProduct(ps, p.id));
+      if (editingProduct?.id === p.id) closeForm();
+      setConfirmingDeleteId(null);
+      setManageNote(`"${p.name}" is off your stand.`);
+    } catch (e) {
+      setManageError(e instanceof Error ? e.message : "That product wouldn't come off the stand — it's still on your shelf.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  /* AI description — the page's exact body, through the World's
+     confirmed-spend seam (the registry prices this endpoint at
+     100 VB, confirmed before the run). A declined confirm is a
+     quiet no-op; an out-of-credits answer names the wallet, not
+     the stand; the text lands in the form only, unsaved — saving
+     the product is still the owner's own tap. */
+  const runAiDescription = async () => {
+    if (aiDescBusy) return;
+    if (!form.name.trim()) { setManageError("Give the product a name first — the writer needs to know what it's selling."); return; }
+    setAiDescBusy(true);
+    setManageError(null);
+    try {
+      const res = await confirmedFetch("/api/shops/ai/product-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildProductDescriptionPayload(form)),
+      });
+      if (!res) return; /* the owner declined the spend confirm — nothing charged, nothing changed */
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (aiOutOfCredits(res.status, data)) {
+        setManageError("You're out of Visual Bucs — top up and the writer is yours again.");
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      const description = parseAiDescription(data);
+      if (!description) throw new Error("The writer came back empty — if Visual Bucs were charged, they're refunded.");
+      set({ description });
+      setManageNote("The description's written — read it over, then save the product to put it on the stand.");
+    } catch (e) {
+      setManageError(e instanceof Error ? e.message : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+    } finally {
+      setAiDescBusy(false);
+    }
+  };
+
+  /* AI product image — same seam; premium carries its own price
+     (200 VB, the server constant) as the confirm's override. The
+     URL lands in the form's image field only — nothing reaches
+     the shelf until the product saves. */
+  const runAiImage = async (tier: "standard" | "premium") => {
+    if (aiImageBusy) return;
+    if (!form.name.trim()) { setManageError("Give the product a name first — the image maker needs to know what it's picturing."); return; }
+    setAiImageBusy(tier);
+    setManageError(null);
+    try {
+      const res = await confirmedFetch("/api/shops/ai/product-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildProductImagePayload(form, tier)),
+        ...(tier === "premium"
+          ? { overrideCost: SHOP_AI_IMAGE_PREMIUM_COST_VB, overrideFeature: "Product Image — Premium" }
+          : {}),
+      });
+      if (!res) return; /* declined — nothing charged, nothing changed */
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (aiOutOfCredits(res.status, data)) {
+        setManageError("You're out of Visual Bucs — top up and the image maker is yours again.");
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The image didn't come back — if Visual Bucs were charged, they're refunded.");
+      const url = parseAiImageUrl(data);
+      if (!url) throw new Error("The image maker came back empty — if Visual Bucs were charged, they're refunded.");
+      set({ imageUrl: url });
+      setManageNote("Your product image is made — save the product to put it on the stand.");
+    } catch (e) {
+      setManageError(e instanceof Error ? e.message : "The image didn't come back — if Visual Bucs were charged, they're refunded.");
+    } finally {
+      setAiImageBusy(null);
+    }
+  };
+
+  return (
+    <NativeCard isLight={isLight} title="Your stand — manage it here">
+      <div className="space-y-2" data-testid="world-shop-manage">
+        <p className={`text-xs ${muted(isLight)}`}>
+          This is your stand — the same products and prices as your shop on the website, run from right here.
+          Every change saves on the real rails the moment it lands.
+        </p>
+        {manageError && <p className="text-xs font-semibold text-red-400">{manageError}</p>}
+        {manageNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{manageNote}</p>}
+
+        <div className="space-y-1.5">
+          {products.map((p) => (
+            <div
+              key={p.id}
+              data-testid="world-shop-manage-row"
+              className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+            >
+              <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.name}</span>
+              <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents)}</span>
+              {confirmingDeleteId === p.id ? (
+                <>
+                  <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Take it off your stand?</span>
+                  <button
+                    type="button"
+                    data-testid="world-shop-manage-delete-confirm"
+                    onClick={() => void deleteProduct(p)}
+                    disabled={deletingId === p.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50"
+                  >
+                    {deletingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Remove it
+                  </button>
+                  <button type="button" onClick={() => setConfirmingDeleteId(null)} className={chipBtn(isLight)}>Keep it</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" data-testid="world-shop-manage-edit" onClick={() => openEdit(p)} className={chipBtn(isLight)}>
+                    <Pencil className="h-3 w-3" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="world-shop-manage-delete"
+                    onClick={() => { setConfirmingDeleteId(p.id); setManageError(null); }}
+                    className={chipBtn(isLight)}
+                  >
+                    <Trash2 className="h-3 w-3" /> Remove
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+          {products.length === 0 && (
+            <p className={`text-xs ${muted(isLight)}`}>Your stand is bare — add your first product and it&rsquo;s on the shelf.</p>
+          )}
+        </div>
+
+        {!formOpen ? (
+          <button type="button" data-testid="world-shop-manage-add" onClick={openNew} className={goldBtn()}>
+            <Plus className="h-4 w-4" /> Add a product
+          </button>
+        ) : (
+          <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shop-manage-form">
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+              {editingProduct ? `Editing ${editingProduct.name}` : "New product"}
+            </p>
+            <input
+              value={form.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder="Product name"
+              maxLength={120}
+              className={inputCls(isLight)}
+            />
+            <input
+              value={form.price}
+              onChange={(e) => set({ price: e.target.value })}
+              placeholder="Price — like 19.99"
+              inputMode="decimal"
+              className={inputCls(isLight)}
+            />
+            <textarea
+              value={form.description}
+              onChange={(e) => set({ description: e.target.value })}
+              placeholder="Description — what it is, why it's worth it"
+              maxLength={2000}
+              rows={3}
+              className={inputCls(isLight)}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                data-testid="world-shop-manage-ai-description"
+                onClick={() => void runAiDescription()}
+                disabled={aiDescBusy}
+                className={chipBtn(isLight)}
+              >
+                {aiDescBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Write the description — {SHOP_AI_DESCRIPTION_COST_VB} VB
+              </button>
+              <button
+                type="button"
+                data-testid="world-shop-manage-ai-image-standard"
+                onClick={() => void runAiImage("standard")}
+                disabled={aiImageBusy !== null}
+                className={chipBtn(isLight)}
+              >
+                {aiImageBusy === "standard" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
+                Make an image — {SHOP_AI_IMAGE_STANDARD_COST_VB} VB
+              </button>
+              <button
+                type="button"
+                data-testid="world-shop-manage-ai-image-premium"
+                onClick={() => void runAiImage("premium")}
+                disabled={aiImageBusy !== null}
+                className={chipBtn(isLight)}
+              >
+                {aiImageBusy === "premium" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
+                Premium image — {SHOP_AI_IMAGE_PREMIUM_COST_VB} VB
+              </button>
+            </div>
+            <input
+              value={form.styleHint}
+              onChange={(e) => set({ styleHint: e.target.value })}
+              placeholder="Image style direction (optional)"
+              maxLength={300}
+              className={inputCls(isLight)}
+            />
+            <input
+              value={form.imageUrl}
+              onChange={(e) => set({ imageUrl: e.target.value })}
+              placeholder="Image link — paste one, or make one above"
+              className={inputCls(isLight)}
+            />
+            {form.imageUrl.trim() && (
+              <img src={form.imageUrl.trim()} alt="" className="h-24 w-24 rounded-xl border border-[#d4af37]/40 object-cover" />
+            )}
+            <p className={`text-[11px] ${muted(isLight)}`}>
+              The helpers&rsquo; prices are confirmed before each run; a failed run is refunded by the rail itself.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" data-testid="world-shop-manage-save" onClick={() => void saveProduct()} disabled={saving} className={goldBtn(saving)}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {editingProduct ? "Save changes" : "Put it on the stand"}
+              </button>
+              <button type="button" onClick={closeForm} className={chipBtn(isLight)}>
+                <X className="h-3 w-3" /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </NativeCard>
   );
 }
 
