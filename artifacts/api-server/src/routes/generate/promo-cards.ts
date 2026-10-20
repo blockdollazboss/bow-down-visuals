@@ -1,15 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
 import { writeFile, readFile, mkdtemp } from "fs/promises";
+import { existsSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
-import { db, promoCardsTable } from "@workspace/db";
+import { db, promoCardsTable, type PromoCardBrandSnapshot } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { readBrandKit, type StoredBrandKit } from "../../lib/brand-record";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -31,7 +34,16 @@ const router = Router();
    4. Burn headline / title / artist + optional "Made with Bow Down Visuals"
       micro-attribution with ffmpeg drawtext.
    100 Visual Bucs per pack (3 cards): 402 pre-check → charge → auto-refund
-   on failure. */
+   on failure.
+   Brand kit (Stack-4 wave-2 #4): the caller's kit is read ONCE at
+   generation time — the same snapshot pattern UGC ads use (0164). The
+   snapshot steers the pack: palette + vibe direct the background
+   prompt, the primary color becomes the headline/frame accent, the
+   logo is composited as a brand badge, and the lead font pairing
+   resolves to a bundled face where one exists. The snapshot is stored
+   on every card row (migration 0181), so editing the kit afterwards
+   never mutates already-generated cards. No kit → the pack generates
+   exactly as it did before the kit was wired in, never an error. */
 
 const PROMO_CARDS_COST = Number(process.env["PROMO_CARDS_CREDITS"]) || 100;
 const FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
@@ -127,6 +139,11 @@ interface CardLayout {
   artistSize: number;
   attrY: number;
   attrSize: number;
+  /** Brand-logo badge box (bottom-left, opposite the attribution):
+   *  the kit logo is fitted inside it, aspect preserved. */
+  logoSize: number;
+  logoX: number;
+  logoY: number;
 }
 
 const LAYOUTS: Record<SizeId, CardLayout> = {
@@ -134,16 +151,19 @@ const LAYOUTS: Record<SizeId, CardLayout> = {
     artSize: 500, artX: 290, artY: 110, stack: true, textCenterX: 540,
     headlineY: 680, headlineSize: 84, titleY: 790, titleSize: 62,
     artistY: 875, artistSize: 46, attrY: 1032, attrSize: 26,
+    logoSize: 120, logoX: 28, logoY: 932,
   },
   "9:16": {
     artSize: 600, artX: 240, artY: 360, stack: true, textCenterX: 540,
     headlineY: 1050, headlineSize: 92, titleY: 1175, titleSize: 66,
     artistY: 1270, artistSize: 50, attrY: 1872, attrSize: 28,
+    logoSize: 150, logoX: 32, logoY: 1738,
   },
   "16:9": {
     artSize: 500, artX: 170, artY: 290, stack: false, textCenterX: 1330,
     headlineY: 380, headlineSize: 96, titleY: 520, titleSize: 70,
     artistY: 625, artistSize: 52, attrY: 1032, attrSize: 28,
+    logoSize: 140, logoX: 36, logoY: 904,
   },
 };
 
@@ -165,6 +185,131 @@ const promoCardsSchema = z.object({
   /** Optional caption override; otherwise a style-matched caption is suggested. */
   caption: z.string().trim().max(280).optional(),
 });
+
+/* ─── Brand-kit snapshot (Stack-4 wave-2 #4) ─────────────────────────
+   Mirrors the UGC lane's snapshot (routes/ugc-ads.ts): the kit is read
+   at generation time and reduced to a snapshot whose four core fields
+   derive exactly the way UgcBrandSnapshot's do (brandName/logoUrl
+   carried through, primaryColor = the kit's first color, vibe carried
+   through). Colors and fonts ride in full because the card composer
+   burns text and frames with them. Every value is COPIED — the
+   snapshot never aliases the kit record, so a later kit edit cannot
+   reach into a pack that was already generated. */
+
+/** The stored kit → the generation snapshot, or null for no kit. */
+export function promoCardBrandSnapshot(kit: StoredBrandKit | null): PromoCardBrandSnapshot | null {
+  if (!kit) return null;
+  return {
+    brandName: kit.brandName || null,
+    logoUrl: kit.logoUrl ?? null,
+    primaryColor: kit.colors?.[0]?.hex ?? null,
+    vibe: kit.vibe || null,
+    colors: (kit.colors ?? []).map((c) => ({ hex: c.hex, name: c.name, role: c.role })),
+    fonts: (kit.fonts ?? []).map((f) => ({ heading: f.heading, body: f.body, usage: f.usage })),
+  };
+}
+
+/** Read the caller's kit and snapshot it. Best-effort by design: a
+ *  failed read is "no kit" (the pre-kit behavior), never a failed
+ *  generation — the same contract the UGC lane runs. */
+export async function readPromoCardBrandSnapshot(userId: string): Promise<PromoCardBrandSnapshot | null> {
+  try {
+    return promoCardBrandSnapshot(await readBrandKit(userId));
+  } catch {
+    return null;
+  }
+}
+
+/** The background prompt for one card style. No snapshot → the exact
+ *  pre-kit prompt, byte for byte. With a snapshot, the brand line is
+ *  appended: palette + vibe + typography mood steer the render, and
+ *  the brand direction overrides the default gold where they differ.
+ *  The generated background still carries NO text or logos — the real
+ *  logo is composited from the kit file, never hallucinated. */
+export function buildPromoCardBackgroundPrompt(
+  style: (typeof STYLES)[number],
+  brand: PromoCardBrandSnapshot | null,
+): string {
+  const base =
+    `Social media promo card background for a music release. ${style.bgSuffix}. ` +
+    `Leave a large clean central area empty for artwork and text. ` +
+    `ABSOLUTELY NO text, words, letters, logos, or watermarks anywhere in the image. ` +
+    `Gold and black luxury aesthetic.`;
+  if (!brand) return base;
+  const palette = brand.colors
+    .map((c) => `${c.hex}${c.name ? ` (${c.name}${c.role ? `, ${c.role}` : ""})` : c.role ? ` (${c.role})` : ""}`)
+    .join(", ");
+  const leadFont = brand.fonts[0];
+  return (
+    base +
+    ` Creator brand direction — this card is for ${brand.brandName ? `"${brand.brandName}"` : "the creator's own brand"}` +
+    `${brand.vibe ? `, whose vibe is ${brand.vibe}` : ""}.` +
+    (palette
+      ? ` Build the background on the brand palette instead of the default gold where they differ: ${palette}.`
+      : "") +
+    (leadFont
+      ? ` Typography mood for the composition: ${leadFont.heading} headlines with ${leadFont.body} supporting text.`
+      : "")
+  );
+}
+
+const DEFAULT_ACCENT = "0xE8B64C";
+
+/** The headline/frame accent for a pack: the snapshot's primary color
+ *  as an ffmpeg color, or the house gold when there is no kit (or the
+ *  stored hex is not a usable #RRGGBB). */
+export function promoCardAccentColor(brand: PromoCardBrandSnapshot | null): string {
+  const hex = brand?.primaryColor?.trim() ?? "";
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? `0x${hex.slice(1).toUpperCase()}` : DEFAULT_ACCENT;
+}
+
+/* Kit font pairings name faces the generator chose; the card text can
+   only burn a face the server actually carries. These are the bundled
+   caption faces (lib/fonts.ts) and their vendored TTF filenames
+   (docker/fonts/) — a kit font outside the bundle honestly falls back
+   to the default face for the burned text while still steering the
+   background prompt above. */
+const BUNDLED_FONT_FILES: Record<string, string> = {
+  "Anton": "Anton-Regular.ttf",
+  "Alfa Slab One": "AlfaSlabOne-Regular.ttf",
+  "Archivo Black": "ArchivoBlack-Regular.ttf",
+  "Barlow Condensed": "BarlowCondensed-Bold.ttf",
+  "Bebas Neue": "BebasNeue-Regular.ttf",
+  "Bungee": "Bungee-Regular.ttf",
+  "Cinzel": "Cinzel-Variable.ttf",
+  "Luckiest Guy": "LuckiestGuy-Regular.ttf",
+  "Permanent Marker": "PermanentMarker-Regular.ttf",
+  "Poppins": "Poppins-Bold.ttf",
+  "Righteous": "Righteous-Regular.ttf",
+  "Titan One": "TitanOne-Regular.ttf",
+};
+
+/** Resolve a kit font family to a vendored TTF on disk, or null. */
+export function promoCardBrandFontFile(family: string | null | undefined): string | null {
+  if (!family) return null;
+  const file = BUNDLED_FONT_FILES[family.trim()];
+  if (!file) return null;
+  const candidates = [
+    `/usr/share/fonts/bdv/${file}`,
+    join(dirname(fileURLToPath(import.meta.url)), `../../../../../docker/fonts/${file}`),
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  return null;
+}
+
+/** The snapshot's lead pairing as burnable font files: heading for the
+ *  headline/title, body for the artist/attribution (falling back to
+ *  the heading face, then to null = the route's default face). */
+export function promoCardBrandFonts(brand: PromoCardBrandSnapshot | null): {
+  heading: string | null;
+  body: string | null;
+} {
+  const lead = brand?.fonts[0];
+  if (!lead) return { heading: null, body: null };
+  const heading = promoCardBrandFontFile(lead.heading);
+  const body = promoCardBrandFontFile(lead.body) ?? heading;
+  return { heading, body };
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -191,6 +336,8 @@ export async function recordPromoCardPack(input: {
   releaseTitle: string;
   artistName: string;
   caption: string | null;
+  /** The generation-time brand-kit snapshot (0181); null = no kit. */
+  brandSnapshot?: PromoCardBrandSnapshot | null;
   cards: PromoCardPackCard[];
 }): Promise<(string | null)[]> {
   if (input.cards.length === 0) return [];
@@ -206,6 +353,7 @@ export async function recordPromoCardPack(input: {
         releaseTitle: input.releaseTitle,
         artistName: input.artistName,
         caption: input.caption,
+        brandSnapshot: input.brandSnapshot ?? null,
         width: c.width,
         height: c.height,
         platforms: c.platforms,
@@ -227,6 +375,10 @@ async function promoCardDto(row: typeof promoCardsTable.$inferSelect) {
     releaseTitle: row.releaseTitle,
     artistName: row.artistName,
     caption: row.caption,
+    /* The brand-kit snapshot the card was generated with (0181);
+       null for cards made without a kit (including every card
+       recorded before the snapshot shipped). */
+    brand: row.brandSnapshot ?? null,
     width: row.width,
     height: row.height,
     platforms: row.platforms ?? [],
@@ -287,8 +439,9 @@ async function fitToSize(inputPath: string, outputPath: string, width: number, h
   );
 }
 
-/** Try to download the release cover art; returns null on any failure (non-fatal). */
-async function fetchCoverArt(url: string, outputPath: string): Promise<boolean> {
+/** Try to download an image (release cover art, brand logo); returns
+ *  false on any failure — a missing image is never fatal to a pack. */
+async function fetchImageToFile(url: string, outputPath: string): Promise<boolean> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) return false;
@@ -305,52 +458,81 @@ async function fetchCoverArt(url: string, outputPath: string): Promise<boolean> 
  * Composite one finished promo card:
  *  - background fitted to exact size
  *  - cover art framed window (when available)
+ *  - brand logo badge (when the generation snapshot carries a logo
+ *    that downloaded) in the layout's bottom-left box
  *  - crisp burned text: headline / title / artist / optional attribution
+ *  Brand styling comes from the generation snapshot: the accent color
+ *  (the kit's primary, else house gold) frames the artwork and colors
+ *  the headline; the kit's lead font pairing burns the text when it
+ *  resolved to bundled faces, else the default face does.
  */
 async function composeCard(opts: {
   backgroundPath: string;
   artPath: string | null;
+  logoPath?: string | null;
   outputPath: string;
   layout: CardLayout;
   headline: string;
   title: string;
   artist: string;
   attribution: boolean;
+  accentColor?: string;
+  headingFontPath?: string | null;
+  bodyFontPath?: string | null;
 }): Promise<void> {
   const { backgroundPath, artPath, outputPath, layout, headline, title, artist, attribution } = opts;
-  const GOLD = "0xE8B64C";
+  const logoPath = opts.logoPath ?? null;
+  const accent = opts.accentColor ?? DEFAULT_ACCENT;
+  const headingFont = opts.headingFontPath ?? FONT_PATH;
+  const bodyFont = opts.bodyFontPath ?? FONT_PATH;
   const WHITE = "0xFFFFFF";
 
   const filter: string[] = [];
   const inputs = ["-y", "-i", backgroundPath];
-  if (artPath) inputs.push("-i", artPath);
+  let nextInput = 1;
+  let artIndex = -1;
+  let logoIndex = -1;
+  if (artPath) { artIndex = nextInput++; inputs.push("-i", artPath); }
+  if (logoPath) { logoIndex = nextInput++; inputs.push("-i", logoPath); }
 
   let v = "[0:v]";
   if (artPath) {
     const a = layout.artSize;
-    // Square-crop the artwork, overlay it, then frame it with a gold border.
+    // Square-crop the artwork, overlay it, then frame it with an accent border.
     filter.push(
-      `[1:v]scale=${a}:${a}:force_original_aspect_ratio=increase,crop=${a}:${a}[art]`,
+      `[${artIndex}:v]scale=${a}:${a}:force_original_aspect_ratio=increase,crop=${a}:${a}[art]`,
       `${v}[art]overlay=${layout.artX}:${layout.artY},` +
-        `drawbox=x=${layout.artX - 5}:y=${layout.artY - 5}:w=${a + 10}:h=${a + 10}:c=${GOLD}:t=5[vbg]`
+        `drawbox=x=${layout.artX - 5}:y=${layout.artY - 5}:w=${a + 10}:h=${a + 10}:c=${accent}:t=5[vbg]`
     );
     v = "[vbg]";
   }
 
+  if (logoPath) {
+    const b = layout.logoSize;
+    // Fit the logo inside its badge box, aspect preserved, centered on
+    // a transparent pad so placement is exact whatever its shape is.
+    filter.push(
+      `[${logoIndex}:v]format=rgba,scale=${b}:${b}:force_original_aspect_ratio=decrease,` +
+        `pad=${b}:${b}:(ow-iw)/2:(oh-ih)/2:color=black@0[logo]`,
+      `${v}[logo]overlay=${layout.logoX}:${layout.logoY}[vlogo]`
+    );
+    v = "[vlogo]";
+  }
+
   const cx = layout.textCenterX;
-  const dt = (text: string, y: number, size: number, color: string, box = false) =>
-    `drawtext=fontfile='${FONT_PATH}':text='${escapeDrawtext(text)}':` +
+  const dt = (text: string, y: number, size: number, color: string, box = false, fontPath: string = FONT_PATH) =>
+    `drawtext=fontfile='${fontPath}':text='${escapeDrawtext(text)}':` +
     `fontsize=${size}:fontcolor=${color}:x=${cx}-text_w/2:y=${y}` +
     (box ? ":box=1:boxcolor=0x000000AA:boxborderw=24" : "");
 
-  filter.push(`${v}${dt(headline, layout.headlineY, layout.headlineSize, GOLD, true)}[t1]`);
-  filter.push(`[t1]${dt(clampText(title, 30), layout.titleY, layout.titleSize, WHITE)}[t2]`);
-  filter.push(`[t2]${dt(clampText(artist, 34), layout.artistY, layout.artistSize, "0xFFFFFFCC")}[t3]`);
+  filter.push(`${v}${dt(headline, layout.headlineY, layout.headlineSize, accent, true, headingFont)}[t1]`);
+  filter.push(`[t1]${dt(clampText(title, 30), layout.titleY, layout.titleSize, WHITE, false, headingFont)}[t2]`);
+  filter.push(`[t2]${dt(clampText(artist, 34), layout.artistY, layout.artistSize, "0xFFFFFFCC", false, bodyFont)}[t3]`);
   v = "[t3]";
 
   if (attribution) {
     filter.push(
-      `${v}drawtext=fontfile='${FONT_PATH}':text='${escapeDrawtext(ATTRIBUTION_TEXT)}':` +
+      `${v}drawtext=fontfile='${bodyFont}':text='${escapeDrawtext(ATTRIBUTION_TEXT)}':` +
         `fontsize=${layout.attrSize}:fontcolor=0xFFFFFF66:x=w-text_w-28:y=${layout.attrY}[t4]`
     );
     v = "[t4]";
@@ -455,6 +637,12 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Brand kit, read ONCE at generation time (best-effort: no kit =
+     the pre-kit behavior, never a failed generation). This snapshot
+     steers the whole pack below and is recorded on every card row —
+     later kit edits can't reach back into it. */
+  const brand = await readPromoCardBrandSnapshot(req.userId!);
+
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, PROMO_CARDS_COST, {
@@ -486,9 +674,20 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
     let artPath: string | null = null;
     if (coverArtUrl) {
       const candidate = join(workDir, "cover-art.png");
-      if (await fetchCoverArt(coverArtUrl, candidate)) artPath = candidate;
+      if (await fetchImageToFile(coverArtUrl, candidate)) artPath = candidate;
       else req.log.warn("[promo-cards] cover art download failed; continuing without it");
     }
+
+    // Download the snapshot's brand logo once (non-fatal if it fails —
+    // the pack still carries the kit's palette, vibe, and fonts).
+    let logoPath: string | null = null;
+    if (brand?.logoUrl) {
+      const candidate = join(workDir, "brand-logo.png");
+      if (await fetchImageToFile(brand.logoUrl, candidate)) logoPath = candidate;
+      else req.log.warn("[promo-cards] brand logo download failed; continuing without it");
+    }
+    const brandFonts = promoCardBrandFonts(brand);
+    const accentColor = promoCardAccentColor(brand);
 
     for (const sizeId of sizes) {
       const spec = SIZES.find((s) => s.id === (sizeId as SizeId))!;
@@ -500,10 +699,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       const finalPath = join(workDir, `${slug}.png`);
 
       await generateImage(
-        `Social media promo card background for a music release. ${chosen.bgSuffix}. ` +
-          `Leave a large clean central area empty for artwork and text. ` +
-          `ABSOLUTELY NO text, words, letters, logos, or watermarks anywhere in the image. ` +
-          `Gold and black luxury aesthetic.`,
+        buildPromoCardBackgroundPrompt(chosen, brand),
         spec.genSize,
         rawPath
       );
@@ -511,12 +707,16 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       await composeCard({
         backgroundPath: bgPath,
         artPath,
+        logoPath,
         outputPath: finalPath,
         layout,
         headline,
         title: releaseTitle,
         artist: artistName,
         attribution,
+        accentColor,
+        headingFontPath: brandFonts.heading,
+        bodyFontPath: brandFonts.body,
       });
 
       const buffer = await readFile(finalPath);
@@ -547,6 +747,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
         releaseTitle,
         artistName,
         caption: suggestedCaption,
+        brandSnapshot: brand,
         cards,
       });
       cards.forEach((c, i) => {
@@ -561,6 +762,9 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       artistName,
       style: chosen.id,
       headline,
+      /* The brand-kit snapshot this pack was generated with (0181);
+         null when the creator has no kit — the pre-kit behavior. */
+      brand,
       cards,
       suggestedCaption,
       creditsRemaining: creditsAfter,
