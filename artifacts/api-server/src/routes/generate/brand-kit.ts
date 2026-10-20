@@ -1,5 +1,6 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { randomUUID } from "crypto";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -42,7 +43,7 @@ const router = Router();
    kit away; the logo was a paste-a-URL field in Intros and a fresh upload
    in the editor, and bio/press were re-typed copies of the profile. */
 
-const BRAND_KIT_COST = Number(process.env["BRAND_KIT_CREDITS"]) || 200;
+export const BRAND_KIT_COST = Number(process.env["BRAND_KIT_CREDITS"]) || 200;
 
 const brandKitSchema = z.object({
   brandName: z.string().trim().min(1).max(80),
@@ -293,7 +294,7 @@ router.post("/brand-kit/apply", requireAuth, async (req, res) => {
 });
 
 /* ── POST /api/brand-kit — generate (200 VB) + persist ────────────────── */
-router.post("/brand-kit", requireAuth, async (req, res) => {
+const generateBrandKitHandler = async (req: Request, res: Response) => {
   const parsed = brandKitSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -401,6 +402,18 @@ router.post("/brand-kit", requireAuth, async (req, res) => {
     }).catch(() => {});
     res.status(500).json({ error: message });
   }
-});
+};
+
+router.post("/brand-kit", requireAuth, generateBrandKitHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 brandkit.generate tool
+   runs this exact handler in-process (lib/rail-core) — same
+   BRAND_KIT_COST charge and refund-on-failure the page gets. */
+export async function runGenerateBrandKit(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateBrandKitHandler as never, deps, { body });
+}
 
 export default router;

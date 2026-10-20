@@ -1,5 +1,6 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { requireAuth } from "../middlewares/require-auth";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../lib/rail-core";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
@@ -31,7 +32,7 @@ const SaveClipSchema = z.object({
 });
 
 /* POST /api/generated-clips — save a clip immediately after generation */
-router.post("/generated-clips", requireAuth, async (req, res) => {
+const saveGeneratedClipHandler = async (req: Request, res: Response) => {
   const parsed = SaveClipSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid clip data", details: parsed.error.issues });
@@ -141,7 +142,21 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
       });
     }
   }
-});
+};
+
+router.post("/generated-clips", requireAuth, saveGeneratedClipHandler);
+
+/* Operator core (Phase 2 Lane E): the generate.video completion
+   driver saves the finished clip through this exact handler
+   in-process (lib/rail-core), so an operator-started clip lands in
+   the member's library — with this rail's refund-on-save-failure
+   protection intact. */
+export async function runSaveGeneratedClip(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(saveGeneratedClipHandler as never, deps, { body });
+}
 
 /* GET /api/generated-clips — list all clips for the current user */
 router.get("/generated-clips", requireAuth, async (req, res) => {

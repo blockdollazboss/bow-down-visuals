@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { db, generationsTable } from "@workspace/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getOpenAI } from "../../lib/ai-clients";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, LedgerWriteError } from "../../lib/credits";
 import { saveGeneration } from "../../lib/save-generation";
@@ -498,7 +499,7 @@ const streamPackBodySchema = z.object({
    4. Charge 1 credit ONLY on success → upload → return URL.
    Failures charge nothing.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/stream-pack/generate", requireAuth, async (req, res) => {
+const generateStreamPackHandler = async (req: Request, res: Response) => {
   /* Zod shape check first; resolveStreamPackPlan still owns the domain
      rules (channelName required, known asset key) and its 400 messages. */
   const parsed = streamPackBodySchema.safeParse(req.body ?? {});
@@ -605,6 +606,18 @@ router.post("/stream-pack/generate", requireAuth, async (req, res) => {
     req.log.error({ err: msg }, "[stream-pack] generation failed — no credits charged");
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.post("/stream-pack/generate", requireAuth, generateStreamPackHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 streampack.asset tool
+   runs this exact handler in-process (lib/rail-core) — one asset per
+   confirmed action, charged at STREAM_PACK_CREDIT_COST on success. */
+export async function runGenerateStreamPack(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateStreamPackHandler as never, deps, { body });
+}
 
 export default router;

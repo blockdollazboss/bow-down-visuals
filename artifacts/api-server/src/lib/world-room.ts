@@ -883,6 +883,21 @@ export interface WorldPeerDto {
   rotY: number;
 }
 
+/** One person standing in a room, as a plain record — the shape
+ *  WorldRoom.presentMembers hands to name-resolving callers (the
+ *  Cloud Operator's Tier-4 commands, Lane F). Carries the account
+ *  id (null for a guest) because a lock binds an ACCOUNT, never a
+ *  socket or a name. */
+export interface WorldPresentMember {
+  peerId: string;
+  userId: string | null;
+  displayName: string;
+  profileSlug: string | null;
+  guest: boolean;
+  admin: boolean;
+  hostMuted: boolean;
+}
+
 interface WorldPeer extends WorldIdentity {
   peerId: string;
   socket: WsClientSocket;
@@ -950,6 +965,35 @@ function finiteOr(v: unknown, fallback: number): number {
  *  same family as room_full's 4429): the client shows its honest
  *  "removed by the host" card for it. */
 export const WORLD_REMOVED_CLOSE_CODE = 4413;
+
+/** Close code when a door refuses a member who is personally
+ *  locked out of the room (Lane F, migration 0179): the client
+ *  shows its honest "locked out until …" card for it. */
+export const WORLD_LOCKED_OUT_CLOSE_CODE = 4415;
+
+/** Close code when a room's locked door refuses a new entry
+ *  (Lane F, migration 0179): the client shows its honest "this
+ *  room's door is locked" card for it. */
+export const WORLD_DOOR_LOCKED_CLOSE_CODE = 4416;
+
+/** The lock state a room consults at its door, injected by the
+ *  palace (the durable store is lib/world-locks.ts, backed by
+ *  migration 0179; the room itself stays free of DB knowledge,
+ *  like every other palace rail). Synchronous by design: attach
+ *  is synchronous, so the answers come from the store's mirror. */
+export interface WorldLockChecker {
+  /** The moment (epoch ms) this member's personal lock on the
+   *  room lifts, or null when they may enter. */
+  personLockedUntil(roomId: string, userId: string, now: number): number | null;
+  /** The room's door is locked: nobody new joins (admins bypass). */
+  isDoorLocked(roomId: string): boolean;
+}
+
+/** Why a door refused an identity, when it did. `person` carries
+ *  the moment the lock lifts; `door` is the room's locked door. */
+export type WorldAdmissionBlock =
+  | { kind: "person"; until: number }
+  | { kind: "door" };
 
 /** Close code when a peer is REPLACED by its own identity rejoining
  *  (same account, or same guest tab session): the evicted client
@@ -1097,6 +1141,9 @@ export class WorldRoom {
       noteTutorialAction?: WorldTutorialNotifier;
       resolveStars?: WorldStarsResolver;
       findRecentQuestClaim?: WorldQuestClaimFinder;
+      /** The World's locks (Lane F): consulted at this room's
+       *  door on every attach. Absent = no locks exist here. */
+      locks?: WorldLockChecker;
     } = {},
     opts: WorldRoomOptions = {},
   ) {
@@ -1116,6 +1163,27 @@ export class WorldRoom {
    *  are in the Music Hall" is the whole point of the board). */
   memberNames(): string[] {
     return [...this.peers.values()].map((p) => p.displayName);
+  }
+
+  /** The peers who are PRESENT right now, for read-only snapshots
+   *  (WorldPalace.presenceSnapshot): exactly the peers the staleness
+   *  sweep would NOT reap at `now` — a peer silent past
+   *  WORLD_PEER_STALE_MS is a ghost the sweeper already owes a
+   *  burial, and a truthful headcount never counts it. Projected to
+   *  the identity facts a snapshot needs (the presence key, the
+   *  name, guest-ness) — never the socket. */
+  presentPeers(now = Date.now()): Array<{
+    identityKey: string | null;
+    displayName: string;
+    guest: boolean;
+  }> {
+    return [...this.peers.values()]
+      .filter((p) => now - p.lastSeenAt <= WORLD_PEER_STALE_MS)
+      .map((p) => ({
+        identityKey: worldIdentityKey(p),
+        displayName: p.displayName,
+        guest: p.guest,
+      }));
   }
 
   /** A show is on the stage (the directory's LIVE flag). */
@@ -1189,6 +1257,47 @@ export class WorldRoom {
     }
   }
 
+  /** Why this room's door refuses an identity right now, or null
+   *  when they may enter. A personal lock binds the named member
+   *  whoever they are (it lifts at `until`, or when an admin lifts
+   *  it early — there is no bypass, that is what a lock IS); a door
+   *  lock binds everyone EXCEPT an admin account (standing World
+   *  law: the admin holds ALL controls always, and a locked door
+   *  that kept the King out of his own palace would be a coup,
+   *  not a lock). Guests carry no account, so no personal lock can
+   *  name them; the door lock still binds them. */
+  admissionBlock(identity: WorldIdentity, now = Date.now()): WorldAdmissionBlock | null {
+    const locks = this.deps.locks;
+    if (!locks) return null;
+    if (identity.userId) {
+      const until = locks.personLockedUntil(this.roomId, identity.userId, now);
+      if (until !== null) return { kind: "person", until };
+    }
+    const isAdmin = identity.userId !== null && identity.admin === true;
+    if (!isAdmin && locks.isDoorLocked(this.roomId)) return { kind: "door" };
+    return null;
+  }
+
+  /** The members standing in this room right now, as plain records
+   *  — the presence truth the Cloud Operator resolves names against
+   *  (Lane F). Frame-silent peers past the staleness window are NOT
+   *  present (the same rule Lane B's presentPeers reads by, and the
+   *  sweeper reaps by): a ghost cannot be kicked, muted, or locked,
+   *  because there is nobody there to receive it. */
+  presentMembers(now = Date.now()): WorldPresentMember[] {
+    return [...this.peers.values()]
+      .filter((p) => now - p.lastSeenAt <= WORLD_PEER_STALE_MS)
+      .map((p) => ({
+        peerId: p.peerId,
+        userId: p.userId,
+        displayName: p.displayName,
+        profileSlug: p.profileSlug,
+        guest: p.guest,
+        admin: p.admin,
+        hostMuted: p.hostMuted,
+      }));
+  }
+
   /** Admit a socket. Returns false (after an honest room_full frame +
    *  close) when the room is at its presence cap. A doorway transfer
    *  passes `carry`: the peer keeps its peerId, character and voice
@@ -1207,6 +1316,40 @@ export class WorldRoom {
       at?: { x: number; z: number; rotY?: number };
     },
   ): boolean {
+    /* The locks stand at the door before the cap does (Lane F): a
+     * locked-out member's honest answer is "locked", never "full".
+     * Doorway transfers pre-check through admissionBlock and never
+     * reach this branch (the walker keeps their place); this gate
+     * is the hall door's own enforcement, where a refusal closes
+     * the socket with the lock's close code so the client shows
+     * its honest locked card. */
+    const block = this.admissionBlock(identity);
+    if (block) {
+      try {
+        socket.send(
+          JSON.stringify({
+            type: "room.locked",
+            kind: block.kind,
+            roomId: this.roomId,
+            name: this.roomName,
+            ...(block.kind === "person"
+              ? { until: new Date(block.until).toISOString() }
+              : {}),
+          }),
+        );
+      } catch {
+        /* closing anyway */
+      }
+      try {
+        socket.close(
+          block.kind === "person" ? WORLD_LOCKED_OUT_CLOSE_CODE : WORLD_DOOR_LOCKED_CLOSE_CODE,
+          block.kind === "person" ? "locked_out" : "door_locked",
+        );
+      } catch {
+        /* already gone */
+      }
+      return false;
+    }
     if (this.peers.size >= WORLD_PRESENCE_CAP) {
       try {
         socket.send(JSON.stringify({ type: "room_full", cap: WORLD_PRESENCE_CAP }));
@@ -1435,6 +1578,53 @@ export class WorldRoom {
       }
     }
     return matches.length;
+  }
+
+  /* ── The host rails, callable without a frame (Lane F) ──────────
+   * The frame handlers above verify the caller's IN-ROOM admin
+   * flag, then call these. The Cloud Operator's Tier-4 commands
+   * call them directly: their authority is the executor's
+   * fail-closed ADMIN_EMAILS gate on the admin's chat session
+   * (design §3) — a different door, the same rails, so a mute or
+   * a removal means exactly one thing wherever it came from. */
+
+  /** Host-mute a peer's voice (or lift it). Server-side state: the
+   *  member is out of the mesh now and voice.join refuses them
+   *  until the mute lifts. Everyone is told (plates + their
+   *  client). Returns false when the peer isn't here, or already
+   *  stands in the requested state — nothing changed either way. */
+  setPeerHostMuted(peerId: string, muted: boolean): boolean {
+    const target = this.byPeerId.get(peerId);
+    if (!target) return false;
+    if (target.hostMuted === muted) return false;
+    target.hostMuted = muted;
+    if (muted && target.voice) {
+      target.voice = false;
+      this.hub.broadcast(this.roomId, { type: "voice.left", peerId: target.peerId });
+    }
+    this.hub.broadcast(this.roomId, { type: "peer.hostmute", peerId: target.peerId, muted });
+    return true;
+  }
+
+  /** Remove a peer from the room: the honest card first
+   *  (`removed`), then the despawn, then the close — the same
+   *  pattern as room_full, with its own close code. `reason`
+   *  rides the card: "host" for a removal, "locked" when a
+   *  personal lock lands on someone standing inside (the lock
+   *  itself is the store's row; this is just its first moment).
+   *  Returns false when the peer isn't here. */
+  removePeer(peerId: string, reason: "host" | "locked" = "host"): boolean {
+    const target = this.byPeerId.get(peerId);
+    if (!target) return false;
+    this.send(target, { type: "removed", reason });
+    const socket = target.socket;
+    this.detach(socket);
+    try {
+      socket.close(WORLD_REMOVED_CLOSE_CODE, reason === "locked" ? "locked_out" : "removed_by_host");
+    } catch {
+      /* already gone */
+    }
+    return true;
   }
 
   /* ── The stage + screen ─────────────────────────────────────────── */
@@ -2693,43 +2883,30 @@ export class WorldRoom {
         return;
       }
       case "admin.mute": {
-        /* Host-only room mute. Server-side state: the member is out
-         * of the mesh now and voice.join refuses them until the
-         * host lifts it. Everyone is told (plates + their client). */
+        /* Host-only room mute, on the shared rail below: the frame
+         * path verifies the caller's in-room admin flag here; the
+         * Cloud Operator's Tier-4 path verifies the admin session
+         * in the executor instead. Authority differs, rail is one. */
         if (!peer.admin) {
           this.send(peer, { type: "admin.denied" });
           return;
         }
         const target = this.byPeerId.get(typeof frame["peerId"] === "string" ? frame["peerId"] : "");
         if (!target || target === peer) return;
-        const muted = frame["muted"] === true;
-        if (target.hostMuted === muted) return;
-        target.hostMuted = muted;
-        if (muted && target.voice) {
-          target.voice = false;
-          this.hub.broadcast(this.roomId, { type: "voice.left", peerId: target.peerId });
-        }
-        this.hub.broadcast(this.roomId, { type: "peer.hostmute", peerId: target.peerId, muted });
+        this.setPeerHostMuted(target.peerId, frame["muted"] === true);
         return;
       }
       case "admin.remove": {
-        /* Host-only removal: the honest card first (`removed`),
-         * then the despawn, then the close — the same pattern as
-         * room_full, with its own close code. */
+        /* Host-only removal, on the shared rail below (same split
+         * as admin.mute: authority checked here, the rail shared
+         * with the operator's Tier-4 kick). */
         if (!peer.admin) {
           this.send(peer, { type: "admin.denied" });
           return;
         }
         const target = this.byPeerId.get(typeof frame["peerId"] === "string" ? frame["peerId"] : "");
         if (!target || target === peer) return;
-        this.send(target, { type: "removed", reason: "host" });
-        const socket = target.socket;
-        this.detach(socket);
-        try {
-          socket.close(WORLD_REMOVED_CLOSE_CODE, "removed_by_host");
-        } catch {
-          /* already gone */
-        }
+        this.removePeer(target.peerId, "host");
         return;
       }
       case "voice.signal": {

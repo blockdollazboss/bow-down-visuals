@@ -272,11 +272,21 @@ async function readTeamPoolBalance(teamId: string): Promise<number | null> {
 
 /**
  * Read the user's current personal credit balance (fresh, no cache).
+ * This is THE balance read the credits rail serves from (requireAuth
+ * stamps the same profiles.credits value onto the request); the
+ * Cloud Operator's balance tool calls it through getCreditBalance.
  */
 async function readPersonalBalance(userId: string): Promise<number> {
   const admin = getSupabaseAdmin();
   const { data } = await admin.from("profiles").select("credits").eq("id", userId).single();
   return (data as { credits?: number } | null)?.credits ?? 0;
+}
+
+/** Public balance read for rails that answer "how many Visual Bucs do
+ *  I have" (the operator's Tier-0 balance tool). Same read, same
+ *  source — never a second balance implementation. */
+export async function getCreditBalance(userId: string): Promise<number> {
+  return readPersonalBalance(userId);
 }
 
 /**

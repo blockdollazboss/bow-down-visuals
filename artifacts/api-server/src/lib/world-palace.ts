@@ -52,11 +52,13 @@ import {
   WORLD_ROOM_ID,
   type PalaceAnnouncement,
   type WorldDropClaimer,
+  type WorldPresentMember,
   type WorldTutorialNotifier,
   worldIdentityKey,
   type WorldIdentity,
   type WorldRoomOptions,
 } from "./world-room";
+import type { WorldLockStore } from "./world-locks";
 
 /** The host's herald: at most this many characters reach the
  *  palace — a herald is a headline, not a speech. */
@@ -164,6 +166,11 @@ export interface PalaceDirectoryEntry {
   members: string[];
   /** A show holds the hall's stage (only the hall can be live). */
   live: boolean;
+  /** The room's door is locked (Lane F): the people inside stay,
+   *  nobody new joins — the only bypass is an admin account. The
+   *  directory says so plainly so the lock is never a surprise
+   *  discovered by walking into it. */
+  locked: boolean;
   /** This room's booked slate (live + upcoming), when any. */
   events?: PalaceDirectoryEvent[];
   /** Creator rooms only: the room owner's profile slug — the
@@ -171,6 +178,23 @@ export interface PalaceDirectoryEntry {
    *  it (the entry strip, the Kingdom Board) link it to the room's
    *  data by this slug. Absent on the eight palace rooms. */
   slug?: string;
+}
+
+/** One room in a presence snapshot (WorldPalace.presenceSnapshot):
+ *  `count` is DISTINCT present people (see the snapshot's note),
+ *  `members` their display names, capped like the directory's. */
+export interface PalacePresenceRoom {
+  id: string;
+  name: string;
+  count: number;
+  members: string[];
+}
+
+/** The palace-wide presence snapshot: per-room distinct counts
+ *  plus the palace total (itself deduplicated across rooms). */
+export interface PalacePresenceSnapshot {
+  total: number;
+  rooms: PalacePresenceRoom[];
 }
 
 /* ── Creator Rooms (Ring 2, item 3.5) ───────────────────────────────
@@ -220,6 +244,13 @@ export interface CreatorRoomResolution {
 
 const DIRECTORY_MEMBER_NAMES = 12;
 
+/** One present member, and the room they're standing in — the
+ *  operator's name resolution result (WorldPalace.findPresentMember). */
+export interface PalacePresentMatch {
+  room: WorldRoom;
+  member: WorldPresentMember;
+}
+
 export class WorldPalace {
   private rooms = new Map<string, WorldRoom>();
   /** Creator room instances by slug (the dynamic ring — see the
@@ -247,6 +278,13 @@ export class WorldPalace {
    *  with no stage, i.e. none; the rail stays uniform). */
   private tutorialNotifier: WorldTutorialNotifier | undefined;
 
+  /** The World's lock store (Lane F, migration 0179), when the
+   *  route layer wired one: every room in this palace consults it
+   *  at its door, and the Cloud Operator's Tier-4 lock commands
+   *  write through it. Null in a palace built without one (unit
+   *  surfaces, embeds) — no locks exist there. */
+  readonly lockStore: WorldLockStore | null;
+
   constructor(
     private hub: RoomHub,
     deps: ConstructorParameters<typeof WorldRoom>[1] = {},
@@ -255,8 +293,13 @@ export class WorldPalace {
        *  slug has no PUBLIC Grand Stage profile (unknown and
        *  private are the same answer — the room does not exist). */
       resolveCreatorRoom?: (slug: string) => Promise<CreatorRoomResolution | null>;
+      /** The lock store (Lane F): threaded into every room as its
+       *  door checker, creator rooms included. */
+      lockStore?: WorldLockStore;
     } = {},
   ) {
+    this.lockStore = palaceDeps.lockStore ?? null;
+    const locks = this.lockStore ?? undefined;
     for (const def of PALACE_ROOM_DEFS) {
       const { roomId, name, ...opts } = def;
       // Only the hall gets the stage resolvers: it is the palace's
@@ -272,7 +315,7 @@ export class WorldPalace {
       // quest-claim finder and verifies moments for its own floor.
       const roomDeps =
         def.roomId === WORLD_ROOM_ID
-          ? deps
+          ? { ...deps, locks }
           : def.roomId === "world:music-hall"
             ? {
                 resolveJukeboxTrack: deps.resolveJukeboxTrack,
@@ -283,12 +326,14 @@ export class WorldPalace {
                 noteTutorialAction: deps.noteTutorialAction,
                 resolveStars: deps.resolveStars,
                 findRecentQuestClaim: deps.findRecentQuestClaim,
+                locks,
               }
             : {
                 claimWorldDrop: deps.claimWorldDrop,
                 noteTutorialAction: deps.noteTutorialAction,
                 resolveStars: deps.resolveStars,
                 findRecentQuestClaim: deps.findRecentQuestClaim,
+                locks,
               };
       const room = new WorldRoom(hub, roomDeps, { roomId, name, ...opts });
       room.onChange = () => this.broadcastDirectory();
@@ -312,7 +357,11 @@ export class WorldPalace {
     const roomId = creatorRoomIdForSlug(slug);
     const room = new WorldRoom(
       this.hub,
-      { claimWorldDrop: this.dropClaimer, noteTutorialAction: this.tutorialNotifier },
+      {
+        claimWorldDrop: this.dropClaimer,
+        noteTutorialAction: this.tutorialNotifier,
+        locks: this.lockStore ?? undefined,
+      },
       {
         roomId,
         name: creatorRoomName(displayName),
@@ -416,6 +465,7 @@ export class WorldPalace {
         count: room.size(),
         members: room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
         live: room.stageHeld(),
+        locked: this.lockStore?.isDoorLocked(def.roomId) ?? false,
         ...(events && events.length > 0 ? { events } : {}),
       };
     });
@@ -432,10 +482,55 @@ export class WorldPalace {
         count: entry.room.size(),
         members: entry.room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
         live: false,
+        locked: this.lockStore?.isDoorLocked(entry.room.roomId) ?? false,
         slug,
       });
     }
     return entries;
+  }
+
+  /** A truthful headcount snapshot for read-only callers (the
+   *  Cloud Operator's "who's in the palace" tool): the same room
+   *  set the directory lists — the eight palace rooms always,
+   *  creator rooms only while someone is home — but counted the
+   *  honest way: only peers the staleness sweep would NOT reap
+   *  (WorldRoom.presentPeers), deduplicated by presence key, so a
+   *  ghost awaiting burial and a member's second socket never
+   *  inflate the count. A connection with no identity key (a raw
+   *  probe) counts once, as itself — it is a live connection in
+   *  the room, just not a provable person. */
+  presenceSnapshot(now = Date.now()): PalacePresenceSnapshot {
+    const rooms: PalacePresenceRoom[] = [];
+    const seenGlobally = new Set<string>();
+    let anonymousGlobal = 0;
+    const tally = (roomId: string, name: string, room: WorldRoom) => {
+      const present = room.presentPeers(now);
+      if (present.length === 0 && !PALACE_ROOM_DEFS.some((d) => d.roomId === roomId)) return;
+      const seen = new Set<string>();
+      const members: string[] = [];
+      let anonymous = 0;
+      for (const p of present) {
+        if (p.identityKey) {
+          if (seen.has(p.identityKey)) continue;
+          seen.add(p.identityKey);
+          if (!seenGlobally.has(p.identityKey)) {
+            seenGlobally.add(p.identityKey);
+          }
+        } else {
+          anonymous += 1;
+          anonymousGlobal += 1;
+        }
+        if (members.length < DIRECTORY_MEMBER_NAMES) members.push(p.displayName);
+      }
+      rooms.push({ id: roomId, name, count: seen.size + anonymous, members });
+    };
+    for (const def of PALACE_ROOM_DEFS) {
+      tally(def.roomId, def.name, this.rooms.get(def.roomId)!);
+    }
+    for (const [, entry] of this.creatorRooms) {
+      tally(entry.room.roomId, entry.room.roomName, entry.room);
+    }
+    return { total: seenGlobally.size + anonymousGlobal, rooms };
   }
 
   private broadcastDirectory(): void {
@@ -443,6 +538,46 @@ export class WorldPalace {
     for (const room of this.rooms.values()) {
       if (room.size() > 0) this.hub.broadcast(room.roomId, payload);
     }
+  }
+
+  /** Republish the directory now (Lane F): a door lock changes what
+   *  the directory SAYS without changing who's inside, so no room
+   *  onChange fires for it — the lock commands call this so the
+   *  Locked mark reaches everyone inside the moment it lands. */
+  refreshDirectory(): void {
+    this.broadcastDirectory();
+  }
+
+  /* ── Resolving people (the operator's eyes) ───────────────────── */
+
+  /** Every present member of the palace whose display name matches
+   *  (case-insensitive, exact) — or, when no name matches, whose
+   *  profile slug does. A person stands in exactly one room, so
+   *  more than one match means more than one PERSON carries the
+   *  name: the caller (the operator's Tier-4 commands) refuses and
+   *  asks, never guesses. Ghosts past the staleness window are not
+   *  present (WorldRoom.presentMembers applies the rule). */
+  findPresentMember(name: string): PalacePresentMatch[] {
+    const needle = name.trim().toLowerCase();
+    if (!needle) return [];
+    const byName: PalacePresentMatch[] = [];
+    for (const room of this.rooms.values()) {
+      for (const member of room.presentMembers()) {
+        if (member.displayName.trim().toLowerCase() === needle) {
+          byName.push({ room, member });
+        }
+      }
+    }
+    if (byName.length > 0) return byName;
+    const bySlug: PalacePresentMatch[] = [];
+    for (const room of this.rooms.values()) {
+      for (const member of room.presentMembers()) {
+        if (member.profileSlug && member.profileSlug.toLowerCase() === needle) {
+          bySlug.push({ room, member });
+        }
+      }
+    }
+    return bySlug;
   }
 
   /* ── The announce channel ─────────────────────────────────────── */
@@ -520,6 +655,41 @@ export class WorldPalace {
       roomId: room.roomId,
       roomName: room.roomName,
     });
+  }
+
+  /**
+   * The herald on an admin's spoken/typed command (Lane F, Tier 4):
+   * the admin is at the chat, not standing in the palace, so there
+   * is no peer record to verify — the authority was the executor's
+   * ADMIN_EMAILS gate on their session, checked before this is
+   * ever called. Everything else is the socket herald's own
+   * discipline: the same character cap, and the same rate limit,
+   * keyed by the command's limit key (the admin's account id) so
+   * the channel stays a herald, not a horn — whoever speaks it.
+   * The speaker named is Thy Cheat Code: he is the one speaking,
+   * on the King's command.
+   */
+  heraldAsAdmin(input: {
+    text: string;
+    limitKey: string;
+    now?: number;
+  }): { ok: true } | { ok: false; reason: "empty" | "rate_limited"; retryAfterMs?: number } {
+    const now = input.now ?? Date.now();
+    const text = typeof input.text === "string" ? input.text.trim().slice(0, HERALD_MAX_CHARS) : "";
+    if (!text) return { ok: false, reason: "empty" };
+    const last = this.heraldLastAt.get(input.limitKey) ?? 0;
+    if (now - last < HERALD_MIN_INTERVAL_MS) {
+      return { ok: false, reason: "rate_limited", retryAfterMs: HERALD_MIN_INTERVAL_MS - (now - last) };
+    }
+    this.heraldLastAt.set(input.limitKey, now);
+    this.announce({
+      kind: "herald",
+      text,
+      name: "Thy Cheat Code",
+      roomId: this.hallRoom.roomId,
+      roomName: this.hallRoom.roomName,
+    });
+    return { ok: true };
   }
 
   /**
@@ -620,6 +790,31 @@ export class WorldPalace {
             roomId: target.roomId,
             name: target.roomName,
             cap: WORLD_PRESENCE_CAP,
+          }),
+        );
+      } catch {
+        /* the close handler reaps it */
+      }
+      return;
+    }
+    /* The locks stand at this door too (Lane F) — checked HERE,
+     * before the detach, for the same reason the cap is: a refused
+     * walker keeps their place in the palace. They hear the lock's
+     * own frame (room.locked, no close — they are still inside,
+     * just not through THIS door), and the room's attach gate
+     * remains the enforcement of last resort at the hall door. */
+    const block = target.admissionBlock(state.identity);
+    if (block) {
+      try {
+        socket.send(
+          JSON.stringify({
+            type: "room.locked",
+            kind: block.kind,
+            roomId: target.roomId,
+            name: target.roomName,
+            ...(block.kind === "person"
+              ? { until: new Date(block.until).toISOString() }
+              : {}),
           }),
         );
       } catch {

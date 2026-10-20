@@ -1,5 +1,6 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
@@ -15,7 +16,7 @@ const router = Router();
  * Env-overridable without a deploy.
  */
 export const HEADSHOT_STUDIO_CREDIT_COST = 100;
-const HEADSHOT_CREDITS = Number(process.env["HEADSHOT_CREDITS"]) || HEADSHOT_STUDIO_CREDIT_COST;
+export const HEADSHOT_CREDITS = Number(process.env["HEADSHOT_CREDITS"]) || HEADSHOT_STUDIO_CREDIT_COST;
 
 /** Google Gemini image model (Nano Banana 2.1) — env-overridable. Requires GEMINI_API_KEY. */
 const NANO_MODEL = process.env["GEMINI_IMAGE_MODEL"] || "gemini-nano-banana-2.1";
@@ -215,7 +216,7 @@ function composePrompt(mode: "autopilot" | "preset" | "manual", preset?: Headsho
    4. Synchronous generation via Nano Banana 2.1 or Ideogram 4.0.
    5. Charge credits only on success → upload to storage → return URL.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-headshot", requireAuth, generationLimiter, async (req, res) => {
+const generateHeadshotHandler = async (req: Request, res: Response) => {
   const parsed = headshotStudioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -304,6 +305,19 @@ router.post("/generate-headshot", requireAuth, generationLimiter, async (req, re
     req.log.error({ err: msg }, "[headshot-studio] generation failed — no credits charged");
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.post("/generate-headshot", requireAuth, generationLimiter, generateHeadshotHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 headshot.generate tool
+   runs this exact handler in-process (lib/rail-core) — same key gate,
+   same charge-on-success the page gets. (HTTP rate limiting stays on
+   the route; the operator path carries the executor's own gates.) */
+export async function runGenerateHeadshot(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateHeadshotHandler as never, deps, { body });
+}
 
 export default router;

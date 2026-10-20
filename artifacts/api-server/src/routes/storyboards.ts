@@ -139,6 +139,55 @@ function cleanPanel(raw: Partial<StoryboardPanel> & { id: string }): StoryboardP
   };
 }
 
+/* ── Shared write paths ──────────────────────────────────────────────
+   The create + panel-append cores live outside the route handlers
+   so the operator's storyboard.save tool (Phase 2 Lane D) rides the
+   exact same write path as the desk: same schemas, same owner
+   scoping (a foreign board is a not_found, never a write), same
+   panel cap, same write-time image normalization (cleanPanel). */
+
+export async function createStoryboardBoard(userId: string, title?: string) {
+  const [row] = await db
+    .insert(storyboardsTable)
+    .values({
+      userId,
+      title: title?.trim() || "Untitled storyboard",
+      panels: [],
+    })
+    .returning();
+  return row!;
+}
+
+export type AppendStoryboardPanelOutcome =
+  | { kind: "added"; board: typeof storyboardsTable.$inferSelect; panel: StoryboardPanel }
+  | { kind: "not_found" }
+  | { kind: "invalid"; issues: z.ZodIssue[] }
+  | { kind: "full"; max: number };
+
+export async function appendStoryboardPanel(
+  userId: string,
+  boardId: string,
+  input: unknown,
+): Promise<AppendStoryboardPanelOutcome> {
+  const parsed = PanelCreateSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const row = await ownBoard(userId, boardId);
+  if (!row) return { kind: "not_found" };
+  const panels = Array.isArray(row.panels) ? [...row.panels] : [];
+  if (panels.length >= STORYBOARD_MAX_PANELS) return { kind: "full", max: STORYBOARD_MAX_PANELS };
+  const panel = cleanPanel({
+    id: randomUUID(),
+    title: parsed.data.title ?? "",
+    notes: parsed.data.notes ?? "",
+    imageUrl: parsed.data.imageUrl ?? null,
+    imagePrompt: parsed.data.imagePrompt ?? null,
+  });
+  panels.push(panel);
+  const saved = await savePanels(userId, boardId, panels);
+  if (!saved) return { kind: "not_found" };
+  return { kind: "added", board: saved, panel };
+}
+
 /* GET /api/storyboards — my boards, newest-touched first (summaries). */
 router.get("/storyboards", requireAuth, async (req, res) => {
   try {
@@ -163,15 +212,8 @@ router.post("/storyboards", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [row] = await db
-      .insert(storyboardsTable)
-      .values({
-        userId: req.userId!,
-        title: parsed.data.title?.trim() || "Untitled storyboard",
-        panels: [],
-      })
-      .returning();
-    res.status(201).json({ storyboard: await toDTO(row!) });
+    const row = await createStoryboardBoard(req.userId!, parsed.data.title);
+    res.status(201).json({ storyboard: await toDTO(row) });
   } catch (err) {
     req.log.error({ err }, "[storyboards] create failed");
     res.status(500).json({ error: "Failed to create storyboard" });
@@ -232,30 +274,18 @@ router.delete("/storyboards/:id", requireAuth, async (req, res) => {
 /* POST /api/storyboards/:id/panels — append a panel to my board. */
 router.post("/storyboards/:id/panels", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
-  const parsed = PanelCreateSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid panel", details: parsed.error.issues });
-    return;
-  }
   try {
-    const row = await ownBoard(req.userId!, id);
-    if (!row) { res.status(404).json({ error: "Storyboard not found" }); return; }
-    const panels = Array.isArray(row.panels) ? [...row.panels] : [];
-    if (panels.length >= STORYBOARD_MAX_PANELS) {
-      res.status(400).json({ error: `A storyboard holds at most ${STORYBOARD_MAX_PANELS} panels.` });
+    const outcome = await appendStoryboardPanel(req.userId!, id, req.body);
+    if (outcome.kind === "invalid") {
+      res.status(400).json({ error: "Invalid panel", details: outcome.issues });
       return;
     }
-    const panel = cleanPanel({
-      id: randomUUID(),
-      title: parsed.data.title ?? "",
-      notes: parsed.data.notes ?? "",
-      imageUrl: parsed.data.imageUrl ?? null,
-      imagePrompt: parsed.data.imagePrompt ?? null,
-    });
-    panels.push(panel);
-    const saved = await savePanels(req.userId!, id, panels);
-    if (!saved) { res.status(404).json({ error: "Storyboard not found" }); return; }
-    const dto = await toDTO(saved);
+    if (outcome.kind === "not_found") { res.status(404).json({ error: "Storyboard not found" }); return; }
+    if (outcome.kind === "full") {
+      res.status(400).json({ error: `A storyboard holds at most ${outcome.max} panels.` });
+      return;
+    }
+    const dto = await toDTO(outcome.board);
     res.status(201).json({ panel: dto.panels[dto.panels.length - 1], storyboard: dto });
   } catch (err) {
     req.log.error({ err }, "[storyboards] panel add failed");

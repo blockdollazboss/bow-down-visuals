@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { ChatVoiceButton } from "@/components/ChatVoiceButton";
 import { ChatSpeakButton } from "@/components/ChatSpeakButton";
 import type { ChatVoiceNote } from "@/lib/chat-voice";
@@ -11,7 +12,12 @@ import {
   type ChatSpeakStatus,
 } from "@/lib/chat-speak";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { X, Send, Loader2, Dices, Volume2, VolumeX } from "lucide-react";
+import {
+  parseChatDoors,
+  startGuideOnArrival,
+  type ChatDoor,
+} from "@/lib/chat-doors";
+import { X, Send, Loader2, Dices, Volume2, VolumeX, DoorOpen, Footprints } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -45,7 +51,13 @@ import {
    charges nothing. */
 
 type ChatRole = "user" | "assistant";
-interface ChatMessage { role: ChatRole; content: string }
+interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  /** Tier 1 doors (Lane C): server-attached navigation for this reply,
+      present only when the member's message matched a real feature. */
+  doors?: ChatDoor[];
+}
 
 const QUICK_PROMPTS = [
   "What can this site build?",
@@ -203,6 +215,7 @@ export function openThyChat(prompt?: string) {
 export function ThyCheatCodeChat() {
   // Free version: direct fetch to /api/free-chat (no credits)
   const isLight = useIsLightTheme();
+  const [, navigate] = useLocation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -343,7 +356,13 @@ export function ThyCheatCodeChat() {
           data.error ||
           "My fins slipped — could you ask that again?";
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      /* Tier 1 doors ride successful replies only — an error body
+         never carries any, and parseChatDoors drops anything malformed. */
+      const doors = res.ok ? parseChatDoors(data) : [];
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: reply, ...(doors.length ? { doors } : {}) },
+      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -353,6 +372,17 @@ export function ThyCheatCodeChat() {
       setLoading(false);
     }
   }
+
+  /* Tier 1 doors: he walks you there. The drawer closes, the router
+     lands on the door's exact path (the knowledge base's own deep
+     link), and a guide door starts that page's "Walk me through it"
+     tour once the landing settles. A signed-out member's door is a
+     plain navigation — the site's sign-in gate answers as usual. */
+  const followDoor = (door: ChatDoor) => {
+    setOpen(false);
+    navigate(door.path);
+    if (door.kind === "guide") startGuideOnArrival(door.path);
+  };
 
   /* Voice input (lib/chat-voice transport): interim words stream into
      the input box so the user sees what was heard; the finished
@@ -548,6 +578,25 @@ export function ThyCheatCodeChat() {
                           creditCost={speakStatus?.creditCost ?? 0}
                           onNote={setVoiceNote}
                         />
+                      </div>
+                    )}
+                    {m.doors && m.doors.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {m.doors.map((door) => (
+                          <button
+                            key={door.kind}
+                            onClick={() => followDoor(door)}
+                            className="pixel-display inline-flex items-center gap-1.5 border-2 border-[#C9A84C]/60 bg-[#C9A84C]/10 px-2.5 py-2 text-[9px] uppercase tracking-[0.12em] text-[#E8C96A] transition hover:bg-[#C9A84C] hover:text-black"
+                            style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.8)" }}
+                          >
+                            {door.kind === "guide" ? (
+                              <Footprints className="h-3 w-3" />
+                            ) : (
+                              <DoorOpen className="h-3 w-3" />
+                            )}
+                            {door.label}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>

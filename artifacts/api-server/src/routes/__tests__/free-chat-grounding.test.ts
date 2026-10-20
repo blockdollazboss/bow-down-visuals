@@ -121,7 +121,10 @@ describe("POST /api/free-chat — operator grounding (provider path)", () => {
   it("hands the provider the operator prompt with the song's verified facts", async () => {
     const { status, json } = await postFreeChat({ message: "How do I make a song, and what does it cost?" });
     expect(status).toBe(200);
-    expect(Object.keys(json)).toEqual(["reply"]);
+    /* Shape pin, evolved by Phase 2 Lane C: a KB-matched reply also
+       carries its Tier 1 doors — and nothing else. The door contract
+       itself is pinned in chat-doors.test.ts. */
+    expect(Object.keys(json)).toEqual(["reply", "doors"]);
     const prompt = systemPrompt();
     expect(prompt).toContain("You are Thy Cheat Code");
     expect(prompt).toContain("FEATURE INDEX");

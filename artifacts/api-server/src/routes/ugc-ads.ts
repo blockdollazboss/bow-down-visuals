@@ -1,5 +1,6 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../lib/rail-core";
 import { randomUUID } from "crypto";
 import { createWriteStream, unlinkSync, existsSync } from "fs";
 import { pipeline } from "stream/promises";
@@ -134,7 +135,7 @@ export function buildUgcVideoPrompt(input: {
   ).slice(0, 1400);
 }
 
-function normalizeScript(raw: unknown): UgcScript | null {
+export function normalizeScript(raw: unknown): UgcScript | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const hook = typeof r["hook"] === "string" ? r["hook"].trim().slice(0, 200) : "";
@@ -413,7 +414,7 @@ const personaSchema = z.object({
   idempotencyKey: z.string().trim().max(120).optional(),
 });
 
-router.post("/ugc-ads/persona", generationLimiter, requireAuth, async (req, res) => {
+const generateUgcPersonaHandler = async (req: Request, res: Response) => {
   const parsed = personaSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -491,7 +492,20 @@ router.post("/ugc-ads/persona", generationLimiter, requireAuth, async (req, res)
     logger.error({ err }, "[ugc-ads] persona generation failed — refunded");
     res.status(502).json({ error: "The persona didn't come through — your Visual Bucs were refunded. Try again." });
   }
-});
+};
+
+router.post("/ugc-ads/persona", generationLimiter, requireAuth, generateUgcPersonaHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 ugc.persona tool runs
+   this exact handler in-process (lib/rail-core) — same charge-first
+   idempotency discipline (the executor's confirmation key rides in
+   as the body's client idempotencyKey) and refund-on-failure. */
+export async function runGenerateUgcPersona(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateUgcPersonaHandler as never, deps, { body });
+}
 
 /* ── GET /api/ugc-ads — my ads ──────────────────────────────────────── */
 router.get("/ugc-ads", requireAuth, async (req, res) => {
@@ -527,7 +541,7 @@ const createAdSchema = z.object({
   briefId: z.string().uuid().optional(),
 });
 
-router.post("/ugc-ads", publicApiLimiter, requireAuth, async (req, res) => {
+const createUgcAdHandler = async (req: Request, res: Response) => {
   const parsed = createAdSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -631,7 +645,19 @@ router.post("/ugc-ads", publicApiLimiter, requireAuth, async (req, res) => {
     logger.error({ err }, "[ugc-ads] create failed");
     res.status(500).json({ error: "Could not start that ad — try again." });
   }
-});
+};
+
+router.post("/ugc-ads", publicApiLimiter, requireAuth, createUgcAdHandler);
+
+/* Operator core (Phase 2 Lane E): creating the ad record is the free
+   first half of the Tier 3 ugc.video tool — the same handler the
+   page's maker calls (brief ownership + shop-product truth intact). */
+export async function runCreateUgcAd(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(createUgcAdHandler as never, deps, { body });
+}
 
 /* ── GET /api/ugc-ads/:id — mine, or delivered to my brief ──────────── */
 router.get("/ugc-ads/:id", requireAuth, async (req, res) => {
@@ -869,7 +895,7 @@ function cleanupFile(f: string | null) {
   }
 }
 
-router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, async (req, res) => {
+const generateUgcAdHandler = async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -1084,6 +1110,21 @@ router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, async (req,
     cleanupFile(tmpFile);
     if (captionedFile && captionedFile !== tmpFile) cleanupFile(captionedFile);
   }
-});
+};
+
+router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, generateUgcAdHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 ugc.video tool renders
+   through this exact handler in-process (lib/rail-core) — same
+   per-attempt idempotency key (the executor's confirmation key rides
+   in as the body's client key) and refund-on-failure. A ready ad
+   replays free, exactly as the page's button behaves. */
+export async function runGenerateUgcAd(
+  deps: RailCoreDeps,
+  adId: string,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateUgcAdHandler as never, deps, { body, params: { id: adId } });
+}
 
 export default router;

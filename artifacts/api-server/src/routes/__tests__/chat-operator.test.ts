@@ -130,10 +130,15 @@ describe("POST /api/chat — operator grounding", () => {
     expect(prompt).not.toContain("GPT Image");
   });
 
-  it("the knowledge-only limit is stated: no hands yet", async () => {
+  it("the hands protocol is stated (Phase 2 Lane A replaces NO HANDS YET)", async () => {
     await postChat("Make me a song right now.");
     const prompt = systemPrompt();
-    expect(prompt).toContain("NO HANDS YET");
+    expect(prompt).not.toContain("NO HANDS YET");
+    expect(prompt).toContain("YOUR HANDS");
+    // The one live tool rides the registry marker; unregistered asks
+    // still get the honest walk-through, never a fake execution.
+    expect(prompt).toContain("[[DO:credits.balance]]");
+    expect(prompt).toContain("I can't do that one yet");
   });
 });
 

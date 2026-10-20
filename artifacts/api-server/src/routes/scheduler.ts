@@ -569,39 +569,57 @@ const legacySchedulePostSchema = z.object({
   hashtags: z.string().trim().max(500).optional().default(""),
 });
 
+export type CreateLegacyScheduledPostOutcome =
+  | { kind: "created"; post: ScheduledPost }
+  | { kind: "invalid"; issues: z.ZodIssue[] };
+
+/** THE legacy schedule-post write path — the POST /schedule-post
+ *  route below and the operator's posts.schedule tool (Phase 2
+ *  Lane D) both ride this one function: the surface's own schema
+ *  (an exact ISO datetime, in the future, or it refuses), the
+ *  mirror-on-save for the media, and the insert keyed by the
+ *  caller's OWN user id. The entry is only an entry — the job
+ *  poller fires it when its time comes. */
+export async function createLegacyScheduledPost(
+  userId: string,
+  input: unknown,
+): Promise<CreateLegacyScheduledPostOutcome> {
+  const parsed = legacySchedulePostSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const [post] = await db
+    .insert(scheduledPostsTable)
+    .values({
+      user_id: userId,
+      status: "scheduled",
+      media_url:
+        (await mirrorExternalMediaUrl(parsed.data.mediaUrl, {
+          kind: inferMediaKind(parsed.data.mediaUrl),
+          ownerKey: userId,
+        })) ?? parsed.data.mediaUrl,
+      caption: parsed.data.content,
+      hashtags: parsed.data.hashtags,
+      platforms: [parsed.data.platform],
+      scheduled_at: new Date(parsed.data.scheduledAt),
+    })
+    .returning();
+  return { kind: "created", post: post! };
+}
+
 // POST /schedule-post — save a post for later publishing (free)
 router.post("/schedule-post", requireAuth, async (req, res) => {
-  const parsed = legacySchedulePostSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({
-        field: i.path.join("."),
-        message: i.message,
-      })),
-    });
-    return;
-  }
-
   try {
-    const [post] = await db
-      .insert(scheduledPostsTable)
-      .values({
-        user_id: req.userId!,
-        status: "scheduled",
-        media_url:
-          (await mirrorExternalMediaUrl(parsed.data.mediaUrl, {
-            kind: inferMediaKind(parsed.data.mediaUrl),
-            ownerKey: req.userId!,
-          })) ?? parsed.data.mediaUrl,
-        caption: parsed.data.content,
-        hashtags: parsed.data.hashtags,
-        platforms: [parsed.data.platform],
-        scheduled_at: new Date(parsed.data.scheduledAt),
-      })
-      .returning();
-
-    res.status(201).json({ post: await refreshSupabaseStorageUrlsDeep(post) });
+    const outcome = await createLegacyScheduledPost(req.userId!, req.body);
+    if (outcome.kind === "invalid") {
+      res.status(400).json({
+        error: "Invalid request.",
+        details: outcome.issues.map((i) => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+      });
+      return;
+    }
+    res.status(201).json({ post: await refreshSupabaseStorageUrlsDeep(outcome.post) });
   } catch (err) {
     req.log.error({ err }, "[scheduler] schedule-post failed");
     res.status(500).json({ error: "Could not schedule the post." });

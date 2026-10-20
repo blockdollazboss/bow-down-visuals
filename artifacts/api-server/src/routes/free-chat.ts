@@ -3,6 +3,8 @@ import { z } from "zod";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { buildChatSystemPrompt } from "../lib/ai-chat-assistant";
+import { resolveOptionalSession } from "../lib/optional-auth";
+import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
 import {
   OPERATOR_KB,
   findFeatures,
@@ -152,36 +154,24 @@ function getKnowledgeReply(userMessage: string): string {
 }
 
 /** Try the model provider first (if its key is set), then fall back to the
-    knowledge-base reply. Whichever path answered, the reply passes the
-    shared no-invention price guard before it ships — the same treatment
-    /api/chat gets (Cloud Operator Phase 1). */
+    knowledge-base reply. Returns the RAW reply: the handler runs the
+    Phase 2 action protocol over it first (a marker turn ships the
+    executor's code-composed outcome, not model text), and only then
+    applies the shared no-invention price guard to model-authored text —
+    the same treatment /api/chat gets (Cloud Operator Phase 1). */
 async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; provider: string }> {
-  let result: { reply: string; provider: string } | null = null;
-
   const groqKey = process.env["GROQ_API_KEY"];
   if (groqKey) {
     try {
       const reply = await callGroq(messages);
-      result = { reply, provider: "groq" };
+      return { reply, provider: "groq" };
     } catch (err) {
       logger.warn({ err }, "[chat] Groq failed, falling back to knowledge base");
     }
   }
 
-  if (!result) {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-    result = { reply: getKnowledgeReply(lastUserMsg), provider: "knowledge-base" };
-  }
-
-  const invented = findInventedPrice(result.reply);
-  if (invented !== null) {
-    logger.warn(
-      { invented, provider: result.provider },
-      "[chat] free-chat reply quoted a price outside the knowledge base — replaced",
-    );
-    return { reply: PRICE_FALLBACK_REPLY, provider: `${result.provider}+guard` };
-  }
-  return result;
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  return { reply: getKnowledgeReply(lastUserMsg), provider: "knowledge-base" };
 }
 
 router.post("/free-chat", publicApiLimiter, async (req, res) => {
@@ -196,16 +186,72 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
 
   const { message, history } = parsed.data;
 
-  const messages: { role: string; content: string }[] = [
-    { role: "system", content: buildChatSystemPrompt(message) },
-    ...history.map((h) => ({ role: h.role, content: h.content })),
-    { role: "user", content: message.trim() },
-  ];
+  /* Tier 1 doors (Phase 2 Lane C): computed once from the member's own
+     message by the shared chat implementation — the same doors /api/chat
+     attaches, never a per-route variation. */
+  const doors = buildReplyDoors(message.trim());
+  const doorPayload = doors.length ? { doors } : {};
+
+  /* Still free, still no gate — but a signed-in member's session
+     resolves when one rides along, so the operator's hands (Phase 2)
+     can act as them. Guests stay guests; nothing here can 401. */
+  await resolveOptionalSession(req);
 
   try {
-    const { reply, provider } = await getChatReply(messages);
+    /* A live pending confirmation gets first claim (yes runs it, no
+       drops it) — same shared protocol as /api/chat. */
+    const preTurn = await processOperatorPreTurn({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      message: message.trim(),
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator pre-turn failed — falling through to the model");
+      return null;
+    });
+    if (preTurn) {
+      res.json({ reply: preTurn.replyText, action: preTurn.action, ...doorPayload });
+      return;
+    }
+
+    const messages: { role: string; content: string }[] = [
+      { role: "system", content: buildChatSystemPrompt(message) },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
+      { role: "user", content: message.trim() },
+    ];
+
+    const { reply: rawReply, provider } = await getChatReply(messages);
+
+    /* An action marker hands the turn to the executor — its outcome
+       text is code-composed from rail results, so the price guard
+       below guards model text only, exactly as on /api/chat. */
+    const actionTurn = await processOperatorReply({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      modelReply: rawReply,
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator action turn failed — answering without hands");
+      return null;
+    });
+    if (actionTurn) {
+      logger.info({ provider }, "[chat] reply generated");
+      res.json({ reply: actionTurn.replyText, action: actionTurn.action, ...doorPayload });
+      return;
+    }
+
+    let reply = rawReply;
+    const invented = findInventedPrice(reply);
+    if (invented !== null) {
+      logger.warn(
+        { invented, provider },
+        "[chat] free-chat reply quoted a price outside the knowledge base — replaced",
+      );
+      reply = PRICE_FALLBACK_REPLY;
+    }
+
     logger.info({ provider }, "[chat] reply generated");
-    res.json({ reply });
+    res.json({ reply, ...doorPayload });
   } catch (err: unknown) {
     logger.error({ err }, "[chat] failed to get chatbot reply");
     if (err instanceof Error && err.name === "AbortError") {

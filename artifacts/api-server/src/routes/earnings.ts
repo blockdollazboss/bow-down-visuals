@@ -42,7 +42,13 @@ type SourceResult =
 
 const errSource = (): SourceResult => ({ status: "error", totalCents: null, count: null });
 
-async function storeSales(userId: string) {
+/* The four per-source readers are exported for ONE other caller:
+   the Cloud Operator's Tier-0 earnings tool (lib/operator-tools),
+   which reads the member's own picture through these same builders
+   — never a parallel query — and applies the same per-source
+   settle discipline the route below does. */
+
+export async function storeSales(userId: string) {
   const orders = await db.execute(sql`
     SELECT COALESCE(SUM(o.creator_amount_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM store_orders o
@@ -69,7 +75,7 @@ async function storeSales(userId: string) {
   };
 }
 
-async function memberships(userId: string) {
+export async function memberships(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM fan_members
@@ -79,7 +85,7 @@ async function memberships(userId: string) {
   return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) };
 }
 
-async function brandDeals(userId: string) {
+export async function brandDeals(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(net_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM sponsor_payouts
@@ -89,7 +95,7 @@ async function brandDeals(userId: string) {
   return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) };
 }
 
-async function tips(userId: string) {
+export async function tips(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(amount_vb), 0)::int AS vb, COUNT(*)::int AS n
     FROM live_stream_tips

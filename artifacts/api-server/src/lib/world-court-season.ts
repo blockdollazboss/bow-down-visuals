@@ -549,6 +549,19 @@ export async function settleCourtSeason(
 export interface CourtSeasonSchedulerDeps {
   palace: { announce: (announcement: PalaceAnnouncement) => void };
   store?: CourtSeasonStore;
+  /** Lane G's winner-herald gate: when wired, the scheduler asks it
+   *  before sounding the settling herald. True = the herald may
+   *  sound (the duty audits the firing); false = this settling
+   *  stays silent. The SETTLEMENT is never gated — standings freeze
+   *  exactly as before either way. A gate that throws degrades to
+   *  today's behavior (herald as before): a broken switch must not
+   *  silence the court's one ceremony. Absent (tests, older boots)
+   *  the scheduler heralds directly, unchanged. */
+  heraldGate?: (info: {
+    season: CourtSeasonInfo;
+    outcome: SettleOutcome;
+    announcement: PalaceAnnouncement;
+  }) => Promise<boolean>;
 }
 
 /**
@@ -583,13 +596,30 @@ export class CourtSeasonScheduler {
         if (settled.has(season.seasonKey)) continue;
         const outcome = await settleCourtSeason(this.store, season, new Date(nowMs));
         if (outcome.inserted && outcome.standings.length > 0) {
-          this.deps.palace.announce({
+          const announcement: PalaceAnnouncement = {
             kind: "king",
             text: outcome.heraldText,
             name: outcome.standings[0]!.displayName,
             roomId: COURT_CHAMBER_ROOM_ID,
             roomName: COURT_CHAMBER_ROOM_NAME,
-          });
+          };
+          let mayHerald = true;
+          if (this.deps.heraldGate) {
+            try {
+              mayHerald = await this.deps.heraldGate({
+                season,
+                outcome,
+                announcement,
+              });
+            } catch (err) {
+              logger.warn(
+                { err },
+                "[court-season] herald gate failed — heralding as before",
+              );
+              mayHerald = true;
+            }
+          }
+          if (mayHerald) this.deps.palace.announce(announcement);
         }
         return; // one ceremony per tick
       }

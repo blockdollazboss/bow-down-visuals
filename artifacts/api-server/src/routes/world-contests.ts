@@ -44,8 +44,8 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { isKingFrontRowMember, sanitizeEventPayload } from "../lib/world-events";
+import { heraldContestWinners } from "../lib/operator-duties";
 import {
-  announceContestWinners,
   contestAcceptsEntries,
   contestDeadlineError,
   contestPhase,
@@ -657,11 +657,14 @@ router.post(
       }
       const winners = inserted.map(toContestWinnerDto);
       /* The moment, palace-wide — the rows above are the record;
-       * the announcement is best-effort and never blocks it. */
+       * the announcement is best-effort and never blocks it. Lane G:
+       * the herald is an operator duty now — it sounds through the
+       * duty's switch, dedupe, palace-ear cap and audit trail (the
+       * duty itself speaks through announceContestWinners). */
       const announcement = contestWinnersAnnouncement(row, winners);
       if (announcement) {
         try {
-          announceContestWinners(announcement);
+          await heraldContestWinners({ contest: row, winners, announcement });
         } catch (err) {
           logger.warn({ err, contestId: id }, "[world-contests] winners announcement failed");
         }
