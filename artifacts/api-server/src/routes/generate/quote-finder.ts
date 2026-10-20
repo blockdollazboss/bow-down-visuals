@@ -3,7 +3,7 @@ import { z } from "zod";
 import { writeFile, unlink, mkdtemp } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { toFile } from "openai/uploads";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -11,7 +11,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 const router = Router();
 
 /* ─── Podcast quotable moment finder ───
-   Takes a transcript (or audio URL, transcribed with whisper first) and
+   Takes a transcript (or audio URL, transcribed first) and
    uses AI to find the 5 most quotable/shareable moments, each with a
    timestamp and suggested social captions for TikTok/X/Instagram.
    150 Visual Bucs. */
@@ -22,7 +22,7 @@ const TRANSCRIBE_TIMEOUT_MS = 180_000;
 const quoteFinderSchema = z.object({
   /** Full or partial transcript. Provide one of transcript or audioUrl. */
   transcript: z.string().trim().min(20).max(50000).optional(),
-  /** Audio file URL — transcribed with whisper if transcript is absent. */
+  /** Audio file URL — transcribed if transcript is absent. */
   audioUrl: z.string().trim().min(1).max(2048).optional(),
   /** Optional topic/context to steer quote selection. */
   context: z.string().trim().max(2000).optional().default(""),
@@ -45,12 +45,13 @@ async function transcribeAudioUrl(audioUrl: string): Promise<Array<{ start: numb
     await writeFile(audioPath, Buffer.from(await res.arrayBuffer()));
 
     const { readFile } = await import("fs/promises");
-    const file = await toFile(await readFile(audioPath), "audio.mp3", { type: "audio/mpeg" });
-    const out = await getOpenAI().audio.transcriptions.create(
-      { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-      { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-    );
-    const segs = ((out as unknown as { segments?: Array<{ start: number; text: string }> }).segments ?? [])
+    const out = await transcribeAudioTimed({
+      buffer: await readFile(audioPath),
+      filename: "audio.mp3",
+      mimeType: "audio/mpeg",
+      signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+    });
+    const segs = (out.segments ?? [])
       .map((s) => ({ start: s.start, text: (s.text ?? "").trim() }))
       .filter((s) => s.text.length > 0);
     return segs;

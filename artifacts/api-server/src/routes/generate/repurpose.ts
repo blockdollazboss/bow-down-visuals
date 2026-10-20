@@ -8,7 +8,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import multer from "multer";
 import { z } from "zod";
-import OpenAI, { toFile } from "openai";
+import OpenAI from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -37,7 +38,7 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Pricing ─────────────────────────────────────────────────────────────
-   500 Visual Bucs for the full repurpose pack: Whisper transcription +
+   500 Visual Bucs for the full repurpose pack: Timed transcription +
    GPT-6 master analysis (3 clip moments, 5 caption+hashtag sets, 4
    platform descriptions, 3 thumbnail prompts) + server-side ffmpeg
    auto-cutting of 3 vertical clips + 3 AI thumbnail images. 100 Visual
@@ -433,12 +434,13 @@ export async function transcribeVideoFile(
     }
 
     const transcribe = transcribeFn ?? (async ({ buffer: b, name }) => {
-      const file = await toFile(b, name, { type: "audio/mpeg" });
-      const out = await getOpenAI().audio.transcriptions.create(
-        { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-        { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-      );
-      const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+      const out = await transcribeAudioTimed({
+        buffer: b,
+        filename: name,
+        mimeType: "audio/mpeg",
+        signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+      });
+      const segs = (out.segments ?? [])
         .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
         .filter((s) => s.text.length > 0);
       return { segments: segs };

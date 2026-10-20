@@ -8,7 +8,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import multer from "multer";
 import { z } from "zod";
-import OpenAI, { toFile } from "openai";
+import OpenAI from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -36,7 +37,7 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Pricing ─────────────────────────────────────────────────────────────
-   3 credits per AI analysis (Whisper transcription + GPT-6 highlight
+   3 credits per AI analysis (Timed transcription + GPT-6 highlight
    detection — real provider spend on every run), 2 credits per rendered
    vertical clip (server-side ffmpeg encode + storage). Both
    env-overridable without a deploy. */
@@ -173,7 +174,7 @@ interface TranscriptSegment {
 
 /**
  * Transcribe a video buffer with Whisper. Audio is extracted with ffmpeg
- * first (mono 16kHz keeps chunks small); audio larger than Whisper's limit
+ * first (mono 16kHz keeps chunks small); audio larger than the transcription limit
  * is split into sequential chunks and timestamps are offset back.
  * Exported for tests (pure-ish orchestration; network calls mocked).
  */
@@ -216,7 +217,7 @@ export async function transcribeVideoFile(
     ], { timeout: 300_000 });
     const audioStat = await fs.stat(audioPath);
 
-    // Split oversized audio into sequential chunks under Whisper's limit.
+    // Split oversized audio into sequential chunks under the transcription limit.
     const chunkPaths: Array<{ path: string; offsetSec: number }> = [];
     if (audioStat.size <= WHISPER_MAX_BYTES) {
       chunkPaths.push({ path: audioPath, offsetSec: 0 });
@@ -238,12 +239,13 @@ export async function transcribeVideoFile(
     }
 
     const transcribe = transcribeFn ?? (async ({ buffer: b, name }) => {
-      const file = await toFile(b, name, { type: "audio/mpeg" });
-      const out = await getOpenAI().audio.transcriptions.create(
-        { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-        { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-      );
-      const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+      const out = await transcribeAudioTimed({
+        buffer: b,
+        filename: name,
+        mimeType: "audio/mpeg",
+        signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+      });
+      const segs = (out.segments ?? [])
         .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
         .filter((s) => s.text.length > 0);
       return { segments: segs };
