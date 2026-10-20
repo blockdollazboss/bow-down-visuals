@@ -25,15 +25,27 @@ cp "$ZIP_NAME" "$PUBLIC_DIR/$ZIP_NAME"
 cp "$ZIP_NAME" "$YOUR_FILES/$ZIP_NAME"
 echo "Zip copied to website and your_files"
 
-# Update the version label on the extension page (never stale again)
-EXT_PAGE="$SITE_DIR/artifacts/bow-down-visuals/src/pages/extension.tsx"
+# Update the version label on the extension page (never stale again).
+# Since the i18n move, the label lives in the VALUES of the
+# "download_for_chrome_v2_0_1" key in src/locales/*.json — NOT in
+# extension.tsx. Update every locale and FAIL LOUDLY if nothing changed
+# (the old regex targeted a literal that no longer exists and printed
+# success unconditionally — silent no-op, found Oct 20, 2026).
+LOCALES_DIR="$SITE_DIR/artifacts/bow-down-visuals/src/locales"
 python3 << PYEOF
-import re
-s = open("$EXT_PAGE").read()
-# Replace any "Download for Chrome — vX.Y.Z" with current version
-s = re.sub(r'Download for Chrome — v[\d.]+', 'Download for Chrome — v$VERSION', s)
-open("$EXT_PAGE", 'w').write(s)
-print("Extension page label updated to v$VERSION")
+import glob, re, sys
+files = glob.glob("$LOCALES_DIR/*.json")
+total = 0
+for path in files:
+    s = open(path).read()
+    s2 = re.sub(r'("download_for_chrome_v2_0_1"\s*:\s*"[^"]*v)[\d.]+', r'\g<1>$VERSION', s)
+    if s2 != s:
+        total += 1
+        open(path, 'w').write(s2)
+if total == 0:
+    print("ERROR: extension label not found in any locale file — label step FAILED, nothing was updated.", file=sys.stderr)
+    sys.exit(1)
+print(f"Extension page label updated to v$VERSION in {total} locale file(s)")
 PYEOF
 
 echo "Done: v$VERSION packaged and synced."
