@@ -21,9 +21,11 @@ const router = Router();
 
 /**
  * Returns a vault if the user can USE it: they own it, or it's shared with
- * their active team. Use for generation/read operations.
- * For MANAGE operations (edit, delete, share), require strict ownership
- * via eq(artistVaultsTable.user_id, userId) instead.
+ * their active team. Use for read operations.
+ * For MANAGE operations (edit, delete, share — and every reference-video
+ * write: attach, generate, loop), require strict ownership
+ * via eq(artistVaultsTable.user_id, userId) instead: those writes are
+ * owner-scoped, so a use-access caller's save could never land.
  */
 async function getAccessibleVault(userId: string, vaultId: string) {
   const [vault] = await db
@@ -427,9 +429,20 @@ const refVideoTasks = new Map<
 router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
 
-  // Team members can generate from shared vaults (use-access).
   const vault = await getAccessibleVault(req.userId!, id);
   if (!vault) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
+
+  /* The generated video is SAVED onto the vault by the poll below
+     (owner-scoped update) and the charge lands on the caller — so
+     generation is a manage write, not a use. A team member's save
+     could never land, yet the poll would still have charged them and
+     answered "succeeded". Refuse here, before the balance check and
+     before any provider submission, with the same no-leak 404
+     (Stack-4 wave-2 #1). */
+  if (vault.user_id !== req.userId!) {
     res.status(404).json({ error: "Character not found" });
     return;
   }
@@ -523,6 +536,15 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
         res.json({ status: "succeeded", url: null });
         return;
       }
+      /* The save below is owner-scoped; never charge ahead of a write
+         that cannot land. Ownership was proven at submit — re-check it
+         here so the charge can only ever precede a save that matches
+         (Stack-4 wave-2 #1). */
+      const owned = await getOwnedVaultRow(req.userId!, id);
+      if (!owned) {
+        res.json({ status: "failed" });
+        return;
+      }
       /* Charge credits (once — guarded by pendingTasks presence). */
       try {
         await chargeCreditsAtomic(req.userId!, pending.credits, {
@@ -607,9 +629,14 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
     return;
   }
   try {
-    /* Verify the user can use the vault (owner or team member). */
-    const vault = await getAccessibleVault(userId, vaultId);
-    if (!vault) {
+    /* Attaching REPLACES the character's reference video — a manage
+       write. The update below is scoped to the caller's own rows, so
+       a team member (use-access) would write zero rows and still be
+       answered success. Require ownership BEFORE any download/mirror
+       work, with the same no-leak 404 as the other manage rails
+       (Stack-4 wave-2 #1). */
+    const owned = await getOwnedVaultRow(userId, vaultId);
+    if (!owned) {
       res.status(404).json({ error: "Vault not found." });
       return;
     }
@@ -721,9 +748,19 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0]! : rawId;
   try {
-    // Team members can loop shared vaults (use-access).
     const vault = await getAccessibleVault(req.userId!, id);
     if (!vault) {
+      res.status(404).json({ error: "Artist vault not found." });
+      return;
+    }
+
+    /* Looping REPLACES the vault's reference video via the poll's
+       owner-scoped save, charged to the caller — a manage write, not
+       a use. A team member's save could never land, yet the poll
+       would still have charged them and answered "succeeded".
+       Refuse here, before the balance check, with the same no-leak
+       404 (Stack-4 wave-2 #1). */
+    if (vault.user_id !== req.userId!) {
       res.status(404).json({ error: "Artist vault not found." });
       return;
     }
@@ -751,7 +788,7 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
   }
 });
 
-/** Poll a seamless-loop job. On success: charge once (2cr) and swap the vault's video to the looped version. */
+/** Poll a seamless-loop job. On success: charge once and swap the vault's video to the looped version. */
 router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async (req, res) => {
   const rawId = req.params.id;
   const rawTaskId = req.params.taskId;
@@ -770,6 +807,14 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
   refVideoLoopTasks.delete(taskId);
   if (task.status === "failed" || !task.url) {
     res.json({ status: "failed", error: task.error ?? "Loop processing failed." });
+    return;
+  }
+  /* The save below is owner-scoped; never charge ahead of a write
+     that cannot land. Ownership was proven at submit — re-check it
+     here, before the charge (Stack-4 wave-2 #1). */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.json({ status: "failed", error: "This character isn't yours to change — nothing was charged." });
     return;
   }
   try {
