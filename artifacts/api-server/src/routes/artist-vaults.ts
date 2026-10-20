@@ -42,6 +42,28 @@ async function getAccessibleVault(userId: string, vaultId: string) {
   return null;
 }
 
+/**
+ * Returns the caller's OWN vault row id, scoped exactly like the manage
+ * writes below (owner-only; soft-deleted rows excluded unless
+ * `includeDeleted`). Manage rails check this BEFORE writing so a
+ * PUT/DELETE against a vault the caller doesn't own — a team-shared
+ * row, an already-deleted row, or a nonexistent id — fails honestly
+ * with a 404 instead of answering success over a zero-row update.
+ */
+async function getOwnedVaultRow(userId: string, vaultId: string, includeDeleted = false) {
+  const conds = [
+    eq(artistVaultsTable.id, vaultId),
+    eq(artistVaultsTable.user_id, userId),
+  ];
+  if (!includeDeleted) conds.push(isNull(artistVaultsTable.deleted_at));
+  const [vault] = await db
+    .select({ id: artistVaultsTable.id })
+    .from(artistVaultsTable)
+    .where(and(...conds))
+    .limit(1);
+  return vault ?? null;
+}
+
 const ArtistVaultSchema = z.object({
   artistName: z.string().min(1),
   artistType: z.string().optional().nullable(),
@@ -173,6 +195,15 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  /* The update below is scoped to the caller's own rows, so without
+     this check a non-owner's PUT (e.g. a rename attempt on a
+     team-shared row) would write nothing and still answer success.
+     404 is the codebase's no-leak answer for "not yours / not there". */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
   d.referenceImageUrl = await mirrorExternalMediaUrl(d.referenceImageUrl, { kind: "image", ownerKey: req.userId! });
 
   await db
@@ -216,6 +247,15 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
 
 router.delete("/artist-vaults/:id", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
+
+  /* Same honesty rule as the PUT above: a delete against a vault the
+     caller doesn't own (or one already deleted) must not answer
+     success over a zero-row update. */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
 
   /* Soft delete only — never hard-delete. The vault is hidden but the data
      is preserved and can be restored. User data must never be permanently lost. */
@@ -336,6 +376,25 @@ router.post("/artist-vaults/:id/links", requireAuth, async (req, res) => {
 router.delete("/artist-vaults/:id/links/:linkId", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
   const linkId = String(req.params["linkId"]);
+
+  /* The delete below is scoped to the caller's own links; without this
+     check, removing a link that isn't theirs (or doesn't exist) would
+     answer success over a zero-row delete. */
+  const [link] = await db
+    .select({ id: artistCharacterLinksTable.id })
+    .from(artistCharacterLinksTable)
+    .where(
+      and(
+        eq(artistCharacterLinksTable.id, linkId),
+        eq(artistCharacterLinksTable.character_id, id),
+        eq(artistCharacterLinksTable.user_id, req.userId!),
+      ),
+    )
+    .limit(1);
+  if (!link) {
+    res.status(404).json({ error: "Link not found" });
+    return;
+  }
 
   await db
     .delete(artistCharacterLinksTable)
@@ -513,6 +572,14 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
 /** Remove a character's reference video (keeps the photo). */
 router.delete("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
+  /* The update below is scoped to the caller's own rows (and, like the
+     update, does not exclude soft-deleted rows); a non-owner's DELETE
+     must 404 instead of answering success over a zero-row update. */
+  const owned = await getOwnedVaultRow(req.userId!, id, true);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
   await db
     .update(artistVaultsTable)
     .set({ reference_video_url: null, reference_video_path: null, updated_at: new Date() })
