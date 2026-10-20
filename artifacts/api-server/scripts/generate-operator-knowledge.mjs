@@ -19,6 +19,13 @@
                                  (cross-checked against server-side *_COST
                                  constants; disagreements print as warnings)
      credit packs ................ src/routes/stripe-payments.ts PACK_MAP
+     takeover offers ............. lib/db/src/schema/spotlight.ts
+                                 SPOTLIGHT_OFFER + loading-screen.ts
+                                 LOADING_SCREEN_OFFER — the exact objects
+                                 GET /api/spotlight/offer and
+                                 GET /api/loading-screen/offer serve
+                                 (dollar-priced advertising placements;
+                                 the only dollar prices in the base)
 
    The only hand-kept data in THIS file is classification, mirroring how
    public-routes.ts keeps ROUTE_MATRIX: STAGE_RULES (which journey stage a
@@ -189,6 +196,48 @@ const EXCLUDED_PAGE_FILES = {
   // is reported UNREVIEWED and fails the coverage test until classified.
 };
 
+/** The two paid takeover offers. They are NOT routed pages — they are
+    advertising placements sold by inquiry — so no route-table row exists
+    for the generator to discover. This table is CLASSIFICATION only
+    (which constant backs which offer, where its inquiry door lives);
+    every fact the knowledge entry states — name, dollar price, duration,
+    surfaces, specs — is EXTRACTED from the *_OFFER constant in lib/db,
+    the exact object the offer endpoint serves. The door is verified
+    against the Charts page at generation time (the For Brands tab must
+    still mount the offer's inquiry modal under its testid) and the route
+    file must still serve the constant at the offer endpoint — if either
+    stops being true the generator throws rather than emitting stale
+    knowledge, and the coverage test pins the entries independently. */
+const TAKEOVER_OFFERS = [
+  {
+    id: "spotlight-takeover",
+    constant: "SPOTLIGHT_OFFER",
+    schemaFile: "lib/db/src/schema/spotlight.ts",
+    routeFile: "spotlight.ts",
+    offerRoute: "/spotlight/offer",
+    inquireRoute: "/spotlight/inquire",
+    modal: "SpotlightModal",
+    chartsTestid: "brand-takeover-spotlight",
+    doorPath: "/charts",
+    doorLabel: "Charts — For Brands tab",
+    stage: "promote",
+  },
+  {
+    id: "loading-screen-takeover",
+    constant: "LOADING_SCREEN_OFFER",
+    schemaFile: "lib/db/src/schema/loading-screen.ts",
+    routeFile: "loading-screen.ts",
+    offerRoute: "/loading-screen/offer",
+    inquireRoute: "/loading-screen/inquire",
+    modal: "LoadingScreenModal",
+    chartsTestid: "brand-takeover-loading",
+    doorPath: "/charts",
+    doorLabel: "Charts — For Brands tab",
+    stage: "promote",
+  },
+];
+const TAKEOVER_CHARTS_FILE = "artifacts/bow-down-visuals/src/pages/discovery/charts.tsx";
+
 /* ═══ Extractors ══════════════════════════════════════════════════════════ */
 
 function walk(dir, exts, out = []) {
@@ -350,6 +399,65 @@ function extractPacks() {
     packs.push({ credits: Number(m[2]), label: m[3], source: "artifacts/api-server/src/routes/stripe-payments.ts PACK_MAP" });
   }
   return packs;
+}
+
+/** One *_OFFER constant object literal in a lib/db schema file: the exact
+    object the matching GET /api/.../offer endpoint serves. Parses the
+    literal's own fields — a field that stops parsing fails the whole
+    generation loudly; the knowledge base never guesses an offer. */
+function extractOfferConstant(src, constantName, fileLabel) {
+  const start = src.indexOf(`export const ${constantName}`);
+  if (start < 0) throw new Error(`takeover offers: ${constantName} not found in ${fileLabel}`);
+  const open = src.indexOf("{", start);
+  const close = src.indexOf("} as const;", start);
+  if (open < 0 || close < 0 || close < open) {
+    throw new Error(`takeover offers: ${constantName} in ${fileLabel} is not a plain object literal ending "} as const;"`);
+  }
+  const body = src.slice(open, close);
+  const strField = (key) => body.match(new RegExp(`${key}:\\s*"([^"]+)"`))?.[1] ?? null;
+  const numField = (key) => {
+    const v = body.match(new RegExp(`${key}:\\s*(\\d+)`))?.[1];
+    return v ? Number(v) : null;
+  };
+  const arrField = (key) => {
+    const m = body.match(new RegExp(`${key}:\\s*\\[([\\s\\S]*?)\\]`));
+    return m ? [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]) : null;
+  };
+  const offer = {
+    name: strField("name"),
+    priceDollars: numField("priceDollars"),
+    durationDays: numField("durationDays"),
+    surfaces: arrField("surfaces"),
+    specs: arrField("specs"),
+  };
+  if (!offer.name || offer.priceDollars == null || offer.durationDays == null || !offer.surfaces?.length || !offer.specs?.length) {
+    throw new Error(`takeover offers: ${constantName} in ${fileLabel} did not parse completely (${JSON.stringify(offer)})`);
+  }
+  return offer;
+}
+
+/** The two takeover offers, end to end: constant facts from lib/db, the
+    serving route verified to carry that constant at the offer + inquiry
+    endpoints, and the booking door verified against the Charts page
+    (For Brands tab still mounting the inquiry modal). Any drift throws —
+    a stale takeover entry is worse than a failed generation. */
+function extractTakeoverOffers() {
+  const chartsSrc = read(path.join(REPO_ROOT, TAKEOVER_CHARTS_FILE));
+  return TAKEOVER_OFFERS.map((spec) => {
+    const offer = extractOfferConstant(read(path.join(REPO_ROOT, spec.schemaFile)), spec.constant, spec.schemaFile);
+    const routeSrc = read(path.join(API_SRC, "routes", spec.routeFile));
+    for (const needle of [spec.constant, `"${spec.offerRoute}"`, `"${spec.inquireRoute}"`]) {
+      if (!routeSrc.includes(needle)) {
+        throw new Error(`takeover offers: routes/${spec.routeFile} no longer serves ${spec.constant} at ${spec.offerRoute} (missing ${needle})`);
+      }
+    }
+    for (const needle of [`components/${spec.modal}`, `data-testid="${spec.chartsTestid}"`]) {
+      if (!chartsSrc.includes(needle)) {
+        throw new Error(`takeover offers: the ${spec.doorLabel} door no longer mounts ${spec.modal} (missing ${needle} in ${TAKEOVER_CHARTS_FILE})`);
+      }
+    }
+    return { spec, offer };
+  });
 }
 
 /** Server-side *_COST / *_CREDITS constants (cross-check source). */
@@ -753,6 +861,40 @@ function main() {
     }
   }
 
+  /* Takeover offers: first-class knowledge entries although they are not
+     routed pages. Their path is the booking door (the Charts page, whose
+     For Brands tab presents both offers and opens the inquiry modals);
+     their price is a DOLLAR price carried on `offer`, never in the VB
+     `prices` array — the two moneys never mix in one field. */
+  const takeoverOffers = extractTakeoverOffers();
+  for (const { spec, offer } of takeoverOffers) {
+    const entry = {
+      id: spec.id,
+      name: offer.name,
+      nameSource: `${spec.schemaFile} ${spec.constant}.name — served verbatim by GET /api${spec.offerRoute}`,
+      path: spec.doorPath,
+      stage: spec.stage,
+      access: "public",
+      pageFile: TAKEOVER_CHARTS_FILE,
+      component: null,
+      endpoints: [`/api${spec.inquireRoute}`, `/api${spec.offerRoute}`].sort(),
+      prices: [],
+      offer: {
+        priceDollars: offer.priceDollars,
+        durationDays: offer.durationDays,
+        surfaces: offer.surfaces,
+        inquiryEndpoint: `/api${spec.inquireRoute}`,
+        doorLabel: spec.doorLabel,
+        source: `${spec.schemaFile} ${spec.constant} — served verbatim by GET /api${spec.offerRoute} (artifacts/api-server/src/routes/${spec.routeFile})`,
+      },
+      description: `Paid advertising placement for ${offer.durationDays} days — ${offer.surfaces.join(" · ")}. ${offer.specs.join(". ")}.`,
+      descriptionSource: `${spec.schemaFile} ${spec.constant} (surfaces + specs)`,
+      nextSteps: [],
+    };
+    entry.nextSteps = nextStepsFor(entry, null);
+    features.push(entry);
+  }
+
   /* Price cross-check tripwire: registry vs server constants. */
   const crossChecks = SERVER_PRICE_LINKS.map((link) => {
     const constant = serverConstants.find((c) => c.constant === link.constant);
@@ -794,6 +936,7 @@ function main() {
       pricedActions: creditCosts.size,
       guides: guides.length,
       desks: desks.length,
+      takeoverOffers: takeoverOffers.length,
     },
     packs,
     crossChecks,
@@ -806,6 +949,9 @@ function main() {
   console.log(`routes in App.tsx: ${routes.length} · page files: ${allPageFiles.length}`);
   console.log(`features: ${features.length} · excluded routes: ${kb.counts.excludedRoutes} · excluded page files: ${kb.counts.excludedPageFiles}`);
   console.log(`priced actions in CREDIT_COSTS: ${creditCosts.size} · packs: ${packs.length} · guides: ${guides.length}`);
+  for (const { spec, offer } of takeoverOffers) {
+    console.log(`takeover offer: ${offer.name} — $${offer.priceDollars} / ${offer.durationDays} days (from ${spec.schemaFile} ${spec.constant}, door ${spec.doorLabel} ${spec.doorPath})`);
+  }
   const stages = {};
   for (const f of features) stages[f.stage] = (stages[f.stage] ?? 0) + 1;
   console.log("stages:", stages);
