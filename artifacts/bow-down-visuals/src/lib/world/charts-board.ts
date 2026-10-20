@@ -15,6 +15,7 @@
  *   GET /api/discovery/charts/creators   (top creators)
  *   GET /api/discovery/rising           (breaking creators)
  *   GET /api/discovery/rising-earners   (rising earners)
+ *   GET /api/discovery/brands           (for-brands scouting rows)
  *   GET /api/discovery/following?ids=…   (the walker's follow state)
  *   GET /api/discovery/likes?ids=…       (the walker's like state)
  *   GET /api/discovery/reposts?ids=…     (the walker's repost state)
@@ -83,6 +84,13 @@ export interface ChartCreatorRow {
   newFollowers: number | null;
   /** Earner rows only: what fans paid them in the last 30 days. */
   earnedCents30d: number | null;
+  /** Brand rows only: the creator's most-published genre, and how
+   *  much published work stands behind the audience (the /brands
+   *  DTO's scouting fields). Null on every other creator read —
+   *  those payloads don't carry them and nothing is guessed. */
+  topGenre: string | null;
+  trackCount: number | null;
+  videoCount: number | null;
 }
 
 /* ─── Defensive readers (DTO disease is endemic — never guess) ────── */
@@ -177,6 +185,9 @@ export function normalizeChartCreators(
       totalPlays: num(r["total_plays"] ?? r["totalPlays"]) ?? 0,
       newFollowers: num(r["new_followers"] ?? r["newFollowers"]),
       earnedCents30d: num(r["earned_cents_30d"] ?? r["earnedCents30d"]),
+      topGenre: str(r["top_genre"] ?? r["topGenre"]),
+      trackCount: num(r["track_count"] ?? r["trackCount"]),
+      videoCount: num(r["video_count"] ?? r["videoCount"]),
     });
   }
   return out;

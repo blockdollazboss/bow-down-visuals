@@ -38,6 +38,7 @@ import {
 } from "@/lib/world/charts-board";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import { shelfEmbedCode } from "@/lib/world/shelf";
+import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
 import { copyText, formatCount, toggleLike, toggleRepost, type MediaKind } from "@/lib/streaming";
 import { formatMoney } from "@/components/discovery/cards";
 import type { ShelfPlayerController } from "@/components/world/native/ShelfPlayer";
@@ -78,7 +79,7 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    website player's own iframe (shelfEmbedCode — /embed/<kind>/<id>,
    a page the embed system really serves for tracks and videos). */
 
-type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners";
+type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners" | "brands";
 
 const TABS: Array<{ key: ChartsTab; label: string }> = [
   { key: "tracks", label: "Tracks" },
@@ -86,6 +87,7 @@ const TABS: Array<{ key: ChartsTab; label: string }> = [
   { key: "creators", label: "Creators" },
   { key: "rising", label: "Rising" },
   { key: "earners", label: "Earners" },
+  { key: "brands", label: "For Brands" },
 ];
 
 /* Fixed-span tabs keep their titles; the windowed tabs (tracks /
@@ -94,6 +96,7 @@ const TABS: Array<{ key: ChartsTab; label: string }> = [
 const FIXED_TAB_TITLES: Partial<Record<ChartsTab, string>> = {
   rising: "Rising — gaining fastest this week",
   earners: "Rising earners — last 30 days",
+  brands: "For brands — top creators by audience",
 };
 
 function fmtClock(sec: number): string {
@@ -191,10 +194,14 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               ? chartsCreatorsPath(window)
               : tab === "rising"
                 ? "/api/discovery/rising?limit=12"
-                : "/api/discovery/rising-earners?limit=12";
+                : tab === "brands"
+                  ? "/api/discovery/brands?limit=12"
+                  : "/api/discovery/rising-earners?limit=12";
           const res = await fetch(path);
           if (!res.ok) throw new Error("creators");
-          const rows = normalizeChartCreators(await res.json(), tab);
+          /* The /brands payload keys its rows "creators" like the
+             charts read — the normalizer reads the key it's given. */
+          const rows = normalizeChartCreators(await res.json(), tab === "brands" ? "creators" : tab);
           if (!cancelled) {
             setCreators((prev) => ({ ...prev, [loadKey]: rows }));
             setFailedKey(null);
@@ -682,9 +689,11 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   ? "Nobody is breaking through this week — yet."
                   : tab === "earners"
                     ? "No earners on the board yet."
-                    : window === "all"
-                      ? "No creators on the all-time board — yet."
-                      : `No creators are charting ${chartWindowNoun(window)} — yet.`
+                    : tab === "brands"
+                      ? "No creators to scout yet."
+                      : window === "all"
+                        ? "No creators on the all-time board — yet."
+                        : `No creators are charting ${chartWindowNoun(window)} — yet.`
               }
               detail="Check back as the kingdom plays — or be the name that fills the first row."
             />
@@ -701,6 +710,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                       row.vertical,
                       `${formatCount(row.followerCount)} followers`,
                       row.newFollowers !== null ? `+${formatCount(row.newFollowers)} this week` : null,
+                      row.topGenre,
+                      row.trackCount !== null ? `${formatCount(row.trackCount)} tracks` : null,
+                      row.videoCount !== null ? `${formatCount(row.videoCount)} videos` : null,
                     ]
                       .filter(Boolean)
                       .join(" · ") || undefined
@@ -736,6 +748,26 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         </NativeBoard>
       )}
 
+      {tab === "brands" && !isGuest && failedTab !== tab && creators["brands"] !== undefined && (
+        <div className="space-y-1.5 px-1">
+          <p className={`text-xs ${muted}`}>
+            Scouting only here — outreach lives on the website:{" "}
+            <Link
+              href="/brand-deals"
+              data-testid="world-charts-brands-door"
+              className="font-bold text-[#d4af37] underline underline-offset-2"
+            >
+              Brand Deals
+            </Link>{" "}
+            (find brands, build a pitch) or{" "}
+            <Link href="/promote" className="font-bold text-[#d4af37] underline underline-offset-2">
+              post a brief in Promote
+            </Link>{" "}
+            and let creators claim it.
+          </p>
+          <p className={`text-xs ${muted}`}>{UGC_PAYMENT_NOTE}</p>
+        </div>
+      )}
       {queuedId && !jukeboxDenied && (
         <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
           On the room&rsquo;s jukebox — it plays for everyone in the Music Hall.

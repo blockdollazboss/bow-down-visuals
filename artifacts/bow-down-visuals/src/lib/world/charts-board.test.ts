@@ -105,8 +105,23 @@ describe("normalizeChartCreators", () => {
       "creators",
     );
     expect(rows).toEqual([
-      { id: "c1", displayName: "Ada Gold", vertical: "music", followerCount: 1200, totalPlays: 34000, newFollowers: null, earnedCents30d: null },
+      { id: "c1", displayName: "Ada Gold", vertical: "music", followerCount: 1200, totalPlays: 34000, newFollowers: null, earnedCents30d: null, topGenre: null, trackCount: null, videoCount: null },
     ]);
+  });
+
+  it("brand rows carry the /brands DTO's scouting fields — top genre and published-work counts", () => {
+    const rows = normalizeChartCreators(
+      {
+        creators: [
+          { id: "b1", display_name: "Brand Bait", vertical: "music", follower_count: 9000, total_plays: 50000, top_genre: "Hip-Hop", track_count: 14, video_count: 3 },
+          { id: "b2", display_name: "No Genre Yet", vertical: "video", follower_count: 10, total_plays: 20, top_genre: null, track_count: 0, video_count: 0 },
+        ],
+      },
+      "creators",
+    );
+    expect(rows[0]).toMatchObject({ topGenre: "Hip-Hop", trackCount: 14, videoCount: 3 });
+    // A real zero is a count, not an absence; a null genre stays null.
+    expect(rows[1]).toMatchObject({ topGenre: null, trackCount: 0, videoCount: 0 });
   });
 
   it("rising rows carry their new-follower count; earner rows their 30-day take", () => {
@@ -362,7 +377,21 @@ describe("the ChartsBoard surface (source pins)", () => {
     expect(boardSrc).toContain("chartsCreatorsPath(window)");
     expect(boardSrc).toContain("/api/discovery/rising?limit=12");
     expect(boardSrc).toContain("/api/discovery/rising-earners?limit=12");
+    expect(boardSrc).toContain("/api/discovery/brands?limit=12");
     expect(boardSrc).toContain("/api/discovery/following?ids=");
+  });
+
+  it("the For Brands tab scouts in-world; outreach doors lead to the website, money note attached", () => {
+    expect(boardSrc).toContain('{ key: "brands", label: "For Brands" }');
+    expect(boardSrc).toContain("world-charts-brands-door");
+    expect(boardSrc).toContain('href="/brand-deals"');
+    expect(boardSrc).toContain('href="/promote"');
+    // The honesty law rides along: the same plain no-money statement
+    // the briefs board carries, imported from the one seam.
+    expect(boardSrc).toContain("UGC_PAYMENT_NOTE");
+    expect(boardSrc).toContain('from "@/lib/ugc-ads"');
+    // Outreach is a member act: the doors never render for guests.
+    expect(boardSrc).toContain('tab === "brands" && !isGuest');
   });
 
   it("plays ONLY through the host's jukebox prop, with the catalog id form", () => {
