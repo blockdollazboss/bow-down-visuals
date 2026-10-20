@@ -19,7 +19,8 @@
    route modules (the earnings readers, the mounted palace), so
    those two handlers reach them by dynamic import: the layering
    stays one-directional (routes import lib, never the reverse at
-   load time) and no load-order cycle can form. */
+   load time) and no load-order cycle can form. Lane D's Tier-2 free
+   writes live in lib/operator-tools-tier2.ts and merge in below. */
 
 import { getCreditBalance } from "./credits";
 import { getDailyQuestsStatus, dbDailyQuestStore } from "./daily-quests";
@@ -30,6 +31,7 @@ import {
   dbCourtSeasonStore,
   seasonForDate,
 } from "./world-court-season";
+import { TIER2_HANDLERS } from "./operator-tools-tier2";
 import {
   OPERATOR_TOOL_DEFS,
   type OperatorToolDef,
@@ -246,6 +248,9 @@ const HANDLERS: Record<string, OperatorTool["handler"]> = {
     reply += " The full wall hangs in the Royal Court Chamber. 🦈";
     return { summary: "Checked Court Season standings", replyText: reply };
   },
+
+  /* Tier 2 — free writes (Lane D, lib/operator-tools-tier2.ts). */
+  ...TIER2_HANDLERS,
 };
 
 export const OPERATOR_TOOLS: readonly OperatorTool[] = OPERATOR_TOOL_DEFS.map(

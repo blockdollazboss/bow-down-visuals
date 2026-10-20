@@ -29,12 +29,18 @@ export interface OperatorToolDef {
       null = free. A priced tool NEVER runs without a consumed
       confirmation (the executor enforces it, not the prompt). */
   priceVb: number | null;
+  /** Optional: the arguments the tool takes, shown to the model in
+      the tool list so it can fill them from what the member actually
+      said. Lane D added this with the first argument-carrying tools;
+      the marker carries them as a JSON object after the tool id. */
+  argsHint?: string;
 }
 
 /** Lane A shipped exactly ONE live tool — the Tier-0 balance proof —
     so the whole pipeline (marker → executor → rail → audit → reply)
     was provable end to end. Lane B adds the rest of Tier 0 (the live
-    reads) here; lanes C–F register theirs as they land. */
+    reads) here; Lane D adds the Tier-2 free writes below; lanes E–F
+    register theirs as they land. */
 export const OPERATOR_TOOL_DEFS: readonly OperatorToolDef[] = [
   {
     id: "credits.balance",
@@ -70,6 +76,50 @@ export const OPERATOR_TOOL_DEFS: readonly OperatorToolDef[] = [
     name: "See the Court Season standings",
     blurb: "the member asks who is winning or leading the Court Season, or what the current season marks standings are",
     priceVb: null,
+  },
+  /* ── Tier 2 — free writes (Lane D). Every one rides its rail's own
+     write path (the extracted cores in the route modules), writes
+     only the caller's own rows, and can be undone by the member in
+     the product itself. NO deletes exist at this tier in v1. */
+  {
+    id: "drafts.reply",
+    tier: 2,
+    name: "Save a reply draft",
+    blurb: "the member asks to save words as their reply draft on a post they name",
+    priceVb: null,
+    argsHint: "postId, body, tone (optional: hype, grateful, playful, professional)",
+  },
+  {
+    id: "drafts.dm",
+    tier: 2,
+    name: "Save a DM reply draft",
+    blurb: "the member asks to save words as their reply draft in a message thread they name",
+    priceVb: null,
+    argsHint: "conversationId, body",
+  },
+  {
+    id: "posts.schedule",
+    tier: 2,
+    name: "Schedule a post",
+    blurb: "the member asks to schedule a post with their media for an exact date and time",
+    priceVb: null,
+    argsHint: "content, mediaUrl, platform (instagram, tiktok, or facebook), scheduledAt (exact ISO date-time, e.g. 2026-10-24T17:00:00Z), hashtags (optional)",
+  },
+  {
+    id: "storyboard.save",
+    tier: 2,
+    name: "Add to a storyboard",
+    blurb: "the member asks to put a shot, note, or image idea into their storyboard",
+    priceVb: null,
+    argsHint: "boardTitle or boardId (optional — their latest board, or a new one), title, notes, imageUrl, imagePrompt (at least one of the four)",
+  },
+  {
+    id: "settings.legacy-contact",
+    tier: 2,
+    name: "Set your legacy contact",
+    blurb: "the member asks to set or update who inherits their account — a name and an email they give",
+    priceVb: null,
+    argsHint: "name, email, note (optional)",
   },
 ];
 
