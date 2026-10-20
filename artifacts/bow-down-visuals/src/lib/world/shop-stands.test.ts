@@ -19,6 +19,13 @@
  *     server DTO's own amounts per period, trials exist only on
  *     paid trial-enabled tiers, and a creator id parses from a
  *     bare id or a pasted join link — never from anything else.
+ * (f) Stand management (Stack-4 #7): ownership is proven ONLY by
+ *     the caller's own /api/shops/mine list carrying the open
+ *     shop's id (an unlanded read proves nothing); the product
+ *     payload builders are the My Shop page's exact bodies; the
+ *     list changes only from server-confirmed rows; and the AI
+ *     helpers' displayed prices agree with the shared credit-cost
+ *     registry and the server constants they mirror.
  *
  * Source pins (contract style): the stands wire the exact server
  * endpoints §3.3 names, the checkout opens its hosted page in a
@@ -52,11 +59,30 @@ import {
   tierAnnualSavingLabel,
   tierOffersTrial,
   parseCreatorUserId,
+  parseMineShops,
+  isOwnStand,
+  SHOP_AI_DESCRIPTION_COST_VB,
+  SHOP_AI_IMAGE_STANDARD_COST_VB,
+  SHOP_AI_IMAGE_PREMIUM_COST_VB,
+  emptyProductForm,
+  productFormFromDto,
+  productFormProblem,
+  buildProductPayload,
+  buildProductDescriptionPayload,
+  buildProductImagePayload,
+  parseAiDescription,
+  parseAiImageUrl,
+  aiOutOfCredits,
+  savedProductDto,
+  applyProductSave,
+  removeProduct,
   type BrandingCartLine,
   type MembershipTierDto,
+  type MineShopDto,
   type PublicProductDto,
 } from "./shop-stands";
 import { BRANDING_PRODUCTS, BRANDING_DESIGN_COST } from "@/lib/branding-shop";
+import { getCreditCost } from "@/lib/credit-costs";
 
 const standsSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/ShopStands.tsx", import.meta.url)),
@@ -343,5 +369,205 @@ describe("source pins — the stands' wiring (§3.3 endpoints, §3.9 new tab)", 
     expect(panelSrc).toContain('resolution.pattern === "shop"');
     expect(panelSrc).toContain("ShopStand");
     expect(panelSrc).toContain("NativePlaceholder");
+  });
+});
+
+describe("stand management — ownership (the /api/shops/mine proof)", () => {
+  const MINE: MineShopDto[] = [
+    { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2 },
+    { id: "shop-2", name: "Second Stand", handle: "second-stand", product_count: 0 },
+  ];
+
+  it("parses the mine payload tolerantly — fuller server rows are fine, junk rows drop", () => {
+    expect(
+      parseMineShops({
+        shops: [
+          { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2, user_id: "u1", banner_color: "#000000" },
+          { id: "shop-2", name: "Second Stand", handle: "second-stand" },
+          { name: "No id", handle: "no-id" },
+          { id: 42, name: "Numeric id", handle: "numeric" },
+          "junk",
+          null,
+        ],
+      }),
+    ).toEqual([
+      { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2 },
+      { id: "shop-2", name: "Second Stand", handle: "second-stand", product_count: 0 },
+    ]);
+    expect(parseMineShops(null)).toEqual([]);
+    expect(parseMineShops({})).toEqual([]);
+    expect(parseMineShops({ shops: "nope" })).toEqual([]);
+  });
+
+  it("ownership holds ONLY when the landed mine list carries the open shop's id", () => {
+    expect(isOwnStand(MINE, "shop-1")).toBe(true);
+    expect(isOwnStand(MINE, "shop-2")).toBe(true);
+    expect(isOwnStand(MINE, "someone-elses-shop")).toBe(false);
+    expect(isOwnStand([], "shop-1")).toBe(false);
+  });
+
+  it("an unlanded mine read proves NOTHING — the gate fails closed", () => {
+    expect(isOwnStand(null, "shop-1")).toBe(false);
+    expect(isOwnStand(MINE, null)).toBe(false);
+    expect(isOwnStand(MINE, undefined)).toBe(false);
+    expect(isOwnStand(null, null)).toBe(false);
+  });
+});
+
+describe("stand management — the product form rides the page's exact payloads", () => {
+  const FORM = {
+    name: "  Gold Hoodie  ",
+    price: "49.99",
+    description: "  Heavyweight fleece.  ",
+    imageUrl: "  https://img.test/hoodie.png  ",
+    styleHint: "  studio light  ",
+  };
+
+  it("the save body is the My Shop page's exact shape (trimmed, price in cents)", () => {
+    expect(buildProductPayload(FORM)).toEqual({
+      name: "Gold Hoodie",
+      price_cents: 4999,
+      description: "Heavyweight fleece.",
+      image_url: "https://img.test/hoodie.png",
+    });
+  });
+
+  it("the page's two save gates run in its order — name, then a sane price", () => {
+    expect(productFormProblem({ ...FORM, name: "   " })).toBe("Give the product a name first.");
+    expect(productFormProblem({ ...FORM, price: "" })).toBe("Enter a valid price — dollars and cents, like 19.99.");
+    expect(productFormProblem({ ...FORM, price: "-5" })).toBe("Enter a valid price — dollars and cents, like 19.99.");
+    expect(productFormProblem({ ...FORM, price: "abc" })).toBe("Enter a valid price — dollars and cents, like 19.99.");
+    expect(productFormProblem(FORM)).toBeNull();
+    expect(buildProductPayload({ ...FORM, name: "" })).toBeNull();
+    expect(buildProductPayload({ ...FORM, price: "1.2.3" })).toBeNull();
+  });
+
+  it("a free product is a real price, not a gate failure (the page allows 0)", () => {
+    expect(buildProductPayload({ ...FORM, price: "0" })?.price_cents).toBe(0);
+    expect(buildProductPayload({ ...FORM, price: "$19.99" })?.price_cents).toBe(1999);
+  });
+
+  it("edit prefill is the page's derivation — dollars with two decimals, rest verbatim", () => {
+    expect(productFormFromDto(PRODUCTS[0]!)).toEqual({
+      name: "Hoodie",
+      price: "49.99",
+      description: "",
+      imageUrl: "",
+      styleHint: "",
+    });
+    expect(productFormFromDto(PRODUCTS[1]!)).toEqual({
+      name: "Cap",
+      price: "27.99",
+      description: "Snapback",
+      imageUrl: "",
+      styleHint: "",
+    });
+    expect(emptyProductForm()).toEqual({ name: "", price: "", description: "", imageUrl: "", styleHint: "" });
+  });
+
+  it("the AI bodies are the page's exact shapes — description always writes luxury", () => {
+    expect(buildProductDescriptionPayload(FORM)).toEqual({
+      productName: "Gold Hoodie",
+      details: "Heavyweight fleece.",
+      price: "49.99",
+      tone: "luxury",
+    });
+    expect(buildProductImagePayload(FORM, "standard")).toEqual({
+      productName: "Gold Hoodie",
+      styleHint: "studio light",
+      tier: "standard",
+    });
+    expect(buildProductImagePayload(FORM, "premium")).toEqual({
+      productName: "Gold Hoodie",
+      styleHint: "studio light",
+      tier: "premium",
+    });
+  });
+
+  it("AI answers parse honestly — a payload without the goods is a failure, never a fill", () => {
+    expect(parseAiDescription({ description: "Shines bright." })).toBe("Shines bright.");
+    expect(parseAiDescription({ description: "   " })).toBeNull();
+    expect(parseAiDescription({ error: "nope" })).toBeNull();
+    expect(parseAiDescription(null)).toBeNull();
+    expect(parseAiImageUrl({ url: "https://img.test/x.png" })).toBe("https://img.test/x.png");
+    expect(parseAiImageUrl({ url: "" })).toBeNull();
+    expect(parseAiImageUrl({})).toBeNull();
+    expect(parseAiImageUrl(null)).toBeNull();
+  });
+
+  it("out-of-credits is the page's test: HTTP 402 or the payload's own flag", () => {
+    expect(aiOutOfCredits(402, {})).toBe(true);
+    expect(aiOutOfCredits(200, { error: "out_of_credits" })).toBe(true);
+    expect(aiOutOfCredits(402, null)).toBe(true);
+    expect(aiOutOfCredits(200, { description: "ok" })).toBe(false);
+    expect(aiOutOfCredits(502, { error: "The studio hiccupped" })).toBe(false);
+    expect(aiOutOfCredits(200, null)).toBe(false);
+  });
+
+  it("the displayed AI prices agree with the shared credit-cost registry", () => {
+    expect(getCreditCost("/api/shops/ai/product-description")?.cost).toBe(SHOP_AI_DESCRIPTION_COST_VB);
+    expect(getCreditCost("/api/shops/ai/product-image")?.cost).toBe(SHOP_AI_IMAGE_STANDARD_COST_VB);
+    /* Premium is the registry's standard price doubled — the server
+       constant's own relation (100 standard / 200 premium). */
+    expect(SHOP_AI_IMAGE_PREMIUM_COST_VB).toBe(SHOP_AI_IMAGE_STANDARD_COST_VB * 2);
+  });
+});
+
+describe("stand management — the list changes only from server-confirmed rows", () => {
+  const SAVED: PublicProductDto = { id: "p3", name: "Tee", price_cents: 2500, description: null, image_url: null };
+
+  it("a confirmed save parses into the stand's DTO — junk answers are not rows", () => {
+    expect(
+      savedProductDto({ product: { id: "p3", shop_id: "s1", user_id: "u1", name: "Tee", price_cents: 2500, description: null, image_url: null, created_at: "t" } }),
+    ).toEqual(SAVED);
+    expect(savedProductDto({ product: { id: "p3", name: "Tee" } })).toBeNull();
+    expect(savedProductDto({ product: { name: "Tee", price_cents: 2500 } })).toBeNull();
+    expect(savedProductDto({})).toBeNull();
+    expect(savedProductDto(null)).toBeNull();
+  });
+
+  it("create appends the server's row; edit replaces the EDITED row only", () => {
+    expect(applyProductSave(PRODUCTS, SAVED, null)).toEqual([...PRODUCTS, SAVED]);
+    const edited: PublicProductDto = { ...PRODUCTS[0]!, name: "Hoodie V2", price_cents: 5999 };
+    expect(applyProductSave(PRODUCTS, edited, "p1")).toEqual([edited, PRODUCTS[1]!]);
+    /* An edit that matches nothing changes nothing — no phantom append. */
+    expect(applyProductSave(PRODUCTS, edited, "missing-id")).toEqual(PRODUCTS);
+  });
+
+  it("remove drops exactly the confirmed row", () => {
+    expect(removeProduct(PRODUCTS, "p1")).toEqual([PRODUCTS[1]!]);
+    expect(removeProduct(PRODUCTS, "missing")).toEqual(PRODUCTS);
+  });
+});
+
+describe("source pins — stand management wiring (Stack-4 #7)", () => {
+  it("management is gated on the mine-list ownership proof — never rendered for guests", () => {
+    expect(standsSrc).toContain('"/api/shops/mine"');
+    expect(standsSrc).toContain("isOwnStand(mineShops, shop?.id)");
+    expect(standsSrc).toContain("parseMineShops(");
+    expect(standsSrc).toContain('data-testid="world-shop-manage"');
+  });
+
+  it("product writes ride the website's own shop rails — no parallel API", () => {
+    expect(standsSrc).toContain("/api/shops/${shop.id}/products");
+    expect(standsSrc).toContain("buildProductPayload(");
+    expect(standsSrc).toContain('method: editingProduct ? "PATCH" : "POST"');
+    expect(standsSrc).toContain('method: "DELETE"');
+    expect(standsSrc).toContain("applyProductSave(");
+    expect(standsSrc).toContain("savedProductDto(");
+  });
+
+  it("deletion is two-step in-world — the DELETE never fires on a first click", () => {
+    expect(standsSrc).toContain("confirmingDeleteId");
+    expect(standsSrc).toContain('data-testid="world-shop-manage-delete-confirm"');
+  });
+
+  it("the AI helpers ride the confirmed-spend seam with their prices shown up front", () => {
+    expect(standsSrc).toContain('"/api/shops/ai/product-description"');
+    expect(standsSrc).toContain('"/api/shops/ai/product-image"');
+    expect(standsSrc).toContain("confirmedFetch(");
+    expect(standsSrc).toContain("SHOP_AI_DESCRIPTION_COST_VB");
+    expect(standsSrc).toContain("SHOP_AI_IMAGE_PREMIUM_COST_VB");
+    expect(standsSrc).toContain("aiOutOfCredits(");
   });
 });
