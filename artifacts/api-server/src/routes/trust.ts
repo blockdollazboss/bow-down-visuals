@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, and, or, desc, asc, sql } from "drizzle-orm";
 import {
   db, contentIdOptinsTable, contentIdFingerprintsTable, contentIdMatchesTable,
-  legacyDesignationsTable, catalogExportJobsTable, chatAutomodRulesTable,
+  legacyDesignationsTable, legacyContactsTable, catalogExportJobsTable, chatAutomodRulesTable,
   chatModActionsTable, stageRoomsTable, groupJoinQuestionsTable,
   groupJoinRequestsTable, videoRetentionEventsTable, groupsTable,
   groupMembersTable, groupPostsTable, creatorProfilesTable, followsTable,
@@ -27,6 +27,9 @@ import { PdfBuilder, GOLD, GREY, BLACK, WHITE } from "../lib/pdf";
       media; scans happen when audio is submitted to /content-id/scan.
    #2 Succession designations (record + heir accept/decline; activation
       is manual/human-reviewed — no automatic transfer exists here).
+      #2b (Stack 3) Legacy contact: name + email of the person to
+      contact about the account — record only, owner-only, no transfer,
+      payout, or legal effect promised or implied.
    #3 Full-catalog portability export (manifest + per-file links —
       chosen over one giant zip honestly: catalogs hold large video
       originals, so the package is a manifest JSON whose entries carry
@@ -241,6 +244,61 @@ router.post("/legacy/inbox/:id/respond", requireAuth, async (req, res) => {
       .where(eq(legacyDesignationsTable.id, id)).returning();
     res.json({ designation: legacyDto(row!) });
   } catch (err) { logger.error({ err }, "[trust] legacy respond failed"); res.status(500).json({ error: "Could not record your answer." }); }
+});
+
+/* ═══ #2b Legacy contact — name + email of the person to CONTACT ═══════
+   Not an heir and not a transfer: the designation above names a Bow
+   Down Visuals account that would take over after manual review. This
+   names ANY person (a partner, a family member) Bow Down Visuals
+   should contact about the account and the creator's work if the
+   creator no longer can. The record is the whole feature — it promises
+   no account transfer, no payout, and no legal effect. Owner-only in
+   both directions: every query is scoped to the caller, and the row is
+   never joined into any public profile DTO — the email is private. */
+
+const contactDto = (r: typeof legacyContactsTable.$inferSelect) => ({
+  name: r.contact_name, email: r.contact_email, note: r.note,
+  createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
+});
+
+router.get("/legacy/contact", requireAuth, async (req, res) => {
+  try {
+    const rows = await db.select().from(legacyContactsTable).where(eq(legacyContactsTable.user_id, req.userId!)).limit(1);
+    res.json({ contact: rows[0] ? contactDto(rows[0]) : null });
+  } catch (err) { logger.error({ err }, "[trust] legacy contact get failed"); res.status(500).json({ error: "Could not load your legacy contact." }); }
+});
+
+const legacyContactBody = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(254),
+  note: z.string().trim().max(1000).optional(),
+});
+
+router.put("/legacy/contact", requireAuth, async (req, res) => {
+  const parsed = legacyContactBody.safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Invalid legacy contact", details: parsed.error.issues }); return; }
+  try {
+    const { name, email, note } = parsed.data;
+    const existing = await db.select().from(legacyContactsTable).where(eq(legacyContactsTable.user_id, req.userId!)).limit(1);
+    if (existing[0]) {
+      const [row] = await db.update(legacyContactsTable)
+        .set({ contact_name: name, contact_email: email, note: note ?? "", updated_at: new Date() })
+        .where(eq(legacyContactsTable.id, existing[0].id)).returning();
+      res.json({ contact: contactDto(row!) });
+      return;
+    }
+    const [row] = await db.insert(legacyContactsTable).values({ user_id: req.userId!, contact_name: name, contact_email: email, note: note ?? "" }).returning();
+    res.status(201).json({ contact: contactDto(row!) });
+  } catch (err) { logger.error({ err }, "[trust] legacy contact save failed"); res.status(500).json({ error: "Could not save your legacy contact." }); }
+});
+
+router.delete("/legacy/contact", requireAuth, async (req, res) => {
+  try {
+    const existing = await db.select().from(legacyContactsTable).where(eq(legacyContactsTable.user_id, req.userId!)).limit(1);
+    if (!existing[0]) { res.status(404).json({ error: "You have no legacy contact to remove." }); return; }
+    await db.delete(legacyContactsTable).where(eq(legacyContactsTable.user_id, req.userId!));
+    res.json({ contact: null });
+  } catch (err) { logger.error({ err }, "[trust] legacy contact remove failed"); res.status(500).json({ error: "Could not remove your legacy contact." }); }
 });
 
 /* ═══ #3 Full-catalog portability export ══════════════════════════════ */
