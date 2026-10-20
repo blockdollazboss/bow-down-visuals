@@ -26,12 +26,10 @@
  * (createChatVoiceSession's handlers contract) on top of #9's seam and
  * swap the factory — the chat surface and its tests don't change.
  *
- * Voice OUT is deliberately NOT here: the only text-to-speech rails in
- * the codebase are charged generation tools (POST /api/voiceover/
- * generate = 200 Visual Bucs, lib/credit-costs.ts), and there is no
- * browser speech-synthesis precedent anywhere in the frontend. Spoken
- * replies would newly cost credits per reply, so they are not wired —
- * that is an owner pricing decision, not a transport detail.
+ * Voice OUT is deliberately NOT here either: spoken replies live in
+ * lib/chat-speak.ts (POST /api/chat/speak, the King's designed voice,
+ * server-priced per the owner's Oct 20, 2026 ruling). This seam stays
+ * what it was built as — input only, network-free, charge-free.
  */
 
 /** Capture lifecycle: idle → listening → transcribing → idle. */
