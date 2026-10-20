@@ -8878,6 +8878,15 @@
       "trackTitle": "Track title…",
       "url": "https://…"
     },
+    "layout": {
+      "hiddenBadge": "Hidden",
+      "hide": "Hide section",
+      "hint": "Reorder the sections on your public press-kit page, or hide the ones you don't want bookers to see. Your name and photo header always stays on top.",
+      "moveDown": "Move down",
+      "moveUp": "Move up",
+      "show": "Show section",
+      "title": "Page layout"
+    },
     "privateNote": "Private — only you can view",
     "publicNote": "Public — anyone with the link can view",
     "refreshBio_one": "Refresh bio · {{count}} Visual Buc",
@@ -8885,6 +8894,7 @@
     "sections": {
       "achievements": "Achievements",
       "bio": "Bio",
+      "contact": "Booking & contact",
       "photos": "Photos",
       "press": "Press",
       "topTracks": "Top tracks"

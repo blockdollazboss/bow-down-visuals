@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import {
   Newspaper, Loader2, Sparkles, Plus, Trash2, Copy, Check, Download,
   RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil, Send,
-  Fingerprint,
+  Fingerprint, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -14,6 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   slugifyHandle,
+  defaultPressKitLayout,
+  resolvePressKitLayout,
+  movePressKitLayoutEntry,
+  setPressKitSectionVisible,
+  type PressKitLayoutEntry,
+  type PressKitSectionKey,
   PRESS_KIT_GENERATE_COST_VISUAL_BUCS,
   PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS,
 } from "@/lib/press-kit";
@@ -61,6 +67,7 @@ interface PressKit {
   photo_urls: string[];
   top_tracks: Array<{ title: string; url: string }>;
   artist_vault_id?: string | null;
+  layout?: PressKitLayoutEntry[] | null;
   is_public: boolean;
   press_releases?: Array<{ id: string; headline: string; body: string; announcementType: string; social: string; createdAt: string }>;
 }
@@ -99,6 +106,7 @@ export default function PressKitBuilder() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [bio, setBio] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [layout, setLayout] = useState<PressKitLayoutEntry[]>(() => defaultPressKitLayout());
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -166,6 +174,7 @@ export default function PressKitBuilder() {
     setSpotify(k.spotify_url ?? "");
     setBio(k.bio ?? "");
     setIsPublic(k.is_public);
+    setLayout(resolvePressKitLayout(k.layout));
     setAchievements(k.achievements.length ? k.achievements : [""]);
     setQuotes(k.press_quotes);
     setTracks(k.top_tracks);
@@ -180,6 +189,7 @@ export default function PressKitBuilder() {
     setGenre(""); setLocation(""); setBookingEmail(""); setWebsite("");
     setInstagram(""); setTiktok(""); setYoutube(""); setSpotify("");
     setBio(""); setIsPublic(true);
+    setLayout(defaultPressKitLayout());
     setAchievements([""]); setQuotes([]); setTracks([]); setPhotoUrls([]);
     setError(null);
   }
@@ -290,6 +300,7 @@ export default function PressKitBuilder() {
           spotify_url: spotify.trim(),
           bio: bio.trim(),
           is_public: isPublic,
+          layout,
           achievements: cleanList(achievements),
           press_quotes: quotes.filter((q) => q.quote.trim() && q.source.trim()),
           photo_urls: cleanList(photoUrls),
@@ -362,6 +373,15 @@ export default function PressKitBuilder() {
   function downloadPdf() {
     window.print();
   }
+
+  const layoutSectionLabel: Record<PressKitSectionKey, string> = {
+    bio: t("press-kit.sections.bio"),
+    achievements: t("press-kit.sections.achievements"),
+    press_quotes: t("press-kit.sections.press"),
+    top_tracks: t("press-kit.sections.topTracks"),
+    photos: t("press-kit.sections.photos"),
+    contact: t("press-kit.sections.contact"),
+  };
 
   const publicUrl = selectedKit ? `/press/${selectedKit.handle}` : null;
   const showForm = !selectedKit || editing;
@@ -708,6 +728,44 @@ export default function PressKitBuilder() {
                              className="accent-[#d4af37] h-4 w-4" />
                       {t("press-kit.form.publicCheckbox")}
                     </label>
+
+                    {/* Page layout — section order + visibility on the
+                        public page. The hero header (name, photo,
+                        tagline) is not a section and always stays. */}
+                    <div>
+                      <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.layout.title")}</label>
+                      <p className="text-xs text-white/30 mb-2">{t("press-kit.layout.hint")}</p>
+                      <div className="space-y-2">
+                        {layout.map((entry, i) => (
+                          <div key={entry.key}
+                               className={`flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 ${entry.visible ? "" : "opacity-60"}`}>
+                            <span className="flex-1 text-sm">{layoutSectionLabel[entry.key]}</span>
+                            {!entry.visible && (
+                              <span className="text-[11px] uppercase tracking-wider text-white/30">{t("press-kit.layout.hiddenBadge")}</span>
+                            )}
+                            <Button size="sm" variant="ghost" disabled={i === 0}
+                                    onClick={() => setLayout((l) => movePressKitLayoutEntry(l, entry.key, -1))}
+                                    className="text-white/50 hover:text-white shrink-0 px-2"
+                                    aria-label={t("press-kit.layout.moveUp")} title={t("press-kit.layout.moveUp")}>
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={i === layout.length - 1}
+                                    onClick={() => setLayout((l) => movePressKitLayoutEntry(l, entry.key, 1))}
+                                    className="text-white/50 hover:text-white shrink-0 px-2"
+                                    aria-label={t("press-kit.layout.moveDown")} title={t("press-kit.layout.moveDown")}>
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost"
+                                    onClick={() => setLayout((l) => setPressKitSectionVisible(l, entry.key, !entry.visible))}
+                                    className="text-white/50 hover:text-white shrink-0 px-2"
+                                    aria-label={entry.visible ? t("press-kit.layout.hide") : t("press-kit.layout.show")}
+                                    title={entry.visible ? t("press-kit.layout.hide") : t("press-kit.layout.show")}>
+                              {entry.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </>
                 )}
 
