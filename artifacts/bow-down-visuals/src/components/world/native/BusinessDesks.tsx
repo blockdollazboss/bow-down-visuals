@@ -8,11 +8,14 @@ import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
-import { fetchBrandKit, type BrandKit } from "@/lib/brand-kit";
+import { applyBrandKit, fetchBrandKit, saveBrandKit, type BrandKit } from "@/lib/brand-kit";
 import { slugifyHandle } from "@/lib/press-kit";
 import { SITE_FEATURES } from "@/data/features";
 import { prettyDateTime, countdownLabel } from "@/lib/scheduler";
 import {
+  BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
+  buildBrandKitGeneratePayload,
+  brandKitGenerateReady,
   LOGO_MODELS,
   LOGO_STYLES,
   logoModelCost,
@@ -167,6 +170,17 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
   const [kit, setKit] = useState<BrandKit | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
 
+  /* Brand-kit verbs (the kit card used to be read-only): generate rides
+     the same endpoint + confirmed charge as the website; choosing a
+     tagline and applying the kit are the website's free saves. */
+  const [genName, setGenName] = useState("");
+  const [genVibe, setGenVibe] = useState("");
+  const [genIndustry, setGenIndustry] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+  const [kitBusy, setKitBusy] = useState<"tagline" | "apply" | null>(null);
+  const [kitNote, setKitNote] = useState<string | null>(null);
+  const [kitError, setKitError] = useState<string | null>(null);
+
   /* Logo job (the Create Desk kit in miniature). */
   const [logoName, setLogoName] = useState("");
   const [logoStyle, setLogoStyle] = useState<string>("luxury-gold");
@@ -197,6 +211,11 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
         if (record?.brandName) {
           setLogoName((v) => v || record.brandName);
           setIntroName((v) => v || record.brandName);
+          setGenName((v) => v || record.brandName);
+        }
+        if (record) {
+          setGenVibe((v) => v || record.vibe);
+          setGenIndustry((v) => v || record.industry || "");
         }
       } catch {
         if (!cancelled) setKitState("failed");
@@ -265,6 +284,78 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [introTaskId, introJob]);
+
+  const runGenerateKit = async () => {
+    if (!brandKitGenerateReady({ brandName: genName, vibe: genVibe }) || genBusy) return;
+    setGenBusy(true);
+    setKitNote(null);
+    setKitError(null);
+    try {
+      const res = await confirmedFetch("/api/brand-kit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        overrideCost: BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
+        overrideFeature: "Brand Kit Generator",
+        body: JSON.stringify(
+          buildBrandKitGeneratePayload({ brandName: genName, vibe: genVibe, industry: genIndustry }),
+        ),
+      });
+      if (!res) return; /* the creator declined the confirm — nothing charged */
+      const data: unknown = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setKitError("Out of Visual Bucs — top up and the brand kit maker is ready again.");
+        return;
+      }
+      if (!res.ok) {
+        setKitError("The brand kit couldn't be made right now. Try again.");
+        return;
+      }
+      const saved = (data as { brandKit?: BrandKit | null }).brandKit ?? null;
+      if (saved) setKit(saved);
+      setKitNote(
+        saved
+          ? "Brand kit made and saved — it stands on this desk and on the website alike."
+          : "Kit made. Create your creator profile and it will save as your brand record.",
+      );
+      refreshProfile();
+    } catch {
+      setKitError("The brand kit desk didn't answer. Try again.");
+    } finally {
+      setGenBusy(false);
+    }
+  };
+
+  const pickTagline = async (line: string) => {
+    if (!kit || kitBusy) return;
+    setKitBusy("tagline");
+    setKitNote(null);
+    setKitError(null);
+    try {
+      const saved = await saveBrandKit(getAccessToken, { selectedTagline: line });
+      setKit(saved);
+      setKitNote("Tagline chosen — your surfaces now speak it.");
+    } catch {
+      setKitError("That tagline pick didn't save. Try again.");
+    } finally {
+      setKitBusy(null);
+    }
+  };
+
+  const applyKit = async () => {
+    if (!kit || kitBusy) return;
+    setKitBusy("apply");
+    setKitNote(null);
+    setKitError(null);
+    try {
+      await applyBrandKit(getAccessToken);
+      setKitNote("Applied — your profile now wears your brand kit's colors and fonts.");
+      refreshProfile();
+    } catch {
+      setKitError("The kit wouldn't apply. Try again.");
+    } finally {
+      setKitBusy(null);
+    }
+  };
 
   if (isGuest) return <GuestGate isLight={isLight} desk="The Branding Kit Desk" />;
 
@@ -378,7 +469,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
           <NativeEmptyState
             isLight={isLight}
             message="No brand kit yet."
-            detail="Generate one on the website (the footer below) and your logo, colors and fonts will stand on this desk. The two makers below work either way."
+            detail="Make one with the Brand kit maker below — your logo, colors and fonts will stand on this desk. The logo and sting makers work either way."
           />
         ) : (
           <div className="space-y-3">
@@ -417,11 +508,100 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
               </p>
             )}
             {kit.taglines.length > 1 && (
-              <p className={`text-xs ${muted}`}>Taglines: {kit.taglines.join(" · ")}</p>
+              <div className="space-y-1.5">
+                <p className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>
+                  Your tagline — pick the one your surfaces use
+                </p>
+                {kit.taglines.map((line) => {
+                  const chosen = (kit.selectedTagline ?? kit.taglines[0]) === line;
+                  return (
+                    <button
+                      key={line}
+                      type="button"
+                      disabled={kitBusy !== null}
+                      onClick={() => void pickTagline(line)}
+                      className={`block w-full rounded-xl border px-3 py-2 text-left text-xs font-semibold transition disabled:opacity-50 ${
+                        chosen
+                          ? "border-[#d4af37] bg-[#d4af37]/10 " + strong
+                          : isLight
+                            ? "border-[#C9A84C]/30 text-[#6B5B36] hover:border-[#d4af37]"
+                            : "border-white/10 text-white/60 hover:border-[#d4af37]/60"
+                      }`}
+                    >
+                      {line}
+                      {chosen ? " · in use" : ""}
+                    </button>
+                  );
+                })}
+              </div>
             )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={kitBusy !== null || kit.colors.length === 0 || kit.fonts.length === 0}
+                onClick={() => void applyKit()}
+                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 ${
+                  isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
+                }`}
+              >
+                {kitBusy === "apply" ? "Applying…" : "Apply colors & fonts to my profile"}
+              </button>
+              <span className={`text-[11px] ${muted}`}>Free — your profile theme takes the kit's lead colors and fonts.</span>
+            </div>
           </div>
         )}
       </SectionShell>
+
+      {(kitNote || kitError) && (
+        <p className={`px-1 text-xs font-semibold ${kitError ? "text-red-400" : isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+          {kitError ?? kitNote}
+        </p>
+      )}
+
+      <NativeCard isLight={isLight} title={kit ? "Refresh your brand kit" : "Brand kit maker"}>
+        <div className="space-y-2">
+          <input
+            className={inputCls(isLight)}
+            value={genName}
+            maxLength={80}
+            onChange={(e) => setGenName(e.target.value)}
+            placeholder="Brand name"
+            aria-label="Brand name"
+          />
+          <input
+            className={inputCls(isLight)}
+            value={genVibe}
+            maxLength={500}
+            onChange={(e) => setGenVibe(e.target.value)}
+            placeholder="The vibe — royal, bold, gold-on-black luxury…"
+            aria-label="The vibe"
+          />
+          <input
+            className={inputCls(isLight)}
+            value={genIndustry}
+            maxLength={80}
+            onChange={(e) => setGenIndustry(e.target.value)}
+            placeholder="Industry (optional)"
+            aria-label="Industry (optional)"
+          />
+        </div>
+        <button
+          type="button"
+          className={`${goldBtn} mt-3`}
+          disabled={genBusy || !brandKitGenerateReady({ brandName: genName, vibe: genVibe })}
+          onClick={() => void runGenerateKit()}
+        >
+          <Sparkles className="h-4 w-4" />
+          {genBusy
+            ? "Making your kit…"
+            : `${kit ? "Regenerate" : "Generate"} brand kit — ${BRAND_KIT_GENERATE_COST_VISUAL_BUCS} VB`}
+        </button>
+        {kit && (
+          <p className={`mt-2 text-xs ${muted}`}>
+            Regenerating refreshes colors, fonts and taglines — your logo, bio lines and press facts are kept.
+          </p>
+        )}
+      </NativeCard>
 
       <NativeCard isLight={isLight} title="Make a logo">
         <div className="mb-3 flex flex-wrap gap-2">

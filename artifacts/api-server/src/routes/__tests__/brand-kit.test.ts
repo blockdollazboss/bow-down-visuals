@@ -28,6 +28,15 @@ const KIT_JSON = {
   taglines: ["Bow Down.", "The Cheat Code.", "Royalty streams here.", "Built different.", "Your stage awaits."],
 };
 
+/* A creator's hand-tuned palette + pairings (Ring 4 edit) — deliberately
+   NOT the generated kit's values, so a read-back proves the edit landed. */
+const EDITED_COLORS = [
+  { hex: "#FF0055", name: "Neon Rose", role: "primary" },
+  { hex: "#00E5FF", name: "Laser Cyan", role: "accent" },
+  { hex: "#101018", name: "Stage Black", role: "background" },
+];
+const EDITED_FONTS = [{ heading: "Bebas Neue", body: "Space Grotesk", usage: "Street drops" }];
+
 const state = vi.hoisted(() => ({
   authedUserId: "user-1" as string | null,
   userCredits: 1000,
@@ -285,6 +294,15 @@ describe("brand kit linkage (DE-5)", () => {
   it("requires auth on every verb", async () => {
     state.authedUserId = null;
     expect((await fetch(`${base}/api/brand-kit`)).status).toBe(401);
+    expect(
+      (
+        await fetch(`${base}/api/brand-kit`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ colors: EDITED_COLORS }),
+        })
+      ).status,
+    ).toBe(401);
     expect((await fetch(`${base}/api/brand-kit/apply`, { method: "POST" })).status).toBe(401);
     expect(
       (
@@ -372,5 +390,106 @@ describe("POST /api/brand-kit/logo — a generated logo lands in the kit", () =>
     const { res, data } = await saveLogo("https://storage.example/generated-clips/logos/user-1/abc.png");
     expect(res.status).toBe(404);
     expect(data.error).toBe("NO_PROFILE");
+  });
+});
+
+describe("PUT /api/brand-kit — hand-edited palette + fonts (Ring 4)", () => {
+  async function put(body: unknown) {
+    const res = await fetch(`${base}/api/brand-kit`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { res, data: await res.json() };
+  }
+
+  it("a hand-edited palette + fonts persist and read back — free, no regeneration", async () => {
+    await generateKit();
+    state.charges = [];
+    const { res, data } = await put({ colors: EDITED_COLORS, fonts: EDITED_FONTS });
+    expect(res.status).toBe(200);
+    expect(data.brandKit.colors).toEqual(EDITED_COLORS);
+    expect(data.brandKit.fonts).toEqual(EDITED_FONTS);
+    expect(state.charges).toEqual([]);
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.colors).toEqual(EDITED_COLORS);
+    expect(get.brandKit.fonts).toEqual(EDITED_FONTS);
+    // The edit is a palette swap, not a kit wipe: the generated core stays.
+    expect(get.brandKit.taglines).toEqual(KIT_JSON.taglines);
+    expect(get.brandKit.logoPrompt).toBe(KIT_JSON.logoPrompt);
+  });
+
+  it("a palette patch REPLACES wholesale — it never appends to the generated five", async () => {
+    await generateKit();
+    await put({ colors: EDITED_COLORS });
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.colors).toHaveLength(3);
+    expect(get.brandKit.colors.map((c: any) => c.hex)).not.toContain("#C9A84C");
+  });
+
+  it("a manual-only record can hold a hand-built palette (no generation needed)", async () => {
+    const { res, data } = await put({ colors: EDITED_COLORS, fonts: EDITED_FONTS });
+    expect(res.status).toBe(200);
+    expect(data.brandKit.colors).toEqual(EDITED_COLORS);
+    expect(state.charges).toEqual([]);
+  });
+
+  it("consumers read the EDITED values: apply writes the edited hexes + lead fonts to the theme", async () => {
+    await generateKit();
+    await put({ colors: EDITED_COLORS, fonts: EDITED_FONTS });
+    const res = await fetch(`${base}/api/brand-kit/apply`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const colors = (state.profile!.themeConfig as any).colors;
+    expect(colors.primary).toBe("#FF0055");
+    expect(colors.accent).toBe("#00E5FF");
+    expect(colors.background).toBe("#101018");
+    const fonts = (state.profile!.themeConfig as any).fonts;
+    expect(fonts).toEqual({ heading: "Bebas Neue", body: "Space Grotesk" });
+  });
+
+  it("rejects malformed palettes with 400 and stores nothing", async () => {
+    await generateKit();
+    const bad: unknown[] = [
+      { colors: [{ hex: "FF0055", name: "No hash", role: "primary" }] },
+      { colors: [{ hex: "#FF005", name: "Short hex", role: "primary" }] },
+      { colors: [{ hex: "#FF0055", name: "Bad role", role: "hero" }] },
+      { colors: [] },
+      {
+        colors: [
+          { hex: "#111111", name: "One", role: "primary" },
+          { hex: "#222222", name: "Two", role: "primary" },
+        ],
+      },
+      {
+        colors: Array.from({ length: 7 }, (_, i) => ({
+          hex: "#111111",
+          name: `C${i}`,
+          role: ["primary", "secondary", "accent", "neutral", "background", "primary", "accent"][i],
+        })),
+      },
+      { fonts: [] },
+      { fonts: [{ heading: "", body: "Inter", usage: "" }] },
+      { fonts: [{ heading: "Cinzel", body: "", usage: "" }] },
+      { fonts: Array.from({ length: 4 }, () => ({ heading: "A", body: "B", usage: "" })) },
+    ];
+    for (const body of bad) {
+      const { res } = await put(body);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+    }
+    const get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.colors).toEqual(KIT_JSON.colors);
+    expect(get.brandKit.fonts).toEqual(KIT_JSON.fonts);
+    expect(state.charges).toEqual([200]); // only the generation charged
+  });
+
+  it("a colors-only patch leaves fonts (and vice versa) untouched", async () => {
+    await generateKit();
+    await put({ colors: EDITED_COLORS });
+    let get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.fonts).toEqual(KIT_JSON.fonts);
+    await put({ fonts: EDITED_FONTS });
+    get = await (await fetch(`${base}/api/brand-kit`)).json();
+    expect(get.brandKit.colors).toEqual(EDITED_COLORS);
+    expect(get.brandKit.fonts).toEqual(EDITED_FONTS);
   });
 });

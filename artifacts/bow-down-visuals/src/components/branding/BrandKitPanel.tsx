@@ -7,11 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   applyBrandKit,
+  BRAND_KIT_COLOR_ROLES,
   BrandKitRequestError,
   fetchBrandKit,
   generateBrandKit,
   saveBrandKit,
   type BrandKit,
+  type BrandKitColor,
+  type BrandKitFont,
 } from "@/lib/brand-kit";
 import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib/asset-library";
 
@@ -41,6 +44,10 @@ export function BrandKitPanel() {
   const [generating, setGenerating] = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  /* palette + font pairings — hand-editable (saved free via PUT) */
+  const [colors, setColors] = useState<BrandKitColor[]>([]);
+  const [fonts, setFonts] = useState<BrandKitFont[]>([]);
+
   /* manual fields */
   const [logoUrl, setLogoUrl] = useState("");
   const [selectedTagline, setSelectedTagline] = useState<string | null>(null);
@@ -66,6 +73,8 @@ export function BrandKitPanel() {
       setSelectedTagline(record.selectedTagline);
       setBioLines(record.bioLines);
       setPressFacts(record.pressFacts);
+      setColors(record.colors);
+      setFonts(record.fonts);
     }
   }
 
@@ -116,6 +125,16 @@ export function BrandKitPanel() {
   }
 
   async function handleSave() {
+    if (kit) {
+      const badColor = colors.some((c) => !/^#[0-9a-fA-F]{6}$/.test(c.hex.trim()) || !c.name.trim());
+      const badFont = fonts.some((f) => !f.heading.trim() || !f.body.trim());
+      if (badColor || badFont) {
+        setError(t("brandingKit.brand.checkPalette", {
+          defaultValue: "Check your colors and fonts — every color needs a #RRGGBB hex and a name, and every font pairing needs a heading and a body font.",
+        }));
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -126,6 +145,12 @@ export function BrandKitPanel() {
         selectedTagline,
         bioLines: bioLines.map((l) => l.trim()).filter(Boolean),
         pressFacts: pressFacts.map((l) => l.trim()).filter(Boolean),
+        ...(kit && colors.length > 0
+          ? { colors: colors.map((c) => ({ hex: c.hex.trim(), name: c.name.trim(), role: c.role })) }
+          : {}),
+        ...(kit && fonts.length > 0
+          ? { fonts: fonts.map((f) => ({ heading: f.heading.trim(), body: f.body.trim(), usage: f.usage.trim() })) }
+          : {}),
       });
       hydrate(saved);
       setNotice(t("brandingKit.brand.saved", { defaultValue: "Brand kit saved — every surface that reads your brand now uses this." }));
@@ -200,6 +225,31 @@ export function BrandKitPanel() {
       )}
     </div>
   );
+
+  /* ── palette / pairing editors ───────────────────────────────────────
+     Roles are unique (consumers read colors BY role), so picking a role
+     another color already holds SWAPS the two instead of colliding. */
+  const setColorAt = (i: number, patch: Partial<BrandKitColor>) =>
+    setColors(colors.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const setRoleAt = (i: number, role: string) =>
+    setColors(
+      colors.map((c, j) => {
+        if (j === i) return { ...c, role };
+        if (c.role === role) return { ...c, role: colors[i]!.role };
+        return c;
+      }),
+    );
+  const addColor = () => {
+    const unused = BRAND_KIT_COLOR_ROLES.find((r) => !colors.some((c) => c.role === r));
+    if (!unused) return;
+    setColors([...colors, { hex: "#C9A84C", name: "New color", role: unused }]);
+  };
+  const setFontAt = (i: number, patch: Partial<BrandKitFont>) =>
+    setFonts(fonts.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  const addFont = () => {
+    if (fonts.length >= 3) return;
+    setFonts([...fonts, { heading: "", body: "", usage: "" }]);
+  };
 
   if (loading) {
     return (
@@ -295,31 +345,126 @@ export function BrandKitPanel() {
         )}
       </section>
 
-      {/* ── The kit itself ── */}
-      {kit && kit.colors.length > 0 && (
+      {/* ── The kit itself: colors + fonts are EDITABLE here ── */}
+      {kit && (
         <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-          <h3 className="mb-4 text-sm font-black uppercase tracking-widest text-white/70">
+          <h3 className="mb-1 text-sm font-black uppercase tracking-widest text-white/70">
             {t("brandingKit.brand.kitTitle", { defaultValue: "Colors, fonts & taglines" })}
           </h3>
-          <div className="flex flex-wrap gap-2">
-            {kit.colors.map((c) => (
-              <div key={c.role} className="flex items-center gap-2 rounded-xl border border-white/10 py-1.5 pl-1.5 pr-3">
-                <span className="h-7 w-7 rounded-lg border border-white/15" style={{ backgroundColor: c.hex }} />
-                <span className="text-xs">
-                  <span className="block font-bold text-white">{c.name}</span>
-                  <span className="block text-white/40">{c.role} · {c.hex}</span>
-                </span>
+          <p className="mb-4 text-xs text-white/35">
+            {t("brandingKit.brand.editHint", {
+              defaultValue: "Tune the palette and fonts by hand — they save free with “Save my brand kit” below. No need to regenerate (and pay again) just to change a color.",
+            })}
+          </p>
+          <p className={labelCls}>{t("brandingKit.brand.palette", { defaultValue: "Palette" })}</p>
+          <div className="space-y-2">
+            {colors.map((c, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Pick a color"
+                  className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-white/15 bg-transparent p-0.5"
+                  value={/^#[0-9a-fA-F]{6}$/.test(c.hex) ? c.hex : "#000000"}
+                  onChange={(e) => setColorAt(i, { hex: e.target.value })}
+                />
+                <input
+                  className={`${inputCls} w-28 shrink-0`}
+                  value={c.hex}
+                  maxLength={7}
+                  placeholder="#C9A84C"
+                  aria-label="Hex"
+                  onChange={(e) => setColorAt(i, { hex: e.target.value })}
+                />
+                <input
+                  className={`${inputCls} min-w-[120px] flex-1`}
+                  value={c.name}
+                  maxLength={80}
+                  placeholder="Color name"
+                  aria-label="Color name"
+                  onChange={(e) => setColorAt(i, { name: e.target.value })}
+                />
+                <select
+                  className={`${inputCls} w-36 shrink-0 capitalize`}
+                  value={c.role}
+                  aria-label="Color role"
+                  onChange={(e) => setRoleAt(i, e.target.value)}
+                >
+                  {BRAND_KIT_COLOR_ROLES.map((r) => (
+                    <option key={r} value={r} className="bg-zinc-900 capitalize">{r}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  aria-label="Remove color"
+                  disabled={colors.length <= 1}
+                  className="shrink-0 rounded-lg border border-white/10 p-2 text-white/40 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+                  onClick={() => setColors(colors.filter((_, j) => j !== i))}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             ))}
+            {colors.length < BRAND_KIT_COLOR_ROLES.length && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/15 px-3 py-1.5 text-xs font-bold text-white/50 transition hover:border-primary/50 hover:text-primary"
+                onClick={addColor}
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("brandingKit.brand.addColor", { defaultValue: "Add a color" })}
+              </button>
+            )}
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            {kit.fonts.map((f, i) => (
-              <div key={i} className="rounded-xl border border-white/10 p-3">
-                <p className="text-sm font-bold text-white" style={{ fontFamily: f.heading }}>{f.heading}</p>
-                <p className="text-xs text-white/50" style={{ fontFamily: f.body }}>{f.body} — body</p>
-                <p className="mt-1 text-[11px] text-white/35">{f.usage}</p>
+
+          <p className={`${labelCls} mt-5`}>{t("brandingKit.brand.fontPairings", { defaultValue: "Font pairings — the first one leads" })}</p>
+          <div className="space-y-2">
+            {fonts.map((f, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-2">
+                <input
+                  className={`${inputCls} min-w-[130px] flex-1`}
+                  value={f.heading}
+                  maxLength={120}
+                  placeholder="Heading font"
+                  aria-label="Heading font"
+                  style={{ fontFamily: f.heading || undefined }}
+                  onChange={(e) => setFontAt(i, { heading: e.target.value })}
+                />
+                <input
+                  className={`${inputCls} min-w-[130px] flex-1`}
+                  value={f.body}
+                  maxLength={120}
+                  placeholder="Body font"
+                  aria-label="Body font"
+                  style={{ fontFamily: f.body || undefined }}
+                  onChange={(e) => setFontAt(i, { body: e.target.value })}
+                />
+                <input
+                  className={`${inputCls} min-w-[140px] flex-1`}
+                  value={f.usage}
+                  maxLength={240}
+                  placeholder="When to use it"
+                  aria-label="Font usage"
+                  onChange={(e) => setFontAt(i, { usage: e.target.value })}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove font pairing"
+                  disabled={fonts.length <= 1}
+                  className="shrink-0 rounded-lg border border-white/10 p-2 text-white/40 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+                  onClick={() => setFonts(fonts.filter((_, j) => j !== i))}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             ))}
+            {fonts.length < 3 && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/15 px-3 py-1.5 text-xs font-bold text-white/50 transition hover:border-primary/50 hover:text-primary"
+                onClick={addFont}
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("brandingKit.brand.addFont", { defaultValue: "Add a font pairing" })}
+              </button>
+            )}
           </div>
           {kit.logoPrompt && (
             <p className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-white/45">
@@ -327,6 +472,7 @@ export function BrandKitPanel() {
               {kit.logoPrompt}
             </p>
           )}
+          {kit.taglines.length > 0 && (
           <div className="mt-4">
             <p className={labelCls}>{t("brandingKit.brand.pickTagline", { defaultValue: "Your tagline — the one your surfaces use" })}</p>
             <div className="space-y-1.5">
@@ -344,6 +490,7 @@ export function BrandKitPanel() {
               ))}
             </div>
           </div>
+          )}
         </section>
       )}
 

@@ -117,6 +117,33 @@ export function jobPollOutcome(data: unknown): JobPollOutcome {
 
 /* ─── Branding Kit Desk ────────────────────────────────────────────── */
 
+/** POST /api/brand-kit — the server's standing generation price
+ *  (BRAND_KIT_COST in routes/generate/brand-kit.ts; env-overridable
+ *  server-side, 200 is the shipped default the confirm shows). */
+export const BRAND_KIT_GENERATE_COST_VISUAL_BUCS = 200;
+
+/** POST /api/brand-kit — the hub panel's exact payload shape: industry
+ *  only rides along when the creator typed one. */
+export function buildBrandKitGeneratePayload(input: {
+  brandName: string;
+  vibe: string;
+  industry?: string;
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    brandName: input.brandName.trim(),
+    vibe: input.vibe.trim(),
+  };
+  const industry = input.industry?.trim();
+  if (industry) out["industry"] = industry;
+  return out;
+}
+
+/** The hub panel's own readiness rule: a name, and a vibe of at least
+ *  a few words' worth of characters (the POST schema's min 3). */
+export function brandKitGenerateReady(input: { brandName: string; vibe: string }): boolean {
+  return input.brandName.trim().length > 0 && input.vibe.trim().length >= 3;
+}
+
 /** POST /api/generate-logo — the page's exact payload shape. */
 export function buildLogoPayload(input: {
   brandName: string;

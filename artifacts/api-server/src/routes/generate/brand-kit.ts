@@ -26,7 +26,11 @@ const router = Router();
                                 editor's branding picker, the Intros logo
                                 field, press kit, link-in-bio.
    PUT  /api/brand-kit          save manual fields (logo, chosen tagline,
-                                bio lines, press facts) — free, no charge.
+                                bio lines, press facts) AND the palette +
+                                font pairings themselves — the creator can
+                                retune colors/fonts by hand after a
+                                generation instead of paying to regenerate —
+                                free, no charge.
    POST /api/brand-kit/logo     save a generated logo as the kit's logo
                                 (replaces the current one; external URLs
                                 are re-hosted into permanent storage
@@ -83,7 +87,28 @@ router.get("/brand-kit", requireAuth, async (req, res) => {
   }
 });
 
-/* ── PUT /api/brand-kit — manual fields, saved free ────────────────────── */
+/* ── PUT /api/brand-kit — manual fields, saved free ──────────────────────
+   Colors and fonts are patchable too (Ring 4): the generated palette was
+   previously display-only — the only way to change a hex was paying 200
+   VB to regenerate and hoping. A patch REPLACES the palette / pairings
+   wholesale (same discipline as bioLines/pressFacts). Roles come from
+   the generator's own vocabulary and must be unique within the palette:
+   consumers resolve colors BY role (apply-to-theme, the UGC snapshot's
+   primary), so two colors claiming one role would be ambiguous. */
+export const BRAND_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
+
+const brandColorPatchSchema = z.object({
+  hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  name: z.string().trim().min(1).max(80),
+  role: z.enum(BRAND_COLOR_ROLES),
+});
+
+const brandFontPatchSchema = z.object({
+  heading: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(120),
+  usage: z.string().trim().max(240).optional().default(""),
+});
+
 const brandKitPatchSchema = z
   .object({
     brandName: z.string().trim().min(1).max(120).optional(),
@@ -91,6 +116,15 @@ const brandKitPatchSchema = z
     selectedTagline: z.string().trim().max(240).nullable().optional(),
     bioLines: z.array(z.string().trim().min(1).max(400)).max(8).optional(),
     pressFacts: z.array(z.string().trim().min(1).max(300)).max(16).optional(),
+    colors: z
+      .array(brandColorPatchSchema)
+      .min(1)
+      .max(6)
+      .refine((cs) => new Set(cs.map((c) => c.role)).size === cs.length, {
+        message: "Each color role can appear once — consumers read colors by role.",
+      })
+      .optional(),
+    fonts: z.array(brandFontPatchSchema).min(1).max(3).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: "Send at least one field to save." });
 
@@ -113,6 +147,8 @@ router.put("/brand-kit", requireAuth, async (req, res) => {
     if (patch.selectedTagline !== undefined) next.selectedTagline = patch.selectedTagline || null;
     if (patch.bioLines !== undefined) next.bioLines = patch.bioLines;
     if (patch.pressFacts !== undefined) next.pressFacts = patch.pressFacts;
+    if (patch.colors !== undefined) next.colors = patch.colors;
+    if (patch.fonts !== undefined) next.fonts = patch.fonts;
     const saved = await writeBrandKit(req.userId!, next);
     if (!saved) {
       res.status(404).json({

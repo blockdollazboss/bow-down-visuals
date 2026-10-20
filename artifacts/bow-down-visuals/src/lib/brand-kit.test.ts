@@ -90,6 +90,19 @@ describe("brand kit client", () => {
     expect(JSON.parse(init.body as string)).toEqual({ logoUrl: "https://cdn.example/logo.png" });
   });
 
+  it("saveBrandKit carries a hand-edited palette + fonts through the same PUT", async () => {
+    const fetchMock = stubFetch(() => okJson({ brandKit: sample }));
+    const colors = [
+      { hex: "#FF0055", name: "Neon Rose", role: "primary" },
+      { hex: "#101018", name: "Stage Black", role: "background" },
+    ];
+    const fonts = [{ heading: "Bebas Neue", body: "Space Grotesk", usage: "Street drops" }];
+    await saveBrandKit(async () => "tok", { colors, fonts });
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body as string)).toEqual({ colors, fonts });
+  });
+
   it("saveLogoToBrandKit posts the logo to the kit's logo endpoint and returns the stored URL + flags", async () => {
     const fetchMock = stubFetch(() =>
       okJson({ brandKit: sample, logoUrl: "https://storage.example/generated-clips/logos/user-1/x.png", mirrored: true, replaced: false }),
