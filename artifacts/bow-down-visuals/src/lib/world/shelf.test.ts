@@ -550,3 +550,36 @@ describe("source pins — track extras on Your Songs (2.15)", () => {
     expect(booth).not.toContain("/api/stems");
   });
 });
+
+describe("source pins — downloads + receipts at the booth (2.16)", () => {
+  const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+
+  it("the booth mints a purchase's download through the store token rail, keyed by the SALE id", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain('data-testid="world-shelf-download"');
+    /* p.id is the digital_sales row id — the only key the token rail
+       accepts. Keying by the item id would mint against a purchase
+       that doesn't exist. */
+    expect(booth).toContain("mintStoreDownloadLink(p.id");
+    expect(booth).not.toContain("mintStoreDownloadLink(p.itemId");
+    expect(booth).toContain('data-testid="world-shelf-download-mint"');
+    expect(booth).toContain('data-testid="world-shelf-download-copy"');
+  });
+
+  it("the mint helper posts the saleId to the one token endpoint — the website's rail, unchanged", () => {
+    const streaming = read("../../lib/streaming.ts");
+    expect(streaming).toContain('"/api/store/token"');
+    expect(streaming).toContain("JSON.stringify({ saleId })");
+  });
+
+  it("every purchase row carries its receipt line at the booth", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain("shelfReceiptLine(p)");
+  });
+
+  it("your own uploads carry no download — the token rail is purchase-keyed and no other rail exists", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).not.toContain("world-my-music-download");
+    expect(booth).not.toContain("mintStoreDownloadLink(row.id");
+  });
+});
