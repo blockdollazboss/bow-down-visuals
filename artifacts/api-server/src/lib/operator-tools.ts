@@ -99,6 +99,10 @@ const VALIDATORS: Record<string, NonNullable<OperatorTool["validateArgs"]>> = {
   ...TIER3_VALIDATORS,
 };
 
+function validatorFor(id: string): OperatorTool["validateArgs"] {
+  return Object.prototype.hasOwnProperty.call(VALIDATORS, id) ? VALIDATORS[id] : undefined;
+}
+
 export const OPERATOR_TOOLS: readonly OperatorTool[] = OPERATOR_TOOL_DEFS.map(
   (def) => {
     const handler = HANDLERS[def.id];
@@ -107,7 +111,7 @@ export const OPERATOR_TOOLS: readonly OperatorTool[] = OPERATOR_TOOL_DEFS.map(
          runtime state — fail loud at module load, never in a chat. */
       throw new Error(`Operator tool "${def.id}" has a catalog entry but no handler.`);
     }
-    const validateArgs = VALIDATORS[def.id];
+    const validateArgs = validatorFor(def.id);
     return validateArgs ? { ...def, handler, validateArgs } : { ...def, handler };
   },
 );
