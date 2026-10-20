@@ -23,9 +23,19 @@ interface TableStore {
      real route (e.g. the DMCA intake, which never sends `status`)
      would silently lack the value every read then filters on. */
   defaults: Map<string, unknown>;
+  /* Optional per-table predicate modelling a PARTIAL unique index: a
+     stored row only counts toward a uniqueSets conflict while this
+     returns true for it (e.g. content_reports' unique index applies
+     only while a report is open — status new/reviewing). Tables
+     without it keep the plain full-index behavior. */
+  uniqueWhen?: (row: Row) => boolean;
 }
 
-export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record<string, string[][]> = {}) {
+export function createFakeDb(
+  tables: Record<string, unknown>,
+  uniqueKeys: Record<string, string[][]> = {},
+  uniqueWhen: Record<string, (row: Row) => boolean> = {},
+) {
   const stores = new Map<unknown, TableStore>();
   const byName = new Map<string, TableStore>();
   for (const [name, table] of Object.entries(tables)) {
@@ -39,7 +49,7 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
         defaults.set(prop, d);
       }
     }
-    const store: TableStore = { rows: [], colToProp, uniqueSets: uniqueKeys[name] ?? [], defaults };
+    const store: TableStore = { rows: [], colToProp, uniqueSets: uniqueKeys[name] ?? [], defaults, uniqueWhen: uniqueWhen[name] };
     stores.set(table, store);
     byName.set(name, store);
   }
@@ -301,7 +311,7 @@ export function createFakeDb(tables: Record<string, unknown>, uniqueKeys: Record
             if (!v["id"]) row.id = genId();
             else row.id = v["id"];
             const conflict = store.uniqueSets
-              .map((set) => store.rows.find((r) => set.every((k) => String(r[k] ?? "") === String(row[k] ?? ""))))
+              .map((set) => store.rows.find((r) => (!store.uniqueWhen || store.uniqueWhen(r)) && set.every((k) => String(r[k] ?? "") === String(row[k] ?? ""))))
               .find(Boolean);
             const targetConflict = conflictTarget.length
               ? store.rows.find((r) => conflictTarget.every((k) => String(r[k] ?? "") === String(row[k] ?? "")))

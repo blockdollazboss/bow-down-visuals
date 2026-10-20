@@ -8,6 +8,7 @@ import { RichText } from "./RichText";
 import { AttachmentView } from "./AttachmentView";
 import { Composer } from "./Composer";
 import { ReactionSticker } from "./KingEmoji";
+import { ReportButton } from "./ReportButton";
 import { REACTION_ART, REACTION_KEYS } from "@/lib/king-emoji";
 
 /* Reactions: the five keys are the server's contract (routes/social.ts
@@ -56,8 +57,9 @@ export function PostCard({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   /* Delete/analytics are owner-gated server-side (403 otherwise) — no client
-     hint needed; the buttons fail closed. */
-  void user;
+     hint needed; the buttons fail closed. `user` gates the Report action:
+     reporting is members-only, and a self-report is refused server-side
+     with the reason shown in the dialog. */
 
   async function react(next: string) {
     const prev = emoji;
@@ -306,6 +308,12 @@ export function PostCard({
               <button onClick={share} aria-label="Share" className="rounded-full p-2 text-neutral-400 hover:text-[#d4af37]">
                 <Share2 className="h-[18px] w-[18px]" />
               </button>
+              {user && (
+                <ReportButton
+                  targetType={post.kind === "thread_reply" ? "comment" : "post"}
+                  targetId={post.id}
+                />
+              )}
               <button onClick={del} aria-label="Delete post" className="rounded-full p-2 text-neutral-500 hover:text-red-400">
                 <Trash2 className="h-[16px] w-[16px]" />
               </button>

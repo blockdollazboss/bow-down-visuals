@@ -16,7 +16,7 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
-import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable } from "@workspace/db";
+import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable, contentReportsTable, CONTENT_REPORT_STATUSES } from "@workspace/db";
 import { eq, isNull, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -598,6 +598,98 @@ router.patch("/admin/dmca-reports/:id", requireAuth, requireAdmin, async (req, r
     res.json({ report });
   } catch (err) {
     req.log.error({ err }, "admin: update dmca report failed");
+    res.status(500).json({ error: "Could not update the report." });
+  }
+});
+
+/* ─── Moderation bench: member content report queue ───────────────────
+   Reports filed through POST /api/reports (routes/reports.ts) land in
+   content_reports with status "new". This is the queue that reads
+   them back — the member-reported sibling of the DMCA bench above,
+   same gate, same workflow vocabulary, same discipline. Working a
+   report = moving it through its workflow. Acting on the reported
+   content itself (removing a post or media) has no admin rail
+   anywhere in the codebase — post/media deletion is author-only —
+   so the bench deliberately has no "remove" button to fake. */
+
+const ContentReportStatusQuerySchema = z.object({
+  status: z.enum(CONTENT_REPORT_STATUSES).optional(),
+});
+
+const contentReportDto = {
+  id: contentReportsTable.id,
+  reporterUserId: contentReportsTable.reporterUserId,
+  targetType: contentReportsTable.targetType,
+  targetId: contentReportsTable.targetId,
+  targetOwnerUserId: contentReportsTable.targetOwnerUserId,
+  targetSummary: contentReportsTable.targetSummary,
+  reason: contentReportsTable.reason,
+  note: contentReportsTable.note,
+  status: contentReportsTable.status,
+  createdAt: contentReportsTable.createdAt,
+};
+
+/**
+ * GET /api/admin/reports?status=
+ * The member-report queue — newest first. ?status= narrows to one
+ * workflow state; an unknown state is a 400, never a silent
+ * empty queue.
+ */
+router.get("/admin/reports", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = ContentReportStatusQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Invalid status filter. Must be one of: ${CONTENT_REPORT_STATUSES.join(", ")}.` });
+    return;
+  }
+  try {
+    const base = db.select(contentReportDto).from(contentReportsTable);
+    const reports = parsed.data.status
+      ? await base.where(eq(contentReportsTable.status, parsed.data.status)).orderBy(desc(contentReportsTable.createdAt)).limit(200)
+      : await base.orderBy(desc(contentReportsTable.createdAt)).limit(200);
+    res.json({ reports });
+  } catch (err) {
+    req.log.error({ err }, "admin: list content reports failed");
+    res.status(500).json({ error: "Could not load content reports." });
+  }
+});
+
+const ContentReportStatusSchema = z.object({
+  status: z.enum(CONTENT_REPORT_STATUSES),
+});
+
+/**
+ * PATCH /api/admin/reports/:id
+ * Move a report through its workflow:
+ * new → reviewing → actioned / dismissed.
+ */
+router.patch("/admin/reports/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = ContentReportStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Invalid status. Must be one of: ${CONTENT_REPORT_STATUSES.join(", ")}.` });
+    return;
+  }
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid report id." });
+    return;
+  }
+  try {
+    const [report] = await db
+      .update(contentReportsTable)
+      .set({ status: parsed.data.status })
+      .where(eq(contentReportsTable.id, parsedParams.data.id))
+      .returning(contentReportDto);
+    if (!report) {
+      res.status(404).json({ error: "Report not found." });
+      return;
+    }
+    req.log.info(
+      { admin: req.userEmail, reportId: report.id, status: report.status },
+      "admin: content report status updated",
+    );
+    res.json({ report });
+  } catch (err) {
+    req.log.error({ err }, "admin: update content report failed");
     res.status(500).json({ error: "Could not update the report." });
   }
 });
