@@ -323,7 +323,7 @@ export async function buildCatalogManifest(userId: string) {
   const partial = [songs, videos, releases, storeProducts, audience].some((s) => s.status === "error");
   return {
     format: "manifest+links" as const,
-    formatNote: "One manifest, not one giant zip: video originals are large, so each entry carries the file's download link plus its metadata in open JSON. Metadata is also exportable as CSV from the manifest fields. Nothing is re-encoded.",
+    formatNote: "One manifest, not one giant zip: video originals are large, so each entry carries the file's download link plus its metadata in open JSON. For a spreadsheet instead, the export builder (Settings → Your whole catalog) downloads one catalog kind at a time as CSV with the fields you pick. Nothing is re-encoded.",
     exportedAt: new Date().toISOString(),
     includes: ["songs + audio files", "videos", "release metadata", "store products", "audience list (your email list subscribers who have not unsubscribed)"],
     partial, songs, videos, releases, storeProducts, audience,
@@ -357,6 +357,82 @@ router.get("/catalog-export/:id", requireAuth, async (req, res) => {
     if (!j) { res.status(404).json({ error: "Export not found." }); return; }
     res.json({ job: { id: j.id, status: j.status, progress: j.progress, manifest: j.manifest, error: j.error, createdAt: iso(j.created_at) } });
   } catch (err) { logger.error({ err }, "[trust] catalog job failed"); res.status(500).json({ error: "Could not load that export." }); }
+});
+
+/* ═══ #3b Catalog export BUILDER — one kind, your fields, a file ═══════
+   The package above always carries everything. The builder is the
+   narrower tool: one catalog kind (tracks / releases / videos), only the
+   fields the creator picks, downloaded as CSV or JSON. Columns come ONLY
+   from the whitelist below — the same columns buildCatalogManifest
+   reads — so a field name off the wire can never become SQL. The query
+   is born scoped to the caller (WHERE user_id = caller), never filtered
+   after the fact. Same 2,000-row cap as the manifest; when the cap is
+   hit the response SAYS so (X-Export-Truncated + the JSON body's
+   `truncated`) instead of quietly dropping the tail. */
+
+interface CatalogExportKindDef { table: string; fields: Record<string, string> }
+export const CATALOG_EXPORT_KINDS: Record<string, CatalogExportKindDef> = {
+  tracks: {
+    table: "songs",
+    fields: { id: "id", title: "title", source: "source", durationSec: "duration_sec", fileUrl: "audio_url", createdAt: "created_at" },
+  },
+  releases: {
+    table: "distribution_releases",
+    fields: { id: "id", title: "title", artistName: "artist_name", status: "status", fileUrl: "audio_url", artworkUrl: "artwork_url", createdAt: "created_at" },
+  },
+  videos: {
+    table: "generated_clips",
+    fields: { id: "id", title: "title", status: "status", fileUrl: "video_url", thumbnailUrl: "thumbnail_url", createdAt: "created_at" },
+  },
+};
+export const CATALOG_EXPORT_ROW_CAP = 2000;
+
+const exportCell = (v: unknown): unknown => (v instanceof Date ? v.toISOString() : v ?? null);
+
+export async function buildCatalogExport(userId: string, kind: string, fields: string[]) {
+  const def = CATALOG_EXPORT_KINDS[kind]!;
+  const cols = sql.join(fields.map((f) => sql.raw(`"${def.fields[f]}" AS "${f}"`)), sql`, `);
+  const rows = ((await db.execute(sql`SELECT ${cols} FROM ${sql.raw(def.table)} WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${sql.raw(String(CATALOG_EXPORT_ROW_CAP + 1))}`)).rows as Record<string, unknown>[])
+    .map((r) => Object.fromEntries(fields.map((f) => [f, exportCell(r[f])])));
+  const truncated = rows.length > CATALOG_EXPORT_ROW_CAP;
+  return { rows: truncated ? rows.slice(0, CATALOG_EXPORT_ROW_CAP) : rows, truncated };
+}
+
+function csvCell(v: unknown): string {
+  if (v == null) return "";
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+const catalogBuildSchema = z.object({
+  kind: z.enum(["tracks", "releases", "videos"]),
+  fields: z.array(z.string().min(1)).min(1).max(16).optional(),
+  format: z.enum(["csv", "json"]).default("csv"),
+});
+
+router.post("/catalog-export/build", requireAuth, async (req, res) => {
+  const parsed = catalogBuildSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Choose a catalog kind (tracks, releases or videos), at least one field, and a format (csv or json)." }); return; }
+  const { kind, format } = parsed.data;
+  const def = CATALOG_EXPORT_KINDS[kind]!;
+  const allowed = Object.keys(def.fields);
+  const fields = [...new Set(parsed.data.fields ?? allowed)];
+  const bad = fields.filter((f) => !allowed.includes(f));
+  if (bad.length > 0) { res.status(400).json({ error: `Unknown ${kind} field(s): ${bad.join(", ")}. Available: ${allowed.join(", ")}.` }); return; }
+  try {
+    const { rows, truncated } = await buildCatalogExport(req.userId!, kind, fields);
+    if (truncated) res.setHeader("X-Export-Truncated", "true");
+    if (format === "json") {
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="my-catalog-${kind}.json"`);
+      res.json({ format: "catalog-export", kind, fields, count: rows.length, truncated, exportedAt: new Date().toISOString(), rows });
+    } else {
+      const lines = [fields.map(csvCell).join(","), ...rows.map((r) => fields.map((f) => csvCell(r[f])).join(","))];
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="my-catalog-${kind}.csv"`);
+      res.send(lines.join("\r\n") + "\r\n");
+    }
+  } catch (err) { logger.error({ err }, "[trust] catalog export build failed"); res.status(500).json({ error: "Could not build that export." }); }
 });
 
 /* ═══ #4 Unified mod console + automod ════════════════════════════════ */
