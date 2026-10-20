@@ -165,6 +165,48 @@ describe("buildReplyDoors — the shared door contract", () => {
     expect(buildReplyDoors("yes")).toEqual([]);
   });
 
+  /* Regression (Oct 20 staging verification): "Where is my music
+     library?" answered correctly in text (My Music, /my-music) but the
+     door under it opened AI Music Video Maker — the matcher had scored
+     the message like a creation question because the possessive signal
+     never reached it. These pins hold the locator family: the door must
+     name the member's own collection page for the content they asked
+     about, and creation/pricing questions must keep their doors. */
+  it("a music-library locator gets the My Music door, not a creation tool", () => {
+    const f = kbFeature("My Music");
+    expect(f.path).toBe("/my-music");
+    expect(buildReplyDoors("Where is my music library?")).toEqual([
+      { kind: "open", label: "Open My Music", path: "/my-music" },
+    ]);
+    expect(buildReplyDoors("Where are my songs?")).toEqual([
+      { kind: "open", label: "Open My Music", path: "/my-music" },
+    ]);
+  });
+
+  it("a video-library locator gets the My Clips door", () => {
+    const f = kbFeature("My Clips");
+    expect(f.path).toBe("/my-projects?tab=myclips");
+    expect(buildReplyDoors("Where is my video library?")).toEqual([
+      { kind: "open", label: "Open My Clips", path: "/my-projects?tab=myclips" },
+    ]);
+    expect(buildReplyDoors("Where are my videos?")).toEqual([
+      { kind: "open", label: "Open My Clips", path: "/my-projects?tab=myclips" },
+    ]);
+  });
+
+  it("a music-video CREATION question keeps the maker door (no collection hijack)", () => {
+    expect(buildReplyDoors("How do I make a music video?")).toEqual([
+      { kind: "open", label: "Open AI Music Video Maker", path: "/tools/ai-music-video-maker" },
+    ]);
+  });
+
+  it("a pricing question keeps its creation door", () => {
+    expect(buildReplyDoors("How do I make a song, and what does it cost?")).toEqual([
+      { kind: "open", label: "Open Make a Song", path: "/create?panel=song" },
+      { kind: "guide", label: "Walk me through it", path: "/create?panel=song" },
+    ]);
+  });
+
   it("sweep: every door ever built points at a real KB path, verbatim, at most two", () => {
     const kbPaths = new Set(OPERATOR_FEATURES.map((f) => f.path));
     const kbNames = new Set(OPERATOR_FEATURES.map((f) => f.name));
@@ -212,6 +254,14 @@ describe("POST /api/chat — doors ride the reply", () => {
     const { json } = await post(chatBase, "/api/chat", "Show me my earnings");
     expect(json.doors).toEqual([
       { kind: "open", label: "Open Earnings", path: "/earnings" },
+    ]);
+  });
+
+  it("the staging defect, end to end: a music-library answer carries the My Music door", async () => {
+    const { status, json } = await post(chatBase, "/api/chat", "Where is my music library?");
+    expect(status).toBe(200);
+    expect(json.doors).toEqual([
+      { kind: "open", label: "Open My Music", path: "/my-music" },
     ]);
   });
 

@@ -167,6 +167,33 @@ describe("operator knowledge — matching and grounding", () => {
     expect(hits[0]?.path).toBe("/brand-deals");
   });
 
+  /* Collection intent: a possessive locator question ("where is MY …")
+     must match the member's own collection page first — the grounding
+     facts lead with it, so the model's answer and the door under it
+     name the same destination (the Oct 20 staging defect was the door
+     disagreeing with the answer). Creation verbs and price questions
+     are never locator questions. */
+  it("matches My Music first for music-collection locators", () => {
+    expect(findFeatures("Where is my music library?")[0]?.path).toBe("/my-music");
+    expect(findFeatures("Where are my songs?")[0]?.path).toBe("/my-music");
+    const g = buildGrounding("Where is my music library?");
+    expect(g).toContain("▸ My Music — path /my-music");
+  });
+
+  it("matches My Clips first for video-collection locators", () => {
+    expect(findFeatures("Where is my video library?")[0]?.path).toBe("/my-projects?tab=myclips");
+    expect(findFeatures("Where are my videos?")[0]?.path).toBe("/my-projects?tab=myclips");
+  });
+
+  it("collection intent never hijacks a creation or pricing question", () => {
+    expect(findFeatures("How do I make a music video?")[0]?.path).toBe("/tools/ai-music-video-maker");
+    // Head-noun rule: "music video" names two domains; the bonus follows
+    // the head noun (video), so the music collection cannot claim it and
+    // the creation tool keeps the match it has always had.
+    expect(findFeatures("Where is my music video?")[0]?.path).toBe("/tools/ai-music-video-maker");
+    expect(findFeatures("How do I make a song, and what does it cost?")[0]?.path).toBe("/create?panel=song");
+  });
+
   it("matches the bio publish price to the page that charges it", () => {
     const hits = findFeatures("how much does it cost to publish my link in bio page");
     const carrier = hits.find((f) => f.prices.some((p) => p.endpoint === "/api/bio-publish"));
