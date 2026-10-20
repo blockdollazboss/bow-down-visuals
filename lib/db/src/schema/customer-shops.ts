@@ -49,6 +49,13 @@ export const shopProductsTable = pgTable("shop_products", {
   image_url: text("image_url"),
   /** Supabase storage reference for the image file (if uploaded). */
   image_path: text("image_path"),
+  /** Listing state (migration 0176): 'active' | 'paused'. Mirrors the
+      status vocabulary of creator_subscriptions / fan_memberships /
+      sponsor_deals (text, NOT NULL, default 'active') — every product
+      is live unless its seller pauses it. Buyers only ever see
+      'active' rows; 'paused' rows stay in the seller's own management
+      views and are refused at checkout. */
+  status: text("status").notNull().default("active").$type<ShopProductStatus>(),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -126,6 +133,9 @@ export const insertShopEventSchema = createInsertSchema(shopEventsTable).omit({
 });
 
 export const selectShopEventSchema = createSelectSchema(shopEventsTable);
+
+/** Shop product listing state (migration 0176). */
+export type ShopProductStatus = "active" | "paused";
 
 export type Shop = typeof shopsTable.$inferSelect;
 export type ShopProduct = typeof shopProductsTable.$inferSelect;

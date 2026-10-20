@@ -120,7 +120,7 @@ CREATE TABLE shops (
 CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   name text NOT NULL, price_cents integer NOT NULL DEFAULT 0, description text,
-  image_url text, image_path text,
+  image_url text, image_path text, status text NOT NULL DEFAULT 'active',
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE shop_events (
@@ -260,6 +260,38 @@ describe("POST /storefronts/checkout — pending first, real session", () => {
     const { status } = await req("POST", "/storefronts/checkout", { shopId, productId: p1, quantity: 1 });
     expect(status).toBe(503);
     expect(await eventsFor(shopId)).toHaveLength(0);
+  });
+
+  it("a paused product can never sell: 404, no rows, no session — paid and free alike", async () => {
+    const { shopId } = await seedShop();
+    const pausedId = randomUUID();
+    await h.db.execute(sql`INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status) VALUES (${pausedId}, ${shopId}, ${USER}, 'Paused Hoodie', 2000, 'paused')`);
+    const { status, json } = await req("POST", "/storefronts/checkout", { shopId, productId: pausedId, quantity: 1 });
+    expect(status).toBe(404);
+    expect(json.error).toBe("Product not found.");
+    expect(await eventsFor(shopId)).toHaveLength(0);
+    expect(h.createCalls).toHaveLength(0);
+
+    /* Free paused goods refuse on the same path — the free branch
+       (which records a sale with no payment) is never reached. */
+    const pausedFreeId = randomUUID();
+    await h.db.execute(sql`INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status) VALUES (${pausedFreeId}, ${shopId}, ${USER}, 'Paused Freebie', 0, 'paused')`);
+    const freeAttempt = await req("POST", "/storefronts/checkout", { shopId, productId: pausedFreeId, quantity: 1 });
+    expect(freeAttempt.status).toBe(404);
+    expect(await eventsFor(shopId)).toHaveLength(0);
+  });
+
+  it("a mixed cart (one live + one paused) refuses whole: no partial order is written", async () => {
+    const { shopId, p1 } = await seedShop();
+    const pausedId = randomUUID();
+    await h.db.execute(sql`INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status) VALUES (${pausedId}, ${shopId}, ${USER}, 'Paused Cap', 500, 'paused')`);
+    const { status } = await req("POST", "/storefronts/checkout", {
+      shopId,
+      items: [{ productId: p1, quantity: 1 }, { productId: pausedId, quantity: 1 }],
+    });
+    expect(status).toBe(404);
+    expect(await eventsFor(shopId)).toHaveLength(0);
+    expect(h.createCalls).toHaveLength(0);
   });
 
   it("a free cart completes as paid with no session and no charge", async () => {

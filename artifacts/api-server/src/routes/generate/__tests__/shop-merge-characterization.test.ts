@@ -97,7 +97,7 @@ CREATE TABLE shops (
 CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   name text NOT NULL, price_cents integer NOT NULL DEFAULT 0, description text,
-  image_url text, image_path text,
+  image_url text, image_path text, status text NOT NULL DEFAULT 'active',
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE shop_events (
