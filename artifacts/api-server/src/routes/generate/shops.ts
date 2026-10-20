@@ -60,6 +60,42 @@ async function presentShopProductRow<T extends { image_url: string | null; image
   const source = row.image_path ?? row.image_url;
   return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
 }
+
+/* ── Pinned UGC ads (migration 0178) ─────────────────────────────────────
+   shop_products.pinned_ugc_ad_id points at the ugc_ads row the seller
+   pinned to the product (the pin verb lives on the ad record, in
+   routes/ugc-ads.ts). Every product surface resolves it through here,
+   so the render rule is identical everywhere: the ad shows only while
+   it is still 'ready' with a video — a not-ready or deleted ad renders
+   as NO pin, never as a broken player — and its playable URL is minted
+   fresh on the read, never stored. Keyed by ad id. Buyer payloads get
+   the resolved `pinned_ad` only; the raw pin id is owner state and is
+   stripped before a buyer DTO leaves (the 0176 discipline: buyer
+   reads carry no management state). */
+async function pinnedAdVideosById(
+  rows: Array<{ pinned_ugc_ad_id?: string | null }>,
+): Promise<Map<string, { id: string; video_url: string }>> {
+  const ids = [
+    ...new Set(
+      rows
+        .map((r) => r.pinned_ugc_ad_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0),
+    ),
+  ];
+  const out = new Map<string, { id: string; video_url: string }>();
+  if (ids.length === 0) return out;
+  const result = await db.execute(sql`
+    SELECT id, status, video_ref
+    FROM ugc_ads
+    WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+  `);
+  for (const a of result.rows as unknown as Array<{ id: string; status: string; video_ref: string | null }>) {
+    if (a.status === "ready" && a.video_ref) {
+      out.set(a.id, { id: a.id, video_url: await refreshSupabaseStorageUrl(a.video_ref) });
+    }
+  }
+  return out;
+}
 import { r2Upload, r2PublicUrl, isR2Configured } from "../../lib/r2-client";
 import { promises as dns } from "dns";
 import { db } from "@workspace/db";
@@ -197,6 +233,10 @@ interface ProductRow {
   /** 'active' | 'paused' (migration 0176) — owner DTOs only; buyer
       reads select explicit columns and never carry it. */
   status: string;
+  /** The pinned UGC ad's id (migration 0178) — owner state like
+      status: owner DTOs carry it, buyer payloads never do (they get
+      the resolved `pinned_ad` video instead). */
+  pinned_ugc_ad_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -357,20 +397,33 @@ router.get("/shops/handle/:handle", async (req, res) => {
   }
   /* Buyers see live products only: a paused product (migration 0176)
      is unlisted — filtered here, and its status is never selected, so
-     the buyer DTO carries no trace of it. */
+     the buyer DTO carries no trace of it. The pinned-ad id (0178) is
+     selected only to resolve the pin; it is stripped from the payload
+     and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
     LIMIT 200
   `);
+  const productRows = productsResult.rows as unknown as Array<{
+    image_url: string | null;
+    image_path: string | null;
+    pinned_ugc_ad_id: string | null;
+  }>;
+  const pinnedAds = await pinnedAdVideosById(productRows);
   res.json({
     shop: await presentShopRow(shop),
     products: await Promise.all(
-      (productsResult.rows as unknown as Array<{ image_url: string | null; image_path: string | null }>).map(
-        async (p) => ({ ...p, image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url }),
-      ),
+      productRows.map(async (p) => {
+        const { pinned_ugc_ad_id, ...pub } = p;
+        return {
+          ...pub,
+          image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url,
+          pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+        };
+      }),
     ),
   });
 });
@@ -389,15 +442,20 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
     return;
   }
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
     LIMIT 200
   `);
+  const rows = result.rows as unknown as ProductRow[];
+  const pinnedAds = await pinnedAdVideosById(rows);
   res.json({
     products: await Promise.all(
-      (result.rows as unknown as ProductRow[]).map((p) => presentShopProductRow(p)),
+      rows.map(async (p) => ({
+        ...(await presentShopProductRow(p)),
+        pinned_ad: p.pinned_ugc_ad_id ? (pinnedAds.get(p.pinned_ugc_ad_id) ?? null) : null,
+      })),
     ),
   });
 });
@@ -428,11 +486,15 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
             ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
-  res.status(201).json({ product: createdRow ? await presentShopProductRow(createdRow) : createdRow });
+  res.status(201).json({
+    product: createdRow
+      ? { ...(await presentShopProductRow(createdRow)), pinned_ad: null }
+      : createdRow,
+  });
 });
 
 /* ── PATCH /api/shops/:id/products/:productId (free) ─────────────────────── */
@@ -473,11 +535,23 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
-  res.json({ product: updatedRow ? await presentShopProductRow(updatedRow) : updatedRow });
+  if (!updatedRow) {
+    res.json({ product: updatedRow });
+    return;
+  }
+  const pinnedAds = await pinnedAdVideosById([updatedRow]);
+  res.json({
+    product: {
+      ...(await presentShopProductRow(updatedRow)),
+      pinned_ad: updatedRow.pinned_ugc_ad_id
+        ? (pinnedAds.get(updatedRow.pinned_ugc_ad_id) ?? null)
+        : null,
+    },
+  });
 });
 
 /* ── DELETE /api/shops/:id/products/:productId (free) ────────────────────── */
@@ -946,9 +1020,12 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     return;
   }
   /* Buyers see live products only — paused rows (migration 0176) are
-     unlisted here exactly as on the handle read, status unselected. */
+     unlisted here exactly as on the handle read, status unselected.
+     The pinned-ad id (0178) is selected only to resolve the pin and
+     stripped before the payload leaves, exactly as on the handle
+     read; the minted video URL passes the deep refresh untouched. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -957,9 +1034,20 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   const { user_id, ...publicShop } = shop;
   /* Fire-and-forget analytics — never blocks the page. */
   recordView(shop.id, user_id, req.ip);
+  const rawProducts = productsResult.rows as unknown as Array<
+    Record<string, unknown> & { pinned_ugc_ad_id: string | null }
+  >;
+  const pinnedAds = await pinnedAdVideosById(rawProducts);
+  const buyerProducts = rawProducts.map((p) => {
+    const { pinned_ugc_ad_id, ...pub } = p;
+    return {
+      ...pub,
+      pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+    };
+  });
   res.json(await refreshSupabaseStorageUrlsDeep({
     shop: publicShop,
-    products: productsResult.rows,
+    products: buyerProducts,
     platformFeePct: PLATFORM_FEE_PCT,
   }));
 });
