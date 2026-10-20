@@ -17,6 +17,7 @@
  *   GET /api/discovery/rising-earners   (rising earners)
  *   GET /api/discovery/following?ids=…   (the walker's follow state)
  *   GET /api/discovery/likes?ids=…       (the walker's like state)
+ *   GET /api/discovery/reposts?ids=…     (the walker's repost state)
  *   POST   /api/creator-profiles/:id/follow
  *   DELETE /api/creator-profiles/:id/unfollow
  * No new back-end (plan §3.0).
@@ -41,6 +42,9 @@ export interface ChartTrackRow {
   /** The row's like counter (the Charts Like button's starting
    *  count; the media like rails return the authoritative count). */
   likeCount: number;
+  /** The row's repost counter (the Charts Repost button's starting
+   *  count; the track repost rail returns the authoritative count). */
+  repostCount: number;
   /** The streamable audio URL the discovery SQL already selects
    *  (audio_url, storage-refreshed server-side) — the Shelf player's
    *  Play-here source. Null when the row doesn't carry one. */
@@ -117,6 +121,7 @@ export function normalizeChartTracks(payload: unknown): ChartTrackRow[] {
       plays: num(r["window_plays"] ?? r["windowPlays"]) ?? num(r["play_count"] ?? r["playCount"]) ?? 0,
       durationSec: num(r["duration_sec"] ?? r["durationSec"]),
       likeCount: num(r["like_count"] ?? r["likeCount"]) ?? 0,
+      repostCount: num(r["repost_count"] ?? r["repostCount"]) ?? 0,
       mediaUrl: str(r["audio_url"] ?? r["audioUrl"]),
       profileId: str(r["profile_id"] ?? r["profileId"]),
     });
@@ -209,6 +214,7 @@ export function chartTrackPlayInput(row: ChartTrackRow): ShelfPlayInput | null {
     likeCount: row.likeCount,
     commentCount: 0,
     profileId: row.profileId,
+    repostCount: row.repostCount,
   };
 }
 
@@ -316,4 +322,53 @@ export function likeStateFromToggle(
     liked: res.liked,
     count: res.count !== null ? res.count : Math.max(0, current.count + (res.liked ? 1 : -1)),
   };
+}
+
+/* ─── The Repost contract (2.15 — the listening-extras tail) ──────────
+   A track row's Repost rides the track repost rail (lib/streaming
+   toggleRepost: POST /api/tracks/:id/repost, DELETE …/unrepost) —
+   the same rail the website's track page and the Now Playing card
+   ride. Reposts are tracks-only: the rail has no video form, so
+   video rows never carry the button (the card's discipline too).
+   The STARTING state comes from the server, never from a local
+   assumption: the count off the chart row's DTO, and the walker's
+   own reposted flag off the batched repost-state read
+   (GET /api/discovery/reposts — the /likes pattern, repost twin).
+   Without that read a row could only open unreposted, and pressing
+   Repost on an already-reposted track would re-fire the POST rail,
+   whose counter bump does not know the repost row already existed.
+   The fold takes the SERVER's answer, exactly like the Like fold. */
+
+/** The batched repost-state query for the track rows on show: one
+ *  comma-joined `track:<id>` list (tracks only — videos have no
+ *  repost state to ask about), de-duplicated. Null when there are
+ *  no track rows — the caller skips the read entirely. */
+export function chartRepostIdsParam(tracks: ChartTrackRow[]): string | null {
+  const seen = new Set<string>();
+  for (const r of tracks) seen.add(chartLikeKey("track", r.id));
+  return seen.size ? [...seen].join(",") : null;
+}
+
+/** Shape the batched repost-state payload ({ "track:<id>": bool })
+ *  into a plain map; anything else reads as "unknown" ({}), the
+ *  same discipline as the like-state read. */
+export function normalizeRepostStates(payload: unknown): Record<string, boolean> {
+  return normalizeLikeStates(payload);
+}
+
+/** Fold a repost toggle's outcome into the row's state. The
+ *  server's answer rules: its reposted verdict always, its count
+ *  whenever it sends one; only when the count is absent does the
+ *  fold step the last known count by the server's verdict (±1).
+ *  A failed toggle never reaches this fold — the caller keeps the
+ *  last state, so a row never pretends. */
+export function repostStateFromToggle(
+  current: { reposted: boolean; count: number },
+  res: { reposted: boolean; count: number | null },
+): { reposted: boolean; count: number } {
+  const folded = likeStateFromToggle(
+    { liked: current.reposted, count: current.count },
+    { liked: res.reposted, count: res.count },
+  );
+  return { reposted: folded.liked, count: folded.count };
 }

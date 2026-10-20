@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import {
   chartLikeIdsParam,
   chartLikeKey,
+  chartRepostIdsParam,
   chartTrackPlayInput,
   chartVideoPlayInput,
   followRequest,
@@ -30,6 +31,8 @@ import {
   normalizeChartVideos,
   normalizeFollowStates,
   normalizeLikeStates,
+  normalizeRepostStates,
+  repostStateFromToggle,
 } from "./charts-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
@@ -71,6 +74,7 @@ describe("normalizeChartTracks", () => {
       plays: 42,
       durationSec: 187,
       likeCount: 0,
+      repostCount: 0,
       mediaUrl: null,
       profileId: "p1",
     });
@@ -314,14 +318,19 @@ describe("Ring 2 (2.27) completion — hearts open on the walker's real like sta
   });
 
   it("the board source: guests meet the pitch for every gated act, like and watch included", () => {
-    expect(boardSrc).toContain("like a row");
+    expect(boardSrc).toContain("like or repost a row");
     expect(boardSrc).toContain("play or watch rows here");
-    /* row actions — Like included — render only inside the member branch */
+    /* Member acts — Like included — render only inside the member
+       branch (2.15 widened exactly one read action, embed, to
+       guests: it renders BEFORE the branch, never inside it). */
     const tracksAt = boardSrc.indexOf('tab === "tracks" ? (');
-    const guestGateAt = boardSrc.indexOf("isGuest ? undefined", tracksAt);
+    const memberBranchAt = boardSrc.indexOf("{!isGuest && (", tracksAt);
     const likeAt = boardSrc.indexOf('likeButton("track"', tracksAt);
-    expect(guestGateAt).toBeGreaterThan(-1);
-    expect(likeAt).toBeGreaterThan(guestGateAt);
+    const embedAt = boardSrc.indexOf('embedButton("track", row)', tracksAt);
+    expect(memberBranchAt).toBeGreaterThan(-1);
+    expect(likeAt).toBeGreaterThan(memberBranchAt);
+    expect(embedAt).toBeGreaterThan(-1);
+    expect(embedAt).toBeLessThan(memberBranchAt);
   });
 
   it("the host hands the Charts board the Shelf player itself — the video seam is connected, not just offered", () => {
@@ -369,5 +378,92 @@ describe("the ChartsBoard surface (source pins)", () => {
     expect(stationPanelSrc).toContain('resolution.pattern === "board" && station.id === "charts-desk"');
     expect(stationPanelSrc).toContain("onPlayTrack={props.onJukeboxAdd}");
     expect(stationPanelSrc).toContain("jukeboxDenied={props.jukeboxDenied}");
+  });
+});
+
+describe("Ring 2 (2.15) — the listening-extras tail: repost, embed, queue", () => {
+  const tracks = normalizeChartTracks({
+    tracks: [
+      { id: "t1", title: "One", like_count: 17, repost_count: 5, audio_url: "https://cdn.example.com/t1.mp3" },
+      { id: "t2", title: "Two", like_count: 3, repost_count: 0 },
+    ],
+  });
+
+  it("chart rows carry the repost counter off the DTO", () => {
+    expect(tracks[0]!.repostCount).toBe(5);
+    expect(tracks[1]!.repostCount).toBe(0);
+    /* a payload without the column reads as 0, never undefined */
+    expect(normalizeChartTracks({ tracks: [{ id: "t9", title: "Nine" }] })[0]!.repostCount).toBe(0);
+    /* the Shelf hand-off carries it too — the card's Repost opens on it */
+    expect(chartTrackPlayInput(tracks[0]!)!.repostCount).toBe(5);
+  });
+
+  it("the batched repost read asks about track rows only, once each", () => {
+    expect(chartRepostIdsParam(tracks)).toBe("track:t1,track:t2");
+    expect(chartRepostIdsParam([...tracks, ...tracks])).toBe("track:t1,track:t2");
+    expect(chartRepostIdsParam([])).toBeNull();
+  });
+
+  it("the repost-state payload keeps only real booleans (the like read's discipline)", () => {
+    expect(normalizeRepostStates({ "track:t1": true, "track:t2": "yes" })).toEqual({ "track:t1": true });
+    expect(normalizeRepostStates(null)).toEqual({});
+    expect(normalizeRepostStates("nope")).toEqual({});
+  });
+
+  it("the repost fold takes the server's answer — its count whenever it sends one", () => {
+    expect(repostStateFromToggle({ reposted: false, count: 5 }, { reposted: true, count: 8 })).toEqual({
+      reposted: true,
+      count: 8,
+    });
+    expect(repostStateFromToggle({ reposted: true, count: 8 }, { reposted: false, count: 5 })).toEqual({
+      reposted: false,
+      count: 5,
+    });
+    expect(repostStateFromToggle({ reposted: false, count: 5 }, { reposted: true, count: null })).toEqual({
+      reposted: true,
+      count: 6,
+    });
+    /* never below zero */
+    expect(repostStateFromToggle({ reposted: true, count: 0 }, { reposted: false, count: null }).count).toBe(0);
+  });
+
+  it("the board source: reposts seed from the batched read, keyed like the hearts", () => {
+    expect(boardSrc).toContain("/api/discovery/reposts?ids=");
+    expect(boardSrc).toContain("normalizeRepostStates");
+    expect(boardSrc).toContain("chartRepostIdsParam");
+    expect(boardSrc).toContain("repostStateFromToggle(current, res)");
+    /* state is keyed by chartLikeKey — the seed's keys and the
+       button's keys must be the same string or the seed is invisible */
+    expect(boardSrc).toContain('chartLikeKey("track", row.id)');
+    expect(boardSrc).not.toContain("repostStates[row.id]");
+    /* the toggle rides the shared rail, not a board-local fetch */
+    expect(boardSrc).toContain("toggleRepost(row.id, current.reposted");
+    /* a failed toggle flips nothing: its catch settles no state */
+    const toggleAt = boardSrc.indexOf("const toggleRowRepost");
+    const catchAt = boardSrc.indexOf("} catch {", toggleAt);
+    const finallyAt = boardSrc.indexOf("} finally {", toggleAt);
+    expect(boardSrc.slice(catchAt, finallyAt)).not.toContain("setRepostStates");
+  });
+
+  it("the board source: repost is a track-row member act — video rows never carry it", () => {
+    const tracksAt = boardSrc.indexOf('tab === "tracks" ? (');
+    const memberBranchAt = boardSrc.indexOf("{!isGuest && (", tracksAt);
+    const repostAt = boardSrc.indexOf("repostButton(row)", tracksAt);
+    expect(repostAt).toBeGreaterThan(memberBranchAt);
+    const videosAt = boardSrc.indexOf('tab === "videos" ? (');
+    expect(boardSrc.indexOf("repostButton(row)", videosAt)).toBe(-1);
+  });
+
+  it("the board source: embed rides the website player's own served snippet, for both kinds", () => {
+    expect(boardSrc).toContain("shelfEmbedCode");
+    expect(boardSrc).toContain('embedButton("track", row)');
+    expect(boardSrc).toContain('embedButton("video", row)');
+    expect(boardSrc).toContain('data-testid="world-charts-embed"');
+    expect(boardSrc).toContain('data-testid="world-charts-repost"');
+  });
+
+  it("the Shelf source: the queue can be emptied in one tap, through the controller's own clear", () => {
+    expect(shelfPlayerSrc).toContain('data-testid="world-shelf-queue-clear"');
+    expect(shelfPlayerSrc).toContain("player.clearQueue");
   });
 });
