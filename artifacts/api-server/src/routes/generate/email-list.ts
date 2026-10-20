@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { eq, and, count, desc, isNull } from "drizzle-orm";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -6,6 +7,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { queueWelcomeSequence } from "../../lib/email-campaign-sender";
 import { recordCreditUsage } from "../../lib/payment-record";
 import {
   db,
@@ -37,9 +39,12 @@ const router = Router();
    data — free. The AI newsletter writer burns compute — 1 credit per
    draft, charged BEFORE the model call, refunded on provider failure.
 
-   Honesty (v1): sends go through a simple server-side queue, NOT a
-   dedicated email service provider. Deliverability, inbox placement, and
-   scale limits are disclosed in the UI — never promised. */
+   Sending: campaigns and the welcome sequence are delivered by the
+   Resend-backed sender (lib/email-campaign-sender.ts), drained by the
+   job poller. Campaign status is server-owned — clients can draft and
+   queue, never stamp "sent". Deliverability, inbox placement, and
+   scale limits are disclosed in the UI — never promised. Open rates
+   are NOT tracked (no pixel, no webhook) and reported as such. */
 
 /* ── Public: subscribe (no auth — used by embed forms + landing pages) ── */
 
@@ -117,27 +122,27 @@ router.post("/email-list/subscribe", publicApiLimiter, async (req, res) => {
     return;
   }
 
-  await db.insert(emailSubscribersTable).values({
-    listId: list.id,
-    email,
-    name: name || null,
-    source,
-    confirmed: true,
-  });
+  const [subscriber] = await db
+    .insert(emailSubscribersTable)
+    .values({
+      listId: list.id,
+      email,
+      name: name || null,
+      source,
+      confirmed: true,
+      unsubscribeToken: randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
+    })
+    .returning();
 
-  /* Welcome-email automation (v1: queued server-side; honest limits in UI).
+  /* Welcome-sequence trigger: queue step 1 (now), step 2 (+24h) and
+     step 3 (+72h after step 2) for every step the list has a stored
+     template for. The sender drains them via the job poller.
      Best-effort — a welcome failure never fails the signup. */
-  if (list.welcomeSubject && list.welcomeBody) {
+  if (subscriber) {
     try {
-      await db.insert(emailCampaignsTable).values({
-        listId: list.id,
-        subject: list.welcomeSubject,
-        body: `Hi${name ? ` ${name}` : ""},\n\n${list.welcomeBody}`,
-        status: "queued",
-        recipientCount: 1,
-      });
+      await queueWelcomeSequence(list, subscriber);
     } catch (err) {
-      logger.warn({ err, listId: list.id }, "[email-list] welcome email queue failed (signup still succeeded)");
+      logger.warn({ err, listId: list.id }, "[email-list] welcome sequence queue failed (signup still succeeded)");
     }
   }
 
@@ -162,6 +167,55 @@ router.get("/email-list/join/:handle", publicApiLimiter, async (req, res) => {
     return;
   }
   res.json({ list });
+});
+
+/* ── Public: one-click unsubscribe (no auth — token IS the credential) ──
+   Target of the List-Unsubscribe header + footer link in every send.
+   GET renders a confirmation page (what a human clicking sees); POST is
+   the RFC 8058 one-click endpoint mail clients call directly. Both are
+   idempotent and never leak whether a token exists beyond 404. */
+
+async function applyUnsubscribe(token: string): Promise<boolean> {
+  if (!token || token.length < 16) return false;
+  const [sub] = await db
+    .select({ id: emailSubscribersTable.id, unsubscribedAt: emailSubscribersTable.unsubscribedAt })
+    .from(emailSubscribersTable)
+    .where(eq(emailSubscribersTable.unsubscribeToken, token))
+    .limit(1);
+  if (!sub) return false;
+  if (!sub.unsubscribedAt) {
+    await db
+      .update(emailSubscribersTable)
+      .set({ unsubscribedAt: new Date() })
+      .where(eq(emailSubscribersTable.id, sub.id));
+  }
+  return true;
+}
+
+router.get("/email-list/unsubscribe/:token", publicApiLimiter, async (req, res) => {
+  const ok = await applyUnsubscribe(String(req.params.token ?? ""));
+  res
+    .status(ok ? 200 : 404)
+    .type("html")
+    .send(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Unsubscribe — Bow Down Visuals</title></head>` +
+        `<body style="margin:0;background:#0a0a0a;color:#eee;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;">` +
+        `<div style="max-width:480px;margin:80px auto;padding:32px 24px;text-align:center;">` +
+        `<div style="font-size:32px;">🦈</div>` +
+        (ok
+          ? `<h1 style="color:#d4af37;font-size:20px;">You're unsubscribed</h1><p style="color:#aaa;line-height:1.6;">You won't get campaign or welcome emails from this list anymore.</p>`
+          : `<h1 style="color:#d4af37;font-size:20px;">Link not recognized</h1><p style="color:#aaa;line-height:1.6;">This unsubscribe link is invalid or has expired.</p>`) +
+        `</div></body></html>`,
+    );
+});
+
+router.post("/email-list/unsubscribe/:token", publicApiLimiter, async (req, res) => {
+  const ok = await applyUnsubscribe(String(req.params.token ?? ""));
+  if (!ok) {
+    res.status(404).json({ error: "Link not recognized.", code: "token_not_found" });
+    return;
+  }
+  res.json({ ok: true, unsubscribed: true });
 });
 
 /* ── Authed: lists ─────────────────────────────────────────────────────── */
@@ -267,8 +321,8 @@ router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, a
   const active = subscribers.filter((s) => !s.unsubscribedAt);
   /* Open tracking is NOT wired up — reported honestly as not tracked.
      Nothing in the system records an email open: there is no tracking
-     pixel endpoint and no provider webhook, and campaigns are queued
-     rows (no send pipeline stamps opens either). The subscribers.opens
+     pixel endpoint and no provider webhook (the Resend sender records
+     sends, never opens). The subscribers.opens
      column therefore stays 0 forever, and the previous code turned that
      into a permanently-0 "openRate" the dashboard presented as a
      measured stat. Until a real open signal exists, the stat is null
@@ -453,7 +507,11 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
 const campaignSchema = z.object({
   subject: z.string().min(1, "Subject is required.").max(200),
   body: z.string().min(1, "Body is required.").max(50000),
-  status: z.enum(["draft", "queued", "sent"]).default("draft"),
+  /* Server-owned status: a client may create a draft or request the
+     queue — "sending" / "sent" / "failed" are stamped only by the
+     sender after Resend actually accepts the mail. Asking for "sent"
+     here is a 400, never a silently-believed lie. */
+  status: z.enum(["draft", "queued"]).default("draft"),
 });
 
 router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, async (req, res) => {
@@ -495,13 +553,54 @@ router.post("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, as
     });
     return;
   }
-  /* v1 honesty: "queued" means the simple server-side queue — the UI
-     discloses this is not a dedicated ESP with inbox-placement guarantees. */
+  /* "queued" hands the campaign to the Resend-backed sender, which the
+     job poller drains — the UI discloses there are no inbox-placement
+     guarantees even with a real provider. */
   const [campaign] = await db
     .insert(emailCampaignsTable)
     .values({ ...parsed.data, listId: id })
     .returning();
   res.status(201).json({ campaign });
+});
+
+/* Queue (or re-queue a failed) campaign for the sender. The ONLY client
+   path into the send pipeline: draft|failed → queued. The sender owns
+   every transition after this one. */
+router.post("/email-list/lists/:id/campaigns/:campaignId/queue", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const campaignId = String(req.params.campaignId ?? "");
+  const [list] = await db
+    .select({ id: emailListsTable.id })
+    .from(emailListsTable)
+    .where(and(eq(emailListsTable.id, id), eq(emailListsTable.userId, req.userId!)))
+    .limit(1);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const [campaign] = await db
+    .select()
+    .from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.listId, id)))
+    .limit(1);
+  if (!campaign) {
+    res.status(404).json({ error: "Campaign not found." });
+    return;
+  }
+  if (campaign.status === "queued" || campaign.status === "sending") {
+    res.json({ campaign });
+    return;
+  }
+  if (campaign.status === "sent") {
+    res.status(409).json({ error: "That campaign already sent.", code: "already_sent" });
+    return;
+  }
+  const [updated] = await db
+    .update(emailCampaignsTable)
+    .set({ status: "queued" })
+    .where(eq(emailCampaignsTable.id, campaignId))
+    .returning();
+  res.json({ campaign: updated });
 });
 
 export default router;
