@@ -19,9 +19,10 @@ import { useTranslation } from "react-i18next";
  interface/data — free. Only the AI newsletter writer burns compute
  (1 credit per draft, charged before generation, refunded on failure).
 
- Honesty (v1): sends go through a simple server-side queue, NOT a
- dedicated email service provider. Deliverability and scale limits are
- disclosed below — never promised. */
+ Sending: campaigns and welcome emails are delivered through our
+ email service from our own verified domain (server-side sender,
+ status stamped by the server — never by the client). Deliverability
+ and scale limits are disclosed below — never promised. */
 
 type TabKey = "dashboard" | "lists" | "newsletter" | "forms";
 
