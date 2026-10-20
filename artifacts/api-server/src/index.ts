@@ -4,6 +4,7 @@ import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveControlWs } from "./routes/live-control";
 import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler } from "./routes/world";
+import { startOperatorDuties } from "./lib/operator-duties";
 import { registerWorldContestAnnouncer } from "./lib/world-contests";
 import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
@@ -81,6 +82,11 @@ startKingMomentScheduler(worldPalace);
    freeze into the marks wall's record and the court is heralded —
    once per season, by the settlement row's primary key. */
 startCourtSeasonScheduler(worldPalace);
+/* The operator's automatic duties (Phase 2, Lane G): host reminders
+   before booked events + the trouble-flag watch, on one tick; the
+   winner heralds hang off the contest decision and the court
+   settling above. Peace-keeping only — a duty never punishes. */
+startOperatorDuties(worldPalace);
 /* World Contests (2.24): when a host names the winners, the palace
    hears it — the contests route speaks through this hook (the
    Winners' Circle rows are the durable record; this is the moment). */
