@@ -1,0 +1,24 @@
+-- 0176: Product pause / unlist for shops (Stack 4 #6).
+-- Stack 3 #25 proof-closed seller stand management (shop + product
+-- CRUD, sales ledger) and named the true gap: shop_products had NO
+-- status column and no rail, so a seller could not pause or unlist a
+-- product without deleting it — losing the product, its image, and
+-- its place in the sales ledger's history.
+--   status — 'active' | 'paused', mirroring the status vocabulary of
+--     creator_subscriptions / fan_memberships / sponsor_deals
+--     (TEXT NOT NULL DEFAULT 'active'). Every existing row reads as
+--     'active' (live) the moment this lands — nothing already listed
+--     changes state.
+-- Semantics, enforced in routes/generate/shops.ts (not here):
+--   * buyers only ever see 'active' products — the public storefront
+--     reads filter paused rows out entirely and never carry the flag;
+--   * checkout refuses a paused product line the same way it refuses
+--     a product that isn't in the shop (it is not buyable, full stop);
+--   * the seller's own management views keep showing paused rows,
+--     clearly marked, and the owner PATCH rail flips the state.
+-- Sales history is untouched: shop_events keeps pointing at the
+-- product row whatever its status (a sold-then-paused product still
+-- resolves its name in the ledger).
+-- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
+
+ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
