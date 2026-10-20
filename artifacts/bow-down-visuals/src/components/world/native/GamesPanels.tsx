@@ -51,6 +51,7 @@ import {
   partyInviteUrl,
   partySummonsHeadline,
   partyTableHomeLine,
+  partyTableSeatState,
   type ArcadeScoreOutcome,
   type ContestStanding,
   type ContestWinnerStanding,
@@ -874,26 +875,35 @@ function MarbleTablePanel({
         >
           <Swords className="h-6 w-6 shrink-0 text-[#C9A84C]" />
           {summonsRoom ? (
-            <>
+            partyTableSeatState(summonsRoom) === "full" ? (
               <p className={`flex-1 text-sm font-bold ${ink}`}>
                 {partySummonsHeadline(summonsRoom)} —{" "}
-                {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated
-                {summonsRoom.profileSlug
-                  ? `, playing at @${summonsRoom.profileSlug}`
-                  : summonsRoom.streamId
-                    ? ", on a live stream"
-                    : ""}
-                . Your seat is waiting.
+                {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated,
+                and every seat is taken. The code stays filled in below if a seat
+                opens up, and the open tables are right here.
               </p>
-              <button
-                type="button"
-                data-testid="world-party-summons-join"
-                onClick={() => setActiveCode(summonsRoom.code)}
-                className="rounded-xl bg-gradient-to-r from-[#f0d878] to-[#C9A84C] px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
-              >
-                Take your seat
-              </button>
-            </>
+            ) : (
+              <>
+                <p className={`flex-1 text-sm font-bold ${ink}`}>
+                  {partySummonsHeadline(summonsRoom)} —{" "}
+                  {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated
+                  {summonsRoom.profileSlug
+                    ? `, playing at @${summonsRoom.profileSlug}`
+                    : summonsRoom.streamId
+                      ? ", on a live stream"
+                      : ""}
+                  . Your seat is waiting.
+                </p>
+                <button
+                  type="button"
+                  data-testid="world-party-summons-join"
+                  onClick={() => setActiveCode(summonsRoom.code)}
+                  className="rounded-xl bg-gradient-to-r from-[#f0d878] to-[#C9A84C] px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
+                >
+                  Take your seat
+                </button>
+              </>
+            )
           ) : (
             <p className={`flex-1 text-sm font-bold ${ink}`}>
               You were summoned to table {partyInvite.code}, but that table has closed —

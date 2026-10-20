@@ -114,6 +114,7 @@ import {
   parsePartyInvite,
   parsePartyRoomSnapshot,
   partySummonsHeadline,
+  partyTableSeatState,
   PARTY_GAME_META,
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
@@ -2288,9 +2289,12 @@ export default function WorldPage() {
 
       {/* The party summons (2.23): a /world?party=CODE landing. The
           table named here is the SERVER's room snapshot, not the
-          link's claim — a closed table says so, a guest gets the
-          members-only pitch, and nobody is auto-seated: the walk
-          and the seat are the walker's own taps. */}
+          link's claim — a closed table says so, a FULL table reads
+          full and offers the Game Rooms instead of a seat that
+          isn't there (partyTableSeatState, the profile block's
+          precedent), a guest gets the members-only pitch, and
+          nobody is auto-seated: the walk and the seat are the
+          walker's own taps. */}
       {partyInviteCode && status === "inside" && !inviteDismissed && (
         <div
           className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
@@ -2320,6 +2324,22 @@ export default function WorldPage() {
               You&rsquo;ve been summoned to a party table — checking that it&rsquo;s
               still open…
             </p>
+          ) : inviteRoom && partyTableSeatState(inviteRoom) === "full" ? (
+            <>
+              <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
+                {partySummonsHeadline(inviteRoom)} — {inviteRoom.players}/
+                {PARTY_GAME_META[inviteRoom.game].seats} seated, and every seat is
+                taken. The Game Rooms are open if you want a table of your own.
+              </p>
+              <button
+                type="button"
+                data-testid="world-party-summons-go"
+                onClick={goToInvitedTable}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+              >
+                Go to the Game Rooms
+              </button>
+            </>
           ) : inviteRoom ? (
             <>
               <p className={`flex-1 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { LogIn, Swords, Users } from "lucide-react";
+import { Check, Link2, LogIn, Swords, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   PARTY_GAME_META,
   parsePartyRooms,
   partyInvitePath,
+  partyInviteUrl,
   partyRoomsForStream,
   partyTableHomeLine,
   partyTableSeatState,
@@ -32,7 +33,15 @@ import {
    sign-in, with the invite as the post-login return. A full table
    renders full and offers no seat. No open table — or a failed
    read — renders NOTHING: never an empty dressed-up block on a
-   creator's page (the LiveNowBadge precedent). */
+   creator's page (the LiveNowBadge precedent).
+
+   Every row also carries a Copy invite link — the host's own
+   summoning door at the table's home: the same /world?party=CODE
+   absolute link the Marble Table rows copy (partyInviteUrl). The
+   link itself is no secret (the landing gates the SEAT, not the
+   looking), so it renders for guests and members alike, full
+   tables included — a seat can open up, and the link is how a
+   friend is standing by when it does. */
 
 export default function PartyTableSection({
   slug,
@@ -46,6 +55,23 @@ export default function PartyTableSection({
 }) {
   const { user } = useAuth();
   const [rooms, setRooms] = useState<PartyOpenRoom[] | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  /* Copy the table's World invite link — the lobby rows' gesture:
+     "Copied" briefly on success; on clipboard failure nothing
+     breaks (the code itself is the invite, and the seat door
+     beside it carries the same code in its path). */
+  const copyInvite = useCallback(async (code: string) => {
+    const url = partyInviteUrl(window.location.origin, code);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 2000);
+    } catch {
+      /* Clipboard unavailable — the code itself is the invite. */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +138,23 @@ export default function PartyTableSection({
                   </span>
                 </p>
               </div>
+              {invite ? (
+                <button
+                  type="button"
+                  data-testid={`profile-party-table-invite-${room.code}`}
+                  onClick={() => void copyInvite(room.code)}
+                  title="Copy a World invite link — it lands your friend at this table"
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105"
+                  style={{ borderColor: "var(--ap-border, rgba(201,168,76,0.35))" }}
+                >
+                  {copiedCode === room.code ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Link2 className="h-3.5 w-3.5" />
+                  )}
+                  {copiedCode === room.code ? "Copied" : "Copy invite link"}
+                </button>
+              ) : null}
               {seatState === "full" ? (
                 <span
                   data-testid={`profile-party-table-full-${room.code}`}
