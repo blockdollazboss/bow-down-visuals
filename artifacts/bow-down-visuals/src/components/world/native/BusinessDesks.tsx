@@ -1,8 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { Crown, Megaphone, Newspaper, Palette, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarClock, Crown, Download, FolderPlus, Megaphone, Newspaper, Palette, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
+import { downloadImage } from "@/lib/download-image";
+import { promoCardFileName, promoCardSharePayload } from "@/lib/promo-card-history";
+import { scheduleHrefForMedia } from "@/lib/world/create-desks";
 import { NativeCard } from "./NativeCard";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
@@ -713,6 +717,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const authHeaders = useAuthHeaders();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   const [bio, setBio] = useState<SectionState<{ page: BioPageSummary; analytics: BioAnalytics | null }>>(loading());
   const [releases, setReleases] = useState<SectionState<{ list: ReleaseSummary[]; vaulted: number }>>(loading());
@@ -728,7 +733,9 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
 
-  /* Promo cards gallery (this sitting's pack — see the lib gap note). */
+  /* Promo cards gallery (this sitting's pack; every pack is recorded
+     server-side and the full shelf is the website's history — see
+     the lib follow-on note). */
   const [cardTitle, setCardTitle] = useState("");
   const [cardArtist, setCardArtist] = useState("");
   const [cardStyle, setCardStyle] = useState<string>("out-now");
@@ -736,6 +743,8 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [cardCaption, setCardCaption] = useState<string | null>(null);
   const [cardsBusy, setCardsBusy] = useState(false);
   const [cardsNote, setCardsNote] = useState<string | null>(null);
+  const [cardActionNote, setCardActionNote] = useState<string | null>(null);
+  const [sharedCardKey, setSharedCardKey] = useState<string | null>(null);
 
   /* Coach row. */
   const [coachBusy, setCoachBusy] = useState(false);
@@ -801,6 +810,9 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  const cardChipCls = `inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition ${
+    isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+  }`;
   const feature = SITE_FEATURES.find((f) => f.key === featureKey) ?? SITE_FEATURES[0]!;
 
   const runPromo = async () => {
@@ -867,12 +879,59 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
       }
       setCards(made);
       setCardCaption(suggestedCaption);
+      setCardActionNote(null);
+      setSharedCardKey(null);
       refreshProfile();
     } catch {
       setCardsNote("The card desk didn't answer. Try again.");
     } finally {
       setCardsBusy(false);
     }
+  };
+
+  /* Per-card actions — the website panel's own handoffs, on the same
+     rails: download the stored card image, share on the share rail
+     (the card rides as an image with its history record id), schedule
+     through the scheduler handoff (a user-clicked door, new tab —
+     the palace stays where it was), and add to the hub project's
+     release assets. */
+  const cardShareText = () => cardCaption ?? `${cardTitle} — ${cardArtist}`;
+
+  const shareGalleryCard = async (c: PromoCardItem) => {
+    const text = cardShareText();
+    const channel = typeof navigator !== "undefined" && "share" in navigator ? "native" : "copy";
+    try {
+      if (channel === "native") {
+        await navigator.share({ title: `${cardTitle} — ${cardArtist}`, text, url: c.url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${c.url}`);
+        setCardActionNote("Share link copied.");
+      }
+    } catch {
+      /* user dismissed — a dismissed share is not a share, so
+         nothing is tracked for it below */
+      return;
+    }
+    setSharedCardKey(c.url);
+    /* Tracking rides the share rail; it never blocks the share. */
+    try {
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(promoCardSharePayload(c, channel)),
+      });
+    } catch { /* tracking is a passenger, never the driver */ }
+  };
+
+  const addGalleryCardToAssets = (c: PromoCardItem) => {
+    addAsset({
+      kind: "image",
+      url: c.url,
+      label: `Promo card — ${c.style} (${c.size})`,
+      detail: `${cardTitle} — ${cardArtist}`,
+      meta: { sourceAsset: "promo-cards", handoff: "promo-cards", style: c.style, size: c.size },
+    });
+    setCardActionNote("Added to your project assets.");
   };
 
   const askCoach = async () => {
@@ -1024,21 +1083,58 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         {cardsNote && <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{cardsNote}</p>}
         {cards.length > 0 ? (
           <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap gap-2" data-testid="world-promote-cards-gallery">
+            <div className="flex flex-wrap gap-3" data-testid="world-promote-cards-gallery">
               {cards.map((c, i) => (
-                <figure key={`${c.url}-${i}`} className="w-28">
-                  <img src={c.url} alt="" className="w-28 rounded-xl border border-[#d4af37]/40 object-cover" />
+                <figure key={`${c.url}-${i}`} className="w-44">
+                  <img src={c.url} alt="" className="w-44 rounded-xl border border-[#d4af37]/40 object-cover" />
                   <figcaption className={`mt-1 text-center text-[11px] font-semibold ${muted}`}>{c.style} · {c.size}</figcaption>
+                  <div className="mt-1.5 grid grid-cols-2 gap-1" data-testid="world-promote-card-actions">
+                    <button
+                      type="button"
+                      data-testid="world-promote-card-download"
+                      onClick={() => void downloadImage(c.url, promoCardFileName(c))}
+                      className={cardChipCls}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </button>
+                    <a
+                      data-testid="world-promote-card-schedule"
+                      href={scheduleHrefForMedia(c.url, "image", cardShareText())}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cardChipCls}
+                    >
+                      <CalendarClock className="h-3.5 w-3.5" /> Schedule
+                    </a>
+                    <button
+                      type="button"
+                      data-testid="world-promote-card-share"
+                      onClick={() => void shareGalleryCard(c)}
+                      className={cardChipCls}
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> {sharedCardKey === c.url ? "Shared" : "Share"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="world-promote-card-assets"
+                      onClick={() => addGalleryCardToAssets(c)}
+                      className={cardChipCls}
+                    >
+                      <FolderPlus className="h-3.5 w-3.5" /> Add to assets
+                    </button>
+                  </div>
                 </figure>
               ))}
             </div>
             {cardCaption ? <p className={`text-xs ${muted}`}>Suggested caption: {cardCaption}</p> : null}
+            {cardActionNote ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{cardActionNote}</p> : null}
+            <p className={`text-xs ${muted}`}>These cards are saved in your promo card history — every pack lives on the website's Promote page too.</p>
           </div>
         ) : (
           <NativeEmptyState
             isLight={isLight}
             message="No promo cards on the stand yet."
-            detail="Cards you make here stand in this gallery for this sitting — there's no saved card shelf yet, on the website either (it's in this desk's follow-on log)."
+            detail="Cards you make here are recorded to your promo card history (the full shelf lives on the website's Promote page); this gallery holds the pack you make in this sitting."
           />
         )}
       </NativeCard>

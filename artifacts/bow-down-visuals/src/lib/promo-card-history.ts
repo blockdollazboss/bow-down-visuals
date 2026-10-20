@@ -1,3 +1,5 @@
+import { buildSchedulerHref } from "./scheduler-handoff";
+
 /* ─── Promo-card history seam (STACK-20 R2 #17) ──────────────────────────
    Pure shaping for the history half of GET /api/promo-cards, kept out
    of the panel so the honesty rules are unit-testable:
@@ -101,6 +103,33 @@ export function promoCardFileName(card: Pick<PromoCardHistoryItem, "style" | "si
 export function promoCardShareText(card: Pick<PromoCardHistoryItem, "caption" | "releaseTitle" | "artistName">): string {
   if (card.caption && card.caption.trim()) return card.caption;
   return card.artistName ? `${card.releaseTitle} — ${card.artistName}` : card.releaseTitle;
+}
+
+/** The share-rail body for a promo card (POST /api/shares). A promo
+ *  card is an image with a server record, so it rides the rail's
+ *  "image" type — the same type cover-art shares speak — with its
+ *  record id as the content id. A card whose record write didn't
+ *  land (fresh pack, id null) rides with a null id, exactly like a
+ *  cover-art share, rather than inventing a reference. */
+export function promoCardSharePayload(
+  card: { id?: string | null },
+  channel: string,
+): { content_type: "image"; content_id: string | null; channel: string } {
+  return { content_type: "image", content_id: card.id ?? null, channel };
+}
+
+/** The scheduler deep link for a history card: the card itself is
+ *  the post's media, declared as the image it is (the handoff's
+ *  default is video), captioned with the words that travel with the
+ *  card, on the platforms the card was sized for. No release id —
+ *  a promo card records no distribution release, so none is claimed. */
+export function promoCardScheduleHref(card: PromoCardHistoryItem): string {
+  return buildSchedulerHref({
+    caption: promoCardShareText(card),
+    media: card.url,
+    mediaType: "image",
+    platforms: card.platforms,
+  });
 }
 
 /** "Jan 3, 2026" from the row's server stamp; "" when the stamp is unusable. */
