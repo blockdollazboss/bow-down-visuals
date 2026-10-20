@@ -10,7 +10,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CATALOG_EXPORT_KIND_OPTIONS, CATALOG_EXPORT_FIELD_OPTIONS } from "./TrustPanels";
+import { CATALOG_EXPORT_KIND_OPTIONS, CATALOG_EXPORT_FIELD_OPTIONS } from "./catalog-export-options";
 
 const SERVER_WHITELIST: Record<string, string[]> = {
   tracks: ["id", "title", "source", "durationSec", "fileUrl", "createdAt"],
