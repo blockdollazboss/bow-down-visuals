@@ -76,3 +76,23 @@ export const freeExpensiveAiLimiter = rateLimit({
     error: "You've hit the hourly limit for this free AI tool. Please try again later.",
   },
 });
+
+/**
+ * Per-user limiter for filing content reports (POST /api/reports).
+ * Reporting is a low-frequency human act — 30 filings per 15 minutes
+ * per user is generous for a person working through a thread and
+ * useless for a script trying to flood the moderation queue. Keys on
+ * userId, same as generationLimiter (the route is auth-only, so the
+ * IP fallback is just belt-and-braces).
+ */
+export const reportWriteLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req as { userId?: string }).userId;
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: { error: "Too many reports in a short window. Please wait a bit and try again." },
+});
