@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { VoiceInputButton } from "@/components/VoiceInput";
+import { ChatVoiceButton } from "@/components/ChatVoiceButton";
+import type { ChatVoiceNote } from "@/lib/chat-voice";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
@@ -190,6 +191,7 @@ export function ThyCheatCodeChat() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
+  const [voiceNote, setVoiceNote] = useState<ChatVoiceNote | null>(null);
   const [loading, setLoading] = useState(false);
   // creditCost removed: chat is now free
   const listRef = useRef<HTMLDivElement>(null);
@@ -299,6 +301,22 @@ export function ThyCheatCodeChat() {
       setLoading(false);
     }
   }
+
+  /* Voice input (lib/chat-voice transport): interim words stream into
+     the input box so the user sees what was heard; the finished
+     transcript goes through the very same send() a typed message uses —
+     same request, same payload shape, nothing voice-specific reaches
+     the server. If a reply is already loading, send() would refuse the
+     message, so the transcript waits in the input box instead of
+     being lost. */
+  const handleVoiceInterim = (text: string) => setInput(text);
+  const handleVoiceFinal = (text: string) => {
+    if (loading) {
+      setInput(text);
+      return;
+    }
+    send(text);
+  };
 
   /* Event bus: the in-page coach host, its collapsed chip, and per-step
      "Ask about this" buttons open the drawer, optionally with a prefilled
@@ -473,8 +491,14 @@ export function ThyCheatCodeChat() {
           )}
 
           {/* Input */}
-          <div className="flex items-center gap-2 border-t-4 border-[#C9A84C]/60 bg-[#0d0b06] p-3">
-            <VoiceInputButton onTranscript={(text) => setInput((prev) => prev ? prev + " " + text : text)} />
+          <div className="border-t-4 border-[#C9A84C]/60 bg-[#0d0b06]">
+            <div className="flex items-center gap-2 p-3">
+            <ChatVoiceButton
+              onTranscript={handleVoiceFinal}
+              onInterim={handleVoiceInterim}
+              onNoteChange={setVoiceNote}
+              disabled={loading}
+            />
             <input
               ref={inputRef}
               value={input}
@@ -494,6 +518,17 @@ export function ThyCheatCodeChat() {
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
+            </div>
+            {voiceNote && (
+              <p
+                role="status"
+                className={`px-3 pb-3 text-[11px] leading-snug ${
+                  voiceNote.tone === "error" ? "text-red-300" : "text-[#E8C96A]"
+                }`}
+              >
+                {voiceNote.text}
+              </p>
+            )}
           </div>
         </div>
       </div>
