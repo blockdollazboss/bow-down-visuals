@@ -356,9 +356,16 @@ router.post("/groups", requireAuth, async (req, res) => {
   }
 });
 
-/** Browse groups. ?q= search, ?mine=<user_id> owned by, ?member=<user_id> joined. */
+/** Browse groups. ?q= search, ?mine=<user_id> owned by, ?member=<user_id> joined.
+ *  Visibility (the directory rule — the same one /explore applies and
+ *  the detail route enforces with its 403): public groups are
+ *  browsable by anyone; a PRIVATE group is listed only for its own
+ *  members. The detail route hides a private group entirely from
+ *  non-members, so this list must not hand out its name, description,
+ *  cover or member count either. */
 router.get("/groups", async (req, res) => {
   try {
+    await optionalAuth(req);
     const q = typeof req.query["q"] === "string" ? req.query["q"].trim() : "";
     const mine = typeof req.query["mine"] === "string" ? req.query["mine"] : "";
     const member = typeof req.query["member"] === "string" ? req.query["member"] : "";
@@ -379,6 +386,17 @@ router.get("/groups", async (req, res) => {
         .from(creatorProfilesTable).where(eq(creatorProfilesTable.userId, mine));
       const pids = new Set(profiles.map((p) => p.id));
       rows = rows.filter((g) => g.ownerProfileId != null && pids.has(g.ownerProfileId));
+    }
+    // Visibility scope (see the route comment): private groups ride
+    // along only when the VIEWER is a member. Guests see public only —
+    // including through ?member=/?mine= views of someone else's crews.
+    if (!req.userId) {
+      rows = rows.filter((g) => g.isPublic);
+    } else {
+      const myRows = await db.select({ groupId: groupMembersTable.groupId })
+        .from(groupMembersTable).where(eq(groupMembersTable.userId, req.userId));
+      const myIds = new Set(myRows.map((r) => r.groupId));
+      rows = rows.filter((g) => g.isPublic || myIds.has(g.id));
     }
     res.json({ groups: await refreshSupabaseStorageUrlsDeep(rows.map(toGroupDto)) });
   } catch (err) {
