@@ -127,7 +127,8 @@ const EARNINGS_COLS = sql`,
    GET /charts/tracks | /charts/videos | /charts/creators (same params;
    tracks/videos also accept genre=)
    Windowed charts aggregate play_events (fast via play_events_window_idx);
-   all-time charts order by the counter columns. */
+   all-time charts order by the counter columns. An invalid window or
+   days answers 400 (parseChartsQuery) — a caller's typo is never a 500. */
 
 const ChartsQuery = z.object({
   window: z.enum(WINDOWS).default("all"),
@@ -140,6 +141,21 @@ const ChartsQuery = z.object({
   days: z.coerce.number().int().min(1).max(90).optional(),
 });
 
+/* The shared discovery query, parsed by every charts-family route.
+   A bad window (or an out-of-range days) is the CALLER's error: 400
+   with the reason — never a 500 "Discovery hiccup" for a typo'd
+   ?window=month. Returns null after answering, so callers bail. */
+function parseChartsQuery(req: Request, res: Response): z.infer<typeof ChartsQuery> | null {
+  const parsed = ChartsQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid query: window must be one of today|week|all, and days an integer from 1 to 90.",
+    });
+    return null;
+  }
+  return parsed.data;
+}
+
 function verticalFilter(vertical: string | undefined, alias = "p"): ReturnType<typeof sql> | null {
   if (!vertical) return null;
   if (!(VERTICALS as readonly string[]).includes(vertical)) return null;
@@ -149,7 +165,10 @@ function verticalFilter(vertical: string | undefined, alias = "p"): ReturnType<t
 async function topTracks(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number) {
   const vf = verticalFilter(vertical);
   const gf = genre ? sql`AND t.genre ILIKE ${genre}` : null;
-  if (window === "all") {
+  /* days overrides window when present (the ChartsQuery contract) —
+     topCreators already guards on !days; without the same guard an
+     explicit ?days=30&window=all silently shipped all-time counters. */
+  if (window === "all" && !days) {
     const rows = await db.execute(sql`
       SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.audio_url,
              t.play_count, t.like_count, t.duration_sec, t.created_at,
@@ -182,7 +201,8 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
 async function topVideos(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number) {
   const vf = verticalFilter(vertical);
   const gf = genre ? sql`AND v.genre ILIKE ${genre}` : null;
-  if (window === "all") {
+  /* Same days-override guard as topTracks / topCreators. */
+  if (window === "all" && !days) {
     const rows = await db.execute(sql`
       SELECT v.id, v.profile_id, v.title, v.genre, v.thumbnail_url, v.video_url,
              v.view_count, v.like_count, v.duration_sec, v.created_at,
@@ -258,7 +278,8 @@ async function topCreators(window: Window, vertical: string | undefined, limit: 
 }
 
 router.get("/charts", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   const limit = clampLimit(q.limit, 10);
   const [tracks, videos, creators] = await Promise.all([
     topTracks(q.window, q.vertical, q.genre, limit, q.days),
@@ -274,17 +295,20 @@ router.get("/charts", publicApiLimiter, asyncHandler(async (req, res) => {
 }));
 
 router.get("/charts/tracks", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, tracks: await topTracks(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) }));
 }));
 
 router.get("/charts/videos", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, videos: await topVideos(q.window, q.vertical, q.genre, clampLimit(q.limit), q.days) }));
 }));
 
 router.get("/charts/creators", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, creators: await topCreators(q.window, q.vertical, clampLimit(q.limit), q.days) }));
 }));
 
@@ -293,7 +317,8 @@ router.get("/charts/creators", publicApiLimiter, asyncHandler(async (req, res) =
    last 7 days. This is the "next big creator gets found here" rail. */
 
 router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   const limit = clampLimit(q.limit, 10);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
@@ -327,7 +352,8 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
    30 days). Streaming is vanity; selling is sanity. */
 
 router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   const limit = clampLimit(q.limit, 10);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
@@ -356,7 +382,8 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
    outreach itself happens in /brand-deals (no new sidebar items). */
 
 router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
-  const q = ChartsQuery.parse(req.query);
+  const q = parseChartsQuery(req, res);
+  if (!q) return;
   const limit = clampLimit(q.limit, 12);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`

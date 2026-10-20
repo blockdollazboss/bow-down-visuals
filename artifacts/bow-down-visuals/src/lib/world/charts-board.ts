@@ -175,6 +175,43 @@ export function normalizeChartCreators(
   return out;
 }
 
+/* ─── The window switcher seam ────────────────────────────────────────
+   The board's windows are the charts API's own three — the same
+   Today / This week / All time the website's /charts page offers.
+   Windowed charts aggregate the play_events log (one row per play,
+   timestamped), so Today and This week are real counts from the
+   server, never the all-time list re-sliced on the client; the
+   rows' `plays` already prefer window_plays (see the normalizers).
+   Rising and Earners keep their own server-fixed spans (7 and 30
+   days by definition) — the switcher never pretends to move them,
+   so their paths below take no window at all. */
+
+export type ChartWindow = "today" | "week" | "all";
+
+export const CHART_WINDOWS: Array<{ key: ChartWindow; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "all", label: "All time" },
+];
+
+/** The noun board titles and empty states speak with:
+ *  "Top tracks — today" / "Nothing is charting this week — yet." */
+export function chartWindowNoun(window: ChartWindow): string {
+  return window === "today" ? "today" : window === "week" ? "this week" : "all time";
+}
+
+/** The one charts read behind the Tracks + Videos tabs (both keys
+ *  ride a single payload), at the walker's chosen window. Switching
+ *  windows re-queries this path — the server aggregates per window. */
+export function chartsMediaPath(window: ChartWindow): string {
+  return `/api/discovery/charts?window=${window}&limit=10`;
+}
+
+/** The creators chart at the walker's chosen window. */
+export function chartsCreatorsPath(window: ChartWindow): string {
+  return `/api/discovery/charts/creators?window=${window}&limit=10`;
+}
+
 /* ─── The Play seam ───────────────────────────────────────────────────
    A chart track's Play hands the track to the room's jukebox —
    the same intent the Jukebox panel's catalog uses
