@@ -360,7 +360,21 @@ describe("the ChartsBoard surface (source pins)", () => {
     expect(boardSrc).toContain("/api/discovery/charts/creators?window=week&limit=10");
     expect(boardSrc).toContain("/api/discovery/rising?limit=12");
     expect(boardSrc).toContain("/api/discovery/rising-earners?limit=12");
+    expect(boardSrc).toContain("/api/discovery/brands?limit=12");
     expect(boardSrc).toContain("/api/discovery/following?ids=");
+  });
+
+  it("the For Brands tab scouts in-world; outreach doors lead to the website, money note attached", () => {
+    expect(boardSrc).toContain('{ key: "brands", label: "For Brands" }');
+    expect(boardSrc).toContain("world-charts-brands-door");
+    expect(boardSrc).toContain('href="/brand-deals"');
+    expect(boardSrc).toContain('href="/promote"');
+    // The honesty law rides along: the same plain no-money statement
+    // the briefs board carries, imported from the one seam.
+    expect(boardSrc).toContain("UGC_PAYMENT_NOTE");
+    expect(boardSrc).toContain('from "@/lib/ugc-ads"');
+    // Outreach is a member act: the doors never render for guests.
+    expect(boardSrc).toContain('tab === "brands" && !isGuest');
   });
 
   it("plays ONLY through the host's jukebox prop, with the catalog id form", () => {
