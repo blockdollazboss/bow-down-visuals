@@ -150,6 +150,81 @@ describe("#1 fingerprints + symmetric claims", () => {
     const accepted = await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "accept" });
     expect(accepted.json.claim.status).toBe("accepted");
   });
+
+  /* Pins added at the Ring 4 proof-close (content-ID claim management):
+     the surface above already existed end to end; these pin the parts of
+     the contract the flow tests did not — symmetric visibility with the
+     per-viewer role, third-party invisibility on WRITE as well as read,
+     every unnamed transition refusing 409, and the closed action set. */
+
+  async function mintClaim() {
+    const audio = synthAudio(SONG, 6);
+    await call("POST", "/content-id/fingerprints", OWNER, { trackTitle: "My Song", audioBase64: audio });
+    const scan = await call("POST", "/content-id/scan", UPLOADER, { audioBase64: audio, sourceLabel: "upload-1" });
+    expect(scan.status).toBe(201);
+    expect(scan.json.matches).toHaveLength(1);
+    return scan.json.matches[0];
+  }
+
+  it("both parties see the same claim and evidence, each told their own role; a third party can neither see nor touch it", async () => {
+    const claim = await mintClaim();
+    const ownerView = await call("GET", "/content-id/claims", OWNER);
+    const uploaderView = await call("GET", "/content-id/claims", UPLOADER);
+    expect(ownerView.json.claims).toHaveLength(1);
+    expect(uploaderView.json.claims).toHaveLength(1);
+    const o = ownerView.json.claims[0]; const u = uploaderView.json.claims[0];
+    expect(o.id).toBe(claim.id); expect(u.id).toBe(claim.id);
+    expect(o.youAre).toBe("owner"); expect(u.youAre).toBe("uploader");
+    // Same evidence for both sides — the match is symmetric by design.
+    expect(u.confidence).toBe(o.confidence);
+    expect(u.offsetSeconds).toBe(o.offsetSeconds);
+    expect(u.matchedLandmarks).toBe(o.matchedLandmarks);
+    expect(u.totalLandmarks).toBe(o.totalLandmarks);
+    // A third party's writes are indistinguishable from a missing claim.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, STRANGER, { action: "dispute", note: "not mine" })).status).toBe(404);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, STRANGER, { action: "resolve", note: "not mine" })).status).toBe(404);
+    // And a claim id that does not exist is a 404 even for a real user.
+    expect((await call("PATCH", `/content-id/claims/${randomUUID()}`, OWNER, { action: "accept" })).status).toBe(404);
+    // A malformed id never reaches the state machine.
+    expect((await call("PATCH", "/content-id/claims/not-a-uuid", OWNER, { action: "accept" })).status).toBe(400);
+  });
+
+  it("every move the state machine does not name refuses 409 and leaves the claim untouched", async () => {
+    const claim = await mintClaim();
+    // Resolve is not a move out of pending.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "resolve", note: "too soon" })).status).toBe(409);
+    // The uploader can never resolve, at any stage.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, UPLOADER, { action: "resolve", note: "let me" })).status).toBe(409);
+    const disputed = await call("PATCH", `/content-id/claims/${claim.id}`, UPLOADER, { action: "dispute", note: "Licensed beat lease #42" });
+    expect(disputed.status).toBe(200);
+    // No double-dispute, and accept is not a move out of disputed.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, UPLOADER, { action: "dispute", note: "again" })).status).toBe(409);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "accept" })).status).toBe(409);
+    const resolved = await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "resolve", note: "Lease verified — claim released." });
+    expect(resolved.status).toBe(200);
+    // Terminal: a resolved claim refuses every further move from both sides.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, UPLOADER, { action: "dispute", note: "reopen" })).status).toBe(409);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "accept" })).status).toBe(409);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "resolve", note: "again" })).status).toBe(409);
+    // The counterparty sees the final state and both recorded notes.
+    const uploaderView = await call("GET", "/content-id/claims", UPLOADER);
+    expect(uploaderView.json.claims[0].status).toBe("resolved");
+    expect(uploaderView.json.claims[0].disputeNote).toBe("Licensed beat lease #42");
+    expect(uploaderView.json.claims[0].resolutionNote).toBe("Lease verified — claim released.");
+    expect(uploaderView.json.claims[0].resolvedBy).toBe(OWNER);
+  });
+
+  it("the action set is closed: an unnamed action is a 400, never a silent no-op", async () => {
+    const claim = await mintClaim();
+    // "Release" is something a resolution NOTE records (see the flow test
+    // above), not a machine action — the enum refuses it outright.
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "release" })).status).toBe(400);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, {})).status).toBe(400);
+    expect((await call("PATCH", `/content-id/claims/${claim.id}`, OWNER, { action: "resolve", note: "x".repeat(1001) })).status).toBe(400);
+    // The claim is still pending and actionable afterwards.
+    const view = await call("GET", "/content-id/claims", OWNER);
+    expect(view.json.claims[0].status).toBe("pending");
+  });
 });
 
 describe("#2 legacy designation", () => {
