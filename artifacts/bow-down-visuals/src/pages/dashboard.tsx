@@ -22,6 +22,7 @@ import CreationStreakWidget from "@/components/CreationStreakWidget";
 import QuestsWidget from "@/components/QuestsWidget";
 import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
+import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
@@ -501,6 +502,11 @@ export default function Dashboard() {
 
         {/* ── THY DAILY DROP ── */}
         <DailyDropCard />
+
+        {/* ── DROP CATALOGUE — the whole slate under the day's card,
+            the same dock the World's Treasury uses: use any template,
+            archive the ones you don't want (website parity). ── */}
+        <DailyDropSlate />
 
         {/* ── WEEKLY CREATOR CONTEST — the addictive heartbeat ── */}
         <ContestHubWidget />

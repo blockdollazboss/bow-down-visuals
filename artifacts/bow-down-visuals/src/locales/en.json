@@ -12077,6 +12077,21 @@
       "kindVideo": "Video preset",
       "kindHook": "Hook formula"
     },
+    "dropCatalog": {
+      "title": "Drop catalogue — every template",
+      "blurb": "One template drops each day; the whole slate lives here. Use any of them whenever you like, and archive the ones you don't want in your list — archiving only tidies your own list, the shared daily rotation stays the same for everyone.",
+      "use": "Use",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "archivedTitle": "Archived templates",
+      "today": "Today's drop",
+      "loading": "Opening the drop catalogue…",
+      "failedTitle": "The drop catalogue wouldn't open",
+      "failedBody": "Your templates are safe — the dashboard just couldn't fetch the slate.",
+      "emptyAll": "The catalogue is empty right now.",
+      "emptyArchived": "Every template is archived — unarchive one below to bring it back.",
+      "saveFailed": "That didn't save — your catalogue is unchanged."
+    },
     "awayDigest": {
       "title": "While you were away",
       "subtitle": "You were gone {hours}h — here's what you missed",
