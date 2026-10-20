@@ -27,11 +27,14 @@ import {
   EarningsLoadCancelled,
   fetchBoardJson,
   loadBoardLedger,
+  loadBoardStatement,
   normalizeClaims,
   normalizeEarningsResponse,
   normalizeLedger,
   normalizePermanence,
+  statementLineRows,
   statementPdfPath,
+  statementPath,
   statementYears,
   usd,
   type BoardLoadDeps,
@@ -129,6 +132,72 @@ describe("statements", () => {
   });
   it("the PDF path is the documents panel's own endpoint", () => {
     expect(statementPdfPath(2026)).toBe("/api/earnings/statements/2026/pdf");
+  });
+  it("the view path is the PDF route's JSON sibling — one builder behind both", () => {
+    expect(statementPath(2026)).toBe("/api/earnings/statements/2026");
+  });
+});
+
+/* Statement VIEWING beyond PDF: the board reads the JSON route —
+   the very object the PDF route renders (one server builder) —
+   through the house guard, on the board's patient loop. */
+describe("loadBoardStatement — the statement view, ridden patiently", () => {
+  const STMT_PAYLOAD = {
+    statement: {
+      year: 2026,
+      totalCents: 7734,
+      partial: false,
+      sources: {
+        storeSales: { status: "ok", totalCents: 5000, count: 2 },
+        shopSales: { status: "ok", totalCents: 0, count: 0 },
+        memberships: { status: "ok", totalCents: 1500, count: 1 },
+        brandDeals: { status: "ok", totalCents: 0, count: 0 },
+        royalties: { status: "ok", totalCents: 1234, count: 1 },
+      },
+    },
+  };
+
+  it("fetches the year's JSON with the bearer token and returns the guarded statement", async () => {
+    const fetchFn = vi.fn(async (input: string, init: RequestInit) => {
+      expect(input).toBe("/api/earnings/statements/2026");
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+      return jsonRes(STMT_PAYLOAD);
+    });
+    const stmt = await loadBoardStatement(boardDeps({ fetchFn }), 2026);
+    expect(stmt.totalCents).toBe(7734);
+    /* The rows the board renders are the shared PDF lines. */
+    expect(statementLineRows(stmt).map((r) => r.label)).toEqual([
+      "Store sales",
+      "Shop sales",
+      "Memberships",
+      "Brand deals",
+      "Royalties (recorded)",
+    ]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("a malformed payload is a failed attempt — it retries, then throws on exhaustion", async () => {
+    const fetchFn = vi.fn(async () => jsonRes({ nope: true }));
+    await expect(
+      loadBoardStatement(boardDeps({ fetchFn }), 2026, { attempts: 2, backoffMs: [1] }),
+    ).rejects.toThrow(/malformed/);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("a waking box's 502 rides out and the next attempt's statement lands", async () => {
+    let call = 0;
+    const fetchFn = vi.fn(async () => (++call === 1 ? jsonRes({ error: "booting" }, 502) : jsonRes(STMT_PAYLOAD)));
+    const stmt = await loadBoardStatement(boardDeps({ fetchFn }), 2026, { backoffMs: [1] });
+    expect(stmt.totalCents).toBe(7734);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("persistent failure exhausts and throws — the board's honest couldn't-load line, never a fake statement", async () => {
+    const fetchFn = vi.fn(async () => jsonRes({ error: "down" }, 500));
+    await expect(
+      loadBoardStatement(boardDeps({ fetchFn }), 2026, { attempts: 3, backoffMs: [1, 1] }),
+    ).rejects.toThrow(/500/);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -382,6 +451,31 @@ describe("the EarningsBoard surface (source pins)", () => {
     expect(boardSrc).toContain("URL.createObjectURL(blob)");
     expect(boardSrc).toContain("earnings-statement-");
     expect(boardSrc).toContain("Download statement (PDF)");
+  });
+
+  it("the statement is also VIEWABLE on the board — the shared lines, beside the PDF button", () => {
+    expect(boardSrc).toContain('data-testid="world-earnings-statement-view"');
+    expect(boardSrc).toContain("View statement");
+    expect(boardSrc).toContain("loadBoardStatement(");
+    expect(boardSrc).toContain('data-testid="world-earnings-statement-lines"');
+    expect(boardSrc).toContain("statementLineRows(stmt)");
+    expect(boardSrc).toContain("statementLineText(row)");
+    expect(boardSrc).toContain("statementTotalLabel(stmt.partial)");
+  });
+
+  it("picking another year retires the old year's statement — the view always matches the picker", () => {
+    expect(boardSrc).toContain("pickYear(Number(e.target.value))");
+    expect(boardSrc).toContain("setStmt(null)");
+  });
+
+  it("an empty year reads as an empty statement on the board, not an error and not a fake total", () => {
+    expect(boardSrc).toContain("statementIsEmpty(stmt)");
+    expect(boardSrc).toContain("this statement is empty");
+  });
+
+  it("a failed view says so on the card — the statement rail's own honest line", () => {
+    expect(boardSrc).toContain("stmtFailed");
+    expect(boardSrc).toContain("That statement couldn");
   });
 
   it("the host dispatches the board pattern's get-paid station to it", () => {

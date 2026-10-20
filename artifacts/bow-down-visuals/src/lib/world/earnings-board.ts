@@ -8,6 +8,9 @@
  *   GET /api/earnings                          (headline + sources)
  *   GET /api/credits/history                   (ledger: VB usage)
  *   GET /api/payments/history                  (ledger: purchases)
+ *   GET /api/earnings/statements/:year         (the statement view —
+ *     the JSON of the very object the PDF renders: one server
+ *     builder, buildYearStatement, feeds both routes)
  *   GET /api/earnings/statements/:year/pdf     (the PDF download)
  *   GET /api/distribution/permanence           (status rows, read-only)
  *   GET /api/content-id/claims                 (status rows, read-only)
@@ -37,9 +40,20 @@ import {
   EARNINGS_ATTEMPT_TIMEOUT_MS,
   type EarningsResponse,
 } from "../earnings-data";
+import {
+  statementFromPayload,
+  statementIsEmpty,
+  statementLineRows,
+  statementLineText,
+  statementMoney,
+  statementTotalLabel,
+  type EarningsStatement,
+} from "../earnings-statement";
 
 export { normalizeEarningsResponse, EarningsLoadCancelled };
 export type { EarningsResponse };
+export { statementIsEmpty, statementLineRows, statementLineText, statementMoney, statementTotalLabel };
+export type { EarningsStatement };
 
 /* ─── Money formatting ────────────────────────────────────────────── */
 
@@ -209,6 +223,14 @@ export function statementPdfPath(year: number): string {
   return `/api/earnings/statements/${year}/pdf`;
 }
 
+/** The statement VIEW path: the JSON sibling of the PDF route.
+ *  Both routes render the one server builder's object, so what the
+ *  board shows in the room IS the PDF's statement — same lines,
+ *  same totals — never a second computation that could drift. */
+export function statementPath(year: number): string {
+  return `/api/earnings/statements/${year}`;
+}
+
 /* ─── Read-only status rows: permanence + content-ID claims ────────── */
 
 export interface PermanenceStatus {
@@ -339,6 +361,27 @@ export async function loadBoardLedger(
     ]);
     if (!creditsRes.ok || !paymentsRes.ok) throw new Error("ledger failed");
     return normalizeLedger(await creditsRes.json(), await paymentsRes.json());
+  });
+}
+
+/** The statement view as one patient load: the JSON route on the
+ *  attempt's fresh token, normalized by the house guard
+ *  (lib/earnings-statement) INSIDE the attempt — a malformed payload
+ *  is a failed attempt that retries, exactly like the earnings
+ *  page treats it, and only exhaustion surfaces the board's honest
+ *  "couldn't load" line. The statement is the member's own
+ *  (the route is requireAuth and user-scoped server-side). */
+export async function loadBoardStatement(
+  deps: BoardLoadDeps,
+  year: number,
+  options: BoardLoadOptions = {},
+): Promise<EarningsStatement> {
+  return withBoardRetries(deps, options, async ({ token, signal, fetchFn }) => {
+    const res = await fetchFn(statementPath(year), { headers: bearer(token), signal });
+    if (!res.ok) throw new Error(`statement fetch failed (${res.status})`);
+    const stmt = statementFromPayload(await res.json());
+    if (!stmt) throw new Error("statement payload malformed");
+    return stmt;
   });
 }
 

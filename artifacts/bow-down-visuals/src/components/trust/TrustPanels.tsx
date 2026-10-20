@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { statementFromPayload } from "@/lib/earnings-statement";
+import {
+  statementFromPayload,
+  statementIsEmpty,
+  statementLineRows,
+  statementLineText,
+  statementMoney,
+  statementTotalLabel,
+} from "@/lib/earnings-statement";
 
 /* Stack 10 trust surfaces. Every panel renders recorded data only:
    a failed load says so, an empty state says it's empty — nothing is
@@ -200,7 +207,6 @@ export function EarningsDocuments() {
   const [year, setYear] = useState(thisYear);
   const [stmt, setStmt] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
-  const usd = (c: number | null) => (c == null ? "couldn't load" : `$${(c / 100).toFixed(2)}`);
   async function load() {
     setErr(null);
     try {
@@ -233,7 +239,7 @@ export function EarningsDocuments() {
         earnings — it is not a filed tax form. If a payment processor paid you, that processor issues its own tax forms.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <select className={input + " w-32"} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+        <select className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
           {[thisYear, thisYear - 1, thisYear - 2].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <button type="button" className={btn} onClick={load}>View statement</button>
@@ -242,10 +248,16 @@ export function EarningsDocuments() {
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
       {stmt && (
         <div className="mt-4 text-sm">
-          {Object.entries(stmt.sources).map(([k, s]: [string, any]) => (
-            <div key={k} className="flex justify-between border-b border-border py-1.5"><span>{k}</span><span>{s.status === "error" ? "couldn't load" : `${usd(s.totalCents)} · ${s.count} records`}</span></div>
+          {/* The PDF's own lines: the shared row list (lib/earnings-
+              statement) carries the PDF route's labels + order, so
+              this view and the downloaded PDF can never disagree —
+              and picking another year above clears the old year's
+              statement instead of leaving it beside the new year. */}
+          {statementLineRows(stmt).map((row) => (
+            <div key={row.key} className="flex justify-between border-b border-border py-1.5"><span>{row.label}</span><span>{statementLineText(row)}</span></div>
           ))}
-          <div className="flex justify-between py-2 font-bold"><span>{stmt.partial ? "Total of the sources that loaded" : "Total"}</span><span>{usd(stmt.totalCents)}</span></div>
+          <div className="flex justify-between py-2 font-bold"><span>{statementTotalLabel(stmt.partial)}</span><span>{statementMoney(stmt.totalCents)}</span></div>
+          {statementIsEmpty(stmt) && <p className="text-muted-foreground">Nothing was recorded in {year} — this statement is empty.</p>}
         </div>
       )}
     </section>

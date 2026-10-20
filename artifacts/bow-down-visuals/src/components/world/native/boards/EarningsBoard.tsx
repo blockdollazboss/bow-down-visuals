@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Download, LogIn } from "lucide-react";
+import { Download, Eye, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   NativeBoard,
@@ -16,12 +16,19 @@ import {
   earningsSourceRows,
   fetchBoardJson,
   loadBoardLedger,
+  loadBoardStatement,
   normalizeClaims,
   normalizePermanence,
+  statementIsEmpty,
+  statementLineRows,
+  statementLineText,
+  statementMoney,
   statementPdfPath,
+  statementTotalLabel,
   statementYears,
   usd,
   type EarningsResponse,
+  type EarningsStatement,
   type LedgerEntry,
 } from "@/lib/world/earnings-board";
 
@@ -36,8 +43,13 @@ import {
    READ-ONLY status rows — changing an election or working a claim
    is management, and management is what the transfer footer is
    for (this board never writes to either rail). The statement
-   button downloads a PDF file (plan §3.9: a download is not a
-   pull-up) using the documents panel's own blob pattern.
+   card views the year's statement ON the board and downloads it
+   as a PDF file (plan §3.9: a download is not a pull-up) using
+   the documents panel's own blob pattern. The view and the PDF
+   are the same statement — one server builder feeds the JSON
+   route and the PDF route — rendered with the shared line list
+   (lib/earnings-statement), so the room never shows numbers the
+   PDF doesn't carry.
    Every load rides the earnings page's patience discipline
    (lib/earnings-data): the headline IS the page's loadEarnings,
    the other rails ride the same loop in lib/world/earnings-board —
@@ -73,6 +85,13 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
   const [year, setYear] = useState(() => statementYears()[0]!);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfNote, setPdfNote] = useState<string | null>(null);
+  const [stmt, setStmt] = useState<EarningsStatement | null>(null);
+  const [stmtBusy, setStmtBusy] = useState(false);
+  const [stmtFailed, setStmtFailed] = useState(false);
+  /* A view load is sequence-guarded: picking another year (or
+     re-tapping View) retires the in-flight load, so a slow answer
+     for one year can never land under another year's label. */
+  const stmtSeq = useRef(0);
 
   /* The headline + sources — the page's own loadEarnings, verbatim:
      a payload the guard can't normalize is a failed ATTEMPT (it
@@ -177,6 +196,46 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, tick, isGuest]);
+
+  /* Changing the year retires whatever the card was showing for
+     the old one: the viewed statement clears and the PDF note
+     clears with it, so the lines on the board always belong to
+     the year in the picker — the view and the download can never
+     silently point at different years. */
+  const pickYear = (y: number) => {
+    stmtSeq.current++;
+    setYear(y);
+    setStmt(null);
+    setStmtFailed(false);
+    setStmtBusy(false);
+    setPdfNote(null);
+  };
+
+  /* The statement view: the JSON route's statement — the same
+     builder object the PDF renders — ridden patiently by
+     loadBoardStatement. Exhaustion lands on the card's honest
+     failure line; the stale statement (if one was open) clears
+     rather than posing as the fresh answer. */
+  const viewStatement = async () => {
+    if (stmtBusy) return;
+    const seq = ++stmtSeq.current;
+    setStmtBusy(true);
+    setStmtFailed(false);
+    try {
+      const s = await loadBoardStatement(
+        { getToken: () => getAccessToken(), isCancelled: () => stmtSeq.current !== seq },
+        year,
+      );
+      if (stmtSeq.current !== seq) return;
+      setStmt(s);
+    } catch (err) {
+      if (stmtSeq.current !== seq || err instanceof EarningsLoadCancelled) return;
+      setStmt(null);
+      setStmtFailed(true);
+    } finally {
+      if (stmtSeq.current === seq) setStmtBusy(false);
+    }
+  };
 
   /* The statement PDF: fetch the file with the member's token and
      hand it to the browser's save dialog — the documents panel's
@@ -311,7 +370,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 <select
                   aria-label="Statement year"
                   value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
+                  onChange={(e) => pickYear(Number(e.target.value))}
                   className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
                     isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"
                   }`}
@@ -324,6 +383,18 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 </select>
                 <button
                   type="button"
+                  data-testid="world-earnings-statement-view"
+                  onClick={() => void viewStatement()}
+                  disabled={stmtBusy}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold transition hover:scale-105 disabled:opacity-50 ${
+                    isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {stmtBusy ? "Loading…" : "View statement"}
+                </button>
+                <button
+                  type="button"
                   data-testid="world-earnings-statement-pdf"
                   onClick={() => void downloadStatement()}
                   disabled={pdfBusy}
@@ -333,11 +404,41 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   {pdfBusy ? "Preparing…" : "Download statement (PDF)"}
                 </button>
                 <span className={`text-[11px] ${muted}`}>
-                  A statement of platform-recorded earnings — it saves as a file; you stay in the room.
+                  A statement of platform-recorded earnings — read it here, or save the PDF; you stay in the room.
                 </span>
               </div>
               {pdfNote && (
                 <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{pdfNote}</p>
+              )}
+              {stmtFailed && (
+                <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                  That statement couldn&rsquo;t load — try again in a moment.
+                </p>
+              )}
+              {stmt && (
+                <div className="mt-3" data-testid="world-earnings-statement-lines">
+                  {statementLineRows(stmt).map((row) => (
+                    <div
+                      key={row.key}
+                      className={`flex items-baseline justify-between gap-3 border-b py-1.5 text-xs ${
+                        isLight ? "border-[#7A5A12]/15" : "border-white/10"
+                      }`}
+                    >
+                      <span className={muted}>{row.label}</span>
+                      <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{statementLineText(row)}</span>
+                    </div>
+                  ))}
+                  <div className={`flex items-baseline justify-between gap-3 py-2 text-xs font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                    <span>{statementTotalLabel(stmt.partial)}</span>
+                    <span>{statementMoney(stmt.totalCents)}</span>
+                  </div>
+                  {statementIsEmpty(stmt) && (
+                    <p className={`text-[11px] ${muted}`}>Nothing was recorded in {year} — this statement is empty.</p>
+                  )}
+                  <p className={`mt-1 text-[11px] ${muted}`}>
+                    A statement of platform-recorded earnings — it is not a filed tax form.
+                  </p>
+                </div>
               )}
             </NativeCard>
           </>
