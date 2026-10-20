@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
-  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw,
+  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw, Pause, Play,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -79,6 +79,7 @@ interface MyMembership {
   currentPeriodEnd: string | null;
   trialEndsAt: string | null;
   isGift: boolean;
+  joinedAt: string;
 }
 
 interface MyGift {
@@ -312,8 +313,13 @@ export default function Memberships() {
   const [trialEnabled, setTrialEnabled] = useState(false);
   const [annualDiscount, setAnnualDiscount] = useState("0");
 
-  /* Fan-side state: my memberships + gifts, checkout-return message. */
+  /* Fan-side state: my memberships + gifts, checkout-return message.
+     A failed /mine load gets its own error + retry — the fan section
+     must never silently read as "you have no memberships". */
   const [mine, setMine] = useState<{ memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] } | null>(null);
+  const [mineError, setMineError] = useState(false);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [pausingId, setPausingId] = useState<string | null>(null);
   const [fanMsg, setFanMsg] = useState<string | null>(null);
   const creatorParam = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search).get("creator")
@@ -371,9 +377,25 @@ export default function Memberships() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  /* Fan side: load my memberships/gifts; if we just returned from a
-     membership checkout, verify the payment first — the membership is
-     only real once the server confirms it. */
+  /* Fan side: load my memberships/gifts. A failure is an honest error
+     with a retry (mineError), never a silent "no memberships". */
+  async function loadMine() {
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api("/memberships/mine", token);
+      if (!res.ok || !Array.isArray(data.memberships)) {
+        setMineError(true);
+        return;
+      }
+      setMine(data as unknown as { memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] });
+      setMineError(false);
+    } catch {
+      setMineError(true);
+    }
+  }
+
+  /* If we just returned from a membership checkout, verify the payment
+     first — the membership is only real once the server confirms it. */
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -398,16 +420,30 @@ export default function Memberships() {
           if (alive) setFanMsg("We couldn't confirm that payment. If you were charged, contact support.");
         }
       }
-      try {
-        const { res, data } = await api("/memberships/mine", token);
-        if (alive && res.ok && Array.isArray(data.memberships)) {
-          setMine(data as unknown as { memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] });
-        }
-      } catch { /* fan section is additive — creator load errors rule the page */ }
+      if (alive) await loadMine();
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  /* Fan self-cancel (POST /memberships/mine/:id/cancel). Memberships
+     never auto-charge — one paid period at a time — so canceling ends
+     the membership now; the confirm says exactly that. */
+  async function cancelMembership(m: MyMembership) {
+    if (!confirm(`Cancel your ${m.tierName ?? "membership"} membership? It ends right away. Memberships never auto-charge, so there's nothing scheduled to stop — this just ends your seat now.`)) return;
+    setCancelingId(m.id);
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api(`/memberships/mine/${m.id}/cancel`, token, { method: "POST" });
+      if (!res.ok) throw new Error(String(data.error ?? "cancel failed"));
+      setFanMsg(`Membership canceled — you're out of ${m.tierName ?? "the fan club"}.`);
+      await loadMine();
+    } catch {
+      setFanMsg("Couldn't cancel that membership — try again in a moment.");
+    } finally {
+      setCancelingId(null);
+    }
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -465,6 +501,28 @@ export default function Memberships() {
       await load();
     } catch {
       setError(t("memberships.errorDeleteTier"));
+    }
+  }
+
+  /* Pause/unpublish a tier: the server's PUT has always taken
+     is_active (the public list and checkout honor it) — this is the
+     button that finally sends it. Pausing hides the tier from fans
+     and stops new joins; existing members keep their seats. */
+  async function toggleTierActive(tier: Tier) {
+    if (pausingId) return;
+    setPausingId(tier.id);
+    try {
+      const token = await getAccessToken();
+      const { res } = await api(`/memberships/tiers/${tier.id}`, token, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: tier.isActive ? "false" : "true" }),
+      });
+      if (!res.ok) throw new Error();
+      await load();
+    } catch {
+      setError(t("memberships.errorUpdateTier"));
+    } finally {
+      setPausingId(null);
     }
   }
 
@@ -615,43 +673,75 @@ export default function Memberships() {
             )}
 
             {/* ── Your memberships (fan side) ── */}
-            {mine && (mine.memberships.length > 0 || mine.giftsSent.length > 0 || mine.giftsReceived.length > 0) && (
+            {(mineError || mine) && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                   <Crown className="h-6 w-6 text-primary" /> Your memberships
                 </h2>
-                <div className={CARD + " space-y-3"}>
-                  {mine.memberships.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between gap-3 py-1">
-                      <div>
-                        <div className="font-bold text-sm">{m.tierName ?? "Membership"}{m.isGift && <span className="ml-2 text-xs text-primary">gifted to you</span>}</div>
-                        <div className="text-xs text-white/40">
-                          {fmt$(m.priceDollars)} · {m.billingPeriod}
-                          {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
-                          {m.status !== "trialing" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                {mineError ? (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center gap-3">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    Couldn't load your memberships — try again.
+                    <button
+                      onClick={() => void loadMine()}
+                      className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-bold text-red-200 hover:bg-red-500/10"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> {t("memberships.retry")}
+                    </button>
+                  </div>
+                ) : mine && mine.memberships.length === 0 && mine.giftsSent.length === 0 && mine.giftsReceived.length === 0 ? (
+                  <div className={CARD}>
+                    <p className="text-sm text-white/60">
+                      You're not a member of any fan club yet. When you join a membership from a
+                      creator's profile, it shows up here — with your tier, your start date, and a
+                      cancel button that's always yours to press.
+                    </p>
+                  </div>
+                ) : mine ? (
+                  <div className={CARD + " space-y-3"}>
+                    {mine.memberships.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between gap-3 py-1">
+                        <div>
+                          <div className="font-bold text-sm">{m.tierName ?? "Membership"}{m.isGift && <span className="ml-2 text-xs text-primary">gifted to you</span>}</div>
+                          <div className="text-xs text-white/40">
+                            {fmt$(m.priceDollars)} · {m.billingPeriod} · member since {new Date(m.joinedAt).toLocaleDateString()}
+                            {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
+                            {m.status !== "trialing" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
+                            m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
+                            : m.status === "trialing" ? "bg-primary/15 text-primary"
+                            : "bg-white/10 text-white/50"
+                          }`}>{m.status.replace("_", " ")}</span>
+                          {(m.status === "active" || m.status === "trialing" || m.status === "past_due") && (
+                            <button
+                              onClick={() => void cancelMembership(m)}
+                              disabled={cancelingId === m.id}
+                              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+                            >
+                              {cancelingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancel"}
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
-                        m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
-                        : m.status === "trialing" ? "bg-primary/15 text-primary"
-                        : "bg-white/10 text-white/50"
-                      }`}>{m.status.replace("_", " ")}</span>
-                    </div>
-                  ))}
-                  {mine.giftsSent.map((g) => (
-                    <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
-                      <div className="text-sm text-white/60">Gift sent · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
-                    </div>
-                  ))}
-                  {mine.giftsReceived.map((g) => (
-                    <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
-                      <div className="text-sm text-white/60">Gift received · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
-                    </div>
-                  ))}
-                </div>
-                {user && (
+                    ))}
+                    {mine.giftsSent.map((g) => (
+                      <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
+                        <div className="text-sm text-white/60">Gift sent · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
+                      </div>
+                    ))}
+                    {mine.giftsReceived.map((g) => (
+                      <div key={g.id} className="flex items-center justify-between gap-3 py-1 border-t border-white/5 pt-3">
+                        <div className="text-sm text-white/60">Gift received · {fmt$(g.amountDollars)} · {g.billingPeriod}</div>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 capitalize">{g.status.replace("_", " ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {user && mine && (
                   <p className="mt-3 text-xs text-white/40">
                     Fans join your club at <span className="text-primary/80">/memberships?creator={user.id}</span> — share that link anywhere.
                   </p>
@@ -795,10 +885,17 @@ export default function Memberships() {
               {tiers.length > 0 && (
                 <div className="mt-4 grid md:grid-cols-3 gap-4">
                   {tiers.map((tier) => (
-                    <div key={tier.id} className={`${isLight ? "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-5"}`}>
+                    <div key={tier.id} className={`${isLight ? "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-5"}${tier.isActive ? "" : " opacity-75"}`}>
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-black text-lg">{tier.name}</div>
+                          <div className="font-black text-lg flex items-center gap-2">
+                            {tier.name}
+                            {!tier.isActive && (
+                              <span className="text-[10px] font-bold uppercase tracking-wider rounded-full border border-white/25 px-2 py-0.5 text-white/60">
+                                {t("memberships.tierPaused")}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-primary font-bold">{fmt$(tier.priceDollars)}<span className="text-white/40 text-sm font-normal">{t("memberships.perMonth")}</span></div>
                           {tier.annualDiscountPct > 0 && (
                             <div className="text-xs text-white/50">{fmt$(tier.annualPriceDollars)}/yr — save {tier.annualDiscountPct}%</div>
@@ -808,6 +905,19 @@ export default function Memberships() {
                           )}
                         </div>
                         <div className="flex gap-1">
+                          <button
+                            onClick={() => void toggleTierActive(tier)}
+                            disabled={pausingId === tier.id}
+                            aria-label={tier.isActive ? t("memberships.pauseTier") : t("memberships.resumeTier")}
+                            title={tier.isActive ? t("memberships.pauseTier") : t("memberships.resumeTier")}
+                            className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-50"
+                          >
+                            {pausingId === tier.id
+                              ? <Loader2 className="h-4 w-4 animate-spin text-white/50" />
+                              : tier.isActive
+                                ? <Pause className="h-4 w-4 text-white/50" />
+                                : <Play className="h-4 w-4 text-emerald-300/80" />}
+                          </button>
                           <button onClick={() => startEdit(tier)} aria-label={t("memberships.editTierAria")} className="p-1.5 rounded-lg hover:bg-white/10">
                             <Pencil className="h-4 w-4 text-white/50" />
                           </button>
@@ -816,6 +926,9 @@ export default function Memberships() {
                           </button>
                         </div>
                       </div>
+                      {!tier.isActive && (
+                        <p className="text-xs text-white/40 mt-2">{t("memberships.tierPausedNote")}</p>
+                      )}
                       {tier.description && <p className="text-sm text-white/50 mt-2">{tier.description}</p>}
                       <ul className="mt-3 space-y-1.5">
                         {tier.perks.map((p, i) => (
