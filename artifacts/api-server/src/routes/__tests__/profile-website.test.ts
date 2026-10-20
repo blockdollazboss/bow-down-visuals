@@ -468,6 +468,39 @@ describe("#3 theme settings", () => {
     expect(json.fonts).toContain("Bebas Neue");
   });
 
+  it("an unpicked look reads back as honest nulls, never invented picks", async () => {
+    /* The fan seed is the untouched-default row (themeId "gold-lux",
+       theme_config {}): no colorway key matches and no fonts were ever
+       stored, so the DTO says null for all three picks — the editor
+       must be able to tell "never picked" apart from a real pick. */
+    const { status, json } = await call("GET", "/creator-profiles/me/theme-settings", { user: FAN_USER });
+    expect(status).toBe(200);
+    expect(json.colorway).toBeNull();
+    expect(json.headingFont).toBeNull();
+    expect(json.bodyFont).toBeNull();
+    expect(json.colorways.map((c: any) => c.id)).toContain("royal-gold");
+    expect(json.fonts).toContain("Inter");
+  });
+
+  it("a custom legacy look keeps its fonts and reports no registry colorway", async () => {
+    /* The long-standing setup editor writes themeId "custom" the moment
+       a creator tweaks one color or font. That look is real and saved —
+       it just isn't one of the registry colorways, so colorway reads
+       null while the stored fonts read through. */
+    const row = h.state.profilesById.get(FAN_PROFILE)!;
+    row["themeId"] = "custom";
+    row["themeConfig"] = {
+      themeId: "custom",
+      colors: { primary: "#123456" },
+      fonts: { heading: "Bebas Neue", body: "Inter" },
+    };
+    const { status, json } = await call("GET", "/creator-profiles/me/theme-settings", { user: FAN_USER });
+    expect(status).toBe(200);
+    expect(json.colorway).toBeNull();
+    expect(json.headingFont).toBe("Bebas Neue");
+    expect(json.bodyFont).toBe("Inter");
+  });
+
   it("Royal Gold — the house theme — leads the colorway registry", async () => {
     const { json } = await call("GET", "/creator-profiles/me/theme-settings", { user: OWNER_USER });
     expect(json.colorways[0].id).toBe("royal-gold");
