@@ -63,6 +63,7 @@ import {
   type WorldStageLiveRef,
 } from "../lib/world-room";
 import { WorldPalace, creatorRoomIdForSlug } from "../lib/world-palace";
+import { WorldLockStore } from "../lib/world-locks";
 import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 import {
   WorldEventScheduler,
@@ -163,6 +164,14 @@ export function stageVideoScreen(
  *  endpoints read the same instances the sockets talk to, so HTTP
  *  and WS never disagree. */
 let activePalace: WorldPalace | null = null;
+
+/** The mounted palace (or null before the WS mount / in a process
+ *  without one), for in-process read-only callers — the Cloud
+ *  Operator's presence tool reads the same instance the sockets
+ *  talk to, never a second copy. */
+export function getActiveWorldPalace(): WorldPalace | null {
+  return activePalace;
+}
 
 router.get("/world/screen", publicApiLimiter, async (_req, res) => {
   try {
@@ -1447,6 +1456,16 @@ async function resolveJukeboxTrack(userId: string, trackId: string): Promise<Wor
 export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}): WorldPalace {
   const verify = deps.verifyToken ?? verifyAccessToken;
   const hub = new RoomHub();
+  /* The World's locks (Lane F, migration 0179): one store per
+   * palace, hydrated from the tables before the first door can
+   * be knocked on. The hydrate is async and the mount is not, so
+   * it runs fire-and-forget with a loud failure log — the window
+   * is one indexed read at boot, and a failed read fails the
+   * doors OPEN (no locks) rather than locking the palace shut. */
+  const lockStore = new WorldLockStore();
+  void lockStore.load().catch((err) => {
+    logger.error({ err }, "[world] lock store failed to load — locks not enforced until a successful reload");
+  });
   const palace = new WorldPalace(
     hub,
     {
@@ -1489,8 +1508,10 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     },
     /* Creator Rooms (3.5): doorway transfers to a `creator:<slug>`
      * resolve the slug against the public profile record before
-     * the room materializes. */
-    { resolveCreatorRoom },
+     * the room materializes. The lock store (Lane F) rides the
+     * same deps: every room the palace builds consults it at its
+     * door, and the operator's Tier-4 lock commands write it. */
+    { resolveCreatorRoom, lockStore },
   );
   activePalace = palace;
   /* Presence truth: reap frame-silent peers on a tick — a dead
