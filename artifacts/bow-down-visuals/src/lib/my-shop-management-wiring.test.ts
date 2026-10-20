@@ -4,7 +4,10 @@
  * The seller stand is managed from pages/my-shop.tsx, riding the shops rail
  * (routes/shops.ts — GET /api/shops/mine, POST/PATCH/DELETE /api/shops/:id,
  * POST/PATCH/DELETE /api/shops/:id/products/:productId; route behaviour is
- * pinned server-side by the api-server shops.test.ts).
+ * pinned server-side by the api-server shops.test.ts). Stack-4 #6 added
+ * product pause/unlist on the same rails: the list loads from the owner
+ * rail GET /api/shops/:id/products (all products, pause state included)
+ * and the toggle rides the product PATCH with { status }.
  *
  * The frontend suite runs in a node environment (no DOM rendering), so —
  * following the house wiring-pin pattern (scheduler-handoff-wiring,
@@ -26,6 +29,8 @@ const slice = (from: string, to: string) => {
   return source.slice(a, b);
 };
 
+const loadProductsBody = slice("async function loadProducts(", "useEffect(() => {");
+const togglePauseBody = slice("async function togglePauseProduct(", "async function saveProduct()");
 const saveProductBody = slice("async function saveProduct()", "async function deleteProduct");
 const deleteProductBody = slice("async function deleteProduct(", "async function generateProductDescription");
 const deleteShopBody = slice("async function deleteShop()", "async function generateShopDescription");
@@ -96,6 +101,36 @@ describe("failure discipline — a failed request shows an error, never a fake s
 
   it("the page renders the error state where the seller can see it", () => {
     expect(source).toContain("{error && (");
+  });
+});
+
+describe("product pause/unlist — Stack-4 #6 (migration 0176)", () => {
+  it("the management list loads from the OWNER rail, not the public handle read", () => {
+    /* The public handle read hides paused products by design; the
+       seller's list must come from GET /api/shops/:id/products so
+       paused stock stays visible to its owner. */
+    expect(loadProductsBody).toContain("await authed(`/api/shops/${shop.id}/products`)");
+    expect(loadProductsBody).not.toContain("/api/shops/handle/");
+  });
+
+  it("the toggle PATCHes the product rail with the next status", () => {
+    expect(togglePauseBody).toContain("await authed(`/api/shops/${activeShop.id}/products/${p.id}`, {");
+    expect(togglePauseBody).toContain('method: "PATCH"');
+    expect(togglePauseBody).toContain("body: JSON.stringify({ status: next })");
+    expect(togglePauseBody).toContain('const next = p.status === "paused" ? "active" : "paused";');
+  });
+
+  it("a failed toggle throws on !res.ok before the list mutates, and surfaces setError", () => {
+    const throwAt = togglePauseBody.indexOf("if (!res.ok) throw");
+    expect(throwAt).toBeGreaterThanOrEqual(0);
+    expect(togglePauseBody.indexOf("setProducts(")).toBeGreaterThan(throwAt);
+    expect(togglePauseBody).toContain("setError(err instanceof Error ? err.message");
+  });
+
+  it("paused products are marked, and the toggle offers the opposite action", () => {
+    expect(source).toContain('p.status === "paused" && (');
+    expect(source).toContain('t("myShop.pausedBadge")');
+    expect(source).toContain('p.status === "paused" ? t("myShop.unpause") : t("myShop.pause")');
   });
 });
 

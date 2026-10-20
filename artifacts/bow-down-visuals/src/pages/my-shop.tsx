@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
-  AlertTriangle, RotateCcw,
+  AlertTriangle, RotateCcw, Pause, Play,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -39,6 +39,10 @@ interface Product {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /* Owner-rail field (migration 0176): 'paused' products are unlisted
+     for buyers but stay fully visible here so the seller can resume
+     them. Buyer reads never carry this. */
+  status: "active" | "paused";
 }
 
 const inputClass =
@@ -98,6 +102,7 @@ export default function MyShop() {
   const [pDesc, setPDesc] = useState("");
   const [pImageUrl, setPImageUrl] = useState("");
   const [pSaving, setPSaving] = useState(false);
+  const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
   const [aiImageLoading, setAiImageLoading] = useState<"standard" | "premium" | null>(null);
   const [imageStyleHint, setImageStyleHint] = useState("");
@@ -155,8 +160,12 @@ export default function MyShop() {
   async function loadProducts(shop: Shop) {
     setProductsLoadError(false);
     try {
-      /* Products come from the public storefront endpoint for the shop's handle. */
-      const pub = await fetch(`/api/shops/handle/${shop.handle}`);
+      /* Products come from the owner rail (authed, shop-id scoped):
+         it returns ALL of the seller's products with their pause
+         state. The public handle read hides paused products by
+         design (Stack-4 #6), so it can no longer feed this view —
+         it would blind the seller to their own paused stock. */
+      const pub = await authed(`/api/shops/${shop.id}/products`);
       const data = (await pub.json().catch(() => ({}))) as { products?: Product[] };
       if (!pub.ok) throw new Error("products load failed");
       setProducts(data.products ?? []);
@@ -275,6 +284,29 @@ export default function MyShop() {
     setPImageUrl(p.image_url ?? "");
     setImageStyleHint("");
     setShowProductForm(true);
+  }
+
+  async function togglePauseProduct(p: Product) {
+    if (!activeShop || pauseTogglingId) return;
+    const next = p.status === "paused" ? "active" : "paused";
+    setPauseTogglingId(p.id);
+    setError(null);
+    try {
+      const res = await authed(`/api/shops/${activeShop.id}/products/${p.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: next }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string };
+      if (!res.ok) throw new Error(data.error || t("myShop.togglePauseFailed"));
+      /* The row changes ONLY from the server's confirmed response —
+         the delete discipline: a failed flip shows the error and
+         leaves the list exactly as it was. */
+      setProducts((ps) => ps.map((x) => (x.id === p.id ? data.product! : x)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("myShop.togglePauseFailed"));
+    } finally {
+      setPauseTogglingId(null);
+    }
   }
 
   async function saveProduct() {
@@ -675,11 +707,26 @@ export default function MyShop() {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm truncate">{p.name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-bold text-sm truncate">{p.name}</div>
+                              {p.status === "paused" && (
+                                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                                  {t("myShop.pausedBadge")}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-amber-300 text-sm font-bold">{centsToDisplay(p.price_cents)}</div>
                             <div className="mt-1.5 flex gap-2">
                               <button className="text-xs text-white/50 hover:text-white flex items-center gap-1" onClick={() => openEditProduct(p)}>
                                 <Pencil className="w-3 h-3" /> {t("myShop.edit")}
+                              </button>
+                              <button
+                                className="text-xs text-white/50 hover:text-white flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                                onClick={() => togglePauseProduct(p)}
+                                disabled={pauseTogglingId === p.id}
+                              >
+                                {p.status === "paused" ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                                {p.status === "paused" ? t("myShop.unpause") : t("myShop.pause")}
                               </button>
                               <button className="text-xs text-red-400/70 hover:text-red-400 flex items-center gap-1" onClick={() => deleteProduct(p)}>
                                 <Trash2 className="w-3 h-3" /> {t("myShop.remove")}
