@@ -11,9 +11,11 @@
    the executor audits `failed` with the error and the member hears
    an honest failure, never a claim of success.
 
-   Lane A registers exactly one tool: the Tier-0 balance proof. */
+   Lane A registered the Tier-0 balance proof; Lane D's Tier-2 free
+   writes live in lib/operator-tools-tier2.ts and merge in below. */
 
 import { getCreditBalance } from "./credits";
+import { TIER2_HANDLERS } from "./operator-tools-tier2";
 import {
   OPERATOR_TOOL_DEFS,
   type OperatorToolDef,
@@ -61,6 +63,8 @@ const HANDLERS: Record<string, OperatorTool["handler"]> = {
       replyText: `You have ${fmtVb(balance)} Visual Bucs. 🦈`,
     };
   },
+  /* Tier 2 — free writes (Lane D, lib/operator-tools-tier2.ts). */
+  ...TIER2_HANDLERS,
 };
 
 export const OPERATOR_TOOLS: readonly OperatorTool[] = OPERATOR_TOOL_DEFS.map(
