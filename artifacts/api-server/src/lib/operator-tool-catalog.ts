@@ -31,15 +31,44 @@ export interface OperatorToolDef {
   priceVb: number | null;
 }
 
-/** Lane A ships exactly ONE live tool — the Tier-0 balance proof — so
-    the whole pipeline (marker → executor → rail → audit → reply) is
-    provable end to end. Lanes B–F register theirs here as they land. */
+/** Lane A shipped exactly ONE live tool — the Tier-0 balance proof —
+    so the whole pipeline (marker → executor → rail → audit → reply)
+    was provable end to end. Lane B adds the rest of Tier 0 (the live
+    reads) here; lanes C–F register theirs as they land. */
 export const OPERATOR_TOOL_DEFS: readonly OperatorToolDef[] = [
   {
     id: "credits.balance",
     tier: 0,
     name: "Check your Visual Bucs balance",
     blurb: "the member asks how many Visual Bucs they have, or what their balance is",
+    priceVb: null,
+  },
+  {
+    id: "earnings.summary",
+    tier: 0,
+    name: "Check your earnings",
+    blurb: "the member asks what they have earned, how much money they have made, or what their store sales, memberships, brand deals and tips add up to",
+    priceVb: null,
+  },
+  {
+    id: "quests.status",
+    tier: 0,
+    name: "See today's quests",
+    blurb: "the member asks where their quests are at, what today's quest trio is, or how their quest progress and marks look",
+    priceVb: null,
+  },
+  {
+    id: "world.presence",
+    tier: 0,
+    name: "See who's in the palace",
+    blurb: "the member asks who is in the hall or the World right now, or how many people are around in the palace",
+    priceVb: null,
+  },
+  {
+    id: "world.standings",
+    tier: 0,
+    name: "See the Court Season standings",
+    blurb: "the member asks who is winning or leading the Court Season, or what the current season marks standings are",
     priceVb: null,
   },
 ];
