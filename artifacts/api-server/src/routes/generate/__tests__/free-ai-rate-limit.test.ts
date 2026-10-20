@@ -130,6 +130,17 @@ vi.mock("../../../lib/ai-clients", () => ({
   getPlainTranscribeModel: () => "gpt-transcribe",
 }));
 
+/* The timed seam (lib/transcription): since the whisper-1 migration,
+   /transcribe-url transcribes through transcribeAudioTimed, not the
+   OpenAI client above. Same aiState contract, adapted return shape. */
+vi.mock("../../../lib/transcription", () => ({
+  transcribeAudioTimed: async () => {
+    aiState.transcribeCalls++;
+    if (aiState.transcribeFails) throw new Error("transcribe provider boom");
+    return { text: "hello transcript", segments: [], words: [], duration: 3, language: "en" };
+  },
+}));
+
 /* The "openai" package itself: ai-edit-plan constructs its own client
    from it, and transcribe.ts imports toFile from it. The fake plan
    client is driven by aiState; toFile just wraps the upload. */

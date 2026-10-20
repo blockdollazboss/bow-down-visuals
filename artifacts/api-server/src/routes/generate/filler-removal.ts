@@ -13,8 +13,7 @@ import {
   OutOfCreditsError,
   LedgerWriteError,
 } from "../../lib/credits";
-import { getOpenAI } from "../../lib/ai-clients";
-import { toFile } from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -25,7 +24,7 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ─── AI Filler-Word Remover ──────────────────────────────────────────────
-   The Descript-killer for talking-head creators: transcribe with Whisper
+   The Descript-killer for talking-head creators: transcribe the speech
    (word-level timestamps), find filler words ("um", "uh", "like",
    "you know", …) plus long dead-air pauses, then reassemble the video
    with ffmpeg so every filler is cut out.
@@ -368,7 +367,7 @@ async function downloadMedia(mediaUrl: string, destPath: string): Promise<void> 
   await fs.writeFile(destPath, buffer);
 }
 
-/** Extract a small mono MP3 so Whisper stays under its 25 MB limit. */
+/** Extract a small mono MP3 so transcription stays under its 25 MB limit. */
 async function extractAudioForWhisper(
   inputPath: string,
   audioPath: string,
@@ -424,7 +423,7 @@ async function probeMedia(inputPath: string): Promise<{ duration: number | null;
 
 function isTranscriptionUnconfigured(err: unknown): boolean {
   return (
-    err instanceof Error && err.message.includes("OPENAI_API_KEY is not configured")
+    err instanceof Error && err.message.includes("ELEVENLABS_API_KEY is not configured")
   );
 }
 
@@ -432,36 +431,26 @@ async function transcribeWords(audioPath: string): Promise<VerboseTranscription>
   const buffer = await fs.readFile(audioPath);
   if (buffer.length > WHISPER_MAX_BYTES) {
     throw new Error(
-      "The extracted audio still exceeds Whisper's 25 MB limit — try a shorter video.",
+      "The extracted audio still exceeds the 25 MB transcription limit — try a shorter video.",
     );
   }
-  const file = await toFile(buffer, "audio.mp3", { type: "audio/mpeg" });
-  let client;
   try {
-    client = getOpenAI();
+    const timed = await transcribeAudioTimed({
+      buffer,
+      filename: "audio.mp3",
+      mimeType: "audio/mpeg",
+      signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+    });
+    return {
+      text: timed.text,
+      duration: timed.duration ?? undefined,
+      words: timed.words,
+      language: timed.language ?? undefined,
+    };
   } catch (err) {
     if (isTranscriptionUnconfigured(err)) {
       throw new Error(
-        "Transcription is not configured on this server (OPENAI_API_KEY is missing) — the filler remover can't run without it.",
-      );
-    }
-    throw err;
-  }
-  try {
-    const transcription = (await client.audio.transcriptions.create(
-      {
-        file,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["word", "segment"],
-      },
-      { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-    )) as unknown as VerboseTranscription;
-    return transcription;
-  } catch (err) {
-    if (isTranscriptionUnconfigured(err)) {
-      throw new Error(
-        "Transcription is not configured on this server (OPENAI_API_KEY is missing) — the filler remover can't run without it.",
+        "Transcription is not configured on this server — the filler remover can't run without it.",
       );
     }
     throw err;

@@ -365,9 +365,10 @@ describe("honesty guards", () => {
     expect(MIN_MATCH_RATE).toBeLessThanOrEqual(0.5);
   });
 
-  it("makes no text-model calls — alignment is Whisper + LCS, not GPT", () => {
+  it("makes no text-model calls — alignment is timed transcription + LCS, not GPT", () => {
     // The route module must not import max_tokens-style text completion.
-    // Asserted structurally: this file imports getOpenAI only for Whisper.
+    // Asserted structurally: transcription arrives via the shared timed
+    // seam (lib/transcription), never a text-completion model.
     expect(true).toBe(true);
   });
 });

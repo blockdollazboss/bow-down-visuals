@@ -40,7 +40,7 @@ import {
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
-import { toFile } from "openai/uploads";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -253,25 +253,16 @@ async function extractAudio(inputPath: string, audioPath: string): Promise<void>
   );
 }
 
-interface WhisperVerboseJson {
-  text?: string;
-  duration?: number;
-  segments?: { start: number; end: number; text: string }[];
-}
-
 async function transcribeAudio(
   audioBuffer: Buffer,
   filename: string,
 ): Promise<TranscriptSegment[]> {
-  const audioFile = await toFile(audioBuffer, filename, { type: "audio/mpeg" });
-  const result = (await getOpenAI().audio.transcriptions.create(
-    {
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-    },
-    { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-  )) as unknown as WhisperVerboseJson;
+  const result = await transcribeAudioTimed({
+    buffer: audioBuffer,
+    filename,
+    mimeType: "audio/mpeg",
+    signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+  });
   return (result.segments ?? [])
     .filter((s) => s.text && s.text.trim().length > 0)
     .map((s) => ({ start: s.start, end: s.end, text: s.text.trim() }));

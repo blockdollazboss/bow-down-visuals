@@ -6,9 +6,10 @@
  *
  * The sibling POST /api/transcribe-url route in the same file DOES
  * consume word timestamps (its clients align caption lines to them),
- * so it stays on whisper-1; a source-shape guard below pins that split
- * so a future "helpful" sweep can't silently break caption alignment
- * or re-break this route.
+ * so it runs on the shared timed seam (lib/transcription.ts,
+ * transcribeAudioTimed) — whisper-1 is gone from this file entirely.
+ * Source-shape guards below pin that split so a future "helpful"
+ * sweep can't silently break caption alignment or re-break this route.
  *
  * Harness follows free-ai-rate-limit.test.ts: the REAL router, mocked
  * requireAuth, mocked OpenAI client (no network, no provider spend).
@@ -138,11 +139,13 @@ describe("transcribe.ts — the plain/timed split stays intact", () => {
     expect(src).toContain("model: getPlainTranscribeModel()");
   });
 
-  it("exactly one whisper-1 call remains: the timed /transcribe-url route", () => {
-    const occurrences = src.split('model: "whisper-1"').length - 1;
-    expect(occurrences).toBe(1);
-    // …and it still requests the word+segment timestamps its clients align to.
-    expect(src).toContain('timestamp_granularities: ["word", "segment"]');
-    expect(src).toContain('response_format: "verbose_json"');
+  it("no whisper-1 call remains anywhere in the file", () => {
+    expect(src).not.toContain('model: "whisper-1"');
+    expect(src).not.toContain("model: 'whisper-1'");
+  });
+
+  it("the timed /transcribe-url route goes through the shared timed seam", () => {
+    expect(src).toContain('from "../lib/transcription"');
+    expect(src).toContain("transcribeAudioTimed(");
   });
 });

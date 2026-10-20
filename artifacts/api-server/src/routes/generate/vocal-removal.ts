@@ -14,15 +14,14 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { separateVocalStems, cleanupWorkdir } from "../../lib/stem-separation";
-import { getOpenAI } from "../../lib/ai-clients";
-import { toFile } from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
 export const VOCAL_REMOVAL_CREDIT_COST = 300;
-/** 25 MB — matches Whisper's hard limit so karaoke transcription never 413s. */
+/** 25 MB — the size cap this route enforces so karaoke transcription never 413s. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
@@ -87,9 +86,9 @@ export function buildStemMp3Args(inputPath: string, outputPath: string): string[
 }
 
 /**
- * Normalize raw Whisper verbose_json word segments into a flat,
+ * Normalize timed-transcription word segments into a flat,
  * time-sorted karaoke word list. Drops empty words and clamps negative
- * timestamps (Whisper occasionally emits -0.01 starts on the first word).
+ * timestamps (transcribers occasionally emit -0.01 starts on the first word).
  * Exported for tests.
  */
 export function buildKaraokeWords(
@@ -112,24 +111,20 @@ export function buildKaraokeWords(
 /* ── Background worker ─────────────────────────────────────────────── */
 
 /**
- * Run Whisper with word-level timestamps on the acapella for karaoke.
+ * Run timed transcription with word-level timestamps on the acapella for karaoke.
  * Returns the word list, or null when transcription is unavailable —
  * karaoke is a bonus; the stems are the product and must not fail
- * because Whisper did.
+ * because transcription did.
  */
 async function transcribeKaraokeWords(acapellaMp3: Buffer, fileName: string): Promise<KaraokeWord[] | null> {
   try {
-    const audioFile = await toFile(acapellaMp3, fileName, { type: "audio/mpeg" });
-    const result = await getOpenAI().audio.transcriptions.create(
-      {
-        file: audioFile,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["word"],
-      } as never,
-      { signal: AbortSignal.timeout(240_000) },
-    );
-    const segments = (result as unknown as { segments?: Array<{ words?: Array<{ word?: string; start?: number; end?: number }> }> }).segments ?? [];
+    const result = await transcribeAudioTimed({
+      buffer: acapellaMp3,
+      filename: fileName,
+      mimeType: "audio/mpeg",
+      signal: AbortSignal.timeout(240_000),
+    });
+    const segments = result.segments ?? [];
     const words = buildKaraokeWords(segments);
     return words.length > 0 ? words : null;
   } catch {

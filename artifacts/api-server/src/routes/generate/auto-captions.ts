@@ -7,10 +7,9 @@ import { readFile, writeFile, mkdtemp, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
-import { toFile } from "openai/uploads";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { getOpenAI } from "../../lib/ai-clients";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -20,7 +19,7 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ─── AI auto-captions ───
-   Transcribes a video's audio with Whisper (word-level timestamps), then
+   Transcribes a video's audio (word-level timestamps), then
    burns true word-timed karaoke captions into the video with ffmpeg/libass.
    Unlike SRT-based captioning, word timings make the highlight genuinely
    syllable-synced (TikTok style). 300 Visual Bucs. */
@@ -52,9 +51,9 @@ router.get("/auto-captions/info", requireAuth, (_req, res) => {
     cost: AUTO_CAPTIONS_COST,
     /* Lets the Caption Suite show an honest "unavailable" state instead of a
        dead generate button when no transcription key is configured. */
-    ready: Boolean(process.env["OPENAI_API_KEY"]),
+    ready: Boolean(process.env["ELEVENLABS_API_KEY"]),
     description:
-      "Transcribes video audio with Whisper and burns true word-timed karaoke captions into the video.",
+      "Transcribes video audio and burns true word-timed karaoke captions into the video.",
     output: "MP4 with burned-in captions, signed download URL.",
   });
 });
@@ -93,7 +92,7 @@ function hexToAssColor(hex: string): string {
   return `&H00${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toUpperCase();
 }
 
-interface WhisperWord {
+interface CaptionWord {
   word: string;
   start: number;
   end: number;
@@ -102,13 +101,13 @@ interface WhisperWord {
 interface CaptionLine {
   start: number;
   end: number;
-  words: WhisperWord[];
+  words: CaptionWord[];
 }
 
 /** Group words into caption lines, splitting on long pauses and length caps. */
-function groupWordsIntoLines(words: WhisperWord[]): CaptionLine[] {
+function groupWordsIntoLines(words: CaptionWord[]): CaptionLine[] {
   const lines: CaptionLine[] = [];
-  let cur: WhisperWord[] = [];
+  let cur: CaptionWord[] = [];
   let curChars = 0;
 
   const flush = () => {
@@ -216,7 +215,7 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
     // 1. Download the video.
     await downloadTo(videoUrl, inputPath, MAX_VIDEO_BYTES);
 
-    // 2. Extract audio for Whisper.
+    // 2. Extract audio for transcription.
     await execFileAsync(
       "ffmpeg",
       ["-y", "-i", inputPath, "-vn", "-c:a", "libmp3lame", "-ar", "16000", "-ac", "1", audioPath],
@@ -224,16 +223,12 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
     );
 
     // 3. Transcribe with word-level timestamps.
-    const file = await toFile(await readFile(audioPath), "audio.mp3", { type: "audio/mpeg" });
-    const out = await getOpenAI().audio.transcriptions.create(
-      {
-        file,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["word"],
-      },
-      { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-    );
+    const out = await transcribeAudioTimed({
+      buffer: await readFile(audioPath),
+      filename: "audio.mp3",
+      mimeType: "audio/mpeg",
+      signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+    });
     const words = (
       (out as unknown as { words?: Array<{ word: string; start: number; end: number }> }).words ??
       []

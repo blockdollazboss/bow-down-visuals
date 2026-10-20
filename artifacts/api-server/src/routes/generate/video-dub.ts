@@ -6,10 +6,10 @@ import { writeFile, readFile, mkdtemp, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
-import { toFile } from "openai/uploads";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getTextModel } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -46,7 +46,7 @@ const DUB_LANGUAGES = [
 const dubSchema = z.object({
   videoUrl: z.string().trim().min(1).max(2048),
   targetLanguage: z.string().trim().min(2).max(8),
-  /** Optional override; when omitted whisper auto-detects. */
+  /** Optional override; when omitted the transcription auto-detects. */
   sourceLanguage: z.string().trim().min(2).max(8).optional(),
   /** Keep a low mix of the original audio under the dub (0 = replace). */
   keepOriginalMix: z.number().min(0).max(0.5).default(0),
@@ -67,25 +67,21 @@ async function probeDurationSec(path: string): Promise<number> {
   return d;
 }
 
-interface WhisperSegment {
+interface DubSegment {
   start: number;
   end: number;
   text: string;
 }
 
-async function transcribeWithSegments(audioPath: string, language?: string): Promise<WhisperSegment[]> {
-  const file = await toFile(await readFile(audioPath), "audio.mp3", { type: "audio/mpeg" });
-  const out = await getOpenAI().audio.transcriptions.create(
-    {
-      file,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["segment"],
-      ...(language ? { language } : {}),
-    },
-    { signal: AbortSignal.timeout(300_000) },
-  );
-  const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+async function transcribeWithSegments(audioPath: string, language?: string): Promise<DubSegment[]> {
+  const out = await transcribeAudioTimed({
+    buffer: await readFile(audioPath),
+    filename: "audio.mp3",
+    mimeType: "audio/mpeg",
+    ...(language ? { language } : {}),
+    signal: AbortSignal.timeout(300_000),
+  });
+  const segs = (out.segments ?? [])
     .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
     .filter((s) => s.text.length > 0 && s.end > s.start);
   return segs;

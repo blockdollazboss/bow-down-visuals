@@ -5,7 +5,7 @@ import { promisify } from "util";
 import { writeFile, readFile, unlink, mkdtemp, stat } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { toFile } from "openai/uploads";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -15,7 +15,7 @@ const execFileAsync = promisify(execFile);
 
 /* ─── Video chapter markers ───
    Finds natural breaks in a video with ffmpeg silencedetect, transcribes
-   the audio with whisper, and asks AI to write a short title per chapter.
+   the audio, and asks AI to write a short title per chapter.
    Returns [{ startTime, title }]. 150 Visual Bucs. */
 
 const CHAPTERS_COST = Number(process.env["CHAPTERS_CREDITS"]) || 150;
@@ -126,12 +126,13 @@ interface TranscriptSegment {
 }
 
 async function transcribeAudio(audioPath: string): Promise<TranscriptSegment[]> {
-  const file = await toFile(await readFile(audioPath), "audio.mp3", { type: "audio/mpeg" });
-  const out = await getOpenAI().audio.transcriptions.create(
-    { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-    { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-  );
-  const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+  const out = await transcribeAudioTimed({
+    buffer: await readFile(audioPath),
+    filename: "audio.mp3",
+    mimeType: "audio/mpeg",
+    signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+  });
+  const segs = (out.segments ?? [])
     .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
     .filter((s) => s.text.length > 0);
   return segs;
