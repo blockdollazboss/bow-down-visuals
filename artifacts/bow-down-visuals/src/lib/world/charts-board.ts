@@ -20,7 +20,9 @@
  *   GET /api/discovery/reposts?ids=…     (the walker's repost state)
  *   POST   /api/creator-profiles/:id/follow
  *   DELETE /api/creator-profiles/:id/unfollow
- * No new back-end (plan §3.0).
+ * One read was added with the 2.15 listening-extras tail:
+ * GET /api/discovery/reposts is the repost twin of the /likes read
+ * (same shape, same discipline) — no other new back-end.
  */
 
 import { resolveMedia, type MediaKind } from "@/lib/streaming";
