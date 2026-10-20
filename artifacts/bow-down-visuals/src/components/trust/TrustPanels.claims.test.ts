@@ -86,7 +86,7 @@ describe("ClaimsPanel — the claim management surface", () => {
     // yet." for a load that never happened).
     expect(claimsPanel).toContain("catch { setLoadFailed(true); }");
     expect(claimsPanel).not.toContain("catch { setClaims([]); }");
-    expect(claimsPanel).toContain("Couldn't load your matches");
+    expect(claimsPanel).toContain("Couldn&apos;t load your matches");
     expect(claimsPanel).toContain("onClick={() => void load()}>Retry</button>");
     // The empty state only renders when the load did not fail.
     expect(claimsPanel).toContain("loadFailed ? (");

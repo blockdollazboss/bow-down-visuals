@@ -10,7 +10,6 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import {
   BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
   buildBrandKitGeneratePayload,
