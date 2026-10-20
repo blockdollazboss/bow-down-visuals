@@ -10,10 +10,14 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import {
+  CHART_WINDOWS,
   chartLikeIdsParam,
   chartLikeKey,
   chartTrackPlayInput,
   chartVideoPlayInput,
+  chartsCreatorsPath,
+  chartsMediaPath,
+  chartWindowNoun,
   followStateFromResponse,
   followUrl,
   followRequest,
@@ -27,6 +31,7 @@ import {
   type ChartCreatorRow,
   type ChartTrackRow,
   type ChartVideoRow,
+  type ChartWindow,
 } from "@/lib/world/charts-board";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import { formatCount, toggleLike, type MediaKind } from "@/lib/streaming";
@@ -53,7 +58,15 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    alongside the room-jukebox Play, which stays the shared moment.
    The hearts open on the walker's REAL state: one batched read
    (GET /api/discovery/likes — the follow read's media twin) seeds
-   them, so a row already liked shows it before the first tap. */
+   them, so a row already liked shows it before the first tap.
+   Ring 4 parity: the Tracks / Videos / Creators tabs carry the
+   website /charts page's window switcher (Today / This week /
+   All time). Switching re-queries the charts endpoints at the new
+   window — the server aggregates play_events per window, so the
+   counts are the window's own, never a re-sliced all-time list.
+   Rising (7 days) and Earners (30 days) are fixed-span boards by
+   definition: the switcher steps aside on those tabs rather than
+   pretend to move them. */
 
 type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners";
 
@@ -65,10 +78,10 @@ const TABS: Array<{ key: ChartsTab; label: string }> = [
   { key: "earners", label: "Earners" },
 ];
 
-const TAB_TITLES: Record<ChartsTab, string> = {
-  tracks: "Top tracks — this week",
-  videos: "Top videos — this week",
-  creators: "Top creators — this week",
+/* Fixed-span tabs keep their titles; the windowed tabs (tracks /
+   videos / creators) title themselves off the chosen window in the
+   render, so the board never claims a span it isn't showing. */
+const FIXED_TAB_TITLES: Partial<Record<ChartsTab, string>> = {
   rising: "Rising — gaining fastest this week",
   earners: "Rising earners — last 30 days",
 };
@@ -95,10 +108,15 @@ export interface ChartsBoardProps {
 export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shelfPlayer }: ChartsBoardProps) {
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<ChartsTab>("tracks");
-  const [tracks, setTracks] = useState<ChartTrackRow[] | null>(null);
-  const [videos, setVideos] = useState<ChartVideoRow[] | null>(null);
-  const [creators, setCreators] = useState<Partial<Record<ChartsTab, ChartCreatorRow[]>>>({});
-  const [failedTab, setFailedTab] = useState<ChartsTab | null>(null);
+  /* The window switcher's choice (the website page's three). Media
+     rows cache PER WINDOW — a window's rows are its own server
+     aggregate, and coming back to a window shows its own read. */
+  const [window, setWindow] = useState<ChartWindow>("week");
+  const [mediaByWindow, setMediaByWindow] = useState<
+    Partial<Record<ChartWindow, { tracks: ChartTrackRow[]; videos: ChartVideoRow[] }>>
+  >({});
+  const [creators, setCreators] = useState<Partial<Record<string, ChartCreatorRow[]>>>({});
+  const [failedKey, setFailedKey] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
   const [followBusy, setFollowBusy] = useState<string | null>(null);
@@ -112,30 +130,52 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  /* Load the active tab's rows (once per tab; the retry tick
-     reloads the failed one). */
+  /* The active window's media rows (both tabs share one read) and
+     the cache key the current view loads under: media tabs key by
+     window, the creators tab keys by tab+window, and the fixed-span
+     tabs key by tab alone — their span never moves. */
+  const media = mediaByWindow[window];
+  const tracks = media?.tracks ?? null;
+  const videos = media?.videos ?? null;
+  const loadKey =
+    tab === "tracks" || tab === "videos"
+      ? `media:${window}`
+      : tab === "creators"
+        ? `creators:${window}`
+        : tab;
+
+  /* Load the active view's rows (once per tab+window; the retry
+     tick reloads the failed one). Switching windows re-queries —
+     each window is a different server aggregate. */
   useEffect(() => {
     let cancelled = false;
     const loaded =
-      tab === "tracks" ? tracks !== null : tab === "videos" ? videos !== null : creators[tab] !== undefined;
-    if (loaded && failedTab !== tab) return;
+      tab === "tracks" || tab === "videos"
+        ? mediaByWindow[window] !== undefined
+        : creators[loadKey] !== undefined;
+    if (loaded && failedKey !== loadKey) return;
     (async () => {
       try {
         if (tab === "tracks" || tab === "videos") {
           /* One payload carries both keys — the tracks and videos
              tabs are two views of the same chart read. */
-          const res = await fetch("/api/discovery/charts?window=week&limit=10");
+          const res = await fetch(chartsMediaPath(window));
           if (!res.ok) throw new Error("charts");
           const payload = await res.json();
           if (!cancelled) {
-            setTracks(normalizeChartTracks(payload));
-            setVideos(normalizeChartVideos(payload));
-            setFailedTab(null);
+            setMediaByWindow((prev) => ({
+              ...prev,
+              [window]: {
+                tracks: normalizeChartTracks(payload),
+                videos: normalizeChartVideos(payload),
+              },
+            }));
+            setFailedKey(null);
           }
         } else {
           const path =
             tab === "creators"
-              ? "/api/discovery/charts/creators?window=week&limit=10"
+              ? chartsCreatorsPath(window)
               : tab === "rising"
                 ? "/api/discovery/rising?limit=12"
                 : "/api/discovery/rising-earners?limit=12";
@@ -143,23 +183,23 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           if (!res.ok) throw new Error("creators");
           const rows = normalizeChartCreators(await res.json(), tab);
           if (!cancelled) {
-            setCreators((prev) => ({ ...prev, [tab]: rows }));
-            setFailedTab(null);
+            setCreators((prev) => ({ ...prev, [loadKey]: rows }));
+            setFailedKey(null);
           }
         }
       } catch {
-        if (!cancelled) setFailedTab(tab);
+        if (!cancelled) setFailedKey(loadKey);
       }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, tick]);
+  }, [tab, tick, window]);
 
   /* The walker's follow state for the creator rows on show —
      one batched read, members only (the page's own pattern). */
-  const creatorRows = tab === "tracks" ? [] : (creators[tab] ?? []);
+  const creatorRows = tab === "tracks" || tab === "videos" ? [] : (creators[loadKey] ?? []);
   const creatorKey = creatorRows.map((c) => c.id).join(",");
   useEffect(() => {
     if (isGuest || !creatorKey) return;
@@ -333,8 +373,20 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
   }`;
 
   const loading =
-    failedTab !== tab &&
-    (tab === "tracks" ? tracks === null : tab === "videos" ? videos === null : creators[tab] === undefined);
+    failedKey !== loadKey &&
+    (tab === "tracks" ? tracks === null : tab === "videos" ? videos === null : creators[loadKey] === undefined);
+
+  /* The windowed tabs title off the chosen window; the fixed-span
+     tabs keep theirs. */
+  const boardTitle =
+    tab === "tracks"
+      ? `Top tracks — ${chartWindowNoun(window)}`
+      : tab === "videos"
+        ? `Top videos — ${chartWindowNoun(window)}`
+        : tab === "creators"
+          ? `Top creators — ${chartWindowNoun(window)}`
+          : (FIXED_TAB_TITLES[tab] ?? "");
+  const windowedTab = tab === "tracks" || tab === "videos" || tab === "creators";
 
   return (
     <div className="space-y-3">
@@ -354,7 +406,29 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         ))}
       </div>
 
-      {failedTab === tab ? (
+      {/* The window switcher — the website /charts page's three
+          windows. Shown only on the windowed tabs: Rising and
+          Earners are fixed spans, and a switcher that can't move
+          them would be a lie. */}
+      {windowedTab && (
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart window">
+          {CHART_WINDOWS.map((w) => (
+            <button
+              key={w.key}
+              type="button"
+              role="tab"
+              aria-selected={window === w.key}
+              data-testid={`world-charts-window-${w.key}`}
+              onClick={() => setWindow(w.key)}
+              className={tabBtn(window === w.key)}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {failedKey === loadKey ? (
         <NativeErrorState
           isLight={isLight}
           title="The charts wouldn't open"
@@ -364,12 +438,16 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       ) : loading ? (
         <NativeLoadingState isLight={isLight} message="Reading the charts…" />
       ) : (
-        <NativeBoard isLight={isLight} title={TAB_TITLES[tab]}>
+        <NativeBoard isLight={isLight} title={boardTitle}>
           {tab === "tracks" ? (
             (tracks ?? []).length === 0 ? (
               <NativeEmptyState
                 isLight={isLight}
-                message="Nothing is charting this week — yet."
+                message={
+                  window === "all"
+                    ? "Nothing on the all-time board — yet."
+                    : `Nothing is charting ${chartWindowNoun(window)} — yet.`
+                }
                 detail="The lane is wide open. Publish a track and the first row is yours."
               />
             ) : (
@@ -427,7 +505,11 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
             (videos ?? []).length === 0 ? (
               <NativeEmptyState
                 isLight={isLight}
-                message="No videos are charting this week — yet."
+                message={
+                  window === "all"
+                    ? "No videos on the all-time board — yet."
+                    : `No videos are charting ${chartWindowNoun(window)} — yet.`
+                }
                 detail="Publish a video and the first row is yours."
               />
             ) : (
@@ -471,7 +553,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   ? "Nobody is breaking through this week — yet."
                   : tab === "earners"
                     ? "No earners on the board yet."
-                    : "No creators are charting this week — yet."
+                    : window === "all"
+                      ? "No creators on the all-time board — yet."
+                      : `No creators are charting ${chartWindowNoun(window)} — yet.`
               }
               detail="Check back as the kingdom plays — or be the name that fills the first row."
             />

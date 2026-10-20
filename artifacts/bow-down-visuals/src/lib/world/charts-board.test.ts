@@ -16,10 +16,14 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  CHART_WINDOWS,
   chartLikeIdsParam,
   chartLikeKey,
   chartTrackPlayInput,
   chartVideoPlayInput,
+  chartsCreatorsPath,
+  chartsMediaPath,
+  chartWindowNoun,
   followRequest,
   followStateFromResponse,
   followUrl,
@@ -341,8 +345,12 @@ describe("Ring 2 (2.27) completion — hearts open on the walker's real like sta
 
 describe("the ChartsBoard surface (source pins)", () => {
   it("rides exactly the plan's discovery endpoints", () => {
-    expect(boardSrc).toContain("/api/discovery/charts?window=week&limit=10");
-    expect(boardSrc).toContain("/api/discovery/charts/creators?window=week&limit=10");
+    /* The windowed reads ride the window seam (charts-board.ts) —
+       the URLs it builds are the plan's endpoints, window included. */
+    expect(chartsMediaPath("week")).toBe("/api/discovery/charts?window=week&limit=10");
+    expect(chartsCreatorsPath("week")).toBe("/api/discovery/charts/creators?window=week&limit=10");
+    expect(boardSrc).toContain("chartsMediaPath(window)");
+    expect(boardSrc).toContain("chartsCreatorsPath(window)");
     expect(boardSrc).toContain("/api/discovery/rising?limit=12");
     expect(boardSrc).toContain("/api/discovery/rising-earners?limit=12");
     expect(boardSrc).toContain("/api/discovery/following?ids=");
@@ -369,5 +377,53 @@ describe("the ChartsBoard surface (source pins)", () => {
     expect(stationPanelSrc).toContain('resolution.pattern === "board" && station.id === "charts-desk"');
     expect(stationPanelSrc).toContain("onPlayTrack={props.onJukeboxAdd}");
     expect(stationPanelSrc).toContain("jukeboxDenied={props.jukeboxDenied}");
+  });
+});
+
+describe("Ring 4 parity — the window switcher (Today / This week / All time)", () => {
+  it("offers exactly the website /charts page's three windows, in order", () => {
+    expect(CHART_WINDOWS.map((w) => w.key)).toEqual(["today", "week", "all"]);
+    expect(CHART_WINDOWS.map((w) => w.label)).toEqual(["Today", "This week", "All time"]);
+  });
+
+  it("every window's read carries its own window param — switching re-queries, never re-slices", () => {
+    expect(chartsMediaPath("today")).toBe("/api/discovery/charts?window=today&limit=10");
+    expect(chartsMediaPath("week")).toBe("/api/discovery/charts?window=week&limit=10");
+    expect(chartsMediaPath("all")).toBe("/api/discovery/charts?window=all&limit=10");
+    expect(chartsCreatorsPath("today")).toBe("/api/discovery/charts/creators?window=today&limit=10");
+    expect(chartsCreatorsPath("all")).toBe("/api/discovery/charts/creators?window=all&limit=10");
+  });
+
+  it("titles and empty states speak the window's noun", () => {
+    expect(chartWindowNoun("today")).toBe("today");
+    expect(chartWindowNoun("week")).toBe("this week");
+    expect(chartWindowNoun("all")).toBe("all time");
+  });
+
+  it("the board source: a window state drives the switcher, the fetches, the titles", () => {
+    expect(boardSrc).toContain("useState<ChartWindow>");
+    expect(boardSrc).toContain("CHART_WINDOWS.map");
+    expect(boardSrc).toContain("world-charts-window-${w.key}");
+    expect(boardSrc).toContain("setWindow(w.key)");
+    /* the load effect re-runs on window change, and media rows
+       cache per window — a window's rows are its own server read */
+    expect(boardSrc).toContain("[tab, tick, window]");
+    expect(boardSrc).toContain("mediaByWindow");
+    /* titles come off the window, not a hardcoded "this week" */
+    expect(boardSrc).toContain("chartWindowNoun(window)");
+    expect(boardSrc).not.toContain("Top tracks — this week");
+  });
+
+  it("the board source: the switcher shows only on the windowed tabs", () => {
+    /* Rising (7d) and Earners (30d) are fixed spans: their fetch
+       paths take no window, and the switcher renders behind the
+       windowed-tab gate so it never pretends to move them. */
+    expect(boardSrc).toContain('const windowedTab = tab === "tracks" || tab === "videos" || tab === "creators"');
+    expect(boardSrc).toContain("{windowedTab && (");
+    expect(boardSrc).not.toContain("rising?window");
+    expect(boardSrc).not.toContain("rising-earners?window");
+    /* the old hardcoded week fetches are gone */
+    expect(boardSrc).not.toContain("charts?window=week");
+    expect(boardSrc).not.toContain("charts/creators?window=week");
   });
 });
