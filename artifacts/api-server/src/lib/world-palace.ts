@@ -173,6 +173,23 @@ export interface PalaceDirectoryEntry {
   slug?: string;
 }
 
+/** One room in a presence snapshot (WorldPalace.presenceSnapshot):
+ *  `count` is DISTINCT present people (see the snapshot's note),
+ *  `members` their display names, capped like the directory's. */
+export interface PalacePresenceRoom {
+  id: string;
+  name: string;
+  count: number;
+  members: string[];
+}
+
+/** The palace-wide presence snapshot: per-room distinct counts
+ *  plus the palace total (itself deduplicated across rooms). */
+export interface PalacePresenceSnapshot {
+  total: number;
+  rooms: PalacePresenceRoom[];
+}
+
 /* ── Creator Rooms (Ring 2, item 3.5) ───────────────────────────────
  * One room template, instantiated per creator: room id
  * `creator:<slug>` for any creator with a PUBLIC Grand Stage
@@ -436,6 +453,50 @@ export class WorldPalace {
       });
     }
     return entries;
+  }
+
+  /** A truthful headcount snapshot for read-only callers (the
+   *  Cloud Operator's "who's in the palace" tool): the same room
+   *  set the directory lists — the eight palace rooms always,
+   *  creator rooms only while someone is home — but counted the
+   *  honest way: only peers the staleness sweep would NOT reap
+   *  (WorldRoom.presentPeers), deduplicated by presence key, so a
+   *  ghost awaiting burial and a member's second socket never
+   *  inflate the count. A connection with no identity key (a raw
+   *  probe) counts once, as itself — it is a live connection in
+   *  the room, just not a provable person. */
+  presenceSnapshot(now = Date.now()): PalacePresenceSnapshot {
+    const rooms: PalacePresenceRoom[] = [];
+    const seenGlobally = new Set<string>();
+    let anonymousGlobal = 0;
+    const tally = (roomId: string, name: string, room: WorldRoom) => {
+      const present = room.presentPeers(now);
+      if (present.length === 0 && !PALACE_ROOM_DEFS.some((d) => d.roomId === roomId)) return;
+      const seen = new Set<string>();
+      const members: string[] = [];
+      let anonymous = 0;
+      for (const p of present) {
+        if (p.identityKey) {
+          if (seen.has(p.identityKey)) continue;
+          seen.add(p.identityKey);
+          if (!seenGlobally.has(p.identityKey)) {
+            seenGlobally.add(p.identityKey);
+          }
+        } else {
+          anonymous += 1;
+          anonymousGlobal += 1;
+        }
+        if (members.length < DIRECTORY_MEMBER_NAMES) members.push(p.displayName);
+      }
+      rooms.push({ id: roomId, name, count: seen.size + anonymous, members });
+    };
+    for (const def of PALACE_ROOM_DEFS) {
+      tally(def.roomId, def.name, this.rooms.get(def.roomId)!);
+    }
+    for (const [, entry] of this.creatorRooms) {
+      tally(entry.room.roomId, entry.room.roomName, entry.room);
+    }
+    return { total: seenGlobally.size + anonymousGlobal, rooms };
   }
 
   private broadcastDirectory(): void {

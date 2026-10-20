@@ -164,6 +164,14 @@ export function stageVideoScreen(
  *  and WS never disagree. */
 let activePalace: WorldPalace | null = null;
 
+/** The mounted palace (or null before the WS mount / in a process
+ *  without one), for in-process read-only callers — the Cloud
+ *  Operator's presence tool reads the same instance the sockets
+ *  talk to, never a second copy. */
+export function getActiveWorldPalace(): WorldPalace | null {
+  return activePalace;
+}
+
 router.get("/world/screen", publicApiLimiter, async (_req, res) => {
   try {
     /* The stage outranks ambient programming: whoever holds it owns

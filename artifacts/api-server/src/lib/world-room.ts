@@ -1118,6 +1118,27 @@ export class WorldRoom {
     return [...this.peers.values()].map((p) => p.displayName);
   }
 
+  /** The peers who are PRESENT right now, for read-only snapshots
+   *  (WorldPalace.presenceSnapshot): exactly the peers the staleness
+   *  sweep would NOT reap at `now` — a peer silent past
+   *  WORLD_PEER_STALE_MS is a ghost the sweeper already owes a
+   *  burial, and a truthful headcount never counts it. Projected to
+   *  the identity facts a snapshot needs (the presence key, the
+   *  name, guest-ness) — never the socket. */
+  presentPeers(now = Date.now()): Array<{
+    identityKey: string | null;
+    displayName: string;
+    guest: boolean;
+  }> {
+    return [...this.peers.values()]
+      .filter((p) => now - p.lastSeenAt <= WORLD_PEER_STALE_MS)
+      .map((p) => ({
+        identityKey: worldIdentityKey(p),
+        displayName: p.displayName,
+        guest: p.guest,
+      }));
+  }
+
   /** A show is on the stage (the directory's LIVE flag). */
   stageHeld(): boolean {
     return this.stageHolder !== null;
