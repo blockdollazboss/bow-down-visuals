@@ -12,6 +12,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
 import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
+import { REPORT_REASON_LABELS, type ReportReason } from "@/lib/reports";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -797,6 +798,161 @@ function DmcaReportsInbox({ authHeaders }: { authHeaders: () => Promise<HeadersI
   );
 }
 
+/* ─── Content Reports — the member-report queue (Stack-4 #3) ────────────
+   Reports filed through POST /api/reports land in content_reports with
+   status "new"; this inbox is the bench that works them, docked right
+   beside the DMCA inbox it mirrors (same honesty: a failed load is an
+   error card with a retry, NEVER a fake-empty queue). Working a report
+   = moving it through its workflow. The row carries the filed-time
+   snapshot (target type, the target's own words, who filed, who owns
+   the content) because the target itself may be edited or deleted by
+   the time an admin looks. */
+interface ContentReportRow {
+  id: string;
+  reporterUserId: string;
+  targetType: string;
+  targetId: string;
+  targetOwnerUserId: string | null;
+  targetSummary: string;
+  reason: string;
+  note: string | null;
+  status: string;
+  createdAt: string | null;
+}
+
+const REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
+
+function ContentReportsInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const [reports, setReports] = useState<ContentReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /* Same rule as the DMCA inbox: load failures are NOT "no reports" —
+     the empty state renders ONLY after a successful load of zero. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const res = await fetch("/api/admin/reports", { headers: await authHeaders() });
+      const data = (await res.json()) as { reports?: ContentReportRow[] };
+      if (res.ok) setReports(data.reports ?? []);
+      else setLoadError(true);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders]);
+
+  useEffect(() => { void load(); }, [load, retryNonce]);
+
+  async function setStatus(id: string, status: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/reports/${id}`, {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      setReports((list) => list.map((r) => (r.id === id ? { ...r, status } : r)));
+    } catch {
+      setError(t("admin.reports.statusError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const shortId = (id: string | null) => (id ? `${id.slice(0, 8)}…` : t("admin.reports.unknownUser"));
+
+  return (
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.reports.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">
+        {t("admin.reports.description")}
+      </p>
+      {loading ? (
+        <p className="text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin inline" /></p>
+      ) : loadError ? (
+        <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+          <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+          <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load content reports.</p>
+          <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            Something went wrong on our end — the reports are safe, this queue just couldn't load them.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : reports.length === 0 ? (
+        <p className="text-sm text-white/40">{t("admin.reports.empty")}</p>
+      ) : (
+        <div className="space-y-3">
+          {reports.map((r) => (
+            <div key={r.id} className="rounded-xl border border-white/[0.08] bg-black/30 p-4">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-white/70">
+                    {t(`admin.reports.target.${r.targetType}`, { defaultValue: r.targetType })}
+                  </span>
+                  <span className="text-sm font-semibold text-white">
+                    {REPORT_REASON_LABELS[r.reason as ReportReason] ?? r.reason}
+                  </span>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${DMCA_STATUS_CLS[r.status] ?? DMCA_STATUS_CLS.new}`}>
+                  {t(`admin.reports.status.${r.status}`, { defaultValue: r.status })}
+                </span>
+              </div>
+              {r.targetSummary && (
+                <p className="mt-2 text-sm text-white/75">“{r.targetSummary}”</p>
+              )}
+              {r.note && (
+                <p className="mt-1 text-sm italic text-white/55">{r.note}</p>
+              )}
+              <p className="mt-2 text-xs text-white/40">
+                {t("admin.reports.reportedByLabel")} {shortId(r.reporterUserId)}
+                {" · "}{t("admin.reports.contentByLabel")} {shortId(r.targetOwnerUserId)}
+                {" · "}{r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {REPORT_STATUSES.map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={r.status === s ? "default" : "outline"}
+                    disabled={busyId === r.id || r.status === s}
+                    onClick={() => { void setStatus(r.id, s); }}
+                    className="rounded-xl text-xs"
+                  >
+                    {busyId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t(`admin.reports.status.${s}`)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 /* ─── User Management — lookup, ban, unban ──────────────────────────────── */
 interface AdminUserLookup {
   id: string;
@@ -1430,6 +1586,7 @@ export default function AdminPage() {
           <SpotlightInbox authHeaders={authHeaders} />
           <ContactInbox authHeaders={authHeaders} />
           <DmcaReportsInbox authHeaders={authHeaders} />
+          <ContentReportsInbox authHeaders={authHeaders} />
           <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
           <JewelryOrdersAdmin authHeaders={authHeaders} />

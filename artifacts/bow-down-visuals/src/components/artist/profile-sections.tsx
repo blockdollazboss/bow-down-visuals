@@ -15,6 +15,7 @@ import { merchShopHref } from "@/lib/profile-shop-link";
 import { RichText } from "@/lib/safe-richtext";
 import { apiJson, type Story, type StoryHighlight } from "@/lib/social-api";
 import { StoryViewer } from "@/components/social/StoryViewer";
+import { ReportButton } from "@/components/social/ReportButton";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Shared profile section renderer ─────────────────────────────────────
@@ -757,6 +758,17 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
                 ) : (
                   <span className="text-xs font-bold" style={{ color: "var(--ap-primary)" }}>{c.author_name}</span>
                 )}
+                {user && (
+                  <span className="ml-auto">
+                    <ReportButton
+                      targetType="comment"
+                      targetId={c.id}
+                      variant="text"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold transition hover:opacity-75"
+                      style={{ color: "var(--ap-muted)" }}
+                    />
+                  </span>
+                )}
               </div>
               <p className="text-sm" style={{ color: "var(--ap-text)" }}>{c.body}</p>
             </div>
@@ -910,6 +922,18 @@ export function ProfileActions({ profile }: { profile: CreatorProfile }) {
       >
         {shared ? <Check className="h-4 w-4 text-emerald-400" /> : <Share2 className="h-4 w-4" />}
       </button>
+      {/* Report docks in the same action row (Stack-4 #3): members only,
+          and never on your own profile — the rail refuses self-reports
+          server-side too, this just keeps the dead end off the page. */}
+      {user && profile.user_id !== user.id && (
+        <ReportButton
+          targetType="profile"
+          targetId={profile.id}
+          variant="text"
+          className="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105"
+          style={{ borderColor: "var(--ap-border)", color: "var(--ap-muted)" }}
+        />
+      )}
     </div>
   );
 }

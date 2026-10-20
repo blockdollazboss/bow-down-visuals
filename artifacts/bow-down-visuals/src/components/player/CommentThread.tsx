@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MessageCircle, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchComments, postComment, formatCount, type MediaComment, type MediaKind } from "@/lib/streaming";
+import { ReportButton } from "@/components/social/ReportButton";
 
 /* ─── Comment thread for media pages (Worker 2) ───
    GET/POST /api/media/:kind/:id/comments. Guests read, sign-in to reply. */
@@ -90,11 +91,16 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
                   {(c.display_name ?? "?").slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <div className="min-w-0">
-                <p className="text-xs text-white/50">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 text-xs text-white/50">
                   <span className="text-white/80 font-semibold">{c.display_name ?? "Creator"}</span>
                   {c.created_at && (
-                    <span className="ml-2">{new Date(c.created_at).toLocaleDateString()}</span>
+                    <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                  )}
+                  {user && c.user_id !== user.id && (
+                    <span className="ml-auto">
+                      <ReportButton targetType="comment" targetId={c.id} variant="text" />
+                    </span>
                   )}
                 </p>
                 <p className="text-sm text-white/85 mt-0.5 break-words">{c.body}</p>

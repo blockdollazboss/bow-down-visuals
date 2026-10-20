@@ -917,6 +917,27 @@
         "dismissed": "Dismissed"
       }
     },
+    "reports": {
+      "title": "Content Reports",
+      "description": "Reports members filed on posts, comments, and profiles — newest first. A report only queues the content for review; it never hides or bans anything by itself.",
+      "empty": "No content reports yet.",
+      "loadError": "Could not load content reports.",
+      "statusError": "Could not update the report status.",
+      "reportedByLabel": "Reported by",
+      "contentByLabel": "Content by",
+      "unknownUser": "unknown",
+      "target": {
+        "post": "Post",
+        "comment": "Comment",
+        "profile": "Profile"
+      },
+      "status": {
+        "new": "New",
+        "reviewing": "Reviewing",
+        "actioned": "Actioned",
+        "dismissed": "Dismissed"
+      }
+    },
     "users": {
       "title": "User Management",
       "description": "Look up a customer by email. Ban blocks them from the site.",
