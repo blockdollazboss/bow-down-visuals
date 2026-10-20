@@ -36,3 +36,76 @@ export function isValidHandle(v: string): boolean {
 export function publicPressKitUrl(origin: string, handle: string): string {
   return `${origin.replace(/\/$/, "")}/press/${handle}`;
 }
+
+/* ─── Page layout ─────────────────────────────────────────────────────────
+   Section order + visibility for the public page, mirroring the server
+   contract in lib/db/src/schema/press-kits.ts (pressKitLayoutSchema is
+   the save-time authority; this list must name exactly the same keys).
+   The public page renders six content sections under its fixed hero
+   header; a kit with no saved layout renders all six, visible, in this
+   canonical order — the order the page has always used. */
+
+export const PRESS_KIT_SECTION_KEYS = [
+  "bio",
+  "achievements",
+  "press_quotes",
+  "top_tracks",
+  "photos",
+  "contact",
+] as const;
+
+export type PressKitSectionKey = (typeof PRESS_KIT_SECTION_KEYS)[number];
+
+export interface PressKitLayoutEntry {
+  key: PressKitSectionKey;
+  visible: boolean;
+}
+
+/** The default layout: every section visible, in canonical order. */
+export function defaultPressKitLayout(): PressKitLayoutEntry[] {
+  return PRESS_KIT_SECTION_KEYS.map((key) => ({ key, visible: true }));
+}
+
+/** Normalize any stored layout into the full ordered section list:
+    saved entries keep their order + visibility; unmentioned sections
+    append in canonical order, visible; unknown/duplicate keys drop. */
+export function resolvePressKitLayout(layout: unknown): PressKitLayoutEntry[] {
+  if (!Array.isArray(layout)) return defaultPressKitLayout();
+  const out: PressKitLayoutEntry[] = [];
+  const seen = new Set<string>();
+  for (const raw of layout) {
+    if (!raw || typeof raw !== "object") continue;
+    const { key, visible } = raw as { key?: unknown; visible?: unknown };
+    if (typeof key !== "string" || seen.has(key)) continue;
+    if (!(PRESS_KIT_SECTION_KEYS as readonly string[]).includes(key)) continue;
+    seen.add(key);
+    out.push({ key: key as PressKitSectionKey, visible: visible !== false });
+  }
+  for (const key of PRESS_KIT_SECTION_KEYS) {
+    if (!seen.has(key)) out.push({ key, visible: true });
+  }
+  return out;
+}
+
+/** Move one section up (-1) or down (+1). At either end it's a no-op. */
+export function movePressKitLayoutEntry(
+  layout: PressKitLayoutEntry[],
+  key: PressKitSectionKey,
+  dir: -1 | 1,
+): PressKitLayoutEntry[] {
+  const i = layout.findIndex((e) => e.key === key);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= layout.length) return layout;
+  const next = [...layout];
+  [next[i], next[j]] = [next[j]!, next[i]!];
+  return next;
+}
+
+/** Show or hide one section, leaving order untouched. */
+export function setPressKitSectionVisible(
+  layout: PressKitLayoutEntry[],
+  key: PressKitSectionKey,
+  visible: boolean,
+): PressKitLayoutEntry[] {
+  return layout.map((e) => (e.key === key ? { ...e, visible } : e));
+}

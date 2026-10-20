@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod/v4";
 import { eq, and, desc } from "drizzle-orm";
-import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema, pressKitReleaseSchema } from "@workspace/db";
+import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema, pressKitReleaseSchema, pressKitLayoutSchema } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -85,6 +85,9 @@ const updatePressKitSchema = generatePressKitSchema.partial().extend({
   is_public: z.boolean().optional(),
   /** Saved press releases (from the Press Release Generator panel) — free to edit. */
   press_releases: z.array(pressKitReleaseSchema).max(20).optional(),
+  /** Public-page layout (section order + visibility) — free to edit.
+      null clears a saved layout back to the default render. */
+  layout: pressKitLayoutSchema.nullable().optional(),
 });
 
 const regenerateBioSchema = z.object({
@@ -115,6 +118,7 @@ function toPublicKit(row: typeof pressKitsTable.$inferSelect) {
     photo_urls: row.photo_urls,
     top_tracks: row.top_tracks,
     press_releases: row.press_releases,
+    layout: row.layout ?? null,
     is_public: row.is_public,
     created_at: row.created_at,
     updated_at: row.updated_at,

@@ -13,6 +13,11 @@ import {
   slugifyHandle,
   isValidHandle,
   publicPressKitUrl,
+  PRESS_KIT_SECTION_KEYS,
+  defaultPressKitLayout,
+  resolvePressKitLayout,
+  movePressKitLayoutEntry,
+  setPressKitSectionVisible,
   PRESS_KIT_GENERATE_COST_VISUAL_BUCS,
   PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS,
 } from "./press-kit";
@@ -24,6 +29,7 @@ import {
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const pressKitPageSource = read("../pages/press-kit.tsx");
+const pressPublicPageSource = read("../pages/press-public.tsx");
 
 describe("slugifyHandle", () => {
   it("lowercases and hyphenates", () => {
@@ -116,5 +122,100 @@ describe("press-kit pricing — displayed == registry == server charge", () => {
     expect(pressKitPageSource).toContain("count: PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS");
     expect(pressKitPageSource).not.toContain("FALLBACK_GENERATE_COST");
     expect(pressKitPageSource).not.toContain("FALLBACK_REFRESH_COST");
+  });
+});
+
+describe("press-kit page layout", () => {
+  it("names exactly the six sections the public page renders, in its historical order", () => {
+    expect(PRESS_KIT_SECTION_KEYS).toEqual([
+      "bio",
+      "achievements",
+      "press_quotes",
+      "top_tracks",
+      "photos",
+      "contact",
+    ]);
+  });
+
+  it("the default layout is every section visible, in canonical order", () => {
+    expect(defaultPressKitLayout()).toEqual(
+      PRESS_KIT_SECTION_KEYS.map((key) => ({ key, visible: true })),
+    );
+  });
+
+  it("no saved layout resolves to the default — today's render", () => {
+    expect(resolvePressKitLayout(null)).toEqual(defaultPressKitLayout());
+    expect(resolvePressKitLayout(undefined)).toEqual(defaultPressKitLayout());
+    expect(resolvePressKitLayout("garbage")).toEqual(defaultPressKitLayout());
+  });
+
+  it("a saved layout's order and visibility are honored", () => {
+    const resolved = resolvePressKitLayout([
+      { key: "top_tracks", visible: true },
+      { key: "bio", visible: false },
+    ]);
+    expect(resolved.map((e) => e.key)).toEqual([
+      "top_tracks",
+      "bio",
+      "achievements",
+      "press_quotes",
+      "photos",
+      "contact",
+    ]);
+    expect(resolved.find((e) => e.key === "bio")?.visible).toBe(false);
+    // sections the saved layout never mentioned append, visible
+    expect(resolved.find((e) => e.key === "photos")?.visible).toBe(true);
+  });
+
+  it("unknown and duplicate keys drop out of a stored layout", () => {
+    const resolved = resolvePressKitLayout([
+      { key: "merch_table", visible: true },
+      { key: "bio", visible: true },
+      { key: "bio", visible: false },
+      "junk",
+      null,
+    ]);
+    expect(resolved.map((e) => e.key)).toEqual([...PRESS_KIT_SECTION_KEYS]);
+    expect(resolved.find((e) => e.key === "bio")?.visible).toBe(true);
+  });
+
+  it("movePressKitLayoutEntry swaps neighbours and stops at the ends", () => {
+    const start = defaultPressKitLayout();
+    const moved = movePressKitLayoutEntry(start, "achievements", -1);
+    expect(moved.map((e) => e.key)).toEqual([
+      "achievements",
+      "bio",
+      "press_quotes",
+      "top_tracks",
+      "photos",
+      "contact",
+    ]);
+    expect(movePressKitLayoutEntry(start, "bio", -1)).toBe(start);
+    expect(movePressKitLayoutEntry(start, "contact", 1)).toBe(start);
+    // the input array is not mutated
+    expect(start.map((e) => e.key)).toEqual([...PRESS_KIT_SECTION_KEYS]);
+  });
+
+  it("setPressKitSectionVisible flips one section only", () => {
+    const next = setPressKitSectionVisible(defaultPressKitLayout(), "photos", false);
+    expect(next.find((e) => e.key === "photos")?.visible).toBe(false);
+    expect(next.filter((e) => e.visible)).toHaveLength(5);
+  });
+
+  it("the public page renders through the resolver, visible sections only", () => {
+    expect(pressPublicPageSource).toContain("resolvePressKitLayout(kit.layout)");
+    expect(pressPublicPageSource).toContain(".filter((entry) => entry.visible)");
+    expect(pressPublicPageSource).toContain("sectionBlocks[entry.key]");
+    // every section key has a block on the public page
+    for (const key of PRESS_KIT_SECTION_KEYS) {
+      expect(pressPublicPageSource).toContain(`${key}:`);
+    }
+  });
+
+  it("the editor saves the layout through the same PUT payload as the content", () => {
+    expect(pressKitPageSource).toContain("layout,");
+    expect(pressKitPageSource).toContain("movePressKitLayoutEntry");
+    expect(pressKitPageSource).toContain("setPressKitSectionVisible");
+    expect(pressKitPageSource).toContain("resolvePressKitLayout(k.layout)");
   });
 });
