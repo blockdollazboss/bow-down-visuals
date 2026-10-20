@@ -20,10 +20,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createChatVoiceSession,
+  getChatVoiceTransport,
+  isServerChatVoiceSupported,
   mapChatVoiceError,
   prepareVoiceMessage,
   chatVoiceNote,
   CHAT_VOICE_ERROR_COPY,
+  CHAT_VOICE_MAX_UTTERANCE_SEC,
+  CHAT_VOICE_TRANSCRIBE_CREDITS,
+  CHAT_VOICE_TRANSCRIBE_PATH,
   type ChatVoiceErrorEvent,
   type ChatVoiceRecognition,
   type ChatVoiceResultEvent,
@@ -200,7 +205,15 @@ describe("chat voice seam — pure helpers", () => {
   });
 
   it("every error kind has plain-words copy, and notes follow state", () => {
-    for (const kind of ["denied", "no-speech", "failed", "unsupported"] as const) {
+    for (const kind of [
+      "denied",
+      "no-speech",
+      "failed",
+      "unsupported",
+      "recording-failed",
+      "transcription-failed",
+      "unauthenticated",
+    ] as const) {
       expect(CHAT_VOICE_ERROR_COPY[kind].length).toBeGreaterThan(10);
       expect(chatVoiceNote("idle", kind)).toEqual({
         tone: "error",
@@ -208,8 +221,294 @@ describe("chat voice seam — pure helpers", () => {
       });
     }
     expect(CHAT_VOICE_ERROR_COPY.denied).toContain("typing works as always");
+    expect(CHAT_VOICE_ERROR_COPY["transcription-failed"]).toContain(
+      "couldn't turn it into text",
+    );
     expect(chatVoiceNote("listening", null)?.tone).toBe("info");
     expect(chatVoiceNote("transcribing", null)?.tone).toBe("info");
     expect(chatVoiceNote("idle", null)).toBeNull();
+  });
+});
+
+/* ─── The server fallback transport (wave-2 #9) ────────────────────────
+   Driven by a fake MediaRecorder + fake getUserMedia + fake fetch —
+   the same injection discipline as the browser path's fake recognizer. */
+
+class FakeTrack {
+  stopped = false;
+  stop() {
+    this.stopped = true;
+  }
+}
+
+class FakeStream {
+  track = new FakeTrack();
+  getTracks() {
+    return [this.track];
+  }
+}
+
+class FakeRecorder {
+  static instances: FakeRecorder[] = [];
+  static supported = new Set(["audio/webm;codecs=opus", "audio/webm"]);
+  static isTypeSupported = (m: string) => FakeRecorder.supported.has(m);
+  mimeType: string;
+  state = "inactive";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  onerror: ((e: unknown) => void) | null = null;
+  constructor(
+    public stream: unknown,
+    options?: { mimeType?: string },
+  ) {
+    this.mimeType = options?.mimeType ?? "audio/webm";
+    FakeRecorder.instances.push(this);
+  }
+  start() {
+    this.state = "recording";
+    /* Emit one chunk immediately, like a real recorder's timeslice. */
+    this.ondataavailable?.({ data: new Blob(["fake-audio"], { type: this.mimeType }) });
+  }
+  stop() {
+    this.state = "inactive";
+    this.onstop?.();
+  }
+  emitError() {
+    this.onerror?.(new Error("recorder exploded"));
+  }
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function makeServerSession(
+  fetchImpl: (
+    input: string,
+    init?: RequestInit,
+  ) => Promise<Response | null> = async () =>
+    jsonResponse(200, { transcript: "  how much does a song cost  " }),
+  extra: { maxDurationMs?: number } = {},
+) {
+  FakeRecorder.instances = [];
+  const stream = new FakeStream();
+  const handlers = {
+    onState: vi.fn<(s: ChatVoiceState) => void>(),
+    onInterim: vi.fn<(t: string) => void>(),
+    onFinal: vi.fn<(t: string) => void>(),
+    onError: vi.fn<(k: string) => void>(),
+  };
+  const fetchSpy = vi.fn(fetchImpl);
+  const session = createChatVoiceSession(handlers, {
+    ctor: null,
+    server: {
+      recorderCtor: FakeRecorder as never,
+      getUserMedia: async () => stream as never,
+      fetchImpl: fetchSpy as never,
+      ...extra,
+    },
+  });
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  return { handlers, session, fetchSpy, stream, flush, rec: () => FakeRecorder.instances[0]! };
+}
+
+describe("chat voice seam — transport decision (browser-first)", () => {
+  it("the browser recognizer wins wherever it exists — the server path never fires", () => {
+    expect(
+      getChatVoiceTransport({
+        ctor: FakeRecognition,
+        recorderCtor: FakeRecorder as never,
+        getUserMedia: async () => new FakeStream() as never,
+      }),
+    ).toBe("browser");
+  });
+
+  it("the server fallback is chosen only where the browser API is absent", () => {
+    expect(
+      getChatVoiceTransport({
+        ctor: null,
+        recorderCtor: FakeRecorder as never,
+        getUserMedia: async () => new FakeStream() as never,
+      }),
+    ).toBe("server");
+    expect(isServerChatVoiceSupported({ recorderCtor: null, getUserMedia: null })).toBe(false);
+  });
+
+  it("neither transport → null (the honest unsupported-everywhere verdict)", () => {
+    expect(
+      getChatVoiceTransport({ ctor: null, recorderCtor: null, getUserMedia: null }),
+    ).toBeNull();
+  });
+
+  it("the fallback is FREE and capped, stated as constants", () => {
+    expect(CHAT_VOICE_TRANSCRIBE_CREDITS).toBe(0);
+    expect(CHAT_VOICE_MAX_UTTERANCE_SEC).toBe(30);
+    expect(CHAT_VOICE_TRANSCRIBE_PATH).toBe("/api/chat/voice/transcribe");
+  });
+});
+
+describe("chat voice seam — server fallback happy path", () => {
+  it("records, posts once to the free fallback endpoint, and delivers the trimmed transcript", async () => {
+    const { handlers, session, fetchSpy, rec, flush } = makeServerSession();
+    session.start();
+    await flush();
+    expect(rec().state).toBe("recording");
+    expect(handlers.onState).toHaveBeenCalledWith("listening");
+    session.stop();
+    expect(handlers.onState).toHaveBeenCalledWith("transcribing");
+    await flush();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchSpy.mock.calls[0]!;
+    expect(path).toBe(CHAT_VOICE_TRANSCRIBE_PATH);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(handlers.onFinal).toHaveBeenCalledTimes(1);
+    expect(handlers.onFinal).toHaveBeenCalledWith("how much does a song cost");
+    expect(handlers.onError).not.toHaveBeenCalled();
+    const states = handlers.onState.mock.calls.map((c) => c[0]);
+    expect(states).toEqual(["listening", "transcribing", "idle"]);
+  });
+
+  it("the utterance cap stops the recording on its own and still transcribes", async () => {
+    const { handlers, session, flush } = makeServerSession(undefined, {
+      maxDurationMs: 20,
+    });
+    session.start();
+    await flush();
+    await new Promise((r) => setTimeout(r, 40));
+    await flush();
+    expect(handlers.onFinal).toHaveBeenCalledWith("how much does a song cost");
+  });
+
+  it("dispose mid-recording tears down silently — no fetch, no late callbacks", async () => {
+    const { handlers, session, fetchSpy, stream, flush } = makeServerSession();
+    session.start();
+    await flush();
+    session.dispose();
+    await flush();
+    expect(stream.track.stopped).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(handlers.onFinal).not.toHaveBeenCalled();
+    expect(handlers.onError).not.toHaveBeenCalled();
+  });
+});
+
+describe("chat voice seam — server fallback honest failures", () => {
+  it("mic permission refused on the fallback settles as denied", async () => {
+    const handlers = { onError: vi.fn<(k: string) => void>(), onFinal: vi.fn() };
+    const denied = new Error("nope");
+    denied.name = "NotAllowedError";
+    const session = createChatVoiceSession(handlers, {
+      ctor: null,
+      server: {
+        recorderCtor: FakeRecorder as never,
+        getUserMedia: async () => {
+          throw denied;
+        },
+        fetchImpl: async () => null,
+      },
+    });
+    session.start();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(handlers.onError).toHaveBeenCalledWith("denied");
+    expect(handlers.onFinal).not.toHaveBeenCalled();
+  });
+
+  it("a non-permission capture failure settles as recording-failed", async () => {
+    const handlers = { onError: vi.fn<(k: string) => void>(), onFinal: vi.fn() };
+    const session = createChatVoiceSession(handlers, {
+      ctor: null,
+      server: {
+        recorderCtor: FakeRecorder as never,
+        getUserMedia: async () => {
+          throw new Error("device busy");
+        },
+        fetchImpl: async () => null,
+      },
+    });
+    session.start();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(handlers.onError).toHaveBeenCalledWith("recording-failed");
+  });
+
+  it("a recorder error mid-capture settles as recording-failed, never a transcript", async () => {
+    const { handlers, session, fetchSpy, rec, flush } = makeServerSession();
+    session.start();
+    await flush();
+    rec().emitError();
+    await flush();
+    expect(handlers.onError).toHaveBeenCalledWith("recording-failed");
+    expect(handlers.onFinal).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("a 502 from the fallback settles as transcription-failed", async () => {
+    const { handlers, session, flush } = makeServerSession(async () =>
+      jsonResponse(502, { error: "transcription_failed" }),
+    );
+    session.start();
+    await flush();
+    session.stop();
+    await flush();
+    expect(handlers.onError).toHaveBeenCalledWith("transcription-failed");
+    expect(handlers.onFinal).not.toHaveBeenCalled();
+  });
+
+  it("a 401 from the fallback settles as unauthenticated — sign-in is the honest fix", async () => {
+    const { handlers, session, flush } = makeServerSession(async () =>
+      jsonResponse(401, { error: "unauthorized" }),
+    );
+    session.start();
+    await flush();
+    session.stop();
+    await flush();
+    expect(handlers.onError).toHaveBeenCalledWith("unauthenticated");
+  });
+
+  it("the server's no_speech verdict keeps its kind; an empty 200 transcript is no-speech too", async () => {
+    const noSpeech = makeServerSession(async () =>
+      jsonResponse(422, { error: "no_speech" }),
+    );
+    noSpeech.session.start();
+    await noSpeech.flush();
+    noSpeech.session.stop();
+    await noSpeech.flush();
+    expect(noSpeech.handlers.onError).toHaveBeenCalledWith("no-speech");
+
+    const empty = makeServerSession(async () =>
+      jsonResponse(200, { transcript: "   " }),
+    );
+    empty.session.start();
+    await empty.flush();
+    empty.session.stop();
+    await empty.flush();
+    expect(empty.handlers.onError).toHaveBeenCalledWith("no-speech");
+    expect(empty.handlers.onFinal).not.toHaveBeenCalled();
+  });
+
+  it("a thrown fetch settles as transcription-failed — never silent", async () => {
+    const { handlers, session, flush } = makeServerSession(async () => {
+      throw new Error("network down");
+    });
+    session.start();
+    await flush();
+    session.stop();
+    await flush();
+    expect(handlers.onError).toHaveBeenCalledWith("transcription-failed");
+  });
+
+  it("no recording path anywhere settles as unsupported and never throws", async () => {
+    const handlers = { onError: vi.fn<(k: string) => void>(), onFinal: vi.fn() };
+    const session = createChatVoiceSession(handlers, {
+      ctor: null,
+      server: { recorderCtor: null, getUserMedia: null },
+    });
+    expect(() => session.start()).not.toThrow();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(handlers.onError).toHaveBeenCalledWith("unsupported");
+    expect(handlers.onFinal).not.toHaveBeenCalled();
   });
 });
