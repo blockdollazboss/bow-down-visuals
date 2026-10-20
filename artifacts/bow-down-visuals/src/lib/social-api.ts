@@ -88,6 +88,12 @@ export interface FeedPost {
   repost_count: number;
   reply_count: number;
   created_at: string;
+  /* Moderation state (Stack-4): the server only ever serves a
+     removed post to its own author, with these attached — the card
+     renders the "Removed by moderation" tombstone from them. The
+     reason is the recorded CATEGORY only. */
+  moderation_removed?: boolean;
+  removal_reason?: string | null;
   author: SocialAuthor | null;
   viewer_emoji: string | null;
   viewer_saved: boolean;

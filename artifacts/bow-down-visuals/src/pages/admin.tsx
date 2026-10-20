@@ -12,6 +12,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
 import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
+import { REMOVAL_REASONS, parseContentId } from "@/lib/content-removal";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -797,6 +798,282 @@ function DmcaReportsInbox({ authHeaders }: { authHeaders: () => Promise<HeadersI
   );
 }
 
+/* ─── Content Removal — the admin takedown rail for posts/comments ─────
+   Acts on the rail in routes/admin.ts (GET/PATCH /api/admin/content).
+   The current state always renders BEFORE any action is offered —
+   no blind removals — and a failed lookup is an error, never a fake
+   "live" state. Removal is reversible and deletes nothing. */
+interface AdminContentState {
+  id: string;
+  kind: "post" | "comment";
+  postKind: string;
+  body: string;
+  author: { profileId: string; userId: string; slug: string; displayName: string } | null;
+  createdAt: string | null;
+  removed: boolean;
+  removedAt: string | null;
+  removedByEmail: string | null;
+  removalReason: string | null;
+  removalNote: string | null;
+}
+
+function ContentRemovalPanel({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const [input, setInput] = useState("");
+  const [looking, setLooking] = useState(false);
+  const [current, setCurrent] = useState<AdminContentState | null>(null);
+  const [lookupMsg, setLookupMsg] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<AdminContentState[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  /* A failed recent-load is an error with a retry — never a fake
+     "nothing removed" (the DMCA bench's error-vs-empty law). */
+  const [recentError, setRecentError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const loadRecent = useCallback(async () => {
+    setRecentLoading(true);
+    setRecentError(false);
+    try {
+      const res = await fetch("/api/admin/content/removed", { headers: await authHeaders() });
+      const data = (await res.json()) as { content?: AdminContentState[] };
+      if (res.ok) setRecent(data.content ?? []);
+      else setRecentError(true);
+    } catch {
+      setRecentError(true);
+    } finally {
+      setRecentLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authHeaders]);
+
+  useEffect(() => { void loadRecent(); }, [loadRecent, retryNonce]);
+
+  async function lookup() {
+    const id = parseContentId(input);
+    setLookupMsg(null);
+    setActionError(null);
+    setCurrent(null);
+    if (!id) {
+      setLookupMsg(t("admin.removal.lookupError"));
+      return;
+    }
+    setLooking(true);
+    try {
+      const res = await fetch(`/api/admin/content/${id}`, { headers: await authHeaders() });
+      if (res.status === 404) {
+        setLookupMsg(t("admin.removal.notFound"));
+        return;
+      }
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { content: AdminContentState };
+      setCurrent(data.content);
+      setReason("");
+      setNote("");
+    } catch {
+      setLookupMsg(t("admin.removal.lookupError"));
+    } finally {
+      setLooking(false);
+    }
+  }
+
+  async function patch(id: string, removed: boolean): Promise<AdminContentState | null> {
+    const res = await fetch(`/api/admin/content/${id}`, {
+      method: "PATCH",
+      headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+      body: JSON.stringify(removed ? { removed: true, reason, note: note.trim() || undefined } : { removed: false }),
+    });
+    if (!res.ok) throw new Error();
+    const data = (await res.json()) as { content: AdminContentState };
+    return data.content;
+  }
+
+  async function act(removed: boolean) {
+    if (!current) return;
+    if (removed && !reason) {
+      setActionError(t("admin.removal.reasonRequired"));
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      const updated = await patch(current.id, removed);
+      if (updated) setCurrent(updated);
+      setReason("");
+      setNote("");
+      void loadRecent();
+    } catch {
+      setActionError(t("admin.removal.actionError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restoreFromList(id: string) {
+    setBusyId(id);
+    setActionError(null);
+    try {
+      const updated = await patch(id, false);
+      if (updated && current?.id === id) setCurrent(updated);
+      void loadRecent();
+    } catch {
+      setActionError(t("admin.removal.actionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const statePill = (c: AdminContentState) => (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+      c.removed
+        ? "border-red-400/40 bg-red-400/10 text-red-300"
+        : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+    }`}>
+      {c.removed ? t("admin.removal.removedLabel") : t("admin.removal.liveLabel")}
+    </span>
+  );
+
+  return (
+    <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+          {t("admin.removal.title")}
+        </p>
+      </div>
+      <p className="text-sm text-white/60 mb-4">{t("admin.removal.description")}</p>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
+          placeholder={t("admin.removal.inputPlaceholder")}
+          className="flex-1 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+        />
+        <Button size="sm" onClick={() => { void lookup(); }} disabled={looking || !input.trim()} className="rounded-xl text-xs">
+          {looking ? <Loader2 className="h-3 w-3 animate-spin" /> : t("admin.removal.lookupButton")}
+        </Button>
+      </div>
+      {lookupMsg && <p className="mt-3 text-sm text-red-400">{lookupMsg}</p>}
+
+      {current && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">
+                {current.kind === "comment" ? t("admin.removal.kindComment") : t("admin.removal.kindPost")}
+                {current.author ? <span className="font-normal text-white/50"> · {current.author.displayName} (@{current.author.slug})</span> : null}
+              </p>
+              <p className="text-xs text-white/40">{current.id}</p>
+            </div>
+            {statePill(current)}
+          </div>
+          <p className="mt-2 text-sm text-white/80 whitespace-pre-wrap break-words">{current.body || "—"}</p>
+          <p className="mt-2 text-xs text-white/30">
+            {current.createdAt ? new Date(current.createdAt).toLocaleString() : "—"}
+          </p>
+
+          {current.removed ? (
+            <div className="mt-3">
+              <p className="text-xs text-white/60">
+                {t("admin.removal.reasonLabel")}:{" "}
+                <span className="text-white font-medium">
+                  {t(`admin.removal.reasons.${current.removalReason ?? "other"}`, { defaultValue: current.removalReason ?? "" })}
+                </span>
+                {current.removedByEmail ? <> · {t("admin.removal.removedBy", { email: current.removedByEmail })}</> : null}
+                {current.removedAt ? <> · {new Date(current.removedAt).toLocaleString()}</> : null}
+              </p>
+              {current.removalNote && <p className="mt-1 text-xs text-white/50 whitespace-pre-wrap">{current.removalNote}</p>}
+              <div className="mt-3">
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => { void act(false); }} className="rounded-xl text-xs">
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <><RotateCcw className="h-3 w-3 mr-1" />{t("admin.removal.restoreButton")}</>}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              <label className="block">
+                <span className="text-[11px] text-white/40 uppercase tracking-wider font-semibold">{t("admin.removal.reasonLabel")}</span>
+                <select
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="mt-1 w-full rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                >
+                  <option value="">—</option>
+                  {REMOVAL_REASONS.map((r) => (
+                    <option key={r} value={r}>{t(`admin.removal.reasons.${r}`)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-white/40 uppercase tracking-wider font-semibold">{t("admin.removal.noteLabel")}</span>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={t("admin.removal.notePlaceholder")}
+                  maxLength={500}
+                  className="mt-1 w-full rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                />
+              </label>
+              <Button size="sm" variant="destructive" disabled={busy} onClick={() => { void act(true); }} className="rounded-xl text-xs">
+                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : t("admin.removal.removeButton")}
+              </Button>
+            </div>
+          )}
+          {actionError && <p className="mt-3 text-sm text-red-400">{actionError}</p>}
+        </div>
+      )}
+
+      <div className="mt-5">
+        <p className="text-[11px] text-white/40 uppercase tracking-wider font-semibold mb-2">{t("admin.removal.recentTitle")}</p>
+        {recentLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+        ) : recentError ? (
+          <div className="rounded-xl border border-red-400/30 bg-red-400/5 p-3">
+            <p className="text-sm text-red-300">{t("admin.removal.recentLoadError")}</p>
+            <Button size="sm" variant="outline" className="mt-2 rounded-xl text-xs" onClick={() => setRetryNonce((n) => n + 1)}>
+              Retry
+            </Button>
+          </div>
+        ) : recent.length === 0 ? (
+          <p className="text-sm text-white/40">{t("admin.removal.recentEmpty")}</p>
+        ) : (
+          <div className="space-y-2">
+            {recent.map((c) => (
+              <div key={c.id} className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-black/30 p-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white">
+                    {c.kind === "comment" ? t("admin.removal.kindComment") : t("admin.removal.kindPost")}
+                    {c.author ? <span className="font-normal text-white/50"> · @{c.author.slug}</span> : null}
+                    <span className="font-normal text-white/50"> · {t(`admin.removal.reasons.${c.removalReason ?? "other"}`, { defaultValue: c.removalReason ?? "" })}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-white/60 truncate">{c.body || "—"}</p>
+                  <p className="text-[11px] text-white/30">{c.removedAt ? new Date(c.removedAt).toLocaleString() : ""}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busyId === c.id}
+                  onClick={() => { void restoreFromList(c.id); }}
+                  className="rounded-xl text-xs shrink-0"
+                >
+                  {busyId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t("admin.removal.restoreButton")}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── User Management — lookup, ban, unban ──────────────────────────────── */
 interface AdminUserLookup {
   id: string;
@@ -1430,6 +1707,7 @@ export default function AdminPage() {
           <SpotlightInbox authHeaders={authHeaders} />
           <ContactInbox authHeaders={authHeaders} />
           <DmcaReportsInbox authHeaders={authHeaders} />
+          <ContentRemovalPanel authHeaders={authHeaders} />
           <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
           <JewelryOrdersAdmin authHeaders={authHeaders} />
