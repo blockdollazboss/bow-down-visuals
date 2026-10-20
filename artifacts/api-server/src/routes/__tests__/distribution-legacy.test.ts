@@ -304,6 +304,65 @@ describe("permanence elections", () => {
     expect(json.covers.join(" ")).toMatch(/smartlink stay live/);
     expect(json.excludes.join(" ")).toMatch(/outside this platform/);
   });
+
+  /* Ring 4 parity pins (stack3): the management contract the two website
+     surfaces rely on — change, owner-scoping, validation, and the code's
+     actual changeability rule. */
+  it("a recorded per-release election can be changed, and the change replaces it", async () => {
+    const id = await seedRelease(OWNER);
+    expect((await req("PUT", `/distribution/releases/${id}/permanence`, { election: "permanent" })).status).toBe(200);
+    const changed = await req("PUT", `/distribution/releases/${id}/permanence`, { election: "standard" });
+    expect(changed.status).toBe(200);
+    expect(changed.json.election).toMatchObject({ releaseId: id, scope: "release", election: "standard" });
+    const { json } = await req("GET", "/distribution/permanence");
+    expect(json.releases).toHaveLength(1); // replaced, never duplicated
+    expect(json.releases[0].election).toBe("standard");
+  });
+
+  it("owner-scoping: a stranger cannot set an election on another's release, and views never leak", async () => {
+    const id = await seedRelease(OWNER);
+    await req("PUT", "/distribution/permanence/catalog", { election: "permanent" });
+    await req("PUT", `/distribution/releases/${id}/permanence`, { election: "permanent" });
+    as(OTHER, "other@example.com");
+    /* Setting an election on someone else's release: the release is
+       invisible to them, so 404 — and nothing is written. */
+    expect((await req("PUT", `/distribution/releases/${id}/permanence`, { election: "standard" })).status).toBe(404);
+    /* Their own view shows none of the owner's elections. */
+    const strangerView = await req("GET", "/distribution/permanence");
+    expect(strangerView.json.catalog).toBeNull();
+    expect(strangerView.json.releases).toEqual([]);
+    /* The catalog election is per-user: the stranger's own choice does
+       not touch the owner's. */
+    await req("PUT", "/distribution/permanence/catalog", { election: "standard" });
+    as(OWNER, "owner@example.com");
+    const ownerView = await req("GET", "/distribution/permanence");
+    expect(ownerView.json.catalog.election).toBe("permanent");
+    expect(ownerView.json.releases).toHaveLength(1);
+    expect(ownerView.json.releases[0].election).toBe("permanent"); // the 404'd write never landed
+  });
+
+  it("rejects election values outside the recorded set", async () => {
+    const id = await seedRelease(OWNER);
+    expect((await req("PUT", "/distribution/permanence/catalog", { election: "forever" })).status).toBe(400);
+    expect((await req("PUT", "/distribution/permanence/catalog", {})).status).toBe(400);
+    expect((await req("PUT", `/distribution/releases/${id}/permanence`, { election: "forever" })).status).toBe(400);
+    const { json } = await req("GET", "/distribution/permanence");
+    expect(json.catalog).toBeNull();
+    expect(json.releases).toEqual([]);
+  });
+
+  it("no status lock in code: an election stays changeable after the release is packaged", async () => {
+    /* The permanence handlers never gate on release status — 'packaged'
+       is the distribution flow's own post-submission state (distribution.ts),
+       and the election must still record + change there. Any future lock
+       has to arrive as a deliberate rule change, not a UI invention. */
+    const id = await seedRelease(OWNER);
+    await testState.db.execute(sql`UPDATE distribution_releases SET status = 'packaged' WHERE id = ${id}`);
+    expect((await req("PUT", `/distribution/releases/${id}/permanence`, { election: "permanent" })).status).toBe(200);
+    expect((await req("PUT", `/distribution/releases/${id}/permanence`, { election: "standard" })).status).toBe(200);
+    const { json } = await req("GET", "/distribution/permanence");
+    expect(json.releases[0].election).toBe("standard");
+  });
 });
 
 /* ── #7 label roster permission rule ──────────────────────────────────── */
