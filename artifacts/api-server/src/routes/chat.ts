@@ -12,7 +12,7 @@ import {
   getChatCreditCost,
 } from "../lib/ai-chat-assistant";
 import { findInventedPrice, PRICE_FALLBACK_REPLY } from "../lib/operator-knowledge";
-import { processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
 import { resolveOptionalSession } from "../lib/optional-auth";
 
 const router = Router();
@@ -62,6 +62,12 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
   const { message } = parsed.data;
   const history = parsed.data.history.slice(-MAX_HISTORY_TURNS);
 
+  /* Tier 1 doors (Phase 2 Lane C): computed once from the member's own
+     message by the shared chat implementation — a door rides the reply
+     only when the knowledge base matched a feature with a real path. */
+  const doors = buildReplyDoors(message.trim());
+  const doorPayload = doors.length ? { doors } : {};
+
   /* Operator Phase 2 — a live pending confirmation gets first claim on
      this message: a clear "yes" consumes it and runs the action, a
      clear "no" cancels it — no model call, and no per-message chat
@@ -77,7 +83,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     return null;
   });
   if (preTurn) {
-    res.json({ reply: preTurn.replyText, model: null, creditCost: chatCreditCost, action: preTurn.action });
+    res.json({ reply: preTurn.replyText, model: null, creditCost: chatCreditCost, action: preTurn.action, ...doorPayload });
     return;
   }
 
@@ -146,7 +152,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       return null;
     });
     if (actionTurn) {
-      res.json({ reply: actionTurn.replyText, model, creditCost: chatCreditCost, action: actionTurn.action });
+      res.json({ reply: actionTurn.replyText, model, creditCost: chatCreditCost, action: actionTurn.action, ...doorPayload });
       return;
     }
 
@@ -159,7 +165,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       reply = PRICE_FALLBACK_REPLY;
     }
 
-    res.json({ reply, model, creditCost: chatCreditCost });
+    res.json({ reply, model, creditCost: chatCreditCost, ...doorPayload });
   } catch (err) {
     /* Refund: the model call failed after we charged — the user must not
        pay for a failed generation. */
