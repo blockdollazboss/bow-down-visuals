@@ -1,5 +1,6 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -18,8 +19,8 @@ const execFileAsync = promisify(execFile);
 
 const router = Router();
 const BUCKET = "audio-stems";
-const MIN_LENGTH_MS = 10_000;
-const MAX_LENGTH_MS = 300_000;
+export const MIN_LENGTH_MS = 10_000;
+export const MAX_LENGTH_MS = 300_000;
 const DEFAULT_LENGTH_MS = 60_000;
 
 /**
@@ -29,13 +30,13 @@ const DEFAULT_LENGTH_MS = 60_000;
  * - Up to 3 min:  800 Visual Bucs (~$4.00, ~$0.90 cost)
  * - Up to 5 min: 1200 Visual Bucs (~$6.00, ~$1.50 cost)
  */
-function creditCostForLength(lengthMs: number): number {
+export function creditCostForLength(lengthMs: number): number {
   if (lengthMs <= 60_000) return 400;
   if (lengthMs <= 180_000) return 800;
   return 1200;
 }
 
-function clampLengthMs(raw: unknown): number {
+export function clampLengthMs(raw: unknown): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_LENGTH_MS;
   const ms = Math.round(n * 1000);
@@ -91,7 +92,7 @@ const extendMusicAudioSchema = z.object({
   artistVaultId: z.string().optional(),
 });
 
-router.post("/generate-music-audio", requireAuth, async (req, res) => {
+const generateMusicAudioHandler = async (req: Request, res: Response) => {
   const parsed = generateMusicAudioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -382,7 +383,19 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     req.log.error({ err }, "generate-music-audio: unexpected error");
     res.status(500).json({ error: message });
   }
-});
+};
+
+router.post("/generate-music-audio", requireAuth, generateMusicAudioHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 song tools run this exact
+   handler in-process (lib/rail-core) — same validation, same tiered
+   charge, same refund-on-library-failure the page gets. */
+export async function runGenerateMusicAudio(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateMusicAudioHandler as never, deps, { body });
+}
 
 export default router;
 
