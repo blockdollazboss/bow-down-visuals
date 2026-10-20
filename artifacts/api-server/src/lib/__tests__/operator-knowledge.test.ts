@@ -27,6 +27,7 @@ import {
   formatFeatureFacts,
   findInventedPrice,
   KNOWN_VB_FIGURES,
+  KNOWN_DOLLAR_FIGURES,
 } from "../operator-knowledge";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -215,5 +216,105 @@ describe("operator knowledge — the no-invention price guard", () => {
     expect(findInventedPrice("That costs 999 VB.")).toBe(999);
     expect(findInventedPrice("Only 37 credits, friend.")).toBe(37);
     expect(findInventedPrice("A steal at 12,345 Visual Bucs.")).toBe(12345);
+  });
+
+  it("vouches for the takeover offers' dollar prices — and only those dollars", () => {
+    expect(KNOWN_DOLLAR_FIGURES.has(1000)).toBe(true);
+    expect(KNOWN_DOLLAR_FIGURES.has(2500)).toBe(true);
+    expect(findInventedPrice("The Spotlight Takeover is $1,000 for 7 days.")).toBeNull();
+    expect(findInventedPrice("Taking over the loading screen runs 2,500 dollars.")).toBeNull();
+    // Invented dollar prices trip the guard exactly like invented VB ones:
+    expect(findInventedPrice("The Spotlight Takeover is only $1,500.")).toBe(1500);
+    expect(findInventedPrice("Yours for 750 dollars.")).toBe(750);
+    // Pack dollar prices are NOT knowledge (checkout sets them) — quoting
+    // one is invention, per the operator's standing rule:
+    expect(findInventedPrice("That pack is $39.")).toBe(39);
+  });
+});
+
+describe("operator knowledge — takeover offers (wave 2 #2)", () => {
+  const REPO_ROOT = path.resolve(HERE, "..", "..", "..", "..", "..");
+
+  /** Independent re-derivation of an *_OFFER constant from lib/db — the
+      test parses the schema file itself rather than trusting the
+      generator's parser, so a generator drift fails here. */
+  function deriveOffer(schemaRel: string, constant: string) {
+    const src = read(path.join(REPO_ROOT, schemaRel));
+    const start = src.indexOf(`export const ${constant}`);
+    expect(start, `${constant} in ${schemaRel}`).toBeGreaterThanOrEqual(0);
+    const body = src.slice(start, src.indexOf("} as const;", start));
+    return {
+      name: body.match(/name:\s*"([^"]+)"/)?.[1],
+      priceDollars: Number(body.match(/priceDollars:\s*(\d+)/)?.[1]),
+      durationDays: Number(body.match(/durationDays:\s*(\d+)/)?.[1]),
+    };
+  }
+
+  const CASES = [
+    {
+      id: "spotlight-takeover",
+      schema: "lib/db/src/schema/spotlight.ts",
+      constant: "SPOTLIGHT_OFFER",
+      routeFile: "spotlight.ts",
+      offerEndpoint: "/api/spotlight/offer",
+      inquireEndpoint: "/api/spotlight/inquire",
+    },
+    {
+      id: "loading-screen-takeover",
+      schema: "lib/db/src/schema/loading-screen.ts",
+      constant: "LOADING_SCREEN_OFFER",
+      routeFile: "loading-screen.ts",
+      offerEndpoint: "/api/loading-screen/offer",
+      inquireEndpoint: "/api/loading-screen/inquire",
+    },
+  ] as const;
+
+  it("both offers are first-class entries priced from the served constants", () => {
+    expect(OPERATOR_KB.counts.takeoverOffers).toBe(2);
+    expect(OPERATOR_FEATURES.filter((f) => f.offer).length).toBe(2);
+    for (const c of CASES) {
+      const derived = deriveOffer(c.schema, c.constant);
+      const f = OPERATOR_FEATURES.find((x) => x.id === c.id);
+      expect(f, c.id).toBeTruthy();
+      expect(f!.name).toBe(derived.name);
+      expect(f!.offer!.priceDollars).toBe(derived.priceDollars);
+      expect(f!.offer!.durationDays).toBe(derived.durationDays);
+      expect(f!.offer!.source).toContain(c.schema);
+      expect(f!.offer!.inquiryEndpoint).toBe(c.inquireEndpoint);
+      expect(f!.endpoints).toContain(c.offerEndpoint);
+      expect(f!.endpoints).toContain(c.inquireEndpoint);
+      // Dollars never ride the Visual Bucs price array:
+      expect(f!.prices).toEqual([]);
+      expect(KNOWN_DOLLAR_FIGURES.has(derived.priceDollars)).toBe(true);
+    }
+  });
+
+  it("the offer endpoints still serve the constants the entries came from", () => {
+    for (const c of CASES) {
+      const routeSrc = read(path.join(HERE, "..", "..", "routes", c.routeFile));
+      expect(routeSrc).toContain(c.constant);
+      expect(routeSrc).toContain(`"${c.offerEndpoint.replace("/api", "")}"`);
+      expect(routeSrc).toContain(`"${c.inquireEndpoint.replace("/api", "")}"`);
+    }
+  });
+
+  it("the takeover questions match their offers first, with the door attached", () => {
+    const spot = findFeatures("How much is a Spotlight takeover?");
+    expect(spot[0]?.id).toBe("spotlight-takeover");
+    const load = findFeatures("How much to take over the loading screen?");
+    expect(load[0]?.id).toBe("loading-screen-takeover");
+
+    const gSpot = buildGrounding("How much is a Spotlight takeover?");
+    expect(gSpot).toContain("$1,000");
+    expect(gSpot).toContain("For Brands");
+    expect(gSpot).toContain("/charts");
+    const gLoad = buildGrounding("How much to take over the loading screen?");
+    expect(gLoad).toContain("$2,500");
+    expect(gLoad).toContain("/charts");
+
+    const facts = formatFeatureFacts(OPERATOR_FEATURES.find((f) => f.id === "spotlight-takeover")!);
+    expect(facts).toContain("$1,000 for 7 days");
+    expect(facts).toContain("not Visual Bucs");
+    expect(facts).toContain("Charts — For Brands tab (/charts)");
   });
 });

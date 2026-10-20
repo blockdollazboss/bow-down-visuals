@@ -118,6 +118,11 @@ function describeFeature(f: OperatorFeature): string {
       .map((p) => (p.vb === 0 ? `${p.feature}: free` : `${p.feature}: ${p.vb.toLocaleString("en-US")} Visual Bucs`));
     sentences.push(`Prices: ${prices.join("; ")}.`);
   }
+  if (f.offer) {
+    sentences.push(
+      `Price: $${f.offer.priceDollars.toLocaleString("en-US")} for ${f.offer.durationDays} days — a paid advertising placement in dollars (not Visual Bucs), booked by inquiry at ${f.offer.doorLabel} (${f.path}).`,
+    );
+  }
   if (f.guide) {
     sentences.push(`Open the page and tap "Walk me through it" for a step-by-step guide.`);
   }

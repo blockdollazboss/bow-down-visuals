@@ -154,6 +154,43 @@ describe("POST /api/chat — the no-invention guard on replies", () => {
   });
 });
 
+describe("POST /api/chat — takeover offers (wave 2 #2)", () => {
+  it("grounds a Spotlight takeover question with the dollar price and the door", async () => {
+    const { status } = await postChat("How much is a Spotlight takeover?");
+    expect(status).toBe(200);
+    const prompt = systemPrompt();
+    expect(prompt).toContain("VERIFIED FACTS");
+    expect(prompt).toContain("Spotlight Takeover");
+    expect(prompt).toContain("$1,000 for 7 days");
+    expect(prompt).toContain("Charts — For Brands tab (/charts)");
+  });
+
+  it("grounds a loading-screen takeover question with its own price", async () => {
+    const { status } = await postChat("How much to take over the loading screen?");
+    expect(status).toBe(200);
+    const prompt = systemPrompt();
+    expect(prompt).toContain("Loading Screen Takeover");
+    expect(prompt).toContain("$2,500 for 7 days");
+    expect(prompt).toContain("/charts");
+  });
+
+  it("passes a reply quoting the real takeover price in dollars", async () => {
+    state.reply =
+      "The Spotlight Takeover is $1,000 for 7 days — book it on the Charts page (/charts), For Brands tab.";
+    const { status, json } = await postChat("How much is a Spotlight takeover?");
+    expect(status).toBe(200);
+    expect(json.reply).toBe(state.reply);
+  });
+
+  it("replaces a reply that invents a takeover price", async () => {
+    state.reply = "The Loading Screen Takeover is just $900 for the week.";
+    const { status, json } = await postChat("How much to take over the loading screen?");
+    expect(status).toBe(200);
+    expect(json.reply).toBe(PRICE_FALLBACK_REPLY);
+    expect(json.reply).not.toContain("900");
+  });
+});
+
 describe("POST /api/chat — contract unchanged", () => {
   it("400s an empty message", async () => {
     const res = await fetch(`${baseUrl}/api/chat`, {
