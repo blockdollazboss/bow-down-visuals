@@ -24,18 +24,19 @@
    MEMBER SCOPE: every core keys its write by ctx.userId and gates on
    the caller's ownership/participation/visibility first, so there is
    no argument a member can pass that writes onto another member's
-   rows — the tests prove it per tool. */
+   rows — the tests prove it per tool.
+
+   IMPORT DISCIPLINE: the rail cores are loaded LAZILY (dynamic
+   import inside each handler), never at this module's top level.
+   The operator registry is imported by chat/admin surfaces whose
+   test suites partially mock unrelated libraries (e.g. live-ws);
+   statically importing the five route modules here dragged their
+   whole import graphs into every one of those suites and broke
+   collection (admin-content-removal, found in Lane D's full run).
+   A route module now loads only when a Tier-2 tool actually runs. */
 
 import { db, storyboardsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
-import { saveDmDraft } from "../routes/community";
-import { savePostReplyDraft } from "../routes/social";
-import { createLegacyScheduledPost } from "../routes/scheduler";
-import {
-  appendStoryboardPanel,
-  createStoryboardBoard,
-} from "../routes/storyboards";
-import { saveLegacyContact } from "../routes/trust";
 import type { OperatorTool } from "./operator-tools";
 
 type Handler = OperatorTool["handler"];
@@ -64,6 +65,7 @@ const draftsDm: Handler = async (ctx) => {
   if (!body.trim()) {
     throw new Error("There's no text to save — tell me the words and I'll draft them.");
   }
+  const { saveDmDraft } = await import("../routes/community");
   const outcome = await saveDmDraft(ctx.userId, conversationId, { body });
   switch (outcome.kind) {
     case "saved":
@@ -93,6 +95,7 @@ const draftsReply: Handler = async (ctx) => {
   if (!body.trim()) {
     throw new Error("There's no text to save — tell me the words and I'll draft them.");
   }
+  const { savePostReplyDraft } = await import("../routes/social");
   const outcome = await savePostReplyDraft(ctx.userId, postId, {
     body,
     ...(tone !== undefined ? { tone } : {}),
@@ -142,6 +145,7 @@ const postsSchedule: Handler = async (ctx) => {
   if (when.getTime() <= Date.now()) {
     throw new Error("That time is already past — give me a future date and time and I'll schedule it.");
   }
+  const { createLegacyScheduledPost } = await import("../routes/scheduler");
   const outcome = await createLegacyScheduledPost(ctx.userId, {
     content,
     mediaUrl,
@@ -171,6 +175,7 @@ const storyboardSave: Handler = async (ctx) => {
   if (!hasContent) {
     throw new Error("Tell me what to put on the panel — a title, a note, an image link, or an image idea — and I'll add it.");
   }
+  const { appendStoryboardPanel, createStoryboardBoard } = await import("../routes/storyboards");
 
   /* Board resolution, owner-scoped throughout: an explicit boardId
      wins; a boardTitle matches one of the CALLER's boards by name
@@ -237,6 +242,7 @@ const legacyContact: Handler = async (ctx) => {
   if (!email.trim()) {
     throw new Error("I need their email address too — that's how they'd be reached.");
   }
+  const { saveLegacyContact } = await import("../routes/trust");
   const outcome = await saveLegacyContact(ctx.userId, {
     name,
     email,
