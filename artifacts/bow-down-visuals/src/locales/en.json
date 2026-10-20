@@ -5166,7 +5166,16 @@
     "retry": "Retry",
     "themeLabel": "Theme",
     "yourPack": "Your pack",
-    "goLive": "Pack ready — set up your stream in Go Live"
+    "goLive": "Pack ready — set up your stream in Go Live",
+    "libraryTitle": "Your stream pack library",
+    "libraryNote": "Every graphic you generate is saved here. Add the ones you want to your Go Live studio — they'll wait in the studio's stream-pack tray, ready to drop into a scene.",
+    "libraryEmpty": "Nothing saved yet — generate a pack above and it lands here.",
+    "libraryLoading": "Loading your library…",
+    "libraryError": "Your library couldn't load.",
+    "libraryActionFailed": "That change didn't save — try again.",
+    "addToStudio": "Add to my studio",
+    "inStudio": "In my studio",
+    "removeFromStudio": "Remove"
   },
   "team": {
     "accept": "Accept",

@@ -26,6 +26,9 @@ import {
   STREAM_PACK_ASSETS,
   resolveStreamPackPlan,
   buildStreamPackPrompt,
+  streamPackGenerationMetadata,
+  parseStreamPackGeneration,
+  withStreamPackApplied,
 } from "../stream-pack";
 import { chargeCredits } from "../../../lib/credits";
 
@@ -176,5 +179,72 @@ describe("money-flow contracts", () => {
 
   it("chargeCredits is the function the route uses (mock is wired)", () => {
     expect(mockCharge).toBeDefined();
+  });
+});
+
+describe("library records (generations rail)", () => {
+  const plan = resolveStreamPackPlan({
+    channelName: "Nova",
+    theme: "neon-cyber",
+    asset: "alert-follower",
+  });
+
+  it("metadata carries the pack kind, the asset identity, and starts unapplied", () => {
+    const metadata = streamPackGenerationMetadata(plan, "stream-packs/u/ref.png");
+    expect(metadata).toEqual({
+      kind: "stream-pack",
+      assetKey: "alert-follower",
+      label: "New Follower Alert",
+      themeId: "neon-cyber",
+      channelName: "Nova",
+      storagePath: "stream-packs/u/ref.png",
+      appliedToStudio: false,
+    });
+  });
+
+  it("parses a recorded row into the DTO, honoring the applied flag", () => {
+    const parsed = parseStreamPackGeneration({
+      id: "gen-1",
+      title: "Stream Pack: New Follower Alert",
+      file_url: "https://cdn.test/ref.png",
+      created_at: new Date(Date.UTC(2026, 0, 2, 3, 4, 5)),
+      metadata: { ...streamPackGenerationMetadata(plan, "stream-packs/u/ref.png"), appliedToStudio: true },
+    });
+    expect(parsed).toEqual({
+      id: "gen-1",
+      assetKey: "alert-follower",
+      label: "New Follower Alert",
+      themeId: "neon-cyber",
+      channelName: "Nova",
+      url: "https://cdn.test/ref.png",
+      appliedToStudio: true,
+      createdAt: "2026-01-02T03:04:05.000Z",
+    });
+  });
+
+  it("refuses rows that are not stream-pack records", () => {
+    expect(parseStreamPackGeneration(null)).toBeNull();
+    expect(parseStreamPackGeneration({})).toBeNull();
+    expect(
+      parseStreamPackGeneration({
+        id: "g",
+        file_url: "https://x.test/a.png",
+        metadata: { kind: "song" },
+      }),
+    ).toBeNull();
+    expect(
+      parseStreamPackGeneration({
+        id: "g",
+        metadata: { kind: "stream-pack", assetKey: "webcam-frame" },
+      }),
+    ).toBeNull(); // no URL — nothing playable to hand out
+  });
+
+  it("withStreamPackApplied merges the flag and preserves the record", () => {
+    const original = streamPackGenerationMetadata(plan, "stream-packs/u/ref.png");
+    const applied = withStreamPackApplied(original, true);
+    expect(applied).toMatchObject({ kind: "stream-pack", assetKey: "alert-follower", appliedToStudio: true });
+    expect(original["appliedToStudio"]).toBe(false); // input untouched
+    expect(withStreamPackApplied(null, true)).toEqual({ appliedToStudio: true });
   });
 });

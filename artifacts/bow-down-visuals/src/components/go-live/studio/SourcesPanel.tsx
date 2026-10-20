@@ -38,6 +38,7 @@ import {
 } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters, type VaultCharacter } from "@/lib/world/characters";
 import { useAuth } from "@/contexts/AuthContext";
+import StreamPackTray from "@/components/go-live/studio/StreamPackTray";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildSourceContextItems } from "@/lib/studio-context-menu";
 
@@ -245,6 +246,13 @@ export default function SourcesPanel({
           </div>
         ))}
       </div>
+
+      <StreamPackTray
+        stage={stage}
+        isLight={isLight}
+        onSelect={onSelect}
+        onNotify={onNotify}
+      />
 
       {selected && (
         <div className={`mt-3 space-y-2.5 rounded-lg border p-3 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>

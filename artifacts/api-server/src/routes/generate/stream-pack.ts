@@ -1,9 +1,12 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { randomUUID } from "crypto";
+import { db, generationsTable } from "@workspace/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, LedgerWriteError } from "../../lib/credits";
+import { saveGeneration } from "../../lib/save-generation";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -280,6 +283,90 @@ export function buildStreamPackPrompt(plan: StreamPackPlan): string {
   ).slice(0, 4000);
 }
 
+/* ─── Your stream pack: the library + the studio tray ─────────────────
+   Generation used to be fire-and-forget: the graphic's URL lived only
+   in the generating tab, so a finished pack vanished on refresh and
+   nothing anywhere could put it on the member's stream. Every
+   successful generate is now recorded on the generations rail
+   (saveGeneration, type "image", metadata.kind below) — that record is
+   the ownership proof, and it is the ONLY pack record: no pack table,
+   no second source of truth. "Applied to my studio" is a flag on the
+   record. The Branding Kit library and the Go Live studio's stream-pack
+   tray both read these records, so applying on either surface shows on
+   the other. */
+
+export const STREAM_PACK_GENERATION_KIND = "stream-pack";
+
+export interface StreamPackAssetRecord {
+  id: string;
+  assetKey: string;
+  label: string;
+  themeId: string | null;
+  channelName: string | null;
+  url: string;
+  appliedToStudio: boolean;
+  createdAt: string | null;
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+}
+function strOrNull(v: unknown): string | null {
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+/** The saveGeneration metadata for one generated stream-pack graphic. */
+export function streamPackGenerationMetadata(
+  plan: StreamPackPlan,
+  storagePath: string | null,
+): Record<string, unknown> {
+  return {
+    kind: STREAM_PACK_GENERATION_KIND,
+    assetKey: plan.asset.key,
+    label: plan.asset.label,
+    themeId: plan.theme.id,
+    channelName: plan.channelName,
+    storagePath,
+    appliedToStudio: false,
+  };
+}
+
+/**
+ * Tolerant read of one generations row as a stream-pack asset record.
+ * Returns null for anything that isn't a recorded stream-pack graphic
+ * (other generation kinds, malformed rows) — callers filter on it.
+ */
+export function parseStreamPackGeneration(row: unknown): StreamPackAssetRecord | null {
+  const r = asRecord(row);
+  const metadata = asRecord(r["metadata"]);
+  if (metadata["kind"] !== STREAM_PACK_GENERATION_KIND) return null;
+  const id = strOrNull(r["id"]);
+  const url = strOrNull(r["file_url"]) ?? strOrNull(r["fileUrl"]);
+  const assetKey = strOrNull(metadata["assetKey"]);
+  if (!id || !url || !assetKey) return null;
+  const createdRaw = r["created_at"] ?? r["createdAt"];
+  return {
+    id,
+    assetKey,
+    label: strOrNull(metadata["label"]) ?? strOrNull(r["title"]) ?? assetKey,
+    themeId: strOrNull(metadata["themeId"]),
+    channelName: strOrNull(metadata["channelName"]),
+    url,
+    appliedToStudio: metadata["appliedToStudio"] === true,
+    createdAt:
+      createdRaw instanceof Date ? createdRaw.toISOString() : strOrNull(createdRaw),
+  };
+}
+
+/** Merge the applied flag into a record's metadata, keeping every key
+ *  the record was saved with. */
+export function withStreamPackApplied(
+  metadata: unknown,
+  applied: boolean,
+): Record<string, unknown> {
+  return { ...asRecord(metadata), appliedToStudio: applied };
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/stream-pack/catalog — free: themes + assets for the picker UI.
 ───────────────────────────────────────────────────────────────────────────── */
@@ -289,6 +376,107 @@ router.get("/stream-pack/catalog", (_req, res) => {
     assets: STREAM_PACK_ASSETS.map(({ key, label, group, blurb, size }) => ({ key, label, group, blurb, size })),
     creditCostPerImage: STREAM_PACK_CREDIT_COST,
   });
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GET /api/stream-pack/mine — the caller's recorded stream-pack
+   graphics, newest first. Owner-scoped by construction (the WHERE is
+   the caller's id); other generation kinds are filtered out by the
+   parser. Playable URLs are minted fresh from each record's stable
+   storage ref when it carries one (the promo-cards discipline) — the
+   recorded URL is only the fallback.
+───────────────────────────────────────────────────────────────────────────── */
+router.get("/stream-pack/mine", requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(generationsTable)
+    .where(
+      and(
+        eq(generationsTable.user_id, req.userId!),
+        isNull(generationsTable.deleted_at),
+      ),
+    )
+    .orderBy(desc(generationsTable.created_at))
+    .limit(200);
+  const assets: StreamPackAssetRecord[] = [];
+  for (const row of rows) {
+    const parsed = parseStreamPackGeneration(row);
+    if (!parsed) continue;
+    const storagePath = strOrNull(asRecord(row.metadata)["storagePath"]);
+    if (storagePath) {
+      try {
+        parsed.url = await refreshSupabaseStorageUrl(storagePath);
+      } catch {
+        /* keep the recorded URL */
+      }
+    }
+    assets.push(parsed);
+  }
+  res.json({ assets });
+});
+
+/** Request-body validation for POST /stream-pack/apply + /unapply. */
+const streamPackApplyBodySchema = z.object({
+  generationId: z.string().min(1),
+});
+
+/**
+ * Shared apply/unapply: the row must be the caller's own recorded
+ * stream-pack graphic — another member's id, a non-pack generation, or
+ * a soft-deleted row all answer the same 404, so an id never leaks
+ * whether it exists for someone else.
+ */
+async function setStreamPackApplied(req: Request, res: Response, applied: boolean) {
+  const parsedBody = streamPackApplyBodySchema.safeParse(req.body ?? {});
+  if (!parsedBody.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsedBody.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(generationsTable)
+    .where(
+      and(
+        eq(generationsTable.id, parsedBody.data.generationId),
+        eq(generationsTable.user_id, req.userId!),
+        isNull(generationsTable.deleted_at),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  const asset = row ? parseStreamPackGeneration(row) : null;
+  if (!row || !asset) {
+    res.status(404).json({ error: "That stream-pack graphic isn't in your library." });
+    return;
+  }
+  await db
+    .update(generationsTable)
+    .set({ metadata: withStreamPackApplied(row.metadata, applied) })
+    .where(
+      and(
+        eq(generationsTable.id, row.id),
+        eq(generationsTable.user_id, req.userId!),
+        isNull(generationsTable.deleted_at),
+      ),
+    );
+  res.json({ asset: { ...asset, appliedToStudio: applied } });
+}
+
+/* POST /api/stream-pack/apply — mark one of your graphics for the
+   Go Live studio tray. POST /api/stream-pack/unapply — take it back
+   out (graphics already placed in a scene keep their URL; the tray is
+   a picker, not the scene). */
+router.post("/stream-pack/apply", requireAuth, async (req, res) => {
+  await setStreamPackApplied(req, res, true);
+});
+router.post("/stream-pack/unapply", requireAuth, async (req, res) => {
+  await setStreamPackApplied(req, res, false);
 });
 
 /** Request-body validation for POST /stream-pack/generate.
@@ -388,6 +576,22 @@ router.post("/stream-pack/generate", requireAuth, async (req, res) => {
       "image/png",
     );
     const url = await refreshSupabaseStorageUrl(storageRef);
+
+    /* ── Record the graphic in the maker's library (generations rail).
+       This record is what "your stream pack" reads everywhere — the
+       Branding Kit library and the Go Live studio tray — and it is the
+       ownership proof the apply path checks. Fire-and-forget:
+       saveGeneration never throws, and a history hiccup must not fail
+       a graphic the member already paid for and received. */
+    saveGeneration({
+      userId: req.userId!,
+      type: "image",
+      title: `Stream Pack: ${plan.asset.label}`,
+      fileUrl: url,
+      prompt,
+      creditsSpent: plan.creditCost,
+      metadata: streamPackGenerationMetadata(plan, normalizeToStorageRef(storageRef)),
+    });
 
     res.json({
       asset: plan.asset.key,
