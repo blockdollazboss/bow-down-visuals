@@ -25,6 +25,19 @@ export interface OperatorPrice {
   source: string;
 }
 
+/** A dollar-priced advertising placement (the takeover offers). Dollars
+    live here, NEVER in `prices` — that array is Visual Bucs only, and
+    the two moneys never mix in one field. Sourced at generation time
+    from the lib/db *_OFFER constant the offer endpoint serves. */
+export interface OperatorOffer {
+  priceDollars: number;
+  durationDays: number;
+  surfaces: string[];
+  inquiryEndpoint: string;
+  doorLabel: string;
+  source: string;
+}
+
 export interface OperatorFeature {
   id: string;
   name: string;
@@ -36,6 +49,7 @@ export interface OperatorFeature {
   component: string | null;
   endpoints: string[];
   prices: OperatorPrice[];
+  offer?: OperatorOffer;
   description?: string;
   descriptionSource?: string;
   guide?: { pageName: string; route: string };
@@ -181,6 +195,14 @@ export function formatFeatureFacts(f: OperatorFeature): string {
       lines.push(`  Price: ${p.feature} — ${p.vb === 0 ? "free" : `${p.vb.toLocaleString("en-US")} Visual Bucs`}.`);
     }
   }
+  if (f.offer) {
+    lines.push(
+      `  Price: $${f.offer.priceDollars.toLocaleString("en-US")} for ${f.offer.durationDays} days — a paid advertising placement, priced in dollars (not Visual Bucs).`,
+    );
+    lines.push(
+      `  Book it: ${f.offer.doorLabel} (${f.path}) — the inquiry form for this takeover lives there; send the inquiry and the team follows up.`,
+    );
+  }
   if (f.guide) {
     lines.push(`  Guide: this page has a step-by-step guide ("${f.guide.pageName}") — tell the user to open the page and tap "Walk me through it".`);
   }
@@ -232,14 +254,44 @@ export const KNOWN_VB_FIGURES: ReadonlySet<number> = (() => {
   return set;
 })();
 
-/** First VB/Visual Bucs/credits figure in a reply that the knowledge base
-    does NOT vouch for — or null if the reply is clean. */
+/** Every DOLLAR figure the knowledge base vouches for: the takeover
+    offers' prices (the only dollar prices the operator may ever quote —
+    pack dollar prices are deliberately NOT knowledge; checkout sets
+    them) plus any dollar figure stated inside a sourced knowledge text.
+    $0 is vouched the same way 0 VB is: "free" is not an invented price. */
+export const KNOWN_DOLLAR_FIGURES: ReadonlySet<number> = (() => {
+  const set = new Set<number>([0]);
+  for (const f of OPERATOR_FEATURES) {
+    if (f.offer) set.add(f.offer.priceDollars);
+    if (f.description) {
+      for (const m of f.description.matchAll(/\$\s?(\d[\d,]*)/g)) {
+        set.add(Number(m[1].replace(/,/g, "")));
+      }
+    }
+  }
+  return set;
+})();
+
+/** First price figure in a reply that the knowledge base does NOT vouch
+    for — or null if the reply is clean. Two passes, two moneys: the VB
+    pass (VB / Visual Bucs / credits figures against KNOWN_VB_FIGURES,
+    the original Phase 1 guard, unchanged) runs first; then the dollar
+    pass ($1,000 / 1000 dollars / USD 1000 against KNOWN_DOLLAR_FIGURES)
+    so a reply cannot dress an invented dollar price past the VB guard —
+    and a KB-sourced takeover price in dollars ships clean. */
 export function findInventedPrice(reply: string): number | null {
   const re = /(\d[\d,]*)\s*(?:VB|Visual Bucs|credits)/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(reply))) {
     const value = Number(m[1].replace(/,/g, ""));
     if (!KNOWN_VB_FIGURES.has(value)) return value;
+  }
+  const dollarRe = /\$\s?(\d[\d,]*)|(\d[\d,]*)\s*(?:dollars|USD)\b|USD\s?(\d[\d,]*)/gi;
+  while ((m = dollarRe.exec(reply))) {
+    const raw = m[1] ?? m[2] ?? m[3];
+    if (!raw) continue;
+    const value = Number(raw.replace(/,/g, ""));
+    if (!KNOWN_DOLLAR_FIGURES.has(value)) return value;
   }
   return null;
 }
