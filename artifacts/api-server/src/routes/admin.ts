@@ -10,14 +10,20 @@
  *                                  or a friend by email.
  *  POST /api/admin/plan/set        { tier, userId?, email? } — set a user's plan tier.
  *                                  Tier N caps Creator Level at N stars.
+ *  GET  /api/admin/dmca-reports    the moderation bench's takedown queue.
+ *  GET  /api/admin/content/:id     one post/comment's moderation state.
+ *  PATCH /api/admin/content/:id    { removed, reason?, note? } — the
+ *                                  content-removal rail: take a post or
+ *                                  thread reply down (reversibly, with
+ *                                  the reason recorded) or restore it.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
-import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable, contentReportsTable, CONTENT_REPORT_STATUSES } from "@workspace/db";
-import { eq, isNull, and, sql, desc } from "drizzle-orm";
+import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable, contentReportsTable, CONTENT_REPORT_STATUSES, postsTable, creatorProfilesTable, POST_REMOVAL_REASONS } from "@workspace/db";
+import { eq, isNull, isNotNull, inArray, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 const router = Router();
@@ -514,10 +520,9 @@ router.patch("/admin/contact-messages/:id", requireAuth, requireAdmin, async (re
    reports", a panel that was never built. This is that panel's rail:
    the queue (newest first, optional ?status= filter) and the one
    action the stored data supports — moving a report through its
-   workflow. Acting on the reported content itself (removing a post
-   or media) has no admin rail anywhere in the codebase — post/media
-   deletion is author-only — so the bench deliberately has no
-   "remove" button to fake. */
+   workflow. Acting on the reported content itself rides the
+   content-removal rail further down this file (posts + thread
+   replies, reversible, files never touched). */
 
 const DMCA_REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
 
@@ -691,6 +696,178 @@ router.patch("/admin/reports/:id", requireAuth, requireAdmin, async (req, res) =
   } catch (err) {
     req.log.error({ err }, "admin: update content report failed");
     res.status(500).json({ error: "Could not update the report." });
+  }
+});
+
+/* ─── Moderation bench: content removal rail ──────────────────────────
+   The takedown hand for posts and comments (thread replies — both
+   are rows of the posts table, told apart by kind). Until this rail
+   existed, post/comment deletion was author-only: an admin who
+   needed a post gone could only ban its author.
+
+   Removal is a STATE, never a delete (migration 0175): the row, its
+   body and its media references stay put and the removal records
+   who acted (the admin's allowlist email), when, the reason
+   CATEGORY (POST_REMOVAL_REASONS — the part the author is shown)
+   and an optional note that never leaves this DTO. Restoring
+   clears the state. Every public read path honors the state at the
+   read layer (routes/social.ts): a removed item is served only to
+   its own author, with its moderation state attached.
+
+   The "comment" label below is the posts table's thread_reply kind
+   — the replies members leave on posts, which share the posts
+   author-delete rail this mirrors. */
+
+type ContentRow = typeof postsTable.$inferSelect;
+
+function toContentRemovalDto(row: ContentRow, author: typeof creatorProfilesTable.$inferSelect | null) {
+  return {
+    id: row.id,
+    /* "post" for a top-level item, "comment" for a thread reply. */
+    kind: row.kind === "thread_reply" ? "comment" : "post",
+    postKind: row.kind,
+    body: row.body,
+    mediaUrls: row.mediaUrls ?? [],
+    author: author
+      ? { profileId: author.id, userId: author.userId, slug: author.slug, displayName: author.displayName }
+      : null,
+    replyTo: row.replyTo,
+    createdAt: row.createdAt,
+    removed: !!row.removedAt,
+    removedAt: row.removedAt,
+    removedByEmail: row.removedByEmail,
+    removalReason: row.removalReason,
+    removalNote: row.removalNote,
+  };
+}
+
+async function loadContentWithAuthor(id: string) {
+  const [row] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+  if (!row) return null;
+  const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, row.profileId)).limit(1);
+  return toContentRemovalDto(row, author ?? null);
+}
+
+/**
+ * GET /api/admin/content/removed
+ * The removal record — everything currently removed, newest
+ * removal first, so a restore is one lookup away.
+ */
+router.get("/admin/content/removed", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.select().from(postsTable)
+      .where(isNotNull(postsTable.removedAt))
+      .orderBy(desc(postsTable.removedAt))
+      .limit(200);
+    const authorIds = [...new Set(rows.map((r) => r.profileId))];
+    const authors = authorIds.length
+      ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, authorIds))
+      : [];
+    const byId = new Map(authors.map((a) => [a.id, a]));
+    res.json({ content: rows.map((r) => toContentRemovalDto(r, byId.get(r.profileId) ?? null)) });
+  } catch (err) {
+    req.log.error({ err }, "admin: list removed content failed");
+    res.status(500).json({ error: "Could not load removed content." });
+  }
+});
+
+/**
+ * GET /api/admin/content/:id
+ * Current state of one post or comment, with the full context an
+ * admin needs before acting: body, author, and — if it is already
+ * removed — the standing removal record.
+ */
+router.get("/admin/content/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid content id." });
+    return;
+  }
+  try {
+    const content = await loadContentWithAuthor(parsedParams.data.id);
+    if (!content) {
+      res.status(404).json({ error: "Content not found." });
+      return;
+    }
+    res.json({ content });
+  } catch (err) {
+    req.log.error({ err }, "admin: load content state failed");
+    res.status(500).json({ error: "Could not load that content." });
+  }
+});
+
+const ContentRemovalPatchSchema = z.object({
+  removed: z.boolean(),
+  /* Required when removing (enforced below, where the 400 can say
+     why); refused vocabulary fails the enum here. */
+  reason: z.enum(POST_REMOVAL_REASONS).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+/**
+ * PATCH /api/admin/content/:id
+ * { removed: true, reason, note? } takes an item down;
+ * { removed: false } restores it. Illegal transitions are 409s —
+ * removing what's already removed, restoring what's live — never
+ * silent no-ops that pretend the state changed.
+ */
+router.patch("/admin/content/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsedParams = IdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid content id." });
+    return;
+  }
+  const parsed = ContentRemovalPatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Invalid request. When removing, reason must be one of: ${POST_REMOVAL_REASONS.join(", ")}.` });
+    return;
+  }
+  if (parsed.data.removed && !parsed.data.reason) {
+    res.status(400).json({ error: "A reason category is required to remove content — the author is shown it." });
+    return;
+  }
+  try {
+    const [row] = await db.select().from(postsTable).where(eq(postsTable.id, parsedParams.data.id)).limit(1);
+    if (!row) {
+      res.status(404).json({ error: "Content not found." });
+      return;
+    }
+    const isRemoved = !!row.removedAt;
+    if (parsed.data.removed && isRemoved) {
+      res.status(409).json({ error: "That content is already removed." });
+      return;
+    }
+    if (!parsed.data.removed && !isRemoved) {
+      res.status(409).json({ error: "That content is live — there is no removal to restore." });
+      return;
+    }
+    const [updated] = await db
+      .update(postsTable)
+      .set(parsed.data.removed
+        ? {
+            removedAt: new Date(),
+            removedByEmail: req.userEmail ?? null,
+            removalReason: parsed.data.reason!,
+            removalNote: parsed.data.note ?? null,
+          }
+        : { removedAt: null, removedByEmail: null, removalReason: null, removalNote: null })
+      .where(eq(postsTable.id, parsedParams.data.id))
+      .returning();
+    const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, row.profileId)).limit(1);
+    req.log.info(
+      {
+        admin: req.userEmail,
+        contentId: parsedParams.data.id,
+        kind: row.kind,
+        action: parsed.data.removed ? "removed" : "restored",
+        reason: parsed.data.removed ? parsed.data.reason : undefined,
+      },
+      "admin: content removal state changed",
+    );
+    res.json({ content: toContentRemovalDto(updated, author ?? null) });
+  } catch (err) {
+    req.log.error({ err }, "admin: update content removal failed");
+    res.status(500).json({ error: "Could not update that content." });
   }
 });
 

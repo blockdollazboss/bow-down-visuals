@@ -1224,7 +1224,7 @@ async function audienceContext(viewerUserId: string | null): Promise<AudienceCon
 
 /** Filter post rows through read-time audience enforcement. Author
  *  user ids resolve from the profiles table (posts carry profileId). */
-async function filterVisiblePosts<T extends { profileId: string; audience: string }>(
+async function filterVisiblePosts<T extends { profileId: string; audience: string; removedAt?: Date | string | null }>(
   rows: T[],
   ctx: AudienceContext,
   profilesById?: Map<string, { userId: string }>,
@@ -1237,6 +1237,11 @@ async function filterVisiblePosts<T extends { profileId: string; audience: strin
     byId = new Map(profiles.map((pr) => [pr.id, pr]));
   }
   return rows.filter((r) => {
+    /* Moderation removal (Stack-4): list surfaces never serve a
+       removed item — not even to its author. The author's honest
+       view of their removed item is the single-post read
+       (postVisibleTo), which attaches the moderation state. */
+    if (r.removedAt) return false;
     const author = byId!.get(r.profileId);
     if (!author) return r.audience !== "close_friends" && r.audience !== "followers" ? true : false;
     return audienceVisible(r.audience, { userId: author.userId, profileId: r.profileId }, ctx);
@@ -1265,9 +1270,18 @@ function pickProfile(p: typeof creatorProfilesTable.$inferSelect | undefined) {
 
 /** One post's read-time visibility for a viewer (Stack 9 #7). */
 async function postVisibleTo(
-  post: { profileId: string; audience: string },
+  post: { profileId: string; audience: string; removedAt?: Date | string | null },
   viewerUserId: string | null,
 ): Promise<boolean> {
+  if (post.removedAt) {
+    /* Moderation removal (Stack-4): a removed item exists ONLY for
+       its own author — who reads it with its moderation state
+       attached. For everyone else it does not exist: no single read,
+       no replies under it, no quoting or reposting it. */
+    if (!viewerUserId) return false;
+    const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
+    return !!author && author.userId === viewerUserId;
+  }
   if (post.audience === "public") return true;
   const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
   if (!author) return false;
@@ -1407,7 +1421,7 @@ async function enrichPosts(
   const postIds = rows.map((p) => p.id);
   const profileIds = [...new Set(rows.map((p) => p.profileId))];
 
-  const [profiles, reactions, saves, quotes, pollOpts] = await Promise.all([
+  const [profiles, reactions, saves, quotesPkg, pollOpts] = await Promise.all([
     db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, profileIds)),
     db.select().from(reactionsTable).where(
       and(eq(reactionsTable.targetKind, "post"), inArray(reactionsTable.targetId, postIds)),
@@ -1419,12 +1433,13 @@ async function enrichPosts(
       : Promise.resolve([]),
     (async () => {
       const qids = [...new Set(rows.map((p) => p.quoteOf).filter((x): x is string => !!x))];
-      if (qids.length === 0) return [];
+      if (qids.length === 0) return { enriched: [] as EnrichedPost[], raw: [] as Array<typeof postsTable.$inferSelect> };
       const qp = await db.select().from(postsTable).where(inArray(postsTable.id, qids));
-      return enrichPosts(qp, viewerUserId);
+      return { enriched: await enrichPosts(qp, viewerUserId), raw: qp };
     })(),
     db.select().from(pollOptionsTable).where(inArray(pollOptionsTable.postId, postIds)).orderBy(pollOptionsTable.position),
   ]);
+  const quotes = quotesPkg.enriched;
 
   /* Quoted-post enforcement (Stack 9 #7): a quote EMBEDS another
      post — if the viewer can't see the quoted post, it renders as
@@ -1443,6 +1458,16 @@ async function enrichPosts(
           invisibleQuoteIds.add(String(q.id));
         }
       }
+    }
+  }
+  /* Moderation removal (Stack-4): a quote EMBEDS another post — a
+     removed one renders as null, exactly like a deleted quote, for
+     everyone except the removed post's own author. */
+  const removedQuotes = quotesPkg.raw.filter((q) => q.removedAt);
+  if (removedQuotes.length) {
+    const me = viewerUserId ? await myProfile(viewerUserId) : null;
+    for (const q of removedQuotes) {
+      if (!me || q.profileId !== me.id) invisibleQuoteIds.add(q.id);
     }
   }
   const pmap = new Map(profiles.map((p) => [p.id, p]));
@@ -1498,6 +1523,14 @@ async function enrichPosts(
         repost_count: p.repostCount,
         reply_count: p.replyCount,
         created_at: p.createdAt,
+        /* Moderation state (Stack-4): read enforcement means a
+           removed post only ever reaches this DTO for its own
+           author (or embedded in their own view of a quote) — the
+           flag + reason CATEGORY are for that author's honest
+           "Removed by moderation" state. The admin's note and
+           identity never ride this DTO. */
+        moderation_removed: !!p.removedAt,
+        removal_reason: p.removedAt ? (p.removalReason ?? null) : null,
         author: author
           ? {
               ...author,
@@ -1520,7 +1553,15 @@ async function enrichPosts(
 }
 
 function publishedOnly() {
-  return or(isNull(postsTable.scheduledFor), lte(postsTable.scheduledFor, new Date()));
+  /* Published = not scheduled for the future AND not removed by
+     moderation (Stack-4). Every list read (feed, replies, hashtag,
+     trending) goes through this gate, so a removed item leaves all
+     of them at once; the single-post read applies the author-only
+     exception in postVisibleTo instead. */
+  return and(
+    or(isNull(postsTable.scheduledFor), lte(postsTable.scheduledFor, new Date())),
+    isNull(postsTable.removedAt),
+  );
 }
 
 /* ════════════════ STORIES ════════════════ */

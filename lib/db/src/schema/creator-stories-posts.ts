@@ -60,6 +60,15 @@ export type StoryHighlight = typeof storyHighlightsTable.$inferSelect;
 export const POST_KINDS = ["post", "thread_reply", "quote", "repost"] as const;
 export type PostKind = (typeof POST_KINDS)[number];
 
+/** The reason categories an admin records when removing a post or a
+ *  thread reply (Stack-4 admin content-removal rail, migration 0175).
+ *  The category is the part of the record the AUTHOR sees ("Removed
+ *  by moderation — Harassment"); the optional free-text note an admin
+ *  adds beside it never leaves the admin DTO. Enforced in the DB by
+ *  posts_removal_reason_check and in the route by zod. */
+export const POST_REMOVAL_REASONS = ["spam", "harassment", "hate_speech", "violence", "sexual_content", "copyright", "impersonation", "other"] as const;
+export type PostRemovalReason = (typeof POST_REMOVAL_REASONS)[number];
+
 export const postsTable = pgTable("posts", {
   id:          uuid("id").primaryKey().defaultRandom(),
   profileId:   uuid("profile_id").notNull().references(() => creatorProfilesTable.id, { onDelete: "cascade" }),
@@ -82,7 +91,20 @@ export const postsTable = pgTable("posts", {
   repostCount: integer("repost_count").notNull().default(0),
   replyCount:  integer("reply_count").notNull().default(0),
   createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => [check("posts_kind_check", sql`${t.kind} IN ('post','thread_reply','quote','repost')`)]);
+  /* Moderation removal (Stack-4, migration 0175): NULL removed_at =
+     live. Removal is a reversible state set by the admin rail
+     (routes/admin.ts) — the row, body and media references are never
+     deleted, and restoring clears all four columns. Every public
+     read in routes/social.ts serves a removed item ONLY to its own
+     author, with the moderation state attached. */
+  removedAt:     timestamp("removed_at", { withTimezone: true }),
+  removedByEmail: text("removed_by_email"),
+  removalReason: text("removal_reason"),
+  removalNote:   text("removal_note"),
+}, (t) => [
+  check("posts_kind_check", sql`${t.kind} IN ('post','thread_reply','quote','repost')`),
+  check("posts_removal_reason_check", sql`${t.removalReason} IS NULL OR ${t.removalReason} IN ('spam','harassment','hate_speech','violence','sexual_content','copyright','impersonation','other')`),
+]);
 
 export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true, createdAt: true, likeCount: true, repostCount: true, replyCount: true });
 export type InsertPost = z.infer<typeof insertPostSchema>;

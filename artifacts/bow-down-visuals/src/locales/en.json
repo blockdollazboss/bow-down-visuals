@@ -938,6 +938,39 @@
         "dismissed": "Dismissed"
       }
     },
+    "removal": {
+      "title": "Content Removal",
+      "description": "Take a post or comment down by its ID or link — or restore one. A removal hides the content from everyone except its author, who sees the reason. Nothing is deleted, and every removal can be undone.",
+      "inputPlaceholder": "Post or comment ID, or a /post/… link",
+      "lookupButton": "Look up",
+      "lookupError": "Could not look that up. Check the ID and try again.",
+      "notFound": "No post or comment with that ID.",
+      "kindPost": "Post",
+      "kindComment": "Comment",
+      "liveLabel": "Live",
+      "removedLabel": "Removed",
+      "removedBy": "Removed by {email}",
+      "reasonLabel": "Reason — the author is shown this",
+      "noteLabel": "Note (optional, admin record only)",
+      "notePlaceholder": "What should the record say?",
+      "removeButton": "Remove content",
+      "restoreButton": "Restore content",
+      "reasonRequired": "Pick a reason first — the author is shown it.",
+      "actionError": "Could not update that content. Try again.",
+      "recentTitle": "Currently removed",
+      "recentEmpty": "Nothing is currently removed.",
+      "recentLoadError": "Could not load the removal record.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Harassment",
+        "hate_speech": "Hate speech",
+        "violence": "Violence or threats",
+        "sexual_content": "Sexual content",
+        "copyright": "Copyright",
+        "impersonation": "Impersonation",
+        "other": "Other policy violation"
+      }
+    },
     "users": {
       "title": "User Management",
       "description": "Look up a customer by email. Ban blocks them from the site.",

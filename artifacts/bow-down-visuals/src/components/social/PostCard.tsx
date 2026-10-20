@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check } from "lucide-react";
+import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch, apiJson, profileHref, type FeedPost, type PollData } from "@/lib/social-api";
+import { removalReasonLabel } from "@/lib/content-removal";
 import { Avatar } from "./Avatar";
 import { RichText } from "./RichText";
 import { AttachmentView } from "./AttachmentView";
@@ -188,6 +189,13 @@ export function PostCard({
 
   const totalReactions = Object.values(counts).reduce((a, b) => a + b, 0);
   const pollTotal = poll ? poll.options.reduce((a, o) => a + o.vote_count, 0) : 0;
+  /* Moderation removal (Stack-4): the server serves a removed post
+     ONLY to its author, with moderation_removed set — this card is
+     that author's honest view. Tombstone, not a vanishing act: the
+     banner + recorded reason show, the author's own words stay
+     readable to them, and every engagement surface (attachments,
+     poll, quote embed, actions, composers, replies) is suppressed. */
+  const removed = !!post.moderation_removed;
 
   return (
     <article id={`post-${post.id}`} className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-4">
@@ -211,12 +219,22 @@ export function PostCard({
           {post.why && (
             <p className="mt-1 text-[11px] text-neutral-500" data-testid="post-why">{post.why.label}</p>
           )}
+          {removed && (
+            <div className="mt-2 rounded-xl border border-red-400/40 bg-red-400/10 px-3 py-2" data-testid="post-removed-banner">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-red-300">
+                <ShieldAlert className="h-4 w-4 shrink-0" /> Removed by moderation
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-red-200/80">
+                Reason: {removalReasonLabel(post.removal_reason)} · Only you can see this post now — it no longer appears in feeds, replies, or anywhere else on the site.
+              </p>
+            </div>
+          )}
           {post.body && <RichText body={post.body} className="mt-1.5 text-[15px] leading-relaxed text-neutral-100" />}
 
-          <AttachmentView attachments={post.media_urls ?? []} />
+          {!removed && <AttachmentView attachments={post.media_urls ?? []} />}
 
           {/* poll */}
-          {poll && (
+          {!removed && poll && (
             <div className="mt-3 space-y-2">
               {poll.options.map((o) => {
                 const pct = pollTotal > 0 ? Math.round((o.vote_count / pollTotal) * 100) : 0;
@@ -243,13 +261,14 @@ export function PostCard({
           )}
 
           {/* quoted post */}
-          {post.quoted && (
+          {!removed && post.quoted && (
             <div className="mt-3">
               <PostCard post={post.quoted} depth={depth + 1} />
             </div>
           )}
 
-          {/* action row */}
+          {/* action row — a removed post takes no engagement */}
+          {!removed && (
           <div className="mt-3 flex items-center justify-between border-t border-[#1f1f1f] pt-2.5">
             <div className="flex items-center gap-1 sm:gap-2">
               {/* reactions — like stays the default, tap the count for the full set */}
@@ -319,16 +338,17 @@ export function PostCard({
               </button>
             </div>
           </div>
+          )}
           {shareMsg && <p className="mt-1 break-all text-xs text-[#d4af37]">{shareMsg}</p>}
 
           {/* earning hint — guide them to the money */}
-          {showAnalytics && earningHint && (
+          {!removed && showAnalytics && earningHint && (
             <div className="mt-2 rounded-xl border border-[#d4af37]/40 bg-gradient-to-r from-[#1a1408] to-transparent p-3">
               <p className="text-xs leading-relaxed text-[#f5e08c]">💰 {earningHint}</p>
             </div>
           )}
 
-          {showReply && (
+          {!removed && showReply && (
             <div className="mt-2">
               <Composer
                 replyTo={post.id}
@@ -343,7 +363,7 @@ export function PostCard({
               <p className="mt-1 text-[11px] text-neutral-500">Replies post as a thread under this post.</p>
             </div>
           )}
-          {showQuote && (
+          {!removed && showQuote && (
             <div className="mt-2">
               <Composer
                 quoteOf={{ id: post.id, body: post.body, authorName: post.author?.display_name ?? "Creator" }}
@@ -353,16 +373,26 @@ export function PostCard({
             </div>
           )}
 
-          {post.reply_count > 0 && depth === 0 && (
+          {!removed && post.reply_count > 0 && depth === 0 && (
             <button onClick={loadReplies} className="mt-2 text-xs font-semibold text-[#d4af37] hover:underline">
               {showReplies ? "Hide replies" : `View ${post.reply_count} ${post.reply_count === 1 ? "reply" : "replies"}`}
             </button>
           )}
-          {showReplies && (
+          {!removed && showReplies && (
             <div className="mt-2 space-y-2 border-l-2 border-[#d4af37]/30 pl-3">
               {replies.map((r) => (
                 <PostCard key={r.id} post={r} depth={depth + 1} onDeleted={(id) => setReplies((x) => x.filter((p) => p.id !== id))} />
               ))}
+            </div>
+          )}
+
+          {/* A removed post's only remaining action is the author's
+              own delete — the moderation state itself is the admin's. */}
+          {removed && (
+            <div className="mt-3 flex justify-end border-t border-[#1f1f1f] pt-2.5">
+              <button onClick={del} aria-label="Delete post" className="rounded-full p-2 text-neutral-500 hover:text-red-400">
+                <Trash2 className="h-[16px] w-[16px]" />
+              </button>
             </div>
           )}
         </div>
