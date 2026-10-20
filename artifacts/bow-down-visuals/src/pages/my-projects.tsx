@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import MyClips from "@/pages/my-clips";
 import SongsPage from "@/pages/songs";
 import { parseMyProjectsTab, type MyProjectsTab } from "@/lib/my-projects-tabs";
+import HubProjectsSection from "@/components/HubProjectsSection";
 import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 
 /** Project types that can be opened in the Video Editor. */
@@ -916,7 +917,9 @@ export default function MyProjects() {
 
         {/* ── PROJECTS TAB ── */}
         {tab === "projects" && (
-          projLoading ? (
+          <>
+          <HubProjectsSection />
+          {projLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
@@ -943,7 +946,8 @@ export default function MyProjects() {
                 <ProjectCard key={project.id} project={project} onDelete={handleDeleteProject} onOpen={setOpenProject} />
               ))}
             </div>
-          )
+          )}
+          </>
         )}
 
         {/* ── DRAFTS TAB ── */}
