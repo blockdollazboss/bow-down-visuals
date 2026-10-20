@@ -14,6 +14,9 @@
  *    with the same key then charges fresh and succeeds
  *  - over-cap text (2001 chars) → 400, no charge, no provider call
  *  - insufficient balance → 402, no charge, no provider call
+ *  - brand pronunciation: synthesis receives the "Bough" respelling
+ *    (forSpeech) while the charge key stays derived from the original
+ *    text, and words merely containing "bow" are never altered
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -27,6 +30,7 @@ const state = vi.hoisted(() => ({
   voids: [] as string[],
   providerCalls: 0,
   providerFails: false,
+  providerTexts: [] as string[],
   uploads: 0,
 }));
 
@@ -94,6 +98,7 @@ vi.mock("../../lib/objectStorage", () => ({
 import chatSpeakRouter, {
   CHAT_SPEAK_CREDITS,
   MAX_SPEAK_TEXT_CHARS,
+  forSpeech,
 } from "../chat-speak";
 
 let base = "";
@@ -105,6 +110,12 @@ beforeAll(async () => {
     const url = String(input);
     if (url.includes("api.elevenlabs.io")) {
       state.providerCalls += 1;
+      try {
+        const body = JSON.parse(
+          (init as { body?: string } | undefined)?.body ?? "{}",
+        ) as { text?: unknown };
+        if (typeof body.text === "string") state.providerTexts.push(body.text);
+      } catch { /* body capture is best-effort */ }
       if (state.providerFails) {
         return new Response("provider exploded", { status: 500 });
       }
@@ -137,6 +148,7 @@ beforeEach(() => {
   state.voids = [];
   state.providerCalls = 0;
   state.providerFails = false;
+  state.providerTexts = [];
   state.uploads = 0;
   delete process.env["THY_CHEAT_CODE_VOICE_ID"];
   process.env["ELEVENLABS_API_KEY"] = "test-key-not-real";
@@ -298,5 +310,71 @@ describe("POST /chat/speak — validation", () => {
     expect(status).toBe(400);
     expect(state.charges).toHaveLength(0);
     expect(state.providerCalls).toBe(0);
+  });
+});
+
+describe("forSpeech — brand pronunciation guard", () => {
+  it("respells the brand name mid-sentence", () => {
+    expect(forSpeech("Welcome to Bow Down Visuals, creator.")).toBe(
+      "Welcome to Bough Down Visuals, creator.",
+    );
+  });
+
+  it("respells the brand name at the start of a sentence", () => {
+    expect(forSpeech("Bow Down Visuals is your palace.")).toBe(
+      "Bough Down Visuals is your palace.",
+    );
+  });
+
+  it("respells lowercase mentions", () => {
+    expect(forSpeech("this is bow down visuals, run it back")).toBe(
+      "this is Bough Down Visuals, run it back",
+    );
+  });
+
+  it("respells the standalone Bow Down form too", () => {
+    expect(forSpeech("Around here we Bow Down to no one.")).toBe(
+      "Around here we Bough Down to no one.",
+    );
+  });
+
+  it("expands the .com form into spoken words", () => {
+    expect(forSpeech("Find it at bowdownvisuals.com today.")).toBe(
+      "Find it at Bough Down Visuals dot com today.",
+    );
+  });
+
+  it("never alters words that merely contain 'bow'", () => {
+    expect(forSpeech("A rainbow over my elbow, no charge.")).toBe(
+      "A rainbow over my elbow, no charge.",
+    );
+  });
+
+  it("passes text without the brand through unchanged", () => {
+    const plain = "Your song is ready — take it to the stage.";
+    expect(forSpeech(plain)).toBe(plain);
+  });
+
+  it("handles several mentions in one reply", () => {
+    expect(
+      forSpeech("Bow Down Visuals is the palace. Bow Down, creator — bowdownvisuals.com is home."),
+    ).toBe(
+      "Bough Down Visuals is the palace. Bough Down, creator — Bough Down Visuals dot com is home.",
+    );
+  });
+});
+
+describe("POST /chat/speak — pronunciation at the rail", () => {
+  it("synthesizes the respelled text while the charge key derives from the original", async () => {
+    castTheVoice();
+    const { status } = await postSpeak({
+      text: "Welcome to Bow Down Visuals.",
+      // No client key: the fallback key hashes the speak intent itself.
+    });
+    expect(status).toBe(200);
+    expect(state.providerTexts).toEqual(["Welcome to Bough Down Visuals."]);
+    expect(state.charges).toHaveLength(1);
+    expect(state.charges[0]!.key).toContain("Bow Down Visuals");
+    expect(state.charges[0]!.key).not.toContain("Bough");
   });
 });

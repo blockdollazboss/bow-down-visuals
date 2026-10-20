@@ -76,6 +76,25 @@ export function chatSpeakReady(): boolean {
   return Boolean(kingVoiceId() && elevenKey());
 }
 
+/* ── Brand pronunciation guard ───────────────────────────────────────── */
+
+/**
+ * "Bow" in Bow Down Visuals is BOWING — it rhymes with "how", never
+ * bow-and-arrow (owner law, Oct 20, 2026). A TTS voice reading the
+ * brand name cold can land the wrong vowel, so the fix lives at the
+ * speak rail: ONLY the text handed to synthesis is respelled
+ * ("Bough"), which forces the bowing read. The displayed/stored reply
+ * text is never touched — members keep seeing the real brand name.
+ * The bare .com form is expanded to words because a voice reading
+ * "bowdownvisuals.com" cold hits the same wrong vowel.
+ */
+export function forSpeech(text: string): string {
+  return text
+    .replace(/\bbowdownvisuals\.com\b/gi, "Bough Down Visuals dot com")
+    .replace(/\bbow\s+down\s+visuals\b/gi, "Bough Down Visuals")
+    .replace(/\bbow\s+down\b/gi, "Bough Down");
+}
+
 /* ── Request validation ──────────────────────────────────────────────── */
 
 const speakSchema = z.object({
@@ -201,8 +220,11 @@ router.post(
             "xi-api-key": apiKey,
             "Content-Type": "application/json",
           },
-          /* The King's register: dramatic delivery, natural speed. */
-          body: JSON.stringify(buildTtsRequest(text, "dramatic", 1.0)),
+          /* The King's register: dramatic delivery, natural speed.
+             Synthesis gets the forSpeech() respelling so the brand
+             name is pronounced the bowing way; the charge key above
+             stays derived from the ORIGINAL text so retries are stable. */
+          body: JSON.stringify(buildTtsRequest(forSpeech(text), "dramatic", 1.0)),
           signal: AbortSignal.timeout(120_000),
         },
       );
