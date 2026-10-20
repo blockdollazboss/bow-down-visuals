@@ -174,8 +174,8 @@ describe("operator knowledge — matching and grounding", () => {
   });
 
   it("a made-up feature matches nothing", () => {
-    expect(findFeatures("where is the quantum flux capacitor repair shop")).toEqual([]);
-    expect(buildGrounding("where is the quantum flux capacitor repair shop")).toContain(
+    expect(findFeatures("do you have a quantum flux capacitor")).toEqual([]);
+    expect(buildGrounding("do you have a quantum flux capacitor")).toContain(
       "no feature in the index matches",
     );
   });

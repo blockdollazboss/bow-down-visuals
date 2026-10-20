@@ -111,7 +111,7 @@ describe("POST /api/chat — operator grounding", () => {
   });
 
   it("an unknown feature gets honest-refusal grounding, not invented facts", async () => {
-    await postChat("Where is the quantum flux capacitor repair shop?");
+    await postChat("Do you have a quantum flux capacitor?");
     const prompt = systemPrompt();
     expect(prompt).toContain("no feature in the index matches");
     expect(prompt).toContain("does not exist");

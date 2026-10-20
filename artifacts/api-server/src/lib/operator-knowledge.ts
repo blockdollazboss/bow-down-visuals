@@ -62,21 +62,28 @@ export const OPERATOR_FEATURES: OperatorFeature[] = OPERATOR_KB.features;
 const STOPWORDS = new Set([
   "the", "a", "an", "i", "me", "my", "can", "you", "how", "do", "does", "is",
   "it", "to", "for", "of", "on", "in", "what", "where", "when", "much", "many",
-  "cost", "costs", "price", "want", "need", "make", "made", "get", "got",
+  "cost", "costs", "price", "want", "need", "get", "got",
   "with", "and", "or", "your", "yours", "this", "that", "there", "here",
   "please", "tell", "show", "give", "help", "use", "using", "about",
 ]);
+/* "make" is NOT a stopword: it is the discriminating word in the site's
+   flagship names (Make a Song, Make a Video). NAME tokenization drops
+   only pure function words, so a name keeps its verbs. */
+const NAME_STOPWORDS = new Set([
+  "the", "a", "an", "and", "or", "to", "of", "for", "in", "on", "with",
+  "it", "is", "my", "your",
+]);
 
-function tokens(text: string): string[] {
+function tokens(text: string, stop: Set<string> = STOPWORDS): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, " ")
     .split(/[\s-]+/)
-    .filter((t) => t.length > 1 && !STOPWORDS.has(t));
+    .filter((t) => t.length > 1 && !stop.has(t));
 }
 
 function nameTokens(f: OperatorFeature): string[] {
-  return tokens(f.name);
+  return tokens(f.name, NAME_STOPWORDS);
 }
 
 function pathTokens(f: OperatorFeature): string[] {
@@ -102,9 +109,16 @@ function scoreFeature(f: OperatorFeature, q: string[]): number {
     if (priceNames.includes(t)) score += 3;
     if (desc.includes(t)) score += 1;
   }
-  // Whole-phrase name mention ("brand deals") is the surest hit there is.
+  // Whole-phrase name mention ("make a song", "brand deals") is the
+  // surest hit there is: the query's words, in order, spelling the name.
   const phrase = q.join(" ");
-  if (phrase.length > 3 && f.name.toLowerCase().includes(phrase)) score += 8;
+  const namePhrase = nameTokens(f).join(" ");
+  if (
+    phrase &&
+    (phrase === namePhrase || (q.length >= 2 && ` ${namePhrase} `.includes(` ${phrase} `)))
+  ) {
+    score += 8;
+  }
   return score;
 }
 
