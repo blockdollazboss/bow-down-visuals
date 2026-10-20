@@ -1,0 +1,34 @@
+-- 0178: Pin a finished UGC ad to its product (Stack-4 wave 2 #7).
+-- UGC v1 (migration 0164) deliberately stopped at save + share: a
+-- finished ad and the shop product it advertises were not linked —
+-- shop_products had no video field and there was no pin rail, so the
+-- ad a creator made for their product could never appear ON the
+-- product. This migration adds the one missing column:
+--   pinned_ugc_ad_id — the ugc_ads row pinned to this product, or
+--     NULL when nothing is pinned. ONE column on the product row is
+--     the cardinality rule itself: a product carries at most one
+--     pinned ad, and pinning another ad to the same product replaces
+--     the pin (the previously pinned ad simply stops being the pinned
+--     one — reads derive an ad's pin state from this column, so the
+--     swap is consistent on both surfaces with no second write).
+-- Semantics, enforced in routes/ugc-ads.ts + routes/generate/shops.ts
+-- (not here):
+--   * the pin verb lives on the ad record (POST/DELETE
+--     /api/ugc-ads/:id/pin): the caller must own the ad AND the
+--     product, the ad must be finished (status 'ready' with a video),
+--     and the product must be the one the ad was made for
+--     (ugc_ads.shop_product_id) — cross-owner pins and pins to a
+--     different product are refused (foreign rows read as 404);
+--   * buyer reads (public storefront + profile store catalog) surface
+--     the pinned ad's playable video only while the product is
+--     'active' and the ad is still ready — a paused product and a
+--     not-ready ad render no pin (Stack-4 #6 DTO discipline);
+--   * deleting an ad clears any pin pointing at it; the pin is state
+--     only — no storage object is ever touched.
+-- No foreign key, matching ugc_ads.shop_product_id (a plain UUID the
+-- rails validate owner-scoped at write time); reads tolerate a
+-- dangling id by rendering no pin.
+-- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
+
+ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS pinned_ugc_ad_id UUID;
+CREATE INDEX IF NOT EXISTS shop_products_pinned_ugc_ad_idx ON shop_products (pinned_ugc_ad_id);

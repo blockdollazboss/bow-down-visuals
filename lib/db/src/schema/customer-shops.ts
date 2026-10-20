@@ -56,6 +56,15 @@ export const shopProductsTable = pgTable("shop_products", {
       'active' rows; 'paused' rows stay in the seller's own management
       views and are refused at checkout. */
   status: text("status").notNull().default("active").$type<ShopProductStatus>(),
+  /** The finished UGC ad pinned to this product (migration 0178),
+      or null. One column = the cardinality rule: at most one pinned
+      ad per product; pinning another ad replaces the pin. The pin
+      verb lives on the ad record (routes/ugc-ads.ts); buyer reads
+      surface the ad's video only while the product is 'active' and
+      the ad is still 'ready'. Plain UUID by design (no FK), exactly
+      like ugc_ads.shop_product_id — the rails validate ownership at
+      write time and reads tolerate a dangling id as "no pin". */
+  pinned_ugc_ad_id: uuid("pinned_ugc_ad_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
