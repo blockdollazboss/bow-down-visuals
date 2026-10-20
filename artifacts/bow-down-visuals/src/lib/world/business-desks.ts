@@ -655,7 +655,7 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     title: "NATIVE FOLLOW-ON: Branding stream-pack bench",
     desk: "branding-kit",
     benchPath: "/branding-kit?tab=stream",
-    note: "Stream pack generation stays a transfer bench in v1.",
+    note: "Stream pack generation stays a transfer bench in v1. The library + apply path now exist website-side (every generated graphic is recorded; 'Add to my studio' fills the Go Live studio's stream-pack tray) — a native in-world bench reading those same records is the follow-on.",
   },
   {
     id: "brand-kit-generate-edit-apply",

@@ -4,9 +4,14 @@ import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Layers,
-  MonitorPlay, Bell, LayoutPanelTop, Tv, Radio,
+  MonitorPlay, Bell, LayoutPanelTop, Tv, Radio, Plus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  fetchMyStreamPackAssets,
+  setStreamPackAssetApplied,
+  type StreamPackAssetRecord,
+} from "@/lib/stream-pack";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -59,8 +64,14 @@ const FALLBACK_CREDIT_COST = 1;
 export function StreamPackTool() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  /* ── Your library: every graphic you've ever generated here, read
+     from the server records (not this sitting's state) — and the
+     apply toggles that mark graphics for the Go Live studio tray. */
+  const [library, setLibrary] = useState<StreamPackAssetRecord[] | null>(null);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [channelName, setChannelName] = useState("");
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
   const [assets, setAssets] = useState<AssetInfo[]>([]);
@@ -96,6 +107,48 @@ export function StreamPackTool() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  /* Load the durable library (members only — generation needs an
+     account too). A failed load is an honest error with a retry,
+     never a fake empty shelf. */
+  async function loadLibrary() {
+    if (!user) return;
+    try {
+      const assets = await fetchMyStreamPackAssets(getAccessToken);
+      setLibrary(assets);
+      setLibraryError(null);
+    } catch {
+      setLibraryError(t("streamPack.libraryError"));
+    }
+  }
+
+  useEffect(() => {
+    void loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Apply / unapply one library graphic for the Go Live studio tray.
+     The server re-checks ownership and answers with the record as it
+     now stands; the card renders from that answer. */
+  async function toggleApplied(asset: StreamPackAssetRecord) {
+    if (applyingId) return;
+    setApplyingId(asset.id);
+    try {
+      const updated = await setStreamPackAssetApplied(
+        getAccessToken,
+        asset.id,
+        !asset.appliedToStudio,
+      );
+      setLibrary((list) =>
+        (list ?? []).map((a) => (a.id === updated.id ? updated : a)),
+      );
+      setLibraryError(null);
+    } catch {
+      setLibraryError(t("streamPack.libraryActionFailed"));
+    } finally {
+      setApplyingId(null);
+    }
+  }
 
   const selectedAssets = assets.filter((a) => selected.has(a.key));
   const totalCost = selectedAssets.length * creditCost;
@@ -158,6 +211,9 @@ export function StreamPackTool() {
       setResults((r) => ({ ...r, [assetKey]: { key: assetKey, label, url: data.url!, path: data.path ?? null } }));
       setStates((s) => ({ ...s, [assetKey]: "done" }));
       setDoneCount((c) => c + 1);
+      /* The server recorded this graphic — refresh the library so it
+         shows up below as a durable, applicable asset. */
+      void loadLibrary();
       return true;
     } catch {
       setStates((s) => ({ ...s, [assetKey]: "failed" }));
@@ -429,6 +485,100 @@ export function StreamPackTool() {
               </p>
             </div>
           </div>
+        )}
+
+        {/* ── Your library ── */}
+        {user && (
+          <section className="mt-10" data-testid="stream-pack-library">
+            <h2 className="text-lg font-black text-white">{t("streamPack.libraryTitle")}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/45">
+              {t("streamPack.libraryNote")}
+            </p>
+            {libraryError && (
+              <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+                <p className="text-sm text-red-200/80">{libraryError}</p>
+                <button
+                  onClick={() => void loadLibrary()}
+                  className="ml-auto shrink-0 rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white/70 hover:border-white/25 transition"
+                >
+                  {t("streamPack.retry")}
+                </button>
+              </div>
+            )}
+            {library === null && !libraryError && (
+              <p className="mt-4 inline-flex items-center gap-2 text-sm text-white/40">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("streamPack.libraryLoading")}
+              </p>
+            )}
+            {library !== null && library.length === 0 && !libraryError && (
+              <p className="mt-4 text-sm text-white/40">{t("streamPack.libraryEmpty")}</p>
+            )}
+            {library !== null && library.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {library.map((asset) => {
+                  const themeName = themes.find((th) => th.id === asset.themeId)?.name;
+                  return (
+                    <div key={asset.id} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                      <img src={asset.url} alt={asset.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />
+                      <div className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
+                          <p className="truncate text-sm font-semibold text-white">{asset.label}</p>
+                          <button
+                            onClick={() => downloadUrl(asset.url, `stream-pack-${asset.assetKey}.png`)}
+                            title={t("streamPack.download")}
+                            className="ml-auto shrink-0 rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {(themeName || asset.channelName) && (
+                          <p className="mt-1 truncate text-xs text-white/35">
+                            {[themeName, asset.channelName].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                        {asset.appliedToStudio ? (
+                          <div className="mt-3 flex items-center gap-2">
+                            <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/15 px-4 py-2.5 text-sm font-bold text-primary">
+                              <CheckCircle2 className="h-4 w-4" />
+                              {t("streamPack.inStudio")}
+                            </span>
+                            <button
+                              onClick={() => void toggleApplied(asset)}
+                              disabled={applyingId === asset.id}
+                              data-testid={`library-apply-${asset.id}`}
+                              className="shrink-0 rounded-xl border border-white/[0.12] px-3 py-2.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition disabled:opacity-60"
+                            >
+                              {applyingId === asset.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                t("streamPack.removeFromStudio")
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => void toggleApplied(asset)}
+                            disabled={applyingId === asset.id}
+                            data-testid={`library-apply-${asset.id}`}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                          >
+                            {applyingId === asset.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                            {t("streamPack.addToStudio")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         {/* Failed assets with retry */}
