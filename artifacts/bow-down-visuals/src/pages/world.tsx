@@ -2297,7 +2297,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-directory-room"
                 aria-current={here ? "true" : undefined}
-                aria-label={`${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"} inside${r.live ? ", live now" : ""}${here ? ", you're here" : ""}`}
+                aria-label={`${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"} inside${r.live ? ", live now" : ""}${r.locked ? ", door locked" : ""}${here ? ", you're here" : ""}`}
                 onClick={() => goToDirectoryRoom(r)}
                 className={`inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${
                   isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"
@@ -2312,6 +2312,14 @@ export default function WorldPage() {
                 {r.live && (
                   <span className="inline-flex items-center gap-1 font-black text-red-400">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> LIVE
+                  </span>
+                )}
+                {r.locked && (
+                  <span
+                    className={`inline-flex items-center gap-1 font-black uppercase tracking-wide ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
+                    data-testid="world-directory-room-locked"
+                  >
+                    Locked
                   </span>
                 )}
                 <span className={here ? "font-black" : ""}>
