@@ -171,7 +171,7 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
   if (window === "all" && !days) {
     const rows = await db.execute(sql`
       SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.audio_url,
-             t.play_count, t.like_count, t.duration_sec, t.created_at,
+             t.play_count, t.like_count, t.repost_count, t.duration_sec, t.created_at,
              ${PROFILE_COLS}
       FROM profile_tracks t
       JOIN creator_profiles p ON p.id = t.profile_id
@@ -183,7 +183,7 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
   const interval = windowInterval(window, days)!;
   const rows = await db.execute(sql`
     SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url, t.audio_url,
-           t.play_count, t.like_count, t.duration_sec, t.created_at,
+           t.play_count, t.like_count, t.repost_count, t.duration_sec, t.created_at,
            ${PROFILE_COLS},
            COUNT(*)::int AS window_plays
     FROM play_events e
@@ -730,6 +730,42 @@ router.get("/likes", requireAuth, asyncHandler(async (req, res) => {
       AND target_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})`)).rows as unknown as Array<{ kind: string; tid: string }>;
   const liked = new Set(rows.map((r) => `${r.kind}:${r.tid}`));
   res.json(Object.fromEntries([...wanted.keys()].map((k) => [k, liked.has(k)])));
+}));
+
+/* ─── Repost status (auth) ───────────────────────────────────────────────
+   GET /reposts?ids=track:<uuid>,… → { "track:<id>": true|false }.
+   The repost twin of /likes above: per-row Repost buttons (the
+   in-world Charts board's track rows, the website's chart rows)
+   must open showing the walker's REAL repost state. Without this
+   read a row can only assume unreposted, and re-reposting an
+   already-reposted track re-fires POST /tracks/:id/repost, whose
+   counter bump does not know the repost row already existed (the
+   insert is ON CONFLICT DO NOTHING; the bump is not). Reposts are
+   tracks-only — the repost rail has no video form — so any other
+   kind is a malformed entry here: dropped, never guessed at. The
+   answer names every valid entry asked about, reposted or not. */
+
+router.get("/reposts", requireAuth, asyncHandler(async (req, res) => {
+  const userId = req.userId!;
+  const wanted = new Map<string, string>();
+  for (const part of String(req.query.ids ?? "").split(",")) {
+    const [kind, id] = part.trim().split(":");
+    if (kind === "track" && id && /^[0-9a-f-]{36}$/i.test(id)) {
+      wanted.set(`track:${id}`, id);
+    }
+    if (wanted.size >= 50) break;
+  }
+  if (!wanted.size) {
+    res.json({});
+    return;
+  }
+  const ids = [...new Set(wanted.values())];
+  const rows = (await db.execute(sql`
+    SELECT track_id AS tid FROM reposts
+    WHERE user_id = ${userId}::uuid
+      AND track_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})`)).rows as unknown as Array<{ tid: string }>;
+  const reposted = new Set(rows.map((r) => `track:${r.tid}`));
+  res.json(Object.fromEntries([...wanted.keys()].map((k) => [k, reposted.has(k)])));
 }));
 
 /* ─── Play recording ──────────────────────────────────────────────────────

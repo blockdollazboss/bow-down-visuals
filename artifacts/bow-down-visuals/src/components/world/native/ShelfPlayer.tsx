@@ -612,9 +612,25 @@ export function NowPlayingCard({
             list is what the room hears from you next. */}
         {player.queue.length > 0 && (
           <div className="mt-3" data-testid="world-shelf-queue">
-            <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              <ListMusic className="h-3.5 w-3.5" /> Up next
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                <ListMusic className="h-3.5 w-3.5" /> Up next
+              </p>
+              {/* Clear the whole queue (2.15's proper queue): the
+                  controller has always held clearQueue — the
+                  website's player drawer shows the same Clear —
+                  but this card never surfaced it, so emptying the
+                  list meant removing every row one by one. The
+                  current song keeps playing; only Up Next empties. */}
+              <button
+                type="button"
+                data-testid="world-shelf-queue-clear"
+                onClick={player.clearQueue}
+                className={`text-[11px] font-bold transition ${isLight ? "text-[#6B5B36] hover:text-[#92600a]" : "text-white/50 hover:text-red-300"}`}
+              >
+                Clear
+              </button>
+            </div>
             <ul className="mt-1 space-y-1">
               {player.queue.map((q) => (
                 <li

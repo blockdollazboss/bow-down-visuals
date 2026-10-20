@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Check, Heart, ListPlus, Play, Plus } from "lucide-react";
+import { Check, Code2, Heart, ListPlus, Play, Plus, Repeat2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   NativeBoard,
@@ -13,6 +13,7 @@ import {
   CHART_WINDOWS,
   chartLikeIdsParam,
   chartLikeKey,
+  chartRepostIdsParam,
   chartTrackPlayInput,
   chartVideoPlayInput,
   chartsCreatorsPath,
@@ -28,13 +29,16 @@ import {
   normalizeChartVideos,
   normalizeFollowStates,
   normalizeLikeStates,
+  normalizeRepostStates,
+  repostStateFromToggle,
   type ChartCreatorRow,
   type ChartTrackRow,
   type ChartVideoRow,
   type ChartWindow,
 } from "@/lib/world/charts-board";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
-import { formatCount, toggleLike, type MediaKind } from "@/lib/streaming";
+import { shelfEmbedCode } from "@/lib/world/shelf";
+import { copyText, formatCount, toggleLike, toggleRepost, type MediaKind } from "@/lib/streaming";
 import { formatMoney } from "@/components/discovery/cards";
 import type { ShelfPlayerController } from "@/components/world/native/ShelfPlayer";
 
@@ -66,7 +70,13 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    counts are the window's own, never a re-sliced all-time list.
    Rising (7 days) and Earners (30 days) are fixed-span boards by
    definition: the switcher steps aside on those tabs rather than
-   pretend to move them. */
+   pretend to move them.
+   Listening extras (2.15 tail): track rows also carry Repost on
+   the track repost rail — seeded by its own batched read
+   (GET /api/discovery/reposts) for the same reason the hearts are
+   seeded — and every media row carries Copy embed code: the
+   website player's own iframe (shelfEmbedCode — /embed/<kind>/<id>,
+   a page the embed system really serves for tracks and videos). */
 
 type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners";
 
@@ -123,6 +133,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
   const [queuedId, setQueuedId] = useState<string | null>(null);
   const [likeStates, setLikeStates] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [likeBusy, setLikeBusy] = useState<string | null>(null);
+  const [repostStates, setRepostStates] = useState<Record<string, { reposted: boolean; count: number }>>({});
+  const [repostBusy, setRepostBusy] = useState<string | null>(null);
+  const [embedCopiedKey, setEmbedCopiedKey] = useState<string | null>(null);
   const [shelfNote, setShelfNote] = useState<string | null>(null);
 
   const authHeaders = async (): Promise<Record<string, string>> => {
@@ -259,6 +272,42 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [likeIdsParam, isGuest]);
 
+  /* The walker's repost state for the track rows on show — one
+     batched read, members only (the like read's repost twin).
+     Seeds only rows not already settled this sitting: a toggle's
+     server answer is never overwritten by a late seed. */
+  const repostIdsParam = chartRepostIdsParam(tracks ?? []);
+  useEffect(() => {
+    if (isGuest || !repostIdsParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/discovery/reposts?ids=${encodeURIComponent(repostIdsParam)}`, {
+          headers: await authHeaders(),
+        });
+        if (!res.ok) return;
+        const states = normalizeRepostStates(await res.json());
+        if (cancelled) return;
+        const countByKey = new Map<string, number>();
+        for (const r of tracks ?? []) countByKey.set(chartLikeKey("track", r.id), r.repostCount);
+        setRepostStates((prev) => {
+          const next = { ...prev };
+          for (const [key, reposted] of Object.entries(states)) {
+            if (!(key in next)) next[key] = { reposted, count: countByKey.get(key) ?? 0 };
+          }
+          return next;
+        });
+      } catch {
+        /* unknown state — rows open on the chart counts and the
+           toggle still settles them from the server's answer */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repostIdsParam, isGuest]);
+
   const toggleFollow = async (row: ChartCreatorRow) => {
     if (followBusy) return;
     const following = followStates[row.id] === true;
@@ -325,6 +374,76 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       >
         <Heart className={`h-3.5 w-3.5 ${state.liked ? "fill-[#d4af37] text-[#d4af37]" : ""}`} />
         {formatCount(state.count)}
+      </button>
+    );
+  };
+
+  /* Per-row Repost (2.15): tracks only — the repost rail has no
+     video form, so video rows never show a dead button (the Now
+     Playing card's discipline). The fold takes the server's answer
+     (lib/world/charts-board repostStateFromToggle); on failure
+     nothing flips — the row never pretends. */
+  const toggleRowRepost = async (row: ChartTrackRow) => {
+    const key = chartLikeKey("track", row.id);
+    if (repostBusy === key) return;
+    const current = repostStates[key] ?? { reposted: false, count: row.repostCount };
+    setRepostBusy(key);
+    try {
+      const res = await toggleRepost(row.id, current.reposted, await authHeaders());
+      setRepostStates((prev) => ({ ...prev, [key]: repostStateFromToggle(current, res) }));
+    } catch {
+      /* the button just doesn't flip — no toast spam in-world */
+    } finally {
+      setRepostBusy(null);
+    }
+  };
+
+  const repostButton = (row: ChartTrackRow) => {
+    const key = chartLikeKey("track", row.id);
+    const state = repostStates[key] ?? { reposted: false, count: row.repostCount };
+    return (
+      <button
+        type="button"
+        data-testid="world-charts-repost"
+        onClick={() => void toggleRowRepost(row)}
+        disabled={repostBusy === key}
+        className={
+          state.reposted
+            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50"
+            : actionBtn
+        }
+      >
+        <Repeat2 className="h-3.5 w-3.5" />
+        {state.reposted ? "Reposted" : "Repost"} {state.count > 0 ? formatCount(state.count) : ""}
+      </button>
+    );
+  };
+
+  /* Copy embed code (2.15): the website player's own iframe —
+     shelfEmbedCode builds /embed/<kind>/<id>, a page the embed
+     system really serves for BOTH kinds, so tracks and videos
+     carry the button alike. No referral code rides it: the board
+     holds no artist slug, and an invented code is not an extra. */
+  const copyRowEmbed = async (kind: MediaKind, row: ChartTrackRow | ChartVideoRow) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://bowdownvisuals.com";
+    if (await copyText(shelfEmbedCode({ kind, id: row.id, title: row.title }, origin))) {
+      const key = chartLikeKey(kind, row.id);
+      setEmbedCopiedKey(key);
+      setTimeout(() => setEmbedCopiedKey((cur) => (cur === key ? null : cur)), 2000);
+    }
+  };
+
+  const embedButton = (kind: MediaKind, row: ChartTrackRow | ChartVideoRow) => {
+    const copied = embedCopiedKey === chartLikeKey(kind, row.id);
+    return (
+      <button
+        type="button"
+        data-testid="world-charts-embed"
+        onClick={() => void copyRowEmbed(kind, row)}
+        className={actionBtn}
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-[#d4af37]" /> : <Code2 className="h-3.5 w-3.5 text-[#d4af37]" />}
+        {copied ? "Embed code copied!" : "Copy embed code"}
       </button>
     );
   };
@@ -464,39 +583,46 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   meta={`${formatCount(row.plays)} plays`}
                   highlighted={i === 0}
                   action={
-                    isGuest ? undefined : (
-                      <>
-                        {likeButton("track", row.id, row.likeCount)}
-                        <button
-                          type="button"
-                          data-testid="world-charts-play"
-                          onClick={() => play(row)}
-                          className={actionBtn}
-                        >
-                          <Play className="h-3.5 w-3.5" /> Play
-                        </button>
-                        {shelfPlayer && chartTrackPlayInput(row) && (
+                    <>
+                      {/* Embed is a read action — guests copy it
+                          too. Everything else on the row is a
+                          member act, exactly as before. */}
+                      {embedButton("track", row)}
+                      {!isGuest && (
+                        <>
+                          {likeButton("track", row.id, row.likeCount)}
+                          {repostButton(row)}
                           <button
                             type="button"
-                            data-testid="world-charts-play-here"
-                            onClick={() => playTrackHere(row)}
+                            data-testid="world-charts-play"
+                            onClick={() => play(row)}
                             className={actionBtn}
                           >
-                            <Play className="h-3.5 w-3.5" /> Play here
+                            <Play className="h-3.5 w-3.5" /> Play
                           </button>
-                        )}
-                        {shelfPlayer && chartTrackPlayInput(row) && (
-                          <button
-                            type="button"
-                            data-testid="world-charts-queue-next"
-                            onClick={() => queueTrackNext(row)}
-                            className={actionBtn}
-                          >
-                            <ListPlus className="h-3.5 w-3.5" /> Queue next
-                          </button>
-                        )}
-                      </>
-                    )
+                          {shelfPlayer && chartTrackPlayInput(row) && (
+                            <button
+                              type="button"
+                              data-testid="world-charts-play-here"
+                              onClick={() => playTrackHere(row)}
+                              className={actionBtn}
+                            >
+                              <Play className="h-3.5 w-3.5" /> Play here
+                            </button>
+                          )}
+                          {shelfPlayer && chartTrackPlayInput(row) && (
+                            <button
+                              type="button"
+                              data-testid="world-charts-queue-next"
+                              onClick={() => queueTrackNext(row)}
+                              className={actionBtn}
+                            >
+                              <ListPlus className="h-3.5 w-3.5" /> Queue next
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </>
                   }
                 />
               ))
@@ -526,21 +652,24 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   meta={`${formatCount(row.plays)} views`}
                   highlighted={i === 0}
                   action={
-                    isGuest ? undefined : (
-                      <>
-                        {likeButton("video", row.id, row.likeCount)}
-                        {shelfPlayer && chartVideoPlayInput(row) && (
-                          <button
-                            type="button"
-                            data-testid="world-charts-video-play"
-                            onClick={() => playVideoHere(row)}
-                            className={actionBtn}
-                          >
-                            <Play className="h-3.5 w-3.5" /> Watch here
-                          </button>
-                        )}
-                      </>
-                    )
+                    <>
+                      {embedButton("video", row)}
+                      {!isGuest && (
+                        <>
+                          {likeButton("video", row.id, row.likeCount)}
+                          {shelfPlayer && chartVideoPlayInput(row) && (
+                            <button
+                              type="button"
+                              data-testid="world-charts-video-play"
+                              onClick={() => playVideoHere(row)}
+                              className={actionBtn}
+                            >
+                              <Play className="h-3.5 w-3.5" /> Watch here
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </>
                   }
                 />
               ))
@@ -628,7 +757,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
             sign in
           </Link>{" "}
-          to put a track on the room, play or watch rows here, like a row, or follow a creator.
+          to put a track on the room, play or watch rows here, like or repost a row, or follow a creator.
         </p>
       )}
     </div>

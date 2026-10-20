@@ -1,10 +1,12 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Play, Eye, Heart, Users, Flame, Sparkles, SearchX, Radio } from "lucide-react";
+import { Play, Eye, Heart, Users, Flame, Sparkles, SearchX, Radio, Repeat2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { formatCount, resolveMedia } from "@/lib/streaming";
+import { formatCount, resolveMedia, toggleRepost } from "@/lib/streaming";
 import { verticalLabel } from "@/lib/verticals";
 import ShareMenu from "@/components/ShareMenu";
+import { EmbedButton } from "@/components/player/EmbedButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { FollowButton } from "./FollowButton";
 
@@ -40,6 +42,10 @@ export interface TrackLite {
   artwork_url: string | null;
   play_count: number;
   like_count: number;
+  /** Carried by the charts payload (the discovery SQL selects it);
+   *  other row sources may not send it — the Repost button then
+   *  opens on 0 and the rail's answer corrects it on first tap. */
+  repost_count?: number;
   duration_sec: number | null;
   window_plays?: number;
   slug?: string;
@@ -175,6 +181,88 @@ export function CreatorCard({
   );
 }
 
+/* ─── Row Repost (2.15 — listening extras on chart rows) ───────────────
+   The track page's Repost (MediaActions) rides the track repost
+   rail; the chart/discovery ROWS never carried it. Same rail, same
+   toggle semantics: the fold takes the server's answer, a failure
+   rolls the optimistic step back. The walker's starting state is
+   seeded from the batched repost-state read (GET
+   /api/discovery/reposts — the /likes pattern) so an
+   already-reposted track opens lit instead of re-firing the POST
+   rail, whose counter bump doesn't know the row already existed. */
+function RowRepostButton({ trackId, startCount }: { trackId: string; startCount: number }) {
+  const { user, getAccessToken } = useAuth();
+  const [reposted, setReposted] = useState(false);
+  const [count, setCount] = useState(startCount);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setCount(startCount);
+  }, [startCount]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken().catch(() => null);
+      if (!token || cancelled) return;
+      try {
+        const r = await fetch(`/api/discovery/reposts?ids=${encodeURIComponent(`track:${trackId}`)}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+        if (!r.ok || cancelled) return;
+        const d = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+        const state = d?.[`track:${trackId}`];
+        if (!cancelled && typeof state === "boolean") setReposted(state);
+      } catch {
+        /* unknown state — the toggle still settles it from the server's answer */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackId, user]);
+
+  async function handleRepost() {
+    if (!user || busy) return;
+    const token = await getAccessToken().catch(() => null);
+    if (!token) return;
+    const prev = reposted;
+    const prevCount = count;
+    setBusy(true);
+    setReposted(!prev);
+    setCount(Math.max(0, prevCount + (prev ? -1 : 1)));
+    try {
+      const res = await toggleRepost(trackId, prev, { Authorization: `Bearer ${token}` });
+      setReposted(res.reposted);
+      if (res.count != null) setCount(res.count);
+    } catch {
+      setReposted(prev);
+      setCount(prevCount);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={() => void handleRepost()}
+      disabled={busy}
+      data-testid="discovery-row-repost"
+      title={user ? (reposted ? "Undo repost" : "Repost to your profile") : "Sign in to repost"}
+      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
+        reposted
+          ? "border-emerald-400 bg-emerald-400/10 text-emerald-300"
+          : "border-white/15 text-white/60 hover:border-emerald-400/60 hover:text-emerald-300"
+      }`}
+    >
+      <Repeat2 className="h-3.5 w-3.5" />
+      {formatCount(count)}
+    </button>
+  );
+}
+
 export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: number; linkPath?: string }) {
   const { getAccessToken } = useAuth();
   const href = linkPath ?? `/track/${track.id}`;
@@ -216,6 +304,8 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
         <Play className="h-3.5 w-3.5" />
         {formatCount(track.window_plays ?? track.play_count)}
       </span>
+      <RowRepostButton trackId={track.id} startCount={track.repost_count ?? 0} />
+      <EmbedButton kind="track" id={track.id} artistSlug={track.slug} title={track.title} className="px-3 py-1.5 text-xs" />
       <ShareMenu
         getToken={getAccessToken}
         shareUrl={`${window.location.origin}${href}`}
@@ -230,39 +320,58 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
 }
 
 export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) {
+  /* The card used to be ONE whole-card link — which made every
+     row extra impossible: an artist link or an Embed button inside
+     it would nest interactive elements inside an anchor. It now
+     follows TrackRow's shape (thumbnail + title carry the watch
+     link), so the artist's name links to their page — the row's
+     more-from-this-artist door, at parity with TrackRow — and the
+     Embed button (2.15) sits in the footer. The embed system
+     really serves /embed/video/:id, so the snippet is never dead. */
   return (
-    <Link href={`/watch/${video.id}`}>
-      <article className="group cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-colors hover:border-[#e8c86a]/40">
-        <div className="relative aspect-video bg-black/40">
-          {video.thumbnail_url ? (
-            <img
-              src={resolveMedia(video.thumbnail_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2a2118] to-[#0b0603]">
-              <Play className="h-8 w-8 text-[#e8c86a]/60" />
-            </div>
-          )}
-          {typeof rank === "number" && (
-            <span className={`absolute left-2 top-2 ${rankBadge(rank)}`}>{rank + 1}</span>
-          )}
-          <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white/80">
-            <Eye className="mr-1 inline h-3 w-3" />
-            {formatCount(video.window_plays ?? video.view_count)}
-          </span>
+    <article className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-colors hover:border-[#e8c86a]/40">
+      <Link href={`/watch/${video.id}`} className="relative block aspect-video cursor-pointer bg-black/40">
+        {video.thumbnail_url ? (
+          <img
+            src={resolveMedia(video.thumbnail_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2a2118] to-[#0b0603]">
+            <Play className="h-8 w-8 text-[#e8c86a]/60" />
+          </div>
+        )}
+        {typeof rank === "number" && (
+          <span className={`absolute left-2 top-2 ${rankBadge(rank)}`}>{rank + 1}</span>
+        )}
+        <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white/80">
+          <Eye className="mr-1 inline h-3 w-3" />
+          {formatCount(video.window_plays ?? video.view_count)}
+        </span>
+      </Link>
+      <div className="p-3">
+        <Link href={`/watch/${video.id}`}>
+          <h3 className="cursor-pointer truncate text-sm font-bold group-hover:text-[#e8c86a]">{video.title}</h3>
+        </Link>
+        <p className="mt-0.5 truncate text-xs text-white/40">
+          {video.display_name ? (
+            video.slug ? (
+              <Link href={`/artist/${video.slug}`} className="hover:text-[#e8c86a]">
+                {video.display_name}
+              </Link>
+            ) : (
+              video.display_name
+            )
+          ) : null}
+          {video.genre ? ` · ${video.genre}` : ""}
+        </p>
+        <div className="mt-2.5">
+          <EmbedButton kind="video" id={video.id} artistSlug={video.slug} title={video.title} className="px-3 py-1.5 text-xs" />
         </div>
-        <div className="p-3">
-          <h3 className="truncate text-sm font-bold group-hover:text-[#e8c86a]">{video.title}</h3>
-          <p className="mt-0.5 truncate text-xs text-white/40">
-            {video.display_name ?? ""}
-            {video.genre ? ` · ${video.genre}` : ""}
-          </p>
-        </div>
-      </article>
-    </Link>
+      </div>
+    </article>
   );
 }
 
