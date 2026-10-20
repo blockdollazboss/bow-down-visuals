@@ -26,10 +26,9 @@ import {
  * On a browser with no speech recognition the button still renders,
  * and tapping it explains that instead of vanishing.
  *
- * There is deliberately no speaker/voice-out control here: the only
- * text-to-speech rails in the product are charged generation tools
- * (voiceover = 200 Visual Bucs), so spoken replies would be a new
- * per-reply charge — an owner pricing decision, not a transport one.
+ * There is deliberately no speaker control on the mic itself: spoken
+ * replies are the sibling ChatSpeakButton (lib/chat-speak), rendered
+ * per reply by the drawer — a separate, server-priced rail.
  */
 export function ChatVoiceButton({
   onTranscript,

@@ -13,9 +13,11 @@
  *  (c) the typing path is untouched (same input, same Enter handler);
  *  (d) the voice transport makes NO network calls of its own — no
  *      server transcription charge rides along with a voice message;
- *  (e) voice OUT is not wired anywhere in the chat surface: no browser
- *      speech synthesis, no call to the charged voiceover rail. Spoken
- *      replies wait on an owner pricing decision (voiceover = 200 VB).
+ *  (e) voice OUT is wired ONLY through its own rail: the per-reply
+ *      ChatSpeakButton → POST /api/chat/speak (see
+ *      chat-speak-wiring.test.ts). No browser speech synthesis and no
+ *      call to the charged voiceover rail anywhere in the chat
+ *      surface — the mic seam itself stays network-free.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -84,7 +86,7 @@ describe("chat voice wiring — spoken == typed, byte-identical request path", (
   });
 });
 
-describe("chat voice wiring — no charges, no voice-out", () => {
+describe("chat voice wiring — no charges on the mic seam", () => {
   it("the seam makes no network calls and touches no credit code", () => {
     expect(seam).not.toContain("fetch(");
     expect(seam).not.toContain("chargeCredits");
@@ -92,11 +94,12 @@ describe("chat voice wiring — no charges, no voice-out", () => {
     expect(seam).toContain("SpeechRecognition");
   });
 
-  it("voice out is not wired: no speech synthesis, no voiceover rail, no speaker control", () => {
+  it("the mic button carries no speaker control — voice-out is the sibling ChatSpeakButton", () => {
+    expect(button).not.toContain("Volume2");
+    expect(chat).toContain("<ChatSpeakButton");
     for (const src of [chat, button, seam]) {
       expect(src).not.toContain("speechSynthesis");
       expect(src).not.toContain('"/api/voiceover');
     }
-    expect(button).not.toContain("Volume2");
   });
 });
