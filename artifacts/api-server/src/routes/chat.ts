@@ -7,10 +7,11 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import {
-  CHAT_SYSTEM_PROMPT,
+  buildChatSystemPrompt,
   CHAT_MAX_OUTPUT_TOKENS,
   getChatCreditCost,
 } from "../lib/ai-chat-assistant";
+import { findInventedPrice, PRICE_FALLBACK_REPLY } from "../lib/operator-knowledge";
 
 const router = Router();
 
@@ -90,7 +91,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     const completion = await getOpenAI().chat.completions.create({
       model,
       messages: [
-        { role: "system", content: CHAT_SYSTEM_PROMPT },
+        { role: "system", content: buildChatSystemPrompt(message) },
         ...history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: message.trim() },
       ],
@@ -98,9 +99,18 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       temperature: 0.7,
     });
 
-    const reply =
+    let reply =
       completion.choices[0]?.message?.content?.trim() ||
       "My fins slipped — could you ask that again? 🦈";
+
+    /* No-invention guard (Cloud Operator Phase 1): if the model still
+       quoted a VB figure that exists nowhere in the generated knowledge
+       base, the reply does not ship — an honest no-number answer does. */
+    const invented = findInventedPrice(reply);
+    if (invented !== null) {
+      logger.warn({ invented }, "[chat] reply quoted a price outside the knowledge base — replaced");
+      reply = PRICE_FALLBACK_REPLY;
+    }
 
     res.json({ reply, model, creditCost: chatCreditCost });
   } catch (err) {
