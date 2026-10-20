@@ -315,7 +315,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
   const shop = shopRows[0] ?? null;
   const shopProducts = shop
     ? await db.select().from(shopProductsTable)
-        .where(eq(shopProductsTable.shop_id, shop.id))
+        .where(and(eq(shopProductsTable.shop_id, shop.id), eq(shopProductsTable.status, "active")))
         .orderBy(desc(shopProductsTable.created_at))
     : [];
 
@@ -369,10 +369,14 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
   }
   if (shop) {
     /* Pinned UGC ads (migration 0178): resolve the shop products'
-       pins in one read. The render rule matches the storefront
-       reads — the ad surfaces only while the product is 'active'
-       (a paused product is unlisted for buyers, Stack-4 #6) and the
-       ad itself is still 'ready' with a video. */
+       pins in one read. The shop-products query above already
+       filters to 'active' in SQL — the same buyer-read rule as
+       generate/shops.ts (Stack-4 #6): a paused product does not
+       list in this catalog at all, so its ad can never surface
+       here either. The render rule for the pin itself matches the
+       storefront reads — the ad must still be 'ready' with a
+       video. (The per-item status checks below stay as a second
+       belt on the same rule.) */
     const pinnedIds = [
       ...new Set(
         shopProducts

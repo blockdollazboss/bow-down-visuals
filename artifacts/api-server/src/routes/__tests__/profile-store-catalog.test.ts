@@ -121,10 +121,15 @@ beforeEach(() => {
     {
       id: SHOP_PRODUCT, shop_id: SHOP, user_id: OWNER, name: "Shark Plush",
       price_cents: 2500, image_url: "https://cdn.example/plush.png", created_at: new Date(),
+      /* status is a real column since migration 0176 (default
+         'active'); the catalog's buyer read filters on it, so the
+         fixture must carry it like a real row. */
+      status: "active",
     },
     {
       id: FOREIGN_SHOP_PRODUCT, shop_id: "99999999-9999-4999-8999-999999999999", user_id: OTHER_USER,
       name: "Not Theirs", price_cents: 100, image_url: null, created_at: new Date(),
+      status: "active",
     },
   ]);
 });

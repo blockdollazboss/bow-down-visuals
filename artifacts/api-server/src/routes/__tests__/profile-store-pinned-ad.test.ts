@@ -5,7 +5,9 @@
  * Contract pinned here: a shop product's catalog item carries
  * `pinnedAd: { id, videoUrl }` only while the product is 'active' and
  * the pinned ad is still 'ready' with a video (the same render rule
- * as the storefront reads). A paused product shows no ad; a pin to a
+ * as the storefront reads). A paused product does not list in the
+ * catalog at all (the shop-products read filters status='active' in
+ * SQL, matching the buyer reads — integration fix-in); a pin to a
  * not-ready ad shows no ad; every other item carries pinnedAd: null.
  * videoUrl leaves buildStoreCatalog as the storage ref — the route's
  * deep refresh mints it on the way out (mocked identity here, exactly
@@ -122,7 +124,7 @@ async function get(path: string) {
 }
 
 describe("GET /creator-profiles/:slug/store-catalog — pinned UGC ads", () => {
-  it("an active product with a ready pinned ad carries it; paused and draft pins carry none", async () => {
+  it("an active product with a ready pinned ad carries it; a paused product does not list at all; a draft pin carries none", async () => {
     const r = await get("/creator-profiles/owner-creator/store-catalog");
     expect(r.status).toBe(200);
     const byId = new Map(r.body.items.map((i: any) => [i.id, i]));
@@ -131,10 +133,11 @@ describe("GET /creator-profiles/:slug/store-catalog — pinned UGC ads", () => {
       id: AD_READY,
       videoUrl: "supabase://generated-clips/ugc-ads/ready.mp4",
     });
-    /* The paused product still lists (its pre-existing catalog
-       behavior) but its ad does NOT surface while it is unlisted
-       for buyers. */
-    expect(byId.get(SP_PAUSED_PINNED).pinnedAd).toBeNull();
+    /* A paused product is unlisted for buyers everywhere: it must
+       not appear in the profile store catalog AT ALL (not merely
+       with its ad withheld), and it must not count either. */
+    expect(byId.has(SP_PAUSED_PINNED)).toBe(false);
+    expect(r.body.counts.products).toBe(2);
     expect(byId.get(SP_DRAFT_PIN).pinnedAd).toBeNull();
   });
 });
