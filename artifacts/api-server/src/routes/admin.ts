@@ -16,6 +16,9 @@
  *                                  content-removal rail: take a post or
  *                                  thread reply down (reversibly, with
  *                                  the reason recorded) or restore it.
+ *  GET  /api/admin/operator-actions  the Cloud Operator's action
+ *                                  trail (Phase 2): what the executor
+ *                                  ran or refused, newest first.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
@@ -25,6 +28,7 @@ import { recordCreditUsageStrict } from "../lib/payment-record";
 import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable, contentReportsTable, CONTENT_REPORT_STATUSES, postsTable, creatorProfilesTable, POST_REMOVAL_REASONS } from "@workspace/db";
 import { eq, isNull, isNotNull, inArray, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { listOperatorActions, OPERATOR_DAILY_CHARGED_CAP, operatorHandsEnabled } from "../lib/operator-executor";
 
 const router = Router();
 
@@ -994,6 +998,48 @@ router.post("/admin/users/:id/unban", requireAuth, requireAdmin, async (req, res
   } catch (err) {
     req.log.error({ err }, "admin: unban user failed");
     res.status(500).json({ error: "Could not unban the user." });
+  }
+});
+
+/**
+ * GET /api/admin/operator-actions?limit=
+ * The Cloud Operator's action trail (Phase 2): every action the
+ * executor ran or refused, newest first — who it ran as, the tool,
+ * the channel, the quoted/charged price, and the outcome with its
+ * reason. Read-only: the rows are written by the executor from rail
+ * results; this bench never edits them. The member's own scoped
+ * readback is GET /api/operator/actions.
+ */
+router.get("/admin/operator-actions", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limitRaw = Number(req.query["limit"]);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : 50;
+    const actions = await listOperatorActions(limit);
+    res.json({
+      /* The daily charged cap rides along so the bench shows the
+         runaway guard's setting beside the trail it guards. */
+      dailyChargedCap: OPERATOR_DAILY_CHARGED_CAP,
+      handsEnabled: operatorHandsEnabled(),
+      actions: actions.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        adminEmail: r.adminEmail,
+        tier: r.tier,
+        toolId: r.toolId,
+        summary: r.summary,
+        target: r.target,
+        channel: r.channel,
+        priceQuoted: r.priceQuoted,
+        priceCharged: r.priceCharged,
+        idempotencyKey: r.idempotencyKey,
+        result: r.result,
+        resultReason: r.resultReason,
+        createdAt: r.createdAt,
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin: list operator actions failed");
+    res.status(500).json({ error: "Could not load operator actions." });
   }
 });
 
