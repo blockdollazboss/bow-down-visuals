@@ -184,13 +184,20 @@ router.get("/creator-profiles/me/theme-settings", publicApiLimiter, requireAuth,
   }
 });
 
+/* Each field is nullish on purpose: the GET above honestly reports
+   null for a pick that was never made (an untouched profile, or a
+   legacy "custom" look with no registry colorway), and the editor
+   sends its whole loaded state back on save. A null field therefore
+   means "no pick — leave it alone", never a value to validate; only
+   real strings are checked against the registries below. A save whose
+   fields are ALL null/absent changes nothing and is refused. */
 const themeSettingsSchema = z
   .object({
-    colorway: z.string().max(60).optional(),
-    headingFont: z.string().max(60).optional(),
-    bodyFont: z.string().max(60).optional(),
+    colorway: z.string().max(60).nullish(),
+    headingFont: z.string().max(60).nullish(),
+    bodyFont: z.string().max(60).nullish(),
   })
-  .refine((d) => d.colorway !== undefined || d.headingFont !== undefined || d.bodyFont !== undefined, {
+  .refine((d) => d.colorway != null || d.headingFont != null || d.bodyFont != null, {
     message: "Send at least one setting to change.",
   });
 
@@ -206,7 +213,11 @@ router.put("/creator-profiles/me/theme-settings", publicApiLimiter, requireAuth,
       res.status(400).json({ error: "INVALID_THEME_SETTINGS", message: parsed.error.issues[0]?.message ?? "Invalid theme settings." });
       return;
     }
-    const { colorway, headingFont, bodyFont } = parsed.data;
+    /* Nulls collapse to undefined here — everything below keys off
+       "!== undefined" to mean "the creator actually picked this". */
+    const colorway = parsed.data.colorway ?? undefined;
+    const headingFont = parsed.data.headingFont ?? undefined;
+    const bodyFont = parsed.data.bodyFont ?? undefined;
 
     const colorwayDef = colorway !== undefined ? colorwayById(colorway) : undefined;
     if (colorway !== undefined && !colorwayDef) {

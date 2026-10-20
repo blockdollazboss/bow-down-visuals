@@ -525,6 +525,52 @@ describe("#3 theme settings", () => {
     expect(row["themeId"]).toBe("velvet-lounge");
   });
 
+  it("saving one pick from an unpicked look leaves the other picks alone", async () => {
+    /* The editor's exact round trip: it loads the settings (nulls for
+       an unpicked look — pinned above) and sends the whole state back
+       on Save. A null field is "no pick", not a value: the save must
+       apply the one real change and leave the rest untouched instead
+       of 400ing on the nulls its own GET handed out. */
+    const put = await call("PUT", "/creator-profiles/me/theme-settings", {
+      user: FAN_USER,
+      body: { colorway: null, headingFont: "Space Grotesk", bodyFont: null },
+    });
+    expect(put.status).toBe(200);
+    expect(put.json.headingFont).toBe("Space Grotesk");
+    expect(put.json.colorway).toBeNull();
+    expect(put.json.bodyFont).toBeNull();
+    const row = h.state.profilesById.get(FAN_PROFILE)!;
+    const cfg = row["themeConfig"] as Record<string, any>;
+    expect(cfg.fonts.heading).toBe("Space Grotesk");
+    expect(cfg.fonts.body).toBeUndefined();
+    expect(row["themeId"]).toBe("gold-lux"); // untouched — no colorway was picked
+
+    /* And the mirror image: picking a colorway next must not demand
+       the fonts be re-sent as strings either. */
+    const put2 = await call("PUT", "/creator-profiles/me/theme-settings", {
+      user: FAN_USER,
+      body: { colorway: "royal-gold", headingFont: null, bodyFont: null },
+    });
+    expect(put2.status).toBe(200);
+    expect(put2.json.colorway).toBe("royal-gold");
+    expect(put2.json.headingFont).toBe("Space Grotesk"); // the earlier pick survives
+  });
+
+  it("a save carrying no picks at all is refused, and nulls don't smuggle bad keys", async () => {
+    const empty = await call("PUT", "/creator-profiles/me/theme-settings", {
+      user: FAN_USER,
+      body: { colorway: null, headingFont: null, bodyFont: null },
+    });
+    expect(empty.status).toBe(400);
+    expect(empty.json.error).toBe("INVALID_THEME_SETTINGS");
+    const bad = await call("PUT", "/creator-profiles/me/theme-settings", {
+      user: FAN_USER,
+      body: { colorway: "neon-glow", headingFont: null },
+    });
+    expect(bad.status).toBe(400);
+    expect(bad.json.error).toBe("UNKNOWN_COLORWAY");
+  });
+
   it("rejects unknown colorways and fonts — keys only, never raw CSS", async () => {
     const badColor = await call("PUT", "/creator-profiles/me/theme-settings", {
       user: OWNER_USER, body: { colorway: "#ff0000" },
