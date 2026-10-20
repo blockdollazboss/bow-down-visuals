@@ -319,9 +319,17 @@ export async function executeAction(input: ExecuteInput): Promise<ExecutorOutcom
   }
 
   /* Gate 2 — Tier 4 authority: admin session or nothing runs. The
-     refusal leaks nothing about any target (design §2). */
+     refusal leaks nothing about any target (design §2) — the REPLY
+     names nobody. The AUDIT row, which only admins read, does
+     carry the attempted target when the caller named one in plain
+     args: an authority attempt is recorded whole (who, what,
+     target), so the King can see exactly what was tried. */
   if (tool.tier === 4 && !admin) {
-    await writeAudit({ ...auditBase, result: "refused", resultReason: "not_admin" });
+    const attemptedTarget =
+      typeof args.target === "string" && args.target.trim().length > 0
+        ? args.target.trim().slice(0, 120)
+        : null;
+    await writeAudit({ ...auditBase, target: attemptedTarget, result: "refused", resultReason: "not_admin" });
     return refusedOutcome(tool, "not_admin",
       "That's the King's call, not one I can take from you. I can answer questions, guide you, or file a report for a human to look at.");
   }

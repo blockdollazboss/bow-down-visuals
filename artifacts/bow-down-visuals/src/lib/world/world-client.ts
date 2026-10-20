@@ -136,6 +136,9 @@ export interface PalaceDirectoryEntry {
   count: number;
   members: string[];
   live: boolean;
+  /** The room's door is locked (Lane F): the people inside stay,
+   *  nobody new joins — only an admin account can still walk in. */
+  locked?: boolean;
   /** This room's booked slate (live + upcoming), when any. */
   events?: PalaceDirectoryEvent[];
   /** Creator rooms only (Ring 2, 3.5): the room owner's profile

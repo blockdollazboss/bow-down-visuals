@@ -21,6 +21,11 @@ interface Peer extends StageIdentity {
   peerId: string; socket: WsClientSocket; role: "host" | "speaker" | "listener"; voice: boolean;
 }
 export interface StagePeerDto { peerId: string; displayName: string; role: Peer["role"]; guest: boolean; voice: boolean }
+/** One person standing in a stage room, as a plain record with
+ *  their account id — the shape the Cloud Operator's Tier-4 stage
+ *  commands resolve names against (Lane F). The wire DTO above
+ *  deliberately omits userId; this record never leaves the server. */
+export interface StagePresentMember { peerId: string; userId: string | null; displayName: string; role: Peer["role"]; guest: boolean }
 
 export class StageRoom {
   private peers = new Map<WsClientSocket, Peer>();
@@ -73,6 +78,23 @@ export class StageRoom {
     if (this.peers.size === 0) stageRooms.delete(this.roomId);
   }
 
+  /** The people standing in this room right now, as plain records
+   *  — the Cloud Operator's name resolution reads these (Lane F). */
+  presentMembers(): StagePresentMember[] {
+    return [...this.peers.values()].map((p) => ({
+      peerId: p.peerId, userId: p.userId, displayName: p.displayName, role: p.role, guest: p.userId === null,
+    }));
+  }
+
+  /** The role change itself, shared by both doors in: the host's
+   *  socket command (setRole) and the operator's Tier-4 command
+   *  (setRoleByAuthority). One rail, one broadcast, one meaning. */
+  private applyRole(target: Peer, role: "speaker" | "listener"): void {
+    target.role = role;
+    if (role === "listener") target.voice = false;
+    this.broadcast({ type: "peer.role", peerId: target.peerId, role, voice: target.voice });
+  }
+
   /** Host-only role change. Returns an honest error string or null. */
   setRole(bySocket: WsClientSocket, targetPeerId: string, role: "speaker" | "listener"): string | null {
     const actor = this.peers.get(bySocket);
@@ -83,9 +105,25 @@ export class StageRoom {
     if (role === "speaker" && target.role !== "speaker" && this.speakerCount() >= STAGE_SPEAKER_CAP) {
       return `The stage is full — ${STAGE_SPEAKER_CAP} speakers at once is the room limit.`;
     }
-    target.role = role;
-    if (role === "listener") target.voice = false;
-    this.broadcast({ type: "peer.role", peerId: target.peerId, role, voice: target.voice });
+    this.applyRole(target, role);
+    return null;
+  }
+
+  /** The operator's door in (Lane F, Tier 4): the same role change
+   *  without a host socket — the authority was the executor's
+   *  fail-closed ADMIN_EMAILS gate on the admin's chat session
+   *  (standing law: an admin account holds ALL controls in the
+   *  World, not only in rooms they host). Every rail rule still
+   *  applies: the host always keeps the stage, and the speaker
+   *  cap is the room's limit. Returns an honest error or null. */
+  setRoleByAuthority(targetPeerId: string, role: "speaker" | "listener"): string | null {
+    const target = [...this.peers.values()].find((p) => p.peerId === targetPeerId);
+    if (!target) return "That person isn't in the room anymore.";
+    if (target.role === "host") return "The host always keeps the stage.";
+    if (role === "speaker" && target.role !== "speaker" && this.speakerCount() >= STAGE_SPEAKER_CAP) {
+      return `The stage is full — ${STAGE_SPEAKER_CAP} speakers at once is the room limit.`;
+    }
+    this.applyRole(target, role);
     return null;
   }
 

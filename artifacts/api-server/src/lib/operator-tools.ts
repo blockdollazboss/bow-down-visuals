@@ -20,7 +20,8 @@
    those two handlers reach them by dynamic import: the layering
    stays one-directional (routes import lib, never the reverse at
    load time) and no load-order cycle can form. Lane D's Tier-2 free
-   writes live in lib/operator-tools-tier2.ts and merge in below. */
+   writes live in lib/operator-tools-tier2.ts and Lane F's Tier-4
+   admin verbs in lib/operator-tools-tier4.ts; both merge in below. */
 
 import { getCreditBalance } from "./credits";
 import { getDailyQuestsStatus, dbDailyQuestStore } from "./daily-quests";
@@ -32,6 +33,7 @@ import {
   seasonForDate,
 } from "./world-court-season";
 import { TIER2_HANDLERS } from "./operator-tools-tier2";
+import { TIER4_HANDLERS } from "./operator-tools-tier4";
 import {
   OPERATOR_TOOL_DEFS,
   type OperatorToolDef,
@@ -282,6 +284,8 @@ const HANDLERS: Record<string, OperatorTool["handler"]> = {
      lib/operator-tools-tier3.ts and are merged in here so this file
      stays the one registry. */
   ...TIER3_HANDLERS,
+  /* Tier 4 — admin-only World verbs (Lane F, lib/operator-tools-tier4.ts). */
+  ...TIER4_HANDLERS,
 };
 
 const VALIDATORS: Record<string, NonNullable<OperatorTool["validateArgs"]>> = {
