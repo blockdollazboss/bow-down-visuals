@@ -24,6 +24,7 @@ import { formatBucs } from "@/lib/visual-bucs";
 import { useTranslation } from "react-i18next";
 import MyClips from "@/pages/my-clips";
 import SongsPage from "@/pages/songs";
+import { parseMyProjectsTab, type MyProjectsTab } from "@/lib/my-projects-tabs";
 import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 
 /** Project types that can be opened in the Video Editor. */
@@ -696,13 +697,28 @@ export default function MyProjects() {
   const { t } = useTranslation();
   usePageTitle(t("myProjects.pageTitle"), t("myProjects.pageDescription"));
   const { user, getAccessToken } = useAuth();
-  const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history" | "myclips" | "songs">(() => {
+  /* Every tab is deep-linkable: shipped redirects promise specific
+     tabs (/generations → ?tab=history, /my-clips → ?tab=myclips,
+     /songs → ?tab=songs), and the parser honors all six ids. */
+  const [tab, setTab] = useState<MyProjectsTab>(() => {
     try {
-      const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "myclips" || q === "songs") return q;
-    } catch { /* non-browser — ignore */ }
+      return parseMyProjectsTab(window.location.search);
+    } catch { /* non-browser — default tab */ }
     return "projects";
   });
+
+  /* Switching tabs updates the URL in place (no remount), so a
+     refresh or a copied link lands on the tab the user is looking
+     at. Other params (e.g. the songs tab's song=/addToAlbum=) ride
+     along untouched. */
+  function selectTab(next: MyProjectsTab) {
+    setTab(next);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url);
+    } catch { /* non-browser — the tab still switched */ }
+  }
 
   const [history, setHistory]             = useState<GenerationHistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -881,7 +897,7 @@ export default function MyProjects() {
           {TABS.map((tabItem) => (
             <button
               key={tabItem.id}
-              onClick={() => setTab(tabItem.id)}
+              onClick={() => selectTab(tabItem.id)}
               className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
                 tab === tabItem.id
                   ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"

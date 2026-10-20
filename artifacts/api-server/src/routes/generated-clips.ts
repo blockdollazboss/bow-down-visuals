@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, generatedClipsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { recordRunwayClipHistory } from "../lib/payment-record";
 import { refundCredits } from "../lib/credits";
@@ -170,13 +170,21 @@ router.get("/generated-clips", requireAuth, async (req, res) => {
   }
 });
 
-/* DELETE /api/generated-clips/:id */
+/* DELETE /api/generated-clips/:id — owner-scoped (the drafts.ts house
+   pattern): a signed-in user can only delete their OWN clips. The
+   response is the same success shape whether the clip was theirs,
+   someone else's, or never existed — no existence leak. */
 router.delete("/generated-clips/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     await db
       .delete(generatedClipsTable)
-      .where(eq(generatedClipsTable.id, id));
+      .where(
+        and(
+          eq(generatedClipsTable.id, id),
+          eq(generatedClipsTable.user_id, req.userId!),
+        ),
+      );
     res.json({ success: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to delete clip";
