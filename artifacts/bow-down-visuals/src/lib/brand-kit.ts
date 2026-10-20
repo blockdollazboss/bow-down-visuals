@@ -43,7 +43,16 @@ export interface BrandKitPatch {
   selectedTagline?: string | null;
   bioLines?: string[];
   pressFacts?: string[];
+  /** Hand-tuned palette — replaces the stored palette wholesale. Roles
+   *  must be unique (the server enforces the generator's vocabulary). */
+  colors?: BrandKitColor[];
+  /** Hand-tuned font pairings — replaces the stored pairings wholesale. */
+  fonts?: BrandKitFont[];
 }
+
+/** The palette roles the generator uses — the only roles consumers
+ *  resolve by (apply-to-theme, the UGC snapshot's primary color). */
+export const BRAND_KIT_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
 
 export interface GenerateBrandKitResult {
   /** Raw generated kit, as the endpoint has always returned it. */
@@ -162,7 +171,8 @@ export async function saveLogoToBrandKit(
   };
 }
 
-/** Save manual fields (logo, tagline pick, bio lines, press facts). Free. */
+/** Save manual fields (logo, tagline pick, bio lines, press facts) and
+ *  hand-tuned colors/fonts. Free. */
 export async function saveBrandKit(getAccessToken: GetAccessToken, patch: BrandKitPatch): Promise<BrandKit> {
   const data = await brandKitFetch(getAccessToken, "/api/brand-kit", {
     method: "PUT",

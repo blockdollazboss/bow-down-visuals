@@ -10,7 +10,11 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
+  buildBrandKitGeneratePayload,
+  brandKitGenerateReady,
   LOGO_MODELS,
   logoModelCost,
   INTRO_COST_VISUAL_BUCS,
@@ -92,6 +96,62 @@ describe("job kit — logo / intro start + poll interpretation", () => {
     expect(jobPollOutcome({ status: "cancelled" }).kind).toBe("failed");
     expect(jobPollOutcome({ status: "processing", progress: 40 })).toEqual({ kind: "pending" });
     expect(jobPollOutcome({})).toEqual({ kind: "pending" });
+  });
+});
+
+describe("brand kit desk verbs (Ring 4: generate / edit / apply in-world)", () => {
+  it("generation costs the server's standing 200 Visual Bucs", () => {
+    expect(BRAND_KIT_GENERATE_COST_VISUAL_BUCS).toBe(200);
+  });
+
+  it("generate payload trims and only sends an industry when typed", () => {
+    expect(buildBrandKitGeneratePayload({ brandName: "  King Shark ", vibe: " royal gold " })).toEqual({
+      brandName: "King Shark",
+      vibe: "royal gold",
+    });
+    expect(
+      buildBrandKitGeneratePayload({ brandName: "KS", vibe: "bold", industry: " music " }),
+    ).toEqual({ brandName: "KS", vibe: "bold", industry: "music" });
+    expect(buildBrandKitGeneratePayload({ brandName: "KS", vibe: "bold", industry: "  " })).toEqual({
+      brandName: "KS",
+      vibe: "bold",
+    });
+  });
+
+  it("readiness mirrors the hub panel: a name and a vibe of 3+ characters", () => {
+    expect(brandKitGenerateReady({ brandName: "KS", vibe: "royal" })).toBe(true);
+    expect(brandKitGenerateReady({ brandName: "  ", vibe: "royal" })).toBe(false);
+    expect(brandKitGenerateReady({ brandName: "KS", vibe: "ab" })).toBe(false);
+    expect(brandKitGenerateReady({ brandName: "KS", vibe: "  ab  " })).toBe(false);
+  });
+
+  it("the desk component wires the verbs to the website's own endpoints", () => {
+    const deskSrc = readFileSync(
+      new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url),
+      "utf8",
+    );
+    // Generate: the confirmed-charge POST, priced before it runs.
+    expect(deskSrc).toContain('confirmedFetch("/api/brand-kit"');
+    expect(deskSrc).toContain("overrideCost: BRAND_KIT_GENERATE_COST_VISUAL_BUCS");
+    expect(deskSrc).toContain('overrideFeature: "Brand Kit Generator"');
+    expect(deskSrc).toContain("buildBrandKitGeneratePayload(");
+    // Tagline pick: the free PUT save through the shared client.
+    expect(deskSrc).toContain("saveBrandKit(getAccessToken, { selectedTagline: line })");
+    // Apply: the free apply endpoint through the shared client.
+    expect(deskSrc).toContain("applyBrandKit(getAccessToken)");
+  });
+
+  it("the hub panel edits colors/fonts and saves them through the same PUT", () => {
+    const panelSrc = readFileSync(
+      new URL("../../components/branding/BrandKitPanel.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(panelSrc).toContain('type="color"');
+    expect(panelSrc).toContain("BRAND_KIT_COLOR_ROLES");
+    expect(panelSrc).toContain("colors: colors.map(");
+    expect(panelSrc).toContain("fonts: fonts.map(");
+    // Role picks swap rather than collide (the server requires unique roles).
+    expect(panelSrc).toContain("setRoleAt");
   });
 });
 
