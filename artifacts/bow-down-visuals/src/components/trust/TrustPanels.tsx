@@ -425,16 +425,18 @@ export function EarningsDocuments() {
 export function ClaimsPanel() {
   const { getAccessToken } = useAuth();
   const [claims, setClaims] = useState<any[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
-    try { const t = await getAccessToken(); const c = await api(t, "GET", "/api/content-id/claims"); setClaims(c.claims ?? []); }
-    catch { setClaims([]); }
+    try { const t = await getAccessToken(); const c = await api(t, "GET", "/api/content-id/claims"); setClaims(c.claims ?? []); setLoadFailed(false); }
+    catch { setLoadFailed(true); }
   }, [getAccessToken]);
   useEffect(() => { void load(); }, [load]);
   async function act(id: string, action: string) {
     try { const t = await getAccessToken(); await api(t, "PATCH", `/api/content-id/claims/${id}`, { action, note: notes[id] ?? "" }); void load(); } catch { /* surfaced on reload */ }
   }
-  if (claims === null) return null;
+  if (claims === null && !loadFailed) return null;
+  const list = claims ?? [];
   return (
     <section className={card}>
       <h2 className="text-lg font-black tracking-tight">Matches &amp; claims</h2>
@@ -443,8 +445,13 @@ export function ClaimsPanel() {
         position in the upload, and how much matched. Either side&apos;s claim carries the same weight; a match
         moves no money until it&apos;s resolved, and every resolution records its reason.
       </p>
-      {claims.length === 0 && <p className="mt-3 text-sm text-muted-foreground">No matches recorded yet. Matches are made when audio is scanned at upload.</p>}
-      {claims.map((c) => (
+      {loadFailed ? (
+        <div className="mt-3">
+          <p className="text-sm text-destructive">Couldn&apos;t load your matches &amp; claims.</p>
+          <button type="button" className={ghost + " mt-2"} onClick={() => void load()}>Retry</button>
+        </div>
+      ) : list.length === 0 && <p className="mt-3 text-sm text-muted-foreground">No matches recorded yet. Matches are made when audio is scanned at upload.</p>}
+      {list.map((c) => (
         <div key={c.id} className="mt-3 rounded-xl border border-border p-4 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <span><strong>{c.sourceLabel || "Upload"}</strong> — you are the {c.youAre}</span>

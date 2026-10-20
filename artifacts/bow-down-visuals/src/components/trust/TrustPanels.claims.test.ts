@@ -79,4 +79,16 @@ describe("ClaimsPanel — the claim management surface", () => {
     expect(claimsPanel).toContain("every resolution records its reason");
     expect(claimsPanel).toContain("No matches recorded yet.");
   });
+
+  it("a failed load says so with a retry — it never renders as an empty list", () => {
+    // The catch records the failure; it must not settle the claims
+    // state to an empty array (that rendered "No matches recorded
+    // yet." for a load that never happened).
+    expect(claimsPanel).toContain("catch { setLoadFailed(true); }");
+    expect(claimsPanel).not.toContain("catch { setClaims([]); }");
+    expect(claimsPanel).toContain("Couldn't load your matches");
+    expect(claimsPanel).toContain("onClick={() => void load()}>Retry</button>");
+    // The empty state only renders when the load did not fail.
+    expect(claimsPanel).toContain("loadFailed ? (");
+  });
 });
