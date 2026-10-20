@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "0088f868adcb495b909cbea7454b62f5344b6dcd",
+  "baseCommit": "774e2a08c87347cc5948960f7ee99e16f115e494",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11,12 +11,13 @@
   "counts": {
     "routesInApp": 223,
     "pageFiles": 175,
-    "features": 216,
+    "features": 218,
     "excludedRoutes": 64,
     "excludedPageFiles": 34,
     "pricedActions": 200,
     "guides": 11,
-    "desks": 5
+    "desks": 5,
+    "takeoverOffers": 2
   },
   "packs": [
     {
@@ -4600,6 +4601,75 @@
       ],
       "prices": [],
       "nextSteps": []
+    },
+    {
+      "id": "spotlight-takeover",
+      "name": "Spotlight Takeover",
+      "nameSource": "lib/db/src/schema/spotlight.ts SPOTLIGHT_OFFER.name — served verbatim by GET /api/spotlight/offer",
+      "path": "/charts",
+      "stage": "promote",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/discovery/charts.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/spotlight/inquire",
+        "/api/spotlight/offer"
+      ],
+      "prices": [],
+      "offer": {
+        "priceDollars": 1000,
+        "durationDays": 7,
+        "surfaces": [
+          "Sign-in screen",
+          "Sign-up screen"
+        ],
+        "inquiryEndpoint": "/api/spotlight/inquire",
+        "doorLabel": "Charts — For Brands tab",
+        "source": "lib/db/src/schema/spotlight.ts SPOTLIGHT_OFFER — served verbatim by GET /api/spotlight/offer (artifacts/api-server/src/routes/spotlight.ts)"
+      },
+      "description": "Paid advertising placement for 7 days — Sign-in screen · Sign-up screen. Full-screen muted looping video background. 1080p MP4, up to 30 seconds. Your link on the “Ad” badge click-through. Runs on both the sign-in and sign-up screens.",
+      "descriptionSource": "lib/db/src/schema/spotlight.ts SPOTLIGHT_OFFER (surfaces + specs)",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
+    },
+    {
+      "id": "loading-screen-takeover",
+      "name": "Loading Screen Takeover",
+      "nameSource": "lib/db/src/schema/loading-screen.ts LOADING_SCREEN_OFFER.name — served verbatim by GET /api/loading-screen/offer",
+      "path": "/charts",
+      "stage": "promote",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/discovery/charts.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/loading-screen/inquire",
+        "/api/loading-screen/offer"
+      ],
+      "prices": [],
+      "offer": {
+        "priceDollars": 2500,
+        "durationDays": 7,
+        "surfaces": [
+          "Loading screens"
+        ],
+        "inquiryEndpoint": "/api/loading-screen/inquire",
+        "doorLabel": "Charts — For Brands tab",
+        "source": "lib/db/src/schema/loading-screen.ts LOADING_SCREEN_OFFER — served verbatim by GET /api/loading-screen/offer (artifacts/api-server/src/routes/loading-screen.ts)"
+      },
+      "description": "Paid advertising placement for 7 days — Loading screens. Your brand across every loading screen site-wide. 1080p image or muted looping video. Your link on the placement click-through. Runs for 7 full days.",
+      "descriptionSource": "lib/db/src/schema/loading-screen.ts LOADING_SCREEN_OFFER (surfaces + specs)",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "choose-artist",

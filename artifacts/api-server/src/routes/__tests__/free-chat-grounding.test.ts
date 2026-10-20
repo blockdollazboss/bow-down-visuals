@@ -207,6 +207,56 @@ describe("POST /api/free-chat — knowledge-base fallback (no provider)", () => 
   });
 });
 
+describe("POST /api/free-chat — takeover offers (wave 2 #2)", () => {
+  it("hands the provider the Spotlight facts: dollar price + For Brands door", async () => {
+    const { status } = await postFreeChat({ message: "How much is a Spotlight takeover?" });
+    expect(status).toBe(200);
+    const prompt = systemPrompt();
+    expect(prompt).toContain("VERIFIED FACTS");
+    expect(prompt).toContain("Spotlight Takeover");
+    expect(prompt).toContain("$1,000 for 7 days");
+    expect(prompt).toContain("Charts — For Brands tab (/charts)");
+  });
+
+  it("passes a provider reply quoting the real takeover price", async () => {
+    state.reply =
+      "The Spotlight Takeover is $1,000 for 7 days — book it on the Charts page (/charts), For Brands tab.";
+    const { status, json } = await postFreeChat({ message: "How much is a Spotlight takeover?" });
+    expect(status).toBe(200);
+    expect(json.reply).toBe(state.reply);
+  });
+
+  it("replaces a provider reply that invents a takeover price", async () => {
+    state.reply = "Taking over the loading screen? Only $4,000 for the week.";
+    const { status, json } = await postFreeChat({ message: "How much to take over the loading screen?" });
+    expect(status).toBe(200);
+    expect(json.reply).toBe(PRICE_FALLBACK_REPLY);
+    expect(json.reply).not.toContain("4,000");
+  });
+});
+
+describe("POST /api/free-chat — takeover offers from the knowledge-base fallback", () => {
+  beforeEach(() => {
+    delete process.env["GROQ_API_KEY"];
+  });
+
+  it("answers the loading-screen question with the real price and door, no provider", async () => {
+    const { status, json } = await postFreeChat({ message: "How much to take over the loading screen?" });
+    expect(status).toBe(200);
+    expect(json.reply).toContain("Loading Screen Takeover");
+    expect(json.reply).toContain("$2,500");
+    expect(json.reply).toContain("/charts");
+  });
+
+  it("answers the Spotlight question with the real price, no provider", async () => {
+    const { status, json } = await postFreeChat({ message: "How much is a Spotlight takeover?" });
+    expect(status).toBe(200);
+    expect(json.reply).toContain("Spotlight Takeover");
+    expect(json.reply).toContain("$1,000");
+    expect(json.reply).toContain("/charts");
+  });
+});
+
 describe("POST /api/free-chat — contract unchanged", () => {
   it("400s an empty message with the same error shape", async () => {
     const { status, json } = await postFreeChat({ message: "" });
