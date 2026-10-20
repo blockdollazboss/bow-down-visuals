@@ -141,6 +141,10 @@ const updateProductSchema = z.object({
   price_cents: z.number().int().min(0).max(100_000_000).optional(),
   description: z.string().trim().max(2000).optional(),
   image_url: z.string().trim().max(2000).optional(),
+  /* Pause/unlist (migration 0176): the seller flips listing state on
+     the same edit rail — 'active' is live in the storefront, 'paused'
+     is seller-only and refused at checkout. */
+  status: z.enum(["active", "paused"]).optional(),
 });
 
 const shopDescriptionSchema = z.object({
@@ -190,6 +194,9 @@ interface ProductRow {
   description: string | null;
   image_url: string | null;
   image_path: string | null;
+  /** 'active' | 'paused' (migration 0176) — owner DTOs only; buyer
+      reads select explicit columns and never carry it. */
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -348,10 +355,13 @@ router.get("/shops/handle/:handle", async (req, res) => {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
+  /* Buyers see live products only: a paused product (migration 0176)
+     is unlisted — filtered here, and its status is never selected, so
+     the buyer DTO carries no trace of it. */
   const productsResult = await db.execute(sql`
     SELECT id, name, price_cents, description, image_url, created_at
     FROM shop_products
-    WHERE shop_id = ${shop.id}
+    WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
     LIMIT 200
   `);
@@ -361,6 +371,33 @@ router.get("/shops/handle/:handle", async (req, res) => {
       (productsResult.rows as unknown as Array<{ image_url: string | null; image_path: string | null }>).map(
         async (p) => ({ ...p, image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url }),
       ),
+    ),
+  });
+});
+
+/* ── GET /api/shops/:id/products — the OWNER's product list (free) ─────────
+   Every product in the shop, paused included, each carrying its
+   status — this is the management read (my-shop). The public handle
+   read above is buyer-shaped and can never serve it: it filters
+   paused rows out, which would blind the seller to their own paused
+   products. Same no-leak scoping as the other product rails: a shop
+   the caller doesn't own 404s. */
+router.get("/shops/:id/products", requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const result = await db.execute(sql`
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
+    FROM shop_products
+    WHERE shop_id = ${shop.id}
+    ORDER BY created_at ASC
+    LIMIT 200
+  `);
+  res.json({
+    products: await Promise.all(
+      (result.rows as unknown as ProductRow[]).map((p) => presentShopProductRow(p)),
     ),
   });
 });
@@ -391,7 +428,7 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
             ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
@@ -431,11 +468,12 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       description = COALESCE(${d.description ?? null}, description),
       image_url = COALESCE(${storedImageUrl}, image_url),
       image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),
+      status = COALESCE(${d.status ?? null}, status),
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
@@ -836,7 +874,7 @@ router.get("/storefronts", async (req, res) => {
     SELECT s.id, s.name, s.handle, s.tagline, s.description,
            s.banner_color, s.accent_color, s.banner_image_url,
            s.custom_domain, s.domain_verified, s.created_at,
-           (SELECT COUNT(*)::int FROM shop_products p WHERE p.shop_id = s.id) AS product_count
+           (SELECT COUNT(*)::int FROM shop_products p WHERE p.shop_id = s.id AND p.status = 'active') AS product_count
     FROM shops s
     ${where}
     ORDER BY s.created_at DESC
@@ -886,10 +924,12 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
+  /* Buyers see live products only — paused rows (migration 0176) are
+     unlisted here exactly as on the handle read, status unselected. */
   const productsResult = await db.execute(sql`
     SELECT id, name, price_cents, description, image_url, created_at
     FROM shop_products
-    WHERE shop_id = ${shop.id}
+    WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
     LIMIT 200
   `);
@@ -1044,13 +1084,17 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   const lines: CheckoutLine[] = [];
   for (const [productId, quantity] of wanted) {
     const prod = await db.execute(sql`
-      SELECT p.id, p.name, p.price_cents
+      SELECT p.id, p.name, p.price_cents, p.status
       FROM shop_products p
       WHERE p.id = ${productId} AND p.shop_id = ${shopId}
       LIMIT 1
     `);
-    const product = (prod.rows as unknown as Array<{ id: string; name: string; price_cents: number }>)[0];
-    if (!product) {
+    const product = (prod.rows as unknown as Array<{ id: string; name: string; price_cents: number; status: string }>)[0];
+    /* A paused product (migration 0176) is unlisted: to a buyer it is
+       indistinguishable from a product that isn't in this shop, so it
+       refuses on the exact same path — 404, before any row is written
+       or any charge is attempted. A paused product can never sell. */
+    if (!product || product.status !== "active") {
       res.status(404).json({ error: "Product not found." });
       return;
     }
