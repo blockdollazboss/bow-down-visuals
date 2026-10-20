@@ -830,6 +830,46 @@ router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) 
   });
 });
 
+/* POST /api/memberships/mine/:memberId/cancel — the fan ends their OWN
+   membership. Fan-scoped twin of the creator's PATCH /members/:id: the
+   row must belong to the caller as the fan (fan_user_id), so a creator
+   can't cancel a member through this door and a fan can't cancel
+   anyone else's seat — both read as 404, never a leak. Memberships are
+   one paid period at a time with NO auto-charge, so canceling ends the
+   membership now: status canceled + canceled_at, the same end state the
+   creator-side status rail writes (and what churn counts). A manual
+   tracking row (fan_user_id null) has no fan to cancel it — the creator
+   manages those from their members list. */
+router.post("/memberships/mine/:memberId/cancel", publicApiLimiter, requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(fanMembersTable)
+    .where(
+      and(
+        eq(fanMembersTable.id, param(req.params.memberId)),
+        eq(fanMembersTable.fan_user_id, req.userId!),
+      ),
+    )
+    .limit(1);
+  const member = rows[0];
+  if (!member) {
+    res.status(404).json({ error: "Membership not found." });
+    return;
+  }
+  const effective = effectiveMemberStatus(member);
+  if (effective === "canceled" || effective === "expired") {
+    res.status(409).json({ error: "This membership has already ended." });
+    return;
+  }
+  const [updated] = await db
+    .update(fanMembersTable)
+    .set({ status: "canceled", canceled_at: new Date(), updated_at: new Date() })
+    .where(eq(fanMembersTable.id, member.id))
+    .returning();
+  const tier = await findTierById(member.tier_id);
+  res.json({ membership: toMemberJson(updated!, tier?.name) });
+});
+
 /* POST /api/memberships/ai-perks { niche, audienceSize, tierCount }
    → 200 { tiers: [{ name, priceDollars, perks[] }], creditsUsed, creditsRemaining }
    Paid: 1 credit. Charge-before-generate; refund on provider failure. */
