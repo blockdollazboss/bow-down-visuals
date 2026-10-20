@@ -128,31 +128,8 @@ export default function ProfileStoreSection({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {catalog.items.map((item) => {
             const Icon = KIND_ICON[item.kind];
-            return (
-              <a
-                key={`${item.kind}-${item.id}`}
-                href={item.buyUrl}
-                className="group overflow-hidden rounded-xl transition hover:scale-[1.02]"
-                style={{ border: "1px solid var(--ap-border)", backgroundColor: "var(--ap-card)" }}
-                data-testid="store-item"
-              >
-                {item.artworkUrl ? (
-                  <img
-                    src={item.artworkUrl}
-                    alt=""
-                    className="aspect-square w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <span
-                    className="flex aspect-square w-full items-center justify-center"
-                    style={{ backgroundColor: "var(--ap-surface)", color: "var(--ap-primary)" }}
-                  >
-                    <Icon className="h-10 w-10" />
-                  </span>
-                )}
+            const body = (
+              <>
                 <span className="block px-3 py-2.5">
                   <span
                     className="block truncate text-sm font-bold"
@@ -185,6 +162,60 @@ export default function ProfileStoreSection({
                     )}
                   </span>
                 </span>
+              </>
+            );
+            /* A product with a pinned UGC ad (migration 0178) shows the
+               ad itself, playable, at the top of its card — the card
+               becomes a div so the video's controls never nest inside
+               the buy link; the title block carries the link instead. */
+            if (item.pinnedAd) {
+              return (
+                <div
+                  key={`${item.kind}-${item.id}`}
+                  className="group overflow-hidden rounded-xl"
+                  style={{ border: "1px solid var(--ap-border)", backgroundColor: "var(--ap-card)" }}
+                  data-testid="store-item"
+                >
+                  <video
+                    src={item.pinnedAd.videoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="aspect-[9/16] max-h-64 w-full bg-black object-contain"
+                    data-testid="store-item-pinned-ad"
+                  />
+                  <a href={item.buyUrl} className="block transition hover:scale-[1.02]">
+                    {body}
+                  </a>
+                </div>
+              );
+            }
+            return (
+              <a
+                key={`${item.kind}-${item.id}`}
+                href={item.buyUrl}
+                className="group overflow-hidden rounded-xl transition hover:scale-[1.02]"
+                style={{ border: "1px solid var(--ap-border)", backgroundColor: "var(--ap-card)" }}
+                data-testid="store-item"
+              >
+                {item.artworkUrl ? (
+                  <img
+                    src={item.artworkUrl}
+                    alt=""
+                    className="aspect-square w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="flex aspect-square w-full items-center justify-center"
+                    style={{ backgroundColor: "var(--ap-surface)", color: "var(--ap-primary)" }}
+                  >
+                    <Icon className="h-10 w-10" />
+                  </span>
+                )}
+                {body}
               </a>
             );
           })}

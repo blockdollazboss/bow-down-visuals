@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
 import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
-  Store, ArrowLeft, Check, BadgeCheck,
+  Store, ArrowLeft, Check, BadgeCheck, Play,
 } from "lucide-react";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
@@ -39,6 +39,9 @@ interface PublicProduct {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /** The finished UGC ad pinned to this product (migration 0178),
+      resolved server-side; null when nothing is pinned. */
+  pinned_ad?: { id: string; video_url: string } | null;
 }
 
 export default function ShopStorefront() {
@@ -277,8 +280,13 @@ export default function ShopStorefront() {
                   <button
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className={`text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+                    className={`relative text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
+                    {p.pinned_ad?.video_url && (
+                      <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+                        <Play className="h-3 w-3" /> {t("shop.ugcAd", "UGC ad")}
+                      </span>
+                    )}
                     {p.image_url ? (
                       <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
                     ) : (
@@ -314,6 +322,18 @@ export default function ShopStorefront() {
             ) : (
               <div className="h-40 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                 <ShoppingBag className="w-10 h-10 text-white/20" />
+              </div>
+            )}
+            {selected.pinned_ad?.video_url && (
+              <div className="px-6 pt-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-white/40">{t("shop.watchTheAd", "Watch the ad")}</p>
+                <video
+                  src={selected.pinned_ad.video_url}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="mt-2 aspect-[9/16] max-h-80 w-full rounded-xl bg-black object-contain"
+                />
               </div>
             )}
             <div className="p-6">

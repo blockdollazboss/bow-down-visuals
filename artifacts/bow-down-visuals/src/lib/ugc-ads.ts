@@ -44,6 +44,8 @@ export interface UgcShopProduct {
   name: string;
   priceCents: number;
   imageUrl: string | null;
+  /** The ad pinned to this product, if any (migration 0178). */
+  pinnedAdId: string | null;
 }
 
 export interface UgcAd {
@@ -51,6 +53,9 @@ export interface UgcAd {
   briefId: string | null;
   productSource: string;
   shopProductId: string | null;
+  /** The product this ad is pinned to, if any (migration 0178) —
+      derived server-side from the product row on every read. */
+  pinnedProductId: string | null;
   productName: string;
   productBlurb: string | null;
   productPriceCents: number | null;
@@ -139,6 +144,7 @@ export function normalizeUgcAd(raw: unknown): UgcAd | null {
     briefId: strOrNull(raw.briefId),
     productSource: str(raw.productSource) || "upload",
     shopProductId: strOrNull(raw.shopProductId),
+    pinnedProductId: strOrNull(raw.pinnedProductId),
     productName,
     productBlurb: strOrNull(raw.productBlurb),
     productPriceCents: typeof raw.productPriceCents === "number" ? raw.productPriceCents : null,
@@ -210,7 +216,13 @@ export function normalizeUgcProducts(payload: unknown): UgcShopProduct[] {
       const id = str(p.id);
       const name = str(p.name);
       if (!id || !name) return null;
-      return { id, name, priceCents: num(p.priceCents), imageUrl: strOrNull(p.imageUrl) };
+      return {
+        id,
+        name,
+        priceCents: num(p.priceCents),
+        imageUrl: strOrNull(p.imageUrl),
+        pinnedAdId: strOrNull(p.pinnedAdId),
+      };
     })
     .filter((p): p is UgcShopProduct => p !== null);
 }
@@ -252,6 +264,15 @@ export function briefActionsFor(brief: UgcBrief, userId: string | null): BriefAc
   if (brief.status === "delivered" && isBrand) actions.push("approve");
   if ((brief.status === "open" || brief.status === "claimed") && isBrand) actions.push("close");
   return actions;
+}
+
+/** The pin action this ad offers, if any (migration 0178): only a
+    FINISHED ad made for one of the member's shop products can be
+    pinned — to that product. The server re-checks every rule; this
+    only decides what the panel renders. */
+export function pinActionFor(ad: UgcAd): "pin" | "unpin" | null {
+  if (ad.status !== "ready" || !ad.shopProductId) return null;
+  return ad.pinnedProductId ? "unpin" : "pin";
 }
 
 export function ugcAdShareText(ad: UgcAd): string {
@@ -349,6 +370,23 @@ export async function generateUgcAdVideo(
 export async function deleteUgcAd(token: string | null, adId: string): Promise<void> {
   const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}`);
   if (status !== 200) throw new Error((data as any)?.error || "Could not delete that ad.");
+}
+
+/** Pin a finished ad to the shop product it advertises (0178). The
+    server derives the target from the ad record; the returned ad
+    carries the confirmed pin state. */
+export async function pinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
+  const { status, data } = await api<any>(token, "POST", `/api/ugc-ads/${adId}/pin`, {});
+  const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
+  if (!ad) throw new Error((data as any)?.error || "Could not pin that ad — try again.");
+  return ad;
+}
+
+export async function unpinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
+  const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}/pin`);
+  const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
+  if (!ad) throw new Error((data as any)?.error || "Could not unpin that ad — try again.");
+  return ad;
 }
 
 export async function fetchUgcBriefs(
