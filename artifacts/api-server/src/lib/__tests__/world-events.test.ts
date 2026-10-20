@@ -433,6 +433,30 @@ describe("drop spectacles (3.4)", () => {
     await flush();
     expect(a.sent.filter((m) => m.type === "drop.denied")).toHaveLength(2);
   });
+
+  it("a member standing in ANOTHER room can't claim the chest — the claim surface is the room it fell in", async () => {
+    const { palace, claimCalls, scheduler } = dropSetup();
+    const inRoom = fakeSocket();
+    enter(palace, inRoom, member("Alpha"));
+    walkTo(palace, inRoom, COURTYARD);
+    const inHall = fakeSocket();
+    enter(palace, inHall, member("Hallgoer")); // stays in the King's Hall
+    await scheduler.tick(T0);
+
+    // The palace heard the herald, but the Hall holds no chest:
+    // the claim is refused as no-drop and the rails never move.
+    inHall.sent = [];
+    frame(palace, inHall, { type: "drop.claim" });
+    await flush();
+    expect(inHall.sent.filter((m) => m.type === "drop.denied").pop()?.reason).toBe("no-drop");
+    expect(claimCalls).toHaveLength(0);
+
+    // The chest stands untouched for the room it fell in.
+    expect(palace.room(COURTYARD)!.dropBroadcast()?.claimsLeft).toBe(2);
+    frame(palace, inRoom, { type: "drop.claim" });
+    await flush();
+    expect(claimCalls).toEqual([{ userId: "user-Alpha", amountVb: 200, eventId: "evt-drop" }]);
+  });
 });
 
 describe("the first-play moment (§5(a))", () => {
