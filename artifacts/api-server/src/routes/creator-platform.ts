@@ -418,7 +418,7 @@ type VideoRow = typeof profileVideosTable.$inferSelect;
    freshness is preserved by the routes' refreshSupabaseStorageUrlsDeep
    wrap, which rewrites storage refs in these snake_case fields on read. */
 
-function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | null) {
+function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | null, isPinned = false) {
   return {
     id: row.id,
     profile_id: row.profileId,
@@ -434,6 +434,9 @@ function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | 
     repost_count: row.repostCount,
     comment_count: row.commentCount,
     is_published: row.isPublished,
+    /* The profile-song pin (wave-2 #10): true only for the creator's
+       ONE pinned item, in its own profile's surfaces. */
+    is_pinned: isPinned,
     created_at: row.createdAt,
     profile_slug: profileSlug,
     buyable: (row.downloadPriceCents ?? 0) > 0,
@@ -450,6 +453,7 @@ function enrichVideo(
   profileSlug: string,
   sounds: Map<string, { id: string; title: string; audio_url: string; artwork_url: string | null; profile_slug: string }>,
   ownerUserId?: string | null,
+  isPinned = false,
 ) {
   return {
     id: row.id,
@@ -467,6 +471,8 @@ function enrichVideo(
     repost_count: row.repostCount,
     comment_count: row.commentCount,
     is_published: row.isPublished,
+    /* The profile-song pin (wave-2 #10) — see enrichTrack. */
+    is_pinned: isPinned,
     is_short: row.isShort,
     /* Row columns are season/episode; the client reads *_number. */
     season_number: row.season,
@@ -486,6 +492,69 @@ function enrichVideo(
 
 type TrackDto = ReturnType<typeof enrichTrack>;
 type VideoDto = ReturnType<typeof enrichVideo>;
+
+/* ── The profile-song pin (Stack-4 wave-2 #10) ────────────────────────────
+   ONE pin per creator, stored on creator_profiles (pinned_kind /
+   pinned_item_id — the Stack-3 #5 spotlight columns; no second pin
+   store). The Stage block renders it as the profile's featured card;
+   these helpers give the SAME pin its catalog treatment: the pinned
+   item leads its Music / Videos area with is_pinned set, so a guest
+   meets the creator's chosen song first in the list too. A pin whose
+   content is unpublished or deleted leads nothing — the stored pin
+   survives and restores on re-publish, exactly like the spotlight. */
+
+type ProfileRowFull = typeof creatorProfilesTable.$inferSelect;
+
+export function isProfilePin(
+  profile: { pinnedKind: string | null; pinnedItemId: string | null },
+  kind: "track" | "video",
+  itemId: string,
+): boolean {
+  return profile.pinnedKind === kind && profile.pinnedItemId === itemId;
+}
+
+/** Compose a catalog list with the pinned row first. The pinned row
+    replaces its natural slot (never duplicates); the caller caps the
+    result, so a section's size doesn't grow because of the pin. */
+export function leadWithPinned<T extends { id: string }>(rows: T[], pinnedRow: T | null): T[] {
+  if (!pinnedRow) return rows;
+  return [pinnedRow, ...rows.filter((r) => r.id !== pinnedRow.id)];
+}
+
+/** The profile's pinned row for one kind, or null: no pin set, the pin
+    is the other kind, or the pinned work isn't published right now. */
+async function loadPinnedMediaRow(
+  profile: ProfileRowFull,
+  kind: "track",
+): Promise<TrackRow | null>;
+async function loadPinnedMediaRow(
+  profile: ProfileRowFull,
+  kind: "video",
+): Promise<VideoRow | null>;
+async function loadPinnedMediaRow(
+  profile: ProfileRowFull,
+  kind: "track" | "video",
+): Promise<TrackRow | VideoRow | null> {
+  if (profile.pinnedKind !== kind || !profile.pinnedItemId) return null;
+  if (kind === "track") {
+    const [row] = await db.select().from(profileTracksTable)
+      .where(and(
+        eq(profileTracksTable.id, profile.pinnedItemId!),
+        eq(profileTracksTable.profileId, profile.id),
+        eq(profileTracksTable.isPublished, true),
+      ))
+      .limit(1);
+    return row ?? null;
+  }
+  const [row] = await db.select().from(profileVideosTable)
+    .where(and(
+      eq(profileVideosTable.id, profile.pinnedItemId!),
+      eq(profileVideosTable.profileId, profile.id),
+      eq(profileVideosTable.isPublished, true),
+    ))
+    .limit(1);
+  return row ?? null;
+}
 
 /**
  * Presence flags + monetization checklist ("guide them to the money").
@@ -888,7 +957,17 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         }),
     ]);
 
-    const sounds = await soundMapFor(topVideos, profile.slug);
+    /* The profile-song pin leads its area: the pinned track/video is
+       first in top_tracks / top_videos (flagged is_pinned) even when
+       its play/view count wouldn't have made the top 5. */
+    const [pinnedTrackRow, pinnedVideoRow] = await Promise.all([
+      loadPinnedMediaRow(profile, "track"),
+      loadPinnedMediaRow(profile, "video"),
+    ]);
+    const ledTracks = leadWithPinned(topTracks, pinnedTrackRow).slice(0, 5);
+    const ledVideos = leadWithPinned(topVideos, pinnedVideoRow).slice(0, 5);
+
+    const sounds = await soundMapFor(ledVideos, profile.slug);
     const extras = await profileExtras(profile);
     /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
     const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
@@ -948,8 +1027,8 @@ router.get("/creator-profiles/:slug", async (req, res) => {
         ...extras,
       },
       counts,
-      top_tracks: topTracks.map((t) => enrichTrack(t, profile.slug, profile.userId)),
-      top_videos: topVideos.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId)),
+      top_tracks: ledTracks.map((t) => enrichTrack(t, profile.slug, profile.userId, isProfilePin(profile, "track", t.id))),
+      top_videos: ledVideos.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id))),
       playlists: await resolvePlaylistItems(profilePlaylists, profile.slug),
     }));
   } catch (err) {
@@ -1590,7 +1669,7 @@ router.get("/media/track/:id", async (req, res) => {
       res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
       return;
     }
-    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId), artist: artistRef(profile) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId, isProfilePin(profile, "track", track.id)), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/track detail error");
     res.status(500).json({ error: "Couldn't load that audio. Try again." });
@@ -1611,7 +1690,7 @@ router.get("/media/video/:id", async (req, res) => {
       return;
     }
     const sounds = await soundMapFor([video], profile.slug);
-    res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds, profile.userId), artist: artistRef(profile) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", video.id)), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/video detail error");
     res.status(500).json({ error: "Couldn't load that video. Try again." });
@@ -1633,14 +1712,18 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
         eq(profileVideosTable.profileId, profile.id),
         eq(profileVideosTable.isPublished, true),
       )).orderBy(desc(profileVideosTable.createdAt)).limit(limit);
-      const sounds = await soundMapFor(rows, profile.slug);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId)) }));
+      /* The pinned video leads the listing (same pin as The Stage). */
+      const led = leadWithPinned(rows, await loadPinnedMediaRow(profile, "video")).slice(0, limit);
+      const sounds = await soundMapFor(led, profile.slug);
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: led.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id))) }));
     } else {
       const rows = await db.select().from(profileTracksTable).where(and(
         eq(profileTracksTable.profileId, profile.id),
         eq(profileTracksTable.isPublished, true),
       )).orderBy(desc(profileTracksTable.createdAt)).limit(limit);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: rows.map((t) => enrichTrack(t, profile.slug, profile.userId)) }));
+      /* The pinned track leads the listing (same pin as The Stage). */
+      const led = leadWithPinned(rows, await loadPinnedMediaRow(profile, "track")).slice(0, limit);
+      res.json(await refreshSupabaseStorageUrlsDeep({ items: led.map((t) => enrichTrack(t, profile.slug, profile.userId, isProfilePin(profile, "track", t.id))) }));
     }
   } catch (err) {
     req.log.error({ err }, "profile media listing error");

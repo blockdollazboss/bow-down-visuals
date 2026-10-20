@@ -402,6 +402,9 @@ export interface ProfileMediaItem {
   url?: string;
   duration?: string;
   plays?: number;
+  /** The creator's pinned item (profile-song pin) — the server leads
+      the list with it; the row renders the gold "Pinned" treatment. */
+  isPinned?: boolean;
   /** Deep link to the track/video page — media rows are never islands. */
   href?: string;
 }
@@ -534,6 +537,7 @@ function trackToMediaItem(t: StreamTrack): ProfileMediaItem {
     url: t.audio_url,
     duration: t.duration_sec ? formatDuration(t.duration_sec) : undefined,
     plays: t.play_count ?? 0,
+    isPinned: t.is_pinned === true,
     /* The track's own stream page — a catalog row always leads
        somewhere real, never a dead click. */
     href: `/track/${t.id}`,
@@ -548,6 +552,7 @@ function videoToMediaItem(v: StreamVideo): ProfileMediaItem {
     url: v.video_url,
     duration: v.duration_sec ? formatDuration(v.duration_sec) : undefined,
     plays: v.view_count ?? 0,
+    isPinned: v.is_pinned === true,
     href: `/watch/${v.id}`,
   };
 }
