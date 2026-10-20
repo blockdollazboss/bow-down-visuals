@@ -34,6 +34,8 @@ export interface SendEmailOpts {
   html: string;
   text?: string;
   replyTo?: string;
+  /** Extra RFC headers (e.g. List-Unsubscribe for bulk/list mail). */
+  headers?: Record<string, string>;
 }
 
 export interface SendEmailResult {
@@ -73,6 +75,7 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
       html: opts.html,
       ...(opts.text ? { text: opts.text } : {}),
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.headers ? { headers: opts.headers } : {}),
     });
     if (error) {
       logger.warn({ to, subject: opts.subject, error }, "[email] provider error (fail-open)");
