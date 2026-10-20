@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { CalendarClock, Crown, Download, FolderPlus, Megaphone, Newspaper, Palette, RefreshCw, Share2, Sparkles } from "lucide-react";
+import { CalendarClock, Camera, Crown, Download, FolderPlus, Megaphone, Newspaper, Palette, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
@@ -25,6 +25,13 @@ import {
   logoModelCost,
   INTRO_COST_VISUAL_BUCS,
   INTRO_TYPES,
+  HEADSHOT_COST_VISUAL_BUCS,
+  HEADSHOT_FLOWS,
+  HEADSHOT_PRESETS,
+  HEADSHOT_MODELS,
+  buildHeadshotPayload,
+  headshotReady,
+  parseHeadshotFailure,
   PRESS_KIT_GENERATE_COST_VISUAL_BUCS,
   PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS,
   PRESS_KIT_TONES,
@@ -201,6 +208,18 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
   const [introTaskId, setIntroTaskId] = useState<string | null>(null);
   const [introUrl, setIntroUrl] = useState<string | null>(null);
   const [introError, setIntroError] = useState<string | null>(null);
+
+  /* Headshot bench (the Headshot Studio's rail, native). The rail is
+   * synchronous — one POST settles the make — so this is the press
+   * desk's busy/note shape rather than a polled job. */
+  const [hsFlow, setHsFlow] = useState<string>("autopilot");
+  const [hsPreset, setHsPreset] = useState<string>("studio");
+  const [hsPrompt, setHsPrompt] = useState("");
+  const [hsModel, setHsModel] = useState<string>("nano-banana-2.1");
+  const [hsRef, setHsRef] = useState("");
+  const [hsBusy, setHsBusy] = useState(false);
+  const [hsUrl, setHsUrl] = useState<string | null>(null);
+  const [hsError, setHsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isGuest) return;
@@ -459,6 +478,50 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
     }
   };
 
+  const runHeadshot = async () => {
+    if (hsBusy || !headshotReady(hsFlow, hsPrompt)) return;
+    setHsBusy(true);
+    setHsError(null);
+    setHsUrl(null);
+    try {
+      const res = await confirmedFetch("/api/generate-headshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        overrideCost: HEADSHOT_COST_VISUAL_BUCS,
+        overrideFeature: "Headshot",
+        body: JSON.stringify(
+          buildHeadshotPayload({ flow: hsFlow, preset: hsPreset, promptText: hsPrompt, model: hsModel, referenceImageUrl: hsRef }),
+        ),
+      });
+      if (!res) return; /* the member declined the credit confirmation */
+      const data: unknown = await res.json().catch(() => ({}));
+      const failure = parseHeadshotFailure(res.status, data);
+      if (failure) {
+        setHsError(
+          failure.kind === "credits"
+            ? "Out of Visual Bucs — top up and the headshot bench is ready again."
+            : failure.kind === "provider"
+              ? "Headshots aren't connected in the palace right now — try the other engine above, or the website bench below."
+              : res.status === 400 && failure.message
+                ? failure.message
+                : "The headshot couldn't be made — a failed make is not charged. Try again.",
+        );
+        return;
+      }
+      const start = parseJobStart(data);
+      if (!start.url) {
+        setHsError("The bench answered without a headshot. Try again.");
+        return;
+      }
+      setHsUrl(start.url);
+      refreshProfile();
+    } catch {
+      setHsError("The headshot bench didn't answer. Try again.");
+    } finally {
+      setHsBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-3" data-testid="world-business-branding-desk">
       <SectionShell
@@ -668,6 +731,86 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
             ) : undefined
           }
         />
+      </NativeCard>
+
+      <NativeCard isLight={isLight} title="Make a headshot">
+        <div className="mb-3 flex flex-wrap gap-2">
+          <select
+            aria-label="Headshot flow"
+            className={selectCls(isLight)}
+            value={hsFlow}
+            disabled={hsBusy}
+            onChange={(e) => { setHsFlow(e.target.value); setHsError(null); }}
+          >
+            {HEADSHOT_FLOWS.map((f) => (
+              <option key={f.key} value={f.key}>{f.label}</option>
+            ))}
+          </select>
+          {hsFlow === "preset" && (
+            <select aria-label="Headshot style" className={selectCls(isLight)} value={hsPreset} disabled={hsBusy} onChange={(e) => setHsPreset(e.target.value)}>
+              {HEADSHOT_PRESETS.map((p) => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
+            </select>
+          )}
+          <select aria-label="Headshot engine" className={selectCls(isLight)} value={hsModel} disabled={hsBusy} onChange={(e) => setHsModel(e.target.value)}>
+            {HEADSHOT_MODELS.map((m) => (
+              <option key={m.key} value={m.key}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+        {hsFlow === "autopilot" && (
+          <p className={`mb-3 text-sm ${muted}`}>
+            One tap — the bench picks the most flattering studio look for you: lighting, backdrop, framing, everything.
+          </p>
+        )}
+        {hsFlow === "manual" && (
+          <textarea
+            aria-label="Describe the headshot"
+            value={hsPrompt}
+            onChange={(e) => setHsPrompt(e.target.value)}
+            disabled={hsBusy}
+            rows={3}
+            placeholder="Describe the look — e.g. dramatic black-and-white headshot, hard shadows, film-noir mood…"
+            className={`mb-3 w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+              isLight
+                ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
+                : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
+            }`}
+          />
+        )}
+        <input
+          aria-label="Face reference photo URL (optional)"
+          className={`${inputCls(isLight)} mb-3`}
+          placeholder="Face reference (optional) — paste a photo URL and the headshot keeps your face"
+          value={hsRef}
+          disabled={hsBusy}
+          onChange={(e) => setHsRef(e.target.value)}
+        />
+        {hsError && <p className={`mb-3 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{hsError}</p>}
+        <button
+          type="button"
+          data-testid="world-branding-headshot-generate"
+          onClick={runHeadshot}
+          disabled={hsBusy || !headshotReady(hsFlow, hsPrompt)}
+          className={goldBtn}
+        >
+          <Camera className="h-4 w-4" />
+          {hsBusy ? "Making your headshot…" : `Make my headshot — ${HEADSHOT_COST_VISUAL_BUCS} Visual Bucs`}
+        </button>
+        <p className={`mt-2 text-xs ${muted}`}>Charged only if the headshot succeeds — a failed make is never charged.</p>
+        {hsUrl && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <img src={hsUrl} alt="Your new headshot" className="h-32 w-32 rounded-2xl border border-[#d4af37]/40 object-cover" />
+            <div className="space-y-2">
+              <p className={`text-xs ${muted}`}>Your headshot, made right here in the room — saved to your account like the website studio's.</p>
+              <a href={hsUrl} download target="_blank" rel="noreferrer" className={goldBtn}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </div>
+          </div>
+        )}
       </NativeCard>
     </div>
   );

@@ -23,6 +23,13 @@ import {
   PROMO_GENERATOR_COST_VISUAL_BUCS,
   PROMO_CARDS_COST_VISUAL_BUCS,
   COACH_COST_VISUAL_BUCS,
+  HEADSHOT_COST_VISUAL_BUCS,
+  HEADSHOT_FLOWS,
+  HEADSHOT_PRESETS,
+  HEADSHOT_MODELS,
+  buildHeadshotPayload,
+  headshotReady,
+  parseHeadshotFailure,
   parseJobStart,
   jobPollOutcome,
   buildLogoPayload,
@@ -68,6 +75,10 @@ describe("costs — quoted up front, from the pages themselves", () => {
     expect(PROMO_GENERATOR_COST_VISUAL_BUCS).toBe(100);
     expect(PROMO_CARDS_COST_VISUAL_BUCS).toBe(100);
     expect(COACH_COST_VISUAL_BUCS).toBe(100);
+  });
+
+  it("headshot is 100 — the studio component, the route constant and the registry agree", () => {
+    expect(HEADSHOT_COST_VISUAL_BUCS).toBe(100);
   });
 });
 
@@ -373,6 +384,77 @@ describe("folded rows — release, scheduler, coach", () => {
   });
 });
 
+describe("headshots bench — the studio's rail, native at the Branding Kit Desk", () => {
+  it("flows, presets and engines are the page's own, keys exactly as the rail names them", () => {
+    expect(HEADSHOT_FLOWS.map((f) => f.key)).toEqual(["autopilot", "preset", "manual"]);
+    expect(HEADSHOT_PRESETS.map((p) => p.key)).toEqual(["studio", "stage", "street", "luxury"]);
+    expect(HEADSHOT_MODELS.map((m) => [m.key, m.label])).toEqual([
+      ["nano-banana-2.1", "Turbo Render"],
+      ["ideogram-4.0", "Portrait Render"],
+    ]);
+  });
+
+  it("payload mirrors the page: preset only in preset flow, words only in manual, face ref trimmed-or-null", () => {
+    expect(buildHeadshotPayload({ flow: "autopilot", preset: "studio", promptText: "", model: "nano-banana-2.1" })).toEqual({
+      mode: "autopilot",
+      model: "nano-banana-2.1",
+      referenceImageUrl: null,
+    });
+    expect(buildHeadshotPayload({ flow: "preset", preset: "luxury", promptText: "ignored", model: "ideogram-4.0" })).toEqual({
+      mode: "preset",
+      model: "ideogram-4.0",
+      referenceImageUrl: null,
+      preset: "luxury",
+    });
+    expect(
+      buildHeadshotPayload({ flow: "manual", preset: "stage", promptText: "  noir portrait, hard shadows ", model: "nano-banana-2.1", referenceImageUrl: " https://x/me.jpg " }),
+    ).toEqual({
+      mode: "manual",
+      model: "nano-banana-2.1",
+      referenceImageUrl: "https://x/me.jpg",
+      promptText: "noir portrait, hard shadows",
+    });
+    expect(
+      buildHeadshotPayload({ flow: "autopilot", preset: "studio", promptText: "", model: "nano-banana-2.1", referenceImageUrl: "   " }),
+    ).toEqual({ mode: "autopilot", model: "nano-banana-2.1", referenceImageUrl: null });
+  });
+
+  it("the generate gate is the page's: manual needs words, the other flows are ready", () => {
+    expect(headshotReady("autopilot", "")).toBe(true);
+    expect(headshotReady("preset", "")).toBe(true);
+    expect(headshotReady("manual", "   ")).toBe(false);
+    expect(headshotReady("manual", "a look")).toBe(true);
+  });
+
+  it("a success reads through the shared job interpreter — the rail answers synchronously", () => {
+    expect(parseJobStart({ taskId: "headshot-1", status: "succeeded", url: "https://x/h.png", creditCost: 100 })).toEqual({
+      taskId: "headshot-1",
+      url: "https://x/h.png",
+      creditsRemaining: null,
+    });
+  });
+
+  it("failures sort honestly: credits / provider-down / failed — and a 2xx is no failure", () => {
+    expect(parseHeadshotFailure(200, { status: "succeeded", url: "https://x/h.png" })).toBeNull();
+    expect(parseHeadshotFailure(402, { error: "out_of_credits", message: "Not enough Visual Bucs." })).toEqual({
+      kind: "credits",
+      message: "Not enough Visual Bucs.",
+    });
+    expect(parseHeadshotFailure(400, { code: "out_of_credits" })!.kind).toBe("credits");
+    expect(parseHeadshotFailure(503, { error: "AI Headshots are not connected.", code: "provider_not_connected" })).toEqual({
+      kind: "provider",
+      message: "AI Headshots are not connected.",
+    });
+    expect(parseHeadshotFailure(500, { code: "provider_not_connected" })!.kind).toBe("provider");
+    expect(parseHeadshotFailure(500, { error: "generation blew up" })).toEqual({ kind: "failed", message: "generation blew up" });
+    expect(parseHeadshotFailure(400, { error: "Invalid headshot request." })).toEqual({
+      kind: "failed",
+      message: "Invalid headshot request.",
+    });
+    expect(parseHeadshotFailure(500, null)).toEqual({ kind: "failed", message: null });
+  });
+});
+
 describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
@@ -381,7 +463,6 @@ describe("parity follow-on log — thorough, each bench named", () => {
       "scheduler-calendar",
       "bio-page-layout-theme-editors",
       "press-kit-layout-editing",
-      "branding-headshots-bench",
       "branding-jewelry-bench",
       "branding-stream-pack-bench",
       "coach-full-page-depth",
@@ -389,6 +470,9 @@ describe("parity follow-on log — thorough, each bench named", () => {
     ]) {
       expect(ids, required).toContain(required);
     }
+    // Headshots graduated: the bench is native at the Branding Kit Desk
+    // now, so it leaves the follow-on log.
+    expect(ids).not.toContain("branding-headshots-bench");
     for (const f of BUSINESS_NATIVE_FOLLOW_ONS) {
       expect(f.title.startsWith("NATIVE FOLLOW-ON:"), f.id).toBe(true);
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
