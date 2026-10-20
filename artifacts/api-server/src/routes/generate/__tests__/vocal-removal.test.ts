@@ -25,8 +25,8 @@ vi.mock("../../../lib/stem-separation", () => ({
   cleanupWorkdir: vi.fn(),
 }));
 
-vi.mock("../../../lib/ai-clients", () => ({
-  getOpenAI: vi.fn(),
+vi.mock("../../../lib/transcription", () => ({
+  transcribeAudioTimed: vi.fn(),
 }));
 
 vi.mock("child_process", () => ({
@@ -209,19 +209,24 @@ describe("runVocalRemovalJob", () => {
     mockUpload.mockResolvedValue("ref");
     mockRefresh.mockResolvedValue("https://cdn.test/x.mp3");
 
-    // Mock a successful Whisper word-timing response.
-    const { getOpenAI } = await import("../../../lib/ai-clients");
-    vi.mocked(getOpenAI).mockReturnValue({
-      audio: {
-        transcriptions: {
-          create: vi.fn().mockResolvedValue({
-            segments: [
-              { words: [{ word: "hello", start: 0.5, end: 0.9 }] },
-            ],
-          }),
+    // Mock a successful timed-transcription response — segments carry
+    // their words, the shape buildKaraokeWords consumes.
+    const { transcribeAudioTimed } = await import("../../../lib/transcription");
+    vi.mocked(transcribeAudioTimed).mockResolvedValue({
+      text: "hello",
+      duration: 1,
+      language: "en",
+      words: [{ word: "hello", start: 0.5, end: 0.9 }],
+      segments: [
+        {
+          id: 0,
+          start: 0.5,
+          end: 0.9,
+          text: "hello",
+          words: [{ word: "hello", start: 0.5, end: 0.9 }],
         },
-      },
-    } as never);
+      ],
+    });
 
     const job = makeJob({ karaokeRequested: true });
     await runVocalRemovalJob(job, Buffer.from("song-bytes"), "song.mp3");
