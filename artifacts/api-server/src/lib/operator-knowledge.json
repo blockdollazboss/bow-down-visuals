@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "3534805ea9c9eca9828527cc8fa889e3d0509365",
+  "baseCommit": "6b97792597c1c67e2448ac8168b7ef1d313f83ad",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -220,7 +220,6 @@
         "/api/earnings/statements/:param",
         "/api/earnings/statements/:param/pdf",
         "/api/fan-decoder/decode",
-        "/api/generate-song",
         "/api/legacy/contact",
         "/api/legacy/designation",
         "/api/legacy/inbox",
@@ -271,12 +270,6 @@
           "feature": "Competitor Tracker",
           "vb": 200,
           "endpoint": "/api/competitor-analysis",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -333,7 +326,6 @@
         "/api/earnings/statements/:param",
         "/api/earnings/statements/:param/pdf",
         "/api/fan-decoder/decode",
-        "/api/generate-song",
         "/api/legacy/contact",
         "/api/legacy/designation",
         "/api/legacy/inbox",
@@ -384,12 +376,6 @@
           "feature": "Competitor Tracker",
           "vb": 200,
           "endpoint": "/api/competitor-analysis",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -444,7 +430,6 @@
         "/api/earnings/statements/:param",
         "/api/earnings/statements/:param/pdf",
         "/api/fan-decoder/decode",
-        "/api/generate-song",
         "/api/legacy/contact",
         "/api/legacy/designation",
         "/api/legacy/inbox",
@@ -495,12 +480,6 @@
           "feature": "Competitor Tracker",
           "vb": 200,
           "endpoint": "/api/competitor-analysis",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -555,7 +534,6 @@
         "/api/earnings/statements/:param",
         "/api/earnings/statements/:param/pdf",
         "/api/fan-decoder/decode",
-        "/api/generate-song",
         "/api/legacy/contact",
         "/api/legacy/designation",
         "/api/legacy/inbox",
@@ -606,12 +584,6 @@
           "feature": "Competitor Tracker",
           "vb": 200,
           "endpoint": "/api/competitor-analysis",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -814,7 +786,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -880,12 +851,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -983,6 +948,11 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"audioStudio.subtitle\" (page's own string)",
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -995,11 +965,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -1027,7 +992,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -1093,12 +1057,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -1190,6 +1148,11 @@
       "descriptionSource": "lib/desks.ts desk blurb",
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -1202,11 +1165,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Studio",
-          "path": "/audio-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -1234,7 +1192,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -1300,12 +1257,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -1395,6 +1346,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -1407,11 +1363,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -1439,7 +1390,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -1505,12 +1455,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -1600,6 +1544,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -1612,11 +1561,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -1644,7 +1588,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -1710,12 +1653,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -1805,6 +1742,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -1817,11 +1759,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -1849,7 +1786,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -1915,12 +1851,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2016,6 +1946,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -2028,11 +1963,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Studio",
-          "path": "/audio-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -2060,7 +1990,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2126,12 +2055,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2227,6 +2150,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -2239,11 +2167,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Studio",
-          "path": "/audio-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -2271,7 +2194,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2337,12 +2259,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2432,6 +2348,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -2444,11 +2365,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -2476,7 +2392,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2542,12 +2457,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2637,6 +2546,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -2649,11 +2563,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -2681,7 +2590,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2747,12 +2655,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2873,7 +2775,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2939,12 +2840,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3034,6 +2929,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -3046,11 +2946,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Cleanup",
-          "path": "/audio-studio?tab=cleanup",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -3078,7 +2973,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -3144,12 +3038,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3244,6 +3132,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -3257,11 +3150,6 @@
           "label": "Mix & Master",
           "path": "/audio-studio?tab=master",
           "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Branding Kit",
-          "path": "/branding-kit",
-          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
       ]
     },
@@ -3288,7 +3176,6 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -3354,12 +3241,6 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3454,6 +3335,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -3466,11 +3352,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Studio",
-          "path": "/audio-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -3561,20 +3442,13 @@
         "/api/books/:param/export/:param",
         "/api/books/:param/print/order",
         "/api/books/:param/print/quote",
-        "/api/books/ai/assist",
-        "/api/generate-song"
+        "/api/books/ai/assist"
       ],
       "prices": [
         {
           "feature": "Thy Books AI Writing Assist",
           "vb": 100,
           "endpoint": "/api/books/ai/assist",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -3626,7 +3500,6 @@
         "/api/dev/add-credits",
         "/api/drafts",
         "/api/generate-invoice",
-        "/api/generate-song",
         "/api/invoices",
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
@@ -3656,12 +3529,6 @@
           "feature": "Generate Invoice",
           "vb": 50,
           "endpoint": "/api/generate-invoice",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3722,7 +3589,6 @@
         "/api/dev/add-credits",
         "/api/drafts",
         "/api/generate-invoice",
-        "/api/generate-song",
         "/api/invoices",
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
@@ -3752,12 +3618,6 @@
           "feature": "Generate Invoice",
           "vb": 50,
           "endpoint": "/api/generate-invoice",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3812,7 +3672,6 @@
         "/api/dev/add-credits",
         "/api/drafts",
         "/api/generate-invoice",
-        "/api/generate-song",
         "/api/invoices",
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
@@ -3842,12 +3701,6 @@
           "feature": "Generate Invoice",
           "vb": 50,
           "endpoint": "/api/generate-invoice",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4615,6 +4468,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -4627,11 +4485,6 @@
         {
           "label": "Translate & Dub",
           "path": "/video-editor?tab=translate",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Repurpose",
-          "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -4651,7 +4504,6 @@
         "/api/artist-vaults",
         "/api/carousel/export",
         "/api/credits/claim-trial",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/referrals/me"
       ],
@@ -4660,12 +4512,6 @@
           "feature": "Carousel Export",
           "vb": 100,
           "endpoint": "/api/carousel/export",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4792,7 +4638,6 @@
         "/api/coach/plan-numbers",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/monetization-coach",
         "/api/money",
         "/api/money/:param",
@@ -4803,12 +4648,6 @@
           "feature": "Niche Analyzer",
           "vb": 150,
           "endpoint": "/api/analyze-niche",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4847,7 +4686,6 @@
         "/api/coach/plan-numbers",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/monetization-coach",
         "/api/money",
         "/api/money/:param",
@@ -4858,12 +4696,6 @@
           "feature": "Niche Analyzer",
           "vb": 150,
           "endpoint": "/api/analyze-niche",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4945,20 +4777,13 @@
         "/api/community/sentiment",
         "/api/community/superfans",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits",
-        "/api/generate-song"
+        "/api/dev/add-credits"
       ],
       "prices": [
         {
           "feature": "Comment Replies",
           "vb": 100,
           "endpoint": "/api/comment-replies",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4981,20 +4806,13 @@
         "/api/community/sentiment",
         "/api/community/superfans",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits",
-        "/api/generate-song"
+        "/api/dev/add-credits"
       ],
       "prices": [
         {
           "feature": "Comment Replies",
           "vb": 100,
           "endpoint": "/api/comment-replies",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -5059,17 +4877,9 @@
         "/api/admin/status",
         "/api/contracts/analyze",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits",
-        "/api/generate-song"
+        "/api/dev/add-credits"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "nextSteps": []
     },
     {
@@ -5282,6 +5092,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -5294,11 +5109,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Translate & Dub",
-          "path": "/video-editor?tab=translate",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -5396,6 +5206,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -5408,11 +5223,6 @@
         {
           "label": "Upscale",
           "path": "/video-editor?tab=upscale",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Thumbnail Maker",
-          "path": "/thumbnail-studio?tab=generate",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -5606,6 +5416,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -5618,11 +5433,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Audio Studio",
-          "path": "/audio-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ],
@@ -5725,6 +5535,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -5737,11 +5552,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Translate & Dub",
-          "path": "/video-editor?tab=translate",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -5841,6 +5651,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -5853,11 +5668,6 @@
         {
           "label": "Translate & Dub",
           "path": "/video-editor?tab=translate",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Repurpose",
-          "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ],
@@ -5998,17 +5808,9 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/detect/media",
-        "/api/dev/add-credits",
-        "/api/generate-song"
+        "/api/dev/add-credits"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "description": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"mediaDetector.subtitle\" (page's own string)",
       "nextSteps": []
@@ -6056,7 +5858,6 @@
         "/api/distribution/roster/invites/:param/access",
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/referrals/me",
         "/api/release-checklist",
@@ -6067,12 +5868,6 @@
           "feature": "Catalog Vault — permanent release hosting",
           "vb": 200,
           "endpoint": "/api/catalog-vault/vault",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6127,7 +5922,6 @@
         "/api/distribution/roster/invites/:param/access",
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/referrals/me",
         "/api/release-checklist",
@@ -6138,12 +5932,6 @@
           "feature": "Catalog Vault — permanent release hosting",
           "vb": 200,
           "endpoint": "/api/catalog-vault/vault",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6967,7 +6755,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-cta",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/lyric-stories/generate",
@@ -6990,12 +6777,6 @@
           "feature": "Generate CTA",
           "vb": 50,
           "endpoint": "/api/generate-cta",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7057,7 +6838,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-cta",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/lyric-stories/generate",
@@ -7080,12 +6860,6 @@
           "feature": "Generate CTA",
           "vb": 50,
           "endpoint": "/api/generate-cta",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7147,7 +6921,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-cta",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/lyric-stories/generate",
@@ -7170,12 +6943,6 @@
           "feature": "Generate CTA",
           "vb": 50,
           "endpoint": "/api/generate-cta",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7237,7 +7004,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-cta",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/lyric-stories/generate",
@@ -7260,12 +7026,6 @@
           "feature": "Generate CTA",
           "vb": 50,
           "endpoint": "/api/generate-cta",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7327,7 +7087,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-cta",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/lyric-stories/generate",
@@ -7350,12 +7109,6 @@
           "feature": "Generate CTA",
           "vb": 50,
           "endpoint": "/api/generate-cta",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7486,18 +7239,10 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
-        "/api/generate-song",
         "/api/jewelry/order",
         "/api/jewelry/orders"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "nextSteps": []
     },
     {
@@ -7586,7 +7331,6 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/live-shopping/ai-description",
         "/api/live-shopping/catalog",
         "/api/live-shopping/checkout",
@@ -7600,12 +7344,6 @@
         "/api/live-shopping/verify"
       ],
       "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
         {
           "feature": "Product Description",
           "vb": 100,
@@ -7753,20 +7491,12 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/movies/clip-detect",
         "/api/movies/concept",
         "/api/referrals/me"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "description": "Develop a movie or series concept with AI — or turn your streams into viral clips. Fully automated: describe it, AI does the rest.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"movies.subtitle\" (page's own string)",
       "nextSteps": []
@@ -7814,7 +7544,6 @@
         "/api/extract-audio",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
@@ -7849,12 +7578,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7902,7 +7625,6 @@
         "/api/extract-audio",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
@@ -7937,12 +7659,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7988,7 +7704,6 @@
         "/api/extract-audio",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
@@ -8023,12 +7738,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8074,7 +7783,6 @@
         "/api/extract-audio",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generated-clips",
         "/api/generated-clips/:param",
         "/api/generation-history",
@@ -8109,12 +7817,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8209,7 +7911,6 @@
         "/api/admin/status",
         "/api/artist-vaults",
         "/api/credits/claim-trial",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/nfc-cards/my-profiles",
         "/api/nfc-cards/order",
@@ -8218,14 +7919,7 @@
         "/api/nfc-cards/qr/:param.svg",
         "/api/referrals/me"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "nextSteps": [
         {
           "label": "Promote",
@@ -8404,7 +8098,6 @@
         "/api/brand-kit/logo",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/hub/project",
         "/api/press-kit/:id/regenerate-bio",
         "/api/press-kit/:param",
@@ -8416,12 +8109,6 @@
         "/api/wave8/media-kit/generate"
       ],
       "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
         {
           "feature": "Press Kit Bio Refresh",
           "vb": 100,
@@ -8776,7 +8463,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-community-post",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/referrals/me",
@@ -8806,12 +8492,6 @@
           "feature": "Generate Community Post",
           "vb": 50,
           "endpoint": "/api/generate-community-post",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8864,7 +8544,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-community-post",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/referrals/me",
@@ -8894,12 +8573,6 @@
           "feature": "Generate Community Post",
           "vb": 50,
           "endpoint": "/api/generate-community-post",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8952,7 +8625,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/generate-community-post",
-        "/api/generate-song",
         "/api/hook-studio",
         "/api/hub/project",
         "/api/referrals/me",
@@ -8982,12 +8654,6 @@
           "feature": "Generate Community Post",
           "vb": 50,
           "endpoint": "/api/generate-community-post",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9298,7 +8964,6 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/sponsors/applications/:param",
         "/api/sponsors/deals/:param",
         "/api/sponsors/deals/:param/applications",
@@ -9311,12 +8976,6 @@
         "/api/sponsors/pitch"
       ],
       "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
         {
           "feature": "Sponsor Deals",
           "vb": 500,
@@ -9364,16 +9023,9 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/sponsors/deals"
       ],
       "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
         {
           "feature": "Sponsor Deals",
           "vb": 500,
@@ -9502,7 +9154,6 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
-        "/api/generate-song",
         "/api/shops",
         "/api/shops/:param",
         "/api/shops/:param/products",
@@ -9511,12 +9162,6 @@
         "/api/storefronts/domain/verify"
       ],
       "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
         {
           "feature": "Shop Description",
           "vb": 100,
@@ -9675,7 +9320,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/drafts",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -9724,12 +9368,6 @@
           "feature": "Clip Description",
           "vb": 50,
           "endpoint": "/api/clip-description",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9842,7 +9480,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/drafts",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -9891,12 +9528,6 @@
           "feature": "Clip Description",
           "vb": 50,
           "endpoint": "/api/clip-description",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9986,6 +9617,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -9998,11 +9634,6 @@
         {
           "label": "Upscale",
           "path": "/video-editor?tab=upscale",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Thumbnail Maker",
-          "path": "/thumbnail-studio?tab=generate",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -10028,7 +9659,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/drafts",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -10077,12 +9707,6 @@
           "feature": "Clip Description",
           "vb": 50,
           "endpoint": "/api/clip-description",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10174,6 +9798,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -10186,11 +9815,6 @@
         {
           "label": "Upscale",
           "path": "/video-editor?tab=upscale",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Thumbnail A/B Test",
-          "path": "/thumbnail-studio?tab=abtest",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ],
@@ -10220,7 +9844,6 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/drafts",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -10269,12 +9892,6 @@
           "feature": "Clip Description",
           "vb": 50,
           "endpoint": "/api/clip-description",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10360,6 +9977,11 @@
       "descriptionSource": "lib/desks.ts desk blurb",
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Thumbnail A/B Test",
           "path": "/thumbnail-studio?tab=abtest",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -10368,11 +9990,6 @@
           "label": "Video Studio",
           "path": "/video-studio",
           "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Branding Kit",
-          "path": "/branding-kit",
-          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
       ]
     },
@@ -10650,7 +10267,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -10793,12 +10409,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10980,6 +10590,11 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/guides/video-editor.ts guide summary",
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Promo Clips",
           "path": "/video-editor?tab=promo-clips",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -10992,11 +10607,6 @@
         {
           "label": "Repurpose",
           "path": "/video-editor?tab=repurpose",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Upscale",
-          "path": "/video-editor?tab=upscale",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -11035,7 +10645,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -11178,12 +10787,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -11351,6 +10954,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Promo Clips",
           "path": "/video-editor?tab=promo-clips",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -11363,11 +10971,6 @@
         {
           "label": "Repurpose",
           "path": "/video-editor?tab=repurpose",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Upscale",
-          "path": "/video-editor?tab=upscale",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -11406,7 +11009,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -11549,12 +11151,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -11728,6 +11324,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -11740,11 +11341,6 @@
         {
           "label": "Translate & Dub",
           "path": "/video-editor?tab=translate",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Repurpose",
-          "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -11783,7 +11379,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -11926,12 +11521,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12106,6 +11695,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -12118,11 +11712,6 @@
         {
           "label": "Upscale",
           "path": "/video-editor?tab=upscale",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Caption Styler",
-          "path": "/caption-styler",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ],
@@ -12165,7 +11754,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -12308,12 +11896,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12486,6 +12068,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -12498,11 +12085,6 @@
         {
           "label": "Translate & Dub",
           "path": "/video-editor?tab=translate",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Upscale",
-          "path": "/video-editor?tab=upscale",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -12541,7 +12123,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -12684,12 +12265,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12863,6 +12438,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -12875,11 +12455,6 @@
         {
           "label": "Repurpose",
           "path": "/video-editor?tab=repurpose",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Upscale",
-          "path": "/video-editor?tab=upscale",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -12918,7 +12493,6 @@
         "/api/generate-promo-clips",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
-        "/api/generate-song",
         "/api/generate-thumbnail",
         "/api/hub/project",
         "/api/improve-prompt",
@@ -13061,12 +12635,6 @@
           "feature": "Generate Video Clip",
           "vb": 400,
           "endpoint": "/api/generate-runway-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13241,6 +12809,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -13253,11 +12826,6 @@
         {
           "label": "Lyric Video",
           "path": "/video-editor?tab=lyric-video",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Translate & Dub",
-          "path": "/video-editor?tab=translate",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -13283,6 +12851,11 @@
       ],
       "nextSteps": [
         {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        },
+        {
           "label": "Video Editor",
           "path": "/video-editor",
           "source": "lib/desks.ts handoff (produces/accepts)"
@@ -13295,11 +12868,6 @@
         {
           "label": "Translate & Dub",
           "path": "/video-editor?tab=translate",
-          "source": "lib/desks.ts handoff (produces/accepts)"
-        },
-        {
-          "label": "Repurpose",
-          "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
       ]
@@ -13339,18 +12907,10 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/generate-song",
         "/api/website-builder/edit",
         "/api/website-builder/generate"
       ],
-      "prices": [
-        {
-          "feature": "Generate Song",
-          "vb": 400,
-          "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "nextSteps": []
     },
     {

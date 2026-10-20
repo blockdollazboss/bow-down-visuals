@@ -402,8 +402,18 @@ function descriptionFromPageText(text, en) {
   return best;
 }
 
+/** Strip comments so doc examples (e.g. the confirmedFetch JSDoc citing
+    "/api/generate-song") never attribute endpoints to a file's importers. */
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/^\s*\*.*$/gm, " ")
+    .replace(/^\s*\/\/.*$/gm, " ");
+}
+
 /** "/api/..." literals in a source file, normalized (${x} -> :param). */
-function apiLiterals(src) {
+function apiLiterals(rawSrc) {
+  const src = stripComments(rawSrc);
   const out = new Set();
   const re = /["'`](\/api\/[A-Za-z0-9_\-/?=&.:${}]+)["'`]/g;
   let m;
@@ -414,7 +424,10 @@ function apiLiterals(src) {
   return out;
 }
 
-/** A page file's own source + its one-hop imports' sources. */
+/** A page file's own source + its one-hop imports' sources.
+    A file naming >40 distinct endpoints is a registry/directory, not a
+    caller (lib/credit-costs.ts lists all 200) — its literals must not
+    attribute prices to every page that imports it, so it is skipped. */
 function pageSources(pageFileAbs) {
   const texts = [read(pageFileAbs)];
   const src = texts[0];
@@ -427,7 +440,10 @@ function pageSources(pageFileAbs) {
       : path.resolve(path.dirname(pageFileAbs), spec);
     for (const cand of [base + ".ts", base + ".tsx", path.join(base, "index.ts"), path.join(base, "index.tsx")]) {
       if (existsSync(cand)) {
-        try { texts.push(read(cand)); } catch { /* unreadable import — skip */ }
+        try {
+          const text = read(cand);
+          if (apiLiterals(text).size <= 40) texts.push(text);
+        } catch { /* unreadable import — skip */ }
         break;
       }
     }
@@ -538,22 +554,21 @@ function main() {
 
   const nextStepsFor = (entry, deskHit) => {
     const steps = [];
+    // The journey step always survives the trim — it is the product's spine.
+    const stageIdx = JOURNEY.indexOf(entry.stage);
+    if (stageIdx >= 0 && stageIdx < JOURNEY.length - 1) {
+      const next = STAGE_ENTRY[JOURNEY[stageIdx + 1]];
+      steps.push({ label: next.label, path: next.path, source: "CREATE → BRAND → PROMOTE → MONEY journey" });
+    }
     if (deskHit?.module) {
       const produces = new Set(deskHit.module.produces);
       for (const desk of desks) {
         for (const mod of desk.modules) {
           if (mod.route === deskHit.module.route) continue;
-          if (mod.accepts.some((k) => produces.has(k))) {
+          if (mod.accepts.some((k) => produces.has(k)) && !steps.some((s) => s.path === mod.route)) {
             steps.push({ label: mod.label, path: mod.route, source: "lib/desks.ts handoff (produces/accepts)" });
           }
         }
-      }
-    }
-    const stageIdx = JOURNEY.indexOf(entry.stage);
-    if (stageIdx >= 0 && stageIdx < JOURNEY.length - 1) {
-      const next = STAGE_ENTRY[JOURNEY[stageIdx + 1]];
-      if (!steps.some((s) => s.path === next.path)) {
-        steps.push({ label: next.label, path: next.path, source: "CREATE → BRAND → PROMOTE → MONEY journey" });
       }
     }
     return steps.slice(0, 4);
