@@ -26,6 +26,11 @@ import {
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const catalogSrc = read("../../components/world/native/DailyDropCatalog.tsx");
 const panelSrc = read("../../components/world/StationPanel.tsx");
+const slateSrc = read("../../components/DailyDropSlate.tsx");
+const dashboardSrc = read("../../pages/dashboard.tsx");
+const enLocale = JSON.parse(read("../../locales/en.json")) as {
+  retention: { dropCatalog: Record<string, string> };
+};
 
 function drop(over: Partial<DailyDropCatalogEntry> = {}): DailyDropCatalogEntry {
   return {
@@ -152,5 +157,54 @@ describe("the Treasury dock (source pins)", () => {
     expect(panelSrc.indexOf("<DailyDropCatalog")).toBeGreaterThan(
       panelSrc.indexOf("<DailyDropCard inWorld />"),
     );
+  });
+});
+
+describe("the website parity dock (source pins)", () => {
+  /* The catalogue was World-only: the website showed today's drop
+     card and nothing else. The slate now docks on the dashboard
+     under the same card, on the same seam and the same routes. */
+  it("the website slate rides the same seam and routes as the Treasury's", () => {
+    expect(slateSrc).toContain("DAILY_DROP_CATALOG_PATH");
+    expect(slateSrc).toContain("DAILY_DROP_ARCHIVE_PATH");
+    expect(slateSrc).toContain("DAILY_DROP_UNARCHIVE_PATH");
+    expect(slateSrc).toContain("normalizeDailyDropCatalog");
+    expect(slateSrc).toContain("splitDailyDropCatalog");
+  });
+
+  it("USE on the website is the def's href as a same-tab Link (the website card's idiom, not the in-world new tab)", () => {
+    expect(slateSrc).toContain("<Link href={entry.href}");
+    expect(slateSrc).not.toContain('target="_blank"');
+    expect(slateSrc).toContain("website-daily-drop-use-");
+    expect(slateSrc).toContain("website-daily-drop-archive-");
+    expect(slateSrc).toContain("website-daily-drop-unarchive-");
+  });
+
+  it("rows move only after the server confirms, same as in-world", () => {
+    const toggle = slateSrc.slice(slateSrc.indexOf("async function toggleArchive"));
+    expect(toggle.indexOf("await apiJson")).toBeGreaterThan(-1);
+    expect(toggle.indexOf("applyDropArchive")).toBeGreaterThan(toggle.indexOf("await apiJson"));
+  });
+
+  it("honest states: failed load retries, prefs-off and signed-out render nothing", () => {
+    expect(slateSrc).toContain('t("common.retry")');
+    expect(slateSrc).toContain("retention.dropCatalog.failedTitle");
+    expect(slateSrc).toContain("if (!catalog || !catalog.enabled) return null;");
+    expect(slateSrc).toContain("if (!user) return null;");
+  });
+
+  it("docked on the dashboard, directly under the day's drop card", () => {
+    expect(dashboardSrc).toContain("<DailyDropSlate />");
+    expect(dashboardSrc.indexOf("<DailyDropSlate />")).toBeGreaterThan(
+      dashboardSrc.indexOf("<DailyDropCard />"),
+    );
+  });
+
+  it("the website copy carries the same rotation honesty as the Treasury's", () => {
+    expect(enLocale.retention.dropCatalog.title).toContain("every template");
+    expect(enLocale.retention.dropCatalog.blurb).toContain(
+      "the shared daily rotation stays the same for everyone",
+    );
+    expect(enLocale.retention.dropCatalog.saveFailed).toContain("catalogue is unchanged");
   });
 });
