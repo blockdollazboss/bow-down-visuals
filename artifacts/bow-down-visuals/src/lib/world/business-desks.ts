@@ -375,12 +375,13 @@ export function parsePromoResult(data: unknown): PromoResult | null {
 }
 
 /* ─── Promote Desk: promo cards gallery (POST /api/promo-cards) ──────
-   GAP (flagged, not papered over): there is NO GET endpoint listing
-   a creator's previously made promo cards — the website panel only
-   ever shows the pack it just made. The in-world gallery therefore
-   holds the cards made at this desk in this sitting, exactly like
-   the page, and says so. Styles/sizes mirror the panel + the
-   GET /api/promo-cards/specs wire. */
+   The gallery holds the cards made at this desk in this sitting.
+   Every pack is also recorded server-side (promo_cards) and the
+   website panel lists the full history from GET /api/promo-cards —
+   this desk doesn't read that endpoint yet (the follow-on log names
+   it), so the desk's shelf is this sitting's pack and it says so.
+   Styles/sizes mirror the panel + the GET /api/promo-cards/specs
+   wire. */
 
 export const PROMO_CARD_STYLES = [
   { key: "announcement", label: "Announcement" },
@@ -392,6 +393,10 @@ export const PROMO_CARD_STYLES = [
 export const PROMO_CARD_SIZES = ["1:1", "9:16", "16:9"] as const;
 
 export interface PromoCardItem {
+  /** History record id once the server has recorded the card; null
+   *  when the record write didn't land — the card still works, its
+   *  share just rides without a content reference. */
+  id: string | null;
   style: string;
   size: string;
   url: string;
@@ -430,6 +435,7 @@ export function parsePromoCards(data: unknown): { cards: PromoCardItem[]; sugges
     const url = str(c["url"]);
     if (!url) continue;
     cards.push({
+      id: str(c["id"]),
       style: str(c["style"]) ?? "",
       size: str(c["size"]) ?? "",
       url,
@@ -680,16 +686,9 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
   },
   {
     id: "promo-cards-list-endpoint",
-    title: "NATIVE FOLLOW-ON: Promo-cards history (needs a list endpoint)",
+    title: "NATIVE FOLLOW-ON: Promo-cards history on this desk (list endpoint exists)",
     desk: "promote",
     benchPath: "/promote",
-    note: "GAP: no GET endpoint lists previously made promo cards (only GET /api/promo-cards/specs + POST /api/promo-cards exist), so the gallery can only hold this sitting's pack — on the website too. A list endpoint is server work and was NOT built in this lane.",
-  },
-  {
-    id: "promo-card-actions",
-    title: "NATIVE FOLLOW-ON: Promo-card per-card actions",
-    desk: "promote",
-    benchPath: "/promote",
-    note: "Download, share, schedule-this-card and add-to-release-assets per card (the panel's handoffs) — v1 shows the pack as a gallery.",
+    note: "GAP: GET /api/promo-cards exists (shipped with the website's promo-card history; every pack is recorded server-side) and the website panel lists the creator's cards from it — but this desk doesn't read it yet, so the in-world gallery still holds only this sitting's pack. Wiring the desk's gallery to the endpoint is the remaining follow-on. (Per-card actions on the gallery's cards — download, share, schedule, add-to-assets — are built; they ride the same rails as the website panel's.)",
   },
 ];

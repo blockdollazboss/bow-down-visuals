@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   normalizePromoCardHistory,
   removePromoCard,
   promoCardFileName,
   promoCardShareText,
+  promoCardSharePayload,
+  promoCardScheduleHref,
   promoCardDateLabel,
   type PromoCardHistoryItem,
 } from "./promo-card-history";
@@ -103,5 +106,66 @@ describe("card helpers", () => {
     expect(promoCardDateLabel("2026-01-03T12:00:00.000Z")).toBe("Jan 3, 2026");
     expect(promoCardDateLabel("")).toBe("");
     expect(promoCardDateLabel("not-a-date")).toBe("");
+  });
+});
+
+describe("per-card actions (Ring 4 tail)", () => {
+  const card = normalizePromoCardHistory({ cards: [RAW_CARD] }).cards[0]!;
+
+  it("share payload rides the rail as an image with the card's record id", () => {
+    expect(promoCardSharePayload(card, "native")).toEqual({
+      content_type: "image",
+      content_id: RAW_CARD.id,
+      channel: "native",
+    });
+    expect(promoCardSharePayload(card, "copy")).toEqual({
+      content_type: "image",
+      content_id: RAW_CARD.id,
+      channel: "copy",
+    });
+  });
+
+  it("a card without a record id shares with a null id — never an invented one", () => {
+    expect(promoCardSharePayload({ id: null }, "copy").content_id).toBeNull();
+    expect(promoCardSharePayload({}, "copy").content_id).toBeNull();
+  });
+
+  it("schedule href hands the scheduler the card itself, declared an image", () => {
+    const href = promoCardScheduleHref(card);
+    expect(href.startsWith("/scheduler?")).toBe(true);
+    const q = new URLSearchParams(href.split("?")[1]);
+    expect(q.get("schedule")).toBe("1");
+    expect(q.get("media")).toBe(RAW_CARD.url);
+    expect(q.get("mediaType")).toBe("image");
+    expect(q.get("caption")).toBe("🔥 OUT NOW 🔥");
+    expect(q.get("platform")).toBe("tiktok,instagram");
+    /* A promo card records no distribution release — none is claimed. */
+    expect(q.get("release")).toBeNull();
+  });
+
+  it("schedule caption falls back to the release line when the card carries none", () => {
+    const bare = { ...card, caption: null };
+    const q = new URLSearchParams(promoCardScheduleHref(bare).split("?")[1]);
+    expect(q.get("caption")).toBe("Midnight Gold — Lil Nova");
+  });
+});
+
+describe("PromoCardsPanel history wiring (source pins)", () => {
+  const panel = readFileSync(new URL("../components/hub/PromoCardsPanel.tsx", import.meta.url), "utf8");
+
+  it("history cards get the full action set the fresh grid has", () => {
+    expect(panel).toContain("scheduleHistoryCard(card)");
+    expect(panel).toContain("promoCardScheduleHref(card)");
+    expect(panel).toContain("addHistoryCardToAssets(card)");
+    expect(panel).toContain("downloadImage(card.url, promoCardFileName(card))");
+  });
+
+  it("both shares ride the rail as images — no 'other' rides remain", () => {
+    expect(panel).toContain("promoCardSharePayload(card, channel)");
+    expect(panel).not.toContain('content_type: "other"');
+  });
+
+  it("the fresh grid's schedule handoff declares the card an image too", () => {
+    expect(panel).toContain('mediaType: "image"');
   });
 });

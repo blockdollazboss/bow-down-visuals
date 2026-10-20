@@ -15,6 +15,8 @@ import {
   removePromoCard,
   promoCardFileName,
   promoCardShareText,
+  promoCardSharePayload,
+  promoCardScheduleHref,
   promoCardDateLabel,
   type PromoCardHistoryItem,
 } from "@/lib/promo-card-history";
@@ -170,17 +172,38 @@ export function PromoCardsPanel() {
       return;
     }
     /* Ride the share rail so the action counts like every other
-       share on the site. The rail has no promo-card type, so the
-       card rides as "other" with its history id as the content id.
+       share on the site. The card is an image with a server record,
+       so it rides the rail's "image" type with its history id as
+       the content id — the same shape cover-art shares use.
        Fire-and-forget: tracking never blocks or breaks sharing. */
     try {
       const token = await getAccessToken();
       await fetch("/api/shares", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ content_type: "other", content_id: card.id, channel }),
+        body: JSON.stringify(promoCardSharePayload(card, channel)),
       });
     } catch { /* tracking is a passenger, never the driver */ }
+  }
+
+  /* The history card's own scheduler handoff: the card is the post's
+     media (an image, declared as one), captioned with the words that
+     travel with the card, on the platforms it was sized for. */
+  function scheduleHistoryCard(card: PromoCardHistoryItem) {
+    window.location.href = promoCardScheduleHref(card);
+  }
+
+  /* The history card joins the release assets exactly as a fresh card
+     does — from the card's OWN recorded title/artist, not the maker
+     form's current values. */
+  function addHistoryCardToAssets(card: PromoCardHistoryItem) {
+    addAsset({
+      kind: "image",
+      url: card.url,
+      label: t("hubSpine.promoCards.assetLabel", { style: t(`hubSpine.promoCards.styles.${card.style}`), size: card.size }),
+      detail: `${card.releaseTitle} — ${card.artistName}`,
+      meta: { sourceAsset: "promo-cards", handoff: "promo-cards", style: card.style, size: card.size },
+    });
   }
 
   /* Deep-link: /promote#promo-cards scrolls straight to this panel. */
@@ -246,6 +269,9 @@ export function PromoCardsPanel() {
     window.location.href = buildSchedulerHref({
       caption: caption || `${releaseTitle} — ${artistName}`,
       media: card.url,
+      /* A promo card is an image — without this the handoff's
+         default labels the post's media as a video. */
+      mediaType: "image",
       platforms: card.platforms,
     });
   }
@@ -267,8 +293,9 @@ export function PromoCardsPanel() {
 
   async function shareCard(card: PromoCard, idx: number) {
     const text = caption || `${releaseTitle} — ${artistName}`;
+    const channel = typeof navigator !== "undefined" && "share" in navigator ? "native" : "copy";
     try {
-      if (navigator.share) {
+      if (channel === "native") {
         await navigator.share({ title: `${releaseTitle} — ${artistName}`, text, url: card.url });
       } else {
         await navigator.clipboard.writeText(`${text}\n${card.url}`);
@@ -276,8 +303,23 @@ export function PromoCardsPanel() {
       setSharedIdx(idx);
       setTimeout(() => setSharedIdx(null), 2000);
     } catch {
-      /* user dismissed — ignore */
+      /* user dismissed — and a dismissed share is not a share, so
+         nothing is tracked for it below */
+      return;
     }
+    /* Ride the share rail like the history share below does — a
+       fresh pack's share counts the same as any other. The card
+       rides as "image"; its content id is its history record id,
+       or null when the record write didn't land.
+       Fire-and-forget: tracking never blocks or breaks sharing. */
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify(promoCardSharePayload(card, channel)),
+      });
+    } catch { /* tracking is a passenger, never the driver */ }
   }
 
   function copyCaption() {
@@ -594,12 +636,18 @@ export function PromoCardsPanel() {
                       {styleLabel(card.style)} · {card.size} · {card.width}×{card.height}
                       {promoCardDateLabel(card.createdAt) ? ` · ${promoCardDateLabel(card.createdAt)}` : ""}
                     </p>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
                       <button
                         onClick={() => downloadImage(card.url, promoCardFileName(card))}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-2 text-xs font-black text-black transition hover:brightness-110"
                       >
                         <Download className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.download")}
+                      </button>
+                      <button
+                        onClick={() => scheduleHistoryCard(card)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-primary/50 hover:text-primary"
+                      >
+                        <CalendarClock className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.schedule")}
                       </button>
                       <button
                         onClick={() => void shareHistoryCard(card)}
@@ -608,11 +656,17 @@ export function PromoCardsPanel() {
                         {historySharedId === card.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
                         {t("hubSpine.promoCards.share")}
                       </button>
+                      <button
+                        onClick={() => addHistoryCardToAssets(card)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-primary/50 hover:text-primary"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.addToAssets")}
+                      </button>
                       {confirmDeleteId === card.id ? (
                         <button
                           onClick={() => void deleteHistoryCard(card)}
                           disabled={deletingId === card.id}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-400/60 bg-red-500/15 px-2 py-2 text-xs font-black text-red-200 transition hover:bg-red-500/25 disabled:opacity-50"
+                          className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-400/60 bg-red-500/15 px-2 py-2 text-xs font-black text-red-200 transition hover:bg-red-500/25 disabled:opacity-50"
                         >
                           {deletingId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           {t("hubSpine.promoCards.historyConfirmDelete")}
@@ -620,7 +674,7 @@ export function PromoCardsPanel() {
                       ) : (
                         <button
                           onClick={() => setConfirmDeleteId(card.id)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-red-400/50 hover:text-red-200"
+                          className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-2 py-2 text-xs font-bold text-white/75 transition hover:border-red-400/50 hover:text-red-200"
                         >
                           <Trash2 className="h-3.5 w-3.5" /> {t("hubSpine.promoCards.historyDelete")}
                         </button>

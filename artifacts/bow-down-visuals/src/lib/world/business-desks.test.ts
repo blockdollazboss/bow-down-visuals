@@ -8,6 +8,7 @@
  * endpoints actually return; the parity follow-on log names every
  * bench v1 leaves behind the transfer.
  */
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   LOGO_MODELS,
@@ -243,6 +244,17 @@ describe("promote desk — promo generator + promo cards", () => {
     expect(cards[0]).toMatchObject({ size: "1:1", platforms: ["instagram"] });
     expect(suggestedCaption).toBe("cap");
   });
+
+  it("cards parse carries the history record id — null when the record didn't land", () => {
+    const withId = parsePromoCards({
+      cards: [{ id: "99999999-9999-4999-8999-000000000001", style: "out-now", size: "1:1", url: "https://x/c.png" }],
+    });
+    expect(withId.cards[0]!.id).toBe("99999999-9999-4999-8999-000000000001");
+    const without = parsePromoCards({
+      cards: [{ id: null, style: "out-now", size: "1:1", url: "https://x/c.png" }, { style: "out-now", size: "9:16", url: "https://x/d.png" }],
+    });
+    expect(without.cards.map((c) => c.id)).toEqual([null, null]);
+  });
 });
 
 describe("folded rows — release, scheduler, coach", () => {
@@ -324,5 +336,35 @@ describe("parity follow-on log — thorough, each bench named", () => {
     }
     // The promo-cards gap is logged as a gap, not hidden.
     expect(BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note).toContain("GAP");
+  });
+
+  it("promo-card per-card actions are built, so the follow-on is resolved — and the list note tells the endpoint truth", () => {
+    const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
+    expect(ids).not.toContain("promo-card-actions");
+    const listNote = BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note;
+    /* The endpoint exists (website history ships from it); the
+       remaining gap is only that this desk doesn't read it yet. */
+    expect(listNote).toContain("GET /api/promo-cards");
+    expect(listNote).not.toContain("no GET endpoint");
+  });
+});
+
+describe("Promote Desk gallery actions (source pins)", () => {
+  const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+
+  it("every gallery card carries the panel's four handoffs", () => {
+    expect(desk).toContain('data-testid="world-promote-card-download"');
+    expect(desk).toContain('data-testid="world-promote-card-schedule"');
+    expect(desk).toContain('data-testid="world-promote-card-share"');
+    expect(desk).toContain('data-testid="world-promote-card-assets"');
+    expect(desk).toContain("downloadImage(c.url, promoCardFileName(c))");
+    expect(desk).toContain('scheduleHrefForMedia(c.url, "image", cardShareText())');
+    expect(desk).toContain("promoCardSharePayload(c, channel)");
+    expect(desk).toContain("addGalleryCardToAssets(c)");
+  });
+
+  it("the gallery copy no longer denies the saved shelf exists", () => {
+    expect(desk).not.toContain("no saved card shelf yet");
+    expect(desk).toContain("recorded to your promo card history");
   });
 });
