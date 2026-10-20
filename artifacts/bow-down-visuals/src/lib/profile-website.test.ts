@@ -22,6 +22,7 @@ import {
   addBlock,
   addableBlockTypes,
   layoutSummary,
+  themeSettingsPatch,
   storeViewState,
   membershipsViewState,
   activeTiers,
@@ -197,6 +198,22 @@ describe("layout editor ops", () => {
   it("the save read-back summary lists the visible blocks in order", () => {
     expect(layoutSummary(start)).toBe("The Stage · The Front Row · Music");
     expect(layoutSummary(toggleBlockVisibility(start, "court"))).toBe("The Stage · Music");
+  });
+});
+
+describe("themeSettingsPatch (a null pick is never sent as a value)", () => {
+  it("keeps real picks and drops null ones", () => {
+    expect(
+      themeSettingsPatch({ colorway: null, headingFont: "Space Grotesk", bodyFont: null }),
+    ).toEqual({ headingFont: "Space Grotesk" });
+    expect(
+      themeSettingsPatch({ colorway: "royal-gold", headingFont: null, bodyFont: "Inter" }),
+    ).toEqual({ colorway: "royal-gold", bodyFont: "Inter" });
+  });
+
+  it("an unpicked look patches to nothing — the save has nothing to send", () => {
+    expect(themeSettingsPatch({ colorway: null, headingFont: null, bodyFont: null })).toEqual({});
+    expect(themeSettingsPatch({})).toEqual({});
   });
 });
 
