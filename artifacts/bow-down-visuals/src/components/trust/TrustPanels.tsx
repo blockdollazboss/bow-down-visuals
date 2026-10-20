@@ -153,6 +153,29 @@ export function PermanenceSettings() {
 }
 
 /* ── #3 Catalog portability ────────────────────────────────────────── */
+/* Builder field options mirror the server whitelist in routes/trust.ts
+   (CATALOG_EXPORT_KINDS) exactly — the server rejects anything else. */
+export const CATALOG_EXPORT_KIND_OPTIONS = [
+  { kind: "tracks", label: "Tracks" },
+  { kind: "releases", label: "Releases" },
+  { kind: "videos", label: "Videos" },
+] as const;
+export const CATALOG_EXPORT_FIELD_OPTIONS: Record<string, { key: string; label: string }[]> = {
+  tracks: [
+    { key: "id", label: "ID" }, { key: "title", label: "Title" }, { key: "source", label: "Source" },
+    { key: "durationSec", label: "Duration (sec)" }, { key: "fileUrl", label: "File link" }, { key: "createdAt", label: "Created" },
+  ],
+  releases: [
+    { key: "id", label: "ID" }, { key: "title", label: "Title" }, { key: "artistName", label: "Artist" },
+    { key: "status", label: "Status" }, { key: "fileUrl", label: "Audio link" }, { key: "artworkUrl", label: "Artwork link" },
+    { key: "createdAt", label: "Created" },
+  ],
+  videos: [
+    { key: "id", label: "ID" }, { key: "title", label: "Title" }, { key: "status", label: "Status" },
+    { key: "fileUrl", label: "Video link" }, { key: "thumbnailUrl", label: "Thumbnail link" }, { key: "createdAt", label: "Created" },
+  ],
+};
+
 export function CatalogExportPanel() {
   const { getAccessToken } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
@@ -178,6 +201,46 @@ export function CatalogExportPanel() {
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not build your package."); }
     finally { setBusy(false); }
   }
+
+  /* Builder: one kind, picked fields, CSV or JSON — POST /catalog-export/build. */
+  const [bKind, setBKind] = useState<string>("tracks");
+  const [bFields, setBFields] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(Object.entries(CATALOG_EXPORT_FIELD_OPTIONS).map(([k, opts]) => [k, opts.map((o) => o.key)])));
+  const [bFormat, setBFormat] = useState<"csv" | "json">("csv");
+  const [bBusy, setBBusy] = useState(false);
+  const [bErr, setBErr] = useState<string | null>(null);
+  const [bMsg, setBMsg] = useState<string | null>(null);
+
+  function toggleField(key: string) {
+    setBFields((prev) => {
+      const cur = prev[bKind] ?? [];
+      const next = cur.includes(key) ? cur.filter((f) => f !== key) : [...cur, key];
+      return { ...prev, [bKind]: next.length > 0 ? next : cur };
+    });
+  }
+
+  async function download() {
+    setBBusy(true); setBErr(null); setBMsg(null);
+    try {
+      const t = await getAccessToken();
+      const res = await fetch("/api/catalog-export/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+        body: JSON.stringify({ kind: bKind, fields: bFields[bKind] ?? [], format: bFormat }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error((j as any)?.error ?? "Could not build that export."); }
+      const truncated = res.headers.get("X-Export-Truncated") === "true";
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `my-catalog-${bKind}.${bFormat}`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setBMsg(truncated
+        ? "Downloaded — heads up, this file hit the 2,000-row cap, so it carries your newest 2,000 entries."
+        : "Downloaded.");
+    } catch (e) { setBErr(e instanceof Error ? e.message : "Could not build that export."); }
+    finally { setBBusy(false); }
+  }
   return (
     <section className={card}>
       <h2 className="text-lg font-black tracking-tight">Your whole catalog, downloadable</h2>
@@ -189,6 +252,41 @@ export function CatalogExportPanel() {
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
       <button type="button" className={`${btn} mt-4`} onClick={create} disabled={busy}>{busy ? "Building…" : "Build my catalog package"}</button>
       {jobs.length > 0 && <ul className="mt-3 text-sm text-muted-foreground">{jobs.map((j) => <li key={j.id}>{new Date(j.createdAt).toLocaleString()} — {j.status} ({j.progress}%)</li>)}</ul>}
+
+      <div className="mt-6 border-t border-border pt-4">
+        <h3 className="text-base font-black tracking-tight">Or build your own export</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One part of your catalog at a time, with just the fields you want — as a spreadsheet (CSV) or JSON.
+          Newest first, up to 2,000 rows per file; if you have more, the file says so.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Catalog kind">
+          {CATALOG_EXPORT_KIND_OPTIONS.map((o) => (
+            <button key={o.kind} type="button" role="radio" aria-checked={bKind === o.kind}
+              className={bKind === o.kind ? btn : ghost} onClick={() => setBKind(o.kind)}>{o.label}</button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+          {(CATALOG_EXPORT_FIELD_OPTIONS[bKind] ?? []).map((o) => (
+            <label key={o.key} className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" checked={(bFields[bKind] ?? []).includes(o.key)} onChange={() => toggleField(o.key)} />
+              {o.label}
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex gap-2" role="radiogroup" aria-label="File format">
+            {(["csv", "json"] as const).map((f) => (
+              <button key={f} type="button" role="radio" aria-checked={bFormat === f}
+                className={bFormat === f ? btn : ghost} onClick={() => setBFormat(f)}>{f.toUpperCase()}</button>
+            ))}
+          </div>
+          <button type="button" className={btn} onClick={download} disabled={bBusy || (bFields[bKind] ?? []).length === 0}>
+            {bBusy ? "Building…" : "Download export"}
+          </button>
+        </div>
+        {bErr && <p className="mt-2 text-sm text-destructive">{bErr}</p>}
+        {bMsg && <p className="mt-2 text-sm text-emerald-500">{bMsg}</p>}
+      </div>
     </section>
   );
 }
