@@ -23,7 +23,11 @@ import { z } from "zod/v4";
  * One charged step per confirmation, always.
  */
 
-export const OPERATOR_CHANNELS = ["chat_text", "voice", "admin_command"] as const;
+/* 'automatic' (migration 0180, Lane G) is the duties' channel: rows
+   the operator's scheduled peace-keeping duties write when they
+   fire on their own watch. It exists ONLY on operator_actions —
+   pending confirmations are a member protocol and never carry it. */
+export const OPERATOR_CHANNELS = ["chat_text", "voice", "admin_command", "automatic"] as const;
 export type OperatorChannel = (typeof OPERATOR_CHANNELS)[number];
 
 export const OPERATOR_ACTION_RESULTS = ["done", "refused", "failed"] as const;
@@ -49,7 +53,7 @@ export const operatorActionsTable = pgTable("operator_actions", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   check("operator_actions_tier_check", sql`${t.tier} IN (0, 1, 2, 3, 4)`),
-  check("operator_actions_channel_check", sql`${t.channel} IN ('chat_text', 'voice', 'admin_command')`),
+  check("operator_actions_channel_check", sql`${t.channel} IN ('chat_text', 'voice', 'admin_command', 'automatic')`),
   check("operator_actions_result_check", sql`${t.result} IN ('done', 'refused', 'failed')`),
   index("operator_actions_user_idx").on(t.userId, t.createdAt),
   index("operator_actions_recent_idx").on(t.createdAt),
