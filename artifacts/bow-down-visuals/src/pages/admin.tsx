@@ -950,6 +950,10 @@ function ContentReportsInbox({ authHeaders }: { authHeaders: () => Promise<Heade
         </div>
       )}
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 /* ─── Content Removal — the admin takedown rail for posts/comments ─────
    Acts on the rail in routes/admin.ts (GET/PATCH /api/admin/content).
    The current state always renders BEFORE any action is offered —
