@@ -372,11 +372,15 @@ export function layoutSummary(blocks: ProfileBlockDto[]): string {
    (colorway id, font names); the server resolves them into
    theme_config. Royal Gold is the house colorway and leads the list. */
 
+/* The picks are honestly nullable in the DTO: the server reports null
+   for a pick that was never made (an untouched profile, or a legacy
+   "custom" look with no registry colorway). Null means "no pick" —
+   the editor renders it as unset, and a save never sends it back as
+   if it were a value. */
 export interface ProfileThemeSettingsDto {
-  themeId: string;
-  colorway: string;
-  headingFont: string;
-  bodyFont: string;
+  colorway: string | null;
+  headingFont: string | null;
+  bodyFont: string | null;
   colorways: Array<{ id: string; name: string }>;
   fonts: string[];
 }
@@ -386,15 +390,37 @@ export async function fetchMyThemeSettings(): Promise<ProfileThemeSettingsDto> {
   return json<ProfileThemeSettingsDto>(res);
 }
 
-export async function saveMyThemeSettings(patch: {
+export interface ThemeSettingsPatch {
   colorway?: string;
   headingFont?: string;
   bodyFont?: string;
+}
+
+/** The save body for a theme-settings state: real picks only. Null /
+    undefined fields are "no pick" and are left out entirely, so the
+    wire carries exactly what the creator chose (the server also
+    tolerates nulls as no-change — this keeps the intent explicit). */
+export function themeSettingsPatch(settings: {
+  colorway?: string | null;
+  headingFont?: string | null;
+  bodyFont?: string | null;
+}): ThemeSettingsPatch {
+  const patch: ThemeSettingsPatch = {};
+  if (settings.colorway != null) patch.colorway = settings.colorway;
+  if (settings.headingFont != null) patch.headingFont = settings.headingFont;
+  if (settings.bodyFont != null) patch.bodyFont = settings.bodyFont;
+  return patch;
+}
+
+export async function saveMyThemeSettings(patch: {
+  colorway?: string | null;
+  headingFont?: string | null;
+  bodyFont?: string | null;
 }): Promise<ProfileThemeSettingsDto> {
   const res = await fetch("/api/creator-profiles/me/theme-settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
+    body: JSON.stringify(themeSettingsPatch(patch)),
   });
   return json<ProfileThemeSettingsDto>(res);
 }

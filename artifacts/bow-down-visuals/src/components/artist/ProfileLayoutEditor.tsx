@@ -343,17 +343,24 @@ export default function ProfileLayoutEditor() {
               })}
             </div>
 
+            {theme.colorway === null && (
+              <p className="mt-2 text-xs text-white/40">
+                No designed colorway picked — your page is wearing its saved custom or starter look. Pick one above to switch.
+              </p>
+            )}
+
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs text-white/50">Heading font</span>
                 <select
-                  value={theme.headingFont}
+                  value={theme.headingFont ?? ""}
                   onChange={(e) => {
                     setTheme({ ...theme, headingFont: e.target.value });
                     setThemeSaved(false);
                   }}
                   className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none"
                 >
+                  {theme.headingFont === null && <option value="">Not set</option>}
                   {theme.fonts.map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
@@ -362,13 +369,14 @@ export default function ProfileLayoutEditor() {
               <label className="block">
                 <span className="mb-1 block text-xs text-white/50">Body font</span>
                 <select
-                  value={theme.bodyFont}
+                  value={theme.bodyFont ?? ""}
                   onChange={(e) => {
                     setTheme({ ...theme, bodyFont: e.target.value });
                     setThemeSaved(false);
                   }}
                   className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none"
                 >
+                  {theme.bodyFont === null && <option value="">Not set</option>}
                   {theme.fonts.map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
