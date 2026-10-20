@@ -6,7 +6,13 @@
    THE PROTOCOL:
    - The model proposes an action by ending its reply with a marker
      line: [[DO:<tool-id>]] — and ONLY for tools in the live registry
-     the prompt lists. The marker is machine-only; it never reaches
+     the prompt lists. A tool that takes arguments carries them as a
+     JSON object right after the id: [[DO:<tool-id> {"k":"v"}]]
+     (Lane D). The arguments are data the member gave, never a second
+     instruction channel: the executor re-validates everything
+     through the rail, and an unparseable args object degrades to {}
+     — which makes an argument-requiring handler refuse honestly
+     rather than guess. The marker is machine-only; it never reaches
      the member.
    - processOperatorReply (post-model): a marker for a FREE tool
      executes immediately through the executor and the reply is the
@@ -55,17 +61,29 @@ type ExecutorStatus = ExecutorOutcome["status"];
 
 /* ── The marker ─────────────────────────────────────────────────────── */
 
-const MARKER_RE = /\[\[DO:\s*([a-zA-Z0-9_.-]+)\s*\]\]/;
+const MARKER_RE = /\[\[DO:\s*([a-zA-Z0-9_.-]+)(?:\s+(\{[\s\S]*?\}))?\s*\]\]/;
 
-/** Pull a [[DO:tool-id]] marker out of a model reply. Returns the tool
-    id and the reply with the marker line removed (the model's prose
-    around a FREE tool's marker is discarded too — the executor's
-    outcome text is the reply; the prose is kept only when there is
-    no marker at all). */
-export function extractActionMarker(reply: string): { toolId: string } | null {
+/** Pull a [[DO:tool-id]] marker out of a model reply, with its
+    optional JSON args object. Returns the tool id and args (the
+    model's prose around a FREE tool's marker is discarded too — the
+    executor's outcome text is the reply; the prose is kept only when
+    there is no marker at all). Args that fail to parse, or parse to
+    a non-object, degrade to {} — never a partially-trusted value. */
+export function extractActionMarker(reply: string): { toolId: string; args: Record<string, unknown> } | null {
   const m = MARKER_RE.exec(reply);
   if (!m) return null;
-  return { toolId: m[1].toLowerCase() };
+  let args: Record<string, unknown> = {};
+  if (m[2]) {
+    try {
+      const parsed: unknown = JSON.parse(m[2]);
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        args = parsed as Record<string, unknown>;
+      }
+    } catch {
+      args = {};
+    }
+  }
+  return { toolId: m[1].toLowerCase(), args };
 }
 
 /* ── Confirmation / cancellation wording ────────────────────────────── */
@@ -165,7 +183,7 @@ export async function processOperatorReply(input: {
       userId: input.userId,
       userEmail: input.userEmail,
       toolId: tool.id,
-      args: {},
+      args: marker.args,
       channel: input.channel,
     });
     return {
@@ -185,7 +203,7 @@ export async function processOperatorReply(input: {
   const proposal = await proposeAction({
     userId: input.userId,
     toolId: tool.id,
-    args: {},
+    args: marker.args,
     channel: input.channel,
   });
   if (proposal.status !== "proposed") {
