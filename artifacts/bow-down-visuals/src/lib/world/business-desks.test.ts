@@ -29,6 +29,13 @@ import {
   buildHeadshotPayload,
   headshotReady,
   parseHeadshotFailure,
+  STREAM_PACK_COST_VISUAL_BUCS,
+  STREAM_PACK_THEMES,
+  STREAM_PACK_ASSETS,
+  streamPackGenerateReady,
+  buildStreamPackGeneratePayload,
+  parseStreamPackGenerate,
+  streamPackThemeLabel,
   parseJobStart,
   jobPollOutcome,
   buildLogoPayload,
@@ -78,6 +85,20 @@ describe("costs — quoted up front, from the pages themselves", () => {
 
   it("headshot is 100 — the studio component, the route constant and the registry agree", () => {
     expect(HEADSHOT_COST_VISUAL_BUCS).toBe(100);
+  });
+
+  it("stream pack is 100 — the route constant and the registry agree", () => {
+    expect(STREAM_PACK_COST_VISUAL_BUCS).toBe(100);
+    const route = readFileSync(
+      new URL("../../../../api-server/src/routes/generate/stream-pack.ts", import.meta.url),
+      "utf8",
+    );
+    /* The server's charge: STREAM_PACK_CREDIT_COST, env-overridable,
+       defaulting to 100 — and the catalog endpoint serves the same
+       constant to the website page's picker. */
+    expect(route).toContain('Number(process.env["STREAM_PACK_CREDITS_PER_IMAGE"]) || 100');
+    const registry = readFileSync(new URL("../credit-costs.ts", import.meta.url), "utf8");
+    expect(registry).toContain('"/api/stream-pack/generate": { cost: 100, feature: "Stream Pack Generator" }');
   });
 });
 
@@ -454,6 +475,101 @@ describe("headshots bench — the studio's rail, native at the Branding Kit Desk
   });
 });
 
+describe("stream pack bench — the page's rails, native at the Branding Kit Desk", () => {
+  it("themes and assets are the server catalog's own — 6 themes, 12 graphics in the page's groups", () => {
+    expect(STREAM_PACK_THEMES.map((t) => [t.key, t.label])).toEqual([
+      ["gold-luxury", "Gold Luxury"],
+      ["neon-cyber", "Neon Cyber"],
+      ["crimson-royal", "Crimson Royal"],
+      ["emerald-empire", "Emerald Empire"],
+      ["violet-noir", "Violet Noir"],
+      ["arctic-frost", "Arctic Frost"],
+    ]);
+    expect(STREAM_PACK_ASSETS.map((a) => [a.key, a.label, a.group])).toEqual([
+      ["webcam-frame", "Webcam Frame", "Overlays"],
+      ["chat-frame", "Chat Box Frame", "Overlays"],
+      ["alert-follower", "New Follower Alert", "Alerts"],
+      ["alert-subscriber", "New Subscriber Alert", "Alerts"],
+      ["alert-donation", "Donation Alert", "Alerts"],
+      ["panel-about", "About Panel", "Panels"],
+      ["panel-rules", "Rules Panel", "Panels"],
+      ["panel-schedule", "Schedule Panel", "Panels"],
+      ["panel-socials", "Socials Panel", "Panels"],
+      ["screen-starting", "Starting Soon Screen", "Screens"],
+      ["screen-brb", "Be Right Back Screen", "Screens"],
+      ["screen-ending", "Stream Ending Screen", "Screens"],
+    ]);
+    /* Drift pin: every mirrored key still exists in the server's
+       catalog source — the bench never offers a pick the rail
+       would 400 as unknown. */
+    const route = readFileSync(
+      new URL("../../../../api-server/src/routes/generate/stream-pack.ts", import.meta.url),
+      "utf8",
+    );
+    for (const t of STREAM_PACK_THEMES) expect(route, t.key).toContain(`id: "${t.key}"`);
+    for (const a of STREAM_PACK_ASSETS) expect(route, a.key).toContain(`key: "${a.key}"`);
+  });
+
+  it("payload mirrors the page: channel name trimmed, theme + asset keys as picked", () => {
+    expect(
+      buildStreamPackGeneratePayload({ channelName: "  Thy Cheat Code  ", theme: "neon-cyber", asset: "alert-follower" }),
+    ).toEqual({ channelName: "Thy Cheat Code", theme: "neon-cyber", asset: "alert-follower" });
+  });
+
+  it("the generate gate is the page's: a channel name is required", () => {
+    expect(streamPackGenerateReady("")).toBe(false);
+    expect(streamPackGenerateReady("   ")).toBe(false);
+    expect(streamPackGenerateReady("Thy Cheat Code")).toBe(true);
+  });
+
+  it("outcomes sort honestly: made / credits / failed — a 2xx without a graphic is never a success", () => {
+    expect(
+      parseStreamPackGenerate(200, { asset: "webcam-frame", label: "Webcam Frame", url: "https://x/p.png", creditCost: 100 }),
+    ).toEqual({ kind: "succeeded", url: "https://x/p.png", label: "Webcam Frame" });
+    expect(parseStreamPackGenerate(200, { asset: "webcam-frame" })).toEqual({ kind: "failed", message: null });
+    expect(parseStreamPackGenerate(402, { error: "out_of_credits", message: "Not enough Visual Bucs." })).toEqual({
+      kind: "credits",
+      message: "Not enough Visual Bucs.",
+    });
+    expect(parseStreamPackGenerate(400, { error: "channelName is required" })).toEqual({
+      kind: "failed",
+      message: "channelName is required",
+    });
+    expect(parseStreamPackGenerate(500, { error: "Image generation returned no image data." })).toEqual({
+      kind: "failed",
+      message: "Image generation returned no image data.",
+    });
+    expect(parseStreamPackGenerate(500, null)).toEqual({ kind: "failed", message: null });
+  });
+
+  it("a library record's theme reads by the catalog's names; unknown themes stay unnamed", () => {
+    expect(streamPackThemeLabel("gold-luxury")).toBe("Gold Luxury");
+    expect(streamPackThemeLabel("arctic-frost")).toBe("Arctic Frost");
+    expect(streamPackThemeLabel("some-old-theme")).toBeNull();
+    expect(streamPackThemeLabel(null)).toBeNull();
+  });
+});
+
+describe("stream pack bench wiring (source pins)", () => {
+  const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+
+  it("the bench is native at the desk, riding the page's own rails and the shared library seam", () => {
+    expect(desk).toContain('data-testid="world-stream-pack-bench"');
+    expect(desk).toContain('data-testid="world-stream-pack-generate"');
+    expect(desk).toContain("world-stream-pack-apply-");
+    expect(desk).toContain('confirmedFetch("/api/stream-pack/generate"');
+    expect(desk).toContain("overrideCost: STREAM_PACK_COST_VISUAL_BUCS");
+    expect(desk).toContain("fetchMyStreamPackAssets(getAccessToken)");
+    expect(desk).toContain("setStreamPackAssetApplied(");
+  });
+
+  it("the shelf's states are honest: a failed load retries, an empty pack says so", () => {
+    expect(desk).toContain("Your stream pack wouldn't open — your graphics are safe on the real rails.");
+    expect(desk).toContain("No stream graphics yet.");
+    expect(desk).toContain("Charged only when the graphic is made — a failed make is never charged.");
+  });
+});
+
 describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
@@ -463,7 +579,6 @@ describe("parity follow-on log — thorough, each bench named", () => {
       "bio-page-layout-theme-editors",
       "press-kit-layout-editing",
       "branding-jewelry-bench",
-      "branding-stream-pack-bench",
       "coach-full-page-depth",
       "bio-page-publish-management",
     ]) {
@@ -472,6 +587,9 @@ describe("parity follow-on log — thorough, each bench named", () => {
     // Headshots graduated: the bench is native at the Branding Kit Desk
     // now, so it leaves the follow-on log.
     expect(ids).not.toContain("branding-headshots-bench");
+    // Stream pack graduated the same way: library + generate + apply
+    // are native at the Branding Kit Desk, reading the same records.
+    expect(ids).not.toContain("branding-stream-pack-bench");
     for (const f of BUSINESS_NATIVE_FOLLOW_ONS) {
       expect(f.title.startsWith("NATIVE FOLLOW-ON:"), f.id).toBe(true);
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
