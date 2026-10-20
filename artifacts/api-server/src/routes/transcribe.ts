@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { createHash } from "crypto";
 import { getOpenAI, getPlainTranscribeModel } from "../lib/ai-clients";
+import { transcribeAudioTimed } from "../lib/transcription";
 import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
@@ -145,8 +146,9 @@ router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), a
         file: audioFile,
         // Plain text only — this route returns just the transcript, so it
         // runs on the plain-transcription model (gpt-transcribe). The
-        // /transcribe-url route below stays on whisper-1: its clients
-        // align captions to the word timestamps it returns.
+        // /transcribe-url route below uses the timed seam
+        // (lib/transcription.ts): its clients align captions to the word
+        // timestamps it returns.
         model: getPlainTranscribeModel(),
         response_format: "json",
       },
@@ -254,31 +256,20 @@ router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
     charged = true;
 
     const fileName = parsedUrl.pathname.split("/").pop() ?? "audio.mp3";
-    const audioFile = await toFile(buffer, decodeURIComponent(fileName), { type: contentType });
 
-    type VerboseTranscription = {
-      text: string;
-      duration?: number;
-      segments?: Array<{ id: number; start: number; end: number; text: string }>;
-      words?: Array<{ word: string; start: number; end: number }>;
-      language?: string;
-    };
-
-    // Requesting word-level granularity (in addition to segment-level) gives
-    // much finer-grained timestamps than segment boundaries alone — segments
-    // can span several seconds/several words, which is too coarse to track
-    // sung vocals (melisma, held notes, word stretching) accurately. Word
-    // timestamps let the client align each caption line to the actual words
-    // being sung rather than the whole segment they fall within.
-    const transcription = (await getOpenAI().audio.transcriptions.create(
-      {
-        file: audioFile,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["word", "segment"],
-      },
-      { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-    )) as unknown as VerboseTranscription;
+    // Word-level timestamps (in addition to segment-level) give much
+    // finer-grained timing than segment boundaries alone — segments can
+    // span several seconds/several words, which is too coarse to track
+    // sung vocals (melisma, held notes, word stretching) accurately.
+    // Word timestamps let the client align each caption line to the
+    // actual words being sung rather than the whole segment they fall
+    // within. The timed seam returns exactly this shape.
+    const transcription = await transcribeAudioTimed({
+      buffer,
+      filename: decodeURIComponent(fileName),
+      mimeType: contentType,
+      signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+    });
 
     res.json({
       transcript: transcription.text,

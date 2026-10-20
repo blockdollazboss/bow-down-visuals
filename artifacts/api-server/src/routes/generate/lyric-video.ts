@@ -5,7 +5,7 @@
  *  POST   /api/lyric-video/render           render the karaoke lyric video (5cr)
  *  GET    /api/lyric-video/render/:jobId    poll a render job
  *
- * Alignment: Whisper (verbose_json + word timestamps) transcribes the audio,
+ * Alignment: timed transcription (word timestamps) transcribes the audio,
  * then an LCS-based aligner maps the transcribed words onto the user's
  * pasted lyric lines, producing per-line AND per-word timings. The UI lets
  * the user fine-tune every line before rendering.
@@ -13,10 +13,10 @@
  * Rendering: server-side ffmpeg. An animated gradient background (style
  * preset) + the original audio + karaoke word-by-word highlighting burned in
  * via ASS subtitles (\kf sweep tags). 16:9 or 9:16. Nothing is faked — if
- * Whisper hears no speech or the lyrics don't match the audio, alignment
+ * no speech is heard or the lyrics don't match the audio, alignment
  * fails loudly and the charge is refunded.
  *
- * Pricing: 200 Visual Bucs per alignment (Whisper spend on every run),
+ * Pricing: 200 Visual Bucs per alignment (transcription spend on every run),
  * 500 per render (CPU encode + storage). Both env-overridable.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
@@ -28,8 +28,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import multer from "multer";
 import { z } from "zod";
-import { toFile } from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -63,7 +62,7 @@ export const LYRIC_ALIGN_CREDIT_COST =
 export const LYRIC_RENDER_CREDIT_COST =
   Number(process.env["LYRIC_VIDEO_RENDER_CREDITS"]) || 500;
 
-/** Whisper's hard per-request file limit. */
+/** Transcription per-request file limit. */
 const WHISPER_MAX_BYTES = 24 * 1024 * 1024;
 /** Cap audio uploads at 25 MB. */
 const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
@@ -510,7 +509,7 @@ export function lcsAlign(
 }
 
 /**
- * Align lyric lines to Whisper word timestamps.
+ * Align lyric lines to timed word timestamps.
  *
  * Returns per-line timings plus per-word timings for karaoke. Unmatched
  * words inside a partially-matched line are interpolated between their
@@ -951,29 +950,19 @@ async function downloadSongAudio(userId: string, songId: string): Promise<{ buff
   return { buffer, name: song.title ? `${song.title}.mp3` : "song.mp3" };
 }
 
-/* ── Whisper word-level transcription ──────────────────────────────────── */
-
-interface WhisperVerboseJson {
-  text?: string;
-  duration?: number;
-  words?: { word: string; start: number; end: number }[];
-}
+/* ── Timed word-level transcription ────────────────────────────────────── */
 
 async function transcribeWithWordTimestamps(
   audioBuffer: Buffer,
   filename: string,
   mimetype: string,
 ): Promise<{ words: TranscriptWord[]; duration: number | null }> {
-  const audioFile = await toFile(audioBuffer, filename, { type: mimetype });
-  const result = (await getOpenAI().audio.transcriptions.create(
-    {
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["word"],
-    },
-    { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-  )) as unknown as WhisperVerboseJson;
+  const result = await transcribeAudioTimed({
+    buffer: audioBuffer,
+    filename,
+    mimeType: mimetype,
+    signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+  });
 
   const words: TranscriptWord[] = (result.words ?? [])
     .filter((w) => w.word && w.word.trim().length > 0)
@@ -1028,8 +1017,8 @@ const renderBodySchema = z.object({
  * POST /api/lyric-video/align
  *
  * Body (multipart): `lyrics` (text) + one of: `audio` file, `songId`,
- * `audioUrl`. Charges 200 Visual Bucs up front; refunds when Whisper
- * hears no speech, the lyrics don't match the audio, or the provider fails.
+ * `audioUrl`. Charges 200 Visual Bucs up front; refunds when no
+ * speech is heard, the lyrics don't match the audio, or the provider fails.
  */
 router.post(
   "/lyric-video/align",

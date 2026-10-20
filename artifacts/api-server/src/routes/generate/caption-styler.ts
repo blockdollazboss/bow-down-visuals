@@ -7,8 +7,7 @@ import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import { z } from "zod";
 import multer from "multer";
-import { toFile } from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -297,25 +296,15 @@ export function __clearCaptionStylerJobs(): void {
   jobs.clear();
 }
 
-type WhisperWord = { word: string; start: number; end: number };
-type VerboseTranscription = {
-  text: string;
-  words?: WhisperWord[];
-};
-
 async function transcribeWords(audioPath: string): Promise<WordTiming[]> {
   const { promises: fsp } = await import("fs");
   const buffer = await fsp.readFile(audioPath);
-  const audioFile = await toFile(buffer, "audio.mp3", { type: "audio/mpeg" });
-  const transcription = (await getOpenAI().audio.transcriptions.create(
-    {
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["word"],
-    },
-    { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-  )) as unknown as VerboseTranscription;
+  const transcription = await transcribeAudioTimed({
+    buffer,
+    filename: "audio.mp3",
+    mimeType: "audio/mpeg",
+    signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+  });
 
   const words = (transcription.words ?? [])
     .filter((w) => w.word?.trim() && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start)
@@ -354,7 +343,7 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, uploadedPath: s
   try {
     await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
-    // 1. Extract audio for Whisper (mp3 keeps it under the 25MB Whisper cap
+    // 1. Extract audio for transcription (mp3 keeps it under the 25MB cap
     // for typical short-form videos; longer videos may still exceed it).
     job.status = "transcribing";
     await execFileAsync("ffmpeg", [
