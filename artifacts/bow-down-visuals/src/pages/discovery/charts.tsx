@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw } from "lucide-react";
+import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw, Sparkles, Monitor } from "lucide-react";
 import { useMinStars } from "@/lib/creator-level";
 import { formatMoney } from "@/components/discovery/cards";
 import { formatCount } from "@/lib/streaming";
@@ -13,10 +13,18 @@ import {
 import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton";
 import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib/verticals";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { brandScoutStats, BRAND_OUTREACH_DOORS, type BrandCreatorLite } from "@/lib/charts-brands";
+import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
+import SpotlightModal from "@/components/SpotlightModal";
+import LoadingScreenModal from "@/components/LoadingScreenModal";
 
 /* ─── /charts — where the next big creator gets found ─────────────────────
    Tabs: Charts (Top creators / Top audio / Top videos per vertical) |
-         Breaking (rising creators) | For Brands (work with creators).
+         Breaking (rising creators) | Earners | For Brands (work with
+         creators: scouting rows from /api/discovery/brands with the
+         DTO's genre + published-work stats, outreach docked to the
+         rails that already exist — Brand Deals hub, the Promote
+         briefs board, and the two takeover inquiry modals).
    Windows: Today / This week / All time. Vertical switcher across the
    full set: music, video, gaming, podcast, film, tv, influencer,
    education, other. */
@@ -211,13 +219,16 @@ function LoadErrorBox({ onRetry }: { onRetry: () => void }) {
 
 export default function Charts() {
   usePageTitle("Charts", "The hottest tracks, videos, and creators on Bow Down Visuals right now.");
+  const isLightBrands = useIsLightTheme();
   const [tab, setTab] = useState<Tab>("charts");
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
   const [window, setWindow] = useState<WindowKey>("week");
   const [data, setData] = useState<ChartsPayload | null>(null);
   const [rising, setRising] = useState<CreatorLite[]>([]);
   const [earners, setEarners] = useState<CreatorLite[]>([]);
-  const [brands, setBrands] = useState<CreatorLite[]>([]);
+  const [brands, setBrands] = useState<BrandCreatorLite[]>([]);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [loadingScreenOpen, setLoadingScreenOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -262,7 +273,7 @@ export default function Charts() {
           setLoading(false);
         }
       } else {
-        const d = await getJson<{ creators: CreatorLite[] }>(`/api/discovery/brands?limit=12${v}`);
+        const d = await getJson<{ creators: BrandCreatorLite[] }>(`/api/discovery/brands?limit=12${v}`);
         if (!cancelled) {
           if (!d) setLoadError(true); else setBrands(d.creators ?? []);
           setLoading(false);
@@ -520,7 +531,7 @@ export default function Charts() {
           <SectionHeader
             icon={<Briefcase className="h-5 w-5" />}
             title="Work with creators"
-            blurb="Top creators by audience. Outreach happens in Brand Deals — this is the scouting report."
+            blurb="Top creators by audience — each card carries the genre and published work behind it. Outreach is docked right under the list."
           />
           {loading ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -540,17 +551,77 @@ export default function Charts() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {brands.map((c) => (
-                  <CreatorCard key={c.id} creator={c} followState={followStates[c.id]} />
-                ))}
+                {brands.map((c) => {
+                  const stats = brandScoutStats(c);
+                  return (
+                    <div key={c.id} className="flex flex-col">
+                      <CreatorCard creator={c} followState={followStates[c.id]} />
+                      {stats.length > 0 && (
+                        <p data-testid="brand-scout-stats" className="mt-2 text-center text-xs font-semibold text-white/50">
+                          {stats.join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="mt-6 flex justify-center">
-                <Link href="/brand-deals">
-                  <span className="inline-block cursor-pointer rounded-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] px-8 py-3 text-sm font-black text-black hover:brightness-110">
-                    Start outreach in Brand Deals →
-                  </span>
-                </Link>
+
+              {/* Outreach — docked to the rails that already exist:
+                  the Brand Deals hub, the Promote briefs board, and
+                  the two takeover inquiry modals (shared components;
+                  each fetches its price from the server's own offer
+                  endpoint — nothing is priced here). */}
+              <div data-testid="brand-outreach-panel" className={`mx-auto mt-10 max-w-3xl rounded-2xl border p-5 ${isLightBrands ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-white/10 bg-white/[0.03]"}`}>
+                <h3 className={`text-center text-base font-black ${isLightBrands ? "text-[#2A1E07]" : "text-white"}`}>
+                  Ways to work with these creators
+                </h3>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {BRAND_OUTREACH_DOORS.map((d) => (
+                    <Link
+                      key={d.key}
+                      href={d.href}
+                      className={`block rounded-xl border p-4 transition-colors ${isLightBrands ? "border-[#C9A84C]/40 hover:border-[#C9A84C]" : "border-white/10 hover:border-[#e8c86a]/40"}`}
+                    >
+                      <span className={`block text-sm font-black ${isLightBrands ? "text-[#2A1E07]" : "text-white"}`}>{d.title}</span>
+                      <span className={`mt-1 block text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/50"}`}>{d.blurb}</span>
+                      <span className="mt-2 block text-xs font-black text-[#e8c86a]">{d.cta} →</span>
+                    </Link>
+                  ))}
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    data-testid="brand-takeover-spotlight"
+                    onClick={() => setSpotlightOpen(true)}
+                    className={`rounded-xl border p-4 text-left transition-colors ${isLightBrands ? "border-[#C9A84C]/40 hover:border-[#C9A84C]" : "border-white/10 hover:border-[#e8c86a]/40"}`}
+                  >
+                    <span className={`flex items-center gap-2 text-sm font-black ${isLightBrands ? "text-[#2A1E07]" : "text-white"}`}>
+                      <Sparkles className="h-4 w-4 text-[#e8c86a]" /> Spotlight Takeover
+                    </span>
+                    <span className={`mt-1 block text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/50"}`}>
+                      Your video as the background on the sign-in and sign-up screens.
+                    </span>
+                    <span className="mt-2 block text-xs font-black text-[#e8c86a]">See price + inquire →</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="brand-takeover-loading"
+                    onClick={() => setLoadingScreenOpen(true)}
+                    className={`rounded-xl border p-4 text-left transition-colors ${isLightBrands ? "border-[#C9A84C]/40 hover:border-[#C9A84C]" : "border-white/10 hover:border-[#e8c86a]/40"}`}
+                  >
+                    <span className={`flex items-center gap-2 text-sm font-black ${isLightBrands ? "text-[#2A1E07]" : "text-white"}`}>
+                      <Monitor className="h-4 w-4 text-[#e8c86a]" /> Loading Screen Takeover
+                    </span>
+                    <span className={`mt-1 block text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/50"}`}>
+                      Your brand on every loading screen site-wide.
+                    </span>
+                    <span className="mt-2 block text-xs font-black text-[#e8c86a]">See price + inquire →</span>
+                  </button>
+                </div>
+                <p className={`mt-4 text-center text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/40"}`}>{UGC_PAYMENT_NOTE}</p>
               </div>
+              <SpotlightModal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+              <LoadingScreenModal open={loadingScreenOpen} onClose={() => setLoadingScreenOpen(false)} />
             </>
           )}
         </section>
