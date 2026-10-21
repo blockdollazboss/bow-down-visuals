@@ -84,6 +84,14 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   /* Audience: null = the whole list; otherwise the segment (same list)
      the audience was resolved from at dispatch time. */
   segmentId: uuid("segment_id").references(() => emailSegmentsTable.id, { onDelete: "set null" }),
+  /* Automation carrier (migration 0197): a campaign row owned by an
+     email_automations row — the series' deliveries hang off it so the
+     tracking pixel / click redirect / unsubscribe / Resend webhook all
+     resolve exactly like a newsletter send. Carrier campaigns are NOT
+     newsletters: the campaign history filters them out and manual
+     dispatch refuses them. Plain uuid (no FK) — the FK lives on
+     email_automations.campaign_id, one direction only, no cycle. */
+  automationId: uuid("automation_id"),
   sentAt:    timestamp("sent_at", { withTimezone: true }),
   recipientCount: integer("recipient_count").notNull().default(0),
   /* Measured counters (migration 0188): delivered = provider accepted;
@@ -216,6 +224,83 @@ export const emailEngagementEventsTable = pgTable("email_engagement_events", {
 });
 
 export type EmailEngagementEvent = typeof emailEngagementEventsTable.$inferSelect;
+
+/* ─── Automations (migration 0197) ───────────────────────────────────────
+   One row per (list, kind) — the three starter automations. A row is
+   materialized lazily the first time the creator opens the Automations
+   card (defaults in, enabled FALSE: nothing ever sends for a creator
+   who hasn't switched an automation on). The creator edits subject /
+   body / delay and toggles enabled; a background sweeper evaluates
+   triggers and sends through the same tracked delivery rail as
+   campaigns (the automation's carrier campaign holds the deliveries).
+
+   Trigger sources are rows the house already keeps — never invented:
+     post_purchase       — shop_events 'sale' rows (paid truth, buyer
+                           email on the row) + digital_sales completed
+                           rows (buyer email resolved through the auth
+                           rail, the same lookup Stripe Connect uses)
+     abandoned_checkout  — shop_events 'pending_sale' rows that never
+                           flip to 'sale'. ONLY the shop card checkout
+                           records a pending row (migration 0144), so
+                           this trigger honestly cannot see checkouts
+                           that start anywhere else.
+     membership_winback  — fan_members rows in canceled / expired. */
+
+export const EMAIL_AUTOMATION_KINDS = ["post_purchase", "abandoned_checkout", "membership_winback"] as const;
+export type EmailAutomationKind = (typeof EMAIL_AUTOMATION_KINDS)[number];
+
+export const emailAutomationsTable = pgTable("email_automations", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  listId:    uuid("list_id").notNull().references(() => emailListsTable.id, { onDelete: "cascade" }),
+  kind:      text("kind").notNull().$type<EmailAutomationKind>(),
+  enabled:   boolean("enabled").notNull().default(false),
+  subject:   text("subject").notNull(),
+  body:      text("body").notNull(),
+  /* Hours between the trigger event and the send. 0 = next sweep. */
+  delayHours: integer("delay_hours").notNull().default(24),
+  /* The carrier campaign this series' deliveries hang off (created at
+     provisioning, kept in step with the automation's subject/body). */
+  campaignId: uuid("campaign_id").references(() => emailCampaignsTable.id, { onDelete: "set null" }),
+  /* When the creator last switched this automation ON. Triggers older
+     than this never fire — enabling an automation doesn't spam fans
+     about things that happened before it existed. */
+  enabledAt: timestamp("enabled_at", { withTimezone: true }),
+  /* When the sweeper last evaluated this automation (set every run,
+     sends or not — the honest "last checked" the UI shows). */
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("email_automations_list_kind_ux").on(t.listId, t.kind),
+]);
+
+export type EmailAutomation = typeof emailAutomationsTable.$inferSelect;
+
+/* One row per (automation, trigger event) the runner has claimed. The
+   unique index IS the dedupe law: a fan can never receive the same
+   automation for the same purchase / checkout / lapse twice, however
+   many times the sweeper runs. Rows are written for subscribers only —
+   including the honest 'skipped_unsubscribed' outcome; trigger events
+   whose address isn't on the list are not actionable and get no row. */
+export const emailAutomationSendsTable = pgTable("email_automation_sends", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  automationId: uuid("automation_id").notNull().references(() => emailAutomationsTable.id, { onDelete: "cascade" }),
+  subscriberId: uuid("subscriber_id").notNull().references(() => emailSubscribersTable.id, { onDelete: "cascade" }),
+  deliveryId:   uuid("delivery_id").references(() => emailCampaignDeliveriesTable.id, { onDelete: "set null" }),
+  triggerKind:  text("trigger_kind").notNull().$type<EmailAutomationKind>(),
+  /* The dedupe key: shop_sale:<event id> | digital_sale:<sale id> |
+     checkout:<checkout group> | member:<fan member id>. */
+  triggerRef:   text("trigger_ref").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  /* queued → sent | failed | no_provider | skipped_unsubscribed */
+  status:       text("status").notNull().default("queued"),
+  sentAt:       timestamp("sent_at", { withTimezone: true }),
+  createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("email_automation_sends_dedupe_ux").on(t.automationId, t.triggerRef),
+]);
+
+export type EmailAutomationSend = typeof emailAutomationSendsTable.$inferSelect;
 
 /* ─── Shared constants ───────────────────────────────────────────────────── */
 
