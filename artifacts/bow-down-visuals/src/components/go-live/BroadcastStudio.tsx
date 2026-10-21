@@ -506,10 +506,6 @@ export default function BroadcastStudio() {
       if (changer.segmentationAvailable && mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
-      setEngineKind(changer.getEngineKind());
-      if (engineOk && mode === "image" && !changer.hasBackdrop()) {
-        await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
-      }
       if (!mixerRef.current) {
         const mixer = new AudioMixer();
         mixer.addInput("mic");
