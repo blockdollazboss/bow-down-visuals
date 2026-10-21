@@ -41,6 +41,11 @@ import {
 } from "../../lib/scene-effects";
 import { getLockedPack } from "./pre-production";
 import { weaveLookIntoPrompt } from "../../lib/scene-look";
+import {
+  planClipReferences,
+  type SceneReference,
+} from "./clip-references";
+import type { ClipModel } from "./clip-pricing";
 import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
@@ -244,6 +249,24 @@ const runwayClipSchema = z.object({
    *  Stacked cap enforced here; unknown ids 400 below — never silently
    *  dropped. Effects ride this generation's existing charge. */
   effectIds: z.array(z.string().trim().min(1).max(64)).max(MAX_STACKED_EFFECTS).optional(),
+  /** The scene's REFERENCE SET — labeled images (character / location /
+   *  product / style) the generation should match. How much of the set a
+   *  model actually receives is decided per model in clip-references.ts
+   *  (Seedance takes the set; single-image models take the priority
+   *  reference) and reported back in the response's `references` block —
+   *  never silently dropped. Ignored in pack mode: a locked pack's own
+   *  reference set is the source of truth. */
+  referenceSet: z
+    .array(
+      z.object({
+        role: z.enum(["character", "location", "product", "style"]),
+        url: z.string().max(2048),
+        label: z.string().max(200).optional(),
+        source: z.string().max(60).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 
 const submitRunwayClipHandler = async (req: Request, res: Response) => {
@@ -255,7 +278,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds } = parsed.data;
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds, referenceSet } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -402,7 +425,74 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     }
   }
 
-  const useImageRef = !!refImage;
+  /* ── Reference SET planning (multi-reference generation) ───────────────
+     The scene's reference set comes from the locked pack when in pack
+     mode (the client's set is ignored — the lock is the truth), else
+     from the request body. What each model actually receives is planned
+     in clip-references.ts from the model's real input shape: Seedance
+     2.5 takes the set as reference images; Gen-4.5 / Veo take a single
+     first frame (the anchor, else the highest-priority set member —
+     character first). Reductions are reported, never silent.
+     The resolved single image above (chain frame / vault photo) is the
+     plan's ANCHOR — except in pack mode with a locked set, where a
+     client-sent photo must not override the lock (the chain frame still
+     anchors continuity). Legacy packs without a set keep today's
+     behavior, with their locked plates riding as product references. */
+  const hasLockedSet = !!lockedIngredients?.referenceSet?.length;
+  let effectiveSet: SceneReference[] = [];
+  if (lockedIngredients) {
+    if (hasLockedSet) {
+      effectiveSet = lockedIngredients.referenceSet!.map((r) => ({
+        role: r.role,
+        url: r.url,
+        label: r.label,
+        source: r.source,
+      }));
+    } else if (lockedIngredients.referenceAssetUrls?.length) {
+      effectiveSet = lockedIngredients.referenceAssetUrls.map((url, i) => ({
+        role: "product" as const,
+        url,
+        label: `Locked pack reference ${i + 1}`,
+        source: "legacy",
+      }));
+    }
+  } else if (referenceSet?.length) {
+    effectiveSet = referenceSet.map((r) => ({
+      role: r.role,
+      url: r.url,
+      label: r.label ?? "",
+      source: r.source ?? "upload",
+    }));
+  }
+  const anchorUrl = hasLockedSet
+    ? referenceSource === "previous_scene"
+      ? refImage ?? null
+      : null
+    : refImage ?? null;
+  const planModel: ClipModel = useVeo ? "veo3_1" : useSeedance ? "seedance2_5" : "gen4.5";
+  const refPlan = planClipReferences({
+    model: planModel,
+    referenceSet: effectiveSet,
+    anchorUrl,
+    anchorKind: referenceSource === "previous_scene" ? "previous_scene" : "single_photo",
+  });
+  const useImageRef = refPlan.submittedUrls.length > 0;
+  /* Legacy badge semantics, kept truthful under sets: a set-driven
+     submission whose first image is the character reads as the vault
+     photo it is; anchor-driven submissions keep their existing source. */
+  const responseReferenceSource: typeof referenceSource = anchorUrl
+    ? referenceSource
+    : refPlan.submittedFromSet > 0 &&
+        effectiveSet.find((r) => r.url === refPlan.submittedUrls[0])?.role === "character"
+      ? "vault_photo"
+      : referenceSource;
+  let referencesReport = {
+    mode: refPlan.mode,
+    submitted: refPlan.submittedUrls.length,
+    inSet: refPlan.setSize,
+    reduced: refPlan.reduced,
+    note: refPlan.note,
+  };
 
   /* ── End-frame resolution ────────────────────────────────────────────────
      Only models whose provider API accepts a last frame ever see the end
@@ -422,6 +512,28 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     } else if (ef) {
       req.log.warn("[runway-clip] end frame supplied but not a usable HTTPS URL — generating without it");
     }
+  }
+
+  /* ── End-frame precedence over the reference set (stack5 integration) ──
+     When a valid end frame will actually be submitted for Seedance, the
+     keyframe submission wins over the reference-images plan (the SDK
+     forbids mixing positioned keyframes with unpositioned references):
+     only the plan's anchor-first image rides, as the 'first' keyframe.
+     The report is rewritten to what truly rode, so the un-sent set
+     members are reported — never silently dropped. */
+  if (useSeedance && endFrameUrl && refPlan.mode === "reference_images") {
+    const firstUrl = refPlan.submittedUrls[0];
+    const firstFromSet = firstUrl ? effectiveSet.some((r) => r.url === firstUrl) : false;
+    const notSent = refPlan.setSize - (firstFromSet ? 1 : 0);
+    referencesReport = {
+      mode: firstUrl ? "single" : "none",
+      submitted: firstUrl ? 1 : 0,
+      inSet: refPlan.setSize,
+      reduced: notSent > 0,
+      note: notSent > 0
+        ? `An end frame was set for this scene, so the clip was made with first/last keyframes — keyframe mode can't mix with reference images, so ${notSent} of your ${refPlan.setSize} reference images weren't sent.`
+        : refPlan.note,
+    };
   }
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
@@ -514,9 +626,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     try {
       let imageBase64: string | undefined;
       let imageMimeType: string | undefined;
-      if (useImageRef) {
+      if (refPlan.singleUrl) {
         try {
-          const imgRes = await fetch(refImage!, { signal: AbortSignal.timeout(60_000) });
+          const imgRes = await fetch(refPlan.singleUrl, { signal: AbortSignal.timeout(60_000) });
           if (imgRes.ok) {
             const buf = Buffer.from(await imgRes.arrayBuffer());
             if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
@@ -569,7 +681,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
       res.json({
         taskId: veoTaskId,
-        referenceSource,
+        referenceSource: responseReferenceSource,
+        references: referencesReport,
         creditCost,
         model: "veo3_1",
         durationSec: resolvedDurationSec,
@@ -609,27 +722,40 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       ? (typeof seed === "number" ? seed : Math.floor(Math.random() * 4294967296))
       : undefined;
 
-    /* Image-to-video: anchor the artist's face/look to their vault photo so every
-       generated scene keeps the same visual identity. Falls back to text-to-video
-       when no usable reference photo is provided. */
-    /* Seedance end-frame keyframes: when an end frame is set, promptImage
-       becomes the positioned keyframe array — the first frame (when one
-       resolved) at 'first', the end frame at 'last'. Seedance's keyframe
-       mode cannot mix positioned and unpositioned images, so the first
-       frame is positioned too. With no end frame the request keeps its
-       exact pre-end-frame shape (plain string / text-to-video). gen4.5
-       never reaches this branch's keyframes — endFrameUrl is only
-       resolved for models that support it. */
+    /* Image-to-video: anchor the artist's face/look to their references so
+       every generated scene keeps the same visual identity. Seedance 2.5
+       receives the reference SET (unpositioned reference images) when the
+       plan says so; Gen-4.5 receives the single planned image. Falls back
+       to text-to-video when the plan submits no image. */
+    /* Seedance end-frame keyframes take precedence over the set: when an
+       end frame is set, promptImage becomes the positioned keyframe array
+       — the plan's anchor-first image (when one resolved) at 'first', the
+       end frame at 'last'. Seedance's keyframe mode cannot mix positioned
+       and unpositioned images, so the first frame is positioned too. With
+       no end frame the request keeps its exact planned shape (reference
+       array / plain string / text-to-video). gen4.5 never reaches this
+       branch's keyframes — endFrameUrl is only resolved for models that
+       support it. */
     const task = useSeedance
-      ? useImageRef || endFrameUrl
+      ? endFrameUrl || refPlan.mode === "reference_images"
         ? await client.imageToVideo.create({
             model: "seedance2_5",
             promptImage: endFrameUrl
               ? [
-                  ...(refImage ? [{ uri: refImage, position: "first" as const }] : []),
+                  ...(refPlan.submittedUrls[0] ? [{ uri: refPlan.submittedUrls[0], position: "first" as const }] : []),
                   { uri: endFrameUrl, position: "last" as const },
                 ]
-              : refImage!,
+              : (refPlan.promptImage as Array<{ uri: string }>),
+            promptText: seedancePrompt,
+            duration: resolvedDurationSec,
+            ratio: seedanceRatio,
+            audio: false,
+            seed: resolvedSeed,
+          })
+        : refPlan.mode === "single"
+        ? await client.imageToVideo.create({
+            model: "seedance2_5",
+            promptImage: refPlan.singleUrl!,
             promptText: seedancePrompt,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
@@ -647,7 +773,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       : useImageRef
       ? await client.imageToVideo.create({
           model: "gen4.5",
-          promptImage: refImage!,
+          promptImage: refPlan.singleUrl!,
           promptText: finalPrompt,
           duration: 5,
           ratio: resolvedRatio,
@@ -665,7 +791,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
 
     res.json({
       taskId: task.id,
-      referenceSource,
+      referenceSource: responseReferenceSource,
+      references: referencesReport,
       creditCost,
       model: useSeedance ? "seedance2_5" : "gen4.5",
       durationSec: resolvedDurationSec,

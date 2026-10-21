@@ -9,8 +9,10 @@ import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
-import { db, preproductionPacksTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { db, preproductionPacksTable, artistVaultsTable, locationsTable } from "@workspace/db";
+import { eq, and, desc, isNull } from "drizzle-orm";
+import { readBrandKit } from "../../lib/brand-record";
+import { assembleShotReferenceSet } from "../../lib/pack-reference-assembly";
 import type {
   PackBible,
   PackShot,
@@ -591,12 +593,60 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
   const urlByName = new Map(finalProps.map((p) => [p.name.toLowerCase(), p.assetImageUrl].filter(Boolean) as [string, string | null]));
   // Resolve referenceAssetUrls from the prop names the ingredients recorded.
   const nameRefs: Record<number, string[]> = propNameRefs ?? {};
-  const ingredients: PackIngredients[] = ((pack.ingredients as PackIngredients[] | null) ?? []).map((g) => ({
-    ...g,
-    referenceAssetUrls: (nameRefs[g.shotNumber] ?? [])
-      .map((n) => urlByName.get(String(n).toLowerCase()))
-      .filter((u): u is string => !!u),
-  }));
+
+  /* ── Reference-set assembly (Turbo Reference Casting) ──────────────────
+     Every source is loaded with an owner-scoped query: the pack's Artist
+     Vault only counts when it belongs to the caller, the locations are
+     the caller's own library, the brand kit is the caller's own record.
+     Another member's material is never loaded, so it can never enter a
+     set. Assembly itself (matching + gap flags) is the pure
+     lib/pack-reference-assembly module. */
+  let assemblyVault: { artistName: string; referenceImageUrl: string | null } | null = null;
+  if (pack.artist_vault_id) {
+    const vrows = await db
+      .select({
+        artist_name: artistVaultsTable.artist_name,
+        reference_image_url: artistVaultsTable.reference_image_url,
+      })
+      .from(artistVaultsTable)
+      .where(
+        and(
+          eq(artistVaultsTable.id, pack.artist_vault_id),
+          eq(artistVaultsTable.user_id, req.userId!),
+          isNull(artistVaultsTable.deleted_at),
+        ),
+      )
+      .limit(1);
+    if (vrows[0]) {
+      assemblyVault = {
+        artistName: vrows[0].artist_name,
+        referenceImageUrl: vrows[0].reference_image_url,
+      };
+    }
+  }
+  const locationRows = await db
+    .select({
+      label: locationsTable.label,
+      image_url: locationsTable.image_url,
+      image_path: locationsTable.image_path,
+    })
+    .from(locationsTable)
+    .where(eq(locationsTable.user_id, req.userId!))
+    .limit(50);
+  const brandKit = await readBrandKit(req.userId!).catch(() => null);
+  const assemblySources = {
+    vault: assemblyVault,
+    assets: [] as PackAsset[], // filled below, once finalAssets exist
+    locations: locationRows.map((l) => ({
+      label: l.label,
+      imageUrl: l.image_path ?? l.image_url,
+    })),
+    brandLogoUrl: brandKit?.logoUrl ?? null,
+    bibleLocations: (pack.bible as PackBible | null)?.locations ?? null,
+  };
+  const storyboardByNumber = new Map(
+    ((pack.storyboard as PackShot[] | null) ?? []).map((s) => [s.shotNumber, s]),
+  );
   const finalAssets: PackAsset[] = await Promise.all((assets ?? []).map(async (a) => ({
     id: a.id || randomUUID(),
     category: a.category || "Other",
@@ -607,6 +657,31 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
       : null,
     createdAt: a.createdAt || new Date().toISOString(),
   })));
+
+  assemblySources.assets = finalAssets;
+  const ingredients: PackIngredients[] = ((pack.ingredients as PackIngredients[] | null) ?? []).map((g) => {
+    const fromNames = (nameRefs[g.shotNumber] ?? [])
+      .map((n) => urlByName.get(String(n).toLowerCase()))
+      .filter((u): u is string => !!u);
+    const assembly = assembleShotReferenceSet({
+      shotNumber: g.shotNumber,
+      shotDescription: storyboardByNumber.get(g.shotNumber)?.description ?? "",
+      props: finalProps,
+      namedPropRefs: (nameRefs[g.shotNumber] ?? []).map(String),
+      sources: assemblySources,
+    });
+    /* referenceAssetUrls stays the union it always was, extended with the
+       set's product plates so legacy readers see the same images. */
+    const productUrls = assembly.referenceSet
+      .filter((r) => r.role === "product")
+      .map((r) => r.url);
+    return {
+      ...g,
+      referenceAssetUrls: [...new Set([...fromNames, ...productUrls])],
+      referenceSet: assembly.referenceSet,
+      referenceGaps: assembly.referenceGaps,
+    };
+  });
 
   const [updated] = await db
     .update(preproductionPacksTable)

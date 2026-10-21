@@ -1,4 +1,5 @@
 import type { SceneLookPicks } from "@/lib/scene-look";
+import type { SceneReference } from "./scene-references";
 
 export interface SceneData {
   id: string;
@@ -49,6 +50,13 @@ export interface SceneData {
   /** Viral Effects picks (server recipe ids, lib/scene-effects.ts): woven
    *  into the generation prompt by /generate-runway-clip. Max 2. */
   effectIds?: string[];
+  /** The scene's multi-reference SET (character / location / product /
+   *  style), proposed from the creator's own vault + brand kit and
+   *  approved in Scene Studio — removals persist here. Undefined = not
+   *  yet materialized; the picker proposes from live sources instead.
+   *  At generation the server maps the set onto what the picked model
+   *  actually accepts (see lib/scene-references.ts). */
+  referenceSet?: SceneReference[];
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
