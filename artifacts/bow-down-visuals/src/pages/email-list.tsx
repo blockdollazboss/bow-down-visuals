@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
  Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
- Inbox, Send, FileText, RotateCcw,
+ Inbox, Send, FileText, RotateCcw, Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -100,6 +100,29 @@ interface CampaignRow {
  createdAt: string;
 }
 
+/* Automations (migration 0197): one row per kind, counts measured
+   from real sends only. triggerNote is the server's plain-language
+   statement of what fires it — including its blind spots. */
+interface AutomationRow {
+ id: string;
+ kind: "post_purchase" | "abandoned_checkout" | "membership_winback";
+ label: string;
+ triggerNote: string;
+ enabled: boolean;
+ subject: string;
+ body: string;
+ delayHours: number;
+ enabledAt: string | null;
+ lastRunAt: string | null;
+ sent: number;
+ failed: number;
+ noProvider: number;
+ skippedUnsubscribed: number;
+ delivered: number;
+ opens: number;
+ clicks: number;
+}
+
 const AUTO_TAG_KEYS = ["presave", "member", "buyer", "opened", "clicked", "engaged"] as const;
 const SOURCE_KEYS = ["landing", "embed", "import", "presave"] as const;
 
@@ -188,6 +211,12 @@ export default function EmailListBuilder() {
  const [campAudience, setCampAudience] = useState<string>("");
  const [campSending, setCampSending] = useState(false);
  const [campResult, setCampResult] = useState<string | null>(null);
+ /* automations (migration 0197) — drafts keyed by automation row id
+    so switching lists never leaks one list's edits into another's */
+ const [automations, setAutomations] = useState<AutomationRow[]>([]);
+ const [autoDrafts, setAutoDrafts] = useState<Record<string, { subject: string; body: string; delayHours: number }>>({});
+ const [autoSaving, setAutoSaving] = useState<string | null>(null);
+ const [autoSavedKind, setAutoSavedKind] = useState<string | null>(null);
 
  /* Drafts are paid — never let a refresh eat one. Persist per list. */
  const DRAFT_KEY = "bdv_email_nl_draft";
@@ -271,14 +300,26 @@ export default function EmailListBuilder() {
  const loadEngagement = useCallback(async (listId: string) => {
  if (!listId) return;
  try {
- const [tagsRes, segRes, campRes] = await Promise.all([
+ const [tagsRes, segRes, campRes, autoRes] = await Promise.all([
  authedFetch(`/api/email-list/lists/${listId}/tags`),
  authedFetch(`/api/email-list/lists/${listId}/segments`),
  authedFetch(`/api/email-list/lists/${listId}/campaigns`),
+ authedFetch(`/api/email-list/lists/${listId}/automations`),
  ]);
  if (tagsRes.ok) setEmailTags((await tagsRes.json()).tags ?? []);
  if (segRes.ok) setSegments((await segRes.json()).segments ?? []);
  if (campRes.ok) setCampaigns((await campRes.json()).campaigns ?? []);
+ if (autoRes.ok) {
+ const rows = ((await autoRes.json()).automations ?? []) as AutomationRow[];
+ setAutomations(rows);
+ setAutoDrafts((prev) => {
+ const next = { ...prev };
+ for (const a of rows) {
+ if (!next[a.id]) next[a.id] = { subject: a.subject, body: a.body, delayHours: a.delayHours };
+ }
+ return next;
+ });
+ }
  } catch { /* panels stay empty; dashboard is unaffected */ }
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
@@ -286,6 +327,34 @@ export default function EmailListBuilder() {
  useEffect(() => {
  if (activeListId) loadEngagement(activeListId);
  }, [activeListId, loadEngagement]);
+
+ /* Automations: one PATCH door for the switch and the copy. The
+    server stamps enabled_at on switch-on, so nothing that happened
+    before can ever fire — the UI never promises otherwise. */
+ async function patchAutomation(a: AutomationRow, patch: Record<string, unknown>) {
+ if (!activeListId) return;
+ setAutoSaving(a.kind);
+ setAutoSavedKind(null);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/automations/${a.kind}`, {
+ method: "PATCH",
+ body: JSON.stringify(patch),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save that automation.");
+ const fresh = data.automation as AutomationRow;
+ setAutomations((rows) => rows.map((r) => (r.kind === fresh.kind ? fresh : r)));
+ setAutoDrafts((d) => ({
+ ...d,
+ [fresh.id]: { subject: fresh.subject, body: fresh.body, delayHours: fresh.delayHours },
+ }));
+ setAutoSavedKind(fresh.kind);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't save that automation.");
+ } finally {
+ setAutoSaving(null);
+ }
+ }
 
  async function createTag() {
  if (!activeListId || !newTagName.trim()) return;
@@ -1010,6 +1079,81 @@ export default function EmailListBuilder() {
  </div>
  </div>
  ))}
+ </div>
+ )}
+ </div>
+
+ {/* ── automations (migration 0197): off until switched on ── */}
+ <div className={`${cardClass} mt-4`}>
+ <h3 className="flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-primary" />{t("email-list.automations")}</h3>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.automations_intro")}</p>
+ {automations.length === 0 ? (
+ <p className="mt-2 text-sm text-white/45">{t("email-list.automations_loading")}</p>
+ ) : (
+ <div className="mt-3 space-y-4">
+ {automations.map((a) => {
+ const draft = autoDrafts[a.id] ?? { subject: a.subject, body: a.body, delayHours: a.delayHours };
+ const dirty = draft.subject !== a.subject || draft.body !== a.body || draft.delayHours !== a.delayHours;
+ return (
+ <div key={a.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+ <div className="flex items-center justify-between gap-3">
+ <p className="font-semibold">{a.label}</p>
+ <button
+ type="button"
+ onClick={() => patchAutomation(a, { enabled: !a.enabled })}
+ disabled={autoSaving === a.kind}
+ className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${a.enabled ? "border-emerald-400/40 text-emerald-300" : "border-white/15 text-white/50 hover:text-white"}`}
+ >
+ {autoSaving === a.kind ? <Loader2 className="h-3 w-3 animate-spin" /> : a.enabled ? t("email-list.automation_on") : t("email-list.automation_off")}
+ </button>
+ </div>
+ <p className="mt-1 text-xs leading-relaxed text-white/40">{a.triggerNote}</p>
+ {a.enabled ? (
+ <p className="mt-2 text-xs text-white/50">
+ {t("email-list.automations_last_checked")}{a.lastRunAt ? new Date(a.lastRunAt).toLocaleString() : t("email-list.automations_never_checked")}
+ {" · "}{a.sent} {t("email-list.automations_sent_word")} · {a.opens} {t("email-list.opens_word")} · {a.clicks} {t("email-list.clicks_word")}
+ {a.skippedUnsubscribed > 0 && <> · {a.skippedUnsubscribed} {t("email-list.automations_skipped_word")}</>}
+ {a.noProvider > 0 && <> · {a.noProvider} {t("email-list.automations_no_provider_word")}</>}
+ </p>
+ ) : (
+ <p className="mt-2 text-xs text-white/40">{t("email-list.automation_off_note")}{a.sent > 0 && <> · {a.sent} {t("email-list.automations_sent_word")}</>}</p>
+ )}
+ <input
+ className={inputClass + " mt-3"}
+ placeholder={t("email-list.subject")}
+ value={draft.subject}
+ onChange={(e) => setAutoDrafts((d) => ({ ...d, [a.id]: { ...draft, subject: e.target.value } }))}
+ />
+ <textarea
+ className={inputClass + " mt-2"}
+ rows={5}
+ placeholder={t("email-list.body")}
+ value={draft.body}
+ onChange={(e) => setAutoDrafts((d) => ({ ...d, [a.id]: { ...draft, body: e.target.value } }))}
+ />
+ <div className="mt-2 flex flex-wrap items-center gap-3">
+ <label className="text-xs text-white/50">{t("email-list.automations_delay_label")}</label>
+ <input
+ type="number"
+ min={0}
+ max={720}
+ className="w-24 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
+ value={draft.delayHours}
+ onChange={(e) => setAutoDrafts((d) => ({ ...d, [a.id]: { ...draft, delayHours: Math.max(0, Math.min(720, Number(e.target.value) || 0)) } }))}
+ />
+ <button
+ type="button"
+ className={tabBtn(true) + " px-3 py-1.5 text-xs"}
+ onClick={() => patchAutomation(a, { subject: draft.subject, body: draft.body, delayHours: draft.delayHours })}
+ disabled={autoSaving === a.kind || !dirty || !draft.subject.trim() || !draft.body.trim()}
+ >
+ {autoSaving === a.kind ? <Loader2 className="h-3 w-3 animate-spin" /> : t("email-list.automation_save")}
+ </button>
+ {autoSavedKind === a.kind && !dirty && <span className="text-xs text-emerald-300">{t("email-list.automation_saved")}</span>}
+ </div>
+ </div>
+ );
+ })}
  </div>
  )}
  </div>
