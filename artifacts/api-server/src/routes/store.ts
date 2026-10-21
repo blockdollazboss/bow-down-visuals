@@ -146,9 +146,11 @@ function verifyTokenSignature(token: string): boolean {
 
 /* ── Sellable catalog ────────────────────────────────────────────────────
    Which entities can be sold today. track → profile_tracks, video →
-   profile_videos. album/pack/digital are valid store kinds (migration 0090)
-   but their catalog entities haven't shipped yet — they 400 with a clear
-   message instead of silently failing. */
+   profile_videos, series → playlists (kind='series', migration 0191 —
+   the sale unlocks streaming access instead of delivering a file).
+   album/pack/digital are valid store kinds (migration 0090) but their
+   catalog entities haven't shipped yet — they 400 with a clear message
+   instead of silently failing. */
 interface SellableItem {
   profileId: string;
   itemKind: string;
@@ -192,6 +194,39 @@ async function resolveSellableItem(
   id: string
 ): Promise<SellableItem | { notForSale: true } | { notWired: true }> {
   if (!UUID_RE.test(id)) return { notForSale: true };
+  if (kind === "series") {
+    /* Paid Series (0191): the catalog entity is a kind='series' playlist
+       with the creator's own price_cents. There is NO file to deliver —
+       the completed sale row is the unlock — so fileUrl stays empty and
+       verify/token branch on the kind instead of minting download links. */
+    const result = await db.execute(sql`
+      SELECT pl.id, pl.owner_profile_id AS profile_id, pl.title, pl.price_cents,
+             pl.is_public, pl.kind AS playlist_kind, pl.cover_url AS artwork_url,
+             p.display_name AS artist_name, p.slug AS artist_slug
+      FROM playlists pl
+      JOIN creator_profiles p ON p.id = pl.owner_profile_id
+      WHERE pl.id = ${id}
+      LIMIT 1
+    `);
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row || row["playlist_kind"] !== "series" || !row["is_public"]) {
+      return { notForSale: true };
+    }
+    const priceCents = Number(row["price_cents"] ?? 0) || 0;
+    if (priceCents <= 0) return { notForSale: true };
+    return {
+      profileId: String(row["profile_id"]),
+      itemKind: "series",
+      title: String(row["title"]),
+      priceCents,
+      pwywEnabled: false,
+      pwywMinCents: 0,
+      fileUrl: "",
+      artworkUrl: (row["artwork_url"] as string | null) ?? null,
+      artistName: String(row["artist_name"]),
+      artistSlug: String(row["artist_slug"]),
+    };
+  }
   if (kind === "track" || kind === "video") {
     const table = kind === "track" ? "profile_tracks" : "profile_videos";
     const fileCol = kind === "track" ? "audio_url" : "video_url";
@@ -370,6 +405,28 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       return;
     }
     const chargeCents = resolved.amountCents;
+    /* A series unlock is binary — you own it or you don't. A completed
+       purchase already on the rail refuses a second checkout outright
+       (downloads may legitimately re-sell; access can't be bought twice).
+       A refunded sale does NOT block: the fan can buy their way back in. */
+    if (kind === "series") {
+      const ownedResult = await db.execute(sql`
+        SELECT COUNT(*)::int AS c FROM digital_sales
+        WHERE buyer_user_id = ${req.userId!} AND item_kind = 'series'
+          AND item_id = ${id} AND status = 'completed'
+      `);
+      const ownedCount = Number(
+        (ownedResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+      );
+      if (ownedCount > 0) {
+        res.status(409).json({
+          error: "ALREADY_OWNED",
+          message: "You already own this series — it's unlocked on the series page.",
+          watchUrl: `/playlist/${id}`,
+        });
+        return;
+      }
+    }
     const { feeCents, creatorCents } = splitFee(chargeCents);
     /* Purchase sequence for the session idempotency key (see
        buildStoreCheckoutKey). A read failure throws into the catch
@@ -405,7 +462,9 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
             unit_amount: chargeCents,
             product_data: {
               name: `${item.title} — ${item.artistName}`,
-              description: `Digital download · ${kind}`,
+              description: kind === "series"
+                ? "Series unlock · yours to watch anytime"
+                : `Digital download · ${kind}`,
               images: artworkUrl ? [artworkUrl] : undefined,
             },
           },
@@ -555,7 +614,11 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
     }
 
-    const link = (await findReusableDownloadLink(saleId, fileUrl)) ?? (await mintDownloadLink(saleId, fileUrl));
+    /* Series sales deliver ACCESS, not a file: the sale row above is the
+       unlock, so no download link exists to mint or reuse. */
+    const link = kind === "series"
+      ? null
+      : (await findReusableDownloadLink(saleId, fileUrl)) ?? (await mintDownloadLink(saleId, fileUrl));
 
     /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
        already recorded; a notification failure must never fail the purchase.
@@ -595,8 +658,10 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
 <div style="color:#eee;font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
 <div style="color:#888;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>
 </div>
-<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Your download link is on the confirmation page (48h, 5 downloads max).</p>
-<a href="${baseUrlForEmail()}/store/purchases" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">View my purchases</a>`
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">${kind === "series"
+  ? "The full series is unlocked on your account — watch it anytime, right from the series page."
+  : "Your download link is on the confirmation page (48h, 5 downloads max)."}</p>
+<a href="${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">${kind === "series" ? "Watch the series" : "View my purchases"}</a>`
         );
         // Fire-and-forget: never block the purchase response on email.
         void sendEmail({
@@ -628,12 +693,18 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
         buyUrl: `/store/buy/${kind}/${itemId}`,
         artistUrl: artistSlug ? `/artist/${artistSlug}` : null,
       },
-      download: {
-        token: link.token,
-        url: `/api/store/download/${link.token}`,
-        expiresAt: link.expiresAt.toISOString(),
-        maxUses: DOWNLOAD_MAX_USES,
-      },
+      download: link
+        ? {
+            token: link.token,
+            url: `/api/store/download/${link.token}`,
+            expiresAt: link.expiresAt.toISOString(),
+            maxUses: DOWNLOAD_MAX_USES,
+          }
+        : null,
+      /* Series purchases carry an unlock instead of a download. */
+      access: kind === "series"
+        ? { unlocked: true, watchUrl: `/playlist/${itemId}` }
+        : null,
     });
   } catch (err) {
     logger.error({ err, sessionId }, "[store] verify: sale recording failed");
@@ -770,12 +841,13 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
       SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
              ds.stripe_session_id,
              cp.display_name AS artist_name, cp.slug AS artist_slug,
-             COALESCE(t.title, v.title) AS item_title,
-             COALESCE(t.artwork_url, v.thumbnail_url) AS artwork_url
+             COALESCE(t.title, v.title, pl.title) AS item_title,
+             COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url
       FROM digital_sales ds
       LEFT JOIN creator_profiles cp ON cp.id = ds.profile_id
       LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
       LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
       WHERE ds.buyer_user_id = ${req.userId!}
       ORDER BY ds.created_at DESC
       LIMIT 200
@@ -803,8 +875,10 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           amount: money(cents),
           purchasedAt: String(row["created_at"]),
           receiptId: String(row["stripe_session_id"] ?? row["id"]),
-          /* Link graph: library → drop page, creator profile. */
+          /* Link graph: library → drop page, creator profile. A series
+             purchase also points straight at the unlocked series page. */
           buyUrl: `/store/buy/${kind}/${itemId}`,
+          watchUrl: kind === "series" ? `/playlist/${itemId}` : null,
           artistUrl: slug ? `/artist/${slug}` : null,
         };
       })),
@@ -841,6 +915,17 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
     }
     const kind = String(srow["item_kind"]);
     const itemId = String(srow["item_id"]);
+    if (kind === "series") {
+      /* A series isn't a download — the purchase unlocks streaming on the
+         series page, and a refunded sale already failed the status filter
+         above, so a live sale here means the unlock is live too. */
+      res.status(400).json({
+        error: "SERIES_UNLOCK",
+        message: "This purchase unlocks the series — there's no download link. Watch it on the series page.",
+        watchUrl: `/playlist/${itemId}`,
+      });
+      return;
+    }
     const item = await resolveSellableItem(kind, itemId);
     if ("notForSale" in item || "notWired" in item || !("fileUrl" in item)) {
       res.status(400).json({ error: "This content is no longer available." });
@@ -889,10 +974,11 @@ router.get("/store/sales", requireAuth, async (req, res) => {
     const sales = await db.execute(sql`
       SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
              ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
-             COALESCE(t.title, v.title) AS item_title
+             COALESCE(t.title, v.title, pl.title) AS item_title
       FROM digital_sales ds
       LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
       LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
       WHERE ds.profile_id = ${profileId}
       ORDER BY ds.created_at DESC
       LIMIT 500
@@ -1093,6 +1179,10 @@ const KIND_DEFAULTS: Record<string, PricePoint> = {
     smart: 499, low: 199, high: 1999, presets: [199, 499, 999],
     blurb: "Presets, templates, ebooks — price the transformation. $4.99 for the thing that saves them 10 hours is a steal.",
   },
+  series: {
+    smart: 1499, low: 499, high: 9999, presets: [499, 999, 1499, 2999],
+    blurb: "A season pass prices the whole arc, not the episode. $14.99 for the full season undercuts every streaming sub — and unlike the platforms, the buyer list is yours.",
+  },
 };
 
 /* Vertical overrides: { [vertical]: { [kind]: PricePoint } }. Anything not
@@ -1169,7 +1259,7 @@ const VERTICAL_LABELS: Record<string, string> = {
   film: "Film", tv: "TV", influencer: "Influencer", education: "Education", other: "Creator",
 };
 
-function pricePointFor(vertical: string, kind: string): { point: PricePoint; vertical: string } {
+export function pricePointFor(vertical: string, kind: string): { point: PricePoint; vertical: string } {
   const v = (STORE_VERTICALS as readonly string[]).includes(vertical) ? vertical : "other";
   const override = VERTICAL_OVERRIDES[v]?.[kind];
   return { point: override ?? KIND_DEFAULTS[kind] ?? KIND_DEFAULTS["digital"]!, vertical: v };

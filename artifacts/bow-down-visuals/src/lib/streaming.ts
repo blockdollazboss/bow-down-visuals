@@ -30,6 +30,10 @@ export interface StreamTrack {
   /** Ownership (when the API provides it) — drives the Get Paid finale. */
   is_owner?: boolean;
   owner_user_id?: string | null;
+  /** Paid Series: this track is a locked episode for the current viewer
+      (its audio_url arrives withheld) — render the shelf card, not a player. */
+  locked?: boolean;
+  locked_series_id?: string | null;
 }
 
 export interface StreamVideo {
@@ -61,6 +65,9 @@ export interface StreamVideo {
     artwork_url: string | null;
     profile_slug: string;
   } | null;
+  /** Paid Series: locked episode for the current viewer (video_url withheld). */
+  locked?: boolean;
+  locked_series_id?: string | null;
 }
 
 export interface PlaylistItemRef {
@@ -79,11 +86,23 @@ export interface StreamPlaylist {
   follower_count: number;
   /** Playlist flavor: "series" playlists group items by season. */
   kind?: string | null;
-  /** Resolved items (server expands ids). Present when the API returns them. */
+  /** Resolved items (server expands ids). Present when the API returns them.
+      Paid Series wrappers carry locked / is_preview per episode. */
   resolved_items?: Array<
-    | { kind: "track"; item: StreamTrack }
-    | { kind: "video"; item: StreamVideo }
+    | { kind: "track"; item: StreamTrack; locked?: boolean; is_preview?: boolean }
+    | { kind: "video"; item: StreamVideo; locked?: boolean; is_preview?: boolean }
   >;
+  /* ── Paid Series commerce (migration 0191) ──
+     price_cents: the creator's own unlock price (null = free series).
+     preview_item: the ONE episode non-buyers may watch free.
+     series_access: THIS viewer's state — pass the auth header when
+     fetching or a buyer reads as 'locked' on their own shelf. */
+  price_cents?: number | null;
+  preview_item?: PlaylistItemRef | null;
+  is_paid_series?: boolean;
+  series_access?: "free" | "owner" | "purchased" | "locked";
+  /** True when the fetching viewer owns this playlist (Series Studio). */
+  is_owner?: boolean;
 }
 
 export interface StreamProfileRef {
@@ -203,9 +222,9 @@ export function unwrap<T>(d: any): T | null {
   return d as T;
 }
 
-async function getJson<T>(path: string): Promise<T | null> {
+async function getJson<T>(path: string, headers?: Record<string, string>): Promise<T | null> {
   try {
-    const r = await fetch(path, { headers: { Accept: "application/json" } });
+    const r = await fetch(path, { headers: { Accept: "application/json", ...(headers ?? {}) } });
     if (!r.ok) return null;
     return (await r.json()) as T;
   } catch {
@@ -213,24 +232,24 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function fetchTrack(id: string): Promise<{ track: StreamTrack; artist?: StreamProfileRef } | null> {
-  const d = await getJson<any>(`/api/media/track/${encodeURIComponent(id)}`);
+export async function fetchTrack(id: string, headers?: Record<string, string>): Promise<{ track: StreamTrack; artist?: StreamProfileRef } | null> {
+  const d = await getJson<any>(`/api/media/track/${encodeURIComponent(id)}`, headers);
   if (!d) return null;
   const track = unwrap<StreamTrack>(d);
   if (!track || !track.id) return null;
   return { track, artist: d.artist ?? d.profile ?? undefined };
 }
 
-export async function fetchVideo(id: string): Promise<{ video: StreamVideo; artist?: StreamProfileRef } | null> {
-  const d = await getJson<any>(`/api/media/video/${encodeURIComponent(id)}`);
+export async function fetchVideo(id: string, headers?: Record<string, string>): Promise<{ video: StreamVideo; artist?: StreamProfileRef } | null> {
+  const d = await getJson<any>(`/api/media/video/${encodeURIComponent(id)}`, headers);
   if (!d) return null;
   const video = unwrap<StreamVideo>(d);
   if (!video || !video.id) return null;
   return { video, artist: d.artist ?? d.profile ?? undefined };
 }
 
-export async function fetchPlaylist(id: string): Promise<{ playlist: StreamPlaylist; owner?: StreamProfileRef } | null> {
-  const d = await getJson<any>(`/api/playlists/${encodeURIComponent(id)}`);
+export async function fetchPlaylist(id: string, headers?: Record<string, string>): Promise<{ playlist: StreamPlaylist; owner?: StreamProfileRef } | null> {
+  const d = await getJson<any>(`/api/playlists/${encodeURIComponent(id)}`, headers);
   if (!d) return null;
   const playlist = unwrap<StreamPlaylist>(d);
   if (!playlist || !playlist.id) return null;
@@ -423,6 +442,77 @@ export async function addItemToPlaylist(
     body: JSON.stringify({ kind, id }),
   });
   return d !== null;
+}
+
+/* ─── Paid Series — Series Studio (owner) ───
+   PATCH  /api/playlists/:id              -> { playlist }  (price, preview, order)
+   GET    /api/playlists/:id/buyers       -> { buyers, totals }  (owner only)
+   POST   /api/playlists/:id/series-assist -> Turbo Series Builder DRAFT
+   The assist never writes: applying a draft means the creator calls
+   updatePlaylistSettings themselves with the pieces they kept. */
+
+export interface PlaylistSettingsPatch {
+  title?: string;
+  description?: string;
+  is_public?: boolean;
+  /** Creator's own unlock price in cents; null/0 = free series. */
+  price_cents?: number | null;
+  /** The ONE free-preview episode, or null for no preview. */
+  preview_item?: PlaylistItemRef | null;
+  /** Episode order — must be a permutation of the current items. */
+  items?: PlaylistItemRef[];
+}
+
+export async function updatePlaylistSettings(
+  playlistId: string,
+  patch: PlaylistSettingsPatch,
+  headers: Record<string, string>,
+): Promise<StreamPlaylist | null> {
+  const d = await authedJson<any>(`/api/playlists/${encodeURIComponent(playlistId)}`, headers, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  if (!d) return null;
+  return unwrap<StreamPlaylist>(d);
+}
+
+export interface SeriesBuyer {
+  buyer_user_id: string;
+  display_name: string;
+  slug: string | null;
+  avatar_url: string | null;
+  amount_cents: number;
+  status: string;
+  purchased_at: string;
+}
+
+export async function fetchSeriesBuyers(
+  playlistId: string,
+  headers: Record<string, string>,
+): Promise<{ buyers: SeriesBuyer[]; totals: { buyers: number; gross_cents: number; gross: string } } | null> {
+  return authedJson(`/api/playlists/${encodeURIComponent(playlistId)}/buyers`, headers);
+}
+
+export interface SeriesAssistDraft {
+  draft: true;
+  applied: false;
+  /** Episode keys ("track:<uuid>" / "video:<uuid>") in the proposed order. */
+  suggested_order: string[];
+  sales_copy: { headline: string; description: string };
+  trailer_shot_list: Array<{ item: string; moment: string; caption: string }>;
+  /** ADVICE ONLY — the creator's typed price is the only one ever charged. */
+  price_advice: { low_cents: number; high_cents: number; smart_cents: number; label: string };
+  note: string;
+}
+
+export async function runSeriesAssist(
+  playlistId: string,
+  headers: Record<string, string>,
+): Promise<SeriesAssistDraft | null> {
+  return authedJson<SeriesAssistDraft>(`/api/playlists/${encodeURIComponent(playlistId)}/series-assist`, headers, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
 }
 
 /** Resolve a creator's shop handle from their creator-PROFILE slug

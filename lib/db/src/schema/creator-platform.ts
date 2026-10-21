@@ -170,6 +170,16 @@ export const playlistsTable = pgTable("playlists", {
   isPublic:       boolean("is_public").notNull().default(true),
   /** 'playlist' = mix, 'series' = episodic film/TV series (ordered items = episode order). */
   kind:           text("kind").notNull().default("playlist"),
+  /** Paid Series (migration 0191): the creator's OWN one-time unlock price
+      in cents — only meaningful for kind='series'. NULL/0 = free series.
+      Purchases ride the digital store rail (digital_sales, item_kind
+      'series'); the completed sale row IS the buyer's unlock, and a
+      refunded sale (0182 clawback flips status) locks the episodes again. */
+  priceCents:     integer("price_cents"),
+  /** The ONE episode a non-buyer may watch free (trailer / first episode),
+      stored exactly like an items entry: {kind:'track'|'video', id: uuid}.
+      NULL = no free preview. */
+  previewItem:    jsonb("preview_item").$type<{ kind: "track" | "video"; id: string } | null>().default(null),
   /** Ordered array of {kind:'track'|'video', id: <uuid>} entries. */
   items:          jsonb("items").$type<Array<{ kind: "track" | "video"; id: string }>>().notNull().default([]),
   followerCount:  integer("follower_count").notNull().default(0),

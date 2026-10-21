@@ -4,6 +4,7 @@ import { Link, useRoute } from "wouter";
 import {
   Play, Pause, ArrowLeft, ListMusic, ListPlus, ListVideo,
   Music2, Clapperboard, UserPlus, UserCheck, Layers, Share2,
+  Lock, Sparkles, Crown, Loader2, BadgeDollarSign,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -14,8 +15,9 @@ import { EmbedButton } from "@/components/player/EmbedButton";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
   fetchPlaylist, fetchTrack, fetchVideo, formatCount, formatDuration, formatSeriesLabel,
-  resolveMedia, togglePlaylistFollow,
+  resolveMedia, togglePlaylistFollow, updatePlaylistSettings, fetchSeriesBuyers, runSeriesAssist,
   type StreamPlaylist, type StreamProfileRef, type MediaKind,
+  type SeriesBuyer, type SeriesAssistDraft,
 } from "@/lib/streaming";
 
 /* ─── Playlist page — /playlist/:id (Worker 2) ───
@@ -35,6 +37,10 @@ interface ResolvedItem {
   season?: number | null;
   episode?: number | null;
   price?: number | null;
+  /* Paid Series: locked episodes render as a shelf card (no player, no
+     link); the preview episode is badged as the free watch. */
+  locked?: boolean;
+  isPreview?: boolean;
 }
 
 async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<ResolvedItem[]> {
@@ -47,6 +53,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
           thumb: t.artwork_url, duration: t.duration_sec, plays: t.play_count,
           src: resolveMedia(t.audio_url), artwork: t.artwork_url,
           price: t.download_price_cents ?? null,
+          locked: r.locked ?? false, isPreview: r.is_preview ?? false,
         };
       }
       const v = r.item;
@@ -55,6 +62,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
         thumb: v.thumbnail_url, duration: v.duration_sec, plays: v.view_count,
         src: "", artwork: v.thumbnail_url,
         season: v.season_number ?? null, episode: v.episode_number ?? null,
+        locked: r.locked ?? false, isPreview: r.is_preview ?? false,
       };
     });
   }
@@ -103,23 +111,66 @@ export default function StreamPlaylistPage() {
   const [following, setFollowing] = useState(false);
   const [followers, setFollowers] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  /* Paid Series — Series Studio state (owner only). */
+  const [priceDollars, setPriceDollars] = useState("");
+  const [previewKey, setPreviewKey] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+  const [assistDraft, setAssistDraft] = useState<SeriesAssistDraft | null>(null);
+  const [assistBusy, setAssistBusy] = useState(false);
+  const [assistMsg, setAssistMsg] = useState<string | null>(null);
+  const [buyers, setBuyers] = useState<SeriesBuyer[]>([]);
+  const [buyerTotals, setBuyerTotals] = useState<{ buyers: number; gross_cents: number; gross: string } | null>(null);
+
+  const userId = (user as { id?: string } | null)?.id ?? null;
+
+  async function authHeaders(): Promise<Record<string, string> | undefined> {
+    const token = await getAccessToken().catch(() => null);
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
+  }
 
   useEffect(() => {
     if (!id) return;
     let alive = true;
     setLoading(true);
     setNotFound(false);
-    fetchPlaylist(id).then(async (res) => {
+    (async () => {
+      /* A signed-in viewer passes their session along: buyers and owners
+         see the series unlocked; everyone else gets the locked shelf. */
+      const headers = userId ? await authHeaders() : undefined;
+      const res = await fetchPlaylist(id, headers);
       if (!alive) return;
-      if (!res) { setNotFound(true); return; }
+      if (!res) { setNotFound(true); setLoading(false); return; }
       setPlaylist(res.playlist);
       setOwner(res.owner ?? null);
       setFollowers(res.playlist.follower_count ?? 0);
+      setPriceDollars(
+        (res.playlist.price_cents ?? 0) > 0 ? ((res.playlist.price_cents ?? 0) / 100).toFixed(2) : "",
+      );
+      setPreviewKey(
+        res.playlist.preview_item ? `${res.playlist.preview_item.kind}:${res.playlist.preview_item.id}` : "",
+      );
       const resolved = await resolveItems(res.playlist, res.owner?.display_name ?? "Creator");
-      if (alive) setItems(resolved);
-    }).finally(() => { if (alive) setLoading(false); });
+      if (alive) { setItems(resolved); setLoading(false); }
+    })();
     return () => { alive = false; };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, userId]);
+
+  /* The buyer list loads for the owner alone (the endpoint refuses
+     everyone else — the list is the creator's property). */
+  useEffect(() => {
+    if (!playlist || !playlist.is_owner || (playlist.kind ?? "").toLowerCase() !== "series") return;
+    let alive = true;
+    (async () => {
+      const headers = await authHeaders();
+      if (!headers || !alive) return;
+      const res = await fetchSeriesBuyers(playlist.id, headers);
+      if (alive && res) { setBuyers(res.buyers); setBuyerTotals(res.totals); }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlist?.id, playlist?.is_owner, playlist?.kind]);
 
   usePageTitle(
     playlist ? `${playlist.title} — Playlist` : "Playlist",
@@ -128,6 +179,17 @@ export default function StreamPlaylistPage() {
 
   const isSeries = (playlist?.kind ?? "").toLowerCase() === "series";
   const ownerName = owner?.display_name ?? "Creator";
+  /* Paid Series state for this viewer. */
+  const isPaidSeries = isSeries && !!playlist?.is_paid_series;
+  const seriesAccess = playlist?.series_access ?? "free";
+  const seriesPrice = (playlist?.price_cents ?? 0) > 0
+    ? `$${((playlist?.price_cents ?? 0) / 100).toFixed(2)}`
+    : null;
+  const isSeriesOwner = isSeries && !!playlist?.is_owner;
+  const titleByKey = useMemo(
+    () => new Map(items.map((i) => [`${i.kind}:${i.id}`, i.title])),
+    [items],
+  );
 
   const audioItems = useMemo(() => items.filter((i) => i.kind === "track" && i.src), [items]);
   const videoCount = useMemo(() => items.filter((i) => i.kind === "video").length, [items]);
@@ -178,6 +240,88 @@ export default function StreamPlaylistPage() {
   const firstVideo = items.find((i) => i.kind === "video");
   const isPlayingPlaylist = player.current?.kind === "track" && audioItems.some((i) => i.id === player.current?.id);
 
+  /* ── Series Studio handlers (owner) ────────────────────────────────────
+     Every write goes through the settings PATCH — including applying a
+     Turbo draft, which only ever happens on the creator's own tap. */
+  async function refreshPlaylist(updated: StreamPlaylist) {
+    setPlaylist(updated);
+    setItems(await resolveItems(updated, ownerName));
+  }
+
+  async function saveSeriesSettings() {
+    if (!playlist) return;
+    const headers = await authHeaders();
+    if (!headers) { setSettingsMsg("Sign in again to save — your session lapsed."); return; }
+    let priceCents: number | null = null;
+    const trimmed = priceDollars.trim();
+    if (trimmed) {
+      const parsed = Number.parseFloat(trimmed);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setSettingsMsg("That price doesn't parse — use dollars, like 14.99.");
+        return;
+      }
+      priceCents = Math.round(parsed * 100);
+      if (priceCents > 0 && priceCents < 50) {
+        setSettingsMsg("The minimum is $0.50 — that's the card floor, not ours.");
+        return;
+      }
+    }
+    const preview = previewKey
+      ? { kind: previewKey.split(":")[0] as MediaKind, id: previewKey.split(":")[1]! }
+      : null;
+    setSavingSettings(true);
+    setSettingsMsg(null);
+    const updated = await updatePlaylistSettings(
+      playlist.id, { price_cents: priceCents, preview_item: preview }, headers,
+    );
+    setSavingSettings(false);
+    if (!updated) { setSettingsMsg("Couldn't save — try again."); return; }
+    await refreshPlaylist(updated);
+    setSettingsMsg(priceCents
+      ? `Saved — the full series unlocks at $${(priceCents / 100).toFixed(2)} per buyer.`
+      : "Saved — the series is free for everyone now.");
+  }
+
+  async function buildWithAssist() {
+    if (!playlist) return;
+    const headers = await authHeaders();
+    if (!headers) { setAssistMsg("Sign in again — your session lapsed."); return; }
+    setAssistBusy(true);
+    setAssistMsg(null);
+    const draft = await runSeriesAssist(playlist.id, headers);
+    setAssistBusy(false);
+    if (!draft) { setAssistMsg("The Builder couldn't draft just now — nothing was changed. Try again."); return; }
+    setAssistDraft(draft);
+  }
+
+  async function applyAssistOrder() {
+    if (!playlist || !assistDraft) return;
+    const headers = await authHeaders();
+    if (!headers) return;
+    const refs = assistDraft.suggested_order.map((k) => ({
+      kind: k.split(":")[0] as MediaKind, id: k.split(":")[1]!,
+    }));
+    setAssistBusy(true);
+    const updated = await updatePlaylistSettings(playlist.id, { items: refs }, headers);
+    setAssistBusy(false);
+    if (updated) { await refreshPlaylist(updated); setAssistMsg("Order applied — your season, your call."); }
+    else setAssistMsg("Couldn't apply that order — try again.");
+  }
+
+  async function applyAssistCopy(field: "title" | "description") {
+    if (!playlist || !assistDraft) return;
+    const headers = await authHeaders();
+    if (!headers) return;
+    const patch = field === "title"
+      ? { title: assistDraft.sales_copy.headline }
+      : { description: assistDraft.sales_copy.description };
+    setAssistBusy(true);
+    const updated = await updatePlaylistSettings(playlist.id, patch, headers);
+    setAssistBusy(false);
+    if (updated) { await refreshPlaylist(updated); setAssistMsg(field === "title" ? "Title applied." : "Description applied."); }
+    else setAssistMsg("Couldn't apply that copy — try again.");
+  }
+
   function ItemRow({ item, position }: { item: ResolvedItem; position: number }) {
     const isCurrentAudio = player.current?.kind === "track" && player.current?.id === item.id;
     const seriesLabel = formatSeriesLabel(item.season, item.episode);
@@ -200,12 +344,22 @@ export default function StreamPlaylistPage() {
               <><Music2 className="h-3 w-3" /> Audio • {formatCount(item.plays)} plays</>
             )}
             {seriesLabel && <span className="text-[#e8c86a]/80 font-semibold">{seriesLabel}</span>}
+            {item.isPreview && (
+              <span className="rounded-full bg-[#e8c86a] text-black px-1.5 py-px text-[10px] font-bold uppercase tracking-wide">Free preview</span>
+            )}
+            {item.locked && (
+              <span className="inline-flex items-center gap-1 text-white/40"><Lock className="h-3 w-3" /> Locked</span>
+            )}
           </p>
         </div>
         <span className="text-xs text-white/30 tabular-nums shrink-0">{formatDuration(item.duration)}</span>
       </div>
     );
 
+    if (item.locked) {
+      /* Locked episodes point at the unlock panel — never at a player. */
+      return <a href="#series-unlock" className="block opacity-80">{inner}</a>;
+    }
     if (item.kind === "video") {
       return <Link href={`/watch/${item.id}`}>{inner}</Link>;
     }
@@ -298,6 +452,9 @@ export default function StreamPlaylistPage() {
               {!playlist.is_public && (
                 <span className="text-xs text-white/40 border border-white/15 rounded-full px-2 py-0.5">Private</span>
               )}
+              {isPaidSeries && seriesPrice && (
+                <span className="text-xs font-bold text-black bg-[#e8c86a] rounded-full px-2 py-0.5">{seriesPrice} unlock</span>
+              )}
             </div>
             <h1 className="text-3xl md:text-4xl font-black leading-tight">{playlist.title}</h1>
             {playlist.description && <p className="mt-2 text-white/55 text-sm leading-relaxed">{playlist.description}</p>}
@@ -349,6 +506,31 @@ export default function StreamPlaylistPage() {
               </div>
               <EmbedButton kind="playlist" id={String(playlist.id)} artistSlug={owner?.slug} title={playlist.title} className="px-5 py-3" />
             </div>
+
+            {/* Paid Series — the unlock panel (fans) / ownership state. */}
+            {isPaidSeries && seriesAccess === "locked" && (
+              <div id="series-unlock" className="mt-6 rounded-2xl border border-[#e8c86a]/40 bg-gradient-to-br from-[#e8c86a]/15 via-transparent to-transparent p-5">
+                <p className="flex items-center gap-2 text-sm font-bold text-[#e8c86a]">
+                  <Lock className="h-4 w-4" /> This series is an unlock
+                </p>
+                <p className="mt-1.5 text-sm text-white/60 leading-relaxed">
+                  The marked preview plays free. The full season — every episode — unlocks once for {seriesPrice},
+                  yours to watch anytime. {ownerName} keeps 95% of it, and your name lands on their buyer list —
+                  not locked inside a platform that keeps the customer.
+                </p>
+                <Link
+                  href={`/store/buy/series/${playlist.id}`}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#e8c86a] text-black font-bold px-6 py-3 text-sm hover:bg-[#f5d67e] transition-colors"
+                >
+                  <BadgeDollarSign className="h-4 w-4" /> Unlock the full series — {seriesPrice}
+                </Link>
+              </div>
+            )}
+            {isPaidSeries && seriesAccess === "purchased" && (
+              <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/50 bg-[#e8c86a]/10 px-4 py-2 text-sm font-semibold text-[#e8c86a]">
+                <Crown className="h-4 w-4" /> You own this series — every episode is unlocked.
+              </p>
+            )}
             {audioItems.length === 0 && items.length > 0 && (
               <p className="mt-3 text-xs text-white/40">
                 This one's all video — hit any episode to watch. Audio uploads join the play-all queue.
@@ -356,6 +538,176 @@ export default function StreamPlaylistPage() {
             )}
           </div>
         </div>
+
+        {/* Series Studio — the owner's controls (price, preview, Turbo
+            Series Builder, buyer list). Renders only for the owner of a
+            series; the server enforces the same boundary on every call. */}
+        {isSeriesOwner && (
+          <section className="mt-10 rounded-2xl border border-[#e8c86a]/30 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-5 md:p-6">
+            <h2 className="flex items-center gap-2 text-base font-black text-[#e8c86a]">
+              <Sparkles className="h-5 w-5" /> Series Studio
+            </h2>
+            <p className="mt-1 text-sm text-white/50">
+              Your series, your price, your buyer list. The platform takes its 5% off your cut — buyers never pay extra.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Unlock price (USD)</span>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-white/40">$</span>
+                  <input
+                    value={priceDollars}
+                    onChange={(e) => setPriceDollars(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="Leave empty for a free series"
+                    className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-[#e8c86a]/60 focus:outline-none"
+                  />
+                </div>
+                <span className="mt-1 block text-xs text-white/35">
+                  {seriesPrice ? `On sale now at ${seriesPrice} — you keep $${(((playlist.price_cents ?? 0) * 0.95) / 100).toFixed(2)} per sale.` : "Free right now. Set a price to sell the unlock."}
+                </span>
+              </label>
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Free preview episode</span>
+                <select
+                  value={previewKey}
+                  onChange={(e) => setPreviewKey(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white focus:border-[#e8c86a]/60 focus:outline-none"
+                >
+                  <option value="">No free preview</option>
+                  {(playlist.items ?? []).map((ref) => (
+                    <option key={`${ref.kind}:${ref.id}`} value={`${ref.kind}:${ref.id}`}>
+                      {titleByKey.get(`${ref.kind}:${ref.id}`) ?? "Episode"}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-white/35">One episode everyone can watch free — your trailer.</span>
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                onClick={saveSeriesSettings}
+                disabled={savingSettings}
+                className="rounded-full bg-[#e8c86a] text-black font-bold px-5 py-2.5 text-sm hover:bg-[#f5d67e] transition-colors disabled:opacity-40"
+              >
+                {savingSettings ? "Saving…" : "Save series settings"}
+              </button>
+              <button
+                onClick={buildWithAssist}
+                disabled={assistBusy || items.length === 0}
+                className="inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/50 text-[#e8c86a] font-semibold px-5 py-2.5 text-sm hover:bg-[#e8c86a]/10 transition-colors disabled:opacity-40"
+              >
+                {assistBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Turbo Series Builder
+              </button>
+              {settingsMsg && <span className="text-xs text-white/55">{settingsMsg}</span>}
+              {assistMsg && <span className="text-xs text-white/55">{assistMsg}</span>}
+            </div>
+
+            {assistDraft && (
+              <div className="mt-5 space-y-5 rounded-xl border border-white/10 bg-black/30 p-4">
+                <p className="text-xs text-white/45">{assistDraft.note}</p>
+                <p className="text-xs text-white/55">
+                  <span className="font-bold text-white/75">Price read:</span>{" "}
+                  seasons like this go for ${(assistDraft.price_advice.low_cents / 100).toFixed(2)}–${(assistDraft.price_advice.high_cents / 100).toFixed(2)},
+                  sweet spot ${(assistDraft.price_advice.smart_cents / 100).toFixed(2)}. {assistDraft.price_advice.label}
+                </p>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">Suggested episode order</p>
+                  <ol className="mt-2 space-y-1 text-sm text-white/75">
+                    {assistDraft.suggested_order.map((k, i) => (
+                      <li key={k} className="flex gap-2">
+                        <span className="text-white/30 tabular-nums">{i + 1}.</span> {titleByKey.get(k) ?? "Episode"}
+                      </li>
+                    ))}
+                  </ol>
+                  <button
+                    onClick={applyAssistOrder}
+                    disabled={assistBusy}
+                    className="mt-2 rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
+                  >
+                    Apply this order
+                  </button>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">Sales copy draft</p>
+                  <p className="mt-2 text-sm font-bold text-white/90">{assistDraft.sales_copy.headline}</p>
+                  <p className="mt-1 text-sm text-white/60 leading-relaxed">{assistDraft.sales_copy.description}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => applyAssistCopy("title")}
+                      disabled={assistBusy}
+                      className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
+                    >
+                      Use as title
+                    </button>
+                    <button
+                      onClick={() => applyAssistCopy("description")}
+                      disabled={assistBusy}
+                      className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
+                    >
+                      Use as description
+                    </button>
+                  </div>
+                </div>
+                {assistDraft.trailer_shot_list.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-white/40">Trailer shot-list</p>
+                    <ul className="mt-2 space-y-1.5 text-sm text-white/70">
+                      {assistDraft.trailer_shot_list.map((s, i) => (
+                        <li key={i} className="flex gap-2">
+                          <Clapperboard className="mt-0.5 h-4 w-4 shrink-0 text-[#e8c86a]/60" />
+                          <span>
+                            <span className="font-semibold text-white/85">{titleByKey.get(s.item) ?? "Episode"}:</span>{" "}
+                            {s.moment}{s.caption ? <> — <span className="text-white/50">“{s.caption}”</span></> : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 border-t border-white/10 pt-5">
+              <h3 className="text-sm font-bold text-white/85">
+                Your buyer list
+                {buyerTotals && <span className="ml-2 text-white/40 font-normal">{buyerTotals.buyers} buyers · {buyerTotals.gross} gross</span>}
+              </h3>
+              {buyers.length === 0 ? (
+                <p className="mt-2 text-sm text-white/45">
+                  No sales yet. When fans unlock this series, they land here — names, amounts, dates.
+                  This list is yours; no platform keeps your customers from you.
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {buyers.map((b) => (
+                    <li key={`${b.buyer_user_id}-${b.purchased_at}`} className="flex items-center gap-3 text-sm">
+                      {b.avatar_url ? (
+                        <img src={b.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8c86a]/15 text-xs font-bold text-[#e8c86a]">
+                          {(b.display_name ?? "F").slice(0, 1)}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-white/85">
+                        {b.slug ? (
+                          <Link href={`/artist/${b.slug}`} className="hover:text-[#e8c86a] hover:underline">{b.display_name}</Link>
+                        ) : b.display_name}
+                      </span>
+                      {b.status !== "completed" && (
+                        <span className="rounded-full border border-red-400/40 px-2 py-0.5 text-[11px] font-semibold text-red-300">{b.status}</span>
+                      )}
+                      <span className="text-white/50 tabular-nums">${(b.amount_cents / 100).toFixed(2)}</span>
+                      <span className="text-xs text-white/30">{new Date(b.purchased_at).toLocaleDateString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Items */}
         <section className="mt-10">
