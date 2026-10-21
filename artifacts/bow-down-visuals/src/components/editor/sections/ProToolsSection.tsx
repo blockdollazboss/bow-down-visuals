@@ -34,6 +34,7 @@ import { ColorCurvesPanel } from "./ColorCurvesPanel";
 import { SpeedSegmentsPanel } from "./SpeedSegmentsPanel";
 import { MaskCard } from "./MaskCard";
 import { FillerRemoverCard } from "./FillerRemoverCard";
+import { TranscriptCutCard } from "./TranscriptCutCard";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Pro Tools tab ───────────────────────────────────────────────────────
@@ -717,6 +718,10 @@ export function ProToolsSection({
 
       {/* ── 8. AI Filler-Word Remover (Descript-style: cut ums/ahs + dead air) ── */}
       <FillerRemoverCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 9. Transcript Word Editor (Wave 3 #17: cut any words/ranges by
+             editing the transcript; AI suggestions never cut on their own) ── */}
+      <TranscriptCutCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
     </div>
   );
 }
