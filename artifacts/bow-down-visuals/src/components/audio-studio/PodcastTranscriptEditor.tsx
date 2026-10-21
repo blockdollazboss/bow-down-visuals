@@ -6,7 +6,8 @@
  * marks it for deletion; silence chips toggle the pauses. Rendering
  * reassembles the audio with exactly those cuts — no extra charge, and
  * the cuts you see are the cuts that render (same padding/merge rules on
- * both sides, see lib/podcast-edit.ts). */
+ * both sides, see lib/transcript-edit.ts — shared with the video editor's
+ * transcript word editor). */
 
 import { useEffect, useRef, useState } from "react";
 import { Download, Loader2, Scissors, Upload } from "lucide-react";
@@ -22,7 +23,7 @@ import {
   fillerWordIndices,
   type TranscriptCut,
   type TranscriptWord,
-} from "@/lib/podcast-edit";
+} from "@/lib/transcript-edit";
 
 /** Same default filler set as the video editor's Filler-Word Remover. */
 const DEFAULT_FILLER_WORDS = [
