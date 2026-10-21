@@ -268,4 +268,95 @@ describe("auto-reframe v2", () => {
     expect(h.detectorCalls).toBe(0);
     expect(h.ffmpegCalls.length).toBe(0);
   });
+
+  it("low-confidence samples: centre crop, labeled low-confidence over HTTP", async () => {
+    // Matte specks everywhere: detections exist (trackedSamples
+    // reports them honestly) but the plan rejects the track.
+    h.detectorImpl = async () =>
+      detectionWithSamples(
+        Array.from({ length: 6 }, (_, i) => ({
+          t: 0.25 + i * 0.5,
+          box: { x: 0.43, y: 0.25, w: 0.14, h: 0.5 },
+          coverage: 0.001,
+        })),
+      );
+    const { status, body } = await post({
+      videoUrl: "https://files.example/v.mp4",
+      aspect: "9:16",
+    });
+    expect(status).toBe(200);
+    expect(vfArg()).toBe(CENTRE_916);
+    expect(body.reframe).toEqual({
+      mode: "centre-crop",
+      reason: "low-confidence",
+      samples: 6,
+      trackedSamples: 6,
+    });
+  });
+
+  it("low-coverage samples: centre crop, labeled low-coverage over HTTP", async () => {
+    h.detectorImpl = async () =>
+      detectionWithSamples([
+        { t: 0.25, box: { x: 0.43, y: 0.25, w: 0.14, h: 0.5 }, coverage: 0.05 },
+        { t: 0.75, box: { x: 0.43, y: 0.25, w: 0.14, h: 0.5 }, coverage: 0.05 },
+        ...Array.from({ length: 6 }, (_, i) => ({
+          t: 1.25 + i * 0.5,
+          box: null,
+          coverage: 0,
+        })),
+      ]);
+    const { status, body } = await post({
+      videoUrl: "https://files.example/v.mp4",
+      aspect: "9:16",
+    });
+    expect(status).toBe(200);
+    expect(vfArg()).toBe(CENTRE_916);
+    expect(body.reframe.mode).toBe("centre-crop");
+    expect(body.reframe.reason).toBe("low-coverage");
+    expect(body.reframe.samples).toBe(8);
+    expect(body.reframe.trackedSamples).toBe(2);
+  });
+
+  it("tracked 1:1 and 4:5: square/portrait canvases with tracked filters", async () => {
+    h.detectorImpl = async () => walkingDetection();
+    const one = await post({ videoUrl: "https://files.example/v.mp4", aspect: "1:1" });
+    expect(one.status).toBe(200);
+    expect(one.body.reframe.mode).toBe("subject-tracked");
+    expect(vfArg().startsWith("crop=720:720:'clip(if(lt(t,")).toBe(true);
+    expect(vfArg().endsWith(",scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080")).toBe(true);
+
+    h.ffmpegCalls.length = 0;
+    const fourFive = await post({ videoUrl: "https://files.example/v.mp4", aspect: "4:5" });
+    expect(fourFive.status).toBe(200);
+    expect(fourFive.body.reframe.mode).toBe("subject-tracked");
+    expect(vfArg().startsWith("crop=576:720:'clip(if(lt(t,")).toBe(true);
+    expect(vfArg().endsWith(",scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350")).toBe(true);
+  });
+
+  it("download failure refunds the charge and never renders", async () => {
+    vi.stubGlobal("fetch", async () => ({
+      ok: false,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    }));
+    try {
+      const { status } = await post({
+        videoUrl: "https://files.example/gone.mp4",
+        aspect: "9:16",
+      });
+      expect(status).toBe(500);
+      expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(refundCredits)).toHaveBeenCalledWith(
+        "user-1",
+        200,
+        expect.objectContaining({ action: "Auto Reframe — Refund" }),
+      );
+      expect(h.detectorCalls).toBe(0);
+      expect(h.ffmpegCalls.length).toBe(0);
+    } finally {
+      vi.stubGlobal(
+        "fetch",
+        async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(16) }),
+      );
+    }
+  });
 });
