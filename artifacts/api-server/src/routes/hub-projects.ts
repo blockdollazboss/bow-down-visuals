@@ -122,6 +122,15 @@ async function mostRecentProject(userId: string): Promise<HubProjectRow | undefi
   return r.rows[0] as unknown as HubProjectRow | undefined;
 }
 
+async function projectById(userId: string, id: string): Promise<HubProjectRow | undefined> {
+  const r = await db.execute(sql`
+    SELECT ${PROJECT_COLUMNS} FROM hub_projects
+    WHERE id = ${id} AND user_id = ${userId}
+    LIMIT 1
+  `);
+  return r.rows[0] as unknown as HubProjectRow | undefined;
+}
+
 /* Get the user's most recently updated hub project (null when never
    saved). Pre-0142 this was THE project; the row set can now hold many
    (see GET /hub/projects), and this stays the "current" one. */
@@ -154,6 +163,26 @@ router.get("/hub/projects", requireAuth, async (req, res) => {
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
     })),
   });
+});
+
+/* Get ONE of the user's hub projects by id (wave-2 #3): the full
+   payload — the read that lets the projects browser open any row, not
+   just the most recent one. Same payload shape as GET /hub/project.
+   Owner-scoped like the id-targeted save below: a project that isn't
+   the caller's reads as 404, never a leak that the row exists — and a
+   malformed id is a 404 too, not a 500. */
+router.get("/hub/projects/:id", requireAuth, async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  const row = await projectById(req.userId!, id);
+  if (!row) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  res.json({ project: await projectPayload(row) });
 });
 
 /* Save a hub project (0142 upsert rules):

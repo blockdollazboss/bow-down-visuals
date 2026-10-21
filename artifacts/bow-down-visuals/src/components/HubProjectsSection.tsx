@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FolderOpen, Loader2, Trash2 } from "lucide-react";
@@ -7,34 +7,45 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import {
   parseHubProjectsList,
+  parseHubProjectPayload,
   hubProjectTypeLabel,
   hubProjectDeleteRequest,
+  hubProjectByIdRequest,
   hubProjectsListCapped,
   isCurrentHubProject,
   type HubProjectSummary,
 } from "@/lib/hub-projects";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Hub projects section (My Projects → Projects tab) ─────────────────────
    The account's synced Hub projects, from GET /api/hub/projects — the
    list rail that existed since 0142 with no frontend consumer, so every
-   hub project except the most recent was invisible here. The list is
-   summaries only and there is no GET-by-id / switch-project rail: the
-   most recent row is the project open in the Hub (the singular read's
-   own definition) and carries the door there; older rows can be
-   deleted from their synced copy via the id-scoped DELETE rail.
+   hub project except the most recent was invisible here. Every row
+   carries the door into the Hub: the most recent row is the project
+   open in the Hub (the singular read's own definition) and links
+   straight there; an older row opens through the by-id payload read
+   (GET /api/hub/projects/:id) and is adopted as the active project
+   only after the server confirms it. Any row can be deleted from its
+   synced copy via the id-scoped DELETE rail.
 
    Honesty rules (the page's own): a failed load is an error + retry,
    never a fake-empty list; a delete removes its row only after the
-   server confirms, and a failed delete keeps the row and says so. */
+   server confirms, and a failed delete keeps the row and says so; a
+   failed open keeps the project the member already has and says so —
+   the browser never navigates to the Hub on an unconfirmed open. */
 export default function HubProjectsSection() {
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
+  const { adoptProject } = useHubProject();
+  const [, setLocation] = useLocation();
 
   const [rows, setRows] = useState<HubProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +68,32 @@ export default function HubProjectsSection() {
   useEffect(() => {
     if (user) void load();
   }, [user, load]);
+
+  /* Open an older project in the Hub: fetch its full payload by id,
+     adopt it as the active project, and only then navigate. Any
+     failure — the row was deleted elsewhere, the payload is unusable —
+     leaves the member where they are, with the project they had. */
+  async function handleOpen(row: HubProjectSummary) {
+    setOpeningId(row.id);
+    setOpenError(null);
+    try {
+      const token = await getAccessToken();
+      const request = hubProjectByIdRequest(row.id);
+      const res = await fetch(request.url, {
+        method: request.method,
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error(t("myProjects.failedOpenHubProject"));
+      const payload = parseHubProjectPayload(await res.json());
+      if (!payload) throw new Error(t("myProjects.failedOpenHubProject"));
+      adoptProject(payload);
+      setLocation("/hub");
+    } catch {
+      setOpenError(t("myProjects.failedOpenHubProject"));
+    } finally {
+      setOpeningId(null);
+    }
+  }
 
   async function handleDelete(row: HubProjectSummary) {
     if (!confirm(t("myProjects.deleteHubProjectConfirm", { name: row.name }))) return;
@@ -102,6 +139,9 @@ export default function HubProjectsSection() {
           {deleteError && (
             <p role="alert" className="text-sm text-red-400 font-semibold mb-3">{deleteError}</p>
           )}
+          {openError && (
+            <p role="alert" className="text-sm text-red-400 font-semibold mb-3">{openError}</p>
+          )}
           <div className="space-y-2">
             {rows.map((row, index) => {
               const current = isCurrentHubProject(index);
@@ -130,13 +170,23 @@ export default function HubProjectsSection() {
                       {date ? ` · ${date}` : ""}
                     </p>
                   </div>
-                  {current && (
+                  {current ? (
                     <Link
                       href="/hub"
                       className="text-xs font-semibold text-primary hover:underline shrink-0"
                     >
                       {t("myProjects.hubProjectsOpenInHub")}
                     </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpen(row)}
+                      disabled={openingId === row.id}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline shrink-0 disabled:opacity-40"
+                    >
+                      {openingId === row.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {t("myProjects.hubProjectsOpenInHub")}
+                    </button>
                   )}
                   <button
                     type="button"
