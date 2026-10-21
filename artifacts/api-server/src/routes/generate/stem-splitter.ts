@@ -16,6 +16,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { runGatedDemucs, DEMUCS_THREAD_ENV } from "../../lib/demucs-gate";
+import { buildMelodyMidi, midiFilenameBase, NoMelodyError } from "../../lib/midi-file";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
@@ -289,6 +290,11 @@ export function jobKeySet(job: Pick<StemJob, "pro">): readonly AnyStemKey[] {
 /** Test hook: clear the in-memory job store. */
 export function __clearStemJobs(): void {
   jobs.clear();
+}
+
+/** Test hook: seed a job directly into the store. */
+export function __seedStemJob(job: StemJob): void {
+  jobs.set(job.id, job);
 }
 
 function runProcess(
@@ -697,6 +703,83 @@ router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
     res.status(500).json({
       error: err instanceof Error ? err.message : "Remix failed",
     });
+  }
+});
+
+/**
+ * GET /api/stems/:jobId/midi/:stem
+ *
+ * Export one stem's melody as a real Standard MIDI File, built by the
+ * house melody analysis (lib/melody-analysis — the same extraction the
+ * hum-to-song flow exports) over the stem's own audio. FREE: the split
+ * was paid for; this is deterministic analysis of the creator's own
+ * stem, the same class as the free stem remix above. A stem with no
+ * melody in it (drums, say) gets an honest 422 — never an empty file.
+ * Analysis window is the analysis module's first-60s cap, stated in
+ * the UI copy.
+ */
+router.get("/stems/:jobId/midi/:stem", requireAuth, async (req, res) => {
+  const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
+  const job = jobs.get(jobId);
+  if (!job || job.userId !== req.userId) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  if (job.status !== "done" || !job.stemUrls) {
+    res.status(409).json({ error: "Stems are not ready yet — wait for the split to finish." });
+    return;
+  }
+  const stemParam = Array.isArray(req.params.stem) ? req.params.stem[0] : req.params.stem;
+  const stem = ALL_STEM_KEYS.find((k) => k === stemParam);
+  const url = stem ? job.stemUrls[stem] : undefined;
+  if (!stem || !url) {
+    res.status(404).json({ error: "Stem not found" });
+    return;
+  }
+
+  const workDir = await fs.mkdtemp(join(tmpdir(), "stem-midi-"));
+  try {
+    const stemPath = join(workDir, `${stem}.wav`);
+    try {
+      // Stream to disk like every other stem read in this module —
+      // stem WAVs are tens of MB and never belong in RAM twice.
+      await downloadToFile(url, stemPath);
+    } catch {
+      res.status(502).json({
+        error: "Couldn't load that stem's audio — please try again.",
+        code: "audio_unavailable",
+      });
+      return;
+    }
+    const audio = await fs.readFile(stemPath);
+    const baseName = job.sourceName.replace(/\.[a-z0-9]+$/i, "");
+    try {
+      const { midi } = await buildMelodyMidi(audio, `${baseName} — ${ALL_STEM_LABELS[stem]}`);
+      res.setHeader("Content-Type", "audio/midi");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${midiFilenameBase(baseName)}-${stem}-melody.mid"`,
+      );
+      res.send(midi);
+    } catch (err) {
+      if (err instanceof NoMelodyError) {
+        res.status(422).json({
+          error: `No clear melody could be heard in the ${ALL_STEM_LABELS[stem]} stem — nothing to export as MIDI.`,
+          code: err.code,
+        });
+        return;
+      }
+      if (err instanceof Error && /too short/i.test(err.message)) {
+        res.status(400).json({ error: err.message, code: "too_short" });
+        return;
+      }
+      res.status(422).json({
+        error: "We couldn't read a melody in that stem's audio.",
+        code: "analysis_failed",
+      });
+    }
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 });
 
