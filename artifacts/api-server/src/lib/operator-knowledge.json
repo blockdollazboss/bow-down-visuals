@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "1c49438d56858fa3ee71efeb74adebab5c157af6",
+  "baseCommit": "5dc70ff2022a55be5578fcea663ca9f8cfc9d230",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -14,12 +14,12 @@
     "features": 231,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
-    "pricedActions": 215,
+    "pricedActions": 216,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 222,
-    "withoutDescriptions": 9
+    "withDescriptions": 221,
+    "withoutDescriptions": 10
   },
   "packs": [
     {
@@ -4929,9 +4929,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
       "description": "Bring your existing videos and songs home to Bow Down Visuals: pick from your connected Instagram and Facebook catalogs or bulk-upload your own files, let Thy Cheat Code rebuild the titles, captions and series grouping re-uploading would lose, and approve each piece before it goes live.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/catalog-import.tsx usePageTitle meta description"
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"catalogImport.pageDescription\" (page's own string)",
+      "nextSteps": []
     },
     {
       "id": "challenge--slug",
@@ -6554,7 +6554,6 @@
         "/api/dev/add-credits",
         "/api/email-list/lists",
         "/api/email-list/lists/:param",
-        "/api/email-list/lists/:param/automations",
         "/api/email-list/lists/:param/automations/:param",
         "/api/email-list/lists/:param/campaigns",
         "/api/email-list/lists/:param/export",
@@ -8204,9 +8203,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
       "description": "You were invited to join a Bow Down Visuals live stream as a guest.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/live-guest.tsx usePageTitle meta description"
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"liveGuests.pageDescription\" (page's own string)",
+      "nextSteps": []
     },
     {
       "id": "llc-guide",
@@ -8340,9 +8339,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
       "description": "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/move-home.tsx usePageTitle meta description"
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"moveHome.pageDescription\" (page's own string)",
+      "nextSteps": []
     },
     {
       "id": "movies",
@@ -8973,9 +8972,7 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Creator playlists on Bow Down Visuals.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/playlist.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "post--id",
