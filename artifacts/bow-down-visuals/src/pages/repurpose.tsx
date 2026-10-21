@@ -4,7 +4,7 @@ import {
   Recycle, Loader2, Upload, Link2, Copy, Check, Download,
   AlertTriangle, RefreshCw, Clapperboard, Image as ImageIcon,
   MessageSquareText, Share2, Sparkles, Film, Captions, Scissors,
-  Play, Clock, Flame,
+  Play, Clock, Flame, Search,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -699,6 +699,514 @@ function StreamVodClips() {
   );
 }
 
+/* ─── Smart Clips (general long-form → shorts) ──────────────────────────
+   Paste a long video → the AI reads its transcript and PROPOSES the best
+   moments, each with a score, a one-line reason, and the transcript
+   words it came from. The creator approves proposals and can trim each
+   start/end; ONLY the kept moments render, and only on the render
+   button — the AI never renders or publishes on its own. A free-text
+   box lets the creator describe the moment they want ("the part where
+   I explain pricing"). When a video has no speech to read, proposals
+   fall back to audio-energy picks and say so on every card.
+   Registry keys: /api/smart-clips/propose (free) → /api/smart-clips
+   (200 VB per rendered clip, overrideCost). */
+
+const SMART_CLIP_COST_PER_CLIP = 200;
+const SMART_CLIP_LENGTHS = [15, 30, 45, 60];
+const SMART_CLIP_COUNTS = [1, 2, 3, 4, 5];
+const SMART_CLIP_MIN_SEC = 5;
+const SMART_CLIP_MAX_SEC = 120;
+
+interface SmartClipProposal {
+  startTime: number;
+  endTime: number;
+  title: string;
+  score: number | null;
+  reason: string;
+  quote: string;
+  method: "semantic" | "energy";
+}
+
+interface SmartClipResult {
+  url: string;
+  storageRef: string;
+  startTime: number;
+  endTime: number;
+  title: string;
+  score: number | null;
+  reason: string;
+  quote: string;
+  method: "semantic" | "energy";
+}
+
+interface SmartClipsProposeResponse {
+  proposals?: SmartClipProposal[];
+  count?: number;
+  analysisMethod?: "semantic" | "mixed" | "energy";
+  durationSec?: number;
+  error?: string;
+  message?: string;
+}
+
+interface SmartClipsRenderResponse {
+  clips?: SmartClipResult[];
+  count?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+/** A proposal as the creator edits it: kept or not, with the start/end
+ *  kept as mm:ss text so trimming is typing, not sliders. */
+interface ProposalDraft extends SmartClipProposal {
+  keep: boolean;
+  startText: string;
+  endText: string;
+}
+
+/** Parse "mm:ss" (or bare seconds) the creator typed; null when unreadable. */
+function parseClipTimeText(text: string): number | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(":");
+  if (parts.length === 1) {
+    const n = Number(parts[0]);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  if (parts.length === 2) {
+    const m = Number(parts[0]);
+    const s = Number(parts[1]);
+    if (Number.isFinite(m) && Number.isFinite(s) && m >= 0 && s >= 0 && s < 60) {
+      return m * 60 + s;
+    }
+  }
+  return null;
+}
+
+/** The window a draft describes, or null when its times can't render. */
+function draftWindow(d: ProposalDraft): { start: number; end: number } | null {
+  const start = parseClipTimeText(d.startText);
+  const end = parseClipTimeText(d.endText);
+  if (start == null || end == null) return null;
+  const len = end - start;
+  if (len < SMART_CLIP_MIN_SEC || len > SMART_CLIP_MAX_SEC) return null;
+  return { start, end };
+}
+
+function SmartClipFinder() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
+
+  const [videoUrl, setVideoUrl] = useState("");
+  const [query, setQuery] = useState("");
+  const [count, setCount] = useState(3);
+  const [durationSec, setDurationSec] = useState(45);
+  const [finding, setFinding] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [drafts, setDrafts] = useState<ProposalDraft[] | null>(null);
+  const [proposeMethod, setProposeMethod] = useState<"semantic" | "mixed" | "energy" | null>(null);
+  const [result, setResult] = useState<SmartClipsRenderResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  async function authedFetch(
+    url: string,
+    init: RequestInit & { overrideCost?: number; overrideFeature?: string },
+  ) {
+    const token = await getAccessToken();
+    return confirmedFetch(url, {
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  }
+
+  /* Step 1 — propose. Free and renders nothing: it only reads the video
+     and brings back moments for the creator to judge. */
+  async function findMoments() {
+    if (finding || !user) return;
+    if (!videoUrl.trim()) {
+      setError(t("smartClips.errorNoUrl"));
+      return;
+    }
+    setFinding(true);
+    setError(null);
+    setOutOfCredits(false);
+    setDrafts(null);
+    setResult(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/smart-clips/propose", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          videoUrl: videoUrl.trim(),
+          count,
+          durationSec,
+          ...(query.trim() ? { query: query.trim() } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as SmartClipsProposeResponse;
+      if (!res.ok) {
+        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+      }
+      const proposals = Array.isArray(data.proposals) ? data.proposals : [];
+      setProposeMethod(data.analysisMethod ?? null);
+      setDrafts(
+        proposals.map((p) => ({
+          ...p,
+          keep: true,
+          startText: formatClipTimestamp(p.startTime),
+          endText: formatClipTimestamp(p.endTime),
+        })),
+      );
+      setTimeout(() => {
+        document.getElementById("smart-clip-proposals")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  function updateDraft(i: number, patch: Partial<ProposalDraft>) {
+    setDrafts((prev) => (prev ? prev.map((d, j) => (j === i ? { ...d, ...patch } : d)) : prev));
+  }
+
+  const keptValid = (drafts ?? [])
+    .map((d) => ({ d, w: d.keep ? draftWindow(d) : null }))
+    .filter((x): x is { d: ProposalDraft; w: { start: number; end: number } } => x.w != null);
+
+  /* Step 2 — render. Only the kept, valid windows the creator settled
+     on are sent; the server renders exactly those and charges per clip. */
+  async function renderApproved() {
+    if (rendering || !user || keptValid.length === 0) return;
+    setRendering(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const res = await authedFetch("/api/smart-clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: videoUrl.trim(),
+          clips: keptValid.map(({ d, w }) => ({
+            startTime: Math.round(w.start * 10) / 10,
+            endTime: Math.round(w.end * 10) / 10,
+            title: d.title,
+            reason: d.reason,
+            quote: d.quote,
+            score: d.score,
+            method: d.method,
+          })),
+        }),
+        overrideCost: keptValid.length * SMART_CLIP_COST_PER_CLIP,
+        overrideFeature: t("smartClips.featureName"),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as SmartClipsRenderResponse;
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !Array.isArray(data.clips) || data.clips.length === 0) {
+        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+      }
+      setResult(data);
+      refreshProfile();
+      /* Finished clips flow into the hub project like every other rail. */
+      for (const c of data.clips) {
+        try {
+          addAsset({
+            kind: "clip",
+            url: c.url,
+            label: c.title || "Smart Clip",
+            detail: `${formatClipTimestamp(c.startTime)}–${formatClipTimestamp(c.endTime)}`,
+          });
+        } catch { /* hub unavailable — non-fatal */ }
+      }
+      setTimeout(() => {
+        document.getElementById("smart-clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+    } finally {
+      setRendering(false);
+    }
+  }
+
+  const clips = result?.clips ?? [];
+
+  return (
+    <div>
+      {!user && (
+        <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
+          {t("smartClips.signInPrompt")}
+        </div>
+      )}
+      {outOfCredits && (
+        <div className="mx-auto mt-8 max-w-xl">
+          <OutOfCredits />
+        </div>
+      )}
+      {error && (
+        <div className="mx-auto mt-6 flex max-w-3xl items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <section className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Scissors className="h-5 w-5 text-primary" />
+          {t("smartClips.title")}
+        </h2>
+        <p className="mt-1 text-sm text-white/50">{t("smartClips.blurb")}</p>
+
+        <div className="mt-5 grid gap-4">
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
+              <Link2 className="h-4 w-4 text-primary" /> {t("smartClips.urlLabel")}
+            </span>
+            <input
+              className={inputClass}
+              placeholder={t("smartClips.urlPlaceholder")}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+            />
+            <span className="text-xs text-white/40">{t("smartClips.urlHint")}</span>
+          </div>
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
+              <Search className="h-4 w-4 text-primary" /> {t("smartClips.searchLabel")}
+            </span>
+            <input
+              className={inputClass}
+              placeholder={t("smartClips.searchPlaceholder")}
+              value={query}
+              maxLength={300}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <span className="text-xs text-white/40">{t("smartClips.searchHint")}</span>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("smartClips.countLabel")}</div>
+            <div className="flex gap-2">
+              {SMART_CLIP_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCount(n)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                    count === n
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("smartClips.lengthLabel")}</div>
+            <div className="flex gap-2">
+              {SMART_CLIP_LENGTHS.map((len) => (
+                <button
+                  key={len}
+                  onClick={() => setDurationSec(len)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                    durationSec === len
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {t("smartClips.secondsLabel", { n: len })}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <button
+            onClick={findMoments}
+            disabled={finding || !user || !videoUrl.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {finding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            {finding ? t("smartClips.finding") : t("smartClips.findButton")}
+          </button>
+          <p className="text-xs text-white/40">{t("smartClips.findNote")}</p>
+        </div>
+      </section>
+
+      {drafts != null && (
+        <section id="smart-clip-proposals" className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Sparkles className="h-5 w-5 text-primary" />
+            {t("smartClips.proposalsTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-white/50">
+            {proposeMethod === "semantic"
+              ? t("smartClips.methodSemantic")
+              : proposeMethod === "mixed"
+                ? t("smartClips.methodMixed")
+                : t("smartClips.methodEnergy")}
+          </p>
+          <p className="mt-1 text-sm text-white/50">{t("smartClips.proposalsHint")}</p>
+
+          {drafts.length === 0 ? (
+            <p className="mt-5 text-sm text-white/60">{t("smartClips.errorNoProposals")}</p>
+          ) : (
+            <>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {drafts.map((d, i) => {
+                  const w = draftWindow(d);
+                  const invalid = d.keep && w == null;
+                  return (
+                    <div
+                      key={`${d.startTime}-${i}`}
+                      className={`rounded-2xl border p-4 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"} ${d.keep ? "" : "opacity-50"}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-bold leading-snug">{d.title}</div>
+                        {d.method === "semantic" && d.score != null && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-black text-primary">
+                            <Flame className="h-3.5 w-3.5" />
+                            {d.score}
+                          </span>
+                        )}
+                        {d.method === "energy" && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">
+                            {t("smartClips.energyPick")}
+                          </span>
+                        )}
+                      </div>
+                      {d.reason && <p className="mt-2 text-sm text-white/65">{d.reason}</p>}
+                      {d.quote && (
+                        <div className="mt-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wide text-white/40">{t("smartClips.quoteLabel")}</div>
+                          <p className="mt-0.5 text-sm italic text-white/55">“{d.quote}”</p>
+                        </div>
+                      )}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <span className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white/40">
+                            <Clock className="h-3 w-3" /> {t("smartClips.startLabel")}
+                          </span>
+                          <input
+                            className={`${inputClass} ${invalid ? "border-red-400/60" : ""}`}
+                            value={d.startText}
+                            onChange={(e) => updateDraft(i, { startText: e.target.value })}
+                            placeholder="00:00"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-white/40">{t("smartClips.endLabel")}</span>
+                          <input
+                            className={`${inputClass} ${invalid ? "border-red-400/60" : ""}`}
+                            value={d.endText}
+                            onChange={(e) => updateDraft(i, { endText: e.target.value })}
+                            placeholder="00:00"
+                          />
+                        </label>
+                      </div>
+                      {invalid && <p className="mt-2 text-xs text-red-300">{t("smartClips.invalidTime")}</p>}
+                      <button
+                        onClick={() => updateDraft(i, { keep: !d.keep })}
+                        className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                          d.keep
+                            ? "border-primary/60 bg-primary/15 text-primary"
+                            : "border-white/15 bg-white/5 text-white/60 hover:bg-white/10"
+                        }`}
+                      >
+                        <Check className="h-4 w-4" /> {t("smartClips.keepLabel")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <button
+                  onClick={renderApproved}
+                  disabled={rendering || keptValid.length === 0}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {rendering ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clapperboard className="h-5 w-5" />}
+                  {rendering ? t("smartClips.rendering") : t("smartClips.renderButton", { n: keptValid.length })}
+                </button>
+                <p className="text-xs text-white/40">
+                  {t("smartClips.renderCostNote", { per: SMART_CLIP_COST_PER_CLIP, total: keptValid.length * SMART_CLIP_COST_PER_CLIP })}
+                </p>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {result && clips.length > 0 && (
+        <section id="smart-clip-results" className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Clapperboard className="h-5 w-5 text-primary" />
+            {t("smartClips.resultsTitle")}
+          </h2>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {clips.map((c, i) => (
+              <div key={`${c.storageRef}-${i}`} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                <video src={c.url} controls preload="metadata" className="aspect-[9/16] w-full bg-black object-cover" />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-bold leading-snug">{c.title}</div>
+                    {c.method === "semantic" && c.score != null && (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-black text-primary">
+                        <Flame className="h-3.5 w-3.5" />
+                        {c.score}
+                      </span>
+                    )}
+                    {c.method === "energy" && (
+                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">
+                        {t("smartClips.energyPick")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-white/45">
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatClipTimestamp(c.startTime)}–{formatClipTimestamp(c.endTime)}
+                  </div>
+                  {c.reason && <p className="mt-2 text-sm text-white/65">{c.reason}</p>}
+                  {c.quote && <p className="mt-1 text-sm italic text-white/45">“{c.quote}”</p>}
+                  <a
+                    href={c.url}
+                    download
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+                  >
+                    <Download className="h-4 w-4" /> {t("smartClips.download")}
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+
 export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
@@ -726,14 +1234,15 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
   const [platformTab, setPlatformTab] = useState<PlatformKey>("tiktok");
   const pollRef = useRef<number | null>(null);
 
-  /* ── Content Pack vs Stream VOD (merged Streamer Clip Maker) ── */
-  const [mode, setMode] = useState<"pack" | "stream">("pack");
+  /* ── Content Pack vs Stream VOD (merged Streamer Clip Maker) vs Smart Clips ── */
+  const [mode, setMode] = useState<"pack" | "stream" | "smart">("pack");
 
   /* Deep-link: /repurpose?mode=stream jumps straight to the Stream VOD preset. */
   useEffect(() => {
     try {
       const m = new URLSearchParams(window.location.search).get("mode");
       if (m === "stream") setMode("stream");
+      if (m === "smart") setMode("smart");
     } catch {
       /* non-browser or malformed URL — ignore */
     }
@@ -1043,11 +1552,24 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
               <Scissors className="h-4 w-4" />
               {t("repurpose.modeStreamVod", { defaultValue: "Stream VOD" })}
             </button>
+            <button
+              role="tab"
+              aria-selected={mode === "smart"}
+              onClick={() => setMode("smart")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                mode === "smart" ? "bg-primary text-black" : "text-white/55 hover:text-white"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("repurpose.modeSmart", { defaultValue: "Smart Clips" })}
+            </button>
           </div>
         </div>
 
         {mode === "stream" ? (
           <StreamVodClips />
+        ) : mode === "smart" ? (
+          <SmartClipFinder />
         ) : (
         <>
 
