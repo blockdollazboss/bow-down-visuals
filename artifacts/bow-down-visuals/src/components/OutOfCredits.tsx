@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Zap, ArrowRight, Plus, Loader2, X } from "lucide-react";
@@ -7,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const IS_DEV = import.meta.env.DEV;
 
 export function OutOfCredits({ onClose }: { onClose?: () => void }) {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -21,13 +23,13 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch("/api/dev/add-credits", { method: "POST", headers });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" })) as { error?: string };
-        throw new Error(err.error ?? "Failed to add Visual Bucs");
+        const err = await res.json().catch(() => ({ error: t("outOfCredits.errFailed") })) as { error?: string };
+        throw new Error(err.error ?? t("outOfCredits.errAdd"));
       }
       await refreshProfile();
       setAdded(true);
     } catch (err) {
-      setDevError(err instanceof Error ? err.message : "Failed");
+      setDevError(err instanceof Error ? err.message : t("outOfCredits.errFailed"));
     } finally {
       setAdding(false);
     }
@@ -38,7 +40,7 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
       {onClose && (
         <button
           onClick={onClose}
-          aria-label="Dismiss"
+          aria-label={t("outOfCredits.dismissAria")}
           className="absolute top-2 right-2 p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
         >
           <X className="h-4 w-4" />
@@ -48,21 +50,21 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
         <Zap className="h-8 w-8 text-primary" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-black text-white">Not Enough Visual Bucs</h2>
+        <h2 className="text-2xl font-black text-white">{t("outOfCredits.title")}</h2>
         <p className="text-white/55 text-base leading-relaxed">
-          Not enough Visual Bucs. Please buy more Visual Bucs to continue.
+          {t("outOfCredits.body")}
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_16px_rgba(218,165,32,0.35)] gap-2">
           <Link href="/pricing#credit-packs">
-            <Zap className="h-4 w-4" /> Buy More Visual Bucs
+            <Zap className="h-4 w-4" /> {t("outOfCredits.buyBtn")}
           </Link>
         </Button>
         <Button asChild size="lg" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
           <Link href="/credit-history">
-            View Visual Buc History <ArrowRight className="h-4 w-4" />
+            {t("outOfCredits.historyBtn")} <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
       </div>
@@ -77,11 +79,11 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
             variant="outline"
           >
             {adding ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Adding…</>
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("outOfCredits.adding")}</>
             ) : added ? (
-              <><Plus className="h-3.5 w-3.5" /> Visual Bucs Added!</>
+              <><Plus className="h-3.5 w-3.5" /> {t("outOfCredits.addedBtn")}</>
             ) : (
-              <><Plus className="h-3.5 w-3.5" /> Add 10 Test Visual Bucs (dev)</>
+              <><Plus className="h-3.5 w-3.5" /> {t("outOfCredits.addTestBtn")}</>
             )}
           </Button>
           {devError && <p className="text-red-400 text-xs mt-2">{devError}</p>}

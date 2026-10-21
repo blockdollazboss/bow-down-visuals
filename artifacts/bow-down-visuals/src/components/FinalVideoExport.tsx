@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
@@ -86,21 +87,27 @@ interface AudioCheckRow {
   contentType: string;
 }
 
+type TranslateFn = (key: string, opts?: Record<string, unknown>) => string;
+
 /** Parse a fetch Response as JSON, surfacing the route when HTML is returned (PART 5) */
-async function parseJsonResponse<T>(res: Response, route: string): Promise<T> {
+async function parseJsonResponse<T>(res: Response, route: string, t: TranslateFn): Promise<T> {
   const ct = res.headers.get("content-type") ?? "";
   const text = await res.text();
   if (!ct.toLowerCase().includes("application/json")) {
     const snippet = text.slice(0, 120).replace(/\s+/g, " ").trim();
     throw new Error(
-      `Route ${route} returned ${ct || "non-JSON"} instead of JSON (HTTP ${res.status}). ` +
-      `This is an API routing problem. First bytes: ${snippet || "(empty)"}`,
+      t("videoExport.errRouteNonJson", {
+        route,
+        contentType: ct || "non-JSON",
+        status: res.status,
+        snippet: snippet || "(empty)",
+      }),
     );
   }
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new Error(`Route ${route} returned malformed JSON (HTTP ${res.status}).`);
+    throw new Error(t("videoExport.errRouteMalformed", { route, status: res.status }));
   }
 }
 
@@ -205,13 +212,13 @@ export function isSelected(s: SceneData): boolean {
   return isRunway && isComplete;
 }
 
-function sceneLabel(s: SceneData, i: number): string {
+function sceneLabel(s: SceneData, i: number, fallback: string): string {
   const parts = [s.section, s.lyricLine].filter(Boolean);
-  return parts.length > 0 ? parts.join(" — ") : `Scene ${i + 1}`;
+  return parts.length > 0 ? parts.join(" — ") : fallback;
 }
 
-function audioSourceSummary(source: VideoAudioSource | undefined, label: string | undefined): string {
-  if (!source || source === "none") return "No audio";
+function audioSourceSummary(source: VideoAudioSource | undefined, label: string | undefined, noAudioText: string): string {
+  if (!source || source === "none") return noAudioText;
   return label ?? source;
 }
 
@@ -259,6 +266,7 @@ export function FinalVideoExport({
   fitMode,
   isSubscriber = false,
 }: FinalVideoExportProps) {
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const { addAsset, referralCode } = useHubProject();
   const { getAccessToken, refreshProfile } = useAuth();
@@ -425,7 +433,7 @@ export function FinalVideoExport({
       const token = await getAccessToken();
       const clips = selectedScenes.map((s) => {
         const sceneNum = scenes.indexOf(s) + 1;
-        const sceneTitle = [s.section, s.lyricLine].filter(Boolean).join(" — ") || `Scene ${sceneNum}`;
+        const sceneTitle = [s.section, s.lyricLine].filter(Boolean).join(" — ") || t("videoExport.sceneFallback", { index: sceneNum });
         return {
           sceneNumber: sceneNum,
           sceneTitle,
@@ -458,8 +466,8 @@ export function FinalVideoExport({
         audio?: AudioCheckRow | null;
         expiresAt?: number;
         error?: string;
-      }>(res, "/api/prepare-export-files");
-      if (!res.ok) throw new Error(data.error ?? `Prepare failed (HTTP ${res.status})`);
+      }>(res, "/api/prepare-export-files", t);
+      if (!res.ok) throw new Error(data.error ?? t("videoExport.errPrepareHttp", { status: res.status }));
       setPrepareId(data.prepareId);
       setPrepareExpiresAt(data.expiresAt ?? null);
       setNowTick(Date.now());
@@ -471,7 +479,7 @@ export function FinalVideoExport({
       return { ready: data.allReady, prepareId: data.prepareId };
     } catch (err) {
       setPrepareState("failed");
-      setPrepareError(err instanceof Error ? err.message : "Prepare failed");
+      setPrepareError(err instanceof Error ? err.message : t("videoExport.errPrepare"));
       return { ready: false, prepareId: null };
     }
   }
@@ -520,7 +528,7 @@ export function FinalVideoExport({
       cursor = Math.max(cursor, startSec + durationSec);
 
       return {
-        name: sceneLabel(scene, k),
+        name: sceneLabel(scene, k, t("videoExport.sceneFallback", { index: k + 1 })),
         // The clip the preview/export actually plays for this scene.
         src: edit?.useLipSync && edit?.lipSyncUrl ? edit.lipSyncUrl : scene.demoClipUrl!,
         startSec,
@@ -533,14 +541,14 @@ export function FinalVideoExport({
     });
 
     return {
-      projectName: "Bow Down Visuals — Timeline Export",
+      projectName: t("videoExport.timelineProjectName"),
       fps: 30,
       width,
       height,
       clips,
       audio: hasAudio && effectiveAudioUrl
         ? {
-            name: audioSourceLabel ?? "Song",
+            name: audioSourceLabel ?? t("videoExport.audioFallbackName"),
             src: effectiveAudioUrl,
             durationSec: audioDurationSec ?? null,
           }
@@ -563,9 +571,9 @@ export function FinalVideoExport({
 
   /** Master player has audio but export couldn't resolve any audio URL */
   const audioSourceMismatch = !!masterAudioUrl?.trim() && !effectiveAudioUrl;
-  const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
-    : aspectRatio === "16:9" ? "1920×1080 · YouTube"
-    : "1080×1080 · Square";
+  const aspectLabel = aspectRatio === "9:16" ? t("videoExport.aspectVertical")
+    : aspectRatio === "16:9" ? t("videoExport.aspectWide")
+    : t("videoExport.aspectSquare");
 
   const isRangeExport = typeof effectiveExportRangeStart === "number" && typeof effectiveExportRangeEnd === "number"
     && effectiveExportRangeEnd > effectiveExportRangeStart;
@@ -581,8 +589,8 @@ export function FinalVideoExport({
     !(isRangeExport && (effectiveExportRangeEnd! - effectiveExportRangeStart!) >= MIN_RANGE_DURATION_SEC);
   const exportRangeBlocked = rangeInvalid || derivedRangeInvalid;
   const exportRangeBlockedReason = rangeInvalid
-    ? (rangeInvalidReason ?? "The selected custom export range is invalid.")
-    : "The selected export range resolves to less than a quarter-second of video. Adjust the range or switch to Full Video.";
+    ? (rangeInvalidReason ?? t("videoExport.rangeInvalidDefault"))
+    : t("videoExport.rangeTooShort");
 
   /** Approximate timeline length for the size/render estimate: sum of the
    *  selected scenes' timestamp durations (fall back to the audio length,
@@ -626,11 +634,11 @@ export function FinalVideoExport({
           signal: AbortSignal.timeout(15_000),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data as { error?: string }).error ?? `Estimate failed (${res.status})`);
+        if (!res.ok) throw new Error((data as { error?: string }).error ?? t("videoExport.errEstimateHttp", { status: res.status }));
         setEstimate(data as typeof estimate);
       } catch (err) {
         setEstimate(null);
-        setEstimateError(err instanceof Error ? err.message : "Estimate failed");
+        setEstimateError(err instanceof Error ? err.message : t("videoExport.errEstimate"));
       } finally {
         setEstimateLoading(false);
       }
@@ -719,9 +727,9 @@ export function FinalVideoExport({
         ffmpegStderr?: string;
         stderrTail?: string[];
         ffmpegExitCode?: number;
-      }>(res, `POST ${endpoint}`);
+      }>(res, `POST ${endpoint}`, t);
       const err = Object.assign(
-        new Error(body.error ?? `Export failed (HTTP ${res.status})`),
+        new Error(body.error ?? t("videoExport.errExportHttp", { status: res.status })),
         {
           code:           body.code,
           exportStatus:   body.exportStatus,
@@ -751,14 +759,11 @@ export function FinalVideoExport({
       } | null;
       debug?: { identicalClipsDetected?: boolean };
     }
-    const accepted = await parseJsonResponse<ExportPayload>(res, `POST ${endpoint}`);
+    const accepted = await parseJsonResponse<ExportPayload>(res, `POST ${endpoint}`, t);
 
     const finishExport = (data: ExportPayload) => {
       if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
-        throw new Error(
-          "Server detected two or more downloaded clips with identical content. " +
-          "Re-generate the affected AI clips and try again.",
-        );
+        throw new Error(t("videoExport.errIdenticalClips"));
       }
       if (data.quality?.enabled) {
         setExportQualityMeta({
@@ -781,9 +786,9 @@ export function FinalVideoExport({
       return finishExport(accepted);
     }
     if (!accepted.jobId) {
-      throw new Error("Export did not return a job id");
+      throw new Error(t("videoExport.errNoJobId"));
     }
-    setProgressStep("Render queued — starting…");
+    setProgressStep(t("videoExport.progressQueued"));
     const data = await pollExportJob({
       jobId: accepted.jobId,
       getAccessToken,
@@ -794,29 +799,29 @@ export function FinalVideoExport({
 
   async function handleExport(qualityOpts?: QualityExportOpts) {
     if (!projectId) {
-      toast({ title: "Save project first", description: "Save your project before exporting.", variant: "destructive" });
+      toast({ title: t("videoExport.toastSaveTitle"), description: t("videoExport.toastSaveDesc"), variant: "destructive" });
       return;
     }
     if (selectedScenes.length === 0) {
-      toast({ title: "No clips ready", description: "Generate AI clips on the scenes first.", variant: "destructive" });
+      toast({ title: t("videoExport.toastNoClipsTitle"), description: t("videoExport.toastNoClipsDesc"), variant: "destructive" });
       return;
     }
     if (hasDuplicateUrls) {
       toast({
-        title: "Duplicate clip URLs detected",
-        description: "Two or more scenes share the same clip URL. Re-generate the affected clips then export again.",
+        title: t("videoExport.dupTitle"),
+        description: t("videoExport.toastDupDesc"),
         variant: "destructive",
       });
       return;
     }
     if (exportRangeBlocked) {
-      toast({ title: "Invalid export range", description: exportRangeBlockedReason, variant: "destructive" });
+      toast({ title: t("videoExport.toastRangeTitle"), description: exportRangeBlockedReason, variant: "destructive" });
       return;
     }
 
     setStatus("exporting");
     setErrorMsg(null);
-    setProgressStep("Verifying clips…");
+    setProgressStep(t("videoExport.progressVerifying"));
 
     const renderLabel = qualityOpts
       ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps · ${qualityOpts.container.toUpperCase()}`
@@ -824,9 +829,9 @@ export function FinalVideoExport({
 
     try {
       setProgressStep(
-        `Stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
+        t(selectedScenes.length > 1 ? "videoExport.progressStitchingOther" : "videoExport.progressStitchingOne", { count: selectedScenes.length }) +
         renderLabel +
-        (hasAudio ? ` · mixing audio…` : " · no audio…"),
+        (hasAudio ? t("videoExport.progressMixing") : t("videoExport.progressNoAudio")),
       );
 
       let result;
@@ -839,19 +844,16 @@ export function FinalVideoExport({
           // drift) between "Prepare Export Files Only" and this click. Silently
           // re-prepare once with the current clip/audio state and retry.
           setIsAutoRecovering(true);
-          setProgressStep("Prepared files expired — re-preparing automatically…");
+          setProgressStep(t("videoExport.progressExpired"));
           const { ready, prepareId: freshPrepareId } = await handlePrepare();
           if (!ready || !freshPrepareId) {
             setIsAutoRecovering(false);
-            throw new Error(
-              "Prepared files expired and automatic re-preparation failed. " +
-              "Click 'Prepare Export Files Only' again and try exporting.",
-            );
+            throw new Error(t("videoExport.progressExpiredFailed"));
           }
           setProgressStep(
-            `Re-prepared — stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
+            t(selectedScenes.length > 1 ? "videoExport.progressRepreparedOther" : "videoExport.progressRepreparedOne", { count: selectedScenes.length }) +
             renderLabel +
-            (hasAudio ? ` · mixing audio…` : " · no audio…"),
+            (hasAudio ? t("videoExport.progressMixing") : t("videoExport.progressNoAudio")),
           );
           result = await runExportRequest(freshPrepareId, qualityOpts);
           setIsAutoRecovering(false);
@@ -881,16 +883,16 @@ export function FinalVideoExport({
       addAsset({
         kind: "video",
         url: record.final_video_url,
-        label: qualityOpts ? "Quality export" : "Final export",
-        detail: `${record.clips_used} clips · ${qualityOpts ? `${qualityOpts.resolution} ${qualityOpts.fps}fps ${qualityOpts.container.toUpperCase()}` : (record.aspect_ratio ?? "")}${record.audio_used ? " · with audio" : ""}`,
+        label: qualityOpts ? t("videoExport.assetQuality") : t("videoExport.assetFinal"),
+        detail: `${t("videoExport.assetClips", { count: record.clips_used })} · ${qualityOpts ? `${qualityOpts.resolution} ${qualityOpts.fps}fps ${qualityOpts.container.toUpperCase()}` : (record.aspect_ratio ?? "")}${record.audio_used ? t("videoExport.withAudioSuffix") : ""}`,
       });
       toast({
-        title: "Export complete!",
-        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""}${qualityOpts ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps` : ` · ${aspectRatio}`}${data.audioIncluded ? " · with audio" : " · video only"}.`,
+        title: t("videoExport.toastCompleteTitle"),
+        description: `${t(data.clipCount > 1 ? "videoExport.toastClipsOther" : "videoExport.toastClipsOne", { count: data.clipCount })}${qualityOpts ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps` : ` · ${aspectRatio}`}${data.audioIncluded ? t("videoExport.withAudioSuffix") : t("videoExport.videoOnlySuffix")}.`,
       });
     } catch (err: unknown) {
       setIsAutoRecovering(false);
-      const msg = err instanceof Error ? err.message : "Export failed";
+      const msg = err instanceof Error ? err.message : t("videoExport.exportFailedLower");
       if (msg === "out_of_credits") {
         setStatus("idle");
         setProgressStep("");
@@ -903,7 +905,7 @@ export function FinalVideoExport({
       setErrorStderr((err as { stderrTail?: string[] }).stderrTail ?? null);
       setErrorExitCode((err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null);
       setProgressStep("");
-      toast({ title: "Export failed", description: msg.slice(0, 120), variant: "destructive" });
+      toast({ title: t("videoExport.exportFailedLower"), description: msg.slice(0, 120), variant: "destructive" });
     }
   }
 
@@ -918,11 +920,11 @@ export function FinalVideoExport({
           <Clapperboard className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-black text-white uppercase tracking-wider">Final Video Export</h3>
+          <h3 className="text-sm font-black text-white uppercase tracking-wider">{t("videoExport.title")}</h3>
           <p className="text-xs text-white/40 mt-0.5">
-            {selectedScenes.length} of {scenes.length} clip{scenes.length !== 1 ? "s" : ""} selected
+            {t(scenes.length !== 1 ? "videoExport.headerClipsOther" : "videoExport.headerClipsOne", { selected: selectedScenes.length, total: scenes.length })}
             {" · "}{aspectLabel}
-            {hasAudio ? ` · ${audioSourceSummary(audioSource, audioSourceLabel)}` : " · no audio"}
+            {hasAudio ? ` · ${audioSourceSummary(audioSource, audioSourceLabel, t("videoExport.noAudio"))}` : ` · ${t("videoExport.noAudioLower")}`}
           </p>
         </div>
         <StatusBadge status={status} />
@@ -939,10 +941,10 @@ export function FinalVideoExport({
             <ConfettiBurst />
             <div className="text-center space-y-1 pb-1">
               <p className="text-xl font-black text-white">
-                Your masterpiece is ready 👑
+                {t("videoExport.completedTitle")}
               </p>
               <p className="text-sm text-white/50">
-                Fresh out the vault. Go make the internet bow down.
+                {t("videoExport.completedSub")}
               </p>
             </div>
             <video
@@ -961,34 +963,40 @@ export function FinalVideoExport({
             >
               <Button className="gold-glow w-full gap-2" data-testid="btn-download-final-video">
                 <Download className="h-4 w-4" />
-                Download Final Video ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}{hasAudio ? " + audio" : ""})
+                {t(selectedScenes.length !== 1 ? "videoExport.downloadBtnOther" : "videoExport.downloadBtnOne", { count: selectedScenes.length, audio: hasAudio ? t("videoExport.audioPlus") : "" })}
               </Button>
             </a>
             {/* ── Quality summary (quality-controlled exports) ── */}
             {exportQualityMeta && (
               <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-quality-summary">
-                {exportQualityMeta.width}×{exportQualityMeta.height} · {exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`} · {exportQualityMeta.fps}fps · {exportQualityMeta.container.toUpperCase()} · 150 Visual Bucs
+                {t("proFinishing.qualitySummary", {
+                  width: exportQualityMeta.width,
+                  height: exportQualityMeta.height,
+                  codec: exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`,
+                  fps: exportQualityMeta.fps,
+                  container: exportQualityMeta.container.toUpperCase(),
+                })}
               </p>
             )}
 
             {/* ── Next steps: export handoff chains ── */}
             <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3 space-y-2" data-testid="export-handoffs">
-              <p className="text-xs font-bold text-white/70">Next steps — keep the momentum</p>
+              <p className="text-xs font-bold text-white/70">{t("videoExport.handoffsTitle")}</p>
               <div className="flex flex-wrap gap-2">
                 <a
-                  href={buildSchedulerHref({ caption: "Made with @bowdownvisuals 🔥", media: exportUrl })}
+                  href={buildSchedulerHref({ caption: t("videoExport.schedulerCaption"), media: exportUrl })}
                   className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                   data-testid="btn-handoff-schedule"
                 >
                   <CalendarClock className="h-3.5 w-3.5" />
-                  Schedule Post
+                  {t("videoExport.schedulePost")}
                 </a>
                 {/* Share-to-earn viral loop: tracked shares, ?ref= on links, quest credit. */}
                 <div className="flex-1 min-w-[120px]" data-testid="btn-handoff-share">
                   <ShareMenu
                     getToken={getAccessToken}
                     shareUrl={exportUrl}
-                    text="My new video just dropped — fresh out the vault 🔥"
+                    text={t("videoExport.shareText")}
                     contentType="video"
                     referralCode={referralCode ?? null}
                   />
@@ -997,12 +1005,12 @@ export function FinalVideoExport({
                   <PublishToShowcase
                     mediaType="video"
                     mediaUrl={exportUrl}
-                    defaultTitle={scenes[0]?.lyricLine ? `${scenes[0].lyricLine.slice(0, 60)}` : "My Bow Down Visuals video"}
+                    defaultTitle={scenes[0]?.lyricLine ? `${scenes[0].lyricLine.slice(0, 60)}` : t("videoExport.showcaseDefaultTitle")}
                   />
                 </div>
               </div>
               <p className="text-[10px] text-white/30 leading-relaxed">
-                Tip: use <span className="text-white/50 font-bold">Export for all platforms</span> below to re-render this video for every feed.
+                {t("videoExport.handoffTipPre")}<span className="text-white/50 font-bold">{t("videoExport.handoffTipBold")}</span>{t("videoExport.handoffTipPost")}
               </p>
             </div>
 
@@ -1011,14 +1019,14 @@ export function FinalVideoExport({
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
               data-testid="btn-export-again"
             >
-              Export again with updated settings
+              {t("videoExport.exportAgain")}
             </button>
 
             {/* ── Share: turn creators into marketers ── */}
             <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3 space-y-2">
-              <p className="text-xs font-bold text-white/70">🔥 Your video is ready — show it off!</p>
+              <p className="text-xs font-bold text-white/70">{t("videoExport.shareTitle")}</p>
               <p className="text-[11px] text-white/40 leading-relaxed">
-                Share it and tag <span className="text-primary font-bold">@bowdownvisuals</span> for a chance to be featured.
+                {t("videoExport.shareSubPre")}<span className="text-primary font-bold">@bowdownvisuals</span>{t("videoExport.shareSubPost")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -1028,8 +1036,8 @@ export function FinalVideoExport({
                     const ig = fresh.find((a) => a.platform === "instagram" && !a.expired);
                     if (!ig) {
                       toast({
-                        title: "Connect Instagram first",
-                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        title: t("videoExport.connectIgTitle"),
+                        description: t("videoExport.connectPostDesc"),
                         variant: "destructive",
                       });
                       return;
@@ -1039,7 +1047,7 @@ export function FinalVideoExport({
                   className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
                   <InstagramIcon className="h-3.5 w-3.5" />
-                  Post to Instagram
+                  {t("videoExport.postToInstagram")}
                 </button>
                 <button
                   type="button"
@@ -1048,8 +1056,8 @@ export function FinalVideoExport({
                     const tt = fresh.find((a) => a.platform === "tiktok" && !a.expired);
                     if (!tt) {
                       toast({
-                        title: "Connect TikTok first",
-                        description: "Head to Settings → Connected Accounts, then send to drafts in one tap.",
+                        title: t("videoExport.connectTtTitle"),
+                        description: t("videoExport.connectTtDesc"),
                         variant: "destructive",
                       });
                       return;
@@ -1059,7 +1067,7 @@ export function FinalVideoExport({
                   className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
                   <TikTokIcon className="h-3.5 w-3.5" />
-                  Post to TikTok
+                  {t("videoExport.postToTikTok")}
                 </button>
                 <button
                   type="button"
@@ -1068,8 +1076,8 @@ export function FinalVideoExport({
                     const fb = fresh.find((a) => a.platform === "facebook" && !a.expired);
                     if (!fb) {
                       toast({
-                        title: "Connect Facebook first",
-                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        title: t("videoExport.connectFbTitle"),
+                        description: t("videoExport.connectPostDesc"),
                         variant: "destructive",
                       });
                       return;
@@ -1079,7 +1087,7 @@ export function FinalVideoExport({
                   className="flex-1 px-3 py-1.5 rounded-lg border border-[#1877F2]/40 bg-[#1877F2]/[0.08] text-[#6ea8fe] hover:bg-[#1877F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
                   <FacebookIcon className="h-3.5 w-3.5" />
-                  Post to Facebook
+                  {t("videoExport.postToFacebook")}
                 </button>
                 <button
                   type="button"
@@ -1087,17 +1095,17 @@ export function FinalVideoExport({
                   className="flex-1 px-3 py-1.5 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/[0.08] text-[#8b9bff] hover:bg-[#5865F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
-                  Announce to Discord
+                  {t("videoExport.announceDiscord")}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard?.writeText("Just made this with @bowdownvisuals 🔥 bowdownvisuals.com");
-                    toast({ title: "Caption copied", description: "Paste it with your post and tag @bowdownvisuals." });
+                    navigator.clipboard?.writeText(t("videoExport.copyCaptionText"));
+                    toast({ title: t("videoExport.captionCopiedTitle"), description: t("videoExport.captionCopiedDesc") });
                   }}
                   className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
                 >
-                  Copy Caption
+                  {t("videoExport.copyCaption")}
                 </button>
               </div>
             </div>
@@ -1145,7 +1153,7 @@ export function FinalVideoExport({
             <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
             <div className="min-w-0 w-full">
               <p className="text-sm font-semibold text-red-300">
-                Export Failed{errorExitCode !== null ? ` (exit ${errorExitCode})` : ""}
+                {t("videoExport.exportFailedTitle")}{errorExitCode !== null ? t("videoExport.failedExitSuffix", { code: errorExitCode }) : ""}
               </p>
               {errorMsg && (
                 <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
@@ -1153,7 +1161,7 @@ export function FinalVideoExport({
               {errorStderr && errorStderr.length > 0 && (
                 <details className="mt-2">
                   <summary className="text-[10px] text-red-400/60 cursor-pointer hover:text-red-400/80 select-none">
-                    FFmpeg error details ({errorStderr.length} lines)
+                    {t("videoExport.ffmpegDetails", { count: errorStderr.length })}
                   </summary>
                   <pre className="mt-1 text-[9px] text-red-300/70 bg-black/40 rounded p-2 overflow-x-auto overflow-y-auto max-h-40 whitespace-pre-wrap break-all leading-relaxed">
                     {errorStderr.join("\n")}
@@ -1169,9 +1177,9 @@ export function FinalVideoExport({
           <div className="flex flex-col items-center gap-3 py-6 text-center" data-testid="export-status-exporting">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <div>
-              <p className="text-sm font-bold text-white">Exporting Final Video…</p>
-              <p className="text-xs text-white/40 mt-1">{progressStep || "Processing…"}</p>
-              <p className="text-[11px] text-white/25 mt-2">Keep this page open · takes ~30–90 s</p>
+              <p className="text-sm font-bold text-white">{t("videoExport.exportingTitle")}</p>
+              <p className="text-xs text-white/40 mt-1">{progressStep || t("videoExport.processing")}</p>
+              <p className="text-[11px] text-white/25 mt-2">{t("videoExport.keepPageOpen")}</p>
             </div>
           </div>
         )}
@@ -1192,15 +1200,15 @@ export function FinalVideoExport({
                 : <VolumeX className="h-3.5 w-3.5 text-white/30 shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className={`text-xs font-semibold ${hasAudio ? "text-green-300" : "text-white/40"}`}>
-                  {hasAudio ? `Audio: ${audioSourceSummary(audioSource, audioSourceLabel)}` : "No audio selected"}
+                  {hasAudio ? t("videoExport.audioLine", { summary: audioSourceSummary(audioSource, audioSourceLabel, t("videoExport.noAudio")) }) : t("videoExport.noAudioSelected")}
                 </p>
                 {hasAudio && (
                   <p className="text-[10px] text-white/30 mt-0.5">
                     {[
-                      fadeAudioInSec > 0 && "Fade in",
-                      fadeAudioOutSec > 0 && "Fade out",
-                      loopAudio && "Loop if shorter",
-                    ].filter(Boolean).join(" · ") || "No audio effects"}
+                      fadeAudioInSec > 0 && t("videoExport.audioFxFadeIn"),
+                      fadeAudioOutSec > 0 && t("videoExport.audioFxFadeOut"),
+                      loopAudio && t("videoExport.audioFxLoop"),
+                    ].filter(Boolean).join(" · ") || t("videoExport.audioFxNone")}
                   </p>
                 )}
               </div>
@@ -1218,18 +1226,18 @@ export function FinalVideoExport({
               const firstLine = captions?.lines?.[0];
               const lastLine = captions?.lines?.[captionCount - 1];
               const rows: [string, boolean | null, string][] = [
-                ["Captions found", captionsFound, captionsFound ? "yes" : "no"],
-                ["Caption count", null, String(captionCount)],
-                ["Caption style found", styleFound, styleFound ? `yes (${captions?.stylePreset ?? "—"})` : `no (${captions?.stylePreset ?? "—"})`],
-                ["Burn captions selected", burnSelected, burnSelected ? "yes" : "no"],
-                ["Captions sent to render pipeline", captionsSent, captionsSent ? "yes" : "no"],
-                ["First caption start/end", null, firstLine ? `${firstLine.startSec.toFixed(2)}s – ${firstLine.endSec.toFixed(2)}s` : "—"],
-                ["Last caption start/end", null, lastLine ? `${lastLine.startSec.toFixed(2)}s – ${lastLine.endSec.toFixed(2)}s` : "—"],
+                [t("videoExport.capFound"), captionsFound, captionsFound ? t("videoExport.yes") : t("videoExport.no")],
+                [t("videoExport.capCount"), null, String(captionCount)],
+                [t("videoExport.capStyle"), styleFound, styleFound ? t("videoExport.yesWith", { value: captions?.stylePreset ?? "—" }) : t("videoExport.noWith", { value: captions?.stylePreset ?? "—" })],
+                [t("videoExport.capBurn"), burnSelected, burnSelected ? t("videoExport.yes") : t("videoExport.no")],
+                [t("videoExport.capSent"), captionsSent, captionsSent ? t("videoExport.yes") : t("videoExport.no")],
+                [t("videoExport.capFirst"), null, firstLine ? `${firstLine.startSec.toFixed(2)}s – ${firstLine.endSec.toFixed(2)}s` : "—"],
+                [t("videoExport.capLast"), null, lastLine ? `${lastLine.startSec.toFixed(2)}s – ${lastLine.endSec.toFixed(2)}s` : "—"],
               ];
               return (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
                   <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
-                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Export Caption Debug</p>
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{t("videoExport.captionDebugTitle")}</p>
                   </div>
                   <div className="divide-y divide-white/[0.04]">
                     {rows.map(([label, ok, val]) => (
@@ -1250,7 +1258,7 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Only 1 clip is selected. Generate AI clips for other scenes to include them.
+                  {t("videoExport.oneClipWarning")}
                 </p>
               </div>
             )}
@@ -1259,9 +1267,9 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                 <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-bold text-red-300">Duplicate clip URLs detected</p>
+                  <p className="text-xs font-bold text-red-300">{t("videoExport.dupTitle")}</p>
                   <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">
-                    Two scenes point to the same URL. Re-generate those scenes first.
+                    {t("videoExport.dupBody")}
                   </p>
                 </div>
               </div>
@@ -1271,9 +1279,9 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-primary/10 border border-primary/20">
                 <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-bold text-primary">Clips intentionally reused</p>
+                  <p className="text-xs font-bold text-primary">{t("videoExport.reuseTitle")}</p>
                   <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
-                    Some scenes share a clip on purpose. Each scene still exports its own segment.
+                    {t("videoExport.reuseBody")}
                   </p>
                 </div>
               </div>
@@ -1283,7 +1291,7 @@ export function FinalVideoExport({
               <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-primary/20 bg-primary/5">
                 <Minus className="h-3.5 w-3.5 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-primary">Range export selected</p>
+                  <p className="text-xs font-bold text-primary">{t("videoExport.rangeSelectedTitle")}</p>
                   <p className="text-[10px] text-white/40 mt-0.5">{exportRangeLabel ?? `${exportRangeStart?.toFixed(2)}s → ${exportRangeEnd?.toFixed(2)}s`}</p>
                 </div>
               </div>
@@ -1293,10 +1301,10 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
                 <AlertTriangle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Clips download fresh, normalize to {aspectLabel}, and stitch in timeline order.
-                  {hasAudio ? " Audio is mixed underneath." : " No audio in this export."}
-                  {isRangeExport ? " Only the selected time range will be in the output." : ""}
-                  {" "}Keep the page open.
+                  {t("videoExport.confirmMain", { aspect: aspectLabel })}
+                  {hasAudio ? t("videoExport.confirmAudio") : t("videoExport.confirmNoAudio")}
+                  {isRangeExport ? t("videoExport.confirmRange") : ""}
+                  {t("videoExport.confirmEnd")}
                 </p>
               </div>
             )}
@@ -1314,27 +1322,27 @@ export function FinalVideoExport({
                       ? "border-red-500/20 bg-red-500/[0.04]"
                       : "border-white/[0.07] bg-white/[0.02]"
                   }`}>
-                    <span className="text-white/40">Export files prepared:
+                    <span className="text-white/40">{t("videoExport.preparedLabel")}
                       <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : prepareState === "running" ? "text-white/50" : "text-red-400"}`}>
-                        {prepareState === "running" ? "…" : prepareAllReady ? "yes" : "no"}
+                        {prepareState === "running" ? "…" : prepareAllReady ? t("videoExport.yes") : t("videoExport.no")}
                       </span>
                     </span>
                     {prepareState !== "running" && clipCheckResults && (
-                      <span className="text-white/40">Clips ready:
+                      <span className="text-white/40">{t("videoExport.clipsReadyLabel")}
                         <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : "text-amber-400"}`}>
                           {prepareReadyCount}/{clipCheckResults.length}
                         </span>
                       </span>
                     )}
                     {prepareState !== "running" && hasAudio && (
-                      <span className="text-white/40">Audio ready:
+                      <span className="text-white/40">{t("videoExport.audioReadyLabel")}
                         <span className={`ml-1 font-bold ${audioCheckResult?.ready ? "text-green-400" : "text-red-400"}`}>
-                          {audioCheckResult?.ready ? "yes" : "no"}
+                          {audioCheckResult?.ready ? t("videoExport.yes") : t("videoExport.no")}
                         </span>
                       </span>
                     )}
-                    <span className="text-white/40">FFmpeg started:
-                      <span className="ml-1 font-bold text-white/30">no</span>
+                    <span className="text-white/40">{t("videoExport.ffmpegStartedLabel")}
+                      <span className="ml-1 font-bold text-white/30">{t("videoExport.no")}</span>
                     </span>
                     {prepareState === "failed" && prepareError && (
                       <span className="w-full text-red-400/80 mt-0.5">{prepareError}</span>
@@ -1356,7 +1364,7 @@ export function FinalVideoExport({
                     ) : (
                       <RefreshCw className="h-3.5 w-3.5" />
                     )}
-                    {prepareState === "running" ? "Checking…" : "Debug Export Sources"}
+                    {prepareState === "running" ? t("videoExport.checking") : t("videoExport.debugSources")}
                   </Button>
                   <Button
                     onClick={handlePrepare}
@@ -1377,16 +1385,15 @@ export function FinalVideoExport({
                       <Shield className="h-3.5 w-3.5" />
                     )}
                     {prepareAllReady
-                      ? `Re-prepare (${prepareReadyCount}/${selectedScenes.length} ready)`
-                      : "Prepare Export Files Only"}
+                      ? t("videoExport.reprepareBtn", { ready: prepareReadyCount, total: selectedScenes.length })
+                      : t("videoExport.prepareBtn")}
                   </Button>
                 </div>
 
                 {/* Audio source mismatch warning (PART 2) */}
                 {audioSourceMismatch && (
                   <div className="px-3 py-2 rounded-xl border border-red-500/25 bg-red-500/[0.05] text-[11px] text-red-400/90 leading-relaxed">
-                    Export audio source not connected to master player audio source.
-                    The master player is playing audio but no export audio URL could be resolved.
+                    {t("videoExport.audioMismatch")}
                   </div>
                 )}
 
@@ -1429,8 +1436,8 @@ export function FinalVideoExport({
                     isPrepareLikelyExpired ? "text-amber-400/80" : "text-white/25"
                   }`}>
                     {isPrepareLikelyExpired
-                      ? "Prepared files may have expired — clicking export will auto re-prepare if needed."
-                      : `Prepared files expire in ~${Math.max(1, Math.round(msUntilExpiry / 60_000))} min. Export before then, or re-prepare.`}
+                      ? t("videoExport.expiredNote")
+                      : t("videoExport.expirySoon", { minutes: Math.max(1, Math.round(msUntilExpiry / 60_000)) })}
                   </p>
                 )}
 
@@ -1439,7 +1446,7 @@ export function FinalVideoExport({
                   <div className="space-y-2">
                     <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed" data-testid="btn-export-range-blocked">
                       <XCircle className="h-4 w-4" />
-                      Export Blocked — Invalid Export Range
+                      {t("videoExport.rangeBlockedBtn")}
                     </Button>
                     <p className="text-center text-[11px] text-red-400/80 leading-relaxed">{exportRangeBlockedReason}</p>
                   </div>
@@ -1487,9 +1494,9 @@ export function FinalVideoExport({
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-white/75">Finish in Final Cut Pro</p>
+                        <p className="text-[11px] font-bold text-white/75">{t("proFinishing.fcpxmlTitle")}</p>
                         <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
-                          Download this exact timeline as FCPXML — clips, order, trims, and timing. Media stays linked by reference; relink to your clip files in Final Cut.
+                          {t("proFinishing.fcpxmlBody")}
                         </p>
                       </div>
                       <Button
@@ -1518,8 +1525,8 @@ export function FinalVideoExport({
                       >
                         <Film className="h-4 w-4" />
                         {isRangeExport
-                          ? `Export Selected Range — ${exportRangeLabel ?? "custom range"}`
-                          : `Export Full Video — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}${hasAudio ? " + audio" : ", no audio"} · ${aspectRatio}`}
+                          ? t("videoExport.exportRangeBtn", { label: exportRangeLabel ?? t("videoExport.rangeCustomFallback") })
+                          : t(selectedScenes.length !== 1 ? "videoExport.exportFullOther" : "videoExport.exportFullOne", { count: selectedScenes.length, audio: hasAudio ? t("videoExport.audioPlus") : t("videoExport.audioNoAudio"), aspect: aspectRatio })}
                       </Button>
                     ) : (
                       <Button
@@ -1533,7 +1540,7 @@ export function FinalVideoExport({
                         ) : (
                           <Film className="h-4 w-4" />
                         )}
-                        {isAutoRecovering ? "Re-preparing…" : "Confirm & Start Export"}
+                        {isAutoRecovering ? t("proFinishing.repreparing") : t("videoExport.confirmStart")}
                       </Button>
                     )}
                   </>
@@ -1542,13 +1549,12 @@ export function FinalVideoExport({
                 {/* Block message when prepare not done */}
                 {prepareState === "idle" && (
                   <p className="text-center text-[11px] text-white/25 leading-relaxed">
-                    Click <span className="text-white/45">Debug Export Sources</span> or <span className="text-white/45">Prepare Export Files Only</span> to verify all clips.{" "}
-                    FFmpeg will not start until all clips are ready.
+                    {t("videoExport.idleNotePre")}<span className="text-white/45">{t("videoExport.debugSources")}</span>{t("videoExport.idleNoteMid")}<span className="text-white/45">{t("videoExport.prepareBtn")}</span>{t("videoExport.idleNotePost")}
                   </p>
                 )}
                 {prepareState === "failed" && !prepareAllReady && (
                   <p className="text-center text-[11px] text-red-400/60 leading-relaxed">
-                    Some clips failed — fix the errors above and re-prepare before exporting.
+                    {t("videoExport.prepareFailedNote")}
                   </p>
                 )}
               </div>
@@ -1558,13 +1564,13 @@ export function FinalVideoExport({
             {hasDuplicateUrls && (
               <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
                 <XCircle className="h-4 w-4" />
-                Export Blocked — Fix Duplicate Clips First
+                {t("videoExport.dupBlockedBtn")}
               </Button>
             )}
             {selectedScenes.length === 0 && (
               <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
                 <Film className="h-4 w-4" />
-                No Clips Ready to Export
+                {t("videoExport.noClipsBtn")}
               </Button>
             )}
           </div>
@@ -1580,10 +1586,10 @@ export function FinalVideoExport({
  * Visuals" watermark toggle. The estimate comes from the server so it
  * always matches the renderer's real caps. */
 function qualitySliderLabel(q: number): string {
-  if (q <= 30) return "Draft";
-  if (q <= 60) return "Standard";
-  if (q <= 85) return "High";
-  return "Max";
+  if (q <= 30) return "proFinishing.sliderDraft";
+  if (q <= 60) return "proFinishing.sliderStandard";
+  if (q <= 85) return "proFinishing.sliderHigh";
+  return "proFinishing.sliderMax";
 }
 
 /** Mirrors the server's crfForQuality so the slider shows the real CRF. */
@@ -1633,6 +1639,7 @@ function QualityPanel({
   disabled: boolean;
   onExport: () => void;
 }) {
+  const { t } = useTranslation();
   const segBtn = (active: boolean) =>
     `px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
       active
@@ -1650,11 +1657,11 @@ function QualityPanel({
       >
         <div className="flex items-center gap-2 min-w-0">
           <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0" />
-          <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">Quality</span>
-          <span className="text-[10px] text-white/30 truncate hidden sm:inline">4K · ProRes / DNxHR · frame rate · MP4/MOV</span>
+          <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">{t("proFinishing.panelTitle")}</span>
+          <span className="text-[10px] text-white/30 truncate hidden sm:inline">{t("proFinishing.panelMeta")}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-bold text-primary">150 Visual Bucs flat</span>
+          <span className="text-[10px] font-bold text-primary">{t("proFinishing.flatPrice")}</span>
           {open ? <ChevronUp className="h-3.5 w-3.5 text-white/40" /> : <ChevronDown className="h-3.5 w-3.5 text-white/40" />}
         </div>
       </button>
@@ -1663,7 +1670,7 @@ function QualityPanel({
         <div className="px-3 pb-3 pt-1 space-y-3.5 border-t border-primary/10">
           {/* Resolution */}
           <div>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Resolution</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.resolutionLabel")}</p>
             <div className="grid grid-cols-3 gap-1.5">
               {(["720p", "1080p", "4k"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setQResolution(r)} className={segBtn(qResolution === r)} data-testid={`quality-res-${r}`}>
@@ -1673,14 +1680,14 @@ function QualityPanel({
             </div>
             {qResolution === "4k" && (
               <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
-                4K renders every pixel — expect a longer render. Same 150 Visual Bucs.
+                {t("proFinishing.fourKNote")}
               </p>
             )}
           </div>
 
           {/* Codec — H.264 for the web, ProRes / DNxHR for finishing */}
           <div>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Codec</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.codecLabel")}</p>
             <div className="grid grid-cols-3 gap-1.5">
               {(["h264", "prores", "dnxhr"] as const).map((c) => (
                 <button
@@ -1699,7 +1706,7 @@ function QualityPanel({
             </div>
             {qCodec !== "h264" && (
               <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
-                {codecDisplayLabel(qCodec)} is a pro finishing codec — big, pristine MOV files made for Final Cut Pro, Premiere, and Resolve. Same 150 Visual Bucs.
+                {t("proFinishing.proCodecNote", { codec: codecDisplayLabel(qCodec) })}
               </p>
             )}
           </div>
@@ -1708,9 +1715,9 @@ function QualityPanel({
           {qCodec === "h264" ? (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quality</p>
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("proFinishing.panelTitle")}</p>
                 <p className="text-[11px] font-bold text-white/70">
-                  {qualitySliderLabel(qSlider)} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
+                  {t(qualitySliderLabel(qSlider))} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
                 </p>
               </div>
               <input
@@ -1721,23 +1728,23 @@ function QualityPanel({
                 onChange={(e) => setQSlider(Number(e.target.value))}
                 className="w-full accent-[#e8c86a]"
                 data-testid="quality-slider"
-                aria-label="Export quality"
+                aria-label={t("proFinishing.sliderAria")}
               />
               <div className="flex justify-between text-[9px] text-white/25 mt-0.5">
-                <span>Draft · smaller</span>
-                <span>Max · pristine</span>
+                <span>{t("proFinishing.sliderScaleMin")}</span>
+                <span>{t("proFinishing.sliderScaleMax")}</span>
               </div>
             </div>
           ) : (
             <p className="text-[10px] text-white/35 leading-relaxed">
-              {codecDisplayLabel(qCodec)} renders at its fixed finishing rate — the quality slider only applies to H.264.
+              {t("proFinishing.fixedRateNote", { codec: codecDisplayLabel(qCodec) })}
             </p>
           )}
 
           {/* Frame rate + container */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Frame rate</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.fpsLabel")}</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {([24, 30, 60] as const).map((f) => (
                   <button key={f} type="button" onClick={() => setQFps(f)} className={segBtn(qFps === f)} data-testid={`quality-fps-${f}`}>
@@ -1747,7 +1754,7 @@ function QualityPanel({
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Container</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.containerLabel")}</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(["mp4", "mov"] as const).map((c) => (
                   <button
@@ -1763,7 +1770,7 @@ function QualityPanel({
                 ))}
               </div>
               {qCodec !== "h264" && (
-                <p className="text-[10px] text-white/30 mt-1.5">Pro codecs deliver as MOV.</p>
+                <p className="text-[10px] text-white/30 mt-1.5">{t("proFinishing.proCodecsMov")}</p>
               )}
             </div>
           </div>
@@ -1772,11 +1779,11 @@ function QualityPanel({
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white/75">"Made with Bow Down Visuals" watermark</p>
+                <p className="text-[11px] font-bold text-white/75">{t("proFinishing.watermarkTitle")}</p>
                 <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
                   {isSubscriber
-                    ? "Subscribers can export clean — toggle it off anytime."
-                    : "Free exports carry the watermark. Subscribers can remove it."}
+                    ? t("proFinishing.watermarkSubscriber")
+                    : t("proFinishing.watermarkFree")}
                 </p>
               </div>
               <button
@@ -1795,9 +1802,9 @@ function QualityPanel({
             </div>
             {!isSubscriber && (
               <p className="text-[10px] text-white/40 mt-1.5">
-                Want it gone?{" "}
+                {t("proFinishing.watermarkUpsell")}{" "}
                 <a href="/video-editor?tab=upscale&sub=enhance" className="text-primary font-bold hover:underline">
-                  Remove the watermark →
+                  {t("proFinishing.watermarkUpsellLink")}
                 </a>
               </p>
             )}
@@ -1807,7 +1814,7 @@ function QualityPanel({
           <div className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2.5 min-h-[44px] flex items-center justify-center">
             {estimateLoading ? (
               <span className="inline-flex items-center gap-2 text-[11px] text-white/40" data-testid="quality-estimate-loading">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Estimating size &amp; render time…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("proFinishing.estimateLoading")}
               </span>
             ) : estimate ? (
               <div className="text-center" data-testid="quality-estimate">
@@ -1816,15 +1823,15 @@ function QualityPanel({
                 </p>
                 <p className="text-[10px] text-white/30 mt-0.5 font-mono">
                   {estimate.settings.width}×{estimate.settings.height} · {estimate.settings.codec && estimate.settings.codec !== "h264" ? codecDisplayLabel(estimate.settings.codec) : `CRF ${estimate.settings.crf}`} · {estimate.settings.fps}fps · {estimate.settings.container.toUpperCase()}
-                  {estimate.capped ? " · capped to upload limit" : ""}
+                  {estimate.capped ? t("proFinishing.cappedSuffix") : ""}
                 </p>
               </div>
             ) : estimateError ? (
               <p className="text-[11px] text-red-400/70" data-testid="quality-estimate-error">
-                Couldn't estimate — {estimateError}
+                {t("proFinishing.estimateFailed", { error: estimateError })}
               </p>
             ) : (
-              <p className="text-[11px] text-white/25">Pick your settings for a size &amp; render estimate.</p>
+              <p className="text-[11px] text-white/25">{t("proFinishing.estimateEmpty")}</p>
             )}
           </div>
 
@@ -1840,10 +1847,16 @@ function QualityPanel({
             ) : (
               <SlidersHorizontal className="h-4 w-4" />
             )}
-            {disabled ? "Re-preparing…" : "Export with Quality Settings — 150 Visual Bucs"}
+            {disabled ? t("proFinishing.repreparing") : t("proFinishing.exportCta")}
           </Button>
           <p className="text-center text-[10px] text-white/25 -mt-2">
-            4K costs the same. Watermark {qWatermark ? "on" : "off"} · {qResolution === "4k" ? "4K" : qResolution} · {qFps}fps · {codecDisplayLabel(qCodec)} · {qContainer.toUpperCase()}
+            {t("proFinishing.settingsSummary", {
+              watermark: t(qWatermark ? "proFinishing.on" : "proFinishing.off"),
+              resolution: qResolution === "4k" ? "4K" : qResolution,
+              fps: qFps,
+              codec: codecDisplayLabel(qCodec),
+              container: qContainer.toUpperCase(),
+            })}
           </p>
         </div>
       )}
@@ -1853,6 +1866,7 @@ function QualityPanel({
 
 /* ── Clips panel ─────────────────────────────────────── */
 function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
+  const { t } = useTranslation();
   const selectedCount = scenes.filter(isSelected).length;
   const urls = scenes.filter(isSelected).map((s) => s.demoClipUrl!);
   const urlCounts = new Map<string, number>();
@@ -1862,21 +1876,21 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
     <div className="rounded-xl border border-white/10 overflow-hidden">
       <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06] flex items-center justify-between">
         <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">
-          Clips Included In Export
+          {t("videoExport.clipsTitle")}
         </p>
         <span className="text-[10px] font-bold text-white/30">
-          {selectedCount} / {scenes.length} selected
+          {t("videoExport.selectedOfTotal", { selected: selectedCount, total: scenes.length })}
         </span>
       </div>
 
       <div className="grid grid-cols-[20px_1fr_60px_72px_44px_44px_40px] gap-x-2 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.04]">
-        <span className="text-[9px] font-bold text-white/20 uppercase">#</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase">Description</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase">Provider</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase">Status</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase">URL</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase">Selected</span>
-        <span className="text-[9px] font-bold text-white/20 uppercase text-right">Dur.</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colNum")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colDescription")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colProvider")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colStatus")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colUrl")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">{t("videoExport.colSelected")}</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase text-right">{t("videoExport.colDuration")}</span>
       </div>
 
       <div className="divide-y divide-white/[0.04]">
@@ -1887,12 +1901,12 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
           const dur       = parseDuration(scene.timestamp ?? "");
 
           let skipReason = "";
-          if (!hasUrl) skipReason = "no clip URL";
+          if (!hasUrl) skipReason = t("videoExport.skipNoUrl");
           else if (!selected) {
             const isRunway =
               scene.provider === "Runway" ||
               scene.demoClipUrl!.includes("dnznrvs05pmza.cloudfront.net");
-            skipReason = !isRunway ? "provider not Runway" : "status not completed";
+            skipReason = !isRunway ? t("videoExport.skipProvider") : t("videoExport.skipStatus");
           }
 
           return (
@@ -1905,7 +1919,7 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
               <span className="text-[11px] font-black text-white/30 pt-0.5">{i + 1}</span>
               <div className="min-w-0">
                 <p className="text-[11px] text-white/70 font-medium truncate leading-tight">
-                  {sceneLabel(scene, i)}
+                  {sceneLabel(scene, i, t("videoExport.sceneFallback", { index: i + 1 }))}
                 </p>
                 {hasUrl && (
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -1917,20 +1931,20 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 text-primary/40 hover:text-primary/80 transition-colors"
-                      title="Open clip"
+                      title={t("videoExport.openClipTitle")}
                     >
                       <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   </div>
                 )}
                 {skipReason && <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>}
-                {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>}
+                {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">{t("videoExport.dupeUrlNote")}</p>}
               </div>
               <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-purple-400" : "text-white/25"}`}>
-                {scene.provider === "Runway" ? "Scene Clip" : scene.provider || "—"}
+                {scene.provider === "Runway" ? t("videoExport.sceneClip") : scene.provider || "—"}
               </span>
               <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
-                {statusLabel(scene)}
+                {statusLabel(scene, t)}
               </span>
               <span className="flex items-center pt-1">
                 {hasUrl ? <Check className="h-3 w-3 text-green-400" /> : <Minus className="h-3 w-3 text-white/20" />}
@@ -1949,13 +1963,13 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
       <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
         <span className="text-[10px] text-white/25">
           {selectedCount === 0
-            ? "No clips ready — generate AI clips above"
+            ? t("videoExport.footerNone")
             : selectedCount === scenes.length
-            ? "All scenes have clips — ready to export"
-            : `${scenes.length - selectedCount} scene${scenes.length - selectedCount > 1 ? "s" : ""} without clips will be skipped`}
+            ? t("videoExport.footerAll")
+            : t(scenes.length - selectedCount > 1 ? "videoExport.footerSkippedOther" : "videoExport.footerSkippedOne", { count: scenes.length - selectedCount })}
         </span>
         <span className="text-[10px] font-bold text-white/40 shrink-0">
-          {selectedCount} clip{selectedCount !== 1 ? "s" : ""} → export
+          {t(selectedCount !== 1 ? "videoExport.footerCountOther" : "videoExport.footerCountOne", { count: selectedCount })}
         </span>
       </div>
     </div>
@@ -1970,6 +1984,7 @@ function ExportFileCheckTable({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation();
   function fmt(bytes: number): string {
     if (bytes === 0) return "—";
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -1981,8 +1996,8 @@ function ExportFileCheckTable({
   function yn(v: boolean | null, forceShow = true): React.ReactElement {
     if (v === null || (!forceShow && v === false)) return <span className="text-white/25">—</span>;
     return v
-      ? <span className="text-green-400 font-bold">yes</span>
-      : <span className="text-red-400 font-bold">no</span>;
+      ? <span className="text-green-400 font-bold">{t("videoExport.yes")}</span>
+      : <span className="text-red-400 font-bold">{t("videoExport.no")}</span>;
   }
 
   const allReady = rows.every((r) => r.readyForFFmpeg);
@@ -1996,9 +2011,9 @@ function ExportFileCheckTable({
         className="w-full flex items-center justify-between px-3 py-2 bg-white/[0.03] border-b border-white/[0.06] hover:bg-white/[0.05] transition-colors"
       >
         <div className="flex items-center gap-2">
-          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Debug Export Sources</p>
+          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">{t("videoExport.debugSources")}</p>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${allReady ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>
-            {rows.filter((r) => r.readyForFFmpeg).length}/{rows.length} ready for FFmpeg
+            {t("videoExport.checkReadyBadge", { ready: rows.filter((r) => r.readyForFFmpeg).length, total: rows.length })}
           </span>
         </div>
         {expanded
@@ -2024,37 +2039,37 @@ function ExportFileCheckTable({
                 {/* Card header */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-white/60">Scene {row.sceneNumber}</span>
+                    <span className="text-[11px] font-black text-white/60">{t("videoExport.sceneCard", { number: row.sceneNumber })}</span>
                     {row.sceneTitle && (
                       <span className="text-[10px] text-white/35 truncate max-w-[200px]">— {row.sceneTitle}</span>
                     )}
                   </div>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ok ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
-                    {ok ? "Ready for FFmpeg ✓" : "Not ready ✗"}
+                    {ok ? t("videoExport.readyYes") : t("videoExport.readyNo")}
                   </span>
                 </div>
 
                 {/* Fields grid */}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px]">
-                  <Field label="Scene number" value={String(row.sceneNumber)} />
-                  <Field label="Scene title" value={row.sceneTitle || "—"} />
-                  <Field label="Clip database ID" value={row.clipDbId || "—"} mono />
-                  <Field label="Provider" value={row.provider || "—"} />
-                  <Field label="Approved" node={yn(row.approved)} />
-                  <Field label="Selected" node={yn(row.selected)} />
+                  <Field label={t("videoExport.fSceneNumber")} value={String(row.sceneNumber)} />
+                  <Field label={t("videoExport.fSceneTitle")} value={row.sceneTitle || "—"} />
+                  <Field label={t("videoExport.fClipDbId")} value={row.clipDbId || "—"} mono />
+                  <Field label={t("videoExport.colProvider")} value={row.provider || "—"} />
+                  <Field label={t("videoExport.fApproved")} node={yn(row.approved)} />
+                  <Field label={t("videoExport.colSelected")} node={yn(row.selected)} />
 
                   {/* URL fields — full row */}
                   <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
                     <div className="flex items-start gap-2">
-                      <span className="text-white/25 shrink-0 w-[130px]">Actual source URL field</span>
+                      <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fSourceField")}</span>
                       <span className={`font-mono font-bold ${row.sourceFieldName ? "text-amber-300/80" : "text-red-400"}`}>
-                        {row.sourceFieldName || "none found"}
+                        {row.sourceFieldName || t("videoExport.fNoneFound")}
                       </span>
                     </div>
                   </div>
                   <div className="col-span-2 mb-0.5">
                     <div className="flex items-start gap-2">
-                      <span className="text-white/25 shrink-0 w-[130px]">Actual source URL value</span>
+                      <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fSourceValue")}</span>
                       {sourceUrlValue ? (
                         <div className="flex items-start gap-1 min-w-0">
                           <span className="font-mono text-white/40 break-all leading-tight">{sourceUrlValue}</span>
@@ -2063,31 +2078,31 @@ function ExportFileCheckTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="shrink-0 mt-0.5 text-primary/40 hover:text-primary/80 transition-colors"
-                            title="Open URL"
+                            title={t("videoExport.openUrlTitle")}
                           >
                             <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         </div>
                       ) : (
                         <span className="text-red-400 font-bold">
-                          {hasUrl ? "URL checkmark was false. No downloadable URL found." : "missing — no URL in any field"}
+                          {hasUrl ? t("videoExport.fUrlMissingHas") : t("videoExport.fUrlMissingNone")}
                         </span>
                       )}
                     </div>
                   </div>
 
                   <Field
-                    label="Source URL starts with http"
+                    label={t("videoExport.fStartsHttp")}
                     node={yn(row.sourceUrlStartsWithHttp)}
                   />
                   <Field
-                    label="Source URL downloadable"
+                    label={t("videoExport.fDownloadable")}
                     node={yn(row.sourceUrlDownloadable)}
                   />
 
                   <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
                     <div className="flex items-start gap-2">
-                      <span className="text-white/25 shrink-0 w-[130px]">Download HTTP status</span>
+                      <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fHttpStatus")}</span>
                       <span className={`font-mono font-bold ${row.responseStatus > 0 ? (httpOk ? "text-green-400" : "text-red-400") : "text-white/25"}`}>
                         {row.responseStatus > 0 ? String(row.responseStatus) : "—"}
                       </span>
@@ -2095,7 +2110,7 @@ function ExportFileCheckTable({
                   </div>
                   <div className="col-span-2 mb-0.5">
                     <div className="flex items-start gap-2">
-                      <span className="text-white/25 shrink-0 w-[130px]">Download content-type</span>
+                      <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fContentType")}</span>
                       <span className={`font-mono ${ctShort ? (ctBad ? "text-red-400 font-bold" : "text-white/40") : "text-white/25"}`}>
                         {ctShort || "—"}
                       </span>
@@ -2104,30 +2119,30 @@ function ExportFileCheckTable({
 
                   <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
                     <div className="flex items-start gap-2">
-                      <span className="text-white/25 shrink-0 w-[130px]">Local export path</span>
+                      <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fLocalPath")}</span>
                       <span className="font-mono text-white/30 break-all leading-tight">
                         {row.localPath || "—"}
                       </span>
                     </div>
                   </div>
-                  <Field label="File written" node={yn(row.fileWritten)} />
-                  <Field label="File exists after write" node={yn(row.fileExistsAfterWrite)} />
-                  <Field label="File size bytes" value={row.fileSize > 0 ? `${row.fileSize.toLocaleString()} bytes (${fmt(row.fileSize)})` : "0"} />
-                  <Field label="FFprobe valid" node={row.fileSize > 0 ? yn(row.ffprobeValid) : <span className="text-white/25">—</span>} />
-                  <Field label="Duration" value={fmtDur(row.duration)} />
-                  <Field label="Resolution" value={row.width > 0 ? `${row.width}×${row.height}` : "—"} />
-                  <Field label="Codec" value={row.codec || "—"} mono />
+                  <Field label={t("videoExport.fFileWritten")} node={yn(row.fileWritten)} />
+                  <Field label={t("videoExport.fFileExists")} node={yn(row.fileExistsAfterWrite)} />
+                  <Field label={t("videoExport.fFileSize")} value={row.fileSize > 0 ? t("videoExport.fileSizeValue", { bytes: row.fileSize.toLocaleString(), human: fmt(row.fileSize) }) : "0"} />
+                  <Field label={t("videoExport.fFfprobeValid")} node={row.fileSize > 0 ? yn(row.ffprobeValid) : <span className="text-white/25">—</span>} />
+                  <Field label={t("videoExport.fDuration")} value={fmtDur(row.duration)} />
+                  <Field label={t("videoExport.fResolution")} value={row.width > 0 ? `${row.width}×${row.height}` : "—"} />
+                  <Field label={t("videoExport.fCodec")} value={row.codec || "—"} mono />
                   <Field
-                    label="Ready for FFmpeg"
+                    label={t("videoExport.fReady")}
                     node={ok
-                      ? <span className="text-green-400 font-bold">yes ✓</span>
-                      : <span className="text-red-400 font-bold">no ✗</span>}
+                      ? <span className="text-green-400 font-bold">{t("videoExport.readyFieldYes")}</span>
+                      : <span className="text-red-400 font-bold">{t("videoExport.readyFieldNo")}</span>}
                   />
 
                   {row.error && (
                     <div className="col-span-2 mt-1 pt-1 border-t border-red-500/20">
                       <div className="flex items-start gap-2">
-                        <span className="text-white/25 shrink-0 w-[130px]">Error</span>
+                        <span className="text-white/25 shrink-0 w-[130px]">{t("videoExport.fError")}</span>
                         <span className="text-red-400/80 break-words leading-snug">{row.error}</span>
                       </div>
                     </div>
@@ -2170,47 +2185,48 @@ function ExportAudioDebug({
   masterAudioUrl: string | null;
   effectiveAudioUrl: string | null;
 }) {
+  const { t } = useTranslation();
   function fmt(bytes: number): string {
     if (bytes === 0) return "—";
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
   const yn = (v: boolean) => v
-    ? <span className="text-green-400 font-bold">yes</span>
-    : <span className="text-red-400 font-bold">no</span>;
+    ? <span className="text-green-400 font-bold">{t("videoExport.yes")}</span>
+    : <span className="text-red-400 font-bold">{t("videoExport.no")}</span>;
 
   return (
     <div className="rounded-xl border border-white/[0.08] overflow-hidden">
       <div className="px-3 py-2 bg-white/[0.03] border-b border-white/[0.06]">
-        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Audio Source</p>
+        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">{t("videoExport.audioDebugTitle")}</p>
       </div>
       <div className="px-3 py-3 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px]">
-        <Field label="Master player audio URL found" node={yn(!!masterAudioUrl)} />
-        <Field label="Final audio URL used" value={effectiveAudioUrl ? "set" : "none"} />
+        <Field label={t("videoExport.aMasterFound")} node={yn(!!masterAudioUrl)} />
+        <Field label={t("videoExport.aFinalUsed")} value={effectiveAudioUrl ? t("videoExport.valueSet") : t("videoExport.valueNone")} />
         <div className="col-span-2 mb-0.5">
           <div className="flex items-start gap-2">
-            <span className="text-white/25 shrink-0 w-[150px]">Audio URL value</span>
+            <span className="text-white/25 shrink-0 w-[150px]">{t("videoExport.aUrlValue")}</span>
             {effectiveAudioUrl ? (
               <div className="flex items-start gap-1 min-w-0">
                 <span className="font-mono text-white/40 break-all leading-tight">{effectiveAudioUrl}</span>
                 <a href={effectiveAudioUrl} target="_blank" rel="noopener noreferrer"
-                  className="shrink-0 mt-0.5 text-primary/40 hover:text-primary/80" title="Open audio URL">
+                  className="shrink-0 mt-0.5 text-primary/40 hover:text-primary/80" title={t("videoExport.openAudioUrlTitle")}>
                   <ExternalLink className="h-2.5 w-2.5" />
                 </a>
               </div>
-            ) : <span className="text-red-400 font-bold">missing</span>}
+            ) : <span className="text-red-400 font-bold">{t("videoExport.missingWord")}</span>}
           </div>
         </div>
-        <Field label="Downloaded local audio file" node={yn(!!audio?.fileWritten)} />
-        <Field label="Audio file exists" node={yn(!!audio?.fileExistsAfterWrite)} />
-        <Field label="Audio file size" value={audio && audio.fileSize > 0 ? `${audio.fileSize.toLocaleString()} bytes (${fmt(audio.fileSize)})` : "—"} />
-        <Field label="Audio HTTP status" value={audio && audio.responseStatus > 0 ? String(audio.responseStatus) : "—"} mono />
-        <Field label="Audio duration" value={audio && audio.duration > 0 ? `${audio.duration.toFixed(1)}s` : "—"} />
-        <Field label="ffprobe audio valid" node={yn(!!audio?.ffprobeValid)} />
+        <Field label={t("videoExport.aDownloaded")} node={yn(!!audio?.fileWritten)} />
+        <Field label={t("videoExport.aFileExists")} node={yn(!!audio?.fileExistsAfterWrite)} />
+        <Field label={t("videoExport.aFileSize")} value={audio && audio.fileSize > 0 ? t("videoExport.fileSizeValue", { bytes: audio.fileSize.toLocaleString(), human: fmt(audio.fileSize) }) : "—"} />
+        <Field label={t("videoExport.aHttpStatus")} value={audio && audio.responseStatus > 0 ? String(audio.responseStatus) : "—"} mono />
+        <Field label={t("videoExport.aDuration")} value={audio && audio.duration > 0 ? `${audio.duration.toFixed(1)}s` : "—"} />
+        <Field label={t("videoExport.aFfprobeValid")} node={yn(!!audio?.ffprobeValid)} />
         {audio?.error && (
           <div className="col-span-2 mt-1 pt-1 border-t border-red-500/20">
             <div className="flex items-start gap-2">
-              <span className="text-white/25 shrink-0 w-[150px]">Audio error</span>
+              <span className="text-white/25 shrink-0 w-[150px]">{t("videoExport.aError")}</span>
               <span className="text-red-400/80 break-words leading-snug">{audio.error}</span>
             </div>
           </div>
@@ -2235,25 +2251,26 @@ function ExportReadinessPanel({
   audioValid: boolean;
   readyForFFmpeg: boolean;
 }) {
+  const { t } = useTranslation();
   const rows: [string, string, boolean][] = [
-    ["master clip sources found", `${clipSourcesFound}/${totalClips}`, clipSourcesFound === totalClips && totalClips > 0],
-    ["clip files downloaded",     `${clipsDownloaded}/${totalClips}`, clipsDownloaded === totalClips && totalClips > 0],
-    ["clip files valid",          `${clipsValid}/${totalClips}`,      clipsValid === totalClips && totalClips > 0],
-    ["master audio source found", hasAudio ? (audioSourceFound ? "yes" : "no") : "no audio", !hasAudio || audioSourceFound],
-    ["audio file downloaded",     hasAudio ? (audioDownloaded ? "yes" : "no") : "—",        !hasAudio || audioDownloaded],
-    ["audio valid",               hasAudio ? (audioValid ? "yes" : "no") : "—",             !hasAudio || audioValid],
-    ["ready for FFmpeg",          readyForFFmpeg ? "yes" : "no",                            readyForFFmpeg],
+    [t("videoExport.rSources"), `${clipSourcesFound}/${totalClips}`, clipSourcesFound === totalClips && totalClips > 0],
+    [t("videoExport.rClipsDownloaded"), `${clipsDownloaded}/${totalClips}`, clipsDownloaded === totalClips && totalClips > 0],
+    [t("videoExport.rClipsValid"), `${clipsValid}/${totalClips}`,      clipsValid === totalClips && totalClips > 0],
+    [t("videoExport.rAudioSource"), hasAudio ? (audioSourceFound ? t("videoExport.yes") : t("videoExport.no")) : t("videoExport.valueNoAudio"), !hasAudio || audioSourceFound],
+    [t("videoExport.rAudioDownloaded"), hasAudio ? (audioDownloaded ? t("videoExport.yes") : t("videoExport.no")) : "—",        !hasAudio || audioDownloaded],
+    [t("videoExport.rAudioValid"), hasAudio ? (audioValid ? t("videoExport.yes") : t("videoExport.no")) : "—",             !hasAudio || audioValid],
+    [t("videoExport.rReady"), readyForFFmpeg ? t("videoExport.yes") : t("videoExport.no"),                            readyForFFmpeg],
   ];
   return (
     <div className={`rounded-xl border overflow-hidden ${readyForFFmpeg ? "border-green-500/25 bg-green-500/[0.04]" : "border-amber-500/25 bg-amber-500/[0.03]"}`}>
       <div className="px-3 py-2 border-b border-white/[0.06]">
-        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Readiness</p>
+        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">{t("videoExport.readinessTitle")}</p>
       </div>
       <div className="px-3 py-2.5 space-y-1">
         {rows.map(([label, value, ok]) => (
           <div key={label} className="flex items-center justify-between gap-2 text-[10px] font-mono">
             <span className="text-white/35">{label}:</span>
-            <span className={`font-bold ${ok ? "text-green-400" : "text-red-400"}`}>{value}{ok && value !== "—" && value !== "no audio" ? " ✓" : ""}</span>
+            <span className={`font-bold ${ok ? "text-green-400" : "text-red-400"}`}>{value}{ok && value !== "—" && value !== t("videoExport.valueNoAudio") ? " ✓" : ""}</span>
           </div>
         ))}
       </div>
@@ -2261,12 +2278,12 @@ function ExportReadinessPanel({
   );
 }
 
-function statusLabel(s: SceneData): string {
-  if (s.approved && s.generationStatus === "completed") return "Approved";
-  if (s.generationStatus === "completed") return "Completed";
-  if (s.generationStatus === "failed")    return "Failed";
-  if (s.generationStatus === "pending")   return "Pending";
-  if (s.demoClipUrl)                      return "Ready";
+function statusLabel(s: SceneData, t: TranslateFn): string {
+  if (s.approved && s.generationStatus === "completed") return t("videoExport.statusApproved");
+  if (s.generationStatus === "completed") return t("videoExport.statusCompleted");
+  if (s.generationStatus === "failed")    return t("videoExport.statusFailed");
+  if (s.generationStatus === "pending")   return t("videoExport.statusPending");
+  if (s.demoClipUrl)                      return t("videoExport.statusReady");
   return "—";
 }
 
@@ -2280,30 +2297,31 @@ function statusColor(s: SceneData): string {
 }
 
 function StatusBadge({ status }: { status: ExportStatus }) {
+  const { t } = useTranslation();
   if (status === "idle") {
     return (
       <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest border border-white/10 rounded-full px-2 py-0.5">
-        Ready to Export
+        {t("videoExport.badgeReadyToExport")}
       </span>
     );
   }
   if (status === "exporting") {
     return (
       <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest border border-amber-400/30 bg-amber-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-        <Loader2 className="h-2.5 w-2.5 animate-spin" /> Exporting Final Video…
+        <Loader2 className="h-2.5 w-2.5 animate-spin" /> {t("videoExport.exportingTitle")}
       </span>
     );
   }
   if (status === "completed") {
     return (
       <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest border border-green-400/30 bg-green-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-        <CheckCircle2 className="h-2.5 w-2.5" /> Export Complete
+        <CheckCircle2 className="h-2.5 w-2.5" /> {t("videoExport.badgeExportComplete")}
       </span>
     );
   }
   return (
     <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest border border-red-400/30 bg-red-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-      <XCircle className="h-2.5 w-2.5" /> Export Failed
+      <XCircle className="h-2.5 w-2.5" /> {t("videoExport.badgeExportFailed")}
     </span>
   );
 }

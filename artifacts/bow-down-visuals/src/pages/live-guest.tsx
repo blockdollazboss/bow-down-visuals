@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useRoute } from "wouter";
 import {
   Loader2, Radio, Send, Mic, MicOff, Video, VideoOff, LogOut, ShieldCheck, Eye,
@@ -28,7 +29,8 @@ type Phase =
   | "ended";
 
 export default function LiveGuest() {
-  usePageTitle("Guest backstage", "You were invited to join a Bow Down Visuals live stream as a guest.");
+  const { t } = useTranslation();
+  usePageTitle(t("liveGuests.pageTitle"), t("liveGuests.pageDescription"));
   const [, params] = useRoute("/live/guest/:token");
   const inviteToken = params?.token ?? "";
   const [phase, setPhase] = useState<Phase>("loading");
@@ -72,7 +74,7 @@ export default function LiveGuest() {
           local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           setMediaNote("");
         } catch {
-          setMediaNote("Camera/mic weren't allowed — you're in backstage by chat and presence only; the host can still see your name, just not your video.");
+          setMediaNote(t("liveGuests.mediaDeniedNote"));
         }
       }
       localStreamRef.current = local;
@@ -118,7 +120,7 @@ export default function LiveGuest() {
         /* live frames still land */
       }
     },
-    [endWith, storageKey],
+    [endWith, storageKey, t],
   );
 
   /* Load the invite; resume a stored session after a refresh. */
@@ -130,7 +132,7 @@ export default function LiveGuest() {
         if (cancelled) return;
         setInfo(data);
         if (data.stream.status !== "live") {
-          setEndedReason("That stream has ended — the backstage is closed.");
+          setEndedReason(t("liveGuests.streamEndedClosed"));
           setPhase("ended");
           return;
         }
@@ -159,7 +161,7 @@ export default function LiveGuest() {
         setPhase("ready");
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "That invite link couldn't be opened.");
+        setError(e instanceof Error ? e.message : t("liveGuests.inviteOpenFailed"));
         setPhase("ended");
       }
     })();
@@ -177,7 +179,7 @@ export default function LiveGuest() {
       if (!tok) return;
       try {
         const beat = await guestHeartbeat(tok);
-        if (beat.stream_status !== "live") endWith("The stream has ended — thanks for being part of it.");
+        if (beat.stream_status !== "live") endWith(t("liveGuests.streamEndedThanks"));
       } catch (e) {
         if (e instanceof GuestApiError && (e.status === 401 || e.status === 404)) {
           endWith(e.message);
@@ -216,7 +218,7 @@ export default function LiveGuest() {
       );
       await startBackstage(data.session_token, data.session, true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Backstage couldn't let you in.");
+      setError(e instanceof Error ? e.message : t("liveGuests.joinFailed"));
       setPhase("ready");
     }
   }
@@ -235,7 +237,7 @@ export default function LiveGuest() {
         /* ignore */
       }
     }
-    endWith("You left backstage. Thanks for coming — the host can invite you again any time.");
+    endWith(t("liveGuests.leftBackstage"));
   }
 
   async function handleSend() {
@@ -262,29 +264,29 @@ export default function LiveGuest() {
   }
 
   const onStage = session?.state === "on_stage";
-  const hostName = info?.host.display_name ?? "Your host";
+  const hostName = info?.host.display_name ?? t("liveGuests.hostFallback");
   const others = peers.filter((p) => p.peerId !== clientRef.current?.myPeerId);
 
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-3xl px-5 py-10">
         <p className="inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]">
-          <Radio className="h-3 w-3" /> Guest backstage
+          <Radio className="h-3 w-3" /> {t("liveGuests.badge")}
         </p>
 
         {phase === "loading" && (
           <div className="flex items-center gap-2 py-16 text-white/60">
-            <Loader2 className="h-5 w-5 animate-spin" /> Checking your invite…
+            <Loader2 className="h-5 w-5 animate-spin" /> {t("liveGuests.checkingInvite")}
           </div>
         )}
 
         {phase === "ended" && (
           <div className="py-12" data-testid="guest-ended">
-            <h1 className="text-2xl font-black">This backstage pass is done</h1>
-            <p className="mt-2 max-w-md text-sm text-white/50">{endedReason || error || "The invite is no longer active."}</p>
+            <h1 className="text-2xl font-black">{t("liveGuests.endedTitle")}</h1>
+            <p className="mt-2 max-w-md text-sm text-white/50">{endedReason || error || t("liveGuests.endedFallback")}</p>
             {info?.stream.watch_path && (
               <Link href={info.stream.watch_path} className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#d4a017] px-4 py-2 text-sm font-bold text-black">
-                <Eye className="h-4 w-4" /> Watch the stream instead
+                <Eye className="h-4 w-4" /> {t("liveGuests.watchInstead")}
               </Link>
             )}
           </div>
@@ -293,28 +295,26 @@ export default function LiveGuest() {
         {(phase === "ready" || phase === "joining") && info && (
           <div className="py-8" data-testid="guest-join">
             <h1 className="text-3xl font-black tracking-tight">
-              {hostName} invited you on their show
+              {t("liveGuests.invitedHeading", { host: hostName })}
             </h1>
             <p className="mt-2 max-w-lg text-sm text-white/50">
-              <span className="font-semibold text-white/80">“{info.stream.title}”</span> — you'll step into the
-              private backstage first: get ready with the host there, and only go on air if they bring you on
-              stage. The audience can't see or hear backstage.
+              <span className="font-semibold text-white/80">“{info.stream.title}”</span> {t("liveGuests.joinIntro")}
             </p>
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-white/50">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#fbbf24]" />
               <span>
-                You're joining as a <strong className="text-white/80">guest</strong> — no account, no sign-up, and
-                you'll be labeled “Guest” everywhere you appear. Your camera and mic turn on for backstage when
-                you join; you can mute or hide them any time.
+                {t("liveGuests.joinNoteBefore")}{" "}
+                <strong className="text-white/80">{t("liveGuests.joinNoteGuestWord")}</strong>{" "}
+                {t("liveGuests.joinNoteAfter")}
               </span>
             </div>
             <label className="mt-6 block max-w-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-white/60">The name the host will see</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-white/60">{t("liveGuests.nameLabel")}</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={40}
-                placeholder="Your name or act name"
+                placeholder={t("liveGuests.namePlaceholder")}
                 className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm placeholder:text-white/25 focus:border-amber-400/60 focus:outline-none"
                 data-testid="input-guest-name"
               />
@@ -327,14 +327,14 @@ export default function LiveGuest() {
               data-testid="btn-join-backstage"
             >
               {phase === "joining" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-              Join backstage
+              {t("liveGuests.joinButton")}
             </Button>
           </div>
         )}
 
         {phase === "backstage" && session && (
           <div data-testid="guest-backstage">
-            <h1 className="text-2xl font-black">{info?.stream.title ?? "Backstage"}</h1>
+            <h1 className="text-2xl font-black">{info?.stream.title ?? t("liveGuests.backstageFallbackTitle")}</h1>
             <div
               className={`mt-3 rounded-xl border p-3 text-sm font-semibold ${
                 onStage
@@ -344,8 +344,8 @@ export default function LiveGuest() {
               role="status"
             >
               {onStage
-                ? "You're ON STAGE — the audience can see and hear you now."
-                : "You're backstage — the audience can't see or hear you. The host will bring you on stage when it's time."}
+                ? t("liveGuests.onStageBanner")
+                : t("liveGuests.backstageBanner")}
             </div>
             {mediaNote && <p className="mt-2 text-xs text-amber-300">{mediaNote}</p>}
 
@@ -353,7 +353,7 @@ export default function LiveGuest() {
               <div className="relative overflow-hidden rounded-xl border border-[#fbbf24]/40 bg-zinc-950">
                 <video ref={localVideoRef} autoPlay muted playsInline className="aspect-video w-full object-cover" />
                 <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold">
-                  You · Guest{onStage ? " · ON STAGE" : ""}
+                  {t("liveGuests.youWord")}{t("liveGuests.suffixGuest")}{onStage ? t("liveGuests.suffixOnStage") : ""}
                 </span>
               </div>
               {others.map((peer) => (
@@ -361,39 +361,39 @@ export default function LiveGuest() {
               ))}
               {others.length === 0 && (
                 <div className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-white/40">
-                  Waiting for the host to enter backstage…
+                  {t("liveGuests.waitingHost")}
                 </div>
               )}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Button onClick={toggleMic} variant="outline" size="sm" className="gap-1.5 border-white/15" data-testid="btn-guest-mic">
-                {micOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />} {micOn ? "Mute" : "Unmute"}
+                {micOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />} {micOn ? t("liveGuests.mute") : t("liveGuests.unmute")}
               </Button>
               <Button onClick={toggleCam} variant="outline" size="sm" className="gap-1.5 border-white/15" data-testid="btn-guest-cam">
-                {camOn ? <Video className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />} {camOn ? "Hide camera" : "Show camera"}
+                {camOn ? <Video className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />} {camOn ? t("liveGuests.hideCamera") : t("liveGuests.showCamera")}
               </Button>
               {info?.stream.watch_path && (
                 <Link href={info.stream.watch_path} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white">
-                  <Eye className="h-3.5 w-3.5" /> Watch the show
+                  <Eye className="h-3.5 w-3.5" /> {t("liveGuests.watchShow")}
                 </Link>
               )}
               <Button onClick={() => void handleLeave()} variant="outline" size="sm" className="ml-auto gap-1.5 border-red-400/40 text-red-300" data-testid="btn-guest-leave">
-                <LogOut className="h-3.5 w-3.5" /> Leave
+                <LogOut className="h-3.5 w-3.5" /> {t("liveGuests.leave")}
               </Button>
             </div>
 
             <div className="mt-5 rounded-xl border border-white/[0.07] p-3">
-              <p className="text-xs font-black uppercase tracking-widest text-[#fbbf24]">Backstage chat — audience never sees this</p>
+              <p className="text-xs font-black uppercase tracking-widest text-[#fbbf24]">{t("liveGuests.chatTitle")}</p>
               <div className="mt-2 max-h-44 space-y-1.5 overflow-y-auto pr-1">
                 {messages.length === 0 ? (
-                  <p className="text-xs text-white/35">Say hello — only the host and other guests can read this.</p>
+                  <p className="text-xs text-white/35">{t("liveGuests.chatEmptyGuest")}</p>
                 ) : (
                   messages.map((m) => (
                     <p key={m.id} className="text-sm">
                       <span className="font-bold text-[#fbbf24]">
                         {m.author_name}
-                        {m.guest ? " · Guest" : " · Host"}
+                        {m.guest ? t("liveGuests.suffixGuest") : t("liveGuests.suffixHost")}
                       </span>{" "}
                       <span className="text-white/80">{m.body}</span>
                     </p>
@@ -407,20 +407,19 @@ export default function LiveGuest() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleSend();
                   }}
-                  placeholder="Message backstage…"
+                  placeholder={t("liveGuests.chatPlaceholder")}
                   maxLength={500}
                   className="flex-1 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm placeholder:text-white/25 focus:border-amber-400/60 focus:outline-none"
                   data-testid="input-guest-chat"
                 />
                 <Button onClick={() => void handleSend()} disabled={!draft.trim()} size="sm" className="gap-1.5 bg-gradient-to-r from-[#fbbf24] to-[#d4a017] font-bold text-black" data-testid="btn-guest-send">
-                  <Send className="h-3.5 w-3.5" /> Send
+                  <Send className="h-3.5 w-3.5" /> {t("liveGuests.send")}
                 </Button>
               </div>
             </div>
 
             <p className="mt-3 text-[11px] text-white/30">
-              Backstage video connects browser-to-browser; on very strict networks video may not connect — chat
-              still works. You're labeled a guest everywhere, and leaving ends this pass for good.
+              {t("liveGuests.guestFooterNote")}
             </p>
           </div>
         )}
@@ -430,6 +429,7 @@ export default function LiveGuest() {
 }
 
 function RemoteTile({ peer, stream }: { peer: BackstagePeer; stream: MediaStream | null }) {
+  const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const host = hostRef.current;
@@ -450,12 +450,12 @@ function RemoteTile({ peer, stream }: { peer: BackstagePeer; stream: MediaStream
       {stream ? (
         <div ref={hostRef} className="aspect-video w-full" />
       ) : (
-        <div className="flex aspect-video w-full items-center justify-center text-xs text-white/40">Connecting…</div>
+        <div className="flex aspect-video w-full items-center justify-center text-xs text-white/40">{t("liveGuests.connecting")}</div>
       )}
       <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold">
         {peer.displayName}
-        {peer.kind === "host" ? " · Host" : " · Guest"}
-        {peer.guestState === "on_stage" ? " · ON STAGE" : ""}
+        {peer.kind === "host" ? t("liveGuests.suffixHost") : t("liveGuests.suffixGuest")}
+        {peer.guestState === "on_stage" ? t("liveGuests.suffixOnStage") : ""}
       </span>
     </div>
   );

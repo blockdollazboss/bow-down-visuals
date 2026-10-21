@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Home, ArrowRight, X, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,7 @@ const DISMISS_KEY = "bdv_move_home_dismissed_at";
 const DISMISS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function MoveHomeCard() {
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
   const [status, setStatus] = useState<MoveHomeStatusLite | null>(null);
@@ -78,7 +80,7 @@ export function MoveHomeCard() {
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Dismiss for now"
+        aria-label={t("moveHome.cardDismissAria")}
         className={`absolute right-3 top-3 rounded-full p-1 transition-colors ${
           isLight ? "text-zinc-500 hover:text-zinc-800" : "text-zinc-500 hover:text-zinc-200"
         }`}
@@ -91,24 +93,24 @@ export function MoveHomeCard() {
         </div>
         <div className="min-w-0 flex-1 pr-6">
           <h3 className={`text-base font-black ${isLight ? "text-zinc-900" : "text-white"}`}>
-            Move Home — your business lives here
+            {t("moveHome.cardTitle")}
           </h3>
           <p className={`mt-1 text-sm ${isLight ? "text-zinc-600" : "text-zinc-400"}`}>
             {started
-              ? "Your move is in progress — pick it up exactly where you left it. Thy Cheat Code drafts each piece; nothing goes live until you approve it."
-              : "Thy Cheat Code drafts your profile, starter store, press kit, email list, and launch posts from your work and your connected socials — you approve each piece before anything goes live. Free."}
+              ? t("moveHome.cardInProgress")
+              : t("moveHome.cardFresh")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Link
               href="/move-home"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90"
             >
-              {started ? "Continue your move" : "Start the move"}
+              {started ? t("moveHome.cardContinue") : t("moveHome.cardStart")}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-zinc-600" : "text-zinc-400"}`}>
               <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              {done} of {status.steps.length} steps done
+              {t("moveHome.cardStepsDone", { done, total: status.steps.length })}
             </span>
           </div>
         </div>
