@@ -26,6 +26,14 @@
  *     list changes only from server-confirmed rows; and the AI
  *     helpers' displayed prices agree with the shared credit-cost
  *     registry and the server constants they mirror.
+ * (g) Stand settings + sales (Stack-4 wave-2 #6): the settings and
+ *     create forms ride the page's exact PATCH/POST bodies under
+ *     gates mirroring the rails' own schemas; the sales view
+ *     parses the owner-scoped analytics payload honestly (junk
+ *     rows drop, a totals-less payload is no view at all, pending
+ *     checkouts never fold into sales); shop deletion is the same
+ *     two-step discipline as product deletion; custom domains stay
+ *     website-side and the stand says so.
  *
  * Source pins (contract style): the stands wire the exact server
  * endpoints §3.3 names, the checkout opens its hosted page in a
@@ -76,10 +84,31 @@ import {
   savedProductDto,
   applyProductSave,
   removeProduct,
+  SHOP_AI_SHOP_DESCRIPTION_COST_VB,
+  SHOP_NAME_MAX,
+  SHOP_TAGLINE_MAX,
+  SHOP_DESCRIPTION_MAX,
+  SHOP_HANDLE_MIN,
+  SHOP_HANDLE_MAX,
+  emptyShopSettingsForm,
+  shopSettingsFormFromShop,
+  shopSettingsProblem,
+  buildShopSettingsPayload,
+  savedShopDto,
+  emptyShopCreateForm,
+  shopCreateProblem,
+  buildShopCreatePayload,
+  buildShopDescriptionPayload,
+  parseShopAnalytics,
+  recentShopSales,
+  recentShopPending,
+  maxDailyViews,
+  SHOP_SALES_SHOWN,
   type BrandingCartLine,
   type MembershipTierDto,
   type MineShopDto,
   type PublicProductDto,
+  type ShopAnalytics,
 } from "./shop-stands";
 import { BRANDING_PRODUCTS, BRANDING_DESIGN_COST } from "@/lib/branding-shop";
 import { getCreditCost } from "@/lib/credit-costs";
@@ -374,15 +403,15 @@ describe("source pins — the stands' wiring (§3.3 endpoints, §3.9 new tab)", 
 
 describe("stand management — ownership (the /api/shops/mine proof)", () => {
   const MINE: MineShopDto[] = [
-    { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2 },
-    { id: "shop-2", name: "Second Stand", handle: "second-stand", product_count: 0 },
+    { id: "shop-1", name: "Gold Standard", handle: "gold-standard", tagline: null, description: null, product_count: 2 },
+    { id: "shop-2", name: "Second Stand", handle: "second-stand", tagline: null, description: null, product_count: 0 },
   ];
 
   it("parses the mine payload tolerantly — fuller server rows are fine, junk rows drop", () => {
     expect(
       parseMineShops({
         shops: [
-          { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2, user_id: "u1", banner_color: "#000000" },
+          { id: "shop-1", name: "Gold Standard", handle: "gold-standard", tagline: "Only gold", description: "The story", product_count: 2, user_id: "u1", banner_color: "#000000" },
           { id: "shop-2", name: "Second Stand", handle: "second-stand" },
           { name: "No id", handle: "no-id" },
           { id: 42, name: "Numeric id", handle: "numeric" },
@@ -391,8 +420,8 @@ describe("stand management — ownership (the /api/shops/mine proof)", () => {
         ],
       }),
     ).toEqual([
-      { id: "shop-1", name: "Gold Standard", handle: "gold-standard", product_count: 2 },
-      { id: "shop-2", name: "Second Stand", handle: "second-stand", product_count: 0 },
+      { id: "shop-1", name: "Gold Standard", handle: "gold-standard", tagline: "Only gold", description: "The story", product_count: 2 },
+      { id: "shop-2", name: "Second Stand", handle: "second-stand", tagline: null, description: null, product_count: 0 },
     ]);
     expect(parseMineShops(null)).toEqual([]);
     expect(parseMineShops({})).toEqual([]);
@@ -569,5 +598,207 @@ describe("source pins — stand management wiring (Stack-4 #7)", () => {
     expect(standsSrc).toContain("SHOP_AI_DESCRIPTION_COST_VB");
     expect(standsSrc).toContain("SHOP_AI_IMAGE_PREMIUM_COST_VB");
     expect(standsSrc).toContain("aiOutOfCredits(");
+  });
+});
+
+describe("stand settings — the form rides the page's PATCH body (Stack-4 wave-2 #6)", () => {
+  const SHOP_FORM = { name: "  Gold Standard  ", tagline: "  Only gold  ", description: "  The story.  " };
+
+  it("prefill is the page's derivation — name verbatim, nulls read as empty", () => {
+    expect(shopSettingsFormFromShop({ name: "Gold Standard", tagline: "Only gold", description: "The story" })).toEqual({
+      name: "Gold Standard", tagline: "Only gold", description: "The story",
+    });
+    expect(shopSettingsFormFromShop({ name: "Bare", tagline: null, description: null })).toEqual({
+      name: "Bare", tagline: "", description: "",
+    });
+    expect(emptyShopSettingsForm()).toEqual({ name: "", tagline: "", description: "" });
+  });
+
+  it("the save body is the My Shop page's exact shape (trimmed name/tagline/description)", () => {
+    expect(buildShopSettingsPayload(SHOP_FORM)).toEqual({
+      name: "Gold Standard", tagline: "Only gold", description: "The story.",
+    });
+  });
+
+  it("the gates mirror the rail's own schema limits — a doomed save never rides", () => {
+    expect(shopSettingsProblem({ ...SHOP_FORM, name: "   " })).toBe("Give your shop a name first.");
+    expect(shopSettingsProblem({ ...SHOP_FORM, name: "x".repeat(SHOP_NAME_MAX + 1) })).toContain(String(SHOP_NAME_MAX));
+    expect(shopSettingsProblem({ ...SHOP_FORM, tagline: "x".repeat(SHOP_TAGLINE_MAX + 1) })).toContain(String(SHOP_TAGLINE_MAX));
+    expect(shopSettingsProblem({ ...SHOP_FORM, description: "x".repeat(SHOP_DESCRIPTION_MAX + 1) })).toContain(String(SHOP_DESCRIPTION_MAX));
+    expect(shopSettingsProblem({ name: "x".repeat(SHOP_NAME_MAX), tagline: "x".repeat(SHOP_TAGLINE_MAX), description: "x".repeat(SHOP_DESCRIPTION_MAX) })).toBeNull();
+    expect(shopSettingsProblem(SHOP_FORM)).toBeNull();
+    expect(buildShopSettingsPayload({ ...SHOP_FORM, name: "" })).toBeNull();
+  });
+
+  it("a confirmed save parses into BOTH stand DTOs — junk answers are not rows", () => {
+    expect(
+      savedShopDto({ shop: { id: "s1", user_id: "u1", name: "Gold Standard", handle: "gold-standard", tagline: "Only gold", description: "The story", banner_color: "#000" } }),
+    ).toEqual({
+      mine: { id: "s1", name: "Gold Standard", handle: "gold-standard", tagline: "Only gold", description: "The story", product_count: 0 },
+      pub: { id: "s1", name: "Gold Standard", handle: "gold-standard", tagline: "Only gold", description: "The story" },
+    });
+    expect(savedShopDto({ shop: { id: "s1", name: "No handle" } })).toBeNull();
+    expect(savedShopDto({ shop: { name: "No id", handle: "x" } })).toBeNull();
+    expect(savedShopDto({})).toBeNull();
+    expect(savedShopDto(null)).toBeNull();
+  });
+
+  it("the shop-description writer's body is the page's exact shape — products joined its way", () => {
+    expect(buildShopDescriptionPayload({ shopName: " Gold Standard ", tagline: " Only gold ", niche: " streetwear ", productNames: ["Hoodie", "Cap"] })).toEqual({
+      shopName: "Gold Standard", tagline: "Only gold", niche: "streetwear", products: "Hoodie, Cap",
+    });
+    expect(buildShopDescriptionPayload({ shopName: "Bare", tagline: "", niche: "", productNames: [] })).toEqual({
+      shopName: "Bare", tagline: "", niche: "", products: "",
+    });
+  });
+
+  it("the writer's displayed price agrees with the shared credit-cost registry", () => {
+    expect(getCreditCost("/api/shops/ai/shop-description")?.cost).toBe(SHOP_AI_SHOP_DESCRIPTION_COST_VB);
+  });
+});
+
+describe("stand create — the form rides the page's POST body (Stack-4 wave-2 #6)", () => {
+  const CREATE_FORM = { name: "  Gold Standard  ", handle: " gold-standard ", tagline: "  Only gold  " };
+
+  it("the create body is the My Shop page's exact shape", () => {
+    expect(buildShopCreatePayload(CREATE_FORM)).toEqual({
+      name: "Gold Standard", handle: "gold-standard", tagline: "Only gold",
+    });
+    expect(emptyShopCreateForm()).toEqual({ name: "", handle: "", tagline: "" });
+  });
+
+  it("the handle gate takes the shapes the server's normalizer accepts — and no others", () => {
+    expect(shopCreateProblem(CREATE_FORM)).toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "Gold-Standard" })).toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "ab" })).toContain(String(SHOP_HANDLE_MIN));
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "x".repeat(SHOP_HANDLE_MAX + 1) })).toContain(String(SHOP_HANDLE_MAX));
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "gold_standard" })).not.toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "gold--standard" })).not.toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "-gold" })).not.toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "gold-" })).not.toBeNull();
+    expect(shopCreateProblem({ ...CREATE_FORM, handle: "gold standard" })).not.toBeNull();
+    expect(buildShopCreatePayload({ ...CREATE_FORM, handle: "no way" })).toBeNull();
+  });
+
+  it("the name gate runs before the handle gate — the page's order", () => {
+    expect(shopCreateProblem({ name: " ", handle: "!!", tagline: "" })).toBe("Give your shop a name first.");
+  });
+});
+
+describe("stand sales — the ledger parses honestly (Stack-4 wave-2 #6)", () => {
+  const ANALYTICS_PAYLOAD = {
+    totals: { views: 128, sales: 3, gross_cents: 12497, platform_fee_cents: 625, seller_net_cents: 11872, pending_orders: 1 },
+    dailyViews: [
+      { day: "2026-10-19", views: 9 },
+      { day: "2026-10-20", views: 14 },
+    ],
+    sales: [
+      { id: "e1", product_id: "p1", product_name: "Hoodie", amount_cents: 4999, platform_fee_cents: 250, seller_net_cents: 4749, buyer_email: "fan@test.dev", created_at: "2026-10-20T10:00:00Z", quantity: 1, payment_status: "paid", paid_at: "2026-10-20T10:01:00Z" },
+      { id: "e2", product_id: "p2", product_name: null, amount_cents: 0, platform_fee_cents: 0, seller_net_cents: 0, buyer_email: null, created_at: "2026-10-19T09:00:00Z", quantity: 1, payment_status: "no_payment_required", paid_at: null },
+      { product_name: "No id — dropped", amount_cents: 100 },
+      "junk",
+    ],
+    pendingSales: [
+      { id: "e3", product_id: "p1", product_name: "Hoodie", amount_cents: 4999, platform_fee_cents: 250, seller_net_cents: 4749, buyer_email: "slow@test.dev", created_at: "2026-10-20T11:00:00Z", quantity: 1, payment_status: "pending" },
+    ],
+    platformFeePct: 5,
+  };
+
+  it("parses the analytics rail's payload — totals verbatim, junk rows dropped, never repaired", () => {
+    const a = parseShopAnalytics(ANALYTICS_PAYLOAD);
+    expect(a).not.toBeNull();
+    expect(a!.totals).toEqual({ views: 128, sales: 3, gross_cents: 12497, platform_fee_cents: 625, seller_net_cents: 11872, pending_orders: 1 });
+    expect(a!.sales).toHaveLength(2);
+    expect(a!.sales[0]).toEqual({
+      id: "e1", product_name: "Hoodie", amount_cents: 4999, seller_net_cents: 4749,
+      buyer_email: "fan@test.dev", created_at: "2026-10-20T10:00:00Z", payment_status: "paid", paid_at: "2026-10-20T10:01:00Z",
+    });
+    expect(a!.pendingSales).toHaveLength(1);
+    expect(a!.pendingSales[0]!.payment_status).toBe("pending");
+    expect(a!.platformFeePct).toBe(5);
+    expect(a!.dailyViews).toEqual([
+      { day: "2026-10-19", views: 9 },
+      { day: "2026-10-20", views: 14 },
+    ]);
+  });
+
+  it("a payload without honest totals is NOT a sales view — zeros are never invented", () => {
+    expect(parseShopAnalytics(null)).toBeNull();
+    expect(parseShopAnalytics({})).toBeNull();
+    expect(parseShopAnalytics({ totals: { views: "many", sales: 3, gross_cents: 1, seller_net_cents: 1 } })).toBeNull();
+    expect(parseShopAnalytics({ totals: { views: 1, sales: 1 } })).toBeNull();
+    expect(parseShopAnalytics({ error: "Shop not found." })).toBeNull();
+  });
+
+  it("pending stays apart from sales, and the view caps both at the page's ten", () => {
+    const many: ShopAnalytics = {
+      totals: { views: 0, sales: 0, gross_cents: 0, platform_fee_cents: 0, seller_net_cents: 0, pending_orders: 0 },
+      dailyViews: [],
+      sales: Array.from({ length: 15 }, (_, i) => ({
+        id: `s${i}`, product_name: "P", amount_cents: 1, seller_net_cents: 1, buyer_email: null,
+        created_at: "2026-10-20T00:00:00Z", payment_status: "paid", paid_at: null,
+      })),
+      pendingSales: Array.from({ length: 12 }, (_, i) => ({
+        id: `q${i}`, product_name: "P", amount_cents: 1, seller_net_cents: 1,
+        created_at: "2026-10-20T00:00:00Z", payment_status: "pending",
+      })),
+      platformFeePct: 5,
+    };
+    expect(recentShopSales(many)).toHaveLength(SHOP_SALES_SHOWN);
+    expect(recentShopPending(many)).toHaveLength(SHOP_SALES_SHOWN);
+    expect(SHOP_SALES_SHOWN).toBe(10);
+  });
+
+  it("the views strip scales off the tallest day, and never below 1", () => {
+    const a = parseShopAnalytics(ANALYTICS_PAYLOAD)!;
+    expect(maxDailyViews(a)).toBe(14);
+    expect(maxDailyViews({ ...a, dailyViews: [] })).toBe(1);
+    expect(maxDailyViews({ ...a, dailyViews: [{ day: "2026-10-20", views: 0 }] })).toBe(1);
+  });
+});
+
+describe("source pins — stand settings + sales wiring (Stack-4 wave-2 #6)", () => {
+  it("settings ride the website's own shop rails — PATCH/POST/DELETE /api/shops, no parallel API", () => {
+    expect(standsSrc).toContain("`/api/shops/${shop.id}`");
+    expect(standsSrc).toContain('method: "PATCH"');
+    expect(standsSrc).toContain('fetch("/api/shops"');
+    expect(standsSrc).toContain("buildShopSettingsPayload(");
+    expect(standsSrc).toContain("buildShopCreatePayload(");
+    expect(standsSrc).toContain("savedShopDto(");
+  });
+
+  it("the whole desk stays behind the ownership gate — settings and sales render only for the proven owner", () => {
+    expect(standsSrc).toContain('data-testid="world-shop-settings"');
+    expect(standsSrc).toContain('data-testid="world-shop-sales"');
+    /* Both benches live inside StandManager, which MarketplaceStand
+       renders only under ownsStand — the gate line itself is pinned
+       by the #7 block above; here the benches' home is pinned. */
+    const managerAt = standsSrc.indexOf("function StandManager");
+    expect(standsSrc.indexOf('data-testid="world-shop-settings"')).toBeGreaterThan(managerAt);
+    expect(standsSrc.indexOf('data-testid="world-shop-sales"')).toBeGreaterThan(managerAt);
+    expect(standsSrc.indexOf("function StandCreateShop")).toBeGreaterThan(-1);
+  });
+
+  it("sales read the owner-scoped analytics rail the My Shop page reads", () => {
+    expect(standsSrc).toContain("/api/storefronts/${shop.id}/analytics");
+    expect(standsSrc).toContain("parseShopAnalytics(");
+    expect(standsSrc).toContain("recentShopSales(");
+    expect(standsSrc).toContain("recentShopPending(");
+  });
+
+  it("shop deletion is two-step in-world, exactly like product deletion", () => {
+    expect(standsSrc).toContain("confirmingDeleteShop");
+    expect(standsSrc).toContain('data-testid="world-shop-settings-delete-confirm"');
+  });
+
+  it("the shop writer rides the confirmed-spend seam with its price shown up front", () => {
+    expect(standsSrc).toContain('"/api/shops/ai/shop-description"');
+    expect(standsSrc).toContain("buildShopDescriptionPayload(");
+    expect(standsSrc).toContain("SHOP_AI_SHOP_DESCRIPTION_COST_VB");
+  });
+
+  it("custom domains are named as website-side — the stand never fakes a domain rail", () => {
+    expect(standsSrc).toContain("Custom domains live on your shop&rsquo;s page on the website");
+    expect(standsSrc).not.toContain("/domain");
   });
 });

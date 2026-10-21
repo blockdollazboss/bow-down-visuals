@@ -481,11 +481,17 @@ export interface MineShopDto {
   id: string;
   name: string;
   handle: string;
+  tagline: string | null;
+  description: string | null;
   product_count: number;
 }
 
 /** Parse the /api/shops/mine payload tolerantly: rows without a
- *  real id/name/handle are dropped, never repaired into existence. */
+ *  real id/name/handle are dropped, never repaired into existence.
+ *  Tagline/description ride along when the row carries them (the
+ *  settings form's prefill); a row without them still proves
+ *  ownership — the settings fields just start from the public
+ *  stand DTO instead. */
 export function parseMineShops(payload: unknown): MineShopDto[] {
   if (!payload || typeof payload !== "object") return [];
   const rows = (payload as { shops?: unknown }).shops;
@@ -498,6 +504,8 @@ export function parseMineShops(payload: unknown): MineShopDto[] {
       id: r["id"],
       name: r["name"],
       handle: r["handle"],
+      tagline: typeof r["tagline"] === "string" ? r["tagline"] : null,
+      description: typeof r["description"] === "string" ? r["description"] : null,
       product_count: typeof r["product_count"] === "number" && Number.isFinite(r["product_count"]) ? r["product_count"] : 0,
     });
   }
@@ -662,4 +670,296 @@ export function applyProductSave(
  *  server confirmed the delete. */
 export function removeProduct(list: PublicProductDto[], id: string): PublicProductDto[] {
   return list.filter((x) => x.id !== id);
+}
+
+/* ─── Stand settings + sales — the rest of the owner's desk ───────
+   Stack-4 wave-2 #6, the follow-on #7 named: shop settings and the
+   sales ledger at the stand, on the SAME rails the website's My
+   Shop page runs — PATCH/POST/DELETE /api/shops[/:id] for settings
+   and GET /api/storefronts/:id/analytics for sales. No parallel
+   API, no new numbers: the analytics rail is owner-scoped on the
+   server (a non-owner's read is a 404), so the stand's numbers are
+   the page's numbers by construction. Custom domains stay on the
+   website — the stand points at the panel's standard transfer
+   footer for those, and never pretends otherwise. Everything here
+   renders ONLY behind the isOwnStand gate: guests and non-owners
+   keep the buyer's stand, byte for byte. */
+
+export const SHOP_NAME_MAX = 80;
+export const SHOP_TAGLINE_MAX = 140;
+export const SHOP_DESCRIPTION_MAX = 2000;
+
+/** The shop-description writer's price — the same 100 VB server
+ *  constant (SHOP_AI_CREDIT_COST) and registry entry the product
+ *  helpers ride; shown before every run. */
+export const SHOP_AI_SHOP_DESCRIPTION_COST_VB = 100;
+
+/** The settings form's state — the My Shop page's own editable
+ *  fields (name/tagline/description). The handle is the shop's
+ *  address: shown, never edited here — the rail has no rename. */
+export interface ShopSettingsFormState {
+  name: string;
+  tagline: string;
+  description: string;
+}
+
+export function emptyShopSettingsForm(): ShopSettingsFormState {
+  return { name: "", tagline: "", description: "" };
+}
+
+/** Prefill for the settings form — the page's own derivation: the
+ *  name verbatim, tagline/description with null read as empty. */
+export function shopSettingsFormFromShop(shop: { name: string; tagline: string | null; description: string | null }): ShopSettingsFormState {
+  return {
+    name: shop.name,
+    tagline: shop.tagline ?? "",
+    description: shop.description ?? "",
+  };
+}
+
+/** The settings save gates, mirroring the rail's own schema
+ *  (updateShopSchema) so a doomed save is refused in the form, in
+ *  the stand's plain words. Null = the form may ride. */
+export function shopSettingsProblem(form: ShopSettingsFormState): string | null {
+  if (!form.name.trim()) return "Give your shop a name first.";
+  if (form.name.trim().length > SHOP_NAME_MAX) return `The shop name tops out at ${SHOP_NAME_MAX} characters.`;
+  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return `The tagline tops out at ${SHOP_TAGLINE_MAX} characters.`;
+  if (form.description.trim().length > SHOP_DESCRIPTION_MAX) return `The description tops out at ${SHOP_DESCRIPTION_MAX} characters.`;
+  return null;
+}
+
+/** The settings save body — PATCH /api/shops/:id takes the page's
+ *  exact shape (trimmed name/tagline/description). Null when a
+ *  save gate fails. */
+export function buildShopSettingsPayload(
+  form: ShopSettingsFormState,
+): { name: string; tagline: string; description: string } | null {
+  if (shopSettingsProblem(form)) return null;
+  return {
+    name: form.name.trim(),
+    tagline: form.tagline.trim(),
+    description: form.description.trim(),
+  };
+}
+
+/** The shop row a settings save (or a create) answers with
+ *  ({ shop }), narrowed to the stand's shop DTOs — null when the
+ *  answer doesn't honestly carry one. The caller then reports
+ *  failure and keeps the state it had, rather than inventing the
+ *  row. */
+export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: PublicShopDto } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const s = (payload as { shop?: unknown }).shop;
+  if (!s || typeof s !== "object") return null;
+  const row = s as Record<string, unknown>;
+  if (typeof row["id"] !== "string" || typeof row["name"] !== "string" || typeof row["handle"] !== "string") return null;
+  const tagline = typeof row["tagline"] === "string" ? row["tagline"] : null;
+  const description = typeof row["description"] === "string" ? row["description"] : null;
+  return {
+    mine: {
+      id: row["id"],
+      name: row["name"],
+      handle: row["handle"],
+      tagline,
+      description,
+      product_count: typeof row["product_count"] === "number" && Number.isFinite(row["product_count"]) ? row["product_count"] : 0,
+    },
+    pub: { id: row["id"], name: row["name"], handle: row["handle"], tagline, description },
+  };
+}
+
+/* ── Create a shop at the stand ────────────────────────────────────
+   POST /api/shops is the page's create rail verbatim (Pro tier on
+   the server — a free account's refusal is the rail's honest
+   answer, surfaced as-is). The handle is the shop's future
+   address: lowercased letters, numbers and single dashes, exactly
+   the shape the server's normalizer accepts. */
+
+export const SHOP_HANDLE_MIN = 3;
+export const SHOP_HANDLE_MAX = 30;
+export const SHOP_HANDLE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export interface ShopCreateFormState {
+  name: string;
+  handle: string;
+  tagline: string;
+}
+
+export function emptyShopCreateForm(): ShopCreateFormState {
+  return { name: "", handle: "", tagline: "" };
+}
+
+/** The create gates, in the page's order (name, then the handle
+ *  it will live at), in the stand's plain words. Null = the form
+ *  may ride; the server still has the last word (taken handles,
+ *  tier). */
+export function shopCreateProblem(form: ShopCreateFormState): string | null {
+  if (!form.name.trim()) return "Give your shop a name first.";
+  if (form.name.trim().length > SHOP_NAME_MAX) return `The shop name tops out at ${SHOP_NAME_MAX} characters.`;
+  const handle = form.handle.trim().toLowerCase();
+  if (handle.length < SHOP_HANDLE_MIN || handle.length > SHOP_HANDLE_MAX || !SHOP_HANDLE_RE.test(handle)) {
+    return `The handle is ${SHOP_HANDLE_MIN}–${SHOP_HANDLE_MAX} characters — lowercase letters, numbers and single dashes — like gold-standard.`;
+  }
+  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return `The tagline tops out at ${SHOP_TAGLINE_MAX} characters.`;
+  return null;
+}
+
+/** The create body — POST /api/shops takes the page's exact shape
+ *  (trimmed name, the handle as typed, trimmed tagline). Null when
+ *  a create gate fails. */
+export function buildShopCreatePayload(
+  form: ShopCreateFormState,
+): { name: string; handle: string; tagline: string } | null {
+  if (shopCreateProblem(form)) return null;
+  return { name: form.name.trim(), handle: form.handle.trim(), tagline: form.tagline.trim() };
+}
+
+/** POST /api/shops/ai/shop-description — the page's exact body:
+ *  the (possibly edited) name/tagline, the niche line, and the
+ *  product names joined the page's way. */
+export function buildShopDescriptionPayload(input: {
+  shopName: string;
+  tagline: string;
+  niche: string;
+  productNames: string[];
+}): { shopName: string; tagline: string; niche: string; products: string } {
+  return {
+    shopName: input.shopName.trim(),
+    tagline: input.tagline.trim(),
+    niche: input.niche.trim(),
+    products: input.productNames.join(", "),
+  };
+}
+
+/* ── The sales view ────────────────────────────────────────────────
+   GET /api/storefronts/:id/analytics, parsed tolerantly into the
+   stand's shapes. A payload that doesn't honestly carry the
+   totals is not a sales view at all (parse returns null and the
+   stand says the ledger wouldn't open) — zeros are never invented
+   for a failed read. Pending checkouts stay visibly apart from
+   sales, exactly as the page keeps them: a pending order is not
+   a sale until the payment confirms. */
+
+export interface ShopSaleRow {
+  id: string;
+  product_name: string | null;
+  amount_cents: number;
+  seller_net_cents: number;
+  buyer_email: string | null;
+  created_at: string;
+  payment_status: string | null;
+  paid_at: string | null;
+}
+
+export interface ShopPendingSaleRow {
+  id: string;
+  product_name: string | null;
+  amount_cents: number;
+  seller_net_cents: number;
+  created_at: string;
+  payment_status: string | null;
+}
+
+export interface ShopAnalytics {
+  totals: {
+    views: number;
+    sales: number;
+    gross_cents: number;
+    platform_fee_cents: number;
+    seller_net_cents: number;
+    pending_orders: number;
+  };
+  dailyViews: Array<{ day: string; views: number }>;
+  sales: ShopSaleRow[];
+  pendingSales: ShopPendingSaleRow[];
+  platformFeePct: number;
+}
+
+function centsOrZero(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+function countOrZero(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+function strOrNull(v: unknown): string | null {
+  return typeof v === "string" && v ? v : null;
+}
+
+export function parseShopAnalytics(payload: unknown): ShopAnalytics | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const t = p["totals"];
+  if (!t || typeof t !== "object") return null;
+  const totals = t as Record<string, unknown>;
+  if (typeof totals["views"] !== "number" || typeof totals["sales"] !== "number") return null;
+  if (typeof totals["gross_cents"] !== "number" || typeof totals["seller_net_cents"] !== "number") return null;
+
+  const parseSale = (r: unknown): ShopSaleRow | null => {
+    if (!r || typeof r !== "object") return null;
+    const row = r as Record<string, unknown>;
+    if (typeof row["id"] !== "string") return null;
+    return {
+      id: row["id"],
+      product_name: strOrNull(row["product_name"]),
+      amount_cents: centsOrZero(row["amount_cents"]),
+      seller_net_cents: centsOrZero(row["seller_net_cents"]),
+      buyer_email: strOrNull(row["buyer_email"]),
+      created_at: typeof row["created_at"] === "string" ? row["created_at"] : "",
+      payment_status: strOrNull(row["payment_status"]),
+      paid_at: strOrNull(row["paid_at"]),
+    };
+  };
+  const parsePending = (r: unknown): ShopPendingSaleRow | null => {
+    if (!r || typeof r !== "object") return null;
+    const row = r as Record<string, unknown>;
+    if (typeof row["id"] !== "string") return null;
+    return {
+      id: row["id"],
+      product_name: strOrNull(row["product_name"]),
+      amount_cents: centsOrZero(row["amount_cents"]),
+      seller_net_cents: centsOrZero(row["seller_net_cents"]),
+      created_at: typeof row["created_at"] === "string" ? row["created_at"] : "",
+      payment_status: strOrNull(row["payment_status"]),
+    };
+  };
+  const rows = <T,>(v: unknown, parse: (r: unknown) => T | null): T[] =>
+    Array.isArray(v) ? v.map(parse).filter((x): x is T => x !== null) : [];
+
+  return {
+    totals: {
+      views: totals["views"],
+      sales: totals["sales"],
+      gross_cents: totals["gross_cents"],
+      platform_fee_cents: centsOrZero(totals["platform_fee_cents"]),
+      seller_net_cents: totals["seller_net_cents"],
+      pending_orders: countOrZero(totals["pending_orders"]),
+    },
+    dailyViews: rows(p["dailyViews"], (r) => {
+      if (!r || typeof r !== "object") return null;
+      const row = r as Record<string, unknown>;
+      const day = row["day"];
+      const dayStr = typeof day === "string" ? day : day instanceof Date ? day.toISOString().slice(0, 10) : null;
+      if (!dayStr || typeof row["views"] !== "number") return null;
+      return { day: dayStr, views: row["views"] };
+    }),
+    sales: rows(p["sales"], parseSale),
+    pendingSales: rows(p["pendingSales"], parsePending),
+    platformFeePct: typeof p["platformFeePct"] === "number" && Number.isFinite(p["platformFeePct"]) ? p["platformFeePct"] : 5,
+  };
+}
+
+/** What the sales view shows of the ledger: the page's own cap —
+ *  the ten most recent sales, the ten most recent pending. */
+export const SHOP_SALES_SHOWN = 10;
+export function recentShopSales(a: ShopAnalytics): ShopSaleRow[] {
+  return a.sales.slice(0, SHOP_SALES_SHOWN);
+}
+export function recentShopPending(a: ShopAnalytics): ShopPendingSaleRow[] {
+  return a.pendingSales.slice(0, SHOP_SALES_SHOWN);
+}
+
+/** The tallest day in the views strip — the bar scale. Never
+ *  below 1, so an all-zero month still renders honest flat bars. */
+export function maxDailyViews(a: ShopAnalytics): number {
+  return Math.max(1, ...a.dailyViews.map((d) => d.views));
 }
