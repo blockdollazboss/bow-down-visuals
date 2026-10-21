@@ -5,6 +5,12 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  loadCreatorSeed,
+  buildSeedContext,
+  seedSummary,
+  BUILDER_FACT_RULES,
+} from "../../lib/website-builder-seed";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: the customer describes a site, AI builds a complete static
@@ -14,7 +20,14 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    bowdownvisuals.com — the handoff is the product.
 
    Scoped to creator-niche templates: artist sites, press kits,
-   link-in-bio-plus, and tour pages. */
+   link-in-bio-plus, and tour pages.
+
+   Build-from-the-creator: generation is seeded from the member's REAL
+   material — brand kit, song/video catalog, store products, upcoming
+   shows, profile facts (lib/website-builder-seed) — and the prompt
+   FORBIDS inventing facts. Anything the creator hasn't provided becomes
+   an honestly labeled placeholder in the draft, never a fabricated date,
+   price, release, or quote on their public site. */
 
 const router = Router();
 
@@ -74,11 +87,11 @@ CRITICAL RULES:
 - All CSS goes in styles.css. All JS goes in script.js. HTML files link to them relatively.
 - Mobile-responsive: use a viewport meta tag and responsive CSS (flexbox/grid + media queries).
 - No external dependencies except Google Fonts (via link tag). No frameworks, no build step.
-- No placeholder lorem ipsum — write REAL copy based on the brief. If details are missing, invent plausible creator-specific content (show dates, song titles, bio).
-- Images: use CSS gradients and emoji/SVG decorations for visuals. Reference "images/hero.jpg" etc. as placeholders the owner will replace — note this in the README.
+${BUILDER_FACT_RULES}
+- Images: prefer the real image URLs from the creator's material (cover art, logo, photos, thumbnails). For imagery they have not provided, use CSS gradients and emoji/SVG decorations, or an "images/…" placeholder path with placeholder-labeled alt text — listed in the README's "Placeholders to replace" section.
 - Contact forms: post to a placeholder endpoint "#contact-form" with a comment explaining to plug in Formspree/Getform free tier. Never invent a backend.
 - Footer on every page: "© <year> <name>. Built with Bow Down Visuals AI Website Builder."
-- The README.md must include: what each file is, how to deploy to Netlify Drop / Vercel / Cloudflare Pages / cPanel (step by step for non-technical owners), how to wire the contact form, where to paste an analytics snippet, and a plain-language "what you own / what we don't do" section.
+- The README.md must include: what each file is, how to deploy to Netlify Drop / Vercel / Cloudflare Pages / cPanel (step by step for non-technical owners), how to wire the contact form, where to paste an analytics snippet, a plain-language "what you own / what we don't do" section, and a "Placeholders to replace" section listing every labeled placeholder used in the site.
 
 JSON shape (keys are file paths, values are full file contents as strings):
 {
@@ -93,7 +106,7 @@ For press-kit and link-in-bio templates, index.html alone may suffice plus about
 
 Design bar: dark, premium, gold-accented aesthetic suitable for music creators. Generous whitespace, big typography, smooth hover states. This must look like a $2,000 custom site, not a template.`;
 
-function buildUserPrompt(input: GenerateInput): string {
+function buildUserPrompt(input: GenerateInput, seedContext: string): string {
   const { template, businessName, description, style, colorScheme } = input;
   return `Template: ${TEMPLATE_LABELS[template]}
 ${TEMPLATE_DESCRIPTIONS[template]}
@@ -105,7 +118,9 @@ ${description}
 ${style ? `\nStyle preferences: ${style}` : ""}
 ${colorScheme ? `\nColor scheme: ${colorScheme}` : ""}
 
-Generate the complete static site now as JSON. Remember: ONLY valid JSON, no other text.`;
+${seedContext}
+
+Generate the complete static site now as JSON. Build it from the creator's real material above: their catalog, products, shows, brand, and links — not invented substitutes. Remember: ONLY valid JSON, no other text.`;
 }
 
 router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
@@ -123,12 +138,17 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
     });
     charged = true;
 
+    /* Seed from the creator's real material (brand kit, catalog, store,
+       profile). Never throws — a failed seed degrades to the
+       honest-placeholder path rather than failing a paid build. */
+    const seed = await loadCreatorSeed(req.userId!);
+
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
       model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildUserPrompt(input) },
+        { role: "user", content: buildUserPrompt(input, buildSeedContext(seed)) },
       ],
       response_format: { type: "json_object" },
       max_tokens: 16000,
@@ -154,6 +174,7 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       businessName: input.businessName,
       creditsCharged: WEBSITE_BUILD_CREDITS,
       fileCount: Object.keys(files).length,
+      seededFrom: seedSummary(seed),
       ownership:
         "You own these files outright. Host them on your own domain — nothing is published or hosted on bowdownvisuals.com.",
     });
@@ -213,6 +234,7 @@ router.post("/edit", requireAuth, publicApiLimiter, async (req, res) => {
             `Template: ${TEMPLATE_LABELS[template]}\nSite owner: ${businessName}\n\n` +
             `Here is the current site (JSON of file path -> contents):\n${JSON.stringify(currentFiles).slice(0, 60000)}\n\n` +
             `Apply this edit: "${editRequest}"\n\n` +
+            `Do not introduce any new facts (dates, prices, titles, quotes, stats) that are not already in the current site or this edit request — the FACT RULES still apply. ` +
             `Return the FULL updated site as JSON (same shape: file path -> complete file contents). ` +
             `Only valid JSON, no other text.`,
         },
