@@ -16,11 +16,13 @@ const SERVER_WHITELIST: Record<string, string[]> = {
   tracks: ["id", "title", "source", "durationSec", "fileUrl", "createdAt"],
   releases: ["id", "title", "artistName", "status", "fileUrl", "artworkUrl", "createdAt"],
   videos: ["id", "title", "status", "fileUrl", "thumbnailUrl", "createdAt"],
+  projects: ["id", "name", "type", "concept", "templateKey", "attribution", "artistVaultId", "createdAt", "updatedAt"],
+  store: ["id", "title", "kind", "priceCents", "isActive", "mediaUrls", "createdAt"],
 };
 
 describe("catalog export builder panel options", () => {
-  it("offers exactly the three server kinds", () => {
-    expect(CATALOG_EXPORT_KIND_OPTIONS.map((o) => o.kind)).toEqual(["tracks", "releases", "videos"]);
+  it("offers exactly the server kinds", () => {
+    expect(CATALOG_EXPORT_KIND_OPTIONS.map((o) => o.kind)).toEqual(["tracks", "releases", "videos", "projects", "store"]);
   });
 
   it("field options mirror the server whitelist per kind, in order", () => {

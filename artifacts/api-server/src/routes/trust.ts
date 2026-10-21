@@ -33,7 +33,9 @@ import { PdfBuilder, GOLD, GREY, BLACK, WHITE } from "../lib/pdf";
    #3 Full-catalog portability export (manifest + per-file links —
       chosen over one giant zip honestly: catalogs hold large video
       originals, so the package is a manifest JSON whose entries carry
-      the file URLs plus CSV/JSON metadata; see format field).
+      the file URLs plus metadata for the whole catalog: songs, videos,
+      releases, projects + drafts, store products, and the audience —
+      email list, followers, fan-club members; see format field).
    #4 Unified mod console + chat automod (fixed rule menu, every
       action logged with its reason; flagged chatters see the reason).
    #5 Earnings documents (annual statement PDF from recorded data).
@@ -318,32 +320,67 @@ router.delete("/legacy/contact", requireAuth, async (req, res) => {
   } catch (err) { logger.error({ err }, "[trust] legacy contact remove failed"); res.status(500).json({ error: "Could not remove your legacy contact." }); }
 });
 
-/* ═══ #3 Full-catalog portability export ══════════════════════════════ */
+/* ═══ #3 Full-catalog portability export ══════════════════════════════
+   The whole-catalog package: ONE owner-scoped manifest carrying every
+   section of a creator's catalog — songs, videos, releases, projects +
+   project drafts, store products, and the audience in its three shapes
+   (email list, followers, fan-club members). Media binaries never ride
+   the package: each entry carries the file's link plus its metadata
+   (the honest format choice from Stack 3), and projects carry their
+   stored asset references. Every section is capped — a section that
+   hits its cap SAYS so (truncated) instead of silently dropping the
+   tail, and a section whose source fails reads status "error" +
+   partial, never a fake empty. Audience fields are only what the
+   product already shows the creator about their own audience:
+   subscribers of the creator's own email lists (who have not
+   unsubscribed), followers by their PUBLIC profile name/slug, and
+   fan-club members by the label, tier and status the membership
+   dashboard shows. Payment-rail references (checkout session ids,
+   payout ids) and other members' account ids never ride. */
 
-interface ManifestSource { status: "ok" | "error"; count: number | null; items: unknown[] }
-async function manifestSection(fn: () => Promise<unknown[]>): Promise<ManifestSource> {
-  try { const items = await fn(); return { status: "ok", count: items.length, items }; }
-  catch (err) { logger.error({ err }, "[trust] catalog export section failed"); return { status: "error", count: null, items: [] }; }
+export const MANIFEST_CATALOG_CAP = 2000;
+export const MANIFEST_AUDIENCE_CAP = 10000;
+
+interface ManifestSource { status: "ok" | "error"; count: number | null; truncated: boolean; items: unknown[] }
+
+/** Pure cap application (exported for tests): a section longer than
+ *  its cap keeps the newest `cap` entries and says it was truncated. */
+export function capManifestItems<T>(items: T[], cap: number): { items: T[]; truncated: boolean } {
+  return items.length > cap ? { items: items.slice(0, cap), truncated: true } : { items, truncated: false };
+}
+
+async function manifestSection(cap: number, fn: () => Promise<unknown[]>): Promise<ManifestSource> {
+  try {
+    const { items, truncated } = capManifestItems(await fn(), cap);
+    return { status: "ok", count: items.length, truncated, items };
+  } catch (err) { logger.error({ err }, "[trust] catalog export section failed"); return { status: "error", count: null, truncated: false, items: [] }; }
 }
 
 export async function buildCatalogManifest(userId: string) {
   const rows = async (q: ReturnType<typeof sql>) => ((await db.execute(q)).rows as any[]);
-  const [songs, videos, releases, storeProducts, audience] = await Promise.all([
-    manifestSection(async () => (await rows(sql`SELECT id, title, audio_url AS "fileUrl", source, duration_sec AS "durationSec", created_at AS "createdAt" FROM songs WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 2000`))
+  const catLimit = sql.raw(String(MANIFEST_CATALOG_CAP + 1));
+  const audLimit = sql.raw(String(MANIFEST_AUDIENCE_CAP + 1));
+  const [songs, videos, releases, projects, projectDrafts, storeProducts, audience, followers, members] = await Promise.all([
+    manifestSection(MANIFEST_CATALOG_CAP, async () => (await rows(sql`SELECT id, title, audio_url AS "fileUrl", source, duration_sec AS "durationSec", created_at AS "createdAt" FROM songs WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${catLimit}`))
       .map((r) => ({ ...r, format: "original audio file (link) + JSON metadata" }))),
-    manifestSection(async () => (await rows(sql`SELECT id, title, video_url AS "fileUrl", thumbnail_url AS "thumbnailUrl", status, created_at AS "createdAt" FROM generated_clips WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 2000`))
+    manifestSection(MANIFEST_CATALOG_CAP, async () => (await rows(sql`SELECT id, title, video_url AS "fileUrl", thumbnail_url AS "thumbnailUrl", status, created_at AS "createdAt" FROM generated_clips WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${catLimit}`))
       .map((r) => ({ ...r, format: "original video file (link) + JSON metadata" }))),
-    manifestSection(async () => rows(sql`SELECT id, title, artist_name AS "artistName", status, audio_url AS "fileUrl", artwork_url AS "artworkUrl", platforms, metadata, created_at AS "createdAt" FROM distribution_releases WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 2000`)),
-    manifestSection(async () => rows(sql`SELECT p.id, p.title, p.kind, p.price_cents AS "priceCents", p.is_active AS "isActive", p.media_urls AS "mediaUrls" FROM store_products p JOIN creator_profiles cp ON cp.id = p.profile_id WHERE cp.user_id = ${userId} LIMIT 2000`)),
-    manifestSection(async () => rows(sql`SELECT s.email, s.name, s.source, s.subscribed_at AS "subscribedAt" FROM email_subscribers s JOIN email_lists l ON l.id = s.list_id WHERE l.user_id = ${userId} AND s.unsubscribed_at IS NULL LIMIT 10000`)),
+    manifestSection(MANIFEST_CATALOG_CAP, async () => rows(sql`SELECT id, title, artist_name AS "artistName", status, audio_url AS "fileUrl", artwork_url AS "artworkUrl", platforms, metadata, created_at AS "createdAt" FROM distribution_releases WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${catLimit}`)),
+    manifestSection(MANIFEST_CATALOG_CAP, async () => (await rows(sql`SELECT id, name, type, concept, template_key AS "templateKey", attribution, artist_vault_id AS "artistVaultId", assets, created_at AS "createdAt", updated_at AS "updatedAt" FROM hub_projects WHERE user_id = ${userId} ORDER BY updated_at DESC LIMIT ${catLimit}`))
+      .map((r) => ({ ...r, assetCount: Array.isArray(r.assets) ? r.assets.length : 0 }))),
+    manifestSection(MANIFEST_CATALOG_CAP, async () => rows(sql`SELECT id, workflow_type AS "workflowType", title, draft_data AS "draftData", updated_at AS "updatedAt" FROM project_drafts WHERE user_id = ${userId} ORDER BY updated_at DESC LIMIT ${catLimit}`)),
+    manifestSection(MANIFEST_CATALOG_CAP, async () => rows(sql`SELECT p.id, p.title, p.kind, p.price_cents AS "priceCents", p.is_active AS "isActive", p.media_urls AS "mediaUrls" FROM store_products p JOIN creator_profiles cp ON cp.id = p.profile_id WHERE cp.user_id = ${userId} LIMIT ${catLimit}`)),
+    manifestSection(MANIFEST_AUDIENCE_CAP, async () => rows(sql`SELECT s.email, s.name, s.source, s.subscribed_at AS "subscribedAt" FROM email_subscribers s JOIN email_lists l ON l.id = s.list_id WHERE l.user_id = ${userId} AND s.unsubscribed_at IS NULL LIMIT ${audLimit}`)),
+    manifestSection(MANIFEST_AUDIENCE_CAP, async () => rows(sql`SELECT cp.display_name AS "name", cp.slug AS "slug", f.created_at AS "followedAt" FROM follows f JOIN creator_profiles mine ON mine.id = f.profile_id LEFT JOIN creator_profiles cp ON cp.user_id = f.follower_user_id WHERE mine.user_id = ${userId} ORDER BY f.created_at DESC LIMIT ${audLimit}`)),
+    manifestSection(MANIFEST_AUDIENCE_CAP, async () => rows(sql`SELECT m.fan_label AS "fanLabel", t.name AS "tierName", m.status, m.billing_period AS "billingPeriod", m.price_cents AS "priceCents", m.is_gift AS "isGift", m.joined_at AS "joinedAt", m.current_period_end AS "currentPeriodEnd" FROM fan_members m LEFT JOIN fan_tiers t ON t.id = m.tier_id WHERE m.user_id = ${userId} ORDER BY m.joined_at DESC LIMIT ${audLimit}`)),
   ]);
-  const partial = [songs, videos, releases, storeProducts, audience].some((s) => s.status === "error");
+  const partial = [songs, videos, releases, projects, projectDrafts, storeProducts, audience, followers, members].some((s) => s.status === "error");
   return {
     format: "manifest+links" as const,
-    formatNote: "One manifest, not one giant zip: video originals are large, so each entry carries the file's download link plus its metadata in open JSON. For a spreadsheet instead, the export builder (Settings → Your whole catalog) downloads one catalog kind at a time as CSV with the fields you pick. Nothing is re-encoded.",
+    formatNote: "One manifest, not one giant zip: video originals are large, so each entry carries the file's download link plus its metadata in open JSON — media files themselves do not ride the package. Projects carry their stored asset references. Audience rows carry only what the product already shows you about your own audience; payment references and other members' account ids are never included. Fan-club member rows carry the stored status plus the current period end — the membership dashboard derives states like expired from that pair. A section marked truncated hit its cap and carries your newest entries. For a spreadsheet instead, the export builder (Settings → Your whole catalog) downloads one catalog kind at a time as CSV with the fields you pick. Nothing is re-encoded.",
     exportedAt: new Date().toISOString(),
-    includes: ["songs + audio files", "videos", "release metadata", "store products", "audience list (your email list subscribers who have not unsubscribed)"],
-    partial, songs, videos, releases, storeProducts, audience,
+    includes: ["songs + audio files", "videos", "release metadata", "projects + project drafts", "store products", "audience list (your email list subscribers who have not unsubscribed)", "followers (public profile names)", "fan-club members (labels, tiers and statuses from your membership dashboard)"],
+    partial, songs, videos, releases, projects, projectDrafts, storeProducts, audience, followers, members,
   };
 }
 
@@ -378,28 +415,54 @@ router.get("/catalog-export/:id", requireAuth, async (req, res) => {
 
 /* ═══ #3b Catalog export BUILDER — one kind, your fields, a file ═══════
    The package above always carries everything. The builder is the
-   narrower tool: one catalog kind (tracks / releases / videos), only the
-   fields the creator picks, downloaded as CSV or JSON. Columns come ONLY
-   from the whitelist below — the same columns buildCatalogManifest
-   reads — so a field name off the wire can never become SQL. The query
-   is born scoped to the caller (WHERE user_id = caller), never filtered
-   after the fact. Same 2,000-row cap as the manifest; when the cap is
-   hit the response SAYS so (X-Export-Truncated + the JSON body's
-   `truncated`) instead of quietly dropping the tail. */
+   narrower tool: one catalog kind (tracks / releases / videos /
+   projects / store), only the fields the creator picks, downloaded as
+   CSV or JSON. Columns come ONLY from the whitelist below — the same
+   columns buildCatalogManifest reads — so a field name off the wire
+   can never become SQL. The query is born scoped to the caller (WHERE
+   the kind's owner column = caller; store scopes through the caller's
+   creator profile, like the manifest), never filtered after the fact.
+   Same 2,000-row cap as the manifest; when the cap is hit the response
+   SAYS so (X-Export-Truncated + the JSON body's `truncated`) instead
+   of quietly dropping the tail. Audience is deliberately NOT a builder
+   kind — it rides the package above, never a standalone CSV. */
 
-interface CatalogExportKindDef { table: string; fields: Record<string, string> }
+interface CatalogExportKindDef {
+  table: string;
+  /** Whitelist: public field name → SQL column fragment (server
+      constant, quoted; table-qualified where the kind joins). */
+  fields: Record<string, string>;
+  /** FROM clause when the kind is not a plain owner table. */
+  from?: string;
+  /** Column the caller's id is matched against. Default "user_id". */
+  ownerColumn?: string;
+  /** ORDER BY fragment (server constant). Default created_at DESC. */
+  orderBy?: string;
+}
 export const CATALOG_EXPORT_KINDS: Record<string, CatalogExportKindDef> = {
   tracks: {
     table: "songs",
-    fields: { id: "id", title: "title", source: "source", durationSec: "duration_sec", fileUrl: "audio_url", createdAt: "created_at" },
+    fields: { id: `"id"`, title: `"title"`, source: `"source"`, durationSec: `"duration_sec"`, fileUrl: `"audio_url"`, createdAt: `"created_at"` },
   },
   releases: {
     table: "distribution_releases",
-    fields: { id: "id", title: "title", artistName: "artist_name", status: "status", fileUrl: "audio_url", artworkUrl: "artwork_url", createdAt: "created_at" },
+    fields: { id: `"id"`, title: `"title"`, artistName: `"artist_name"`, status: `"status"`, fileUrl: `"audio_url"`, artworkUrl: `"artwork_url"`, createdAt: `"created_at"` },
   },
   videos: {
     table: "generated_clips",
-    fields: { id: "id", title: "title", status: "status", fileUrl: "video_url", thumbnailUrl: "thumbnail_url", createdAt: "created_at" },
+    fields: { id: `"id"`, title: `"title"`, status: `"status"`, fileUrl: `"video_url"`, thumbnailUrl: `"thumbnail_url"`, createdAt: `"created_at"` },
+  },
+  projects: {
+    table: "hub_projects",
+    fields: { id: `"id"`, name: `"name"`, type: `"type"`, concept: `"concept"`, templateKey: `"template_key"`, attribution: `"attribution"`, artistVaultId: `"artist_vault_id"`, createdAt: `"created_at"`, updatedAt: `"updated_at"` },
+    orderBy: `"updated_at" DESC`,
+  },
+  store: {
+    table: "store_products",
+    from: `store_products p JOIN creator_profiles cp ON cp.id = p.profile_id`,
+    ownerColumn: "cp.user_id",
+    orderBy: `p."created_at" DESC`,
+    fields: { id: `p."id"`, title: `p."title"`, kind: `p."kind"`, priceCents: `p."price_cents"`, isActive: `p."is_active"`, mediaUrls: `p."media_urls"`, createdAt: `p."created_at"` },
   },
 };
 export const CATALOG_EXPORT_ROW_CAP = 2000;
@@ -408,8 +471,8 @@ const exportCell = (v: unknown): unknown => (v instanceof Date ? v.toISOString()
 
 export async function buildCatalogExport(userId: string, kind: string, fields: string[]) {
   const def = CATALOG_EXPORT_KINDS[kind]!;
-  const cols = sql.join(fields.map((f) => sql.raw(`"${def.fields[f]}" AS "${f}"`)), sql`, `);
-  const rows = ((await db.execute(sql`SELECT ${cols} FROM ${sql.raw(def.table)} WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${sql.raw(String(CATALOG_EXPORT_ROW_CAP + 1))}`)).rows as Record<string, unknown>[])
+  const cols = sql.join(fields.map((f) => sql.raw(`${def.fields[f]} AS "${f}"`)), sql`, `);
+  const rows = ((await db.execute(sql`SELECT ${cols} FROM ${sql.raw(def.from ?? def.table)} WHERE ${sql.raw(def.ownerColumn ?? "user_id")} = ${userId} ORDER BY ${sql.raw(def.orderBy ?? `"created_at" DESC`)} LIMIT ${sql.raw(String(CATALOG_EXPORT_ROW_CAP + 1))}`)).rows as Record<string, unknown>[])
     .map((r) => Object.fromEntries(fields.map((f) => [f, exportCell(r[f])])));
   const truncated = rows.length > CATALOG_EXPORT_ROW_CAP;
   return { rows: truncated ? rows.slice(0, CATALOG_EXPORT_ROW_CAP) : rows, truncated };
@@ -422,14 +485,14 @@ function csvCell(v: unknown): string {
 }
 
 const catalogBuildSchema = z.object({
-  kind: z.enum(["tracks", "releases", "videos"]),
+  kind: z.enum(["tracks", "releases", "videos", "projects", "store"]),
   fields: z.array(z.string().min(1)).min(1).max(16).optional(),
   format: z.enum(["csv", "json"]).default("csv"),
 });
 
 router.post("/catalog-export/build", requireAuth, async (req, res) => {
   const parsed = catalogBuildSchema.safeParse(req.body ?? {});
-  if (!parsed.success) { res.status(400).json({ error: "Choose a catalog kind (tracks, releases or videos), at least one field, and a format (csv or json)." }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Choose a catalog kind (tracks, releases, videos, projects or store), at least one field, and a format (csv or json)." }); return; }
   const { kind, format } = parsed.data;
   const def = CATALOG_EXPORT_KINDS[kind]!;
   const allowed = Object.keys(def.fields);
