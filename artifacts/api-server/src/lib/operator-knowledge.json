@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "9010ef44370b970ac906b5e75f954dd7e937cca0",
+  "baseCommit": "698799b59c9c46d5f586d75a18cd69ec33b3beb4",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,16 +9,16 @@
   },
   "generatedAt": "2026-10-21",
   "counts": {
-    "routesInApp": 224,
-    "pageFiles": 177,
-    "features": 219,
+    "routesInApp": 225,
+    "pageFiles": 178,
+    "features": 220,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
     "pricedActions": 201,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 210,
+    "withDescriptions": 211,
     "withoutDescriptions": 9
   },
   "packs": [
@@ -4793,6 +4793,35 @@
       "description": "Swipeable Instagram, TikTok & LinkedIn carousels — designed in seconds.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"carouselMaker.pageDescription\" (page's own string)",
       "nextSteps": []
+    },
+    {
+      "id": "catalog-import",
+      "name": "Catalog Import",
+      "nameSource": "App.tsx component name",
+      "path": "/catalog-import",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/catalog-import.tsx",
+      "component": "CatalogImport",
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/catalog-import",
+        "/api/catalog-import/approve",
+        "/api/catalog-import/fetch",
+        "/api/catalog-import/items/:param/approve",
+        "/api/catalog-import/items/:param/dismiss",
+        "/api/catalog-import/items/:param/fetch",
+        "/api/catalog-import/items/:param/rebuild",
+        "/api/catalog-import/scan",
+        "/api/catalog-import/uploads",
+        "/api/credits/claim-trial",
+        "/api/r2/presign-upload"
+      ],
+      "prices": [],
+      "nextSteps": [],
+      "description": "Bring your existing videos and songs home to Bow Down Visuals: pick from your connected Instagram and Facebook catalogs or bulk-upload your own files, let Thy Cheat Code rebuild the titles, captions and series grouping re-uploading would lose, and approve each piece before it goes live.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/catalog-import.tsx usePageTitle meta description"
     },
     {
       "id": "challenge--slug",

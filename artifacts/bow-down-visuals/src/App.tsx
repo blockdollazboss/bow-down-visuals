@@ -135,6 +135,7 @@ const UnlockGate = lazyWithRetry(() => import("@/pages/unlock"));
 const SplitsAgreement = lazyWithRetry(() => import("@/pages/splits-agreement"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const MoveHome = lazyWithRetry(() => import("@/pages/move-home"));
+const CatalogImport = lazyWithRetry(() => import("@/pages/catalog-import"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const AudioStudio = lazyWithRetry(() => import("@/pages/audio-studio"));
@@ -729,6 +730,7 @@ function AppShell() {
                 <Route path="/hooks"><HookStudio /></Route>
                 <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
                 <Route path="/move-home"><ProtectedRoute><MoveHome /></ProtectedRoute></Route>
+                <Route path="/catalog-import"><ProtectedRoute><CatalogImport /></ProtectedRoute></Route>
                 <Route path="/analytics-hub"><AnalyticsHub /></Route>
                 <Route path="/referrals"><Referrals /></Route>
                 <Route path="/press-kit"><PressKit /></Route>
