@@ -18,6 +18,15 @@
  * in ja/ko — the headline composes prefix + count + word + tail, and in
  * those languages the count leads, so the prefix slot is legitimately
  * blank (the words live in headlineCreatorsWord/headlineTail).
+ *
+ * Value-level follow-up (Stack-20 playlistPitch translation pass,
+ * Oct 21 2026): key presence alone had masked a second gap — in
+ * ar/de/es/fr most playlistPitch VALUES were byte-identical English
+ * (73/78/73/76 of 120). Those are now really translated, and the last
+ * describe block below pins it: a playlistPitch value identical to en
+ * fails the suite unless the key sits on that locale's explicit
+ * legit-identical allowlist (loanwords, identically-spelled words,
+ * universal abbreviations — each entry justified in the comment).
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -144,6 +153,76 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
     for (const locale of ["hi", "it", "ja", "ko", "pt"] as const) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("playlistPitch.")).length;
       expect(count, `${locale} playlistPitch count`).toBe(120);
+    }
+  });
+});
+
+/* Legit-identical playlistPitch values per locale — keys whose correct
+   value in that language IS the en string, so the residue check below
+   must not flag them. Everything not listed here has to differ from en.
+   - copyDmLabel "DM": the universal abbreviation for a direct message;
+     it is also the ONLY en-identical value in hi/ja/ko.
+   - de: "Genre" (packetGenre/statGenre) and "Links" (packetLinks) are
+     spelled identically in German; "Artwork" (missingArtwork) is the
+     German music-industry term this catalog keeps elsewhere; "Playlists"
+     (tabPlaylists) is standard German (the catalog's own prose uses
+     "Playlist-Name"); "Tracker" (tabTracker/tabTrackerCount) is an
+     established anglicism in German app UI (the catalog also keeps
+     Follower/Plays/Smartlink untranslated).
+   - fr: "Description" (packetDescription) and "Genre" (packetGenre/
+     statGenre) are spelled identically in French; "Playlists"
+     (tabPlaylists) is standard French app usage (the catalog's own
+     prose uses "la playlist").
+   - it: "email" (copyEmailLabel) is the standard Italian word;
+     "follow-up" (copyFollowUpLabel), "Tracker" (tabTracker/
+     tabTrackerCount) and the "Playlist Pitcher" product badge
+     (heroBadge) are established loanwords/kept-English in Italian.
+   - pt: "follow-up" (copyFollowUpLabel), "pitches" (pitchesCount),
+     "Links" (packetLinks), "Playlists" (tabPlaylists) are established
+     loanwords in pt-BR music/business UI; the heroBadge product badge
+     is kept in English. */
+const RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: ["copyDmLabel"],
+  de: [
+    "copyDmLabel",
+    "missingArtwork",
+    "packetGenre",
+    "statGenre",
+    "packetLinks",
+    "tabPlaylists",
+    "tabTracker",
+    "tabTrackerCount",
+  ],
+  es: ["copyDmLabel"],
+  fr: ["copyDmLabel", "packetDescription", "packetGenre", "statGenre", "tabPlaylists"],
+  hi: ["copyDmLabel"],
+  it: ["copyDmLabel", "copyEmailLabel", "copyFollowUpLabel", "heroBadge", "tabTracker", "tabTrackerCount"],
+  ja: ["copyDmLabel"],
+  ko: ["copyDmLabel"],
+  pt: ["copyDmLabel", "copyFollowUpLabel", "heroBadge", "packetLinks", "pitchesCount", "tabPlaylists"],
+};
+
+describe("playlistPitch — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const PP_KEYS = Object.keys(EN).filter((k) => k.startsWith("playlistPitch."));
+
+  it.each(NON_EN)("%s playlistPitch values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `playlistPitch.${k}`));
+    const residue = PP_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated playlistPitch values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the residue allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `playlistPitch.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
     }
   });
 });
