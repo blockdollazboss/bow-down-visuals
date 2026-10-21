@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Home, Loader2, CheckCircle2, CircleDashed, Sparkles, Store, Newspaper,
-  Mail, Megaphone, UserRound, ArrowRight, Ban, RotateCcw, PartyPopper,
+  Mail, Megaphone, UserRound, ArrowRight, Ban, RotateCcw, PartyPopper, Library,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -252,6 +252,19 @@ export default function MoveHome() {
           {data.context.trackCount} tracks · {data.context.videoCount} videos already home
         </span>
       </div>
+
+      {/* ── Sibling door: the back-catalog migration assistant ── */}
+      <Link href="/catalog-import" className={`mt-5 flex items-start gap-3 p-5 ${card} transition-colors hover:border-primary/50`}>
+        <Library className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <span className="text-sm">
+          <span className={`font-black ${head}`}>Your body of work is still on the socials?</span>
+          <span className={`mt-1 block ${sub}`}>
+            Bring your catalog home — pick from your connected accounts or bulk-upload your files, and
+            Thy Cheat Code rebuilds the titles, captions and chapters re-uploading would cost you.{" "}
+            <span className="font-semibold text-primary">Open the catalog move →</span>
+          </span>
+        </span>
+      </Link>
 
       {data.completedAt && (
         <div className={`mt-6 flex items-start gap-3 p-5 ${card}`}>
