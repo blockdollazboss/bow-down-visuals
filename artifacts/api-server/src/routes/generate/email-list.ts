@@ -271,7 +271,10 @@ router.patch("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req,
     .partial()
     .safeParse(req.body ?? {});
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid list update." });
+    res.status(400).json({
+      error: "Invalid list update.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
   const [updated] = await db

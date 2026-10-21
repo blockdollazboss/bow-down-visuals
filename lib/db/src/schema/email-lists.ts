@@ -33,13 +33,25 @@ export const insertEmailListSchema = createInsertSchema(emailListsTable)
       .min(3, "Handle must be at least 3 characters.")
       .max(40, "Handle must be 40 characters or fewer.")
       .regex(/^[a-z0-9-]+$/, "Handle may only contain lowercase letters, numbers, and hyphens."),
-    description: z.string().max(500).optional(),
+    /* 2,000 chars: the description IS the join page's offer copy ("What
+       do subscribers get?") — a real offer (headline + pitch + the
+       4-bullet pack/founding/drop block, with emoji) runs 650–1,500
+       chars. The old 500 cap rejected exactly that copy with a bare
+       "Invalid list." — proven against the schema with the house
+       list's real offer text. 2,000 still stops paste-bomb abuse.
+       Name/handle stay tight: punctuation and emoji are legitimate in
+       a display name (em dashes, apostrophes) and always were allowed
+       — length is the only name rule. */
+    description: z.string().max(2000).optional(),
     welcomeSubject: z.string().max(200).optional(),
-    welcomeBody: z.string().max(5000).optional(),
+    /* 20,000: a full welcome email (subject + story + link block) can
+       run past the old 5,000 once steps carry the complete final copy;
+       campaign bodies already allow 50,000. */
+    welcomeBody: z.string().max(20000).optional(),
     welcome2Subject: z.string().max(200).optional(),
-    welcome2Body: z.string().max(5000).optional(),
+    welcome2Body: z.string().max(20000).optional(),
     welcome3Subject: z.string().max(200).optional(),
-    welcome3Body: z.string().max(5000).optional(),
+    welcome3Body: z.string().max(20000).optional(),
   });
 export type InsertEmailList = z.infer<typeof insertEmailListSchema>;
 export type EmailList = typeof emailListsTable.$inferSelect;
