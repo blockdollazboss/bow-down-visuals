@@ -16,6 +16,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const component = readFileSync(join(__dirname, "FinalVideoExport.tsx"), "utf8");
+/* Finishing-door copy is wired through the i18n catalog (proFinishing
+   ns) — the literal pins below read the en catalog values, which are
+   byte-identical to the copy the component used to hardcode. */
+const en = readFileSync(join(__dirname, "..", "locales", "en.json"), "utf8");
 
 describe("FinalVideoExport — Pro Finishing Door", () => {
   it("offers H.264 / ProRes / DNxHR in the Quality panel", () => {
@@ -29,7 +33,8 @@ describe("FinalVideoExport — Pro Finishing Door", () => {
   it("forces MOV when a pro codec is picked, and disables MP4", () => {
     expect(component).toContain(`if (c !== "h264") setQContainer("mov");`);
     expect(component).toContain(`disabled={qCodec !== "h264" && c === "mp4"}`);
-    expect(component).toContain("Pro codecs deliver as MOV.");
+    expect(component).toContain("proFinishing.proCodecsMov");
+    expect(en).toContain("Pro codecs deliver as MOV.");
   });
 
   it("sends the codec on the quality export and the live estimate", () => {
@@ -40,7 +45,8 @@ describe("FinalVideoExport — Pro Finishing Door", () => {
 
   it("docks the FCPXML download in the export surface", () => {
     expect(component).toContain(`data-testid="btn-download-fcpxml"`);
-    expect(component).toContain("Finish in Final Cut Pro");
+    expect(component).toContain("proFinishing.fcpxmlTitle");
+    expect(en).toContain("Finish in Final Cut Pro");
     expect(component).toContain("onClick={handleDownloadFcpxml}");
   });
 

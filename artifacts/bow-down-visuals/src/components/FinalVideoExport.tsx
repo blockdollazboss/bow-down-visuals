@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
@@ -259,6 +260,7 @@ export function FinalVideoExport({
   fitMode,
   isSubscriber = false,
 }: FinalVideoExportProps) {
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const { addAsset, referralCode } = useHubProject();
   const { getAccessToken, refreshProfile } = useAuth();
@@ -967,7 +969,13 @@ export function FinalVideoExport({
             {/* ── Quality summary (quality-controlled exports) ── */}
             {exportQualityMeta && (
               <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-quality-summary">
-                {exportQualityMeta.width}×{exportQualityMeta.height} · {exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`} · {exportQualityMeta.fps}fps · {exportQualityMeta.container.toUpperCase()} · 150 Visual Bucs
+                {t("proFinishing.qualitySummary", {
+                  width: exportQualityMeta.width,
+                  height: exportQualityMeta.height,
+                  codec: exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`,
+                  fps: exportQualityMeta.fps,
+                  container: exportQualityMeta.container.toUpperCase(),
+                })}
               </p>
             )}
 
@@ -1487,9 +1495,9 @@ export function FinalVideoExport({
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-white/75">Finish in Final Cut Pro</p>
+                        <p className="text-[11px] font-bold text-white/75">{t("proFinishing.fcpxmlTitle")}</p>
                         <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
-                          Download this exact timeline as FCPXML — clips, order, trims, and timing. Media stays linked by reference; relink to your clip files in Final Cut.
+                          {t("proFinishing.fcpxmlBody")}
                         </p>
                       </div>
                       <Button
@@ -1580,10 +1588,10 @@ export function FinalVideoExport({
  * Visuals" watermark toggle. The estimate comes from the server so it
  * always matches the renderer's real caps. */
 function qualitySliderLabel(q: number): string {
-  if (q <= 30) return "Draft";
-  if (q <= 60) return "Standard";
-  if (q <= 85) return "High";
-  return "Max";
+  if (q <= 30) return "proFinishing.sliderDraft";
+  if (q <= 60) return "proFinishing.sliderStandard";
+  if (q <= 85) return "proFinishing.sliderHigh";
+  return "proFinishing.sliderMax";
 }
 
 /** Mirrors the server's crfForQuality so the slider shows the real CRF. */
@@ -1633,6 +1641,7 @@ function QualityPanel({
   disabled: boolean;
   onExport: () => void;
 }) {
+  const { t } = useTranslation();
   const segBtn = (active: boolean) =>
     `px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
       active
@@ -1650,11 +1659,11 @@ function QualityPanel({
       >
         <div className="flex items-center gap-2 min-w-0">
           <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0" />
-          <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">Quality</span>
-          <span className="text-[10px] text-white/30 truncate hidden sm:inline">4K · ProRes / DNxHR · frame rate · MP4/MOV</span>
+          <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">{t("proFinishing.panelTitle")}</span>
+          <span className="text-[10px] text-white/30 truncate hidden sm:inline">{t("proFinishing.panelMeta")}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-bold text-primary">150 Visual Bucs flat</span>
+          <span className="text-[10px] font-bold text-primary">{t("proFinishing.flatPrice")}</span>
           {open ? <ChevronUp className="h-3.5 w-3.5 text-white/40" /> : <ChevronDown className="h-3.5 w-3.5 text-white/40" />}
         </div>
       </button>
@@ -1663,7 +1672,7 @@ function QualityPanel({
         <div className="px-3 pb-3 pt-1 space-y-3.5 border-t border-primary/10">
           {/* Resolution */}
           <div>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Resolution</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.resolutionLabel")}</p>
             <div className="grid grid-cols-3 gap-1.5">
               {(["720p", "1080p", "4k"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setQResolution(r)} className={segBtn(qResolution === r)} data-testid={`quality-res-${r}`}>
@@ -1673,14 +1682,14 @@ function QualityPanel({
             </div>
             {qResolution === "4k" && (
               <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
-                4K renders every pixel — expect a longer render. Same 150 Visual Bucs.
+                {t("proFinishing.fourKNote")}
               </p>
             )}
           </div>
 
           {/* Codec — H.264 for the web, ProRes / DNxHR for finishing */}
           <div>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Codec</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.codecLabel")}</p>
             <div className="grid grid-cols-3 gap-1.5">
               {(["h264", "prores", "dnxhr"] as const).map((c) => (
                 <button
@@ -1699,7 +1708,7 @@ function QualityPanel({
             </div>
             {qCodec !== "h264" && (
               <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
-                {codecDisplayLabel(qCodec)} is a pro finishing codec — big, pristine MOV files made for Final Cut Pro, Premiere, and Resolve. Same 150 Visual Bucs.
+                {t("proFinishing.proCodecNote", { codec: codecDisplayLabel(qCodec) })}
               </p>
             )}
           </div>
@@ -1708,9 +1717,9 @@ function QualityPanel({
           {qCodec === "h264" ? (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quality</p>
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t("proFinishing.panelTitle")}</p>
                 <p className="text-[11px] font-bold text-white/70">
-                  {qualitySliderLabel(qSlider)} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
+                  {t(qualitySliderLabel(qSlider))} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
                 </p>
               </div>
               <input
@@ -1721,23 +1730,23 @@ function QualityPanel({
                 onChange={(e) => setQSlider(Number(e.target.value))}
                 className="w-full accent-[#e8c86a]"
                 data-testid="quality-slider"
-                aria-label="Export quality"
+                aria-label={t("proFinishing.sliderAria")}
               />
               <div className="flex justify-between text-[9px] text-white/25 mt-0.5">
-                <span>Draft · smaller</span>
-                <span>Max · pristine</span>
+                <span>{t("proFinishing.sliderScaleMin")}</span>
+                <span>{t("proFinishing.sliderScaleMax")}</span>
               </div>
             </div>
           ) : (
             <p className="text-[10px] text-white/35 leading-relaxed">
-              {codecDisplayLabel(qCodec)} renders at its fixed finishing rate — the quality slider only applies to H.264.
+              {t("proFinishing.fixedRateNote", { codec: codecDisplayLabel(qCodec) })}
             </p>
           )}
 
           {/* Frame rate + container */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Frame rate</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.fpsLabel")}</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {([24, 30, 60] as const).map((f) => (
                   <button key={f} type="button" onClick={() => setQFps(f)} className={segBtn(qFps === f)} data-testid={`quality-fps-${f}`}>
@@ -1747,7 +1756,7 @@ function QualityPanel({
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Container</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">{t("proFinishing.containerLabel")}</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(["mp4", "mov"] as const).map((c) => (
                   <button
@@ -1763,7 +1772,7 @@ function QualityPanel({
                 ))}
               </div>
               {qCodec !== "h264" && (
-                <p className="text-[10px] text-white/30 mt-1.5">Pro codecs deliver as MOV.</p>
+                <p className="text-[10px] text-white/30 mt-1.5">{t("proFinishing.proCodecsMov")}</p>
               )}
             </div>
           </div>
@@ -1772,11 +1781,11 @@ function QualityPanel({
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-white/75">"Made with Bow Down Visuals" watermark</p>
+                <p className="text-[11px] font-bold text-white/75">{t("proFinishing.watermarkTitle")}</p>
                 <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
                   {isSubscriber
-                    ? "Subscribers can export clean — toggle it off anytime."
-                    : "Free exports carry the watermark. Subscribers can remove it."}
+                    ? t("proFinishing.watermarkSubscriber")
+                    : t("proFinishing.watermarkFree")}
                 </p>
               </div>
               <button
@@ -1795,9 +1804,9 @@ function QualityPanel({
             </div>
             {!isSubscriber && (
               <p className="text-[10px] text-white/40 mt-1.5">
-                Want it gone?{" "}
+                {t("proFinishing.watermarkUpsell")}{" "}
                 <a href="/video-editor?tab=upscale&sub=enhance" className="text-primary font-bold hover:underline">
-                  Remove the watermark →
+                  {t("proFinishing.watermarkUpsellLink")}
                 </a>
               </p>
             )}
@@ -1807,7 +1816,7 @@ function QualityPanel({
           <div className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2.5 min-h-[44px] flex items-center justify-center">
             {estimateLoading ? (
               <span className="inline-flex items-center gap-2 text-[11px] text-white/40" data-testid="quality-estimate-loading">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Estimating size &amp; render time…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("proFinishing.estimateLoading")}
               </span>
             ) : estimate ? (
               <div className="text-center" data-testid="quality-estimate">
@@ -1816,15 +1825,15 @@ function QualityPanel({
                 </p>
                 <p className="text-[10px] text-white/30 mt-0.5 font-mono">
                   {estimate.settings.width}×{estimate.settings.height} · {estimate.settings.codec && estimate.settings.codec !== "h264" ? codecDisplayLabel(estimate.settings.codec) : `CRF ${estimate.settings.crf}`} · {estimate.settings.fps}fps · {estimate.settings.container.toUpperCase()}
-                  {estimate.capped ? " · capped to upload limit" : ""}
+                  {estimate.capped ? t("proFinishing.cappedSuffix") : ""}
                 </p>
               </div>
             ) : estimateError ? (
               <p className="text-[11px] text-red-400/70" data-testid="quality-estimate-error">
-                Couldn't estimate — {estimateError}
+                {t("proFinishing.estimateFailed", { error: estimateError })}
               </p>
             ) : (
-              <p className="text-[11px] text-white/25">Pick your settings for a size &amp; render estimate.</p>
+              <p className="text-[11px] text-white/25">{t("proFinishing.estimateEmpty")}</p>
             )}
           </div>
 
@@ -1840,10 +1849,16 @@ function QualityPanel({
             ) : (
               <SlidersHorizontal className="h-4 w-4" />
             )}
-            {disabled ? "Re-preparing…" : "Export with Quality Settings — 150 Visual Bucs"}
+            {disabled ? t("proFinishing.repreparing") : t("proFinishing.exportCta")}
           </Button>
           <p className="text-center text-[10px] text-white/25 -mt-2">
-            4K costs the same. Watermark {qWatermark ? "on" : "off"} · {qResolution === "4k" ? "4K" : qResolution} · {qFps}fps · {codecDisplayLabel(qCodec)} · {qContainer.toUpperCase()}
+            {t("proFinishing.settingsSummary", {
+              watermark: t(qWatermark ? "proFinishing.on" : "proFinishing.off"),
+              resolution: qResolution === "4k" ? "4K" : qResolution,
+              fps: qFps,
+              codec: codecDisplayLabel(qCodec),
+              container: qContainer.toUpperCase(),
+            })}
           </p>
         </div>
       )}
