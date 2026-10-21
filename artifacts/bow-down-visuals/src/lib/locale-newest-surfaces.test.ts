@@ -63,8 +63,15 @@ const EN = CATALOGS.en!;
    siblings. The last two (share, review) came with the share-wiring lane:
    ShareMenu + ShareForReview were partially on useTranslation — the en
    catalog carried the namespaces but the other nine catalogs had neither,
-   so every non-English user silently got English. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review"] as const;
+   so every non-English user silently got English. "videoEditor" was added
+   by the editor-i18n backfill lane (Oct 21 2026): whole editor sub-blocks
+   (multiRatio, extractAudio, screenRecorder, stockLibrary, mask,
+   motionTrack, myLibrary, the vibes/freeze/share clusters) existed only in
+   en.json, and 130 component-referenced keys existed in no catalog at all
+   (code defaultValue only) — all are now in en and translated ×9, and the
+   whole namespace is pinned here so no editor block can ship en-only
+   again. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -123,8 +130,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the parity lane audited (1240 keys)", () => {
-    expect(REQUIRED.length).toBe(1240);
+  it("the required set is the size the joined Stack-20 tree derives (1926 keys)", () => {
+    expect(REQUIRED.length).toBe(1926);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -149,10 +156,10 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
     expect(bad, `${locale} placeholder drift: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
   });
 
-  it("playlistPitch exists in the five catalogs that once had none of it", () => {
+  it("playlistPitch exists in the five catalogs that once had none of it (full 121-key set, incl. packetPresaveLabel)", () => {
     for (const locale of ["hi", "it", "ja", "ko", "pt"] as const) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("playlistPitch.")).length;
-      expect(count, `${locale} playlistPitch count`).toBe(120);
+      expect(count, `${locale} playlistPitch count`).toBe(121);
     }
   });
 });
