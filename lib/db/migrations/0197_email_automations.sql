@@ -10,12 +10,15 @@
 -- creator who never switches an automation on.
 --
 -- Sends ride the EXISTING tracked rail, honestly:
---   * each automation owns one carrier email_campaigns row (marked by
---     the new automation_id column); deliveries, wrapped links, the
---     tracking pixel, one-click unsubscribe, and the Resend webhook
---     all resolve through it exactly like a newsletter send. Carrier
---     campaigns are filtered out of the newsletter history and manual
---     dispatch refuses them.
+--   * each automation SEND gets its own carrier email_campaigns row
+--     (marked by the new automation_id column — deliveries are unique
+--     per campaign+subscriber, and every physical email needs its own
+--     delivery row/token); deliveries, wrapped links, the tracking
+--     pixel, one-click unsubscribe, and the Resend webhook all
+--     resolve through the carrier exactly like a newsletter send.
+--     Carrier campaigns are filtered out of the newsletter history
+--     and manual dispatch refuses them. email_automations.campaign_id
+--     points at the latest carrier.
 --   * email_automation_sends is the claim ledger: one row per
 --     (automation, trigger event), and its unique index is the dedupe
 --     law — the same purchase / checkout / lapse can never email a

@@ -258,8 +258,12 @@ export const emailAutomationsTable = pgTable("email_automations", {
   body:      text("body").notNull(),
   /* Hours between the trigger event and the send. 0 = next sweep. */
   delayHours: integer("delay_hours").notNull().default(24),
-  /* The carrier campaign this series' deliveries hang off (created at
-     provisioning, kept in step with the automation's subject/body). */
+  /* The most recent carrier campaign this series sent through.
+     Carriers are minted PER SEND (deliveries are unique per
+     campaign+subscriber, and every physical email needs its own
+     delivery row/token), each snapshotting the automation's current
+     subject/body — so edits never need syncing, and this column is
+     a latest pointer, not the series' single home. */
   campaignId: uuid("campaign_id").references(() => emailCampaignsTable.id, { onDelete: "set null" }),
   /* When the creator last switched this automation ON. Triggers older
      than this never fire — enabling an automation doesn't spam fans
