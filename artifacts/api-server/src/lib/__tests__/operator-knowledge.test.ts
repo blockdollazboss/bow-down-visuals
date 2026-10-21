@@ -506,3 +506,108 @@ describe("operator knowledge — takeover offers (wave 2 #2)", () => {
     expect(facts).toContain("Charts — For Brands tab (/charts)");
   });
 });
+
+describe("operator knowledge — Stack-20 surfaces", () => {
+  const byId = (id: string) => OPERATOR_FEATURES.find((f) => f.id === id);
+
+  /* Smart Reframe arrived as a card docked in the editor's Export tab
+     with no route of its own — the base had NO reframe entry at all,
+     so the operator could neither describe it nor quote its 200 VB
+     rail. The entry's prose is the card's own en.json copy, including
+     the centre-crop fallback honesty. */
+  it("smart reframe is a first-class entry at the code price, fallback stated", () => {
+    const f = byId("smart-reframe")!;
+    expect(f).toBeTruthy();
+    expect(f.path).toBe("/video-editor");
+    expect(f.prices).toEqual([
+      expect.objectContaining({ endpoint: "/api/auto-reframe", vb: 200 }),
+    ]);
+    expect(f.description).toContain("centre crop");
+    expect(f.description).toContain("says so honestly");
+    expect(f.descriptionSource).toContain("videoEditor.subjectReframe");
+    expect(formatFeatureFacts(f)).toContain("Smart Reframe — Subject Tracking — 200 Visual Bucs");
+    const hits = findFeatures("how much does smart reframe cost");
+    const carrier = hits.find((h) => h.prices.some((p) => p.endpoint === "/api/auto-reframe"));
+    expect(carrier).toBeTruthy();
+    expect(carrier!.prices.find((p) => p.endpoint === "/api/auto-reframe")!.vb).toBe(200);
+  });
+
+  /* The template gallery never calls the apply rail (it hands off to
+     the editor), so the scan left its entry priceless — and its page
+     copy called the templates free. The price link + the corrected
+     copy pin the truth: browsing is free, applying is 250 VB. */
+  it("video templates carry the 250 VB apply price and no longer read as free", () => {
+    const f = byId("templates-videos")!;
+    expect(f.prices).toEqual([
+      expect.objectContaining({ endpoint: "/api/video-template/apply", vb: 250 }),
+    ]);
+    expect(f.description).not.toContain("Free video edit templates");
+    expect(f.description).toContain("18 ready-made cuts");
+    const editor = byId("video-editor")!;
+    expect(editor.prices.some((p) => p.endpoint === "/api/video-template/apply" && p.vb === 250)).toBe(true);
+  });
+
+  it("the template and reframe server constants cross-check against the registry", () => {
+    const tpl = OPERATOR_KB.crossChecks.find((c: any) => c.constant === "TEMPLATE_COST");
+    expect(tpl).toMatchObject({ endpoint: "/api/video-template/apply", serverValue: 250, registryValue: 250, agree: true });
+    const ref = OPERATOR_KB.crossChecks.find((c: any) => c.constant === "REFRAME_COST");
+    expect(ref).toMatchObject({ endpoint: "/api/auto-reframe", serverValue: 200, registryValue: 200, agree: true });
+  });
+
+  /* The RTMP honesty gate (Stack-20): while the deployment hasn't
+     opened ingest, the mint doors refuse — the entry must never
+     describe a stream key as something you can make today. */
+  it("rtmp ingest is described as not open yet, never as working", () => {
+    const f = byId("rtmp-ingest")!;
+    expect(f.description).toContain("isn't open yet");
+    expect(f.description).toContain("arrives with the launch setup");
+    expect(f.description).toContain("built-in Go Live studio works today");
+    expect(f.description).not.toContain("shown once when made");
+    expect(f.description).not.toContain("revoke or remake it anytime");
+  });
+
+  /* Morning brief fallback (Stack-20): when the written narrative
+     can't be produced, the panel serves the real numbers digest.
+     The entry's prose is the panel's own fallback copy, and the
+     brief is free — no price line may appear in its facts. */
+  it("the morning brief entry carries the digest fallback and no price", () => {
+    const f = byId("morning-brief")!;
+    expect(f).toBeTruthy();
+    expect(f.path).toBe("/dashboard");
+    expect(f.endpoints).toContain("/api/command/brief");
+    expect(f.prices).toEqual([]);
+    expect(f.description).toContain("here are your numbers, straight from your business");
+    expect(f.description).toContain("Nothing goes out on its own");
+    expect(formatFeatureFacts(f)).not.toContain("Price:");
+  });
+
+  /* Email automations (wave 3 + the Stack-20 abandoned-checkout
+     trigger): one entry whose own intro names all three triggers and
+     the off-by-default law. The rail charges nothing. */
+  it("email automations name every trigger and the off-by-default law", () => {
+    const f = byId("email-automations")!;
+    expect(f).toBeTruthy();
+    expect(f.path).toBe("/email-list");
+    expect(f.prices).toEqual([]);
+    expect(f.description).toContain("buys");
+    expect(f.description).toContain("leaves a checkout unfinished");
+    expect(f.description).toContain("lets a membership end");
+    expect(f.description).toContain("stays off until you switch it on");
+    expect(f.description).toContain("Fans who unsubscribed are never emailed");
+  });
+
+  /* The pitch packet builds from the release record — its links are
+     the record's real presave / smartlink, never fabricated — and
+     building one is free; the mode's 200 VB rail is the kit alone. */
+  it("the pitch packet is its own free entry, and the kit stays 200 VB", () => {
+    const f = byId("playlist-pitch-packet")!;
+    expect(f).toBeTruthy();
+    expect(f.endpoints).toContain("/api/playlist-pitch/packet/:param");
+    expect(f.prices).toEqual([]);
+    expect(f.description).toContain("real data only");
+    expect(f.description).toContain("never made up");
+    const mode = byId("mode-playlist-pitch")!;
+    expect(mode.prices.find((p) => p.endpoint === "/api/playlist-pitch/kit")!.vb).toBe(200);
+    expect(mode.prices.some((p) => p.endpoint.includes("packet"))).toBe(false);
+  });
+});
