@@ -15,7 +15,7 @@
  * so the model operations and the chroma keyer are unit-testable.
  */
 
-export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media" | "widget" | "avatar";
+export type SourceType = "camera" | "screen" | "image" | "text" | "color" | "media" | "widget" | "avatar" | "guest";
 export type FitMode = "cover" | "contain" | "stretch";
 
 /** Overlay widget kinds (Stack 2): all three render from real stream
@@ -107,6 +107,13 @@ export interface SceneSource {
   widget?: { kind: WidgetKind };
   /* avatar: character + drive settings */
   avatar?: AvatarSettings;
+  /* guest: an invited backstage guest riding this scene (Go Live
+     guests, 0198). The feed itself is a live WebRTC element the
+     studio pool resolves by session id — scenes carry only the
+     reference, never media. The name is the guest's display name as
+     the host sees it; surfaces add the "Guest" label, the name here
+     stays exactly what the guest typed. */
+  guest?: { sessionId: string; name: string };
 }
 
 export interface Scene {
@@ -130,6 +137,7 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   media: "Media URL",
   widget: "Stream Widget",
   avatar: "Avatar",
+  guest: "Guest",
 };
 
 export function createSource(type: SourceType, name?: string): SceneSource {
@@ -151,6 +159,10 @@ export function createSource(type: SourceType, name?: string): SceneSource {
       return { ...base, cameraMode: "kit", chroma: { color: "#00FF00", similarity: 0.32, smoothness: 0.12 } };
     case "screen":
       return { ...base, name: "Screen Share" };
+    case "guest":
+      /* A guest tile starts as a corner picture-in-picture; the host
+         drags/resizes it like any source from there. */
+      return { ...base, name: "Guest", x: 0.6, y: 0.58, w: 0.37, h: 0.37, guest: { sessionId: "", name: "" } };
     case "image":
       return { ...base, fit: "contain" };
     case "text":
@@ -238,6 +250,7 @@ export function duplicateSource(source: SceneSource, name?: string): SceneSource
     fill: source.fill ? { ...source.fill } : undefined,
     widget: source.widget ? { ...source.widget } : undefined,
     avatar: source.avatar ? { ...source.avatar } : undefined,
+    guest: source.guest ? { ...source.guest } : undefined,
   };
 }
 
