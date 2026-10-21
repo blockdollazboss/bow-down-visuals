@@ -1,6 +1,6 @@
 /**
  * guest-feeds.ts — the shared registry of backstage guest feeds for
- * the Go Live studio (guest invites + backstage, 0201).
+ * the Go Live studio (guest invites + backstage, 0202).
  *
  * The GuestPanel owns the backstage mesh (it holds the sockets); the
  * Stage pool and the Sources panel need the SAME live video elements

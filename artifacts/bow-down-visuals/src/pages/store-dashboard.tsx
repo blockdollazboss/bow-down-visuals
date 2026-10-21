@@ -452,7 +452,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     setErr("");
     if (!form.title.trim()) { setErr("Give it a title."); return; }
     const cents = dollarsToCents(form.priceDollars);
-    /* $0 is a real price here: a free lead magnet (0189) — fans claim
+    /* $0 is a real price here: a free lead magnet (0190) — fans claim
        it with their email instead of checking out. Negative isn't. */
     if (!Number.isFinite(cents) || cents < 0) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
     setBusy(true);

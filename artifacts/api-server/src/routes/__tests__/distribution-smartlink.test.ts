@@ -1,6 +1,6 @@
 /**
  * Tests for release smartlink analytics + retargeting pixels
- * (migration 0186, competitor gap G2).
+ * (migration 0187, competitor gap G2).
  *
  * Covers:
  * - POST /distribution/presave/:slug/view records exactly one view row
@@ -74,7 +74,7 @@ import { createTestDb } from "../../lib/__tests__/test-db";
 import { DataType } from "pg-mem";
 import { sql } from "drizzle-orm";
 
-/* Mirror of distribution.test.ts's releases DDL + migration 0186 columns. */
+/* Mirror of distribution.test.ts's releases DDL + migration 0187 columns. */
 const RELEASES_DDL = `
 CREATE TABLE distribution_releases (
   id uuid PRIMARY KEY,
@@ -151,7 +151,7 @@ CREATE TABLE release_landing_content (
   updated_at timestamptz NOT NULL DEFAULT now()
 );`;
 
-/* Migration 0186, pg-mem form. */
+/* Migration 0187, pg-mem form. */
 const CLICKS_DDL = `
 CREATE TABLE release_link_clicks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

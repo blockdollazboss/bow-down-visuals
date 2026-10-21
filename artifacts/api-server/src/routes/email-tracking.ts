@@ -1,5 +1,5 @@
 /**
- * Public email tracking endpoints (migration 0188), mounted at
+ * Public email tracking endpoints (migration 0189), mounted at
  * /api/email-track. No auth — these are hit by mail clients and
  * browsers from inside a delivered email — so they are deliberately
  * narrow:

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /**
- * Email List dashboard opens card — tracked era (migration 0188).
+ * Email List dashboard opens card — tracked era (migration 0189).
  *
  * The Stack-30 contract stands where it is still true: the API
  * reports openRate: null + opensTracked: false until a list has a

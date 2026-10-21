@@ -418,7 +418,7 @@ router.post("/email-list/lists/:id/unsubscribe", publicApiLimiter, requireAuth, 
   res.json({ ok: true });
 });
 
-/* ── Authed: tags (migration 0188 — manual labels per list) ────────────── */
+/* ── Authed: tags (migration 0189 — manual labels per list) ────────────── */
 
 async function ownList(req: { userId?: string }, id: string) {
   const [list] = await db
@@ -542,7 +542,7 @@ router.put("/email-list/lists/:id/subscribers/:subId/tags", publicApiLimiter, re
   res.json({ ok: true, tags: tags.map((t) => t.name) });
 });
 
-/* ── Authed: segments (migration 0188 — saved audiences) ──────────────── */
+/* ── Authed: segments (migration 0189 — saved audiences) ──────────────── */
 
 const segmentSchema = z.object({
   name: z.string().trim().min(1, "Segment name is required.").max(80),
@@ -824,7 +824,7 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
   }
 });
 
-/* ── Authed: campaigns (drafts + tracked sends, migration 0188) ───────── */
+/* ── Authed: campaigns (drafts + tracked sends, migration 0189) ───────── */
 
 const campaignSchema = z.object({
   subject: z.string().min(1, "Subject is required.").max(200),
@@ -850,7 +850,7 @@ router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, asy
     res.status(404).json({ error: "List not found." });
     return;
   }
-  /* Automation carrier campaigns (migration 0197) are not
+  /* Automation carrier campaigns (migration 0198) are not
      newsletters — they never appear in campaign history. */
   const campaigns = await db
     .select()
@@ -956,7 +956,7 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
   res.json({ campaign: fresh ?? campaign, dispatch });
 });
 
-/* ── Authed: automations (migration 0197) ───────────────────────────────
+/* ── Authed: automations (migration 0198) ───────────────────────────────
    The three starter automations per list. Reading provisions them
    lazily (defaults in, enabled FALSE — nothing sends until the
    creator switches one on). Editing saves subject/body/delay and

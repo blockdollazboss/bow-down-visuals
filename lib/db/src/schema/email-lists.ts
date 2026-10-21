@@ -68,7 +68,7 @@ export const emailSubscribersTable = pgTable("email_subscribers", {
   source:    text("source").notNull().default("landing"),
   confirmed: boolean("confirmed").notNull().default(true),
   /* Open count, written ONLY by real engagement signals (migration
-     0188): the house tracking pixel, the click redirect, and the
+     0189): the house tracking pixel, the click redirect, and the
      signature-verified Resend webhook all record into
      email_engagement_events first; the first open per delivered email
      increments this counter. Never written by anything else — a 0 here
@@ -100,7 +100,7 @@ export type EmailSubscriber = typeof emailSubscribersTable.$inferSelect;
    "sending"/"sent"/"failed" are stamped exclusively by the sender
    (lib/email-campaign-sender.ts) after Resend actually accepts mail.
    Dispatch also records one delivery row per recipient (migration
-   0188) carrying the tracking pixel + wrapped links. Deliverability
+   0189) carrying the tracking pixel + wrapped links. Deliverability
    and scale limits are disclosed in the UI. */
 
 export const emailCampaignsTable = pgTable("email_campaigns", {
@@ -114,7 +114,7 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   /* Audience: null = the whole list; otherwise the segment (same list)
      the audience was resolved from at dispatch time. */
   segmentId: uuid("segment_id").references(() => emailSegmentsTable.id, { onDelete: "set null" }),
-  /* Automation carrier (migration 0197): a campaign row owned by an
+  /* Automation carrier (migration 0198): a campaign row owned by an
      email_automations row — the series' deliveries hang off it so the
      tracking pixel / click redirect / unsubscribe / Resend webhook all
      resolve exactly like a newsletter send. Carrier campaigns are NOT
@@ -124,7 +124,7 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   automationId: uuid("automation_id"),
   sentAt:    timestamp("sent_at", { withTimezone: true }),
   recipientCount: integer("recipient_count").notNull().default(0),
-  /* Measured counters (migration 0188): delivered = provider accepted;
+  /* Measured counters (migration 0189): delivered = provider accepted;
      openCount / clickCount = unique subscribers who opened / clicked,
      maintained from email_engagement_events. Real signals only. */
   deliveredCount: integer("delivered_count").notNull().default(0),
@@ -146,7 +146,7 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaignsTable)
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaignsTable.$inferSelect;
 
-/* ─── Tags (migration 0188) ───────────────────────────────────────────────
+/* ─── Tags (migration 0189) ───────────────────────────────────────────────
    Manual labels a creator puts on subscribers of ONE list. Automatic
    tags (presave / member / buyer / opened / clicked / engaged) are NOT
    stored here — they are derived at read time from data the house
@@ -174,7 +174,7 @@ export const emailSubscriberTagsTable = pgTable("email_subscriber_tags", {
 
 export type EmailSubscriberTag = typeof emailSubscriberTagsTable.$inferSelect;
 
-/* ─── Segments (migration 0188) ───────────────────────────────────────────
+/* ─── Segments (migration 0189) ───────────────────────────────────────────
    A saved audience definition over one list. criteria shape (validated
    in the route + lib/email-segments):
    {
@@ -197,7 +197,7 @@ export const emailSegmentsTable = pgTable("email_segments", {
 
 export type EmailSegment = typeof emailSegmentsTable.$inferSelect;
 
-/* ─── Campaign deliveries (migration 0188) ────────────────────────────────
+/* ─── Campaign deliveries (migration 0189) ────────────────────────────────
    One row per (campaign, subscriber) created at dispatch time. The
    random token is the unguessable handle the tracking pixel, click
    redirect, and one-click unsubscribe all key off — it is never a
@@ -233,7 +233,7 @@ export const emailCampaignLinksTable = pgTable("email_campaign_links", {
 
 export type EmailCampaignLink = typeof emailCampaignLinksTable.$inferSelect;
 
-/* ─── Engagement events (migration 0188) ──────────────────────────────────
+/* ─── Engagement events (migration 0189) ──────────────────────────────────
    Append-only record of real engagement signals. First-signal-wins:
    the unique indexes make a second open (or a second click on the same
    link) for the same delivery a no-op insert, whichever source reports
@@ -258,7 +258,7 @@ export const emailEngagementEventsTable = pgTable("email_engagement_events", {
 
 export type EmailEngagementEvent = typeof emailEngagementEventsTable.$inferSelect;
 
-/* ─── Automations (migration 0197) ───────────────────────────────────────
+/* ─── Automations (migration 0198) ───────────────────────────────────────
    One row per (list, kind) — the three starter automations. A row is
    materialized lazily the first time the creator opens the Automations
    card (defaults in, enabled FALSE: nothing ever sends for a creator

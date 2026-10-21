@@ -9,7 +9,7 @@ import {
 } from "../clip-charge-obligations";
 import type { ClipChargeObligationRow } from "@workspace/db";
 
-/* Durable clip-charge obligations (payments D3, migration 0183).
+/* Durable clip-charge obligations (payments D3, migration 0184).
  *
  * The fake store below is an in-memory implementation of the SAME
  * ClipChargeStore contract the Drizzle store implements. Its claim

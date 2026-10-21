@@ -34,7 +34,7 @@ import { WEBSITE_TEMPLATES, WEBSITE_TEMPLATE_IDS, siteFilesSchema } from "./webs
    that a creator can remix instantly and then refine with the same
    conversational edits.
 
-   Persistence (migration 0195, dossier ai-builders.md gap G2): every
+   Persistence (migration 0196, dossier ai-builders.md gap G2): every
    build is saved server-side as an owner-scoped project, and every
    re-generation or edit appends a new VERSION — the file map no longer
    lives only in the browser, and no version is ever overwritten.
@@ -166,7 +166,7 @@ ${seedContext}
 Generate the complete static site now as JSON. Build it from the creator's real material above: their catalog, products, shows, brand, and links — not invented substitutes. Remember: ONLY valid JSON, no other text.`;
 }
 
-/* ─── Persistence layer (migration 0195) ───────────────────────────────
+/* ─── Persistence layer (migration 0196) ───────────────────────────────
    Projects and their append-only versions, raw SQL throughout. Every
    read and write is scoped by user_id: another member's project is
    indistinguishable from a missing one (404, never 403 — existence

@@ -9,7 +9,7 @@ import {
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { songsTable } from "./songs";
 
-/* ── DJ Set-Prep (migration 0194) ──────────────────────────────────────────
+/* ── DJ Set-Prep (migration 0195) ──────────────────────────────────────────
    Per-song DJ analysis (BPM + musical key + Camelot) and performance
    crates (ordered set lists) for the DJ Set-Prep Pack docked in the song
    library. Analysis is an ESTIMATE produced by lib/track-analysis.ts —

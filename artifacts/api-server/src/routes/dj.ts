@@ -21,7 +21,7 @@
  * song is refused whole — never partially applied.
  *
  * Analysis is an estimate and is labeled as one end-to-end:
- * key_confidence / bpm_confidence are stored (migration 0194) and
+ * key_confidence / bpm_confidence are stored (migration 0195) and
  * returned with every number, so the UI can say "rough guess" when
  * that's what it is.
  *

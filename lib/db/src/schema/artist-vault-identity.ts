@@ -2,7 +2,7 @@ import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-/* Identity Set photos for an artist vault character (migration 0196,
+/* Identity Set photos for an artist vault character (migration 0197,
    Higgsfield G4 — the honest near-term form of a trained identity).
    A vault character used to hold exactly ONE reference_image_url; an
    identity set lets the character hold several photos of the SAME

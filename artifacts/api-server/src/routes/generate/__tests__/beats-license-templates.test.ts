@@ -1,5 +1,5 @@
 /**
- * Producer-custom beat license templates (migration 0187).
+ * Producer-custom beat license templates (migration 0188).
  *
  * Covers: template CRUD owner-scoping + validation, purchase under a
  * template (producer price, untouched 15% commission), the terms

@@ -756,7 +756,7 @@ export default function MyShop() {
   );
 }
 
-/* ─── DiscountCodesCard — shop discount codes (0189) ─────────────────────
+/* ─── DiscountCodesCard — shop discount codes (0190) ─────────────────────
    Parity with the profile store's discount system: the owner manages
    codes against /api/shops/:id/discounts (owner-scoped server-side);
    checkout validates + applies them and counts a use only when a sale

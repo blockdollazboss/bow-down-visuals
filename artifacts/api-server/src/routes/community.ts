@@ -74,7 +74,7 @@ function param(req: Request, name: string): string {
        POST   /groups/:slug/posts           (auth; member only)
        DELETE /groups/:slug/posts/:postId   (auth; owner/mod or post author)
        DELETE /groups/:slug/members/:userId (auth; owner only)
-     Group forums (0184 — channels inside the group, threads inside a
+     Group forums (0185 — channels inside the group, threads inside a
      channel, replies inside a thread; the group's own visibility and
      role ladder govern every path):
        GET    /groups/:slug/forum/channels                    (public read; private = members)
@@ -132,7 +132,7 @@ const groupPostSchema = z.object({
   body: z.string().trim().min(1).max(2000),
 });
 
-/* Group forums (0184). Tags are normalized server-side (lowercase,
+/* Group forums (0185). Tags are normalized server-side (lowercase,
    leading # stripped, spaces -> hyphens) and must land in slug shape;
    the raw input cap keeps a pasted sentence from becoming a tag. */
 const createForumChannelSchema = z.object({
@@ -665,7 +665,7 @@ router.delete("/groups/:slug/members/:userId", requireAuth, async (req, res) => 
   }
 });
 
-/* ── GROUPS: forums (0184) ──────────────────────────────────────────────
+/* ── GROUPS: forums (0185) ──────────────────────────────────────────────
    Channels inside the group, threads inside a channel, replies inside
    a thread. Every path resolves the parent group FIRST and applies the
    group's own rules — a private group's forum is invisible to

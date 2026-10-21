@@ -9,7 +9,7 @@ import { refundCredits } from "./credits";
 import { logger } from "./logger";
 
 /* Durable charge→refund obligations for generated video clips
-   (payments defect D3; migration 0183; table clip_charge_obligations).
+   (payments defect D3; migration 0184; table clip_charge_obligations).
 
    The gap this closes: the Runway/Veo poll handlers charge credits on
    SUCCEEDED and remembered the charge in an in-memory map

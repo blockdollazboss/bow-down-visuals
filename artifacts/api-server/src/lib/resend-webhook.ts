@@ -1,6 +1,6 @@
 /**
  * Resend webhook (POST /api/resend-webhook) — the provider half of
- * the email engagement signal path (migration 0188).
+ * the email engagement signal path (migration 0189).
  *
  * Resend signs webhooks with Svix. Verification here follows the same
  * discipline as the Stripe webhook in app.ts: the route is mounted

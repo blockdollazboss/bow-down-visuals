@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 /**
  * Payment reversals — the refund / chargeback clawback trail
- * (migration 0182, payments defect D1).
+ * (migration 0183, payments defect D1).
  *
  * One row per Stripe CHARGE, claimed insert-first by the webhook's
  * reversal engine (api-server lib/payment-reversals.ts) BEFORE any

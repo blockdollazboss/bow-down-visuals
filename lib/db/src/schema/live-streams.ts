@@ -31,7 +31,7 @@ export const liveStreamsTable = pgTable(
     playback_id: text("playback_id"),
     /* Broadcaster-only WHIP publish URL. Never exposed in public DTOs. */
     whip_url: text("whip_url"),
-    /* How the program feed reaches the stage (migration 0193):
+    /* How the program feed reaches the stage (migration 0194):
        'camera' — the browser studio (MediaRecorder chunks / WHIP);
        'rtmp' — an external encoder (OBS, VirtualDJ, Serato…) pushing
        RTMP to the creator's personal ingest key. Playback, chat and

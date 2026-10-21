@@ -45,7 +45,7 @@ export const beatsTable = pgTable("beats", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/* ── Producer-custom license templates (migration 0187) ───────────────────
+/* ── Producer-custom license templates (migration 0188) ───────────────────
    BeatStars parity: a producer may define their OWN license templates —
    name, price, and the commercial terms — instead of only the three fixed
    tiers above. The fixed tiers remain the defaults for producers who never
@@ -149,7 +149,7 @@ export const beatLicensesTable = pgTable("beat_licenses", {
   /** Producer (seller) — denormalized from the beat for dashboard queries. */
   producer_id: uuid("producer_id").notNull(),
   tier: text("tier").notNull(),
-  /** Custom template this license was bought under (migration 0187), or
+  /** Custom template this license was bought under (migration 0188), or
       NULL for the three fixed tiers. Informational only — the binding
       record of what was sold is terms_snapshot; the FK nulls on template
       deletion so a sold license is never cascade-erased. */

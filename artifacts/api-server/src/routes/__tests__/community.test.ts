@@ -36,7 +36,7 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "DELETE", path: "/groups/:slug/posts/:postId" },
   { method: "DELETE", path: "/groups/:slug/members/:userId" },
   { method: "POST", path: "/groups/:slug/broadcast" },
-  // Group forums (0184, Wave 3 #13)
+  // Group forums (0185, Wave 3 #13)
   { method: "GET", path: "/groups/:slug/forum/channels" },
   { method: "POST", path: "/groups/:slug/forum/channels" },
   { method: "PATCH", path: "/groups/:slug/forum/channels/:channelId" },

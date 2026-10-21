@@ -353,7 +353,7 @@ describe("isPublicPath — representative positives from every public family", (
     ["D1 media — watch", "/watch/101"],
     ["D1 media — playlist", "/playlist/101"],
     ["D1 media — live", "/live/101"],
-    ["guest door — invite backstage (0201)", "/live/guest/some-token"],
+    ["guest door — invite backstage (0202)", "/live/guest/some-token"],
     ["D1 media — premiere", "/premiere/101"],
     ["D1 media — sound", "/sound/101"],
     ["D1 media — hashtag", "/hashtag/goldchain"],

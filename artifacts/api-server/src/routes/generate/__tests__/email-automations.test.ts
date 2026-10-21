@@ -1,5 +1,5 @@
 /**
- * Email automations (migration 0197) — the three starter sequences.
+ * Email automations (migration 0198) — the three starter sequences.
  *
  * The contract under test:
  *  - provisioning is lazy and safe: reading a list's automations
@@ -31,7 +31,7 @@
  * Harness: the same fake-db style as email-list-opens-honesty.test.ts
  * (the real routers and libs run against a fake db that renders
  * drizzle conditions with PgDialect and evaluates them; inserts
- * honor the unique constraints of migrations 0188 + 0197). The only
+ * honor the unique constraints of migrations 0189 + 0198). The only
  * other fakes are auth, the mail provider (a recording stub), the
  * auth-rail email lookup, and unrelated credit/AI rails.
  */
@@ -77,7 +77,7 @@ function buildFakeDb(actual: Record<string, any>) {
     "digitalSalesTable",
   ] as const;
 
-  /* Unique constraints from migration 0188 (+ the pre-existing handle
+  /* Unique constraints from migration 0189 (+ the pre-existing handle
      unique), expressed as DB column names with an optional row filter
      for the partial indexes. */
   const UNIQUE_SETS: Array<{ table: string; cols: string[]; when?: (r: Row) => boolean }> = [
@@ -91,7 +91,7 @@ function buildFakeDb(actual: Record<string, any>) {
     { table: "email_engagement_events", cols: ["delivery_id", "kind"], when: (r) => r.kind !== "click" },
     { table: "email_engagement_events", cols: ["delivery_id", "kind", "link_id"], when: (r) => r.kind === "click" },
     { table: "email_engagement_events", cols: ["provider_event_id"], when: (r) => r["provider_event_id"] != null },
-    /* Migration 0197: one automation per (list, kind); the claim
+    /* Migration 0198: one automation per (list, kind); the claim
        ledger's (automation, trigger ref) unique IS the dedupe law. */
     { table: "email_automations", cols: ["list_id", "kind"] },
     { table: "email_automation_sends", cols: ["automation_id", "trigger_ref"] },

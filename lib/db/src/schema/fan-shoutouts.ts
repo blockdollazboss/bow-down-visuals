@@ -47,7 +47,7 @@ export type ShoutoutRequestStatus =
   | "delivered"
   | "declined"
   /* The paying charge was refunded / lost to a chargeback — set by
-     the clawback engine (migration 0182, defect D1); the request is
+     the clawback engine (migration 0183, defect D1); the request is
      no longer owed. */
   | "refunded";
 

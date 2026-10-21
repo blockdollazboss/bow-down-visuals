@@ -1,5 +1,5 @@
 /**
- * Email segments (migration 0188).
+ * Email segments (migration 0189).
  *
  * A segment is a saved audience definition over ONE creator list.
  * Membership is computed here — one implementation consumed by the

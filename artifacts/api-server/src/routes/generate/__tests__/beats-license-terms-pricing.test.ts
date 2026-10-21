@@ -1,5 +1,5 @@
 /**
- * Terms-model unit tests for custom beat license templates (0187):
+ * Terms-model unit tests for custom beat license templates (0188):
  * the fixed tiers' standing terms must match what their marketplace
  * blurbs have always promised, and the patch schema must never reset
  * a field the producer didn't name.

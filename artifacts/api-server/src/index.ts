@@ -76,7 +76,7 @@ const server = app.listen(port, (err) => {
   // ever emailed twice. Runs once shortly after boot, then on
   // PRESAVE_NOTIFY_SWEEP_INTERVAL_MS.
   startPresaveReleaseSweeper();
-  // Email automations (migration 0197): evaluate enabled automations
+  // Email automations (migration 0198): evaluate enabled automations
   // (post-purchase / abandoned checkout / membership winback) and send
   // through the tracked campaign rail. DB-claimed per trigger, so a
   // restart or a second instance can never double-email a fan.

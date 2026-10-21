@@ -1,7 +1,7 @@
 import { pgTable, uuid, boolean, timestamp } from "drizzle-orm/pg-core";
 
 /**
- * Discovery feed preferences (migration 0190, Wave 3 #19).
+ * Discovery feed preferences (migration 0191, Wave 3 #19).
  *
  * One row per member: the explicit user-facing on/off for For-You
  * personalization on GET /discovery/feed (owner law: every automated

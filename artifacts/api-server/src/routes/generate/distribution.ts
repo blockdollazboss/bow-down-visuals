@@ -310,7 +310,7 @@ interface ReleaseRow {
   presave_headline?: string | null;
   presave_platform_links?: Record<string, string> | null;
   presave_bonus_url?: string | null;
-  /* Retargeting pixels (migration 0186) */
+  /* Retargeting pixels (migration 0187) */
   meta_pixel_id?: string | null;
   tiktok_pixel_id?: string | null;
   google_tag_id?: string | null;
@@ -1939,7 +1939,7 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         released,
         persistsAfterRelease: true,
         landing,
-        /* ── Retargeting pixels (migration 0186): the creator's own
+        /* ── Retargeting pixels (migration 0187): the creator's own
            ad-platform IDs for this release. The landing fires exactly
            these on view; all null = nothing extra fires. ── */
         pixels: {
@@ -2133,7 +2133,7 @@ router.post("/distribution/presave/:slug/share", publicApiLimiter, async (req, r
   }
 });
 
-/* ─── Release smartlink analytics + retargeting pixels (migration 0186) ──
+/* ─── Release smartlink analytics + retargeting pixels (migration 0187) ──
    Competitor gap G2 — Linkfire / Feature.fm's core paid value: the
    release smartlink recorded follows and shares but never a landing
    view or an outbound click, and creators couldn't attach their own
@@ -2301,7 +2301,7 @@ const presaveSettingsSchema = z.object({
   headline: z.string().max(140).optional(),
   platformLinks: z.record(z.string(), z.string().max(500)).optional(),
   bonusUrl: z.string().max(500).optional(),
-  /* Retargeting pixels (migration 0186) — the creator's own IDs. */
+  /* Retargeting pixels (migration 0187) — the creator's own IDs. */
   metaPixelId: z.string().max(64).optional(),
   tiktokPixelId: z.string().max(64).optional(),
   googleTagId: z.string().max(64).optional(),
@@ -2419,9 +2419,9 @@ router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, 
       presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
       meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
     };
-    /* Smartlink analytics (migration 0186): views + outbound clicks with
+    /* Smartlink analytics (migration 0187): views + outbound clicks with
        per-link / per-channel / per-country splits, bio-dashboard style.
-       A pre-0186 install has no events table — answer null (not
+       A pre-0187 install has no events table — answer null (not
        collected) rather than dressing an absence up as zeros. */
     let linkAnalytics: {
       views: number; clicks: number; clicksLast7d: number;

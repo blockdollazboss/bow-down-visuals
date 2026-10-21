@@ -61,7 +61,7 @@ interface Beat {
   exclusive_sold: boolean;
   plays: number;
   created_at: string;
-  /** The producer's custom license templates (0187), offered next to
+  /** The producer's custom license templates (0188), offered next to
       the fixed tiers in the license modal. Producer-scoped: every beat
       from the same producer carries the same templates. */
   license_templates?: BeatLicenseTemplate[];
@@ -72,7 +72,7 @@ interface License {
   beat_id: string;
   tier: string;
   template_id?: string | null;
-  /** The purchased terms snapshot (0187) — buyer surfaces render the
+  /** The purchased terms snapshot (0188) — buyer surfaces render the
       terms from this copy, never from the live template. */
   terms?: BeatLicenseTerms | null;
   price_cents: number;
@@ -823,7 +823,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
   );
 }
 
-/* ─── Custom license templates (0187) ─────────────────────────────────────
+/* ─── Custom license templates (0188) ─────────────────────────────────────
    Producer-side manager: define named license offers with your own
    price and terms; they appear on all your beats next to the fixed
    tiers. Every sale snapshots the terms as sold — editing or deleting

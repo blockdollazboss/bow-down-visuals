@@ -79,7 +79,7 @@ function unsettledSql(alias: string) {
 export async function pendingPayoutCents(profileId: string): Promise<number> {
   const r = await db.execute(sql`
     SELECT
-      /* Refunded sales never pay out (0182, defect D1): the clawback
+      /* Refunded sales never pay out (0183, defect D1): the clawback
          engine marks digital_sales / store_orders 'refunded' and the
          bulk ledgers drop them here; earnings.ts already reads
          store_orders with status = 'completed'. */

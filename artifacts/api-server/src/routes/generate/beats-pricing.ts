@@ -33,7 +33,7 @@ export function isBeatLicenseTier(tier: unknown): tier is BeatLicenseTier {
   return typeof tier === "string" && (BEAT_LICENSE_TIERS as readonly string[]).includes(tier);
 }
 
-/* ── License terms (migration 0187) ────────────────────────────────────────
+/* ── License terms (migration 0188) ────────────────────────────────────────
    Mirrors BeatLicenseTerms / BEAT_LICENSE_FORMATS in
    lib/db/src/schema/beats.ts. A null cap means the license does not cap
    that use (unlimited); a null termYears means no fixed term. */

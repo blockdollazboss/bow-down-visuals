@@ -7,7 +7,7 @@ import {
 import { sendEmail, emailShell, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
 import { logger } from "./logger";
 
-/* ── Release-day presave fan notifications (wave 3 #15; migration 0185) ──
+/* ── Release-day presave fan notifications (wave 3 #15; migration 0186) ──
    The presave landing page promises every fan who pre-saves: "You'll
    get one email when the music drops. No spam, ever." This module is
    that email.

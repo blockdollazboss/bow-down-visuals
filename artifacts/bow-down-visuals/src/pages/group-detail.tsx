@@ -27,7 +27,7 @@ interface Post {
   author_user_id: string; author: ProfileCard | null; can_delete: boolean;
 }
 
-/* Group forums (0184): channels inside the group, threads inside a
+/* Group forums (0185): channels inside the group, threads inside a
    channel, replies inside a thread. The server computes what the
    viewer may do (can_post / can_moderate / can_manage_channels) from
    the group's role ladder — the page never re-derives permissions. */

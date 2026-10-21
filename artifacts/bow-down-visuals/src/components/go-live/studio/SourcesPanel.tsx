@@ -74,7 +74,7 @@ export default function SourcesPanel({
 }) {
   const scene = stage.previewScene();
   const { getAccessToken } = useAuth();
-  /* On-stage guests (0201) for the quick-add chips + the guest
+  /* On-stage guests (0202) for the quick-add chips + the guest
      source's binding picker — the roster lives in guestFeeds. */
   const [, setFeedsVersion] = useState(0);
   useEffect(() => guestFeeds.subscribe(() => setFeedsVersion((v) => v + 1)), []);

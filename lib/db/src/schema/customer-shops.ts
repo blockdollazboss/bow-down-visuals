@@ -127,7 +127,7 @@ export const shopEventsTable = pgTable("shop_events", {
   quantity: integer("quantity").notNull().default(1),
   /** Groups the lines of one checkout (migration 0144). */
   checkout_group_id: text("checkout_group_id"),
-  /** The shop discount code this line was priced with (migration 0189),
+  /** The shop discount code this line was priced with (migration 0190),
       carried from the pending rows through the paid flip so the code's
       use is counted exactly once, when the sale is recorded — the
       storefront's redemption discipline. Null = no code. */
@@ -142,7 +142,7 @@ export const shopEventsTable = pgTable("shop_events", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/* ── Shop discount codes (migration 0189) ─────────────────────────────
+/* ── Shop discount codes (migration 0190) ─────────────────────────────
    The profile storefront's discount_codes model (0099) copied
    field-for-field for marketplace shops, keyed by shop instead of
    creator profile: percent off 1..90, max_uses (-1 = unlimited),

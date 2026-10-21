@@ -37,7 +37,7 @@ export const fanTiersTable = pgTable(
 
 export type FanTier = typeof fanTiersTable.$inferSelect;
 
-/* "refunded" (migration 0182, defect D1): the payment behind the join
+/* "refunded" (migration 0183, defect D1): the payment behind the join
    was refunded or lost to a chargeback — the clawback engine sets it
    and the entitlement is dead (access checks admit only trialing /
    active; payout sums exclude refunded rows explicitly). */

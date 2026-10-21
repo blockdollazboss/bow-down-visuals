@@ -1,5 +1,5 @@
 /**
- * Email engagement honesty — the tracked era (migration 0188).
+ * Email engagement honesty — the tracked era (migration 0189).
  *
  * This file replaces the Stack-30 "opens are not tracked" contract:
  * tracking now EXISTS (house pixel + wrapped-link redirect on every
@@ -29,7 +29,7 @@
  * fan-contests-hardening.test.ts): the REAL routers and libs run
  * against a fake db that implements the drizzle chains they use —
  * conditions are rendered with PgDialect and their params evaluated,
- * inserts honor the same unique constraints migration 0188 creates
+ * inserts honor the same unique constraints migration 0189 creates
  * (including the first-signal-wins partial uniques), and sql`col + 1`
  * counter increments are applied. (pg-mem can't serve this surface:
  * drizzle's query builder emits rowMode, which its adapter rejects.)
@@ -73,7 +73,7 @@ function buildFakeDb(actual: Record<string, any>) {
     "shopEventsTable",
   ] as const;
 
-  /* Unique constraints from migration 0188 (+ the pre-existing handle
+  /* Unique constraints from migration 0189 (+ the pre-existing handle
      unique), expressed as DB column names with an optional row filter
      for the partial indexes. */
   const UNIQUE_SETS: Array<{ table: string; cols: string[]; when?: (r: Row) => boolean }> = [

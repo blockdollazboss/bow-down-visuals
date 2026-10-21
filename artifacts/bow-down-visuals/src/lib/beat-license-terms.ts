@@ -1,4 +1,4 @@
-/* Beat license terms (migration 0187) — the client mirror of the API's
+/* Beat license terms (migration 0188) — the client mirror of the API's
    terms model (api-server beats-pricing.ts / lib/db schema beats.ts).
    A null cap means the license does not cap that use (unlimited); a
    null termYears means no fixed term. Buyer surfaces render the terms

@@ -80,7 +80,7 @@ export const insertGroupPostSchema = createInsertSchema(groupPostsTable).omit({ 
 export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
 export type GroupPost = typeof groupPostsTable.$inferSelect;
 
-/* ── Group forum channels / threads / replies (migration 0184, Wave 3 #13) ──
+/* ── Group forum channels / threads / replies (migration 0185, Wave 3 #13) ──
    The group feed is one flat stream; forums give a group topic-contained
    boards INSIDE the group: channels (topics) hold threads, threads hold
    replies. Visibility and write rules are the group's own — the routes

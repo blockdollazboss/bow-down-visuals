@@ -68,7 +68,7 @@ export default function ShopStorefront() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderDone, setOrderDone] = useState<{ lines: number; gross: number; fee: number; net: number } | null>(null);
-  /* Discount code (0189): validated against THIS shop's codes via the
+  /* Discount code (0190): validated against THIS shop's codes via the
      public validate endpoint; the server re-validates at checkout and
      is always the pricing authority — the totals shown here mirror
      its exact unit-rounding formula. */

@@ -37,7 +37,7 @@ export const liveDestinationKeysTable = pgTable(
 );
 export type LiveDestinationKey = typeof liveDestinationKeysTable.$inferSelect;
 
-/* ── #1b RTMP ingest keys (migration 0193) ──────────────────────────
+/* ── #1b RTMP ingest keys (migration 0194) ──────────────────────────
    The mirror image of destination keys: a personal key an external
    encoder (OBS, VirtualDJ, Serato, djay) uses to push RTMP INTO the
    creator's Go Live stage. One active key per creator. The plain key

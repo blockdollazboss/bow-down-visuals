@@ -75,7 +75,7 @@ export class SourcePool {
   screenStream: MediaStream | null = null;
   screenEnded = false;
 
-  /* Guest sources (Go Live guests, 0201): the live video element for
+  /* Guest sources (Go Live guests, 0202): the live video element for
      an on-stage guest's WebRTC feed, resolved by guest session id.
      Wired by the studio to the backstage mesh's feed registry; the
      default keeps guest tiles at their honest placeholder. */

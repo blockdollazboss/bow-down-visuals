@@ -1,7 +1,7 @@
 /**
  * Live social-proof sync (competitor-study C5) — verified audience
  * figures from a creator's ALREADY-CONNECTED social accounts, cached in
- * creator_social_proof (migration 0202) and shown on the Grand Stage
+ * creator_social_proof (migration 0203) and shown on the Grand Stage
  * profile with source + last-updated labels.
  *
  * Honesty law for every figure that reaches a screen:

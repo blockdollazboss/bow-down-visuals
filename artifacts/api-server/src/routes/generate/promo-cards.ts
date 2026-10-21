@@ -41,7 +41,7 @@ const router = Router();
    prompt, the primary color becomes the headline/frame accent, the
    logo is composited as a brand badge, and the lead font pairing
    resolves to a bundled face where one exists. The snapshot is stored
-   on every card row (migration 0181), so editing the kit afterwards
+   on every card row (migration 0182), so editing the kit afterwards
    never mutates already-generated cards. No kit → the pack generates
    exactly as it did before the kit was wired in, never an error. */
 
@@ -336,7 +336,7 @@ export async function recordPromoCardPack(input: {
   releaseTitle: string;
   artistName: string;
   caption: string | null;
-  /** The generation-time brand-kit snapshot (0181); null = no kit. */
+  /** The generation-time brand-kit snapshot (0182); null = no kit. */
   brandSnapshot?: PromoCardBrandSnapshot | null;
   cards: PromoCardPackCard[];
 }): Promise<(string | null)[]> {
@@ -375,7 +375,7 @@ async function promoCardDto(row: typeof promoCardsTable.$inferSelect) {
     releaseTitle: row.releaseTitle,
     artistName: row.artistName,
     caption: row.caption,
-    /* The brand-kit snapshot the card was generated with (0181);
+    /* The brand-kit snapshot the card was generated with (0182);
        null for cards made without a kit (including every card
        recorded before the snapshot shipped). */
     brand: row.brandSnapshot ?? null,
@@ -762,7 +762,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       artistName,
       style: chosen.id,
       headline,
-      /* The brand-kit snapshot this pack was generated with (0181);
+      /* The brand-kit snapshot this pack was generated with (0182);
          null when the creator has no kit — the pre-kit behavior. */
       brand,
       cards,

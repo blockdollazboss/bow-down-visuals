@@ -1,5 +1,5 @@
 /**
- * Shop discount codes (migration 0189) — marketplace shops reach parity
+ * Shop discount codes (migration 0190) — marketplace shops reach parity
  * with the profile storefront's discount_codes. These tests drive the
  * REAL shops router over pg-mem with Stripe faked at the house seam
  * (lib/stripe-checkout, same as market-checkout.test.ts) and pin:
@@ -167,7 +167,7 @@ afterAll(async () => { await new Promise<void>((r) => server.close(() => r())); 
 beforeEach(() => {
   const { db, mem } = createTestDb();
   /* pg-mem ships almost no native functions; the real schema defaults
-     ids with gen_random_uuid() (migration 0189's table included). */
+     ids with gen_random_uuid() (migration 0190's table included). */
   mem.public.registerFunction({
     name: "gen_random_uuid",
     args: [],

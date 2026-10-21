@@ -33,7 +33,7 @@ interface ProductData {
     description: string | null;
     priceCents: number;
     price: string;
-    /** $0 = lead magnet (0189): claimed by email, never checked out. */
+    /** $0 = lead magnet (0190): claimed by email, never checked out. */
     free?: boolean;
     compareAtCents: number | null;
     inventory: number;
@@ -80,7 +80,7 @@ export default function StorefrontProduct() {
   const [shared, setShared] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [discountCode, setDiscountCode] = useState("");
-  /* Lead-magnet claim state (0189). */
+  /* Lead-magnet claim state (0190). */
   const [claimEmail, setClaimEmail] = useState("");
   const [claimName, setClaimName] = useState("");
   const [claimConsent, setClaimConsent] = useState(false);

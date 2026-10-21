@@ -45,7 +45,7 @@ async function presentBeat<T extends { audio_url: string; audio_path: string | n
 const router = Router();
 
 /* A license purchase names exactly one offer: a fixed tier OR one of the
-   producer's custom templates (migration 0187). */
+   producer's custom templates (migration 0188). */
 const beatLicenseSchema = z.object({
   tier: z.enum(["basic", "premium", "exclusive"]).optional(),
   templateId: z.string().uuid().optional(),
@@ -53,7 +53,7 @@ const beatLicenseSchema = z.object({
   message: "Choose exactly one of tier or templateId.",
 });
 
-/* ── Custom license templates (0187) ───────────────────────────────────────
+/* ── Custom license templates (0188) ───────────────────────────────────────
    DTO + snapshot mapping. The snapshot is the terms EXACTLY as sold,
    copied onto the license row at purchase; the live template row is
    never re-read for a sold license. */
@@ -271,7 +271,7 @@ router.get("/beats/mine/dashboard", requireAuth, async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Custom license templates (0187) — producer-owned CRUD.
+   Custom license templates (0188) — producer-owned CRUD.
    A template is an offer definition, not a sale record: editing or
    deleting one changes future sales only. Licenses already sold keep
    the terms snapshot taken at purchase.

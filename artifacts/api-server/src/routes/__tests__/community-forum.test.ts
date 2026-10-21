@@ -1,6 +1,6 @@
 /**
  * Route tests for group forum channels / threads / replies
- * (routes/community, migration 0184, Wave 3 #13).
+ * (routes/community, migration 0185, Wave 3 #13).
  *
  * Fake-db style (mirrors drafts.test.ts): the REAL router + REAL table
  * objects, a fake db that renders drizzle conditions with PgDialect

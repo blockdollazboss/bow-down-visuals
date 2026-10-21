@@ -36,7 +36,7 @@ interface LiveStreamDto {
 type LoadState = "loading" | "ready" | "error" | "notfound";
 type PlayState = "idle" | "connecting" | "playing" | "failed";
 
-/* Who's on stage with the host (guest invites, 0201). The public
+/* Who's on stage with the host (guest invites, 0202). The public
    roster endpoint only ever names ON-STAGE guests — backstage stays
    invisible to the audience, here as everywhere. Labeled "Guest"
    because that's what they are. */

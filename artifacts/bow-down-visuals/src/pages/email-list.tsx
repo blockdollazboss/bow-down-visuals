@@ -106,7 +106,7 @@ interface CampaignRow {
  createdAt: string;
 }
 
-/* Automations (migration 0197): one row per kind, counts measured
+/* Automations (migration 0198): one row per kind, counts measured
    from real sends only. triggerNote is the server's plain-language
    statement of what fires it — including its blind spots. */
 interface AutomationRow {
@@ -246,7 +246,7 @@ export default function EmailListBuilder() {
  const [nlDraft, setNlDraft] = useState<{ subject: string; body: string } | null>(null);
  const [nlLoading, setNlLoading] = useState(false);
 
- /* tags + segments + campaigns (migration 0188) */
+ /* tags + segments + campaigns (migration 0189) */
  const [emailTags, setEmailTags] = useState<EmailTagRow[]>([]);
  const [segments, setSegments] = useState<SegmentRow[]>([]);
  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
@@ -265,7 +265,7 @@ export default function EmailListBuilder() {
  const [campAudience, setCampAudience] = useState<string>("");
  const [campSending, setCampSending] = useState(false);
  const [campResult, setCampResult] = useState<string | null>(null);
- /* automations (migration 0197) — drafts keyed by automation row id
+ /* automations (migration 0198) — drafts keyed by automation row id
     so switching lists never leaks one list's edits into another's */
  const [automations, setAutomations] = useState<AutomationRow[]>([]);
  const [autoDrafts, setAutoDrafts] = useState<Record<string, { subject: string; body: string; delayHours: number }>>({});
@@ -1297,7 +1297,7 @@ export default function EmailListBuilder() {
  )}
  </div>
 
- {/* ── automations (migration 0197): off until switched on ── */}
+ {/* ── automations (migration 0198): off until switched on ── */}
  <div className={`${cardClass} mt-4`}>
  <h3 className="flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-primary" />{t("email-list.automations")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.automations_intro")}</p>

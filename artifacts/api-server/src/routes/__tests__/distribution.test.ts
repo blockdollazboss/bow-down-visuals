@@ -180,7 +180,7 @@ CREATE TABLE distribution_releases (
   presave_headline text,
   presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb,
   presave_bonus_url text,
-  /* Retargeting pixels (migration 0186) */
+  /* Retargeting pixels (migration 0187) */
   meta_pixel_id text,
   tiktok_pixel_id text,
   google_tag_id text

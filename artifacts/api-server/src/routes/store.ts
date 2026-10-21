@@ -146,7 +146,7 @@ function verifyTokenSignature(token: string): boolean {
 
 /* ── Sellable catalog ────────────────────────────────────────────────────
    Which entities can be sold today. track → profile_tracks, video →
-   profile_videos, series → playlists (kind='series', migration 0191 —
+   profile_videos, series → playlists (kind='series', migration 0192 —
    the sale unlocks streaming access instead of delivering a file).
    album/pack/digital are valid store kinds (migration 0090) but their
    catalog entities haven't shipped yet — they 400 with a clear message
@@ -195,7 +195,7 @@ async function resolveSellableItem(
 ): Promise<SellableItem | { notForSale: true } | { notWired: true }> {
   if (!UUID_RE.test(id)) return { notForSale: true };
   if (kind === "series") {
-    /* Paid Series (0191): the catalog entity is a kind='series' playlist
+    /* Paid Series (0192): the catalog entity is a kind='series' playlist
        with the creator's own price_cents. There is NO file to deliver —
        the completed sale row is the unlock — so fileUrl stays empty and
        verify/token branch on the kind instead of minting download links. */

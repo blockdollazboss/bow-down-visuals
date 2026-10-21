@@ -32,7 +32,7 @@ import { r2Upload, isR2Configured } from "./r2-client";
 
    The RTMP multistream relay (lib/multistream + lib/fanout) taps this
    same per-session byte stream and pushes a copy at each connected
-   platform. RTMP INGEST (lib/rtmp-ingest, migration 0193) feeds this
+   platform. RTMP INGEST (lib/rtmp-ingest, migration 0194) feeds this
    engine from the other direction: an external encoder's FLV stream
    arrives as chunks under mime video/x-flv and rides the identical
    session/HLS/replay path — one engine, two doors in. */

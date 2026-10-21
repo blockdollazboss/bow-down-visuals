@@ -82,7 +82,7 @@ interface Project {
   created_at: string;
 }
 
-/* A saved AI Website Builder project (migration 0195) — the summary
+/* A saved AI Website Builder project (migration 0196) — the summary
    shape of GET /api/website-builder/projects. The full files live
    behind the builder's version endpoints; this tab lists and opens,
    it never renders a stored preview (none exists — the preview
@@ -1081,7 +1081,7 @@ export default function MyProjects() {
         )}
 
         {/* ── WEBSITES TAB ──
-            Saved AI Website Builder projects (0195). Cards carry
+            Saved AI Website Builder projects (0196). Cards carry
             metadata only — no preview image is stored anywhere; the
             preview renders live inside the builder on open. */}
         {tab === "websites" && (

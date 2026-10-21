@@ -1,7 +1,7 @@
 # Database migrations — Render Postgres
 
 Every schema change to the Render Postgres database ships as a numbered SQL
-file in this directory: `NNNN_short_description.sql` (next number: **0104**).
+file in this directory: `NNNN_short_description.sql` (next number: **0204**).
 Files are applied **automatically at container boot** by
 `../migrate-boot.mjs` (wired into the Dockerfile `CMD`) — in filename order,
 exactly once, tracked in the `data_migrations` table. There is no manual step
@@ -47,6 +47,16 @@ again once as harmless no-ops; on fresh databases they apply normally.
 (NB: `0045` and `0046` also have duplicate numbers, but both files in each
 pair are ≤ `BASELINE = 55` so the runner skips them on set-up databases —
 left as-is.)
+
+## Renumbered 2026-10-21 (pre-push join)
+
+Parallel email work landed `0181_email_sender_wiring.sql` on staging (already
+applied there) while the stack being joined carried its own never-applied
+`0181_promo_cards_brand_snapshot.sql` through `0202_social_proof.sql`. The
+stack's whole block was renumbered +1 with `git mv`, contents byte-identical
+(checksum-verified): `0181` stays `email_sender_wiring`, and the stack's
+files are now `0182_promo_cards_brand_snapshot.sql` …
+`0203_social_proof.sql` in their original relative order. Next free: `0204`.
 
 ## What the runner does
 

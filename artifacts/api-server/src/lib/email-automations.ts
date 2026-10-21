@@ -1,7 +1,7 @@
 /**
- * Email automations (migration 0197).
+ * Email automations (migration 0198).
  *
- * Three starter sequences on the tracked email rail (0188): a
+ * Three starter sequences on the tracked email rail (0189): a
  * post-purchase thank-you, an abandoned-checkout nudge, and a
  * membership winback. One email_automations row per (list, kind),
  * materialized lazily with enabled = FALSE — nothing ever sends for

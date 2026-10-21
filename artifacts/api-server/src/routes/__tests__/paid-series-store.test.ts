@@ -1,5 +1,5 @@
 /**
- * Paid Series (0191) — the MONEY side: series unlocks ride the existing
+ * Paid Series (0192) — the MONEY side: series unlocks ride the existing
  * digital store rail (routes/store.ts), unchanged in discipline:
  *   - the creator's typed price_cents is the only price; the platform fee
  *     is the store rail's own 5% knob (STOREFRONT_PLATFORM_FEE_BPS = 500),

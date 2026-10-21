@@ -674,7 +674,7 @@ async function soundMapFor(
 
 type PlaylistRow = typeof playlistsTable.$inferSelect;
 
-/* ── Paid Series (migration 0191) ──────────────────────────────────────────
+/* ── Paid Series (migration 0192) ──────────────────────────────────────────
    A kind='series' playlist with price_cents > 0 sells as a one-time unlock
    on the digital store rail (routes/store.ts): the completed digital_sales
    row (item_kind 'series', item_id = playlist id) IS the buyer's
@@ -683,7 +683,7 @@ type PlaylistRow = typeof playlistsTable.$inferSelect;
      · a non-buyer never receives a playable URL for a locked episode;
      · the ONE creator-marked preview episode stays free for everyone;
      · the owner always has full access;
-     · a sale the 0182 clawback flipped to 'refunded' stops counting the
+     · a sale the 0183 clawback flipped to 'refunded' stops counting the
        moment its status flips — the episodes lock again automatically.
    The buyer relationship stays the creator's: purchasers are ordinary
    digital-store buyers (sales dashboard, earnings, /playlists/:id/buyers),
@@ -859,7 +859,7 @@ function toPlaylistDto(
     created_at: p.createdAt,
     owner_profile_slug: ownerProfileSlug,
     resolved_items: resolvedItems,
-    /* Paid Series commerce state (0191): the creator's price (null =
+    /* Paid Series commerce state (0192): the creator's price (null =
        free), the marked free-preview episode, and THIS viewer's access —
        'free' | 'owner' | 'purchased' | 'locked'. */
     price_cents: p.priceCents ?? null,

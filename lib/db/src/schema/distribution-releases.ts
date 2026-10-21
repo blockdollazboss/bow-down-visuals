@@ -36,7 +36,7 @@ export const distributionReleasesTable = pgTable("distribution_releases", {
     .notNull()
     .default({}),
   presave_bonus_url: text("presave_bonus_url"),
-  /* ── Retargeting pixels (migration 0186) ─────────────────────────────
+  /* ── Retargeting pixels (migration 0187) ─────────────────────────────
      The creator's own ad-platform pixel/tag IDs for this release's
      smartlink landing. The public page fires exactly the configured
      pixels on view; all three null = nothing fires. Validated

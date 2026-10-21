@@ -1,5 +1,5 @@
 /**
- * Email engagement tracking (migration 0188).
+ * Email engagement tracking (migration 0189).
  *
  * The signal path, end to end:
  *   1. Campaign sends render through renderTrackedCampaignHtml below:

@@ -1,5 +1,5 @@
 /**
- * $0 lead-magnet products (migration 0189) — the storefront half.
+ * $0 lead-magnet products (migration 0190) — the storefront half.
  * Drives the REAL storefront router over pg-mem with Stripe faked at
  * the lib/stripe-client seam and pins:
  *  - a $0 product can be created (and edited down to $0) while paid

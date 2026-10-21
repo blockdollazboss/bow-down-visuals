@@ -1,6 +1,6 @@
 /**
  * group-detail-forum.test.ts — source pins for the group forum tab
- * (Wave 3 #13, migration 0184): channels inside the group page,
+ * (Wave 3 #13, migration 0185): channels inside the group page,
  * threads inside a channel, replies inside a thread.
  *
  * The contract pinned here:

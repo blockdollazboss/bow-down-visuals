@@ -13,7 +13,7 @@ import {
 import { createTestDb, type TestDb } from "./test-db";
 import { DataType } from "pg-mem";
 
-/* Release-day presave fan notifications (wave 3 #15, migration 0185).
+/* Release-day presave fan notifications (wave 3 #15, migration 0186).
  *
  * These tests run the REAL drizzle store against pg-mem — the claim
  * discipline (insert-first ON CONFLICT DO NOTHING, status-guarded

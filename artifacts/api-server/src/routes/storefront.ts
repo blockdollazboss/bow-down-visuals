@@ -234,7 +234,7 @@ function withLinks(p: ProductRow) {
     description: p.description,
     priceCents: Number(p.price_cents),
     price: money(Number(p.price_cents)),
-    /* $0 = lead magnet (migration 0189): claimed by email, never
+    /* $0 = lead magnet (migration 0190): claimed by email, never
        checked out. Every product payload carries the flag so every
        surface renders it FREE instead of $0.00. */
     free: Number(p.price_cents) === 0,
@@ -388,7 +388,7 @@ const BaseProductSchema = z.object({
   kind: ProductKindSchema,
   title: z.string().trim().min(1, "A title is required.").max(160),
   description: z.string().max(5000).default(""),
-  /* 0 is allowed (migration 0189): a $0 product is a lead magnet —
+  /* 0 is allowed (migration 0190): a $0 product is a lead magnet —
      claimed by email via /storefront/claim, never checked out. */
   priceCents: z.number().int().nonnegative().max(10_000_00 * 100),
   compareAtCents: z.number().int().positive().nullable().optional(),
@@ -561,7 +561,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't for sale right now." });
       return;
     }
-    /* A $0 lead magnet never reaches Stripe (migration 0189): there is
+    /* A $0 lead magnet never reaches Stripe (migration 0190): there is
        no card to charge. It is claimed by email on the house rail. */
     if (Number(p.price_cents) === 0) {
       res.status(400).json({
@@ -918,7 +918,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
   }
 });
 
-/* ═══════════════════ CLAIM (free lead magnets, 0189) ═══════════════
+/* ═══════════════════ CLAIM (free lead magnets, 0190) ═══════════════
    A $0 product is a lead magnet, not a sale: no Stripe session exists
    for it and none is ever created here. The buyer claims it — the
    claim subscribes their email to the creator's email list (the

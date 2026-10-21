@@ -43,7 +43,7 @@ interface PresaveRelease {
   released?: boolean;
   persistsAfterRelease?: boolean;
   landing?: { videoUrl: string | null; storeUrl: string | null; socialLinks: Record<string, string> };
-  /* Migration 0186: the creator's own retargeting pixels for this
+  /* Migration 0187: the creator's own retargeting pixels for this
      release (all null when none are configured — nothing fires). */
   pixels?: SmartlinkPixels;
   accountPresave?: { platform: string; supported: boolean; itemKind?: string; actionLabel: string | null; accountSaveCount?: number; reason?: string };
@@ -184,7 +184,7 @@ export default function PresaveLanding() {
     } catch { return ""; }
   }, []);
 
-  /* Smartlink analytics + retargeting pixels (migration 0186): once
+  /* Smartlink analytics + retargeting pixels (migration 0187): once
      per page load — record the view and fire the creator's own pixels,
      but only the ones this release actually carries. */
   const viewTrackedRef = useRef(false);

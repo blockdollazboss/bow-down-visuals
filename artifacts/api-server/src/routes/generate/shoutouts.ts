@@ -46,7 +46,7 @@ export const REQUEST_STATUSES = [
 ] as const;
 
 /* Allowed status transitions. Terminal states (delivered/declined) can't move.
-   'refunded' is terminal and system-only: the clawback engine (0182, D1)
+   'refunded' is terminal and system-only: the clawback engine (0183, D1)
    writes it directly when the paying charge is reversed — no user
    transition ever targets it, so it appears in no target list. */
 const TRANSITIONS: Record<ShoutoutRequestStatus, ShoutoutRequestStatus[]> = {

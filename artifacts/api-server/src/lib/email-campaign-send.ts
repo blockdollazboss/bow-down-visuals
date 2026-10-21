@@ -1,5 +1,5 @@
 /**
- * Campaign dispatch (migration 0188).
+ * Campaign dispatch (migration 0189).
  *
  * Until this lane, an email_campaigns row was a record that never
  * sent: no code path moved a queued campaign to a single inbox. The
@@ -11,7 +11,7 @@
  * Resend helper (lib/email.ts) with the tracking instrumentation
  * from lib/email-tracking.ts.
  *
- * Automations (migration 0197) ride the same rail one recipient at
+ * Automations (migration 0198) ride the same rail one recipient at
  * a time through sendCampaignDelivery below — an automation's
  * carrier campaign holds its deliveries so the tracking pixel, the
  * click redirect, the unsubscribe flow, and the Resend webhook all

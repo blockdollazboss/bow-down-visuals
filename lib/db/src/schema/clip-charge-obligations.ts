@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 /**
  * Durable charge→refund obligations for generated video clips
- * (migration 0183, payments defect D3).
+ * (migration 0184, payments defect D3).
  *
  * The defect: the Runway/Veo poll handlers charge credits on SUCCEEDED
  * and remembered the charge in an in-memory map (chargedTasks) so the

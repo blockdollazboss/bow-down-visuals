@@ -32,7 +32,7 @@ export const presaveSharesTable = pgTable("presave_shares", {
 export type PresaveFollow = typeof presaveFollowsTable.$inferSelect;
 export type PresaveShare = typeof presaveSharesTable.$inferSelect;
 
-/* Release-day fan notifications (wave 3 #15, migration 0185).
+/* Release-day fan notifications (wave 3 #15, migration 0186).
    presave_release_deliveries: the delivery ledger for the "one email
    when the music drops" promise the presave page makes. One row per
    (release, fan email), claimed insert-first (ON CONFLICT DO NOTHING
@@ -75,7 +75,7 @@ export const presaveReleaseDeliveriesTable = pgTable("presave_release_deliveries
 ]);
 
 export type PresaveReleaseDelivery = typeof presaveReleaseDeliveriesTable.$inferSelect;
-/* Release smartlink analytics (migration 0186, competitor gap G2).
+/* Release smartlink analytics (migration 0187, competitor gap G2).
    One row per landing event on the release's persistent smartlink /
    presave page, copying the bio_link_clicks field discipline
    (bio-pages.ts): link key + title snapshot, referrer, created_at.

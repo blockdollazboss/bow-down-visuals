@@ -92,7 +92,7 @@ export interface StreamPlaylist {
     | { kind: "track"; item: StreamTrack; locked?: boolean; is_preview?: boolean }
     | { kind: "video"; item: StreamVideo; locked?: boolean; is_preview?: boolean }
   >;
-  /* ── Paid Series commerce (migration 0191) ──
+  /* ── Paid Series commerce (migration 0192) ──
      price_cents: the creator's own unlock price (null = free series).
      preview_item: the ONE episode non-buyers may watch free.
      series_access: THIS viewer's state — pass the auth header when

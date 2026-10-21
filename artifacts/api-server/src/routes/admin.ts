@@ -1046,7 +1046,7 @@ router.get("/admin/operator-actions", requireAuth, requireAdmin, async (req, res
 
 /**
  * GET /api/admin/payment-reversals?limit=
- * The refund / chargeback clawback trail (0182, defect D1): one row
+ * The refund / chargeback clawback trail (0183, defect D1): one row
  * per reversed charge — the rail, what was granted, what was clawed
  * back, any shortfall the balance couldn't cover, and the rows parked
  * at 'needs_manual_review' (identified charges a human must reverse,

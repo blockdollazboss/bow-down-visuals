@@ -13,7 +13,7 @@ import { z } from "zod/v4";
  */
 
 /** Every digital content kind the store can sell. Keep in sync with
-    migrations 0090 + 0191 ('series' = a paid Series unlock on a
+    migrations 0090 + 0192 ('series' = a paid Series unlock on a
     kind='series' playlist; the sale row is the buyer's entitlement). */
 export const DIGITAL_ITEM_KINDS = ["track", "video", "album", "pack", "digital", "series"] as const;
 export type DigitalItemKind = (typeof DIGITAL_ITEM_KINDS)[number];
@@ -28,7 +28,7 @@ export const digitalSalesTable = pgTable("digital_sales", {
   amountCents:        integer("amount_cents").notNull(),
   platformFeeCents:   integer("platform_fee_cents").notNull().default(0),
   creatorAmountCents: integer("creator_amount_cents").notNull().default(0),
-  /* Reversal state (migration 0182, defect D1): 'completed' | 'refunded'.
+  /* Reversal state (migration 0183, defect D1): 'completed' | 'refunded'.
      A refunded sale drops out of payout/earnings sums and its download
      links are expired by the clawback engine. Mirrors store_orders.status. */
   status:             text("status").notNull().default("completed"),

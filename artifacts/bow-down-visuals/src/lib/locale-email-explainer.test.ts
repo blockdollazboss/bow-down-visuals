@@ -1,6 +1,6 @@
 /**
  * locale-email-explainer.test.ts — the "how sending works" explainer,
- * tracked era (migration 0188).
+ * tracked era (migration 0189).
  *
  * History: Stack-30 corrected this explainer in all 10 catalogs when
  * the page falsely claimed pixel open tracking that did not exist.

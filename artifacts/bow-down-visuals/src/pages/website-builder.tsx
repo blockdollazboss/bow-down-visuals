@@ -29,7 +29,7 @@ import {
    Creator-niche templates: artist site, press kit, link-in-bio-plus,
    tour page. Conversational edits at 2 credits each.
 
-   Persistence (migration 0195): every build is saved to the member's
+   Persistence (migration 0196): every build is saved to the member's
    account server-side as a project; re-generations and edits append
    versions. Saved sites re-open here (or from My Projects → Websites)
    with the exact files restored — a refresh no longer loses the site.
@@ -88,7 +88,7 @@ interface GenerateResponse {
   seededFrom?: SeededFrom;
   ownership?: string;
   error?: string;
-  /* Persistence (0195): the saved project + head version, and whether
+  /* Persistence (0196): the saved project + head version, and whether
      the server-side save landed. saved:false keeps the files — the
      page offers an explicit retry save. */
   projectId?: string | null;
@@ -227,7 +227,7 @@ export default function WebsiteBuilder() {
     });
   }
 
-  /* ── Persistence state (0195) ── */
+  /* ── Persistence state (0196) ── */
   const [projectId, setProjectId] = useState<string | null>(null);
   const [currentVersion, setCurrentVersion] = useState<number | null>(null);
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
@@ -260,7 +260,7 @@ export default function WebsiteBuilder() {
     }
   }, [files, showPreview]);
 
-  /* ── Persistence helpers (0195) ── */
+  /* ── Persistence helpers (0196) ── */
   async function authHeaders(): Promise<Record<string, string>> {
     const token = await getAccessToken();
     return { Authorization: `Bearer ${token ?? ""}` };
@@ -658,7 +658,7 @@ export default function WebsiteBuilder() {
           </div>
         )}
 
-        {/* Saved sites (0195) — the member's builder projects. No
+        {/* Saved sites (0196) — the member's builder projects. No
             preview thumbnails are stored, so each card says plainly
             that the preview renders live when the site is opened. */}
         {user && (
@@ -937,7 +937,7 @@ export default function WebsiteBuilder() {
               </div>
             </div>
 
-            {/* Saved-project status + version controls (0195) */}
+            {/* Saved-project status + version controls (0196) */}
             {projectId && (
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">

@@ -3,7 +3,7 @@ import { Ban, Check, Copy, EyeOff, KeyRound, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiJson } from "@/lib/social-api";
 
-/* ── RTMP ingest key (migration 0193) ───────────────────────────────────
+/* ── RTMP ingest key (migration 0194) ───────────────────────────────────
    The mirror of DestinationKeysPanel: destinations are keys OUT, this
    is the creator's personal key IN — an external encoder (OBS,
    VirtualDJ, Serato, djay…) pushes RTMP to it and becomes the Go Live

@@ -130,7 +130,7 @@ app.post(
 // Resend webhook — same discipline: raw body before express.json(),
 // Svix signature verification inside the handler, which fails closed
 // when RESEND_WEBHOOK_SECRET is not configured. Feeds the email
-// engagement recorder (opens/clicks/bounces/complaints, migration 0188).
+// engagement recorder (opens/clicks/bounces/complaints, migration 0189).
 app.post(
   "/api/resend-webhook",
   express.raw({ type: "application/json" }),

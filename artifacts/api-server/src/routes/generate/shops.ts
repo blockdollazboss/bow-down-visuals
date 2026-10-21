@@ -262,7 +262,7 @@ async function productCount(shopId: string): Promise<number> {
   return (result.rows as unknown as Array<{ count: number }>)[0]?.count ?? 0;
 }
 
-/* ── Shop discount codes (migration 0189) ────────────────────────────────
+/* ── Shop discount codes (migration 0190) ────────────────────────────────
    Parity with the profile storefront's discount_codes (routes/
    storefront.ts): same fields, same validation, same redemption
    discipline — keyed by shop instead of creator profile, on
@@ -641,7 +641,7 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
   res.json({ deleted: true });
 });
 
-/* ── Shop discount codes: owner management (0189) ────────────────────────
+/* ── Shop discount codes: owner management (0190) ────────────────────────
    Mirrors the storefront's /storefront/discounts CRUD, scoped to a
    shop the caller owns (getOwnedShop — another owner's shop 404s
    exactly like a missing one, on every verb). */
@@ -1378,7 +1378,7 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
    net, settled later through the existing creator-payout path.
    A zero-total cart (free goods) needs no card: it records as paid
    with payment_status='no_payment_required', honestly labelled.
-   Discount codes (0189): an optional code is validated against THIS
+   Discount codes (0190): an optional code is validated against THIS
    shop's shop_discount_codes, applied to unit prices before the fee
    (the storefront's sequence), carried on the order rows, and counted
    as used only when the sale records — at the flip, or right here for
@@ -1394,7 +1394,7 @@ const checkoutSchema = z.object({
     quantity: z.number().int().min(1).max(99).default(1),
   })).min(1).max(50).optional(),
   buyerEmail: z.string().trim().email().max(254).optional().default(""),
-  /* Optional shop discount code (0189) — validated server-side against
+  /* Optional shop discount code (0190) — validated server-side against
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
   discountCode: z.string().trim().min(1).max(40).optional(),
@@ -1438,7 +1438,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     return;
   }
 
-  /* Server-side discount validation (0189), before any row is written:
+  /* Server-side discount validation (0190), before any row is written:
      the code must exist for THIS shop and be usable. A code from
      another shop — even with the same name — never applies here. */
   let discountCode: string | null = null;
@@ -1475,7 +1475,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       res.status(404).json({ error: "Product not found." });
       return;
     }
-    /* The storefront's money sequence (0189): discount the unit price
+    /* The storefront's money sequence (0190): discount the unit price
        first (rounded), line gross from the discounted unit, then the
        ruled 5% fee out of the discounted gross. */
     const listUnitCents = Number(product.price_cents);
@@ -1517,7 +1517,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       `);
     }
     /* The sale is recorded right here, so a presented code's use is
-       counted right here too (0189 redemption discipline). */
+       counted right here too (0190 redemption discipline). */
     if (discountCode) {
       await countShopDiscountUse(shopId, discountCode);
     }

@@ -33,7 +33,7 @@ export interface MarketSaleRow {
   payment_status: string | null;
   stripe_session_id: string | null;
   checkout_group_id: string | null;
-  /** Shop discount code the checkout was priced with (migration 0189). */
+  /** Shop discount code the checkout was priced with (migration 0190). */
   discount_code: string | null;
   paid_at: string | null;
   created_at: string;
@@ -78,7 +78,7 @@ export async function markMarketSalePaid(
     RETURNING id
   `);
   const rows = await fetchMarketSaleBySession(sessionId);
-  /* Discount redemption counting (0189) — the storefront's discipline:
+  /* Discount redemption counting (0190) — the storefront's discipline:
      a code's use is counted when the sale is RECORDED, never at
      validate/checkout time. The guarded flip above lands exactly once
      (replays flip 0 rows), so counting here is exactly-once too. One

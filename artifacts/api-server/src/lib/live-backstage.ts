@@ -33,7 +33,7 @@ export const BACKSTAGE_SAY_MAX = 500;
 
 /* ── Invite / session tokens ─────────────────────────────────────────
    High-entropy random tokens; only their SHA-256 hex is ever stored
-   (the RTMP ingest-key treatment, 0193). The plain token exists only
+   (the RTMP ingest-key treatment, 0194). The plain token exists only
    in the mint response and in the link the host shares. */
 export function mintGuestToken(): string {
   return randomBytes(32).toString("base64url");

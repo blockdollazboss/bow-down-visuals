@@ -1,5 +1,5 @@
 /**
- * Tutorials V1 (0200) — HTTP over pg-mem, the move-home pattern.
+ * Tutorials V1 (0201) — HTTP over pg-mem, the move-home pattern.
  * Pins the discipline the feature lives by:
  *   - OFFICIAL IS ADMIN-ONLY: a member can designate their own video
  *     as a tutorial, but marking anything official (designate, series

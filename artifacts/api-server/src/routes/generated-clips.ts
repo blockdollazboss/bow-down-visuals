@@ -119,7 +119,7 @@ const saveGeneratedClipHandler = async (req: Request, res: Response) => {
 
     /* ── Refund credits if they were already deducted for this clip ──
        D3: the durable obligation (clip_charge_obligations, migration
-       0183) is the source of truth — its claim is atomic on
+       0184) is the source of truth — its claim is atomic on
        status='pending', so this refund fires exactly once even across
        a server restart. The in-memory chargedTasks entry is passed as
        the fallback for charges that predate the durable record. */

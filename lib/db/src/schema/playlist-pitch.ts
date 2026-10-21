@@ -38,7 +38,7 @@ export const selectPlaylistPitchSchema = createSelectSchema(playlistPitchesTable
 export type PlaylistPitchRow = typeof playlistPitchesTable.$inferSelect;
 export type InsertPlaylistPitch = z.infer<typeof insertPlaylistPitchSchema>;
 
-/* Pitch submission deadlines (migration 0198, competitor gap G7).
+/* Pitch submission deadlines (migration 0199, competitor gap G7).
    One row per submission deadline a creator is tracking for a playlist
    pitch: the target curator/playlist, the date it is due, and where the
    outreach stands. This is the pitch-WINDOW workflow (draft → send →

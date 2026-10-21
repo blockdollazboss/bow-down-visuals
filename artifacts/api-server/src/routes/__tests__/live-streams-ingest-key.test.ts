@@ -1,5 +1,5 @@
 /**
- * Route tests for the RTMP ingest-key endpoints (migration 0193) on
+ * Route tests for the RTMP ingest-key endpoints (migration 0194) on
  * routes/live-streams:
  *   GET   /api/live-streams/ingest-key           → status, NEVER the key
  *   POST  /api/live-streams/ingest-key/reveal    → mints + shows the key ONCE

@@ -3,12 +3,12 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { liveStreamsTable } from "./live-streams";
 
-/* Go Live guest invites + backstage (migration 0201) — the StreamYard
+/* Go Live guest invites + backstage (migration 0202) — the StreamYard
    mechanic on our own pipe (competitor study G3). Three tables:
 
    live_guest_invites — a shareable link the host mints for ONE stream.
      The plain token is NEVER stored: token_lookup is its SHA-256 hex
-     (same one-way treatment as the RTMP ingest keys, 0193), so a
+     (same one-way treatment as the RTMP ingest keys, 0194), so a
      database read alone yields no working link. The plain token exists
      only in the host's mint response and in the link itself.
      expires_at NULL = the link lives until the stream ends or the

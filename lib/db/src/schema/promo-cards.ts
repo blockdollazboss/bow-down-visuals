@@ -15,7 +15,7 @@ import { pgTable, uuid, text, integer, jsonb, timestamp, index } from "drizzle-o
    side effect of tidying a list). */
 
 /* The creator's brand kit as read at generation time (Stack-4 wave-2
-   #4, migration 0181) — the promo-card sibling of UGC's brand
+   #4, migration 0182) — the promo-card sibling of UGC's brand
    snapshot (migration 0164). The four core fields mirror
    UgcBrandSnapshot exactly (brandName / logoUrl / primaryColor /
    vibe, same derivation in the route); colors and fonts ride in
@@ -47,7 +47,7 @@ export const promoCardsTable = pgTable("promo_cards", {
   artistName:   text("artist_name").notNull(),
   /** The caption suggested for the pack at generation time. */
   caption:      text("caption"),
-  /** The caller's brand kit as read at generation time (0181). */
+  /** The caller's brand kit as read at generation time (0182). */
   brandSnapshot: jsonb("brand_snapshot").$type<PromoCardBrandSnapshot>(),
   width:        integer("width").notNull(),
   height:       integer("height").notNull(),

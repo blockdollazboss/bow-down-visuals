@@ -1,5 +1,5 @@
 /**
- * Paid Series (0191) — the READ side: episode access on every surface.
+ * Paid Series (0192) — the READ side: episode access on every surface.
  *
  * A kind='series' playlist with price_cents > 0 is an unlock sold on the
  * digital store rail; the completed digital_sales row IS the entitlement.
@@ -9,7 +9,7 @@
  *     media detail endpoints (403 with the buy pointer);
  *   - the ONE creator-marked preview episode plays free for everyone;
  *   - a completed buyer is unlocked everywhere; a REFUNDED buyer is
- *     locked again (the 0182 clawback's status flip is the whole lock);
+ *     locked again (the 0183 clawback's status flip is the whole lock);
  *   - the owner always has full access;
  *   - series settings (PATCH) are owner-only, price is series-only and
  *     creator-typed, preview must be an episode, order is reorder-only;

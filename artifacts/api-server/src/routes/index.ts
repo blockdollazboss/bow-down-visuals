@@ -670,9 +670,9 @@ router.use(worldEventsRouter);                // /api/world/events (World Events
 router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court seasons — the Season Marks Wall read, 0153)
 router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
-router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0192)
-router.use(catalogImportRouter);              // /api/catalog-import (Back-Catalog Migration Assistant, 0199)
-router.use(tutorialsRouter);                  // /api/tutorials (Tutorials V1 — Academy how-tos + fan progress, 0200)
+router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0193)
+router.use(catalogImportRouter);              // /api/catalog-import (Back-Catalog Migration Assistant, 0200)
+router.use(tutorialsRouter);                  // /api/tutorials (Tutorials V1 — Academy how-tos + fan progress, 0201)
 router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Daily Quest Trio, 0150)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)

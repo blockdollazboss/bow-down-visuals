@@ -1431,7 +1431,7 @@ interface PresaveStats {
     bonusUrl: string | null;
     pixels: SmartlinkPixels;
   };
-  /* null on a pre-0186 install (analytics not collected yet) — the UI
+  /* null on a pre-0187 install (analytics not collected yet) — the UI
      hides the panel rather than showing invented zeros. */
   linkAnalytics: PresaveLinkAnalytics | null;
   recentFollows: Array<{ email: string; name: string | null; platform: string | null; created_at: string }>;
@@ -1566,7 +1566,7 @@ function PresaveManager(props: {
             </button>
           </div>
 
-          {/* smartlink analytics (migration 0186): landing views +
+          {/* smartlink analytics (migration 0187): landing views +
               outbound link clicks, split by link / channel / country */}
           {stats?.linkAnalytics && (
             <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
