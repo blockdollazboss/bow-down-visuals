@@ -20,6 +20,10 @@ import {
 } from "@/lib/photo-canvas";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildPhotoLayerContextItems } from "@/lib/photo-context-menu";
+import {
+  buildSvgExport, buildLayerSetManifest, layerFileName, summarizeDesignExport,
+} from "@/lib/photo-design-export";
+import { createZip, type ZipEntry } from "@/lib/sfx";
 
 /**
  * PhotoCanvasEditor — the Photo desk as a real editor (Stack 7):
@@ -86,6 +90,7 @@ export function PhotoCanvasEditor() {
   const firstImage = doc.layers.find((l): l is ImageLayer => l.kind === "image") ?? null;
   const activeImage: ImageLayer | null = selected?.kind === "image" ? selected : firstImage;
   const recipe = useMemo(() => recipeFromDevelop(activeImage?.develop), [activeImage]);
+  const designSummary = summarizeDesignExport(doc);
 
   /* persist locally (house draft pattern: local mirror + server draft) */
   useEffect(() => {
@@ -228,6 +233,90 @@ export function PhotoCanvasEditor() {
     a.href = canvas.toDataURL("image/png");
     a.download = "photo-canvas.png";
     a.click();
+  }
+
+  /* ── design files: true-vector SVG + layered PNG set ──────────────
+     Free, like all editing/exports on this desk (editor-free law).
+     The SVG is generated from the flatten plan's text/shape ops only —
+     photo layers are excluded and named, never embedded. The layer
+     set renders each layer alone on a transparent full canvas through
+     the same drawFlattenPlan, so a layer file can never drift from
+     what the flatten shows. */
+  function downloadBlobFile(blob: Blob, name: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function downloadSvg() {
+    const result = buildSvgExport(doc);
+    if (!result.svg) {
+      toast({ title: "No SVG for this design yet", description: result.reason ?? undefined, variant: "destructive" });
+      return;
+    }
+    downloadBlobFile(new Blob([result.svg], { type: "image/svg+xml" }), "design.svg");
+    if (result.excludedRaster.length) {
+      toast({
+        title: "SVG downloaded — photos left out on purpose",
+        description: `${result.excludedRaster.map((e) => e.name).join(", ")}: photo layers are never baked into an SVG. They are named inside the file — the layer set below includes them as PNGs.`,
+      });
+    } else {
+      toast({ title: "SVG downloaded", description: "True vectors from your text and shape layers — scales to any size, opens in Illustrator." });
+    }
+  }
+
+  function renderLayerPngBlob(layer: PhotoLayer): Promise<Blob | null> {
+    try {
+      const c = document.createElement("canvas");
+      c.width = doc.width; c.height = doc.height;
+      const ctx = c.getContext("2d");
+      if (!ctx) return Promise.resolve(null);
+      const single: PhotoCanvasDoc = { ...doc, background: "rgba(0,0,0,0)", layers: [layer] };
+      const { drawn } = drawFlattenPlan(ctx as never, single, imagesRef.current);
+      if (!drawn.includes(layer.id)) return Promise.resolve(null); // photo not loaded — never ship a blank layer file
+      return new Promise((resolve) => {
+        try { c.toBlob((b) => resolve(b), "image/png"); } catch { resolve(null); }
+      });
+    } catch { return Promise.resolve(null); }
+  }
+
+  async function downloadLayerSet() {
+    if (doc.layers.length === 0) return;
+    setBusy("layers");
+    try {
+      const files = new Map<string, string | null>();
+      const pngEntries: ZipEntry[] = [];
+      for (let i = 0; i < doc.layers.length; i++) {
+        const layer = doc.layers[i]!;
+        const blob = await renderLayerPngBlob(layer);
+        if (!blob) { files.set(layer.id, null); continue; }
+        const name = layerFileName(i, layer);
+        files.set(layer.id, name);
+        pngEntries.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      const manifest = buildLayerSetManifest(doc, files);
+      const manifestEntry: ZipEntry = {
+        name: "manifest.json",
+        data: new TextEncoder().encode(JSON.stringify(manifest, null, 2)),
+      };
+      const zip = createZip([manifestEntry, ...pngEntries]);
+      downloadBlobFile(new Blob([zip.buffer as ArrayBuffer], { type: "application/zip" }), "design-layers.zip");
+      const failed = manifest.layers.filter((l) => !l.rendered);
+      if (failed.length) {
+        toast({
+          title: "Layer set downloaded — some layers missing",
+          description: `Could not render: ${failed.map((f) => f.name).join(", ")}. They are marked in manifest.json.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Layer set downloaded", description: "One transparent PNG per layer + manifest.json. A PNG layer set — not a PSD." });
+      }
+    } catch (e) {
+      toast({ title: "Layer set failed", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+    } finally { setBusy(null); }
   }
 
   /* ── export: server multi-recipe (develop applied per output) ── */
@@ -509,6 +598,36 @@ export function PhotoCanvasEditor() {
           </ul>
         </section>
       </div>
+
+      {/* design files: true-vector SVG + layered PNG set (Gate-1: new section) */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+        <h3 className="text-sm font-bold text-white">Design files — vector &amp; layers</h3>
+        <p className="text-xs text-white/40">
+          The files a print shop or a Photoshop workflow actually needs. The SVG is true vectors built from your
+          text and shape layers only — it scales to any size and opens in Illustrator; photo layers are never baked
+          into it (they are named inside the file instead). The layer set is a ZIP with one transparent,
+          full-canvas PNG per layer plus a manifest.json — a PNG layer set, honestly not a PSD (we don&apos;t
+          export PSD). Both are free, like all editing on this desk.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={downloadSvg} disabled={doc.layers.length === 0}>
+            <Download className="mr-1.5 h-4 w-4" />Download SVG (vector)
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void downloadLayerSet()} disabled={doc.layers.length === 0 || busy === "layers"}>
+            {busy === "layers" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}Download layer set (.zip)
+          </Button>
+        </div>
+        {designSummary.rasterCount > 0 && (
+          <p className="text-[11px] text-white/35">
+            This design has {designSummary.rasterCount} photo layer{designSummary.rasterCount === 1 ? "" : "s"} — not in the SVG; the layer set includes them.
+          </p>
+        )}
+        {doc.layers.length > 0 && designSummary.vectorCount === 0 && (
+          <p className="text-[11px] text-white/35">
+            No visible text or shape layers yet — add one and the SVG export builds true vectors from it.
+          </p>
+        )}
+      </section>
       {renderLayerMenu()}
     </div>
   );
