@@ -15,6 +15,15 @@ import {
   initialSectionStates, markSectionLoading, settleSection,
   type SectionStates,
 } from "@/lib/dashboard-sections";
+import {
+  BEAT_LICENSE_FORMATS,
+  defaultTermsForTier,
+  describeTermsInline,
+  formatLabel,
+  templateTerms,
+  type BeatLicenseTemplate,
+  type BeatLicenseTerms,
+} from "@/lib/beat-license-terms";
 
 /* ─── Section resilience (the shared seam, lib/dashboard-sections) ────
    This page loads two independent sections: the browse list
@@ -52,12 +61,20 @@ interface Beat {
   exclusive_sold: boolean;
   plays: number;
   created_at: string;
+  /** The producer's custom license templates (0187), offered next to
+      the fixed tiers in the license modal. Producer-scoped: every beat
+      from the same producer carries the same templates. */
+  license_templates?: BeatLicenseTemplate[];
 }
 
 interface License {
   id: string;
   beat_id: string;
   tier: string;
+  template_id?: string | null;
+  /** The purchased terms snapshot (0187) — buyer surfaces render the
+      terms from this copy, never from the live template. */
+  terms?: BeatLicenseTerms | null;
   price_cents: number;
   status: string;
   created_at: string;
@@ -110,9 +127,12 @@ export default function Beats() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
-  /* License modal */
+  /* License modal — the buyer's chosen offer is exactly one of a fixed
+     tier (licenseTier) or one of the producer's custom templates
+     (licenseTemplateId). */
   const [licenseBeat, setLicenseBeat] = useState<Beat | null>(null);
   const [licenseTier, setLicenseTier] = useState<string>("basic");
+  const [licenseTemplateId, setLicenseTemplateId] = useState<string | null>(null);
   const [licensing, setLicensing] = useState(false);
   const [licenseMsg, setLicenseMsg] = useState<string | null>(null);
 
@@ -309,7 +329,8 @@ export default function Beats() {
       const res = await fetch(`/api/beats/${licenseBeat.id}/license`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: licenseTier }),
+        /* Exactly one offer: the chosen custom template, else the tier. */
+        body: JSON.stringify(licenseTemplateId ? { templateId: licenseTemplateId } : { tier: licenseTier }),
       });
       const data = await res.json() as { message?: string; error?: string; checkoutUrl?: string };
       if (!res.ok) {
@@ -324,7 +345,7 @@ export default function Beats() {
           url: licenseBeat.audio_url || licenseBeat.preview_url || "",
           label: licenseBeat.title,
           detail: `${licenseBeat.genre || ""} · ${licenseBeat.bpm || "?"} BPM`.trim(),
-          meta: { beatId: licenseBeat.id, tier: licenseTier },
+          meta: { beatId: licenseBeat.id, tier: licenseTier, ...(licenseTemplateId ? { templateId: licenseTemplateId } : {}) },
         });
       } catch { /* hub unavailable — non-fatal */ }
       if (data.checkoutUrl) {
@@ -470,7 +491,7 @@ export default function Beats() {
                       <div className="flex items-center justify-between mt-4">
                         <span className="text-sm text-[#E3C566] font-semibold">{t("beats.fromPrice", { price: centsToDollars(beat.basic_price_cents) })}</span>
                         <button
-                          onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseMsg(null); }}
+                          onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseTemplateId(null); setLicenseMsg(null); }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]"
                         >
                           <BadgeDollarSign className="w-4 h-4" /> {t("beats.licenseButton")}
@@ -619,16 +640,26 @@ export default function Beats() {
                 ) : (
                   <div className="space-y-2">
                     {sales.map((s) => (
-                      <div key={s.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
-                        <span className="text-white/70 capitalize">{t("beats.licenseRow", { tier: s.tier })}</span>
-                        <span className="text-white/40">{centsToDollars(s.price_cents)}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
-                          {s.status === "pending_payment" ? t("beats.paymentComingSoon") : s.status}
-                        </span>
+                      <div key={s.id} className={`rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/70 capitalize">{s.terms?.name ?? t("beats.licenseRow", { tier: s.tier })}</span>
+                          <span className="text-white/40">{centsToDollars(s.price_cents)}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
+                            {s.status === "pending_payment" ? t("beats.paymentComingSoon") : s.status}
+                          </span>
+                        </div>
+                        {/* The terms exactly as sold — from the license's
+                            purchase-time snapshot, so later template edits
+                            never change what this sale shows. */}
+                        {s.terms && (
+                          <p className="text-xs text-white/40 mt-1">{describeTermsInline(s.terms)}</p>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
+
+                <LicenseTemplatesSection />
               </>
             )}
           </div>
@@ -643,16 +674,17 @@ export default function Beats() {
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
               <button onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto pr-1">
               {LICENSE_TIERS.map((tier) => {
                 const soldOut = tier.key === "exclusive" && licenseBeat.exclusive_sold;
+                const selected = licenseTemplateId === null && licenseTier === tier.key;
                 return (
                   <button
                     key={tier.key}
                     disabled={soldOut}
-                    onClick={() => setLicenseTier(tier.key)}
+                    onClick={() => { setLicenseTier(tier.key); setLicenseTemplateId(null); }}
                     className={`w-full text-left rounded-xl border p-3 transition-colors ${
-                      licenseTier === tier.key ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
+                      selected ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
                     } ${soldOut ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
                     <div className="flex items-center justify-between">
@@ -660,6 +692,32 @@ export default function Beats() {
                       <span className="text-yellow-200 font-semibold">{soldOut ? t("beats.soldOut") : centsToDollars(priceFor(licenseBeat, tier.key))}</span>
                     </div>
                     <p className="text-xs text-white/40 mt-1">{t(tier.blurbKey)}</p>
+                    <p className="text-xs text-white/50 mt-1">{describeTermsInline(defaultTermsForTier(tier.key))}</p>
+                  </button>
+                );
+              })}
+              {(licenseBeat.license_templates ?? []).length > 0 && (
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/40 pt-2">
+                  {t("beats.customLicensesHeading", { defaultValue: "Producer's custom licenses" })}
+                </p>
+              )}
+              {(licenseBeat.license_templates ?? []).map((tpl) => {
+                const soldOut = tpl.isExclusive && licenseBeat.exclusive_sold;
+                const selected = licenseTemplateId === tpl.id;
+                return (
+                  <button
+                    key={tpl.id}
+                    disabled={soldOut}
+                    onClick={() => setLicenseTemplateId(tpl.id)}
+                    className={`w-full text-left rounded-xl border p-3 transition-colors ${
+                      selected ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
+                    } ${soldOut ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold">{tpl.name}</span>
+                      <span className="text-yellow-200 font-semibold">{soldOut ? t("beats.soldOut") : centsToDollars(tpl.priceCents)}</span>
+                    </div>
+                    <p className="text-xs text-white/50 mt-1">{describeTermsInline(templateTerms(tpl))}</p>
                   </button>
                 );
               })}
@@ -674,7 +732,11 @@ export default function Beats() {
             <button onClick={reserveLicense} disabled={licensing}
               className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
-              {t("beats.reserveLicenseButton", { tier: t(LICENSE_TIERS.find((x) => x.key === licenseTier)?.labelKey ?? "") })}
+              {t("beats.reserveLicenseButton", {
+                tier: licenseTemplateId
+                  ? ((licenseBeat.license_templates ?? []).find((x) => x.id === licenseTemplateId)?.name ?? "")
+                  : t(LICENSE_TIERS.find((x) => x.key === licenseTier)?.labelKey ?? ""),
+              })}
             </button>
             {licenseBeat && (
               <Link
@@ -755,6 +817,292 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
             {applying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
             {t("beats.applyToBeat")}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Custom license templates (0187) ─────────────────────────────────────
+   Producer-side manager: define named license offers with your own
+   price and terms; they appear on all your beats next to the fixed
+   tiers. Every sale snapshots the terms as sold — editing or deleting
+   a template here changes future sales only, never a sold license.
+   The section loads and fails on its own (the dashboard seam's rule):
+   a templates failure shows its own retry, never blanks the rest. */
+
+interface TemplateFormState {
+  name: string;
+  priceDollars: string;
+  format: string;
+  streamsCap: string;
+  salesCap: string;
+  musicVideosCap: string;
+  radioTvAllowed: boolean;
+  livePerformancesCap: string;
+  termYears: string;
+  territory: string;
+  creditLine: string;
+  termsNote: string;
+  isExclusive: boolean;
+}
+
+const EMPTY_TEMPLATE_FORM: TemplateFormState = {
+  name: "",
+  priceDollars: "",
+  format: "mp3",
+  streamsCap: "",
+  salesCap: "",
+  musicVideosCap: "",
+  radioTvAllowed: false,
+  livePerformancesCap: "",
+  termYears: "",
+  territory: "Worldwide",
+  creditLine: "",
+  termsNote: "",
+  isExclusive: false,
+};
+
+function templateToForm(tpl: BeatLicenseTemplate): TemplateFormState {
+  const cap = (v: number | null) => (v === null ? "" : String(v));
+  return {
+    name: tpl.name,
+    priceDollars: (tpl.priceCents / 100).toFixed(2),
+    format: tpl.format,
+    streamsCap: cap(tpl.streamsCap),
+    salesCap: cap(tpl.salesCap),
+    musicVideosCap: cap(tpl.musicVideosCap),
+    radioTvAllowed: tpl.radioTvAllowed,
+    livePerformancesCap: cap(tpl.livePerformancesCap),
+    termYears: tpl.termYears === null ? "" : String(tpl.termYears),
+    territory: tpl.territory,
+    creditLine: tpl.creditLine ?? "",
+    termsNote: tpl.termsNote ?? "",
+    isExclusive: tpl.isExclusive,
+  };
+}
+
+function formToPayload(form: TemplateFormState) {
+  const cap = (v: string) => {
+    const trimmed = v.trim();
+    if (trimmed === "") return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
+  };
+  return {
+    name: form.name.trim(),
+    priceCents: Math.round(Number(form.priceDollars || "0") * 100),
+    format: form.format,
+    streamsCap: cap(form.streamsCap),
+    salesCap: cap(form.salesCap),
+    musicVideosCap: cap(form.musicVideosCap),
+    radioTvAllowed: form.radioTvAllowed,
+    livePerformancesCap: cap(form.livePerformancesCap),
+    termYears: cap(form.termYears),
+    territory: form.territory.trim() || "Worldwide",
+    creditLine: form.creditLine.trim() === "" ? null : form.creditLine.trim(),
+    termsNote: form.termsNote.trim() === "" ? null : form.termsNote.trim(),
+    isExclusive: form.isExclusive,
+  };
+}
+
+function LicenseTemplatesSection() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const [templates, setTemplates] = useState<BeatLicenseTemplate[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ok" | "failed">("loading");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<TemplateFormState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const cardCls = isLight
+    ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
+    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]";
+  const inputCls = `w-full rounded-lg border px-3 py-2 text-sm bg-transparent ${
+    isLight ? "border-[#C9A84C]/40 text-[#2A1E07]" : "border-white/15 text-white"
+  }`;
+
+  async function loadTemplates() {
+    setLoadState("loading");
+    try {
+      const res = await fetch("/api/beats/license-templates/mine");
+      if (!res.ok) throw new Error("load failed");
+      const data = (await res.json()) as { templates?: BeatLicenseTemplate[] };
+      setTemplates(data.templates ?? []);
+      setLoadState("ok");
+    } catch {
+      setLoadState("failed");
+    }
+  }
+
+  useEffect(() => { void loadTemplates(); }, []);
+
+  async function saveTemplate() {
+    if (!form) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      const res = await fetch(
+        editingId ? `/api/beats/license-templates/${editingId}` : "/api/beats/license-templates",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formToPayload(form)),
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setFormError(data.error ?? t("beats.templateSaveFailed", { defaultValue: "Couldn't save that template — check the fields and try again." }));
+        return;
+      }
+      setForm(null);
+      setEditingId(null);
+      await loadTemplates();
+    } catch {
+      setFormError(t("beats.templateSaveFailed", { defaultValue: "Couldn't save that template — check the fields and try again." }));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteTemplate(id: string) {
+    try {
+      const res = await fetch(`/api/beats/license-templates/${id}`, { method: "DELETE" });
+      if (res.ok) await loadTemplates();
+    } catch { /* section reload surfaces failures */ }
+  }
+
+  const numField = (
+    label: string,
+    key: "streamsCap" | "salesCap" | "musicVideosCap" | "livePerformancesCap" | "termYears",
+    hint: string,
+  ) => (
+    <label className="block">
+      <span className="text-xs text-white/50">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={form?.[key] ?? ""}
+        onChange={(e) => form && setForm({ ...form, [key]: e.target.value })}
+        placeholder={hint}
+        className={inputCls}
+      />
+    </label>
+  );
+
+  return (
+    <div className="mt-10">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold">{t("beats.templatesTitle", { defaultValue: "Your custom licenses" })}</h3>
+        {!form && (
+          <button
+            onClick={() => { setEditingId(null); setForm(EMPTY_TEMPLATE_FORM); setFormError(null); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-xs font-bold hover:bg-[#DDBB62]"
+          >
+            <Plus className="w-3.5 h-3.5" /> {t("beats.templateNew", { defaultValue: "New license" })}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-white/40 mb-3">
+        {t("beats.templatesBlurb", { defaultValue: "Set your own price and terms — your custom licenses appear on every beat you sell, next to Basic, Premium and Exclusive. Licenses already sold keep the terms they were sold with." })}
+      </p>
+
+      {loadState === "loading" ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" /></div>
+      ) : loadState === "failed" ? (
+        <div className={`rounded-xl border p-4 text-sm flex items-center justify-between ${cardCls}`}>
+          <span className="text-white/60">{t("beats.templatesLoadFailed", { defaultValue: "Couldn't load your custom licenses." })}</span>
+          <button onClick={() => void loadTemplates()} className="inline-flex items-center gap-1.5 text-[#E3C566] font-semibold">
+            <RotateCcw className="w-3.5 h-3.5" /> {t("beats.retry", { defaultValue: "Retry" })}
+          </button>
+        </div>
+      ) : templates.length === 0 && !form ? (
+        <p className="text-white/40 text-sm">{t("beats.templatesEmpty", { defaultValue: "No custom licenses yet — the three standard tiers are what buyers see." })}</p>
+      ) : (
+        <div className="space-y-2 mb-4">
+          {templates.map((tpl) => (
+            <div key={tpl.id} className={`rounded-xl border px-4 py-3 text-sm ${cardCls}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold">{tpl.name}</span>
+                <span className="text-[#E3C566] font-semibold">{centsToDollars(tpl.priceCents)}</span>
+              </div>
+              <p className="text-xs text-white/40 mt-1">{describeTermsInline(templateTerms(tpl))}</p>
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={() => { setEditingId(tpl.id); setForm(templateToForm(tpl)); setFormError(null); }}
+                  className="text-xs font-semibold text-[#E3C566] hover:underline"
+                >
+                  {t("beats.templateEdit", { defaultValue: "Edit" })}
+                </button>
+                <button
+                  onClick={() => void deleteTemplate(tpl.id)}
+                  className="text-xs font-semibold text-red-300 hover:underline"
+                >
+                  {t("beats.templateDelete", { defaultValue: "Delete" })}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <div className={`rounded-2xl border p-4 space-y-3 ${cardCls}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs text-white/50">{t("beats.templateName", { defaultValue: "License name" })}</span>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="Unlimited Lease" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/50">{t("beats.templatePrice", { defaultValue: "Price (USD)" })}</span>
+              <input type="number" min={0} step="0.01" value={form.priceDollars} onChange={(e) => setForm({ ...form, priceDollars: e.target.value })} className={inputCls} placeholder="150.00" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/50">{t("beats.templateFormat", { defaultValue: "Files included" })}</span>
+              <select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} className={inputCls}>
+                {BEAT_LICENSE_FORMATS.map((f) => (
+                  <option key={f} value={f}>{formatLabel(f)}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-white/50">{t("beats.templateTerritory", { defaultValue: "Territory" })}</span>
+              <input value={form.territory} onChange={(e) => setForm({ ...form, territory: e.target.value })} className={inputCls} />
+            </label>
+            {numField(t("beats.templateStreamsCap", { defaultValue: "Streams cap" }), "streamsCap", t("beats.templateUnlimitedHint", { defaultValue: "Blank = unlimited" }))}
+            {numField(t("beats.templateSalesCap", { defaultValue: "Copies sold cap" }), "salesCap", t("beats.templateUnlimitedHint", { defaultValue: "Blank = unlimited" }))}
+            {numField(t("beats.templateVideosCap", { defaultValue: "Music videos cap" }), "musicVideosCap", t("beats.templateUnlimitedHint", { defaultValue: "Blank = unlimited" }))}
+            {numField(t("beats.templateLiveCap", { defaultValue: "Live performances cap" }), "livePerformancesCap", t("beats.templateUnlimitedHint", { defaultValue: "Blank = unlimited" }))}
+            {numField(t("beats.templateTermYears", { defaultValue: "Term (years)" }), "termYears", t("beats.templatePerpetualHint", { defaultValue: "Blank = perpetual" }))}
+            <label className="block">
+              <span className="text-xs text-white/50">{t("beats.templateCreditLine", { defaultValue: "Credit line" })}</span>
+              <input value={form.creditLine} onChange={(e) => setForm({ ...form, creditLine: e.target.value })} className={inputCls} placeholder="Prod. by …" />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.radioTvAllowed} onChange={(e) => setForm({ ...form, radioTvAllowed: e.target.checked })} />
+            {t("beats.templateRadioTv", { defaultValue: "Radio & TV use allowed" })}
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.isExclusive} onChange={(e) => setForm({ ...form, isExclusive: e.target.checked })} />
+            {t("beats.templateExclusive", { defaultValue: "Exclusive — sells once, then the beat is off the market" })}
+          </label>
+          <label className="block">
+            <span className="text-xs text-white/50">{t("beats.templateTermsNote", { defaultValue: "Extra terms (shown to the buyer)" })}</span>
+            <textarea value={form.termsNote} onChange={(e) => setForm({ ...form, termsNote: e.target.value })} rows={2} className={inputCls} />
+          </label>
+          {formError && <p className="text-sm text-red-300">{formError}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => void saveTemplate()} disabled={saving}
+              className="px-4 py-2 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {t("beats.templateSave", { defaultValue: "Save license" })}
+            </button>
+            <button onClick={() => { setForm(null); setEditingId(null); }} className="px-4 py-2 rounded-xl border border-white/15 text-sm font-semibold hover:border-white/30">
+              {t("beats.templateCancel", { defaultValue: "Cancel" })}
+            </button>
+          </div>
         </div>
       )}
     </div>
