@@ -3,7 +3,6 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, liveIngestKeysTable, type LiveIngestKey } from "@workspace/db";
 import { acceptChunk, LiveIngestError } from "./own-server-live";
-import { protectKey, unprotectKey } from "./multistream";
 import { logger } from "./logger";
 import {
   RTMP_MSG,
@@ -43,12 +42,15 @@ import {
    end to end; the only extra step is a copy-remux of the FLV master
    to MP4 when the stream ends so the replay can play in a browser.
 
-   Keys are secrets with the destination-key discipline
-   (lib/multistream protectKey): protected at rest, revealed only to
-   the owner through owner-authenticated responses, never in any
-   stream DTO. Publish auth resolves by a one-way lookup hash, and
-   revocation is checked on every publish AND drops a live encoder
-   connection for that creator the moment it lands.
+   Keys are secrets, stored HASHED only: the table holds a one-way
+   SHA-256 of the key plus its last-4 hint — the plain key itself is
+   never stored, so a database read yields no working key. The plain
+   key is shown to the owner exactly once, in the owner-authenticated
+   response that creates or regenerates it; after that it cannot be
+   shown again (a lost key is replaced by regenerating), and it never
+   appears in any stream DTO. Publish auth resolves by the lookup
+   hash, and revocation is checked on every publish AND drops a live
+   encoder connection for that creator the moment it lands.
 
    The row lifecycle (create row / end row / fan-out trigger) belongs
    to the routes layer, which registers it via initRtmpIngest — the
@@ -124,7 +126,6 @@ async function insertIngestKey(userId: string, profileId: string): Promise<{ row
     .values({
       user_id: userId,
       profile_id: profileId,
-      stream_key: protectKey(plainKey),
       key_lookup: hashStreamKey(plainKey),
       key_hint: keyHintOf(plainKey),
     })
@@ -132,17 +133,21 @@ async function insertIngestKey(userId: string, profileId: string): Promise<{ row
   return { row: inserted[0]!, plainKey };
 }
 
-/** The owner's current key, created on first ask. A revoked key is
- *  NOT resurrected — asking again after a revoke mints a fresh key
- *  (the old one stays dead), which is the only sane read of "reveal"
- *  on a row whose key the owner deliberately killed. */
+/** The owner's key, created on first ask. Storage is hash-only, so
+ *  the plain key can be handed back ONLY by the call that mints it:
+ *  when a live key already exists, plainKey is null — the key cannot
+ *  be shown again, and the owner's path forward is regenerate (the
+ *  panel says exactly that). A revoked key is NOT resurrected —
+ *  asking again after a revoke mints a fresh key (the old one stays
+ *  dead), which is the only sane read of "reveal" on a row whose key
+ *  the owner deliberately killed. */
 export async function getOrCreateIngestKey(
   userId: string,
   profileId: string,
-): Promise<{ row: LiveIngestKey; plainKey: string }> {
+): Promise<{ row: LiveIngestKey; plainKey: string | null }> {
   const existing = await getIngestKeyRow(userId);
   if (existing && !existing.revoked_at) {
-    return { row: existing, plainKey: unprotectKey(existing.stream_key) };
+    return { row: existing, plainKey: null };
   }
   if (existing) {
     return regenerateIngestKey(userId, profileId);
@@ -157,7 +162,6 @@ export async function regenerateIngestKey(
   const plainKey = generateStreamKey();
   const patch = {
     profile_id: profileId,
-    stream_key: protectKey(plainKey),
     key_lookup: hashStreamKey(plainKey),
     key_hint: keyHintOf(plainKey),
     revoked_at: null,
@@ -203,21 +207,22 @@ export interface ResolvedIngestKey {
 
 /** Publish-path authentication. Resolves a presented key to its
  *  creator, or null: unknown, malformed, or revoked — the encoder
- *  learns only "refused", never which. The stored key is compared in
- *  constant time after the hash lookup lands the row. */
+ *  learns only "refused", never which. The presented key's hash is
+ *  compared against the stored lookup hash in constant time; the
+ *  plain key is never stored, so there is nothing else to compare. */
 export async function resolveIngestKey(presented: string): Promise<ResolvedIngestKey | null> {
   const candidate = presented.trim();
   if (!candidate || candidate.length > 200) return null;
+  const presentedHash = hashStreamKey(candidate);
   const rows = await db
     .select()
     .from(liveIngestKeysTable)
-    .where(eq(liveIngestKeysTable.key_lookup, hashStreamKey(candidate)))
+    .where(eq(liveIngestKeysTable.key_lookup, presentedHash))
     .limit(1);
   const row = rows[0];
   if (!row || row.revoked_at) return null;
-  const stored = unprotectKey(row.stream_key);
-  const a = Buffer.from(stored, "utf8");
-  const b = Buffer.from(candidate, "utf8");
+  const a = Buffer.from(row.key_lookup, "utf8");
+  const b = Buffer.from(presentedHash, "utf8");
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   return { userId: row.user_id, profileId: row.profile_id, streamTitle: row.stream_title };
 }

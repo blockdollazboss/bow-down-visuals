@@ -3,11 +3,13 @@
  *
  * Two halves:
  *  1. Key lifecycle against a fake db over the real table object:
- *     a key is issued to its owner, stored as a protected value + a
- *     one-way lookup hash + a last-4 hint; publish auth resolves the
- *     plain key and NOTHING else; regenerate kills the old key at
- *     once; revoke kills it too; asking again after a revoke mints a
- *     fresh key and never resurrects the dead one.
+ *     a key is issued to its owner, stored HASHED only — a one-way
+ *     lookup hash + a last-4 hint, the plain key itself nowhere in
+ *     the row; the plain key is handed back only by the call that
+ *     mints it (asking again never re-shows it); publish auth
+ *     resolves the plain key and NOTHING else; regenerate kills the
+ *     old key at once; revoke kills it too; asking again after a
+ *     revoke mints a fresh key and never resurrects the dead one.
  *  2. The publish connection over a fake socket (deps injected — the
  *     real handshake/chunk/command path runs): a good key publishes
  *     and its media lands in the engine as FLV; a bad key is refused
@@ -126,7 +128,6 @@ import {
   type RtmpIngestDeps,
 } from "../rtmp-ingest";
 import { amfEncode, encodeRtmpMessage, HANDSHAKE_BYTES } from "../rtmp-protocol";
-import { unprotectKey } from "../multistream";
 
 beforeEach(() => {
   h.rows = [];
@@ -166,21 +167,30 @@ describe("stream key primitives", () => {
 /* ══ Key lifecycle ═════════════════════════════════════════════════ */
 
 describe("ingest key lifecycle", () => {
-  it("issues a key to its owner: protected at rest, lookup hash + hint stored", async () => {
+  it("issues a key to its owner: HASHED at rest — lookup hash + hint only, the plain key nowhere in the row", async () => {
     const { row, plainKey } = await getOrCreateIngestKey(USER, PROFILE);
+    expect(plainKey).toMatch(/^bdv_/);
     expect(row.user_id).toBe(USER);
-    expect(row.key_lookup).toBe(hashStreamKey(plainKey));
-    expect(row.key_hint).toBe(plainKey.slice(-4));
-    expect(unprotectKey(row.stream_key as string)).toBe(plainKey);
+    expect(row.key_lookup).toBe(hashStreamKey(plainKey!));
+    expect(row.key_hint).toBe(plainKey!.slice(-4));
+    // Hash-only storage: no column holds the plain key (or anything
+    // reversible back to it), and the stored row never contains it.
+    expect("stream_key" in row).toBe(false);
+    expect(JSON.stringify(row)).not.toContain(plainKey!);
+    expect(JSON.stringify(h.rows)).not.toContain(plainKey!);
     // The lookup hash alone is not a key: it must not authenticate.
     expect(await resolveIngestKey(row.key_lookup as string)).toBeNull();
   });
 
-  it("asking twice returns the same live key (no silent rotation)", async () => {
+  it("the plain key is handed back ONCE: asking again keeps the same live key but never re-shows it", async () => {
     const first = await getOrCreateIngestKey(USER, PROFILE);
+    expect(first.plainKey).toMatch(/^bdv_/);
     const second = await getOrCreateIngestKey(USER, PROFILE);
-    expect(second.plainKey).toBe(first.plainKey);
+    expect(second.plainKey).toBeNull();
+    expect(second.row.id).toBe(first.row.id);
     expect(h.rows).toHaveLength(1);
+    // No silent rotation either: the original key still publishes.
+    expect(await resolveIngestKey(first.plainKey!)).toMatchObject({ userId: USER });
   });
 
   it("keys are per-creator: another member's key is a different key", async () => {

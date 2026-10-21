@@ -2,16 +2,19 @@
  * Route tests for the RTMP ingest-key endpoints (migration 0193) on
  * routes/live-streams:
  *   GET   /api/live-streams/ingest-key           → status, NEVER the key
- *   POST  /api/live-streams/ingest-key/reveal    → owner's key (creates)
+ *   POST  /api/live-streams/ingest-key/reveal    → mints + shows the key ONCE
  *   POST  /api/live-streams/ingest-key/regenerate→ new key, old one dead
  *   POST  /api/live-streams/ingest-key/revoke    → key dead
  *   PATCH /api/live-streams/ingest-key           → standing stream title
  *
  * The discipline being pinned: a key is issued to its owner ONLY —
  * another signed-in member's reveal returns THEIR key, never anyone
- * else's; the plain key appears in no status payload; and publish auth
- * (lib/rtmp-ingest resolveIngestKey over the same fake db) follows the
- * HTTP lifecycle exactly — regenerate and revoke kill keys at once.
+ * else's; storage is hash-only, so the plain key is shown exactly
+ * once (the minting response) and never again, and it sits nowhere
+ * in the stored row; the plain key appears in no status payload; and
+ * publish auth (lib/rtmp-ingest resolveIngestKey over the same fake
+ * db) follows the HTTP lifecycle exactly — regenerate and revoke
+ * kill keys at once.
  *
  * Harness: same fake-db-over-real-tables style as
  * live-streams-own.test.ts, extended with live_ingest_keys.
@@ -327,6 +330,27 @@ describe("ingest-key endpoints", () => {
     const status = await call("GET", "/live-streams/ingest-key", AUTH_USER);
     expect(JSON.stringify(status.json)).not.toContain(mine.json.stream_key);
     expect(JSON.stringify(status.json)).not.toContain(theirs.json.stream_key);
+  });
+
+  it("shows the key exactly once: a second reveal returns no key, rotates nothing, and the stored row holds no plain key", async () => {
+    const first = await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER);
+    const key = first.json.stream_key as string;
+    expect(key).toMatch(/^bdv_/);
+
+    // Hash-only storage: the row the server keeps contains the plain
+    // key in NO field.
+    expect(h.state.keys).toHaveLength(1);
+    expect(JSON.stringify(h.state.keys)).not.toContain(key);
+
+    const second = await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER);
+    expect(second.status).toBe(200);
+    expect(second.json.stream_key).toBeNull();
+    expect(second.json.code).toBe("KEY_NOT_RESHOWN");
+    expect(second.json.ingest).toMatchObject({ has_key: true, key_hint: key.slice(-4) });
+
+    // Asking again did NOT rotate: the original key still publishes.
+    expect(await resolveIngestKey(key)).toMatchObject({ userId: AUTH_USER });
+    expect(h.state.keys).toHaveLength(1);
   });
 
   it("regenerate kills the old key for publish auth at once; revoke kills the new one", async () => {

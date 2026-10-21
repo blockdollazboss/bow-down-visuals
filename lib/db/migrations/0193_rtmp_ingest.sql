@@ -6,15 +6,15 @@
 -- source. This migration adds the key storage that fixes that:
 --
 --   live_ingest_keys: ONE personal ingest key per creator.
---     stream_key  the key itself, protected at rest exactly like
---                 live_destination_keys (lib/multistream protectKey —
---                 encrypted when SOCIAL_TOKEN_KEY is configured).
---                 Returned ONLY by the owner-only reveal/regenerate
---                 responses; never present in any stream DTO.
+--     The plain key is NEVER stored — hashing is one-way, so a
+--     database read alone yields no working key (the keys are
+--     high-entropy random). The plain key exists only in the
+--     owner-only create/regenerate response that mints it: shown
+--     once, then unrecoverable — a lost key is replaced by
+--     regenerating, never re-shown. It is never present in any
+--     stream DTO.
 --     key_lookup  SHA-256 hex of the plain key. Publish auth looks up
---                 by hash, so the hot path never needs plain text and
---                 a database read alone yields no working key (the
---                 keys are high-entropy random).
+--                 by hash and compares hashes in constant time.
 --     key_hint    last 4 chars of the plain key — lets the owner
 --                 recognize which key a program is holding.
 --     stream_title the creator's standing title for encoder-started
@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS live_ingest_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL,
   profile_id UUID NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
-  stream_key TEXT NOT NULL,
   key_lookup TEXT NOT NULL,
   key_hint TEXT NOT NULL,
   stream_title TEXT,

@@ -79,7 +79,7 @@ import {
    POST   /live-streams/:id/vod         (auth, owner) → register the browser-recorded VOD
    POST   /live-streams/:id/ingest/segment (auth, owner) → own-server media chunk in
    GET    /live-streams/ingest-key      (auth)  → RTMP ingest key status (never the key)
-   POST   /live-streams/ingest-key/reveal (auth) → the owner's key (creates on first ask)
+   POST   /live-streams/ingest-key/reveal (auth) → mints + shows the key ONCE (creates on first ask; an existing key is never re-shown)
    POST   /live-streams/ingest-key/regenerate (auth) → new key; the old one dies at once
    POST   /live-streams/ingest-key/revoke (auth) → key dies + live encoder dropped
    PATCH  /live-streams/ingest-key      (auth)  → standing title for encoder-started streams
@@ -961,11 +961,14 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
 });
 
 /* ── RTMP ingest keys (owner-only) ────────────────────────────────────────
-   The key itself is a secret with exactly two doors, both behind the
-   owner's session: reveal and regenerate. Everything else — status,
-   the public stream DTOs, the watch page — sees only that a key
-   exists and its last-4 hint. Revoke/regenerate kill the old key in
-   the table AND drop a live encoder connection using it, so a
+   The key itself is a secret the server stores only as a one-way
+   hash. It leaves the server exactly once — in the create/regenerate
+   response that mints it, behind the owner's session; an existing
+   key is never re-shown (reveal on an existing key answers with the
+   status and stream_key: null). Everything else — status, the
+   public stream DTOs, the watch page — sees only that a key exists
+   and its last-4 hint. Revoke/regenerate kill the old key in the
+   table AND drop a live encoder connection using it, so a
    compromised key stops working the moment the owner acts. */
 
 export interface IngestKeyDto {
@@ -1013,7 +1016,15 @@ router.post("/live-streams/ingest-key/reveal", requireAuth, async (req: Request,
     }
     const { row, plainKey } = await getOrCreateIngestKey(req.userId!, profile.id);
     res.setHeader("Cache-Control", "no-store");
-    res.json({ stream_key: plainKey, ingest: toIngestKeyDto(row) });
+    // plainKey is non-null ONLY when this call minted the key (first
+    // ask, or first ask after a revoke). For an existing key the hash
+    // can't be reversed — stream_key is null and the code tells the
+    // panel to point the owner at regenerate instead.
+    res.json({
+      stream_key: plainKey,
+      ...(plainKey ? {} : { code: "KEY_NOT_RESHOWN" }),
+      ingest: toIngestKeyDto(row),
+    });
   } catch (err) {
     logger.error({ err }, "live-streams ingest-key reveal failed");
     res.status(500).json({ error: "Could not load your stream key." });

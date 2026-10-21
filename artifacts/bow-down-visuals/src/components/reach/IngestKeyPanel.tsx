@@ -7,10 +7,12 @@ import { apiJson } from "@/lib/social-api";
    The mirror of DestinationKeysPanel: destinations are keys OUT, this
    is the creator's personal key IN — an external encoder (OBS,
    VirtualDJ, Serato, djay…) pushes RTMP to it and becomes the Go Live
-   source. Unlike destination keys, this one MUST be readable by its
-   owner (they have to paste it into their program), so reveal and
-   regenerate return it — behind the owner's session only, and the
-   status payload the panel loads on mount never carries it. */
+   source. The owner has to paste the key into their program, so the
+   create/regenerate responses return it — behind the owner's session
+   only, and only ONCE: the server stores just a one-way hash, so an
+   existing key can never be shown again (the panel says so plainly
+   and points at regenerate). The status payload the panel loads on
+   mount never carries it. */
 
 export interface IngestKeyDto {
   enabled: boolean;
@@ -26,7 +28,11 @@ interface IngestStatusResponse {
 }
 
 interface IngestKeyResponse extends IngestStatusResponse {
-  stream_key: string;
+  /* The plain key — present ONLY in the response that mints it
+     (create / regenerate). Null when the key already existed:
+     hash-only storage means it can't be shown a second time. */
+  stream_key: string | null;
+  code?: string;
 }
 
 export default function IngestKeyPanel() {
@@ -34,6 +40,9 @@ export default function IngestKeyPanel() {
   const [ingest, setIngest] = useState<IngestKeyDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  /* Set when the owner asks to see an existing key: it exists, but
+     hash-only storage means it can never be displayed again. */
+  const [keyNotReshown, setKeyNotReshown] = useState(false);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -76,7 +85,13 @@ export default function IngestKeyPanel() {
         method: "POST",
       });
       setIngest(res.ingest);
-      setRevealedKey(res.stream_key);
+      if (res.stream_key) {
+        // This response minted the key — the one and only display.
+        setRevealedKey(res.stream_key);
+        setKeyNotReshown(false);
+      } else {
+        setKeyNotReshown(true);
+      }
     });
 
   const regenerate = () =>
@@ -86,8 +101,9 @@ export default function IngestKeyPanel() {
       });
       setIngest(res.ingest);
       setRevealedKey(res.stream_key);
+      setKeyNotReshown(false);
       setConfirmingRegen(false);
-      setNote("New key created. The old key stopped working the moment this one was made — update your program before you go live.");
+      setNote("New key created — copy it now, because it can't be shown again. The old key stopped working the moment this one was made, so update your program before you go live.");
     });
 
   const revoke = () =>
@@ -97,8 +113,9 @@ export default function IngestKeyPanel() {
       });
       setIngest(res.ingest);
       setRevealedKey(null);
+      setKeyNotReshown(false);
       setConfirmingRegen(false);
-      setNote("Key revoked. Nothing can stream with it now — reveal a fresh key whenever you're ready.");
+      setNote("Key revoked. Nothing can stream with it now — create a fresh key whenever you're ready.");
     });
 
   const saveTitle = () =>
@@ -173,31 +190,36 @@ export default function IngestKeyPanel() {
             <div>
               <label className="text-xs font-bold uppercase tracking-wide text-white/40">Your stream key</label>
               {revealedKey ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <code className="min-w-0 flex-1 truncate rounded-xl border border-[#e8c86a]/40 bg-black/40 px-3 py-2 text-sm">{revealedKey}</code>
-                  <button
-                    type="button"
-                    onClick={() => void copy("key", revealedKey)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-semibold transition hover:border-[#e8c86a]/60"
-                  >
-                    {copied === "key" ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />} Copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRevealedKey(null)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-semibold transition hover:border-white/40"
-                  >
-                    <EyeOff className="h-4 w-4" /> Hide
-                  </button>
-                </div>
+                <>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded-xl border border-[#e8c86a]/40 bg-black/40 px-3 py-2 text-sm">{revealedKey}</code>
+                    <button
+                      type="button"
+                      onClick={() => void copy("key", revealedKey)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-semibold transition hover:border-[#e8c86a]/60"
+                    >
+                      {copied === "key" ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />} Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRevealedKey(null)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-semibold transition hover:border-white/40"
+                    >
+                      <EyeOff className="h-4 w-4" /> Hide
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-[#e8c86a]">
+                    Copy it now — for your protection this key is shown only once and can't be displayed again. If you lose it, generate a new one below.
+                  </p>
+                </>
               ) : (
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/50">
                     {ingest.has_key
-                      ? `Key ending in •••${ingest.key_hint ?? ""} — hidden until you ask`
+                      ? `Key ending in •••${ingest.key_hint ?? ""} — shown only when it's created`
                       : ingest.revoked
-                        ? "Your last key was revoked — reveal to mint a fresh one"
-                        : "No key yet — reveal to create yours"}
+                        ? "Your last key was revoked — create a fresh one"
+                        : "No key yet — create yours"}
                   </span>
                   <button
                     type="button"
@@ -205,9 +227,14 @@ export default function IngestKeyPanel() {
                     onClick={() => void reveal()}
                     className="rounded-xl bg-[#e8c86a] px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40"
                   >
-                    {busy === "reveal" ? "Working…" : ingest.has_key ? "Show my key" : "Reveal my key"}
+                    {busy === "reveal" ? "Working…" : ingest.has_key ? "Show my key" : "Create my key"}
                   </button>
                 </div>
+              )}
+              {keyNotReshown && !revealedKey && (
+                <p className="mt-1 text-xs text-white/50">
+                  That key can't be shown again — it's stored only as a scrambled fingerprint, never as readable text. If you no longer have it, use Regenerate key below to make a new one; the old one stops working the moment the new one is created.
+                </p>
               )}
             </div>
 
