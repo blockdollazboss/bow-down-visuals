@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "73b349b21e49569792f63ce152c262706c70d7c5",
+  "baseCommit": "1caba745110ac9ce2dac59460d5a8af3c9786776",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -14,7 +14,7 @@
     "features": 218,
     "excludedRoutes": 64,
     "excludedPageFiles": 34,
-    "pricedActions": 200,
+    "pricedActions": 201,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
@@ -7143,7 +7143,14 @@
         "/api/stories",
         "/api/stories/feed"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Post Assist — Write It For Me",
+          "vb": 100,
+          "endpoint": "/api/posts/assist",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 19 studios — pay only for what you create.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"home.pageDescription\"",
       "nextSteps": []
