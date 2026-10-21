@@ -4,6 +4,7 @@ import {
   Library, Loader2, CheckCircle2, ScanSearch, UploadCloud, Sparkles, Ban,
   ArrowRight, ExternalLink, RefreshCw, X, Film, Music2, Settings2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -94,6 +95,7 @@ export default function CatalogImport() {
     "Bring your existing videos and songs home to Bow Down Visuals: pick from your connected Instagram and Facebook catalogs or bulk-upload your own files, let Thy Cheat Code rebuild the titles, captions and series grouping re-uploading would lose, and approve each piece before it goes live.",
   );
   const isLight = useIsLightTheme();
+  const { i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [data, setData] = useState<CatalogState | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -125,10 +127,15 @@ export default function CatalogImport() {
           ? "border-[#C9A84C]/40 text-zinc-600"
           : "border-white/10 text-zinc-400");
 
+  /* Every call carries the current language as ?locale= — the server
+     renders the honesty block + account notes in it and composes
+     status/draft notes in it (server-side catalogs); stored notes
+     keep the language they were made in. */
   const call = useCallback(
     async (method: string, path: string, body?: unknown): Promise<any> => {
       const token = await getAccessToken();
-      const res = await fetch(path, {
+      const sep = path.includes("?") ? "&" : "?";
+      const res = await fetch(`${path}${sep}locale=${encodeURIComponent(i18n.language)}`, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -140,7 +147,7 @@ export default function CatalogImport() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong. Try again.");
       return json;
     },
-    [getAccessToken],
+    [getAccessToken, i18n.language],
   );
 
   const refresh = useCallback(async () => {

@@ -48,8 +48,26 @@ import {
   approveBatch,
   dismissItem,
 } from "../lib/catalog-import";
+import { resolveServerLocale, type ServerLocale } from "../lib/server-i18n";
 
 const router = Router();
+
+/* The caller's locale for server-composed copy. The server keeps no
+   stored language preference for a member (the web app keeps the
+   choice in the browser), so resolution is: an explicit `locale`
+   field on the request — the JSON body where a body is read
+   leniently, the query string everywhere (the Catalog Import page
+   sends it as a query param on every call, which also survives this
+   router's strict body schemas) — then English. The honesty block
+   and account notes render in it on every read; status notes and
+   draft notes compose in it at the call that produces them and are
+   never re-translated. */
+function catalogLocaleOf(req: Request): ServerLocale {
+  return resolveServerLocale(
+    (req.body as Record<string, unknown> | undefined)?.locale,
+    req.query?.locale,
+  );
+}
 
 function handleError(res: Response, err: unknown, what: string): void {
   if (err instanceof CatalogImportError) {
@@ -108,7 +126,7 @@ const approveSchema = z
 
 router.get("/catalog-import", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
-    res.json(await getCatalogState(req.userId!));
+    res.json(await getCatalogState(req.userId!, catalogLocaleOf(req)));
   } catch (err) {
     handleError(res, err, "state read");
   }
@@ -121,7 +139,7 @@ router.post("/catalog-import/scan", requireAuth, publicApiLimiter, async (req: R
     return;
   }
   try {
-    res.json(await scanAccount(req.userId!, parsed.data.accountId));
+    res.json(await scanAccount(req.userId!, parsed.data.accountId, catalogLocaleOf(req)));
   } catch (err) {
     handleError(res, err, "scan");
   }
@@ -134,7 +152,7 @@ router.post("/catalog-import/fetch", requireAuth, publicApiLimiter, async (req: 
     return;
   }
   try {
-    res.json(await fetchSelected(req.userId!, parsed.data.itemIds));
+    res.json(await fetchSelected(req.userId!, parsed.data.itemIds, catalogLocaleOf(req)));
   } catch (err) {
     handleError(res, err, "fetch batch");
   }
@@ -147,7 +165,7 @@ router.post("/catalog-import/uploads", requireAuth, publicApiLimiter, async (req
     return;
   }
   try {
-    const items = await registerUploads(req.userId!, parsed.data.files);
+    const items = await registerUploads(req.userId!, parsed.data.files, catalogLocaleOf(req));
     res.json({ items });
   } catch (err) {
     handleError(res, err, "upload registration");
@@ -158,7 +176,7 @@ router.post("/catalog-import/items/:id/fetch", requireAuth, publicApiLimiter, as
   const id = parseId(req, res);
   if (!id) return;
   try {
-    res.json({ item: await fetchItem(req.userId!, id) });
+    res.json({ item: await fetchItem(req.userId!, id, catalogLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "fetch one");
   }
@@ -168,7 +186,7 @@ router.post("/catalog-import/items/:id/rebuild", requireAuth, publicApiLimiter, 
   const id = parseId(req, res);
   if (!id) return;
   try {
-    res.json({ item: await rebuildItem(req.userId!, id) });
+    res.json({ item: await rebuildItem(req.userId!, id, catalogLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "rebuild");
   }
@@ -183,7 +201,7 @@ router.post("/catalog-import/items/:id/approve", requireAuth, publicApiLimiter, 
     return;
   }
   try {
-    res.json({ item: await approveItem(req.userId!, id, parsed.data) });
+    res.json({ item: await approveItem(req.userId!, id, parsed.data, catalogLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "approve");
   }
@@ -196,7 +214,7 @@ router.post("/catalog-import/approve", requireAuth, publicApiLimiter, async (req
     return;
   }
   try {
-    res.json(await approveBatch(req.userId!, parsed.data.itemIds));
+    res.json(await approveBatch(req.userId!, parsed.data.itemIds, catalogLocaleOf(req)));
   } catch (err) {
     handleError(res, err, "approve batch");
   }

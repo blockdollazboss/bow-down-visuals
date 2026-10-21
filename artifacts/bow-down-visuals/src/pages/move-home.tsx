@@ -4,6 +4,7 @@ import {
   Home, Loader2, CheckCircle2, CircleDashed, Sparkles, Store, Newspaper,
   Mail, Megaphone, UserRound, ArrowRight, Ban, RotateCcw, PartyPopper, Library,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -78,6 +79,7 @@ export default function MoveHome() {
     "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
   );
   const isLight = useIsLightTheme();
+  const { i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [data, setData] = useState<MoveHomeData | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -125,10 +127,14 @@ export default function MoveHome() {
     }
   }, []);
 
+  /* Every call carries the current language as ?locale= — the server
+     composes step titles/blurbs and new drafts in it (server-side
+     catalogs); stored drafts keep the language they were made in. */
   const call = useCallback(
     async (method: string, path: string, body?: unknown): Promise<MoveHomeData | null> => {
       const token = await getAccessToken();
-      const res = await fetch(path, {
+      const sep = path.includes("?") ? "&" : "?";
+      const res = await fetch(`${path}${sep}locale=${encodeURIComponent(i18n.language)}`, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -140,7 +146,7 @@ export default function MoveHome() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong. Try again.");
       return json.moveHome ?? null;
     },
-    [getAccessToken],
+    [getAccessToken, i18n.language],
   );
 
   useEffect(() => {
