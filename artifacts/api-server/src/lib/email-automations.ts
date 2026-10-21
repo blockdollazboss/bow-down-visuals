@@ -81,73 +81,58 @@ import {
 import { prepareCampaignSend, sendCampaignDelivery } from "./email-campaign-send";
 import { getUserEmail } from "./stripe-connect";
 import { logger } from "./logger";
+import {
+  automationCopyFor,
+  type AutomationDefaultCopy,
+  type AutomationLocale,
+} from "./email-automation-i18n";
 
-/* ── Defaults + honest trigger copy ─────────────────────────────────── */
+/* ── Defaults + honest trigger copy ───────────────────────────────────
+   The English literals live in lib/email-automation-i18n (the en
+   entry of the per-locale catalog) so there is exactly one source;
+   these re-exports keep the long-standing import surface. Seeding
+   and DTO rendering resolve through the catalog per locale — an
+   automation's STORED subject/body is the creator's own copy and
+   is never rewritten by locale. */
 
-export interface AutomationDefaultCopy {
-  subject: string;
-  body: string;
-  delayHours: number;
-}
+export type { AutomationDefaultCopy };
 
-export const AUTOMATION_DEFAULTS: Record<EmailAutomationKind, AutomationDefaultCopy> = {
-  post_purchase: {
-    subject: "Thank you for your purchase!",
-    body:
-      "Hi there,\n\nThank you for buying from my shop — it means a lot, and it directly helps me keep creating.\n\n" +
-      "If anything about your order needs attention, just reply to this email.\n\nMore is on the way — stay close.",
-    delayHours: 2,
-  },
-  abandoned_checkout: {
-    subject: "You left something behind",
-    body:
-      "Hi there,\n\nYou started checking out in my shop but didn't finish — your picks are still waiting for you.\n\n" +
-      "Head back to the shop any time to complete your order. No pressure, and thanks for looking.",
-    delayHours: 24,
-  },
-  membership_winback: {
-    subject: "We miss you — your membership is waiting",
-    body:
-      "Hi there,\n\nYour membership recently ended, and the door is still open. Everything you loved is still here, " +
-      "plus everything new since you've been gone.\n\nCome back any time — we'd love to have you again.",
-    delayHours: 72,
-  },
-};
+const EN_COPY = automationCopyFor("en");
+
+export const AUTOMATION_DEFAULTS: Record<EmailAutomationKind, AutomationDefaultCopy> =
+  EN_COPY.defaults;
 
 /** Plain-language statement of what fires each automation — including
  *  its blind spots. Rendered verbatim in the UI; never overclaim. */
-export const AUTOMATION_TRIGGER_NOTES: Record<EmailAutomationKind, string> = {
-  post_purchase:
-    "Fires once per completed purchase — a sale in your shop (one email per checkout, however many items) or a paid download. Only confirmed paid sales count.",
-  abandoned_checkout:
-    "Fires when a shop checkout starts but never pays. Only checkouts that begin in your shop are visible to this trigger — checkouts started anywhere else can't be seen, so they never fire this email.",
-  membership_winback:
-    "Fires when a fan's membership is canceled or expires. The fan is emailed at the address on their account, or the email you recorded for them.",
-};
+export const AUTOMATION_TRIGGER_NOTES: Record<EmailAutomationKind, string> =
+  EN_COPY.triggerNotes;
 
-export const AUTOMATION_LABELS: Record<EmailAutomationKind, string> = {
-  post_purchase: "Post-purchase thank-you",
-  abandoned_checkout: "Abandoned checkout",
-  membership_winback: "Membership winback",
-};
+export const AUTOMATION_LABELS: Record<EmailAutomationKind, string> = EN_COPY.labels;
 
 /* ── Provisioning ───────────────────────────────────────────────────── */
 
 /** Lazily materialize the three starter automations for a list
  *  (defaults in, enabled FALSE) and return them in kind order.
- *  Idempotent — safe on every read. */
-export async function ensureAutomationsForList(list: EmailList): Promise<EmailAutomation[]> {
+ *  Idempotent — safe on every read. A list provisioned for the
+ *  first time seeds its starter copy in the given locale; rows
+ *  that already exist are the creator's data and are never
+ *  rewritten — locale only shapes NEW rows. */
+export async function ensureAutomationsForList(
+  list: EmailList,
+  locale: AutomationLocale = "en",
+): Promise<EmailAutomation[]> {
+  const defaults = automationCopyFor(locale).defaults;
   for (const kind of EMAIL_AUTOMATION_KINDS) {
-    const defaults = AUTOMATION_DEFAULTS[kind];
+    const kindDefaults = defaults[kind];
     await db
       .insert(emailAutomationsTable)
       .values({
         listId: list.id,
         kind,
         enabled: false,
-        subject: defaults.subject,
-        body: defaults.body,
-        delayHours: defaults.delayHours,
+        subject: kindDefaults.subject,
+        body: kindDefaults.body,
+        delayHours: kindDefaults.delayHours,
       })
       .onConflictDoNothing();
   }
@@ -211,13 +196,19 @@ export interface AutomationDto extends AutomationStats {
   lastRunAt: string | null;
 }
 
-export async function automationDto(automation: EmailAutomation): Promise<AutomationDto> {
+/** The DTO's label + trigger note render in the caller's locale;
+ *  subject/body are the row's stored copy, returned untouched. */
+export async function automationDto(
+  automation: EmailAutomation,
+  locale: AutomationLocale = "en",
+): Promise<AutomationDto> {
   const stats = await automationStats(automation.id);
+  const copy = automationCopyFor(locale);
   return {
     id: automation.id,
     kind: automation.kind,
-    label: AUTOMATION_LABELS[automation.kind],
-    triggerNote: AUTOMATION_TRIGGER_NOTES[automation.kind],
+    label: copy.labels[automation.kind],
+    triggerNote: copy.triggerNotes[automation.kind],
     enabled: automation.enabled,
     subject: automation.subject,
     body: automation.body,
