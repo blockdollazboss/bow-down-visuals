@@ -11,6 +11,8 @@ import {
   type EditorSettings, type AudioStem, type StemEffects,
 } from "@/lib/editor-settings";
 import { uploadStemFile, removeStemFile, makeStem, readAudioDuration } from "@/lib/audio-stems";
+import { StemFxChainEditor } from "@/components/editor/music/StemFxChainEditor";
+import type { FxStep } from "@/lib/arrangement";
 import { Field, Dropdown, Collapsible, Chip } from "@/components/editor/controls";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildStemContextItems } from "@/lib/track-context-menu";
@@ -44,6 +46,9 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
   }
   function patchEffects(id: string, patch: Partial<StemEffects>) {
     setStems(stems.map((s) => (s.id === id ? { ...s, effects: { ...s.effects, ...patch } } : s)));
+  }
+  function patchFxChain(id: string, fxChain: FxStep[]) {
+    patchStem(id, { fxChain });
   }
 
   async function handleFiles(files: FileList | null) {
@@ -285,6 +290,13 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
                       <div className="flex flex-wrap gap-2 mt-3">
                         <Chip active={stem.effects.deEsser} onClick={() => patchEffects(stem.id, { deEsser: !stem.effects.deEsser })}>De-esser</Chip>
                         <Chip active={stem.effects.noiseReduction} onClick={() => patchEffects(stem.id, { noiseReduction: !stem.effects.noiseReduction })}>Noise reduction</Chip>
+                      </div>
+                      <div className="border-t border-white/[0.06] mt-4 pt-4">
+                        <StemFxChainEditor
+                          chain={stem.fxChain}
+                          stemId={stem.id}
+                          onChange={(next) => patchFxChain(stem.id, next)}
+                        />
                       </div>
                     </Collapsible>
                   </div>

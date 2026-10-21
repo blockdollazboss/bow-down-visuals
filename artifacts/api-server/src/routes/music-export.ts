@@ -122,6 +122,68 @@ function clampNum(v: unknown, lo: number, hi: number, dflt: number): number {
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
 }
 
+/* ── FX chain honesty gate (Wave 3 #16) ──────────────────────────────────
+ * parseFxChain below is a defensive clamp: it silently drops what it
+ * cannot use. That is the right last-resort behavior for the render
+ * graph, but it must never decide what a client MEANT: a stem that
+ * arrives with a malformed chain would otherwise fall back to the
+ * legacy preset chain and render something the user did not ask for,
+ * with no sign anything went wrong. So both export routes run this
+ * strict structural validation first — a chain that is present but
+ * malformed fails the request with `invalid_fx_chain`. In-range
+ * numbers are NOT errors (parseFxChain clamps them); structural
+ * problems are: not an array, too many steps, a step that is not an
+ * object, an unknown step type, malformed bands, or a parameter
+ * value that is not a finite number. */
+const FX_MAX_STEPS = 12;
+const FX_MAX_BANDS = 5;
+const FX_NUMERIC_FIELDS = [
+  "thresholdDb", "ratio", "attackMs", "releaseMs",
+  "drive", "mix", "timeMs", "feedback",
+] as const;
+
+export function validateFxChain(raw: unknown): string | null {
+  if (raw === undefined) return null;
+  if (!Array.isArray(raw)) return "the FX chain must be a list of steps";
+  if (raw.length > FX_MAX_STEPS) return `the FX chain has too many steps (max ${FX_MAX_STEPS})`;
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return "an FX chain step is not an object";
+    const r = item as Record<string, unknown>;
+    if (typeof r["type"] !== "string" || !FX_STEP_TYPES.has(r["type"])) {
+      return `an FX chain step has an unknown type (${String(r["type"])})`;
+    }
+    if (r["bands"] !== undefined) {
+      if (!Array.isArray(r["bands"])) return "an EQ step's bands must be a list";
+      if (r["bands"].length > FX_MAX_BANDS) return `an EQ step has too many bands (max ${FX_MAX_BANDS})`;
+      for (const b of r["bands"]) {
+        if (!b || typeof b !== "object") return "an EQ band is not an object";
+        const bb = b as Record<string, unknown>;
+        for (const f of ["freq", "gain", "q"] as const) {
+          if (bb[f] !== undefined && (typeof bb[f] !== "number" || !Number.isFinite(bb[f]))) {
+            return `an EQ band's ${f} must be a number`;
+          }
+        }
+      }
+    }
+    for (const f of FX_NUMERIC_FIELDS) {
+      if (r[f] !== undefined && (typeof r[f] !== "number" || !Number.isFinite(r[f] as number))) {
+        return `an FX step's ${f} must be a number`;
+      }
+    }
+  }
+  return null;
+}
+
+/** First FX-chain error across a request's stems, naming the stem. */
+export function findStemFxChainError(stems: RawStem[]): string | null {
+  for (const s of stems) {
+    if (!s || s.fxChain === undefined) continue;
+    const err = validateFxChain(s.fxChain);
+    if (err) return `Stem "${String(s.name ?? "Stem")}": ${err}.`;
+  }
+  return null;
+}
+
 export function parseFxChain(raw: unknown): ExportFxStep[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
   const steps: ExportFxStep[] = [];
@@ -267,6 +329,12 @@ router.post("/music/export", requireAuth, async (req, res) => {
   }
   if (!Array.isArray(stems) || stems.length === 0) {
     res.status(400).json({ error: "No stems available to export.", code: "no_stems" });
+    return;
+  }
+
+  const fxChainError = findStemFxChainError(stems);
+  if (fxChainError) {
+    res.status(400).json({ error: fxChainError, code: "invalid_fx_chain" });
     return;
   }
 
@@ -418,6 +486,12 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
 
   if (!Array.isArray(stems) || stems.length === 0) {
     res.status(400).json({ error: "No stems available to preview.", code: "no_stems" });
+    return;
+  }
+
+  const fxChainError = findStemFxChainError(stems);
+  if (fxChainError) {
+    res.status(400).json({ error: fxChainError, code: "invalid_fx_chain" });
     return;
   }
 

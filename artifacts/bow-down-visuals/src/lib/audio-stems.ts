@@ -105,5 +105,6 @@ export function makeStem(
     trimEnd: 0,
     startTime: 0,
     effects: defaultStemEffects(),
+    fxChain: [],
   };
 }

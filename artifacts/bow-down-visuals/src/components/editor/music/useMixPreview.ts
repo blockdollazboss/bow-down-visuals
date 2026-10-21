@@ -16,6 +16,7 @@ function toEngineStems(stems: AudioStem[]): EngineStem[] {
       trimStart: s.trimStart,
       trimEnd: s.trimEnd,
       effects: s.effects,
+      ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
     }));
 }
 

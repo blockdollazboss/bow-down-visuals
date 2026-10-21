@@ -140,6 +140,8 @@ const FRIENDLY_ERRORS: Record<string, string> = {
     "The render took too long and was stopped. Try exporting fewer stems, turning off heavy per-stem effects, or a shorter section of the song.",
   invalid_type: "That export type isn't supported.",
   invalid_stem_url: "One or more stems came from an untrusted source. Re-upload them and try again.",
+  invalid_fx_chain:
+    "A stem's FX chain couldn't be read, so nothing was rendered. Open that stem's Effects panel, check the chain steps, and try again.",
   too_many_stems: "Too many stems to export. Remove a few and try again.",
   job_not_found: "This export job expired. Please start the export again.",
 };
