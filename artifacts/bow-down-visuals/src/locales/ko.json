@@ -7566,7 +7566,8 @@
     "packetStats": "지금까지의 릴리스 통계",
     "packetTitle": "피치 패킷",
     "packetAudioLabel": "트랙 오디오",
-    "packetProfileLabel": "아티스트 프로필"
+    "packetProfileLabel": "아티스트 프로필",
+    "packetPresaveLabel": "사전 저장 / 스마트링크"
   },
   "catalogImport": {
     "accountPieces": "가져오기 목록에 {{count}}개의 피스{{plural}}.",

@@ -7566,7 +7566,8 @@
     "packetStats": "これまでのリリース統計",
     "packetTitle": "ピッチパケット",
     "packetAudioLabel": "トラック音声",
-    "packetProfileLabel": "アーティストプロフィール"
+    "packetProfileLabel": "アーティストプロフィール",
+    "packetPresaveLabel": "プリセーブ / スマートリンク"
   },
   "catalogImport": {
     "accountPieces": "インポートリストに {{count}} 件のピース{{plural}}。",

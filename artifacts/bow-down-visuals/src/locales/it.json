@@ -7566,7 +7566,8 @@
     "packetStats": "Statistiche della pubblicazione finora",
     "packetTitle": "Pacchetto pitch",
     "packetAudioLabel": "Audio della traccia",
-    "packetProfileLabel": "Profilo artista"
+    "packetProfileLabel": "Profilo artista",
+    "packetPresaveLabel": "Pre-salvataggio / smartlink"
   },
   "catalogImport": {
     "accountPieces": "{{count}} post{{plural}} nella tua lista di importazione.",

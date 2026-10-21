@@ -7566,7 +7566,8 @@
     "packetStats": "अब तक के रिलीज़ आंकड़े",
     "packetTitle": "पिच पैकेट",
     "packetAudioLabel": "ट्रैक ऑडियो",
-    "packetProfileLabel": "कलाकार प्रोफ़ाइल"
+    "packetProfileLabel": "कलाकार प्रोफ़ाइल",
+    "packetPresaveLabel": "प्री-सेव / स्मार्टलिंक"
   },
   "catalogImport": {
     "accountPieces": "आपकी आयात सूची में {{count}} पीस{{plural}}।",
