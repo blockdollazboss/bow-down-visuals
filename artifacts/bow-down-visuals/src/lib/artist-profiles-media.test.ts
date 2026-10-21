@@ -134,6 +134,7 @@ describe("fetchPublicProfile — published catalog reaches the profile", () => {
         url: "https://cdn.example.com/audio/golden-hour.mp3",
         duration: "3:24",
         plays: 128,
+        isPinned: false,
         href: "/track/track-1",
       },
     ]);
@@ -146,6 +147,7 @@ describe("fetchPublicProfile — published catalog reaches the profile", () => {
         url: "https://cdn.example.com/video/golden-hour.mp4",
         duration: "1:35",
         plays: 432,
+        isPinned: false,
         href: "/watch/video-1",
       },
     ]);

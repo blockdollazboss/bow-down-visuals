@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
   Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
-  ExternalLink, MapPin, Crown,
+  ExternalLink, MapPin, Crown, Pin,
 } from "lucide-react";
 import { PROFILE_VISIT_WORLD_TEST_ID, VISIT_WORLD_LABEL, WORLD_ROUTE } from "@/lib/world-entry";
 import type {
@@ -262,7 +262,13 @@ export function MediaRowSection({ title, items, kind }: { title: string; items: 
           <div
             key={it.id}
             className="rounded-lg border p-3 transition hover:-translate-y-0.5"
-            style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
+            style={{
+              backgroundColor: "var(--ap-card)",
+              borderColor: it.isPinned ? "var(--ap-primary)" : "var(--ap-border)",
+              boxShadow: it.isPinned
+                ? "0 0 14px color-mix(in srgb, var(--ap-primary) 22%, transparent)"
+                : undefined,
+            }}
           >
             <div className="flex items-center gap-3">
               {it.thumbnailUrl ? (
@@ -276,6 +282,14 @@ export function MediaRowSection({ title, items, kind }: { title: string; items: 
                 </span>
               )}
               <span className="min-w-0 flex-1">
+                {it.isPinned && (
+                  <span
+                    className="mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                    style={{ backgroundColor: "var(--ap-primary)", color: "#14100a" }}
+                  >
+                    <Pin className="h-3 w-3" /> Pinned
+                  </span>
+                )}
                 {it.href ? (
                   <SmartLink href={it.href} className="block truncate text-sm font-semibold underline decoration-dotted underline-offset-2" style={{ color: "var(--ap-text)" }}>
                     {it.title}
