@@ -47,7 +47,19 @@ export interface SubjectDetectionResult {
 
 const MAX_SAMPLES = 90;
 const MAX_FPS = 6;
-const MIN_FPS = 0.2;
+
+/** Sampling rate for a video of the given length. MAX_SAMPLES is
+ *  a hard budget — the frame count, the raw-frame dump on disk, and
+ *  the worker's inference load all scale with it — so on long
+ *  videos the sampling interval simply grows (10 min ≈ every 7 s,
+ *  2 h ≈ every 80 s) and the samples still span the full duration.
+ *  (The old 0.2 fps floor silently broke the budget past ~7.5 min:
+ *  a 10-minute video produced 120 samples, a 2-hour one 1,440 —
+ *  a ~350 MB raw dump and a worker that could only time out.) */
+export function samplingFpsForDuration(durationSec: number): number {
+  if (!isFinite(durationSec) || durationSec <= 0) return 2;
+  return Math.min(MAX_FPS, MAX_SAMPLES / durationSec);
+}
 const FEED_MAX_WIDTH = 384;
 const WORKER_TIMEOUT_MS =
   Number(process.env["REFRAME_DETECTOR_TIMEOUT_MS"]) || 150_000;
@@ -95,6 +107,23 @@ interface ProbeInfo {
   durationSec: number;
 }
 
+/** Display dimensions for a probed stream. ffprobe reports the
+ *  CODED width/height; when the file carries a ±90°/270° display
+ *  rotation (every phone-shot portrait video does), ffmpeg decodes
+ *  — and the render crops — the SWAPPED frame. Everything
+ *  downstream (feed scaling, matte geometry, crop planning) must
+ *  work in display geometry, or the matte lands squished and the
+ *  plan is computed against a frame that doesn't exist. */
+export function displayDims(
+  width: number,
+  height: number,
+  rotation?: number | null,
+): { width: number; height: number } {
+  if (rotation == null || !isFinite(rotation)) return { width, height };
+  const quarter = ((rotation % 180) + 180) % 180 === 90;
+  return quarter ? { width: height, height: width } : { width, height };
+}
+
 async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
   try {
     const { stdout } = await execFileAsync(
@@ -103,6 +132,8 @@ async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
         "-v", "error",
         "-select_streams", "v:0",
         "-show_entries", "stream=width,height",
+        "-show_entries", "stream_side_data=rotation",
+        "-show_entries", "stream_tags=rotate",
         "-show_entries", "format=duration",
         "-of", "json",
         inputPath,
@@ -110,14 +141,30 @@ async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
       { timeout: 60_000 },
     );
     const parsed = JSON.parse(String(stdout)) as {
-      streams?: Array<{ width?: number; height?: number }>;
+      streams?: Array<{
+        width?: number;
+        height?: number;
+        side_data_list?: Array<{ rotation?: number }>;
+        tags?: { rotate?: string };
+      }>;
       format?: { duration?: string };
     };
     const stream = parsed.streams?.[0];
-    const width = stream?.width ?? 0;
-    const height = stream?.height ?? 0;
+    const codedW = stream?.width ?? 0;
+    const codedH = stream?.height ?? 0;
+    if (!codedW || !codedH) return null;
+    const sideRotation = stream?.side_data_list?.find(
+      (sd) => typeof sd.rotation === "number",
+    )?.rotation;
+    const tagRotation = stream?.tags?.rotate
+      ? Number(stream.tags.rotate)
+      : undefined;
+    const { width, height } = displayDims(
+      codedW,
+      codedH,
+      sideRotation ?? (tagRotation !== undefined && isFinite(tagRotation) ? tagRotation : null),
+    );
     const durationSec = parseFloat(parsed.format?.duration ?? "0");
-    if (!width || !height) return null;
     return {
       width,
       height,
@@ -347,10 +394,7 @@ export async function detectSubjectsInVideo(
     const durationSec =
       probe.durationSec > 0 ? probe.durationSec : MAX_SAMPLES / 2;
 
-    const fps = Math.min(
-      MAX_FPS,
-      Math.max(MIN_FPS, MAX_SAMPLES / durationSec),
-    );
+    const fps = samplingFpsForDuration(durationSec);
     const feedW = Math.max(
       2,
       Math.floor(Math.min(probe.width, FEED_MAX_WIDTH) / 2) * 2,

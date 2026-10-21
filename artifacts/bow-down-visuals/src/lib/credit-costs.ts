@@ -84,6 +84,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },
   "/api/export-doctor/export-audio-sync-short": { cost: 200, feature: "Export Audio Sync" },
   "/api/export-multi-ratio": { cost: 100, feature: "Multi-Ratio Export (per ratio)" },
+  // Subject-tracking reframe — mirrors REFRAME_COST in the server route
+  // (routes/generate/auto-reframe.ts, env REFRAME_CREDITS, default 200).
+  // This registry entry is the client's single copy of the price: the
+  // editor card reads it via getCreditCost and confirmedFetch shows it
+  // in the spend confirmation before anything charges.
+  "/api/auto-reframe": { cost: 200, feature: "Smart Reframe — Subject Tracking" },
   "/api/extract-audio": { cost: 50, feature: "Extract Audio" },
   "/api/export-doctor/repair-normalize": { cost: 100, feature: "Repair: Normalize Clip" },
   "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },

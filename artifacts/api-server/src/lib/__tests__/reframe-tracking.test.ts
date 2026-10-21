@@ -271,6 +271,104 @@ describe("followSubjectPath — the bound is absolute", () => {
   });
 });
 
+describe("cropWindowFor — 4:5 and degenerate sizes", () => {
+  it("crops width for landscape → 4:5", () => {
+    expect(cropWindowFor(SRC_W, SRC_H, 4 / 5)).toEqual({ w: 576, h: 720 });
+  });
+  it("crops height for portrait → 4:5", () => {
+    expect(cropWindowFor(720, 1280, 4 / 5)).toEqual({ w: 720, h: 900 });
+  });
+  it("window is always even and at least 2px, even for odd/tiny sources", () => {
+    expect(cropWindowFor(719, 1279, RATIO_916)).toEqual({ w: 718, h: 1278 });
+    expect(cropWindowFor(3, 3, 16 / 9)).toEqual({ w: 2, h: 2 });
+  });
+});
+
+describe("planTrackedCrop — the window clamps at the frame edges", () => {
+  const still = (cx: number, cy = 0.5): DetectionSample[] =>
+    Array.from({ length: 6 }, (_, i) => sample(i * 0.5, cx, cy));
+
+  it("subject hugging the left edge pins the window to the left edge", () => {
+    const p = plan(still(0.04));
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    for (const k of p.keyframes) expect(k.cx).toBe(p.window.w / 2);
+    expect(p.filter).toContain(",0,876)"); // clip(x, 0, srcW - w)
+  });
+
+  it("subject hugging the right edge pins the window to the right edge", () => {
+    const p = plan(still(0.97));
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    for (const k of p.keyframes) expect(k.cx).toBe(SRC_W - p.window.w / 2);
+  });
+
+  it("subject at the top/bottom pins the window vertically (portrait → 16:9)", () => {
+    const top = planTrackedCrop({
+      samples: Array.from({ length: 6 }, (_, i) => ({
+        t: i * 0.5,
+        box: { x: 0.43, y: 0.0, w: 0.14, h: 0.06 },
+        coverage: 0.05,
+      })),
+      srcW: 720, srcH: 1280, targetRatio: 16 / 9, outW: 1920, outH: 1080, durationSec: 3,
+    });
+    expect(top.ok).toBe(true);
+    if (top.ok) for (const k of top.keyframes) expect(k.cy).toBe(top.window.h / 2);
+
+    const bottom = planTrackedCrop({
+      samples: Array.from({ length: 6 }, (_, i) => ({
+        t: i * 0.5,
+        box: { x: 0.43, y: 0.94, w: 0.14, h: 0.06 },
+        coverage: 0.05,
+      })),
+      srcW: 720, srcH: 1280, targetRatio: 16 / 9, outW: 1920, outH: 1080, durationSec: 3,
+    });
+    expect(bottom.ok).toBe(true);
+    if (bottom.ok) for (const k of bottom.keyframes) expect(k.cy).toBe(1280 - bottom.window.h / 2);
+  });
+});
+
+describe("planTrackedCrop — cleaning can still reject the track", () => {
+  it("a glitch among exactly-enough samples drops the track to low-coverage", () => {
+    // 3 of 6 tracked (passes the first assessment), but the middle
+    // detection is a wild glitch: cleaning removes it, 2 remain,
+    // and the second assessment must reject — not track on 2 points.
+    const samples: DetectionSample[] = [
+      sample(0, 0.3),
+      sample(0.5, null),
+      sample(1, 0.95),
+      sample(1.5, null),
+      sample(2, 0.32),
+      sample(2.5, null),
+    ];
+    expect(assessSamples(samples).ok).toBe(true);
+    const p = plan(samples, 3);
+    expect(p).toEqual({ ok: false, reason: "low-coverage" });
+  });
+});
+
+describe("assessSamples — trust boundaries are inclusive", () => {
+  const withCoverage = (coverage: number, n = 6): DetectionSample[] =>
+    Array.from({ length: n }, (_, i) => ({ ...sample(i * 0.5, 0.5), coverage }));
+
+  it("exactly half the frames tracked, exactly 3 samples: passes", () => {
+    const s = [
+      sample(0, 0.5), sample(0.5, null),
+      sample(1, 0.5), sample(1.5, null),
+      sample(2, 0.5), sample(2.5, null),
+    ];
+    expect(assessSamples(s)).toEqual({ ok: true });
+  });
+  it("mean coverage exactly at the floor passes; a hair below rejects", () => {
+    expect(assessSamples(withCoverage(0.004))).toEqual({ ok: true });
+    expect(assessSamples(withCoverage(0.0039))).toEqual({ ok: false, reason: "low-confidence" });
+  });
+  it("mean coverage exactly at the blowout ceiling passes; a hair above rejects", () => {
+    expect(assessSamples(withCoverage(0.92))).toEqual({ ok: true });
+    expect(assessSamples(withCoverage(0.9201))).toEqual({ ok: false, reason: "low-confidence" });
+  });
+});
+
 describe("buildTrackedCropFilter", () => {
   it("holds the final position after the last keyframe", () => {
     const filter = buildTrackedCropFilter(

@@ -3511,6 +3511,11 @@ export default function VideoEditor() {
                       isSimple={isSimple}
                       topic={songTitle || undefined}
                       handoffVideoUrl={lutHandoffUrl}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
                     />
                     {/* Spotify Canvas Generator — docked in the export/promo
                         chain (DistroKid Canvas parity). Deep-linked via
