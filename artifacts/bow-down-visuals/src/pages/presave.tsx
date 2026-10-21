@@ -7,6 +7,7 @@ import {
   PartyPopper, Copy, Check, BellRing, RotateCcw,
 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
+import { presaveTracklistRows, type PresaveTracklistEntry } from "@/lib/presave-tracklist";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -33,6 +34,9 @@ interface PresaveRelease {
   bonusUrl: string | null;
   followerCount: number;
   shareCount: number;
+  /* Wave 3 #15: tracklist preview — owner-published metadata only
+     (position, title, duration when known). No audio, ever. */
+  tracklist?: PresaveTracklistEntry[];
   /* Stack 11: the page persists post-release as the smartlink, and the
      headline action can be a real account save where supported. */
   released?: boolean;
@@ -372,6 +376,37 @@ export default function PresaveLanding() {
                 {t("presave.sharesCount")}
               </span>
             </div>
+
+            {/* ── Wave 3 #15: tracklist preview — the owner-published
+                titles in order (durations where the release carries
+                them). Metadata only: no audio is exposed early. ── */}
+            {(() => {
+              const rows = presaveTracklistRows(data.tracklist);
+              if (rows.length === 0) return null;
+              return (
+                <div className="mx-auto mt-6 max-w-md text-left">
+                  <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-widest text-white/40">
+                    {t("presave.tracklistTitle", { defaultValue: "Tracklist" })}
+                  </p>
+                  <ol className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                    {rows.map((row) => (
+                      <li
+                        key={row.position}
+                        className="flex items-baseline gap-3 border-b border-white/[0.06] px-4 py-2.5 last:border-b-0"
+                      >
+                        <span className="w-6 shrink-0 text-right font-display text-sm font-black tabular-nums text-primary/80">
+                          {row.position}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-white/85">{row.title}</span>
+                        {row.durationLabel && (
+                          <span className="shrink-0 text-xs tabular-nums text-white/40">{row.durationLabel}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })()}
 
             {/* ── Stack 11 #2: real account pre-save (headline action when
                 the platform API can actually save this release) ── */}

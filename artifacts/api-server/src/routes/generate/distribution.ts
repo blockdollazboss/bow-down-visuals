@@ -1809,6 +1809,41 @@ router.post("/distribution/releases/:id/presave", requireAuth, async (req, res) 
   }
 });
 
+/* ─── Presave tracklist preview (wave 3 #15) ─────────────────────────────
+   The landing page may preview the release's tracklist: ONLY metadata
+   the release owner made part of the release — titles, in the owner's
+   order, plus a duration when the stored track record carries one
+   (the release editor writes { title, isrc? } today, so durations are
+   normally absent — never invented). Everything else on a stored track
+   record (ISRC, any audio reference, editor internals) is stripped
+   here: unreleased audio is never exposed early, in any field. */
+export interface PresaveTracklistEntry {
+  position: number;
+  title: string;
+  durationSeconds: number | null;
+}
+
+export function buildPresaveTracklist(
+  tracks: ReadonlyArray<Record<string, unknown>> | null | undefined,
+): PresaveTracklistEntry[] {
+  const out: PresaveTracklistEntry[] = [];
+  for (const raw of tracks ?? []) {
+    if (!raw || typeof raw !== "object") continue;
+    const title = typeof raw["title"] === "string" ? raw["title"].trim() : "";
+    if (!title) continue;
+    let durationSeconds: number | null = null;
+    for (const key of ["durationSeconds", "duration_seconds", "duration"] as const) {
+      const v = raw[key];
+      if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+        durationSeconds = Math.round(v);
+        break;
+      }
+    }
+    out.push({ position: out.length + 1, title, durationSeconds });
+  }
+  return out;
+}
+
 router.get("/distribution/presave/:slug", async (req, res) => {
   try {
     const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
@@ -1888,6 +1923,11 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         headline: row.presave_headline ?? null,
         platformLinks: (row.presave_platform_links ?? {}) as Record<string, string>,
         bonusUrl: row.presave_bonus_url ?? null,
+        /* ── Wave 3 #15: tracklist preview — titles/order/durations
+           only, no audio, no ISRC (buildPresaveTracklist strips). ── */
+        tracklist: buildPresaveTracklist(
+          (row.tracks ?? []) as unknown as Array<Record<string, unknown>>,
+        ),
         followerCount,
         shareCount,
         /* ── Stack 11: persistent smartlink + account pre-save ── */
