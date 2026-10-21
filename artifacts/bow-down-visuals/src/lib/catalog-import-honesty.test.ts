@@ -21,11 +21,16 @@ const page = read("../pages/catalog-import.tsx");
 const moveHome = read("../pages/move-home.tsx");
 const app = read("../App.tsx");
 const routes = read("./public-routes.ts");
+/* Wired copy lives in the en catalog now (i18n wiring pass) — the
+   honesty literals are pinned there, byte-identical, and the page is
+   pinned to reference the keys. */
+const en = read("../locales/en.json");
 
 describe("catalog-import page honesty", () => {
   it("renders the API honesty line and the free line; never claims followers move", () => {
     expect(page).toContain("data.honesty.movesLine");
-    expect(page).toContain("Free — bringing your work home never costs credits.");
+    expect(page).toContain("catalogImport.freeNote");
+    expect(en).toContain("Free — bringing your work home never costs credits.");
     const lower = page.toLowerCase();
     for (const claim of ["import your followers", "bring your followers", "transfer your audience", "move your followers", "followers come with"]) {
       expect(lower).not.toContain(claim);
@@ -34,28 +39,35 @@ describe("catalog-import page honesty", () => {
 
   it("blocked and link-only accounts show the server's reason and no scan door", () => {
     expect(page).toContain("a.state !== \"ready\" && a.note");
-    expect(page).toContain("Can't read a catalog");
-    expect(page).toContain("Display link only");
+    expect(page).toContain("catalogImport.cantReadCatalog");
+    expect(en).toContain("Can't read a catalog");
+    expect(page).toContain("catalogImport.displayLinkOnly");
+    expect(en).toContain("Display link only");
     /* The scan button exists exactly once, inside the ready branch. */
-    expect(page.match(/Scan my posts/g)).toHaveLength(1);
+    expect(page.match(/catalogImport\.scanMyPosts/g)).toHaveLength(1);
+    expect(en).toContain("Scan my posts");
     expect(page).toContain("a.state === \"ready\"");
     /* Not-connected state routes to the real connect surface. */
     expect(page).toContain('href="/settings"');
-    expect(page).toContain("Connect an account in Settings");
+    expect(page).toContain("catalogImport.connectInSettings");
+    expect(en).toContain("Connect an account in Settings");
   });
 
   it("every status has a plain label, and blocked/failed items show their reason", () => {
     for (const s of ["listed", "fetching", "here", "ready", "approved", "blocked", "failed", "dismissed"]) {
       expect(page).toContain(`${s}:`);
     }
-    expect(page).toContain("Platform won't hand it over");
+    expect(page).toContain("catalogImport.statusBlocked");
+    expect(en).toContain("Platform won't hand it over");
     expect(page).toContain("item.statusNote");
   });
 
   it("the draft panel states provenance and every skipped part keeps its reason", () => {
     expect(page).toContain('item.draft.source === "ai"');
-    expect(page).toContain("your facts only, nothing invented");
-    expect(page).toContain("nothing was dressed up as more than it is");
+    expect(page).toContain("catalogImport.draftAiNote");
+    expect(en).toContain("your facts only, nothing invented");
+    expect(page).toContain("catalogImport.draftAssembledNote");
+    expect(en).toContain("nothing was dressed up as more than it is");
     expect(page).toContain("n.state === \"skipped\" && n.reason");
   });
 
@@ -78,6 +90,7 @@ describe("catalog-import page honesty", () => {
     expect(routes).toContain('{ path: "/catalog-import", disposition: "locked" }');
     expect(app).toContain('<Route path="/catalog-import"><ProtectedRoute><CatalogImport /></ProtectedRoute></Route>');
     expect(moveHome).toContain('href="/catalog-import"');
-    expect(moveHome).toContain("Bring your catalog home");
+    expect(moveHome).toContain("moveHome.siblingBody");
+    expect(en).toContain("Bring your catalog home");
   });
 });
