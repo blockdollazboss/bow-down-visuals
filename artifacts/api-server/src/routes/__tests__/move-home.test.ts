@@ -199,6 +199,8 @@ CREATE TABLE email_lists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL, name text NOT NULL, handle text NOT NULL UNIQUE,
   description text, welcome_subject text, welcome_body text,
+  welcome2_subject text, welcome2_body text,
+  welcome3_subject text, welcome3_body text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE store_products (
