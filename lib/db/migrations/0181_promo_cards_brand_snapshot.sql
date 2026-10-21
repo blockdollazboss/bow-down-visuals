@@ -1,0 +1,22 @@
+-- 0181: Promo cards ride the branding kit (Stack-4 wave 2 #4).
+-- UGC ads have snapshotted the creator's brand kit at generation time
+-- since migration 0164 (ugc_ads.brand_snapshot): the kit is read once,
+-- its palette + vibe steer the render, and the snapshot is stored on
+-- the record so later kit edits never rewrite history. Promo cards —
+-- the older sibling in the same Promote workflow — ignored the kit
+-- entirely. This migration adds the one missing column so the
+-- generation route can do the same:
+--   brand_snapshot — the caller's brand kit as read at generation
+--     time (core shape mirrors UgcBrandSnapshot: brandName, logoUrl,
+--     primaryColor, vibe; colors and fonts ride in full because the
+--     card composer burns text and frames with them), or NULL when
+--     the creator had no kit — generation then behaves exactly as it
+--     did before the kit was wired in, never an error.
+-- Snapshot semantics: values are COPIES taken in the generation
+-- request. Editing or regenerating the kit afterwards does not touch
+-- this column on already-generated cards, and the stored snapshot is
+-- never re-read as a live kit — it is the record of what the card
+-- was made with.
+-- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
+
+ALTER TABLE promo_cards ADD COLUMN IF NOT EXISTS brand_snapshot JSONB;

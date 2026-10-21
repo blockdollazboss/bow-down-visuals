@@ -13,6 +13,28 @@ import { pgTable, uuid, text, integer, jsonb, timestamp, index } from "drizzle-o
    a card deletes the ROW only; the storage object is never purged
    from here (files law: media is removed deliberately, not as a
    side effect of tidying a list). */
+
+/* The creator's brand kit as read at generation time (Stack-4 wave-2
+   #4, migration 0181) — the promo-card sibling of UGC's brand
+   snapshot (migration 0164). The four core fields mirror
+   UgcBrandSnapshot exactly (brandName / logoUrl / primaryColor /
+   vibe, same derivation in the route); colors and fonts ride in
+   full because the card composer burns text and frames with them —
+   the palette styles the background prompt + headline/frame accent
+   and the lead font pairing resolves to a bundled face where one
+   exists. It is a SNAPSHOT: values are copied at generation time, so
+   editing the kit afterwards never mutates already-generated cards.
+   Null when the creator had no kit (generation then behaves exactly
+   as it did before the kit was wired in). */
+export interface PromoCardBrandSnapshot {
+  brandName: string | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
+  vibe: string | null;
+  colors: Array<{ hex: string; name: string; role: string }>;
+  fonts: Array<{ heading: string; body: string; usage: string }>;
+}
+
 export const promoCardsTable = pgTable("promo_cards", {
   id:           uuid("id").primaryKey().defaultRandom(),
   userId:       uuid("user_id").notNull(),
@@ -25,6 +47,8 @@ export const promoCardsTable = pgTable("promo_cards", {
   artistName:   text("artist_name").notNull(),
   /** The caption suggested for the pack at generation time. */
   caption:      text("caption"),
+  /** The caller's brand kit as read at generation time (0181). */
+  brandSnapshot: jsonb("brand_snapshot").$type<PromoCardBrandSnapshot>(),
   width:        integer("width").notNull(),
   height:       integer("height").notNull(),
   platforms:    jsonb("platforms").$type<string[]>().notNull().default([]),
