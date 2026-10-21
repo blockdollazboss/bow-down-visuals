@@ -23,7 +23,14 @@ describe("rollBuffer", () => {
 
 describe("formatJackpotDate", () => {
   it("formats an ISO date as 'Mon D, YYYY'", () => {
-    expect(formatJackpotDate("2027-03-24T14:32:00.000Z")).toBe("Mar 24, 2027");
+    /* The label renders the instant on the VIEWER's clock, so the
+     * expected date is derived from the instant's local components —
+     * a literal only holds in zones where 14:32Z stays on Mar 24
+     * (under UTC+14 it is already Mar 25). The short month name, the
+     * unpadded day and the ", YYYY" shape stay pinned. */
+    const d = new Date("2027-03-24T14:32:00.000Z");
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    expect(formatJackpotDate("2027-03-24T14:32:00.000Z")).toBe(`${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
   });
 
   it("returns an em dash for missing/invalid input", () => {
