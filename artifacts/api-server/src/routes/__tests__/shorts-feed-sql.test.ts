@@ -72,10 +72,12 @@ vi.mock("../../middlewares/require-auth", () => ({
    helper is not what this file guards — stub it to keep the module
    tree (and its own db chains) out of these tests. */
 vi.mock("../challenge-engine", async () => {
-  // Stack 8 #4: shorts.ts now also mounts the engine's default router
-  // (the /challenges/* routes moved there) and imports the shared
-  // helpers back — the stub must carry those names or the module tree
-  // fails to link. Behavior under test here is unchanged.
+  // Stack 8 #4 moved the /challenges/* routes into the engine; shorts.ts
+  // imports the shared helpers from it — the stub must carry those names
+  // or the module tree fails to link. (Wave 3 #12: shorts no longer
+  // mounts the engine's default router; the stub's default export is
+  // retained only so the mock mirrors the real module's shape.)
+  // Behavior under test here is unchanged.
   const { Router } = await import("express");
   return {
     effectiveStatus: (c: any) => c?.status ?? "live",

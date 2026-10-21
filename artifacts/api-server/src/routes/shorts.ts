@@ -13,7 +13,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import challengeEngineRouter, { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
+import { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -22,7 +22,7 @@ import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
    read payloads are deep-refreshed so stored refs mint fresh URLs. */
 
 /* ─── Shorts / TikTok mechanics ────────────────────────────────────────────
-   Vertical short-video feed, sounds, duets/stitches, challenges, hashtags.
+   Vertical short-video feed, sounds, duets/stitches, hashtags.
    Mounted by the coordinator under /api (paths below are relative to it):
      GET  /shorts/feed            algorithmic For You feed (public)
      GET  /shorts/:id             single short (public)
@@ -33,11 +33,12 @@ import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
      GET  /videos/:id/stitches    children stitches (public)
      GET  /sounds/trending        trending sounds (public)
      GET  /sounds/:id             sound page (public)
-     POST /challenges             create a challenge (auth)
-     GET  /challenges/trending    trending challenges (public)
-     GET  /challenges/:slug       challenge detail + entries (public)
-     POST /challenges/:slug/enter enter a video (auth)
      GET  /hashtag/:tag           tagged content across tables (public)
+   Challenges are NOT served here: every /challenges/* route lives on the
+   challenge engine (routes/challenge-engine.ts), mounted exactly once by
+   the coordinator in routes/index.ts. This router only imports the
+   engine's shared helpers (challenge DTO, status, slug) for its own
+   payloads — it does not mount the engine.
    Everything links to everything: creator profiles, sound pages, challenge
    pages, duet/stitch parents AND children, comments, share with ?ref=CODE.
 */
@@ -670,7 +671,5 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
     res.status(500).json({ error: "Couldn't load that tag." });
   }
 });
-
-router.use(challengeEngineRouter);
 
 export default router;

@@ -655,11 +655,12 @@ router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Da
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)
 router.use("/discovery", discoveryRouter);  // /api/discovery/*
-/* challengeEngineRouter mounts BEFORE shortsRouter: its static paths
-   (/challenges/hall-of-fame, /challenges/live-now, /challenges/wins/:slug)
-   must win over shorts' /challenges/:slug param route. */
+/* challengeEngineRouter is the ONE canonical mount for /api/challenges/*
+   (Wave 3 #12 removed the duplicate mount that lived inside shorts.ts).
+   It mounts before shortsRouter; shorts serves no challenge routes —
+   it only borrows the engine's DTO/status helpers for /hashtag. */
 router.use(challengeEngineRouter);          // /api/challenges/* engine 2.0: prizes, votes, winners, lifecycle
-router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/challenges/*, /api/hashtag/*
+router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/hashtag/*
 router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*, /api/explore
 router.use(domainsRouter);                  // /api/domains/*
 router.use(storeRouter);                    // /api/store/* (digital sales checkout)

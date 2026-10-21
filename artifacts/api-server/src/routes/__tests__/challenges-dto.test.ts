@@ -1,5 +1,6 @@
 /**
- * Route tests for the challenge-card DTO contract (routes/shorts).
+ * Route tests for the challenge-card DTO contract (challenge engine +
+ * routes/shorts).
  *
  * THE REGRESSION: GET /challenges/trending spread the raw Drizzle rows
  * ({ ...r, effective_status }) and GET /hashtag/:tag passed its challenge
@@ -82,7 +83,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb };
 });
 
-import router from "../shorts";
+import shortsRouter from "../shorts";
+import challengeEngineRouter from "../challenge-engine";
 
 let server: any;
 let baseUrl: string;
@@ -90,7 +92,13 @@ let baseUrl: string;
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
-  app.use("/api", router);
+  /* Production wiring, mirrored from routes/index.ts: the challenge
+   * engine is the ONE canonical /challenges mount and mounts BEFORE
+   * shorts. /challenges/trending below resolves through the engine;
+   * /hashtag/:tag through shorts. (Wave 3 #12 removed the duplicate
+   * engine mount that used to live inside shorts.ts.) */
+  app.use("/api", challengeEngineRouter);
+  app.use("/api", shortsRouter);
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.on("listening", resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
