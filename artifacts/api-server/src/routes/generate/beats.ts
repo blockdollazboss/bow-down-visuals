@@ -1,17 +1,23 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
-import { db, beatsTable, beatLicensesTable } from "@workspace/db";
+import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { db, beatsTable, beatLicensesTable, beatLicenseTemplatesTable } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits as chargeCreditsAtomic, refundCredits } from "../../lib/credits";
 import {
+  BEAT_LICENSE_FORMATS,
   beatFiltersSchema,
+  beatLicenseTemplatePatchSchema,
+  beatLicenseTemplateSchema,
   beatMetadataSchema,
   commissionFor,
+  defaultTermsForTier,
   getBeatAiTagsCost,
   isBeatLicenseTier,
+  type BeatLicenseFormat,
+  type BeatLicenseTerms,
   type BeatLicenseTier,
 } from "./beats-pricing";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
@@ -38,9 +44,83 @@ async function presentBeat<T extends { audio_url: string; audio_path: string | n
 
 const router = Router();
 
+/* A license purchase names exactly one offer: a fixed tier OR one of the
+   producer's custom templates (migration 0187). */
 const beatLicenseSchema = z.object({
-  tier: z.enum(["basic", "premium", "exclusive"]),
+  tier: z.enum(["basic", "premium", "exclusive"]).optional(),
+  templateId: z.string().uuid().optional(),
+}).refine((v) => (v.tier === undefined) !== (v.templateId === undefined), {
+  message: "Choose exactly one of tier or templateId.",
 });
+
+/* ── Custom license templates (0187) ───────────────────────────────────────
+   DTO + snapshot mapping. The snapshot is the terms EXACTLY as sold,
+   copied onto the license row at purchase; the live template row is
+   never re-read for a sold license. */
+
+type BeatLicenseTemplateRow = typeof beatLicenseTemplatesTable.$inferSelect;
+
+export function toTemplateJson(row: BeatLicenseTemplateRow) {
+  return {
+    id: row.id,
+    producerId: row.producer_id,
+    name: row.name,
+    priceCents: row.price_cents,
+    isExclusive: row.is_exclusive,
+    format: row.format,
+    streamsCap: row.streams_cap,
+    salesCap: row.sales_cap,
+    musicVideosCap: row.music_videos_cap,
+    radioTvAllowed: row.radio_tv_allowed,
+    livePerformancesCap: row.live_performances_cap,
+    termYears: row.term_years,
+    territory: row.territory,
+    creditLine: row.credit_line,
+    termsNote: row.terms_note,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function termsFromTemplateRow(row: BeatLicenseTemplateRow): BeatLicenseTerms {
+  return {
+    name: row.name,
+    format: (BEAT_LICENSE_FORMATS as readonly string[]).includes(row.format)
+      ? (row.format as BeatLicenseFormat)
+      : "mp3",
+    streamsCap: row.streams_cap,
+    salesCap: row.sales_cap,
+    musicVideosCap: row.music_videos_cap,
+    radioTvAllowed: row.radio_tv_allowed,
+    livePerformancesCap: row.live_performances_cap,
+    termYears: row.term_years,
+    territory: row.territory,
+    creditLine: row.credit_line,
+    termsNote: row.terms_note,
+    isExclusive: row.is_exclusive,
+  };
+}
+
+/** Attach each beat's producer's custom templates (buyer-facing DTOs) so
+    the license modal can offer them next to the fixed tiers. */
+async function attachLicenseTemplates<T extends { user_id: string }>(
+  rows: T[],
+): Promise<Array<T & { license_templates: ReturnType<typeof toTemplateJson>[] }>> {
+  const producerIds = [...new Set(rows.map((r) => r.user_id))];
+  if (producerIds.length === 0) return rows.map((r) => ({ ...r, license_templates: [] }));
+  const templates = await db
+    .select()
+    .from(beatLicenseTemplatesTable)
+    .where(inArray(beatLicenseTemplatesTable.producer_id, producerIds))
+    .orderBy(desc(beatLicenseTemplatesTable.created_at));
+  const byProducer = new Map<string, ReturnType<typeof toTemplateJson>[]>();
+  for (const t of templates) {
+    const list = byProducer.get(t.producer_id) ?? [];
+    list.push(toTemplateJson(t));
+    byProducer.set(t.producer_id, list);
+  }
+  return rows.map((r) => ({ ...r, license_templates: byProducer.get(r.user_id) ?? [] }));
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats — browse the marketplace (free).
@@ -80,7 +160,8 @@ router.get("/beats", async (req, res) => {
       .orderBy(desc(beatsTable.created_at))
       .limit(f.limit)
       .offset(f.offset);
-    res.json({ beats: await Promise.all(rows.map(presentBeat)) });
+    const presented = await Promise.all(rows.map(presentBeat));
+    res.json({ beats: await attachLicenseTemplates(presented) });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list beats";
     res.status(500).json({ error: msg });
@@ -105,7 +186,8 @@ router.get("/beats/:id", async (req, res) => {
         .set({ plays: sql`${beatsTable.plays} + 1` })
         .where(eq(beatsTable.id, id));
     } catch { /* ignore */ }
-    res.json({ beat: await presentBeat({ ...beat, plays: beat.plays + 1 }) });
+    const [withTemplates] = await attachLicenseTemplates([await presentBeat({ ...beat, plays: beat.plays + 1 })]);
+    res.json({ beat: withTemplates });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch beat";
     res.status(500).json({ error: msg });
@@ -184,6 +266,129 @@ router.get("/beats/mine/dashboard", requireAuth, async (req, res) => {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to load dashboard";
+    res.status(500).json({ error: msg });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Custom license templates (0187) — producer-owned CRUD.
+   A template is an offer definition, not a sale record: editing or
+   deleting one changes future sales only. Licenses already sold keep
+   the terms snapshot taken at purchase.
+───────────────────────────────────────────────────────────────────────────── */
+
+router.get("/beats/license-templates/mine", requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(beatLicenseTemplatesTable)
+      .where(eq(beatLicenseTemplatesTable.producer_id, req.userId!))
+      .orderBy(desc(beatLicenseTemplatesTable.created_at));
+    res.json({ templates: rows.map(toTemplateJson) });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to load license templates";
+    res.status(500).json({ error: msg });
+  }
+});
+
+router.post("/beats/license-templates", requireAuth, async (req, res) => {
+  const parsed = beatLicenseTemplateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid license template.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const input = parsed.data;
+  try {
+    const rows = await db.insert(beatLicenseTemplatesTable).values({
+      producer_id: req.userId!,
+      name: input.name,
+      price_cents: input.priceCents,
+      is_exclusive: input.isExclusive,
+      format: input.format,
+      streams_cap: input.streamsCap ?? null,
+      sales_cap: input.salesCap ?? null,
+      music_videos_cap: input.musicVideosCap ?? null,
+      radio_tv_allowed: input.radioTvAllowed,
+      live_performances_cap: input.livePerformancesCap ?? null,
+      term_years: input.termYears ?? null,
+      territory: input.territory,
+      credit_line: input.creditLine ?? null,
+      terms_note: input.termsNote ?? null,
+    }).returning();
+    res.status(201).json({ template: rows[0] ? toTemplateJson(rows[0]) : rows[0] });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to create license template";
+    res.status(500).json({ error: msg });
+  }
+});
+
+async function loadOwnedTemplate(req: { userId?: string }, templateId: string, res: { status: (n: number) => { json: (b: unknown) => void } }): Promise<BeatLicenseTemplateRow | null> {
+  const rows = await db
+    .select()
+    .from(beatLicenseTemplatesTable)
+    .where(eq(beatLicenseTemplatesTable.id, templateId))
+    .limit(1);
+  const template = rows[0];
+  if (!template) {
+    res.status(404).json({ error: "License template not found" });
+    return null;
+  }
+  if (template.producer_id !== req.userId) {
+    res.status(403).json({ error: "Only the producer who created this template can change it" });
+    return null;
+  }
+  return template;
+}
+
+router.patch("/beats/license-templates/:templateId", requireAuth, async (req, res) => {
+  const { templateId } = req.params as { templateId: string };
+  const template = await loadOwnedTemplate(req, templateId, res);
+  if (!template) return;
+  const parsed = beatLicenseTemplatePatchSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid license template patch.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const p = parsed.data;
+  try {
+    const updated = await db.update(beatLicenseTemplatesTable).set({
+      ...(p.name !== undefined ? { name: p.name } : {}),
+      ...(p.priceCents !== undefined ? { price_cents: p.priceCents } : {}),
+      ...(p.isExclusive !== undefined ? { is_exclusive: p.isExclusive } : {}),
+      ...(p.format !== undefined ? { format: p.format } : {}),
+      ...(p.streamsCap !== undefined ? { streams_cap: p.streamsCap } : {}),
+      ...(p.salesCap !== undefined ? { sales_cap: p.salesCap } : {}),
+      ...(p.musicVideosCap !== undefined ? { music_videos_cap: p.musicVideosCap } : {}),
+      ...(p.radioTvAllowed !== undefined ? { radio_tv_allowed: p.radioTvAllowed } : {}),
+      ...(p.livePerformancesCap !== undefined ? { live_performances_cap: p.livePerformancesCap } : {}),
+      ...(p.termYears !== undefined ? { term_years: p.termYears } : {}),
+      ...(p.territory !== undefined ? { territory: p.territory } : {}),
+      ...(p.creditLine !== undefined ? { credit_line: p.creditLine } : {}),
+      ...(p.termsNote !== undefined ? { terms_note: p.termsNote } : {}),
+      updated_at: new Date(),
+    }).where(eq(beatLicenseTemplatesTable.id, templateId)).returning();
+    res.json({ template: updated[0] ? toTemplateJson(updated[0]) : updated[0] });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to update license template";
+    res.status(500).json({ error: msg });
+  }
+});
+
+router.delete("/beats/license-templates/:templateId", requireAuth, async (req, res) => {
+  const { templateId } = req.params as { templateId: string };
+  const template = await loadOwnedTemplate(req, templateId, res);
+  if (!template) return;
+  try {
+    await db.delete(beatLicenseTemplatesTable).where(eq(beatLicenseTemplatesTable.id, templateId));
+    res.json({ deleted: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to delete license template";
     res.status(500).json({ error: msg });
   }
 });
@@ -376,6 +581,10 @@ export function toLicenseJson(l: BeatLicenseRow) {
     buyerId: l.buyer_id,
     producerId: l.producer_id,
     tier: l.tier,
+    templateId: l.template_id,
+    /* The terms exactly as sold — buyer surfaces render from this
+       snapshot, never from the (possibly since-edited) template. */
+    terms: l.terms_snapshot,
     priceCents: l.price_cents,
     commissionCents: l.commission_cents,
     status: l.status,
@@ -543,7 +752,6 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     });
     return;
   }
-  const licenseTier: BeatLicenseTier = parsed.data.tier;
 
   const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
   const beat = rows[0];
@@ -555,15 +763,53 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Producers can't license their own beat" });
     return;
   }
+
+  /* Resolve the offer being bought. Fixed tier: the beat's listed tier
+     price + the tier's standing terms. Custom template: the template
+     must exist AND belong to this beat's producer (templates are
+     producer-scoped offers, never cross-producer), the price is the
+     producer's own template price, and the terms snapshot is copied
+     from the template NOW — later edits never reach this sale. The
+     license row's tier records "exclusive" for exclusive templates so
+     the verify path's atomic exclusive claim treats them identically
+     to the fixed exclusive tier; other templates record "custom". */
+  let licenseTier: BeatLicenseTier | "custom";
+  let templateId: string | null = null;
+  let priceCents: number;
+  let termsSnapshot: BeatLicenseTerms;
+  if (parsed.data.templateId) {
+    const tRows = await db
+      .select()
+      .from(beatLicenseTemplatesTable)
+      .where(eq(beatLicenseTemplatesTable.id, parsed.data.templateId))
+      .limit(1);
+    const template = tRows[0];
+    if (!template) {
+      res.status(404).json({ error: "License template not found" });
+      return;
+    }
+    if (template.producer_id !== beat.user_id) {
+      res.status(400).json({ error: "That license template doesn't belong to this beat's producer" });
+      return;
+    }
+    templateId = template.id;
+    priceCents = template.price_cents;
+    termsSnapshot = termsFromTemplateRow(template);
+    licenseTier = template.is_exclusive ? "exclusive" : "custom";
+  } else {
+    const tier = parsed.data.tier as BeatLicenseTier;
+    licenseTier = tier;
+    priceCents =
+      tier === "basic" ? beat.basic_price_cents
+      : tier === "premium" ? beat.premium_price_cents
+      : beat.exclusive_price_cents;
+    termsSnapshot = defaultTermsForTier(tier);
+  }
+
   if (licenseTier === "exclusive" && beat.exclusive_sold) {
     res.status(409).json({ error: "This beat's exclusive license is already sold" });
     return;
   }
-
-  const priceCents =
-    licenseTier === "basic" ? beat.basic_price_cents
-    : licenseTier === "premium" ? beat.premium_price_cents
-    : beat.exclusive_price_cents;
 
   try {
     /* Insert first with a placeholder, then bind the session id — the
@@ -574,6 +820,8 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       buyer_id: req.userId!,
       producer_id: beat.user_id,
       tier: licenseTier,
+      template_id: templateId,
+      terms_snapshot: termsSnapshot,
       price_cents: priceCents,
       commission_cents: commissionFor(priceCents),
       status: "pending_payment",
@@ -585,8 +833,8 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       const baseUrl = checkoutBaseUrl(req);
       session = await createPaymentCheckout({
         amountCents: priceCents,
-        productName: `${beat.title} — ${licenseTier} license`,
-        description: `Beat license (${licenseTier})`,
+        productName: `${beat.title} — ${termsSnapshot.name} license`,
+        description: `Beat license (${termsSnapshot.name})`,
         successUrl: `${baseUrl}/beats?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${baseUrl}/beats`,
         metadata: {
@@ -595,6 +843,7 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
           beat_id: beat.id,
           buyer_user_id: req.userId!,
           tier: licenseTier,
+          ...(templateId ? { template_id: templateId } : {}),
         },
         /* The pending license row is the durable purchase intent:
            session creation for this license always carries its key. */
