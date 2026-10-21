@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "67197d30bbf309e2e387caa6e0f94764364f2e00",
+  "baseCommit": "1c49438d56858fa3ee71efeb74adebab5c157af6",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11,14 +11,14 @@
   "counts": {
     "routesInApp": 226,
     "pageFiles": 179,
-    "features": 221,
+    "features": 231,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
-    "pricedActions": 201,
+    "pricedActions": 215,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 212,
+    "withDescriptions": 222,
     "withoutDescriptions": 9
   },
   "packs": [
@@ -66,6 +66,46 @@
       "serverValue": 300,
       "serverSource": "artifacts/api-server/src/routes/albums.ts",
       "registryValue": 300,
+      "agree": true
+    },
+    {
+      "constant": "WEBSITE_BUILD_CREDITS",
+      "endpoint": "/api/website-builder/generate",
+      "serverValue": 3000,
+      "serverSource": "artifacts/api-server/src/routes/generate/website-builder.ts",
+      "registryValue": 3000,
+      "agree": true
+    },
+    {
+      "constant": "WEBSITE_EDIT_CREDITS",
+      "endpoint": "/api/website-builder/edit",
+      "serverValue": 200,
+      "serverSource": "artifacts/api-server/src/routes/generate/website-builder.ts",
+      "registryValue": 200,
+      "agree": true
+    },
+    {
+      "constant": "PLAYLIST_PITCH_CREDIT_COST",
+      "endpoint": "/api/playlist-pitch/kit",
+      "serverValue": 200,
+      "serverSource": "artifacts/api-server/src/routes/generate/playlist-pitch.ts",
+      "registryValue": 200,
+      "agree": true
+    },
+    {
+      "constant": "EXPORT_CREDIT_COST",
+      "endpoint": "/api/export-final-video",
+      "serverValue": 400,
+      "serverSource": "artifacts/api-server/src/routes/generate/export-video.ts",
+      "registryValue": 400,
+      "agree": true
+    },
+    {
+      "constant": "QUALITY_EXPORT_COST",
+      "endpoint": "/api/export-quality",
+      "serverValue": 150,
+      "serverSource": "artifacts/api-server/src/routes/generate/export-video.ts",
+      "registryValue": 150,
       "agree": true
     }
   ],
@@ -140,6 +180,32 @@
       "nextSteps": [],
       "description": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"academy.pageDescription\""
+    },
+    {
+      "id": "tab-tutorials",
+      "name": "How-To Videos",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"tutorials.heading\"",
+      "path": "/academy?tab=tutorials",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/academy.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/tutorials",
+        "/api/tutorials/:param/progress",
+        "/api/tutorials/mine/progress"
+      ],
+      "prices": [
+        {
+          "feature": "How-To Tutorials (free)",
+          "vb": 0,
+          "endpoint": "/api/tutorials",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Free video walkthroughs from Bow Down Visuals and the creators here — watch it, walk through it on the real page, then try it yourself. Your place is saved as you go.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"tutorials.sub\"",
+      "nextSteps": []
     },
     {
       "id": "admin",
@@ -743,6 +809,18 @@
       ],
       "prices": [
         {
+          "feature": "Identity Set Photos (free)",
+          "vb": 0,
+          "endpoint": "/api/artist-vaults/:id/identity-photos",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Voice Clone (from recording)",
+          "vb": 200,
+          "endpoint": "/api/artist-vaults/:id/voice/clone",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Artist Image (Pro)",
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
@@ -761,6 +839,31 @@
       },
       "description": "Your artists' home base. Save profiles with photos and locked voices so every song and video the AI makes sounds and looks like them.",
       "descriptionSource": "artifacts/bow-down-visuals/src/guides/artist-vault.ts guide summary",
+      "nextSteps": []
+    },
+    {
+      "id": "identity-sets",
+      "name": "Identity Set",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"artistVault.identityTitle\"",
+      "path": "/artist-vault",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/artist-vault.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/artist-vaults/:param/identity-photos",
+        "/api/artist-vaults/:param/identity-photos/:param"
+      ],
+      "prices": [
+        {
+          "feature": "Identity Set Photos (free)",
+          "vb": 0,
+          "endpoint": "/api/artist-vaults/:id/identity-photos",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "More angles of the same character means a steadier face in every scene. Label each photo — when you generate, the best-matching photo is picked for the shot and you'll always see which one and why. These are your own photos; nothing is trained on them.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"artistVault.identityBlurb\"",
       "nextSteps": []
     },
     {
@@ -4818,7 +4921,14 @@
         "/api/credits/claim-trial",
         "/api/r2/presign-upload"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Catalog Import (free)",
+          "vb": 0,
+          "endpoint": "/api/catalog-import/scan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Bring your existing videos and songs home to Bow Down Visuals: pick from your connected Instagram and Facebook catalogs or bulk-upload your own files, let Thy Cheat Code rebuild the titles, captions and series grouping re-uploading would lose, and approve each piece before it goes live.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/catalog-import.tsx usePageTitle meta description"
@@ -6873,6 +6983,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Stream Key (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/ingest-key",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Show Finder",
           "vb": 200,
           "endpoint": "/api/show-finder",
@@ -6887,6 +7003,72 @@
       ],
       "description": "Stream dashboard — announce your Discord streams and hype your community.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"goLive.pageDescription\" (page's own string)",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
+    },
+    {
+      "id": "live-guests-backstage",
+      "name": "Guests & Backstage",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/go-live",
+      "stage": "promote",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/go-live.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/live-guest-invites/:param",
+        "/api/live-streams/:param/backstage/messages",
+        "/api/live-streams/:param/guest-invites",
+        "/api/live-streams/:param/guests"
+      ],
+      "prices": [
+        {
+          "feature": "Live Guest Invites (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/:id/guest-invites",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Bring guests onto your live stream without giving them an account: send a private invite link, they land in a backstage greenroom with its own chat, and you bring them on stage — or move them back — whenever you are ready. Invite links are shown once and can be revoked anytime.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
+    },
+    {
+      "id": "rtmp-ingest",
+      "name": "Stream Key (RTMP Ingest)",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/go-live",
+      "stage": "promote",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/go-live.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/live-streams/ingest-key",
+        "/api/live-streams/ingest-key/regenerate",
+        "/api/live-streams/ingest-key/reveal",
+        "/api/live-streams/ingest-key/revoke"
+      ],
+      "prices": [
+        {
+          "feature": "Stream Key (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/ingest-key",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Your stream key lets an outside streaming or DJ program send its picture into your Go Live studio. It is shown once when made — only a fingerprint is kept — and you can revoke or remake it anytime. On the current hosting, outside programs cannot reach it yet: ready and waiting, not live.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": [
         {
           "label": "Monetization Coach",
@@ -6937,6 +7119,12 @@
           "feature": "Gamer Content Ideas",
           "vb": 100,
           "endpoint": "/api/gamers/ideas",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Key (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/ingest-key",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7007,6 +7195,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Stream Key (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/ingest-key",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Show Finder",
           "vb": 200,
           "endpoint": "/api/show-finder",
@@ -7071,6 +7265,12 @@
           "feature": "Gamer Content Ideas",
           "vb": 100,
           "endpoint": "/api/gamers/ideas",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Key (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/ingest-key",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7818,6 +8018,18 @@
       ],
       "prices": [
         {
+          "feature": "Playlist Pitch Kit",
+          "vb": 200,
+          "endpoint": "/api/playlist-pitch/kit",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Pitch Tracker & Deadlines (free)",
+          "vb": 0,
+          "endpoint": "/api/playlist-pitch/tracker",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Sync One-Sheet",
           "vb": 150,
           "endpoint": "/api/sync-pitch/one-sheet",
@@ -7827,6 +8039,42 @@
       "nextSteps": [],
       "description": "AI analyzes your song, then builds a professional demo submission package — the email, your one-sheet, and the follow-up. Labels rarely sign from cold demos, but the right package opens doors that talent alone can't.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"labelPitch.heroSubtitle\""
+    },
+    {
+      "id": "mode-playlist-pitch",
+      "name": "Playlist Pitch",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/label-pitch?mode=playlists",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/label-pitch.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/playlist-pitch/deadlines",
+        "/api/playlist-pitch/deadlines/:param",
+        "/api/playlist-pitch/kit",
+        "/api/playlist-pitch/packet/:param",
+        "/api/playlist-pitch/releases",
+        "/api/playlist-pitch/tracker",
+        "/api/playlist-pitch/tracker/:param"
+      ],
+      "prices": [
+        {
+          "feature": "Playlist Pitch Kit",
+          "vb": 200,
+          "endpoint": "/api/playlist-pitch/kit",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Pitch Tracker & Deadlines (free)",
+          "vb": 0,
+          "endpoint": "/api/playlist-pitch/tracker",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "AI analyzes your song, then writes a professional curator pitch — the email, the DM, and the follow-up. Pitching improves your odds; it never guarantees placement. Every pitch you're working toward, in one place — what's due next is always on top. Nothing here sends email; it's your board.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.heroDescription\" + artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.deadlinesIntro\"",
+      "nextSteps": []
     },
     {
       "id": "library",
@@ -7914,7 +8162,14 @@
         "/api/live-streams/status",
         "/api/live/:param/summary"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Live Guest Invites (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/:id/guest-invites",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Live on Bow Down Visuals.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/live-watch.tsx usePageTitle meta description"
@@ -7941,7 +8196,14 @@
         "/api/live-streams/:param/guests/:param/promote",
         "/api/live-streams/:param/guests/:param/remove"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Live Guest Invites (free)",
+          "vb": 0,
+          "endpoint": "/api/live-streams/:id/guest-invites",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "You were invited to join a Bow Down Visuals live stream as a guest.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/live-guest.tsx usePageTitle meta description"
@@ -8070,7 +8332,14 @@
         "/api/move-home/steps/:param/reopen",
         "/api/move-home/steps/:param/skip"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Move Home (free)",
+          "vb": 0,
+          "endpoint": "/api/move-home/draft",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/move-home.tsx usePageTitle meta description"
@@ -8175,6 +8444,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "DJ Set Prep (free)",
+          "vb": 0,
+          "endpoint": "/api/dj/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Extract Audio",
           "vb": 50,
           "endpoint": "/api/extract-audio",
@@ -8202,6 +8477,12 @@
           "feature": "Song Cover",
           "vb": 400,
           "endpoint": "/api/song-cover",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Save Website Project (free)",
+          "vb": 0,
+          "endpoint": "/api/website-builder/projects",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -8262,6 +8543,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "DJ Set Prep (free)",
+          "vb": 0,
+          "endpoint": "/api/dj/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Extract Audio",
           "vb": 50,
           "endpoint": "/api/extract-audio",
@@ -8289,6 +8576,12 @@
           "feature": "Song Cover",
           "vb": 400,
           "endpoint": "/api/song-cover",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Save Website Project (free)",
+          "vb": 0,
+          "endpoint": "/api/website-builder/projects",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -8349,6 +8642,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "DJ Set Prep (free)",
+          "vb": 0,
+          "endpoint": "/api/dj/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Extract Audio",
           "vb": 50,
           "endpoint": "/api/extract-audio",
@@ -8376,6 +8675,12 @@
           "feature": "Song Cover",
           "vb": 400,
           "endpoint": "/api/song-cover",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Save Website Project (free)",
+          "vb": 0,
+          "endpoint": "/api/website-builder/projects",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -8436,6 +8741,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "DJ Set Prep (free)",
+          "vb": 0,
+          "endpoint": "/api/dj/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Extract Audio",
           "vb": 50,
           "endpoint": "/api/extract-audio",
@@ -8464,11 +8775,43 @@
           "vb": 400,
           "endpoint": "/api/song-cover",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Save Website Project (free)",
+          "vb": 0,
+          "endpoint": "/api/website-builder/projects",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "nextSteps": [],
       "description": "Your AI-generated song library.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"songs.pageDescription\""
+    },
+    {
+      "id": "tab-dj-set-prep",
+      "name": "DJ Set Prep",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"djSets.title\"",
+      "path": "/my-projects?tab=songs",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/my-projects.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/dj/analyze",
+        "/api/dj/crates",
+        "/api/dj/library"
+      ],
+      "prices": [
+        {
+          "feature": "DJ Set Prep (free)",
+          "vb": 0,
+          "endpoint": "/api/dj/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Your tracks, read for the booth: tempo, musical key, and Camelot code for harmonic mixing. Build a crate, let Thy Cheat Code draft a harmonic order, rearrange it your way, then export to rekordbox or any M3U player. Set prep is free — it's your own library.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"djSets.intro\" + artifacts/bow-down-visuals/src/locales/en.json \"djSets.freeNote\"",
+      "nextSteps": []
     },
     {
       "id": "my-shop",
@@ -9452,9 +9795,42 @@
         "/api/team-seats/accept",
         "/api/team-seats/invite"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Social Proof (free)",
+          "vb": 0,
+          "endpoint": "/api/social-proof/refresh",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Manage your account, preferences, and connected accounts.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"settings.pageDescription\" (page's own string)",
+      "nextSteps": []
+    },
+    {
+      "id": "social-proof",
+      "name": "Social proof",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"social-proof.title\"",
+      "path": "/settings",
+      "stage": "account",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/settings.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/social-proof/me",
+        "/api/social-proof/refresh",
+        "/api/social-proof/visibility"
+      ],
+      "prices": [
+        {
+          "feature": "Social Proof (free)",
+          "vb": 0,
+          "endpoint": "/api/social-proof/refresh",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Verified audience numbers from your connected accounts, shown on your public profile with the date they were measured.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"social-proof.description\"",
       "nextSteps": []
     },
     {
@@ -9743,6 +10119,23 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/store-buy.tsx usePageTitle meta description"
     },
     {
+      "id": "paid-series",
+      "name": "Paid Series",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/store/buy/series/:id",
+      "stage": "money",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-buy.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/store/item/:param/:param"
+      ],
+      "prices": [],
+      "description": "Sell a whole series as one unlock: price the series on its own page, and fans pay once to open every episode in it. Buyers watch from the series page the moment they unlock; anyone who has not paid sees a locked shelf. Setting a series up and pricing it costs nothing — the price is yours to set.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
       "id": "store-dashboard",
       "name": "Store Dashboard",
       "nameSource": "App.tsx component name",
@@ -9774,6 +10167,30 @@
       "nextSteps": [],
       "description": "Your store earnings, orders, products, and discount codes. The Get Paid finale.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx usePageTitle meta description"
+    },
+    {
+      "id": "lead-magnets",
+      "name": "Lead Magnets",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/store/dashboard",
+      "stage": "discover",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/storefront/claim"
+      ],
+      "prices": [
+        {
+          "feature": "Lead Magnet Claim (free)",
+          "vb": 0,
+          "endpoint": "/api/storefront/claim",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Price a store product at zero and it becomes a lead magnet: instead of checking out, fans claim it with their email address, and the claim joins your audience list. It is the free-sample door into your store — set it up in the store dashboard on any digital product.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
     },
     {
       "id": "store-success",
@@ -9812,7 +10229,14 @@
         "/api/storefront/claim",
         "/api/storefront/product/:param"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Lead Magnet Claim (free)",
+          "vb": 0,
+          "endpoint": "/api/storefront/claim",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Buy directly from the creator on Bow Down Visuals.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-product.tsx usePageTitle meta description"
@@ -11111,6 +11535,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Freeze Frame",
           "vb": 150,
           "endpoint": "/api/freeze-frame",
@@ -11331,6 +11773,50 @@
           "label": "Repurpose",
           "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
+        }
+      ]
+    },
+    {
+      "id": "pro-finishing-export",
+      "name": "Pro Finishing Export",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/video-editor",
+      "stage": "create",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/video-editor.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate"
+      ],
+      "prices": [
+        {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "The editor's finishing door: export your final video in the pro finishing formats — ProRes and DNxHR in a MOV file, or an FCPXML timeline — with resolution, frame rate, and watermark control, instead of the standard web export.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": [
+        {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
       ]
     },
@@ -11859,6 +12345,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Freeze Frame",
           "vb": 150,
           "endpoint": "/api/freeze-frame",
@@ -12228,6 +12732,24 @@
           "feature": "Caption Styler",
           "vb": 300,
           "endpoint": "/api/caption-styler",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12608,6 +13130,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Freeze Frame",
           "vb": 150,
           "endpoint": "/api/freeze-frame",
@@ -12976,6 +13516,24 @@
           "feature": "Caption Styler",
           "vb": 300,
           "endpoint": "/api/caption-styler",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13351,6 +13909,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Export Final Video",
+          "vb": 400,
+          "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Quality-Controlled Export",
+          "vb": 150,
+          "endpoint": "/api/export-quality",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Size Estimate (free)",
+          "vb": 0,
+          "endpoint": "/api/export-quality/estimate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Freeze Frame",
           "vb": 150,
           "endpoint": "/api/freeze-frame",
@@ -13654,9 +14230,28 @@
         "/api/website-builder/projects/:param/versions/:param/restore",
         "/api/website-builder/templates"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Website Edit",
+          "vb": 200,
+          "endpoint": "/api/website-builder/edit",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Website Build",
+          "vb": 3000,
+          "endpoint": "/api/website-builder/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Save Website Project (free)",
+          "vb": 0,
+          "endpoint": "/api/website-builder/projects",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
-      "description": "Describe the site you want and the AI builds it — preview it privately, then export your website package.",
+      "description": "Describe the site you want and the AI builds it — preview it privately, then export your website package. Every build is saved as a project with its versions kept, so you can reopen it anytime and pick up where you left off.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/website-builder.tsx usePageTitle meta description"
     },
     {
