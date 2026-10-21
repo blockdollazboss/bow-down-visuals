@@ -11,6 +11,14 @@
  * Resend helper (lib/email.ts) with the tracking instrumentation
  * from lib/email-tracking.ts.
  *
+ * Automations (migration 0197) ride the same rail one recipient at
+ * a time through sendCampaignDelivery below — an automation's
+ * carrier campaign holds its deliveries so the tracking pixel, the
+ * click redirect, the unsubscribe flow, and the Resend webhook all
+ * resolve exactly like a newsletter send. A carrier is never a
+ * newsletter: dispatchCampaign refuses it outright; the automation
+ * runner (lib/email-automations.ts) is its only sender.
+ *
  * Honesty rules:
  *   - Unsubscribed subscribers are never in an audience (the segment
  *     evaluator excludes them; the whole-list path filters the same
@@ -52,6 +60,125 @@ async function failCampaign(campaignId: string, reason: string): Promise<Dispatc
   return { ok: false, reason, audience: 0, sent: 0, failed: 0 };
 }
 
+/* ── One-recipient send (shared by dispatch + the automation runner) ── */
+
+/** Per-campaign send context, computed once per dispatch/run: whether
+ *  the provider can take sends at all, the body's distinct links (to
+ *  wrap per delivery), and the public base the tracking URLs hang
+ *  off. */
+export interface PreparedSend {
+  providerReady: boolean;
+  bodyLinks: string[];
+  base: string;
+}
+
+export function prepareCampaignSend(campaign: { body: string }): PreparedSend {
+  return {
+    providerReady: isEmailConfigured(),
+    bodyLinks: extractBodyLinks(campaign.body),
+    base: baseUrlForEmail().replace(/\/$/, ""),
+  };
+}
+
+export type DeliveryOutcome = "sent" | "failed" | "no_provider" | "already_sent" | "raced";
+
+/**
+ * Send ONE campaign to ONE subscriber through the tracked rail:
+ * find-or-create the (campaign, subscriber) delivery, wrap its links,
+ * render the tracked HTML, send, and record the honest outcome on
+ * the delivery row. `already_sent` means a previous pass delivered
+ * it — the caller counts it as sent without re-emailing. `raced`
+ * means a concurrent insert claimed the delivery first; nothing was
+ * sent by this call.
+ */
+export async function sendCampaignDelivery(
+  campaign: { id: string; subject: string; body: string },
+  sub: { id: string; email: string },
+  prep: PreparedSend,
+): Promise<{ outcome: DeliveryOutcome; deliveryId: string | null }> {
+  let [delivery] = await db
+    .select()
+    .from(emailCampaignDeliveriesTable)
+    .where(
+      and(
+        eq(emailCampaignDeliveriesTable.campaignId, campaign.id),
+        eq(emailCampaignDeliveriesTable.subscriberId, sub.id),
+      ),
+    )
+    .limit(1);
+  if (!delivery) {
+    [delivery] = await db
+      .insert(emailCampaignDeliveriesTable)
+      .values({
+        campaignId: campaign.id,
+        subscriberId: sub.id,
+        email: sub.email,
+        status: "queued",
+        token: newTrackingToken(),
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!delivery) return { outcome: "raced", deliveryId: null }; /* raced insert — the other row owns it */
+  }
+  if (delivery.status === "sent") {
+    return { outcome: "already_sent", deliveryId: delivery.id };
+  }
+  if (!prep.providerReady) {
+    await db
+      .update(emailCampaignDeliveriesTable)
+      .set({ status: "no_provider" })
+      .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
+    return { outcome: "no_provider", deliveryId: delivery.id };
+  }
+
+  /* Wrap this delivery's links (rows first, then render). */
+  const wrapped = new Map<string, string>();
+  for (const url of prep.bodyLinks) {
+    let [link] = await db
+      .select()
+      .from(emailCampaignLinksTable)
+      .where(
+        and(
+          eq(emailCampaignLinksTable.deliveryId, delivery.id),
+          eq(emailCampaignLinksTable.targetUrl, url),
+        ),
+      )
+      .limit(1);
+    if (!link) {
+      [link] = await db
+        .insert(emailCampaignLinksTable)
+        .values({ deliveryId: delivery.id, targetUrl: url, token: newTrackingToken() })
+        .onConflictDoNothing()
+        .returning();
+    }
+    if (link) wrapped.set(url, `${prep.base}/api/email-track/c/${link.token}`);
+  }
+
+  const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: prep.base });
+  const result = await sendEmail({
+    to: sub.email,
+    subject: campaign.subject,
+    html,
+    tags: [
+      { name: "campaign_id", value: campaign.id },
+      { name: "subscriber_id", value: sub.id },
+    ],
+  });
+  if (result.sent) {
+    await db
+      .update(emailCampaignDeliveriesTable)
+      .set({ status: "sent", providerMessageId: result.id ?? null, sentAt: new Date() })
+      .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
+    return { outcome: "sent", deliveryId: delivery.id };
+  }
+  await db
+    .update(emailCampaignDeliveriesTable)
+    .set({ status: "failed" })
+    .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
+  logger.warn({ campaignId: campaign.id, reason: result.reason }, "[email-campaign] delivery failed");
+  return { outcome: "failed", deliveryId: delivery.id };
+}
+
 export async function dispatchCampaign(campaignId: string): Promise<DispatchResult> {
   const [campaign] = await db
     .select()
@@ -59,6 +186,11 @@ export async function dispatchCampaign(campaignId: string): Promise<DispatchResu
     .where(eq(emailCampaignsTable.id, campaignId))
     .limit(1);
   if (!campaign) return { ok: false, reason: "not_found", audience: 0, sent: 0, failed: 0 };
+  /* Automation carriers are not newsletters — the automation runner
+     is their only sender (lib/email-automations.ts). */
+  if (campaign.automationId) {
+    return { ok: false, reason: "automation_carrier", audience: 0, sent: 0, failed: 0 };
+  }
   if (campaign.status !== "queued" && campaign.status !== "sending") {
     return { ok: false, reason: `not_dispatchable:${campaign.status}`, audience: 0, sent: 0, failed: 0 };
   }
@@ -91,99 +223,17 @@ export async function dispatchCampaign(campaignId: string): Promise<DispatchResu
       .where(and(eq(emailSubscribersTable.listId, list.id), isNull(emailSubscribersTable.unsubscribedAt)));
   }
 
-  const providerReady = isEmailConfigured();
-  const bodyLinks = extractBodyLinks(campaign.body);
-  const base = baseUrlForEmail().replace(/\/$/, "");
+  const prep = prepareCampaignSend(campaign);
+  const providerReady = prep.providerReady;
   let sent = 0;
   let failed = 0;
 
   for (const sub of audience) {
     /* One delivery per (campaign, subscriber); a re-dispatch reuses
        the row and skips anyone already sent. */
-    let [delivery] = await db
-      .select()
-      .from(emailCampaignDeliveriesTable)
-      .where(
-        and(
-          eq(emailCampaignDeliveriesTable.campaignId, campaign.id),
-          eq(emailCampaignDeliveriesTable.subscriberId, sub.id),
-        ),
-      )
-      .limit(1);
-    if (!delivery) {
-      [delivery] = await db
-        .insert(emailCampaignDeliveriesTable)
-        .values({
-          campaignId: campaign.id,
-          subscriberId: sub.id,
-          email: sub.email,
-          status: "queued",
-          token: newTrackingToken(),
-        })
-        .onConflictDoNothing()
-        .returning();
-      if (!delivery) continue; /* raced insert — the other row owns it */
-    }
-    if (delivery.status === "sent") {
-      sent++;
-      continue;
-    }
-    if (!providerReady) {
-      await db
-        .update(emailCampaignDeliveriesTable)
-        .set({ status: "no_provider" })
-        .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
-      failed++;
-      continue;
-    }
-
-    /* Wrap this delivery's links (rows first, then render). */
-    const wrapped = new Map<string, string>();
-    for (const url of bodyLinks) {
-      let [link] = await db
-        .select()
-        .from(emailCampaignLinksTable)
-        .where(
-          and(
-            eq(emailCampaignLinksTable.deliveryId, delivery.id),
-            eq(emailCampaignLinksTable.targetUrl, url),
-          ),
-        )
-        .limit(1);
-      if (!link) {
-        [link] = await db
-          .insert(emailCampaignLinksTable)
-          .values({ deliveryId: delivery.id, targetUrl: url, token: newTrackingToken() })
-          .onConflictDoNothing()
-          .returning();
-      }
-      if (link) wrapped.set(url, `${base}/api/email-track/c/${link.token}`);
-    }
-
-    const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: base });
-    const result = await sendEmail({
-      to: sub.email,
-      subject: campaign.subject,
-      html,
-      tags: [
-        { name: "campaign_id", value: campaign.id },
-        { name: "subscriber_id", value: sub.id },
-      ],
-    });
-    if (result.sent) {
-      sent++;
-      await db
-        .update(emailCampaignDeliveriesTable)
-        .set({ status: "sent", providerMessageId: result.id ?? null, sentAt: new Date() })
-        .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
-    } else {
-      failed++;
-      await db
-        .update(emailCampaignDeliveriesTable)
-        .set({ status: "failed" })
-        .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
-      logger.warn({ campaignId: campaign.id, reason: result.reason }, "[email-campaign] delivery failed");
-    }
+    const { outcome } = await sendCampaignDelivery(campaign, sub, prep);
+    if (outcome === "sent" || outcome === "already_sent") sent++;
+    else if (outcome === "failed" || outcome === "no_provider") failed++;
   }
 
   const deliveries = await db

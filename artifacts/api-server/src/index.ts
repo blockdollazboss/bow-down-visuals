@@ -14,6 +14,7 @@ import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
 import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
+import { startEmailAutomationSweeper } from "./lib/email-automations";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog } from "./lib/memory-watchdog";
 
@@ -67,6 +68,11 @@ const server = app.listen(port, (err) => {
   // ever emailed twice. Runs once shortly after boot, then on
   // PRESAVE_NOTIFY_SWEEP_INTERVAL_MS.
   startPresaveReleaseSweeper();
+  // Email automations (migration 0197): evaluate enabled automations
+  // (post-purchase / abandoned checkout / membership winback) and send
+  // through the tracked campaign rail. DB-claimed per trigger, so a
+  // restart or a second instance can never double-email a fan.
+  startEmailAutomationSweeper();
 
   // Server-owned background poller: drives lip-sync jobs through Sync.so's
   // long runs and raises exactly-once completion notifications — no tab needed.

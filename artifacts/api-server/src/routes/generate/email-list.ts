@@ -13,10 +13,13 @@ import {
   emailSubscribersTable,
   emailCampaignsTable,
   emailCampaignDeliveriesTable,
+  emailAutomationsTable,
   emailSegmentsTable,
   emailSubscriberTagsTable,
   emailTagsTable,
   insertEmailListSchema,
+  EMAIL_AUTOMATION_KINDS,
+  type EmailAutomationKind,
 } from "@workspace/db";
 import {
   autoTagsFor,
@@ -26,6 +29,7 @@ import {
   parseStoredCriteria,
 } from "../../lib/email-segments";
 import { dispatchCampaign } from "../../lib/email-campaign-send";
+import { ensureAutomationsForList, automationDto } from "../../lib/email-automations";
 import {
   EMAIL_NEWSLETTER_CREDIT_COST,
   EMAIL_FREE_SUBSCRIBER_LIMIT,
@@ -778,10 +782,12 @@ router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, asy
     res.status(404).json({ error: "List not found." });
     return;
   }
+  /* Automation carrier campaigns (migration 0197) are not
+     newsletters — they never appear in campaign history. */
   const campaigns = await db
     .select()
     .from(emailCampaignsTable)
-    .where(eq(emailCampaignsTable.listId, id))
+    .where(and(eq(emailCampaignsTable.listId, id), isNull(emailCampaignsTable.automationId)))
     .orderBy(desc(emailCampaignsTable.createdAt))
     .limit(50);
   res.json({ campaigns });
@@ -858,6 +864,14 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
     res.status(404).json({ error: "Campaign not found." });
     return;
   }
+  /* Automation carriers send only through the automation runner. */
+  if (campaign.automationId) {
+    res.status(409).json({
+      error: "That campaign belongs to an automation — it sends on its own schedule and can't be sent from here.",
+      code: "automation_carrier",
+    });
+    return;
+  }
   if (campaign.status !== "draft" && campaign.status !== "failed") {
     res.status(409).json({ error: `Campaign is ${campaign.status} — it can't be sent again from here.`, code: "not_sendable" });
     return;
@@ -869,6 +883,91 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
   const dispatch = await dispatchCampaign(campaignId);
   const [fresh] = await db.select().from(emailCampaignsTable).where(eq(emailCampaignsTable.id, campaignId)).limit(1);
   res.json({ campaign: fresh ?? campaign, dispatch });
+});
+
+/* ── Authed: automations (migration 0197) ───────────────────────────────
+   The three starter automations per list. Reading provisions them
+   lazily (defaults in, enabled FALSE — nothing sends until the
+   creator switches one on). Editing saves subject/body/delay and
+   the on/off switch; switching ON stamps enabled_at, and triggers
+   older than that moment never fire (lib/email-automations). The
+   background sweeper does the sending — there is no manual "run"
+   door here, so what the UI shows (enabled, last checked, measured
+   counts) is exactly what the system does. */
+
+async function loadOwnedList(req: any, res: any, id: string) {
+  const [list] = await db
+    .select()
+    .from(emailListsTable)
+    .where(and(eq(emailListsTable.id, id), eq(emailListsTable.userId, req.userId!)))
+    .limit(1);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return null;
+  }
+  return list;
+}
+
+router.get("/email-list/lists/:id/automations", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const list = await loadOwnedList(req, res, id);
+  if (!list) return;
+  const automations = await ensureAutomationsForList(list);
+  res.json({ automations: await Promise.all(automations.map((a) => automationDto(a))) });
+});
+
+const automationPatchSchema = z.object({
+  enabled: z.boolean().optional(),
+  subject: z.string().min(1, "Subject is required.").max(200).optional(),
+  body: z.string().min(1, "Body is required.").max(50000).optional(),
+  delayHours: z.number().int().min(0).max(720).optional(),
+});
+
+router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const kindParam = String(req.params.kind ?? "");
+  if (!(EMAIL_AUTOMATION_KINDS as readonly string[]).includes(kindParam)) {
+    res.status(404).json({ error: "Automation not found." });
+    return;
+  }
+  const kind = kindParam as EmailAutomationKind;
+  const list = await loadOwnedList(req, res, id);
+  if (!list) return;
+  const parsed = automationPatchSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid automation update.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const automations = await ensureAutomationsForList(list);
+  const automation = automations.find((a) => a.kind === kind);
+  if (!automation) {
+    res.status(404).json({ error: "Automation not found." });
+    return;
+  }
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  if (parsed.data.subject !== undefined) patch.subject = parsed.data.subject;
+  if (parsed.data.body !== undefined) patch.body = parsed.data.body;
+  if (parsed.data.delayHours !== undefined) patch.delayHours = parsed.data.delayHours;
+  if (parsed.data.enabled !== undefined) {
+    patch.enabled = parsed.data.enabled;
+    /* Switching ON (re)arms the anti-backfill gate at this moment:
+       nothing that happened before it can ever fire. Switching off
+       keeps the stamp as history. */
+    if (parsed.data.enabled && !automation.enabled) patch.enabledAt = new Date();
+  }
+  await db
+    .update(emailAutomationsTable)
+    .set(patch)
+    .where(eq(emailAutomationsTable.id, automation.id));
+  const [fresh] = await db
+    .select()
+    .from(emailAutomationsTable)
+    .where(eq(emailAutomationsTable.id, automation.id))
+    .limit(1);
+  res.json({ automation: await automationDto(fresh ?? automation) });
 });
 
 export default router;
