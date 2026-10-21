@@ -15,6 +15,7 @@ import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
+import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -338,6 +339,9 @@ export default function ArtistPublic() {
             )}
           </div>
         ))}
+        {/* Tutorials shelf (V1): the creator's how-tos live on the
+            profile too — it renders nothing until they have one. */}
+        <ProfileTutorialsSection slug={slug} />
         <ProfileActions profile={profile} />
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton
