@@ -4890,7 +4890,7 @@
     "list": "Lista:",
     "active_subscribers": "Iscritti attivi",
     "total_signups": "Iscrizioni totali",
-    "avg_opens_subscriber": "Aperture medie / iscritto",
+    "avg_opens_subscriber": "Tasso di apertura",
     "best_effort_pixel_tracking": "tracking con pixel best-effort",
     "opens_not_tracked": "Non tracciato",
     "opens_not_tracked_note": "ancora nessun invio tracciato — la tua prima campagna inizierà a misurare aperture reali",

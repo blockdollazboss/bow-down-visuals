@@ -683,7 +683,7 @@ export default function EmailListBuilder() {
  </>
  ) : (
  <>
- <p className="mt-2 font-display text-3xl font-black">{stats ? Math.round((stats.openRate ?? 0) * 10) / 10 : 0}</p>
+ <p className="mt-2 font-display text-3xl font-black">{stats ? Math.round((stats.openRate ?? 0) * 10) / 10 : 0}%</p>
  <p className="mt-1 text-xs text-white/40">{stats?.totalOpens ?? 0} {t("email-list.opens_total")} · {stats?.totalClicks ?? 0} {t("email-list.clicks_total")}</p>
  <p className="mt-1 text-xs text-white/40">{t("email-list.best_effort_pixel_tracking")}</p>
  </>

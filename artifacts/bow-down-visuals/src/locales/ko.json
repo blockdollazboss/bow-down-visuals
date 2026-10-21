@@ -5805,7 +5805,7 @@
     "list": "리스트:",
     "active_subscribers": "활성 구독자",
     "total_signups": "총 가입자 수",
-    "avg_opens_subscriber": "평균 오픈 / 구독자",
+    "avg_opens_subscriber": "오픈율",
     "best_effort_pixel_tracking": "최선 노력 기반 픽셀 추적",
     "opens_not_tracked": "추적 안 됨",
     "opens_not_tracked_note": "아직 추적된 발송이 없습니다 — 첫 캠페인부터 실제 열람 측정이 시작됩니다",

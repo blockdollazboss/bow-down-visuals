@@ -2729,7 +2729,7 @@
     "list": "Lista:",
     "active_subscribers": "Assinantes Ativos",
     "total_signups": "Total de Cadastros",
-    "avg_opens_subscriber": "Média de aberturas / assinante",
+    "avg_opens_subscriber": "Taxa de abertura",
     "best_effort_pixel_tracking": "rastreamento de pixel de melhor esforço",
     "opens_not_tracked": "Não rastreado",
     "opens_not_tracked_note": "ainda nenhum envio rastreado — sua primeira campanha começa a medir aberturas reais",

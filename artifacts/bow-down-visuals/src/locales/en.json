@@ -3352,7 +3352,7 @@
     "list": "List:",
     "active_subscribers": "Active subscribers",
     "total_signups": "Total signups",
-    "avg_opens_subscriber": "Avg. opens / subscriber",
+    "avg_opens_subscriber": "Open rate",
     "best_effort_pixel_tracking": "best-effort pixel tracking",
     "opens_not_tracked": "Not tracked",
     "opens_not_tracked_note": "no tracked sends yet — your first campaign starts measuring real opens",

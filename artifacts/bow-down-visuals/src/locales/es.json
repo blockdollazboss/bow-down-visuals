@@ -2729,7 +2729,7 @@
     "list": "Lista:",
     "active_subscribers": "Suscriptores activos",
     "total_signups": "Registros totales",
-    "avg_opens_subscriber": "Aperturas prom. / suscriptor",
+    "avg_opens_subscriber": "Tasa de apertura",
     "best_effort_pixel_tracking": "seguimiento por píxel de mejor esfuerzo",
     "opens_not_tracked": "No rastreado",
     "opens_not_tracked_note": "aún no hay envíos registrados — tu primera campaña empezará a medir aperturas reales",

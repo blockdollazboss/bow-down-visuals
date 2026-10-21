@@ -3777,7 +3777,7 @@
     "list": "リスト:",
     "active_subscribers": "アクティブな登録者",
     "total_signups": "登録者総数",
-    "avg_opens_subscriber": "平均開封数 / 登録者",
+    "avg_opens_subscriber": "開封率",
     "best_effort_pixel_tracking": "ピクセル追跡はベストエフォート",
     "opens_not_tracked": "未計測",
     "opens_not_tracked_note": "まだトラッキングされた送信はありません — 最初のキャンペーンから実際の開封測定が始まります",

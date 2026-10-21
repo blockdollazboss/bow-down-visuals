@@ -2729,7 +2729,7 @@
     "list": "Liste :",
     "active_subscribers": "Abonnés actifs",
     "total_signups": "Inscriptions totales",
-    "avg_opens_subscriber": "Ouvertures moy. / abonné",
+    "avg_opens_subscriber": "Taux d'ouverture",
     "best_effort_pixel_tracking": "suivi par pixel au mieux",
     "opens_not_tracked": "Non suivi",
     "opens_not_tracked_note": "aucun envoi suivi pour le moment — ta première campagne commencera à mesurer de vraies ouvertures",
