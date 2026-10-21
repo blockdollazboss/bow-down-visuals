@@ -25,42 +25,23 @@
  * in every language at once.
  */
 import type { EmailAutomationKind } from "@workspace/db";
+import {
+  SERVER_LOCALES,
+  normalizeServerLocale,
+  resolveServerLocale,
+  type ServerLocale,
+} from "./server-i18n";
 
-export const AUTOMATION_LOCALES = [
-  "en",
-  "es",
-  "fr",
-  "pt",
-  "de",
-  "it",
-  "hi",
-  "ar",
-  "ja",
-  "ko",
-] as const;
+/* The locale list and the normalize/resolve primitives are the shared
+   server core (lib/server-i18n) — this surface re-exports them under
+   its own names so every server catalog resolves identically. */
+export const AUTOMATION_LOCALES = SERVER_LOCALES;
 
-export type AutomationLocale = (typeof AUTOMATION_LOCALES)[number];
+export type AutomationLocale = ServerLocale;
 
-const LOCALE_SET = new Set<string>(AUTOMATION_LOCALES);
+export const normalizeAutomationLocale = normalizeServerLocale;
 
-/** Normalize a raw locale value ("pt-BR", "EN", "es") to one of the
- *  supported codes, or null when it names nothing we carry. The
- *  base-language split mirrors the web app's own document-language
- *  handling (lib/i18n.ts splits on "-"). */
-export function normalizeAutomationLocale(value: unknown): AutomationLocale | null {
-  if (typeof value !== "string") return null;
-  const base = value.trim().toLowerCase().split(/[-_]/)[0] ?? "";
-  return LOCALE_SET.has(base) ? (base as AutomationLocale) : null;
-}
-
-/** First resolvable candidate wins; English when none resolve. */
-export function resolveAutomationLocale(...candidates: unknown[]): AutomationLocale {
-  for (const candidate of candidates) {
-    const locale = normalizeAutomationLocale(candidate);
-    if (locale) return locale;
-  }
-  return "en";
-}
+export const resolveAutomationLocale = resolveServerLocale;
 
 export interface AutomationDefaultCopy {
   subject: string;
