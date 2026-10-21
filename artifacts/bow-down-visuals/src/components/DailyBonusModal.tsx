@@ -59,9 +59,9 @@ export function DailyBonusModal() {
  const s = await res.json();
  // No auto-popup: user claims manually via the StreakWidget. We don't push free credits.
  if (s.canClaimDaily) {
- setStreak(s.streak || 0);
+ setStreak(typeof s.streak === "number" ? s.streak : 0);
  setCanClaim(true);
- setStreakFreezes(s.streakFreezes || 0);
+ setStreakFreezes(typeof s.streakFreezes === "number" ? s.streakFreezes : 0);
  if (s.dailyBonusMilestone) setMilestoneBonus(s.dailyBonusMilestone);
  }
  // Check hourly crate status too
@@ -132,9 +132,12 @@ export function DailyBonusModal() {
  headers: { Authorization: `Bearer ${token}` },
  });
  const s = await res.json();
- setStreak(s.streak || 0);
+ /* A degraded 200 (profile side down) carries null profile fields —
+    unknown, not zero: leave the loaded state untouched rather than
+    stamping a fabricated 0-day streak over it. */
+ if (typeof s.streak === "number") setStreak(s.streak);
  setCanClaim(!!s.canClaimDaily);
- setStreakFreezes(s.streakFreezes || 0);
+ if (typeof s.streakFreezes === "number") setStreakFreezes(s.streakFreezes);
  if (s.dailyBonusMilestone) setMilestoneBonus(s.dailyBonusMilestone);
  try {
  const cs = await fetch("/api/bonus/hourly-crate-status", {

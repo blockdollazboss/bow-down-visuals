@@ -13,13 +13,17 @@ interface BoxPrize {
   isJackpot: boolean;
 }
 
+/* Mirrors GET /api/bonus/status, including its degradation contract:
+   when one store behind the endpoint is down, that side's fields are
+   null and `degraded` names the side ("profile" | "crates"). */
 interface BonusStatus {
-  streak: number;
-  canClaimDaily: boolean;
+  streak: number | null;
+  canClaimDaily: boolean | null;
   dailyBonusBase: number;
-  bonusCredits: number;
-  wheelCooldownSeconds: number;
+  bonusCredits: number | null;
+  wheelCooldownSeconds: number | null;
   wheelSegments: BoxPrize[];
+  degraded?: "profile" | "crates" | null;
 }
 
 type BoxPhase = "closed" | "shaking" | "opening" | "revealed";
@@ -64,7 +68,12 @@ export function MysteryCrate() {
          put undefined here; the tick then produced NaN and the floating
          chip rendered the literal text "NaNs" on every page. */
       setCooldown(coerceCooldownSeconds(s.wheelCooldownSeconds));
-      setLoadError(false);
+      /* Crate-side degradation: the wheel half of the payload never
+         arrived (segments empty, cooldown null). The crate's honest
+         state is its load-failure panel with a retry — not an endless
+         spinner. (Profile-side degradation leaves the crate whole:
+         the daily-bonus note and balance line just stay hidden.) */
+      setLoadError(s.degraded === "crates");
     } catch {
       setLoadError(true);
     }
@@ -381,7 +390,7 @@ export function MysteryCrate() {
               )}
             </Button>
 
-            {status && status.bonusCredits > 0 && (
+            {status && typeof status.bonusCredits === "number" && status.bonusCredits > 0 && (
               <p className="text-xs text-muted-foreground mt-3">
                 Bonus balance: {status.bonusCredits.toLocaleString()} Bucs
               </p>

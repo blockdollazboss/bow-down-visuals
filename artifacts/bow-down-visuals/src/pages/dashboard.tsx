@@ -276,7 +276,10 @@ export default function Dashboard() {
       const res = await fetch("/api/bonus/status", { headers });
       if (res.ok) {
         const d = await res.json().catch(() => ({}));
-        if (mountedRef.current) setStreak(typeof d.streak === "number" ? d.streak : 0);
+        /* A degraded 200 (profile side down) carries streak: null —
+           the streak is unknown then, so the chip stays hidden on its
+           null state instead of rendering a fabricated 0. */
+        if (mountedRef.current && typeof d.streak === "number") setStreak(d.streak);
       }
       return res;
     };

@@ -491,6 +491,9 @@ interface BonusStatus {
   dailyBonusBase: number;
   dailyBonusMilestone: number;
   bonusCredits: number;
+  /* GET /api/bonus/status degradation flag: present when one store
+     behind the endpoint is down and that side's fields are null. */
+  degraded?: "profile" | "crates" | null;
 }
 
 function useAuthHeaders() {
@@ -513,7 +516,14 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch("/api/bonus/status", { headers: await authHeaders() });
       if (!res.ok) throw new Error("status");
-      setStatus((await res.json()) as BonusStatus);
+      const s = (await res.json()) as BonusStatus;
+      /* Profile-side degradation: everything this panel renders
+         (streak, drop size, claim state, bonus balance) comes from
+         the profile read — with it down there is nothing truthful to
+         show, so the panel takes its failure state below. A
+         crate-side degradation doesn't touch this panel at all. */
+      if (s.degraded === "profile" || typeof s.streak !== "number") throw new Error("status");
+      setStatus(s);
       setFailed(false);
     } catch {
       setFailed(true);

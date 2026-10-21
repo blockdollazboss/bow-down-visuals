@@ -37,10 +37,16 @@ export default function StreakWidget() {
         if (!res.ok) return;
         const s = await res.json();
         if (!cancelled) {
-          setStreak(s.streak || 0);
-          setCanClaim(!!s.canClaimDaily);
-          setLastDailyClaim(s.lastDailyClaim ?? null);
-          setFreezeWouldSave(!!s.freezeWouldSave);
+          /* A degraded 200 (profile side down) carries null profile
+             fields — the streak is unknown then. Keep it null so the
+             widget stays hidden instead of inventing a "start your
+             streak" 0 for someone whose chain may be long. */
+          if (typeof s.streak === "number") {
+            setStreak(s.streak);
+            setCanClaim(!!s.canClaimDaily);
+            setLastDailyClaim(s.lastDailyClaim ?? null);
+            setFreezeWouldSave(!!s.freezeWouldSave);
+          }
         }
       } catch {
         /* offline — hide quietly */
