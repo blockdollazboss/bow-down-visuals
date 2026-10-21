@@ -5,7 +5,7 @@
  * niche-window sanitization, heatmap/slot building, personalization
  * boosting, and graceful degradation (no AI key → benchmark slots).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BEST_TIME_CREDIT_COST,
   BEST_TIME_PLATFORMS,
@@ -154,6 +154,15 @@ describe("buildScoredCells", () => {
   });
 
   it("boosts slots matching the user's own high-engagement history and labels them personalized", () => {
+    // Pin the clock to Monday 2026-10-19 12:00 EDT. The product only ever
+    // recommends FUTURE slots, so the Tuesday-20:00 cell under test must sit
+    // in the future: with a live clock, running this test on a Tuesday after
+    // 20:00 New York time makes that cell a past slot and it correctly drops
+    // out of the recommendations. Pinning also keeps the fixture's -04:00
+    // offsets honest (Oct 20, 2026 is EDT).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-19T16:00:00Z"));
+    try {
     // Find a future TikTok evening-peak cell: use the heatmap to pick a real date/hour.
     const { heatmap } = buildScoredCells(["tiktok"], "America/New_York", undefined, [], []);
     const dates = heatmap["tiktok"]!.dates;
@@ -173,6 +182,9 @@ describe("buildScoredCells", () => {
     expect(match!.source).toBe("personalized");
     expect(match!.score).toBeGreaterThan(94); // 94 benchmark + boost
     expect(match!.reason).toMatch(/average .*% engagement/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("clamps scores to 0-100 even with stacked boosts", () => {
