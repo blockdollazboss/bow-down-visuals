@@ -31,6 +31,13 @@ export const liveStreamsTable = pgTable(
     playback_id: text("playback_id"),
     /* Broadcaster-only WHIP publish URL. Never exposed in public DTOs. */
     whip_url: text("whip_url"),
+    /* How the program feed reaches the stage (migration 0193):
+       'camera' — the browser studio (MediaRecorder chunks / WHIP);
+       'rtmp' — an external encoder (OBS, VirtualDJ, Serato…) pushing
+       RTMP to the creator's personal ingest key. Playback, chat and
+       fan-out are identical either way; this is the honest source
+       label surfaces may show where sources are labeled. */
+    ingest_source: text("ingest_source").notNull().default("camera"),
     /* Multistream destinations: [{ platform, label, status,
        save_recording, vod_url, vod_state }] — each destination carries
        its save-a-recording preference and, after the stream, where its

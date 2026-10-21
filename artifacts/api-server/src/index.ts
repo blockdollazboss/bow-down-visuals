@@ -17,6 +17,7 @@ import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
 import { startEmailAutomationSweeper } from "./lib/email-automations";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog } from "./lib/memory-watchdog";
+import { startRtmpIngestServer } from "./lib/rtmp-ingest";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -36,6 +37,12 @@ const server = app.listen(port, (err) => {
 
   // 2026-10-12 OOM fix: log process memory every 60s (was zero observability).
   startMemoryWatchdog();
+
+  // RTMP ingest listener (Go Live stream keys): a raw-TCP door on its
+  // own port (LIVE_RTMP_PORT, default 1935) beside the single HTTP
+  // port. Inert when LIVE_RTMP_INGEST=off. Publishes land on the
+  // own-server live engine via the hooks routes/live-streams wired.
+  startRtmpIngestServer();
 
   // Guarantee the Cheat Code Jackpot tables exist (idempotent). This is a
   // safety net in case the pre-boot `drizzle-kit push` ever fails silently.

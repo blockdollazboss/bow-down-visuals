@@ -30,10 +30,12 @@ import { r2Upload, isR2Configured } from "./r2-client";
    - per-stream state is a few small fields + file streams — chunk
      buffers are written through, never accumulated in the heap.
 
-   FUTURE FAN-OUT: the RTMP multistream relay attaches right here — it
-   would tap the same per-session byte stream (raw chunks in, HLS out)
-   and push a copy at each connected platform. Nothing about the ingest
-   or the studio changes when it lands. */
+   The RTMP multistream relay (lib/multistream + lib/fanout) taps this
+   same per-session byte stream and pushes a copy at each connected
+   platform. RTMP INGEST (lib/rtmp-ingest, migration 0193) feeds this
+   engine from the other direction: an external encoder's FLV stream
+   arrives as chunks under mime video/x-flv and rides the identical
+   session/HLS/replay path — one engine, two doors in. */
 
 export interface OwnServerConfig {
   dir: string;
@@ -197,15 +199,71 @@ interface Session {
   endedAt: number | null;
 }
 
+/* ── FLV → MP4 remux (finalize-time, RTMP sessions only) ──────────────
+   An RTMP session's raw master is FLV; browsers can't play FLV back,
+   so before upload the master is remuxed to MP4. This is a `-c copy`
+   container swap — the same passthrough discipline as the live
+   pipeline (no re-encode, a few MB of ffmpeg for a few seconds at the
+   END of a stream, never during it). Resolves the MP4 path, or null
+   when the remux produced nothing usable — the caller then records
+   the recording as not saved, honestly. */
+export type RemuxFlvToMp4Fn = (srcPath: string) => Promise<string | null>;
+
+const REMUX_TIMEOUT_MS = 120_000;
+
+export const defaultRemuxFlvToMp4: RemuxFlvToMp4Fn = (srcPath) => {
+  const destPath = srcPath.replace(/\.flv$/i, ".mp4");
+  return new Promise((resolve) => {
+    const child: ChildProcess = spawn(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel", "warning",
+        "-i", srcPath,
+        "-c", "copy",
+        "-movflags", "+faststart",
+        "-y", destPath,
+      ],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+    let stderrTail = "";
+    child.stderr?.on("data", (d: Buffer) => {
+      stderrTail = (stderrTail + d.toString()).slice(-1000);
+    });
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      resolve(null);
+    }, REMUX_TIMEOUT_MS);
+    timer.unref?.();
+    child.once("error", () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0 && fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
+        resolve(destPath);
+      } else {
+        if (code !== 0) {
+          logger.warn({ code, stderr: stderrTail.slice(-300) }, "own-server-live: flv→mp4 remux failed");
+        }
+        resolve(null);
+      }
+    });
+  });
+};
+
 interface EngineDeps {
   processFactory: MediaProcessFactory;
   upload: LiveUploadFn;
+  remuxFlvToMp4: RemuxFlvToMp4Fn;
   now: () => number;
 }
 
 const deps: EngineDeps = {
   processFactory: defaultMediaProcessFactory,
   upload: defaultUpload,
+  remuxFlvToMp4: defaultRemuxFlvToMp4,
   now: () => Date.now(),
 };
 
@@ -280,6 +338,11 @@ export function extForMime(mime: string): string | null {
   const m = mime.toLowerCase();
   if (m.includes("mp4")) return "mp4";
   if (m.includes("webm")) return "webm";
+  /* RTMP ingest (lib/rtmp-ingest) feeds the encoder's FLV byte stream
+     under this mime. ffmpeg reads FLV from the pipe and remuxes it
+     exactly like the recorder containers; the raw master is .flv and
+     finalizeRecording remuxes it to MP4 for the replay. */
+  if (m.includes("flv")) return "flv";
   return null;
 }
 
@@ -408,9 +471,24 @@ export async function finalizeRecording(
     logger.warn({ streamId }, "own-server-live: storage not configured — recording kept only on disk");
     return null;
   }
-  const key = `${userId}/live/${streamId}.${s.ext}`;
-  const contentType = s.ext === "mp4" ? "video/mp4" : "video/webm";
-  const url = await deps.upload(key, fs.createReadStream(s.rawPath), contentType);
+  /* RTMP sessions: the master is FLV, which no watch surface can play.
+     Remux (copy-only) to MP4 first; a failed remux means the recording
+     honestly didn't save — never upload an unplayable master and call
+     it a replay. */
+  let uploadPath = s.rawPath;
+  let uploadExt = s.ext;
+  if (s.ext === "flv") {
+    const mp4Path = await deps.remuxFlvToMp4(s.rawPath).catch(() => null);
+    if (!mp4Path) {
+      logger.warn({ streamId }, "own-server-live: flv master could not be remuxed — recording not saved");
+      return null;
+    }
+    uploadPath = mp4Path;
+    uploadExt = "mp4";
+  }
+  const key = `${userId}/live/${streamId}.${uploadExt}`;
+  const contentType = uploadExt === "mp4" ? "video/mp4" : "video/webm";
+  const url = await deps.upload(key, fs.createReadStream(uploadPath), contentType);
   return { vodUrl: url, contentType };
 }
 
@@ -515,6 +593,7 @@ export async function __resetOwnServerLive(): Promise<void> {
   handlers.onStall = undefined;
   deps.processFactory = defaultMediaProcessFactory;
   deps.upload = defaultUpload;
+  deps.remuxFlvToMp4 = defaultRemuxFlvToMp4;
   deps.now = () => Date.now();
   await fsp.rm(cfg.dir, { recursive: true, force: true }).catch(() => undefined);
 }
