@@ -25,7 +25,15 @@
      prices .................... src/lib/credit-costs.ts CREDIT_COSTS — the
                                  frontend registry that records server charges
                                  (cross-checked against server-side *_COST
-                                 constants; disagreements print as warnings)
+                                 constants; disagreements print as warnings).
+                                 Two reviewed link tables cover what the
+                                 page scan cannot reach: FEATURE_PRICE_LINKS
+                                 (registry rails behind multi-hop callers)
+                                 and TIERED_PRICE_LINKS (duration-tiered
+                                 rails, below). Docked surfaces — tabs,
+                                 panels, and modes with no route of their
+                                 own — are declared in DOCKED_FEATURES with
+                                 their facts extracted the same way.
      credit packs ................ src/routes/stripe-payments.ts PACK_MAP
      takeover offers ............. lib/db/src/schema/spotlight.ts
                                  SPOTLIGHT_OFFER + loading-screen.ts
@@ -44,9 +52,13 @@
 
    The only hand-kept data in THIS file is classification, mirroring how
    public-routes.ts keeps ROUTE_MATRIX: STAGE_RULES (which journey stage a
-   route belongs to, for routes the sidebar doesn't list) and EXCLUSIONS
+   route belongs to, for routes the sidebar doesn't list), EXCLUSIONS
    (every route / page file deliberately left out of the knowledge base,
-   with the reason). The coverage test (src/lib/__tests__/
+   with the reason), the price link tables, and DOCKED_FEATURES (tab /
+   panel / mode surfaces with no route of their own — identity, door,
+   host, and fact sources; the prose-less members carry a reviewed
+   literal description, marked as such in the entry's descriptionSource).
+   The coverage test (src/lib/__tests__/
    operator-knowledge.test.ts) re-derives the route + page-file sets and
    fails if anything is neither in the knowledge base nor excluded here.
 
@@ -507,13 +519,20 @@ function extractPriceTiers(src, constantName, fileLabel) {
   return tiers;
 }
 
-/** Server-side *_COST / *_CREDITS constants (cross-check source). */
+/** Server-side *_COST / *_CREDITS constants (cross-check source). Two
+    declaration forms are read: the plain literal (`= 400`) and the
+    env-overridable default (`= Number(process.env["X"]) || 400`) —
+    the value extracted is the DEFAULT the code charges with no env
+    override, which is what the registry records. A constant declared
+    any other way parses to nothing, its cross-check reads "no value",
+    and the coverage test fails loudly rather than letting the link
+    pass silently. */
 function extractServerCostConstants() {
   const found = [];
   for (const file of walk(API_SRC, [".ts"])) {
     if (file.includes("__tests__") || file.endsWith(".test.ts")) continue;
     const src = read(file);
-    const re = /(?:export\s+)?const\s+([A-Z][A-Z0-9_]*(?:_COST|_CREDITS))\s*(?::\s*number)?\s*=\s*(\d+)\b/g;
+    const re = /(?:export\s+)?const\s+([A-Z][A-Z0-9_]*(?:_COST|_CREDITS))\s*(?::\s*number)?\s*=\s*(?:Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*)?(\d+)\b/g;
     let m;
     while ((m = re.exec(src))) found.push({ constant: m[1], value: Number(m[2]), file: rel(file) });
   }
@@ -862,13 +881,24 @@ function camel(slug) {
   return slug.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
+/** Route-parameter segments compare equal whatever their name: the
+    registry writes "/api/artist-vaults/:id/voice/clone" while page
+    sources normalize templates to ":param" — without this, a priced
+    endpoint whose parameter is named differently in the two sources
+    silently never attaches (the vault's voice-clone price did not
+    reach any entry until this normalization landed). */
+function normParams(p) {
+  return p.split("/").map((s) => (s.startsWith(":") ? ":param" : s)).join("/");
+}
+
 /** Longest-prefix price lookup, mirroring getCreditCost() in credit-costs.ts. */
 function priceFor(endpoint, creditCosts) {
   let best = null;
   let bestLen = -1;
+  const ep = normParams(endpoint);
   for (const [key, value] of creditCosts) {
-    const keyPath = key.split("?")[0];
-    if (endpoint === keyPath || endpoint.startsWith(keyPath + "/") || endpoint.startsWith(keyPath + ":")) {
+    const keyPath = normParams(key.split("?")[0]);
+    if (ep === keyPath || ep.startsWith(keyPath + "/") || ep.startsWith(keyPath + ":")) {
       if (keyPath.length > bestLen) { best = { key, ...value }; bestLen = keyPath.length; }
     }
   }
@@ -884,6 +914,11 @@ const SERVER_PRICE_LINKS = [
   { constant: "GEN45_CREDIT_COST", endpoint: "/api/generate-runway-clip" },
   { constant: "PUBLISH_COST", endpoint: "/api/bio-publish" },
   { constant: "ALBUM_PUBLISH_COST", endpoint: "/api/album-publish" },
+  { constant: "WEBSITE_BUILD_CREDITS", endpoint: "/api/website-builder/generate" },
+  { constant: "WEBSITE_EDIT_CREDITS", endpoint: "/api/website-builder/edit" },
+  { constant: "PLAYLIST_PITCH_CREDIT_COST", endpoint: "/api/playlist-pitch/kit" },
+  { constant: "EXPORT_CREDIT_COST", endpoint: "/api/export-final-video" },
+  { constant: "QUALITY_EXPORT_COST", endpoint: "/api/export-quality" },
 ];
 
 /** Duration-tiered price rails. CLASSIFICATION only — which endpoint is
@@ -904,6 +939,157 @@ const TIERED_PRICE_LINKS = [
     tableConstant: "SONG_PRICE_TIERS",
     routeFile: "routes/generate/music-audio.ts",
     attachToFeatureIds: ["desk-song"],
+  },
+];
+
+/** Registry-priced rails whose charging endpoint no page source names
+    within the generator's one-hop scan. CLASSIFICATION only — which
+    registry endpoint belongs to which feature entries; every number
+    is extracted from CREDIT_COSTS, and the server constants behind
+    these rails are cross-checked separately (SERVER_PRICE_LINKS).
+    The final-video export rail is the case in point: the editor
+    reaches components/FinalVideoExport.tsx through a section
+    component (two hops), so the 400 VB standard export, the 150 VB
+    quality-controlled export (the rail the Pro Finishing formats —
+    ProRes / DNxHR / FCPXML — ride), and the free size estimate
+    attached to NO feature until this link landed. */
+const FEATURE_PRICE_LINKS = [
+  {
+    endpoint: "/api/export-final-video",
+    attachToFeatureIds: ["video-editor", "desk-lyric-video", "desk-promo-clips", "desk-repurpose", "desk-translate", "desk-upscale"],
+  },
+  {
+    endpoint: "/api/export-quality",
+    attachToFeatureIds: ["video-editor", "desk-lyric-video", "desk-promo-clips", "desk-repurpose", "desk-translate", "desk-upscale"],
+  },
+  {
+    endpoint: "/api/export-quality/estimate",
+    attachToFeatureIds: ["video-editor", "desk-lyric-video", "desk-promo-clips", "desk-repurpose", "desk-translate", "desk-upscale"],
+  },
+];
+
+/** Docked surfaces: real features that live as a tab, panel, or mode
+    inside a host page and own no route of their own, so the route
+    table never discovers them (the wave-3/4 surfaces are mostly
+    these). CLASSIFICATION only — the surface's identity, its door,
+    its host, and where its facts come from; facts themselves are
+    extracted exactly like every other entry's:
+      name ........ an en.json field (the surface's own label), or a
+                    literal when the panel's heading is inline JSX
+      description . en.json prose fields (gated by deepeningTextOk),
+                    or a literal when the surface has NO designated
+                    prose anywhere — its panel copy is inline JSX,
+                    which the generator never quotes; the literal is
+                    marked as reviewed classification in the entry's
+                    descriptionSource, never dressed as extracted copy
+      prices ...... pricesFor() over the entry's endpoints against
+                    CREDIT_COSTS, like any route entry; every endpoint
+                    in pricedEndpoints MUST yield a price or generation
+                    throws — a docked surface's price fact cannot rot
+    A missing host, a duplicate id, or an unusable description fails
+    the whole generation — a stale docked entry is worse than none. */
+const DOCKED_FEATURES = [
+  {
+    id: "tab-tutorials",
+    name: { ns: "tutorials", field: "heading" },
+    path: "/academy?tab=tutorials",
+    hostPath: "/academy",
+    description: { nsFields: [["tutorials", "sub"]] },
+    endpoints: ["/api/tutorials", "/api/tutorials/:param/progress", "/api/tutorials/mine/progress"],
+    pricedEndpoints: ["/api/tutorials"],
+  },
+  {
+    id: "live-guests-backstage",
+    name: { text: "Guests & Backstage" },
+    path: "/go-live",
+    hostPath: "/go-live",
+    description: {
+      text: "Bring guests onto your live stream without giving them an account: send a private invite link, they land in a backstage greenroom with its own chat, and you bring them on stage — or move them back — whenever you are ready. Invite links are shown once and can be revoked anytime.",
+    },
+    endpoints: ["/api/live-streams/:param/guest-invites", "/api/live-streams/:param/guests", "/api/live-streams/:param/backstage/messages", "/api/live-guest-invites/:param"],
+    pricedEndpoints: ["/api/live-streams/:id/guest-invites"],
+  },
+  {
+    id: "rtmp-ingest",
+    name: { text: "Stream Key (RTMP Ingest)" },
+    path: "/go-live",
+    hostPath: "/go-live",
+    description: {
+      text: "Your stream key lets an outside streaming or DJ program send its picture into your Go Live studio. It is shown once when made — only a fingerprint is kept — and you can revoke or remake it anytime. On the current hosting, outside programs cannot reach it yet: ready and waiting, not live.",
+    },
+    endpoints: ["/api/live-streams/ingest-key", "/api/live-streams/ingest-key/regenerate", "/api/live-streams/ingest-key/reveal", "/api/live-streams/ingest-key/revoke"],
+    pricedEndpoints: ["/api/live-streams/ingest-key"],
+  },
+  {
+    id: "tab-dj-set-prep",
+    name: { ns: "djSets", field: "title" },
+    path: "/my-projects?tab=songs",
+    hostPath: "/my-projects",
+    description: { nsFields: [["djSets", "intro"], ["djSets", "freeNote"]] },
+    endpoints: ["/api/dj/library", "/api/dj/analyze", "/api/dj/crates"],
+    pricedEndpoints: ["/api/dj/analyze"],
+  },
+  {
+    id: "mode-playlist-pitch",
+    name: { text: "Playlist Pitch" },
+    path: "/label-pitch?mode=playlists",
+    hostPath: "/label-pitch",
+    description: { nsFields: [["playlistPitch", "heroDescription"], ["playlistPitch", "deadlinesIntro"]] },
+    endpoints: ["/api/playlist-pitch/kit", "/api/playlist-pitch/tracker", "/api/playlist-pitch/tracker/:param", "/api/playlist-pitch/deadlines", "/api/playlist-pitch/deadlines/:param", "/api/playlist-pitch/packet/:param", "/api/playlist-pitch/releases"],
+    pricedEndpoints: ["/api/playlist-pitch/kit", "/api/playlist-pitch/tracker"],
+  },
+  {
+    id: "paid-series",
+    name: { text: "Paid Series" },
+    path: "/store/buy/series/:id",
+    pageFile: "artifacts/bow-down-visuals/src/pages/store-buy.tsx",
+    stage: "money",
+    access: "public",
+    description: {
+      text: "Sell a whole series as one unlock: price the series on its own page, and fans pay once to open every episode in it. Buyers watch from the series page the moment they unlock; anyone who has not paid sees a locked shelf. Setting a series up and pricing it costs nothing — the price is yours to set.",
+    },
+    endpoints: ["/api/store/item/:param/:param"],
+    pricedEndpoints: [],
+  },
+  {
+    id: "lead-magnets",
+    name: { text: "Lead Magnets" },
+    path: "/store/dashboard",
+    hostPath: "/store/dashboard",
+    description: {
+      text: "Price a store product at zero and it becomes a lead magnet: instead of checking out, fans claim it with their email address, and the claim joins your audience list. It is the free-sample door into your store — set it up in the store dashboard on any digital product.",
+    },
+    endpoints: ["/api/storefront/claim"],
+    pricedEndpoints: ["/api/storefront/claim"],
+  },
+  {
+    id: "social-proof",
+    name: { ns: "social-proof", field: "title" },
+    path: "/settings",
+    hostPath: "/settings",
+    description: { nsFields: [["social-proof", "description"]] },
+    endpoints: ["/api/social-proof/me", "/api/social-proof/refresh", "/api/social-proof/visibility"],
+    pricedEndpoints: ["/api/social-proof/refresh"],
+  },
+  {
+    id: "identity-sets",
+    name: { ns: "artistVault", field: "identityTitle" },
+    path: "/artist-vault",
+    hostPath: "/artist-vault",
+    description: { nsFields: [["artistVault", "identityBlurb"]] },
+    endpoints: ["/api/artist-vaults/:param/identity-photos", "/api/artist-vaults/:param/identity-photos/:param"],
+    pricedEndpoints: ["/api/artist-vaults/:id/identity-photos"],
+  },
+  {
+    id: "pro-finishing-export",
+    name: { text: "Pro Finishing Export" },
+    path: "/video-editor",
+    hostPath: "/video-editor",
+    description: {
+      text: "The editor's finishing door: export your final video in the pro finishing formats — ProRes and DNxHR in a MOV file, or an FCPXML timeline — with resolution, frame rate, and watermark control, instead of the standard web export.",
+    },
+    endpoints: ["/api/export-final-video", "/api/export-quality", "/api/export-quality/estimate"],
+    pricedEndpoints: ["/api/export-final-video", "/api/export-quality", "/api/export-quality/estimate"],
   },
 ];
 
@@ -1274,6 +1460,103 @@ function main() {
       },
       description: `Paid advertising placement for ${offer.durationDays} days — ${offer.surfaces.join(" · ")}. ${offer.specs.join(". ")}.`,
       descriptionSource: `${spec.schemaFile} ${spec.constant} (surfaces + specs)`,
+      nextSteps: [],
+    };
+    entry.nextSteps = nextStepsFor(entry, null);
+    features.push(entry);
+  }
+
+  /* Feature price links: registry-priced rails the one-hop page scan
+     cannot reach (see FEATURE_PRICE_LINKS) attach to their reviewed
+     feature entries — copy-on-write, exactly like the tiered pass,
+     because sibling entries share their host page's prices array. */
+  for (const link of FEATURE_PRICE_LINKS) {
+    const registry = creditCosts.get(link.endpoint);
+    if (!registry) {
+      throw new Error(`feature price links: CREDIT_COSTS has no entry for ${link.endpoint} to attach`);
+    }
+    for (const id of link.attachToFeatureIds) {
+      const entry = features.find((f) => f.id === id);
+      if (!entry) {
+        throw new Error(`feature price links: attach target feature "${id}" for ${link.endpoint} is not in the knowledge base`);
+      }
+      if (!entry.prices.some((p) => p.endpoint === link.endpoint)) {
+        entry.prices = [...entry.prices];
+        entry.prices.push({
+          feature: registry.feature,
+          vb: registry.cost,
+          endpoint: link.endpoint,
+          source: CREDIT_COSTS_SOURCE,
+        });
+        entry.prices.sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+      }
+    }
+  }
+
+  /* Docked surfaces (see DOCKED_FEATURES): first-class entries for
+     the tab / panel / mode features the route table cannot discover.
+     Host, name, and description resolve exactly like route entries —
+     and every failure throws, so a docked entry can never go stale
+     silently. */
+  for (const spec of DOCKED_FEATURES) {
+    if (features.some((f) => f.id === spec.id)) {
+      throw new Error(`docked features: id "${spec.id}" already exists in the knowledge base`);
+    }
+    const host = spec.hostPath ? features.find((f) => f.path === spec.hostPath) : null;
+    if (spec.hostPath && !host) {
+      throw new Error(`docked features: host "${spec.hostPath}" for "${spec.id}" is not in the knowledge base`);
+    }
+    let name, nameSource;
+    if (spec.name.ns) {
+      const raw = en[spec.name.ns]?.[spec.name.field];
+      if (typeof raw !== "string" || !raw.trim()) {
+        throw new Error(`docked features: en.json "${spec.name.ns}.${spec.name.field}" (name for "${spec.id}") is missing`);
+      }
+      name = raw.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+      nameSource = `artifacts/bow-down-visuals/src/locales/en.json "${spec.name.ns}.${spec.name.field}"`;
+    } else {
+      name = spec.name.text;
+      nameSource = "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)";
+    }
+    let description, descriptionSource;
+    if (spec.description.nsFields) {
+      const parts = spec.description.nsFields.map(([ns, field]) => {
+        const v = en[ns]?.[field];
+        if (typeof v !== "string") {
+          throw new Error(`docked features: en.json "${ns}.${field}" (description for "${spec.id}") is missing`);
+        }
+        return v;
+      });
+      description = deepeningTextOk(parts.join(" "));
+      descriptionSource = spec.description.nsFields
+        .map(([ns, field]) => `artifacts/bow-down-visuals/src/locales/en.json "${ns}.${field}"`)
+        .join(" + ");
+    } else {
+      description = deepeningTextOk(spec.description.text);
+      descriptionSource = "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)";
+    }
+    if (!description) {
+      throw new Error(`docked features: description for "${spec.id}" failed the prose gate (25–300 chars, no money figures)`);
+    }
+    const prices = pricesFor(spec.endpoints);
+    for (const ep of spec.pricedEndpoints) {
+      if (!prices.some((p) => p.endpoint === ep)) {
+        throw new Error(`docked features: priced endpoint ${ep} for "${spec.id}" produced no price — is it in CREDIT_COSTS?`);
+      }
+    }
+    const entry = {
+      id: spec.id,
+      name,
+      nameSource,
+      path: spec.path,
+      stage: spec.stage ?? host?.stage ?? "studio",
+      access: spec.access ?? host?.access ?? "members",
+      pageFile: spec.pageFile ?? host?.pageFile ?? null,
+      component: null,
+      endpoints: [...spec.endpoints].sort(),
+      prices,
+      description,
+      descriptionSource,
       nextSteps: [],
     };
     entry.nextSteps = nextStepsFor(entry, null);
