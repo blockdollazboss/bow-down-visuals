@@ -48,11 +48,14 @@ const EN = CATALOGS.en!;
 
 /* Whole namespaces that are wave-3/4 surfaces end to end. The middle six were
    added by the surface-wiring lane: those pages were wired to t() and their
-   strings now live in these namespaces. The last three (videoExport,
+   strings now live in these namespaces. The next three (videoExport,
    outOfCredits, showcasePublish) came with the export-screen wiring lane:
    FinalVideoExport's general export surface plus its two hardcoded
-   siblings. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish"] as const;
+   siblings. The last two (share, review) came with the share-wiring lane:
+   ShareMenu + ShareForReview were partially on useTranslation — the en
+   catalog carried the namespaces but the other nine catalogs had neither,
+   so every non-English user silently got English. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -111,8 +114,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the parity lane audited (1148 keys)", () => {
-    expect(REQUIRED.length).toBe(1148);
+  it("the required set is the size the parity lane audited (1240 keys)", () => {
+    expect(REQUIRED.length).toBe(1240);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
