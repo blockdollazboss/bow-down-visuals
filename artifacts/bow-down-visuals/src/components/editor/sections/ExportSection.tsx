@@ -6,6 +6,7 @@ import { PublishToProfileButton } from "@/components/publish/PublishToProfileBut
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
+import { SubjectReframeCard } from "@/components/editor/SubjectReframeCard";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
@@ -62,6 +63,8 @@ interface ExportSectionProps {
   topic?: string;
   /** Graded clip URL handed off from the LUT Import card — pre-loads the multi-ratio card. */
   handoffVideoUrl?: string | null;
+  /** Replaces a scene's clip URL (subject-reframe "Use in timeline"). */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
 }
 
 /* ── Export range helpers ──────────────────────────────── */
@@ -226,7 +229,7 @@ function isSourceAvailable(
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
   onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false, topic,
-  handoffVideoUrl = null,
+  handoffVideoUrl = null, onReplaceClipVideo,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -1036,6 +1039,17 @@ export function ExportSection({
 
       {/* ── Export for all platforms: one-click multi-ratio export ── */}
       <MultiRatioExportCard videoUrl={finalVideoUrl ?? handoffVideoUrl} topic={topic} />
+
+      {/* ── Smart Reframe — Subject Tracking: re-crop ONE clip to a new
+          shape with the crop following the subject (POST /api/auto-reframe).
+          Distinct from the Pro Tools centre-crop chip: this is a render,
+          priced per clip, with an honestly-labeled centre-crop fallback. ── */}
+      <SubjectReframeCard
+        scenes={scenes}
+        videoUrl={finalVideoUrl ?? handoffVideoUrl}
+        onReplaceClipVideo={onReplaceClipVideo}
+        onUseAsExport={(url) => setFinalVideoUrl(url)}
+      />
 
       {/* ── Publish to my profile: finished export → /publish prefilled ── */}
       {finalVideoUrl && (
