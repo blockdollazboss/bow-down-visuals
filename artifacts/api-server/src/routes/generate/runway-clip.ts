@@ -33,6 +33,11 @@ import {
   resolveClipPlan,
 } from "./clip-pricing";
 import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
+import {
+  MAX_STACKED_EFFECTS,
+  resolveEffectRecipes,
+  weaveEffectsBlock,
+} from "../../lib/scene-effects";
 import { getLockedPack } from "./pre-production";
 import type { PackIngredients } from "@workspace/db";
 
@@ -224,6 +229,11 @@ const runwayClipSchema = z.object({
    *  ingredients — the client's promptText is ignored. */
   packId: z.string().max(100).optional().nullable(),
   shotNumber: z.number().int().min(0).max(1000).optional().nullable(),
+  /** Viral Effects (lib/scene-effects.ts): generation-time effect recipe
+   *  ids picked in Scene Studio, woven into the prompt at submission.
+   *  Stacked cap enforced here; unknown ids 400 below — never silently
+   *  dropped. Effects ride this generation's existing charge. */
+  effectIds: z.array(z.string().trim().min(1).max(64)).max(MAX_STACKED_EFFECTS).optional(),
 });
 
 const submitRunwayClipHandler = async (req: Request, res: Response) => {
@@ -235,7 +245,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber } = parsed.data;
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -264,6 +274,23 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     res.status(400).json({ error: "promptText is required" });
     return;
   }
+
+  /* ── Viral Effects resolution ────────────────────────────────────────────
+     Resolve the creator's picked effect recipes before any pricing gate
+     or provider work: an unknown id is a client bug and 400s here rather
+     than silently generating without the effect the creator picked. In
+     pack mode the effect still applies — it is generation-time direction
+     layered over the locked prompt, not a prompt override. */
+  const { recipes: effectRecipes, unknownIds: unknownEffectIds } = resolveEffectRecipes(effectIds);
+  if (unknownEffectIds.length > 0) {
+    res.status(400).json({
+      error: "unknown_effect",
+      message: `Unknown effect: ${unknownEffectIds.join(", ")}. Pick effects from the Viral Effects rail.`,
+    });
+    return;
+  }
+  const effectBlock = weaveEffectsBlock(effectRecipes);
+  const effectsApplied = effectRecipes.map((r) => r.id);
 
   /* ── Model + duration resolution ───────────────────────────────────────── */
   const plan = resolveClipPlan({
@@ -431,7 +458,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
   const continuityBlock = lockedIngredients?.continuityNotes?.trim()
     ? ` Continuity lock: ${lockedIngredients.continuityNotes.trim()}`.slice(0, 200)
     : "";
-  const content = `${base} ${motionBlock}${continuityBlock}`.trim();
+  /* Viral Effects weave — "" when no effects are picked, so a no-effect
+     generation's prompt stays byte-identical to before this rail existed. */
+  const content = `${base} ${motionBlock}${effectBlock}${continuityBlock}`.trim();
 
   const neg = effectiveNegative?.trim();
   const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
@@ -486,6 +515,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         creditCost,
         model: "veo3_1",
         durationSec: resolvedDurationSec,
+        effectsApplied,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
@@ -567,6 +597,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       creditCost,
       model: useSeedance ? "seedance2_5" : "gen4.5",
       durationSec: resolvedDurationSec,
+      effectsApplied,
       ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
     });
   } catch (err: unknown) {

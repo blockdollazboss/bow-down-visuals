@@ -34,6 +34,9 @@ export interface SceneData {
   /** Image URL of the location picked from the user's Locations library
    *  (visual reference for the scene's setting; label goes in `location`). */
   locationImageUrl?: string | null;
+  /** Viral Effects picks (server recipe ids, lib/scene-effects.ts): woven
+   *  into the generation prompt by /generate-runway-clip. Max 2. */
+  effectIds?: string[];
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
