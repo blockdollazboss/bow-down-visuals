@@ -13,7 +13,15 @@
      desk modules + handoffs ... src/lib/desks.ts (Visual Vibes registry)
      page guides ............... src/guides/*.ts (route + pageName)
      descriptions .............. en.json page namespaces (prose fields only,
-                                 with the namespace recorded as provenance)
+                                 with the namespace recorded as provenance);
+                                 a deepening pass then covers features still
+                                 description-less from other designated prose
+                                 only — expanded en.json namespace fields,
+                                 the page's own usePageTitle meta text,
+                                 data/features.ts SITE_FEATURES taglines, and
+                                 page-file DESCRIPTION constants. Page JSX
+                                 strings are never quoted (see
+                                 deepenDescription).
      prices .................... src/lib/credit-costs.ts CREDIT_COSTS — the
                                  frontend registry that records server charges
                                  (cross-checked against server-side *_COST
@@ -547,6 +555,245 @@ function descriptionFromPageText(text, en) {
   return best;
 }
 
+/* ─── Description deepening ──────────────────────────────────────────────
+   Features the primary chain leaves description-less get one more pass
+   over DESIGNATED prose only — text a page or registry explicitly wrote
+   to describe the feature. Page JSX (error / loading / label strings) is
+   never quoted: it is interface chrome, not a description, and quoting it
+   as fact is how invented copy gets in. A feature with no designated
+   source stays description-less, is reported by id in the run log, and
+   is pinned by the coverage test's allowlist — never filled with
+   plausible prose.
+
+   Sources, in order:
+     1. en.json namespaces over an expanded designated-field list. For
+        tab-* entries the legacy slug's namespace goes first (a docked
+        tab's own words), then the host path's namespace. Multi-segment
+        paths get NO last-segment candidate: /store/dashboard must never
+        inherit en.dashboard's command-center text.
+        DESCRIPTION_NS_BLOCKLIST records reviewed misattributions
+        (tab-guides is the Academy's legal-guides tab; en.guides is the
+        standalone legal pages' namespace, so the tab falls through to
+        its host's en.academy prose).
+     2. The page's own usePageTitle(title, description) second argument —
+        the hook writes it to the document meta description, so it IS the
+        page's designated meta text. Only an argument yielding exactly
+        one candidate (a plain literal, a no-interpolation template, or
+        a single t() key resolved through en.json) is used; per-instance
+        template text is stripped before counting, and an ambiguous
+        argument refuses the page rather than guessing.
+     3. data/features.ts SITE_FEATURES tagline for the exact route.
+     4. A page-file const DESCRIPTION / META_DESCRIPTION literal.
+
+   Every value must pass deepeningTextOk: 25–300 chars once normalized,
+   no template braces, no URLs, and no money figure (digit or spelled
+   out) — prices live only in the code-extracted prices array, and a
+   prose figure can drift from it (en.randomizer's hero still quotes a
+   pre-x100 "single Visual Buc" price; the filter refuses it and the
+   tab falls through to its host desk's prose). */
+const DEEPENING_PROSE_FIELDS = ["pageDescription", "description", "metaDescription", "pageSubtitle", "subheading", "subtitle", "tagline", "intro", "summary", "heroSubtitle", "heroSub", "heroDescription", "hero"];
+const DESCRIPTION_NS_BLOCKLIST = { "tab-guides": ["guides"] };
+const DESCRIPTION_MONEY_RE = /\d[\d,]*\s*(?:%|VB\b|Visual Bucs)|\$\s*\d|\d[\d,]*\s*credits?\b|\b(?:a\s+single|single|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+Visual Bucs?\b/i;
+
+/** The one validation gate every deepened description passes. Returns
+    the whitespace-normalized value, or null when it is not safe prose. */
+function deepeningTextOk(v) {
+  if (typeof v !== "string") return null;
+  const n = v.replace(/\s+/g, " ").trim();
+  if (n.length < 25 || n.length > 300) return null;
+  if (n.includes("{") || n.includes("}") || n.includes("http")) return null;
+  if (DESCRIPTION_MONEY_RE.test(n)) return null;
+  return n;
+}
+
+/** Split a call's argument list at its top-level commas. startIdx sits
+    just after the opening paren. A mode stack (code / ' / " / template
+    with ${} nesting) keeps commas and parens inside strings and
+    per-instance templates from corrupting the split. */
+function splitCallArgs(text, startIdx) {
+  const args = [];
+  let cur = "";
+  let depth = 1; // paren depth; the call's own paren is 1
+  const stack = ["code"];
+  let braceDepth = 0; // {} depth inside the current template expression
+  for (let i = startIdx; i < text.length; i++) {
+    const ch = text[i], prev = text[i - 1];
+    const mode = stack[stack.length - 1];
+    if (mode === "'" || mode === '"') {
+      cur += ch;
+      if (ch === mode && prev !== "\\") stack.pop();
+      continue;
+    }
+    if (mode === "`") {
+      cur += ch;
+      if (ch === "`" && prev !== "\\") { stack.pop(); continue; }
+      if (ch === "$" && text[i + 1] === "{") { cur += "{"; i++; stack.push("code"); braceDepth = 0; continue; }
+      continue;
+    }
+    /* code mode */
+    if (ch === "'" || ch === '"' || ch === "`") { stack.push(ch); cur += ch; continue; }
+    if (ch === "{") {
+      if (stack.length > 1) braceDepth++;
+      cur += ch; continue;
+    }
+    if (ch === "}") {
+      if (stack.length > 1) {
+        if (braceDepth === 0) { stack.pop(); cur += ch; continue; } // closes ${ — back to template
+        braceDepth--;
+      }
+      cur += ch; continue;
+    }
+    if (stack.length === 1) {
+      if (ch === "(" || ch === "[") { depth++; cur += ch; continue; }
+      if (ch === ")" || ch === "]") {
+        depth--;
+        if (depth === 0) { args.push(cur); return args; }
+        cur += ch; continue;
+      }
+      if (ch === "," && depth === 1) { args.push(cur); cur = ""; continue; }
+    }
+    cur += ch;
+  }
+  return args;
+}
+
+/** Remove template-literal spans from an argument's text. A template
+    containing ${} is per-instance text — dropped entirely. A template
+    without interpolation is a plain literal — kept as a candidate. */
+function stripTemplateSpans(arg) {
+  let out = "";
+  const literals = [];
+  let i = 0;
+  while (i < arg.length) {
+    if (arg[i] !== "`") { out += arg[i]; i++; continue; }
+    let j = i + 1, depth = 0, content = "", interpolated = false, closed = false;
+    const stack = ["`"];
+    for (; j < arg.length; j++) {
+      const ch = arg[j], prev = arg[j - 1];
+      const mode = stack[stack.length - 1];
+      if (mode === "'" || mode === '"') { content += ch; if (ch === mode && prev !== "\\") stack.pop(); continue; }
+      if (mode === "`") {
+        if (ch === "`" && prev !== "\\") {
+          stack.pop();
+          if (stack.length === 0) { closed = true; j++; break; }
+          content += ch; continue;
+        }
+        if (ch === "$" && arg[j + 1] === "{") { interpolated = true; content += "${"; j++; stack.push("code"); depth = 0; continue; }
+        content += ch; continue;
+      }
+      if (ch === "'" || ch === '"' || ch === "`") { stack.push(ch); content += ch; continue; }
+      if (ch === "{") depth++;
+      if (ch === "}") { if (depth === 0) { stack.pop(); content += ch; continue; } depth--; }
+      content += ch;
+    }
+    if (closed && !interpolated) literals.push(content);
+    out += " ";
+    i = j;
+  }
+  return { text: out, literals };
+}
+
+/** A page's designated meta description: the second argument of its
+    usePageTitle(title, description) call, when that argument designates
+    exactly one text (see the deepening note above). */
+function descriptionFromPageTitle(text, en) {
+  let idx = 0;
+  while ((idx = text.indexOf("usePageTitle(", idx)) >= 0) {
+    const args = splitCallArgs(text, idx + "usePageTitle(".length);
+    idx += "usePageTitle(".length;
+    if (args.length < 2) continue;
+    const { text: strippedArg, literals: tplLiterals } = stripTemplateSpans(args[1]);
+    const candidates = [];
+    const tRe = /\bt\(\s*"([^"]+)"/g;
+    let m;
+    while ((m = tRe.exec(strippedArg))) {
+      let v = en;
+      for (const p of m[1].split(".")) v = v?.[p];
+      if (typeof v === "string") candidates.push(v);
+    }
+    const noT = strippedArg.replace(/\bt\(\s*"[^"]+"\s*\)/g, " ");
+    const litRe = /"([^"\n]{1,400})"|'([^'\n]{1,400})'/g;
+    while ((m = litRe.exec(noT))) candidates.push(m[1] ?? m[2]);
+    for (const v of tplLiterals) candidates.push(v);
+    if (candidates.length === 1) {
+      const v = deepeningTextOk(candidates[0]);
+      if (v) return v;
+    }
+    if (candidates.length > 1) return null; // ambiguous — refuse the page
+  }
+  return null;
+}
+
+/** data/features.ts SITE_FEATURES: the site's own feature registry
+    carries a designed tagline per exact route. */
+function extractSiteFeatureTaglines() {
+  const file = path.join(FE_SRC, "data", "features.ts");
+  const byRoute = new Map();
+  if (!existsSync(file)) return byRoute;
+  const src = read(file);
+  for (const m of src.matchAll(/\{\s*key:\s*"([^"]+)",\s*name:\s*"([^"]+)",\s*tagline:\s*"([^"]+)",\s*route:\s*"([^"]+)"/g)) {
+    byRoute.set(m[4], m[3]);
+  }
+  return byRoute;
+}
+
+/** A page file's own const DESCRIPTION / META_DESCRIPTION literal — the
+    SEO index pages (src/pages/seo/*) designate their meta text this way. */
+function descriptionFromMetaConst(text) {
+  const m = text.match(/(?:^|\n)\s*const\s+(?:DESCRIPTION|META_DESCRIPTION)\s*=\s*\n?\s*"([^"]{25,300})"/);
+  return m ? deepeningTextOk(m[1]) : null;
+}
+
+/** One description-less feature → its deepened description, or null when
+    no designated source survives the gate. */
+function deepenDescription(entry, en, siteFeatureTaglines) {
+  /* 1 — en.json namespaces, expanded designated fields. */
+  const candidates = [];
+  if (entry.id.startsWith("tab-")) {
+    const legacy = entry.id.slice("tab-".length);
+    const blocked = new Set(DESCRIPTION_NS_BLOCKLIST[entry.id] ?? []);
+    for (const c of [camel(legacy), legacy, camel(legacy.split("-")[0])]) {
+      if (!blocked.has(c) && !candidates.includes(c)) candidates.push(c);
+    }
+  }
+  const slug = entry.path.replace(/^\//, "").split("?")[0];
+  candidates.push(camel(slug.replace(/\//g, "-")));
+  if (!slug.includes("/")) candidates.push(slug);
+  for (const ns of [...new Set(candidates)]) {
+    const obj = en[ns];
+    if (!obj || typeof obj !== "object") continue;
+    for (const field of DEEPENING_PROSE_FIELDS) {
+      const v = deepeningTextOk(obj[field]);
+      if (v) {
+        return { description: v, descriptionSource: `artifacts/bow-down-visuals/src/locales/en.json "${ns}.${field}"`, kind: "namespace" };
+      }
+    }
+  }
+  /* 2–4 read the page's own file. */
+  let pageText = "";
+  if (entry.pageFile) {
+    const abs = path.join(REPO_ROOT, entry.pageFile);
+    if (existsSync(abs)) pageText = read(abs);
+  }
+  if (pageText) {
+    const fromTitle = descriptionFromPageTitle(pageText, en);
+    if (fromTitle) {
+      return { description: fromTitle, descriptionSource: `${entry.pageFile} usePageTitle meta description`, kind: "pageTitle" };
+    }
+  }
+  const tagline = deepeningTextOk(siteFeatureTaglines.get(entry.path));
+  if (tagline) {
+    return { description: tagline, descriptionSource: "artifacts/bow-down-visuals/src/data/features.ts SITE_FEATURES tagline", kind: "siteFeatures" };
+  }
+  if (pageText) {
+    const fromConst = descriptionFromMetaConst(pageText);
+    if (fromConst) {
+      return { description: fromConst, descriptionSource: `${entry.pageFile} DESCRIPTION constant`, kind: "metaConst" };
+    }
+  }
+  return null;
+}
+
 /** Strip comments so doc examples (e.g. the confirmedFetch JSDoc citing
     "/api/generate-song") never attribute endpoints to a file's importers. */
 function stripComments(src) {
@@ -948,6 +1195,24 @@ function main() {
     }
   }
 
+  /* Description deepening pass (after the guide pass, so guide summaries
+     keep outranking everything and the counts below are exact final
+     attributions): features every earlier pass left bare get one more
+     chance from designated prose only — see deepenDescription. Whatever
+     stays bare is reported by id in the run log and pinned by the
+     coverage test's allowlist. */
+  const siteFeatureTaglines = extractSiteFeatureTaglines();
+  const deepeningCounts = { namespace: 0, pageTitle: 0, siteFeatures: 0, metaConst: 0 };
+  for (const entry of features) {
+    if (entry.description) continue;
+    const hit = deepenDescription(entry, en, siteFeatureTaglines);
+    if (hit) {
+      entry.description = hit.description;
+      entry.descriptionSource = hit.descriptionSource;
+      deepeningCounts[hit.kind]++;
+    }
+  }
+
   /* Tiered-price attach pass: features that front a tiered rail without
      their page sources naming its endpoint (see TIERED_PRICE_LINKS)
      gain the rail's full price entry — registry label + base figure,
@@ -1055,6 +1320,8 @@ function main() {
       guides: guides.length,
       desks: desks.length,
       takeoverOffers: takeoverOffers.length,
+      withDescriptions: features.filter((f) => f.description).length,
+      withoutDescriptions: features.filter((f) => !f.description).length,
     },
     packs,
     crossChecks,
@@ -1081,8 +1348,11 @@ function main() {
     console.log(`\nUNREVIEWED page-file exclusions (${unreviewed.length}):`);
     for (const e of unreviewed) console.log("  " + e.key);
   }
+  const deepenedTotal = Object.values(deepeningCounts).reduce((a, b) => a + b, 0);
+  console.log(`description deepening: +${deepenedTotal} (namespace ${deepeningCounts.namespace} · page-title meta ${deepeningCounts.pageTitle} · SITE_FEATURES ${deepeningCounts.siteFeatures} · DESCRIPTION const ${deepeningCounts.metaConst})`);
   const noDesc = features.filter((f) => !f.description);
   console.log(`features without a sourced description: ${noDesc.length}`);
+  for (const f of noDesc) console.log(`  still description-less: ${f.id} (${f.path})`);
   const noPrice = features.filter((f) => f.prices.length === 0);
   console.log(`features without attached prices: ${noPrice.length} (of ${features.length})`);
   if (warnings.length) { console.log("\nWARNINGS:"); for (const w of warnings) console.log("  " + w); }

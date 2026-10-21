@@ -115,6 +115,92 @@ describe("operator knowledge — coverage (no silent gaps)", () => {
   });
 });
 
+describe("operator knowledge — description coverage (no silent thinning)", () => {
+  /* The deepening pass (generator: deepenDescription) covers every feature
+     that has designated prose — an en.json namespace's prose fields, the
+     page's own usePageTitle meta text, a SITE_FEATURES tagline, or a
+     page-file DESCRIPTION constant. These nine features have NO designated
+     source: their pages designate no meta description anywhere (variables,
+     title-only calls, or no call at all) and no registry prose exists.
+     The set is pinned in BOTH directions: a feature gaining a description
+     leaves the list (update it — that's progress), and a feature LOSING
+     one fails here instead of silently thinning the operator's answers. */
+  const DESCRIPTION_LESS: [string, string][] = [
+    ["challenge--slug-winners", "/challenge/:slug/winners"],
+    ["earnings", "/earnings"],
+    ["genre--genre", "/genre/:genre"],
+    ["go-live-controller", "/go-live/controller"],
+    ["photo-preset--slug", "/photo-preset/:slug"],
+    ["search", "/search"],
+    ["storefronts-builder", "/storefronts/builder"],
+    ["vertical--vertical", "/vertical/:vertical"],
+    ["winners", "/winners"],
+  ];
+
+  it("the description-less set is exactly the reviewed allowlist", () => {
+    const less = OPERATOR_FEATURES.filter((f) => !f.description)
+      .map((f) => [f.id, f.path] as [string, string])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    expect(less).toEqual([...DESCRIPTION_LESS].sort((a, b) => a[0].localeCompare(b[0])));
+  });
+
+  it("description counts in the artifact match the artifact and hold the floor", () => {
+    const described = OPERATOR_FEATURES.filter((f) => f.description).length;
+    expect(OPERATOR_KB.counts.withDescriptions).toBe(described);
+    expect(OPERATOR_KB.counts.withoutDescriptions).toBe(OPERATOR_FEATURES.length - described);
+    // 209 of 218 at the wave-2 deepening (was 85). The floor only moves up.
+    expect(described).toBeGreaterThanOrEqual(209);
+  });
+
+  it("every description is provenance-carrying prose in the safe band", () => {
+    for (const f of OPERATOR_FEATURES) {
+      if (!f.description) continue;
+      expect(f.descriptionSource, `${f.id} carries a description with no source`).toBeTruthy();
+      expect(f.description.length, `${f.id} description out of band`).toBeGreaterThanOrEqual(25);
+      expect(f.description.length, `${f.id} description out of band`).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it("no description quotes a money figure — prices live in the prices array only", () => {
+    // A figure in prose would also seed the no-invention guard's known
+    // figures (operator-knowledge.ts collects figures from descriptions),
+    // laundering a stale copy string into a vouched price.
+    const money = /\d[\d,]*\s*(?:%|VB\b|Visual Bucs)|\$\s*\d|\d[\d,]*\s*credits?\b|\b(?:a\s+single|single|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+Visual Bucs?\b/i;
+    for (const f of OPERATOR_FEATURES) {
+      if (!f.description) continue;
+      expect(money.test(f.description), `${f.id} description quotes a money figure: ${f.description}`).toBe(false);
+    }
+  });
+
+  it("deepened descriptions pin to their designated sources", () => {
+    const byPath = (p: string) => OPERATOR_FEATURES.find((f) => f.path === p)!;
+    // en.json namespace, expanded field (metaDescription is deepening-only).
+    expect(byPath("/dashboard").description).toBe("Your creator command center — every AI tool in one place.");
+    expect(byPath("/dashboard").descriptionSource).toContain('en.json "dashboard.metaDescription"');
+    // The page's own usePageTitle meta text.
+    expect(byPath("/beats").description).toBe("Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.");
+    expect(byPath("/beats").descriptionSource).toContain("usePageTitle meta description");
+    // A page-file DESCRIPTION constant (SEO index page).
+    expect(byPath("/tools").description).toBe("Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Free to browse.");
+    expect(byPath("/tools").descriptionSource).toContain("DESCRIPTION constant");
+    // The Academy guides tab reads its host's prose — the en.guides legal
+    // namespace is blocklisted (it describes the standalone legal pages).
+    expect(byPath("/academy?tab=guides").description).toBe("Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.");
+    // The randomizer's own hero quotes a stale pre-x100 price, so the tab
+    // falls through to its host desk's prose instead.
+    expect(byPath("/hooks?tab=dice").description).toBe("Your money is made in the first 3 seconds. Generate scroll-stopping openers — then run your post through the pre-flight before you ship it.");
+    // Last-segment namespace fall-through must never hand a dashboard the
+    // creator command-center text: both dashboards carry their OWN meta.
+    expect(byPath("/store/dashboard").description).toBe("Your store earnings, orders, products, and discount codes. The Get Paid finale.");
+    expect(byPath("/sponsors/dashboard").description).toBe("Your sponsorship dashboard — track deals, deliverables and earnings on Bow Down Visuals.");
+  });
+
+  it("a deepened feature's facts carry its description to the operator", () => {
+    const beats = OPERATOR_FEATURES.find((f) => f.path === "/beats")!;
+    expect(formatFeatureFacts(beats)).toContain("What it is: Buy and sell beats");
+  });
+});
+
 describe("operator knowledge — sourced facts only", () => {
   it("every price names the registry as its source and is a whole VB figure", () => {
     let priced = 0;
