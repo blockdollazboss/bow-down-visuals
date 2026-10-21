@@ -4722,6 +4722,23 @@
     "subtitle": "Ihr Konto und Verbindungen",
     "title": "Einstellungen"
   },
+  "social-proof": {
+    "title": "Sozialer Nachweis",
+    "description": "Verifizierte Reichweitenzahlen deiner verbundenen Konten, angezeigt auf deinem öffentlichen Profil mit dem Datum ihrer Messung.",
+    "refresh": "Jetzt aktualisieren",
+    "refreshing": "Aktualisiere…",
+    "refreshError": "Die Aktualisierung hat nicht geklappt. Versuch es noch einmal.",
+    "saveError": "Dieser Schalter wurde nicht gespeichert. Versuch es noch einmal.",
+    "loadError": "Dein sozialer Nachweis konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "noProfile": "Der soziale Nachweis lebt auf deinem Creator-Profil.",
+    "noProfileCta": "Profil erstellen",
+    "noAccounts": "Verbinde oben ein Konto, und deine echten Followerzahlen können auf deinem Profil erscheinen — nur Zahlen, die die Plattform selbst meldet, niemals Schätzungen.",
+    "noFigures": "Noch keine Zahlen. Tippe auf Jetzt aktualisieren, und wir lesen, was deine verbundenen Plattformen wirklich melden.",
+    "updated": "Aktualisiert am {{date}}",
+    "disconnected": "Getrennt — wird nicht mehr gezeigt",
+    "lastSync": "Zuletzt synchronisiert: {{date}}"
+  },
   "sfx": {
     "categoryAmbient": "Ambient",
     "categoryAmbientBlurb": "Beds, Atmosphären",

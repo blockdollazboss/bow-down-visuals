@@ -4722,6 +4722,23 @@
     "subtitle": "Sua conta e conexões",
     "title": "Configurações"
   },
+  "social-proof": {
+    "title": "Prova social",
+    "description": "Números de audiência verificados das suas contas conectadas, exibidos no seu perfil público com a data em que foram medidos.",
+    "refresh": "Atualizar agora",
+    "refreshing": "Atualizando…",
+    "refreshError": "A atualização não foi concluída. Tente novamente.",
+    "saveError": "Essa opção não foi salva. Tente novamente.",
+    "loadError": "Sua prova social não pôde ser carregada.",
+    "retry": "Tentar novamente",
+    "noProfile": "A prova social vive no seu perfil de criador.",
+    "noProfileCta": "Crie seu perfil",
+    "noAccounts": "Conecte uma conta acima e seus números reais de seguidores poderão aparecer no seu perfil — apenas números que a própria plataforma relata, nunca estimativas.",
+    "noFigures": "Nenhum número ainda. Toque em Atualizar agora e leremos o que suas plataformas conectadas realmente relatam.",
+    "updated": "Atualizado em {{date}}",
+    "disconnected": "Desconectada — não é mais exibida",
+    "lastSync": "Última sincronização: {{date}}"
+  },
   "sfx": {
     "categoryAmbient": "Ambiente",
     "categoryAmbientBlurb": "Bases, atmosferas",
