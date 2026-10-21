@@ -9,6 +9,7 @@ import router from "./routes";
 import { embedPageRouter } from "./routes/embed";
 import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
+import { resendWebhookHandler } from "./lib/resend-webhook";
 import { stagingGate } from "./lib/staging-gate";
 import { ogPreviewMiddleware } from "./lib/og-preview";
 import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
@@ -115,6 +116,16 @@ app.post(
   "/api/stripe-webhook",
   express.raw({ type: "application/json" }),
   stripeWebhookHandler,
+);
+
+// Resend webhook — same discipline: raw body before express.json(),
+// Svix signature verification inside the handler, which fails closed
+// when RESEND_WEBHOOK_SECRET is not configured. Feeds the email
+// engagement recorder (opens/clicks/bounces/complaints, migration 0188).
+app.post(
+  "/api/resend-webhook",
+  express.raw({ type: "application/json" }),
+  resendWebhookHandler,
 );
 
 app.use(express.json({ limit: "256kb" }));

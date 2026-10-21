@@ -34,6 +34,9 @@ export interface SendEmailOpts {
   html: string;
   text?: string;
   replyTo?: string;
+  /** Provider tags (Resend carries them back on webhook events, which
+     is one of the joins the engagement recorder uses). */
+  tags?: Array<{ name: string; value: string }>;
 }
 
 export interface SendEmailResult {
@@ -73,6 +76,7 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
       html: opts.html,
       ...(opts.text ? { text: opts.text } : {}),
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.tags && opts.tags.length > 0 ? { tags: opts.tags } : {}),
     });
     if (error) {
       logger.warn({ to, subject: opts.subject, error }, "[email] provider error (fail-open)");
