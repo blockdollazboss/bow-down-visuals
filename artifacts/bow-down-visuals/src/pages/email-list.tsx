@@ -19,12 +19,14 @@ import { useTranslation } from "react-i18next";
  interface/data — free. Only the AI newsletter writer burns compute
  (1 credit per draft, charged before generation, refunded on failure).
 
- Honesty: sends go through our own email service with best-effort
- delivery — disclosed below, never promised. Opens and link clicks
- are tracked on every send (recorded engagement only — a list with
- no tracked sends yet says exactly that), subscribers carry tags,
- saved segments aim campaigns, and unsubscribed fans are never
- emailed again. */
+ Sending: campaigns and welcome emails are delivered through our
+ email service from our own verified domain (server-side sender,
+ status stamped by the server — never by the client), with
+ best-effort delivery — disclosed below, never promised. Opens and
+ link clicks are tracked on tracked sends (recorded engagement
+ only — a list with no tracked sends yet says exactly that),
+ subscribers carry tags, saved segments aim campaigns, and
+ unsubscribed fans are never emailed again. */
 
 type TabKey = "dashboard" | "lists" | "newsletter" | "forms";
 
@@ -35,6 +37,10 @@ interface EmailList {
  description?: string | null;
  welcomeSubject?: string | null;
  welcomeBody?: string | null;
+ welcome2Subject?: string | null;
+ welcome2Body?: string | null;
+ welcome3Subject?: string | null;
+ welcome3Body?: string | null;
  createdAt: string;
 }
 
@@ -184,6 +190,54 @@ export default function EmailListBuilder() {
  const [newHandle, setNewHandle] = useState("");
  const [newDesc, setNewDesc] = useState("");
  const [creating, setCreating] = useState(false);
+
+ /* list delete — inline two-step confirm. The old flow called the
+  native confirm() dialog OUTSIDE its try/catch: in browser contexts
+  that suppress native dialogs (automation, embedded webviews) the
+  click died silently — no dialog, no error, no delete. The confirm
+  now lives in the card itself and every failure surfaces. */
+ const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+ const [deletingId, setDeletingId] = useState<string | null>(null);
+
+ /* list-details settings (name + description) for the selected list.
+  Until now an existing list's name/description could not be edited
+  anywhere — fixing a typo meant delete + recreate, which torched the
+  list's subscribers. The PATCH endpoint already accepted both fields;
+  this is the missing affordance. */
+ const [editName, setEditName] = useState("");
+ const [editDesc, setEditDesc] = useState("");
+ const [savingDetails, setSavingDetails] = useState(false);
+ const [detailsSaved, setDetailsSaved] = useState(false);
+
+ useEffect(() => {
+   const l = lists.find((x) => x.id === activeListId);
+   setEditName(l?.name ?? "");
+   setEditDesc(l?.description ?? "");
+   setDetailsSaved(false);
+ }, [activeListId, lists]);
+
+ /* welcome-sequence settings (steps 1–3) for the selected list */
+ const [w1Subject, setW1Subject] = useState("");
+ const [w1Body, setW1Body] = useState("");
+ const [w2Subject, setW2Subject] = useState("");
+ const [w2Body, setW2Body] = useState("");
+ const [w3Subject, setW3Subject] = useState("");
+ const [w3Body, setW3Body] = useState("");
+ const [savingWelcome, setSavingWelcome] = useState(false);
+ const [welcomeSaved, setWelcomeSaved] = useState(false);
+
+ /* Seed the welcome form whenever the selected list changes (or its
+  stored templates change after a save). */
+ useEffect(() => {
+   const l = lists.find((x) => x.id === activeListId);
+   setW1Subject(l?.welcomeSubject ?? "");
+   setW1Body(l?.welcomeBody ?? "");
+   setW2Subject(l?.welcome2Subject ?? "");
+   setW2Body(l?.welcome2Body ?? "");
+   setW3Subject(l?.welcome3Subject ?? "");
+   setW3Body(l?.welcome3Body ?? "");
+   setWelcomeSaved(false);
+ }, [activeListId, lists]);
 
  /* newsletter writer */
  const [nlTopic, setNlTopic] = useState("");
@@ -499,14 +553,77 @@ export default function EmailListBuilder() {
  }
 
  async function deleteList(id: string) {
- if (!confirm("Delete this list and all its subscribers? This can't be undone.")) return;
+ setDeletingId(id);
+ setError(null);
  try {
  const res = await authedFetch(`/api/email-list/lists/${id}`, { method: "DELETE" });
- if (!res.ok) throw new Error("Couldn't delete the list.");
+ const data = await res.json().catch(() => ({}));
+ if (!res.ok) throw new Error(data.error ?? "Couldn't delete the list.");
  setLists((prev) => prev.filter((l) => l.id !== id));
  if (activeListId === id) setActiveListId("");
+ setConfirmDeleteId(null);
  } catch (e) {
  setError(e instanceof Error ? e.message : "Couldn't delete the list.");
+ } finally {
+ setDeletingId(null);
+ }
+ }
+
+ async function saveListDetails() {
+ if (!activeListId) return;
+ if (!editName.trim()) {
+ setError("Give your list a name first.");
+ return;
+ }
+ setSavingDetails(true);
+ setError(null);
+ setDetailsSaved(false);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}`, {
+ method: "PATCH",
+ body: JSON.stringify({
+ name: editName.trim(),
+ description: editDesc.trim(),
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save the list details.");
+ setLists((prev) => prev.map((l) => (l.id === activeListId ? { ...l, ...data.list } : l)));
+ setDetailsSaved(true);
+ setTimeout(() => setDetailsSaved(false), 3000);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't save the list details.");
+ } finally {
+ setSavingDetails(false);
+ }
+ }
+
+ async function saveWelcome() {
+ if (!activeListId) return;
+ setSavingWelcome(true);
+ setError(null);
+ setWelcomeSaved(false);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}`, {
+ method: "PATCH",
+ body: JSON.stringify({
+ welcomeSubject: w1Subject,
+ welcomeBody: w1Body,
+ welcome2Subject: w2Subject,
+ welcome2Body: w2Body,
+ welcome3Subject: w3Subject,
+ welcome3Body: w3Body,
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save the welcome emails.");
+ setLists((prev) => prev.map((l) => (l.id === activeListId ? { ...l, ...data.list } : l)));
+ setWelcomeSaved(true);
+ setTimeout(() => setWelcomeSaved(false), 3000);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't save the welcome emails.");
+ } finally {
+ setSavingWelcome(false);
  }
  }
 
@@ -900,7 +1017,7 @@ export default function EmailListBuilder() {
  <div className={`${cardClass} mt-4`}>
  <h3 className="font-semibold">{t("email-list.create_a_list")}</h3>
  <div className="mt-3 grid gap-3 md:grid-cols-2">
- <input className={inputClass} placeholder={t("email-list.list_name_e_g_fin_fam")} value={newName} onChange={(e) => setNewName(e.target.value)} />
+ <input className={inputClass} placeholder={t("email-list.list_name_e_g_fin_fam")} value={newName} maxLength={120} onChange={(e) => setNewName(e.target.value)} />
  <div>
  <div className="flex items-center">
  <span className="rounded-l-xl border border-r-0 border-white/10 bg-white/5 px-3 py-3 text-sm text-white/40">{t("email-list.join_2")}</span>
@@ -909,7 +1026,8 @@ export default function EmailListBuilder() {
  <p className="mt-1 text-xs text-white/35">{t("email-list.lowercase_letters_numbers_hyphen")}</p>
  </div>
  </div>
- <textarea className={inputClass + " mt-3"} rows={2} placeholder={t("email-list.what_do_subscribers_get_optional")} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+ <textarea className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder={t("email-list.what_do_subscribers_get_optional")} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+ <p className="mt-1 text-xs text-white/35">This is the offer copy on your join page — up to 2,000 characters, line breaks kept.</p>
  <button className={tabBtn(true) + " mt-3"} onClick={createList} disabled={creating}>
  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
  Create list — free
@@ -928,21 +1046,117 @@ export default function EmailListBuilder() {
  <a href={`/join/${l.handle}`} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-sm text-primary hover:underline">
  bowdownvisuals.com/join/{l.handle} <ExternalLink className="h-3 w-3" />
  </a>
- {l.description && <p className="mt-2 text-sm text-white/50">{l.description}</p>}
+ {l.description && <p className="mt-2 whitespace-pre-wrap text-sm text-white/50">{l.description}</p>}
  </div>
+ {confirmDeleteId !== l.id && (
  <button
- onClick={() => deleteList(l.id)}
+ onClick={() => setConfirmDeleteId(l.id)}
  className="rounded-lg p-2 text-white/30 hover:bg-red-500/10 hover:text-red-300"
  title={t("email-list.delete_list")}
  >
  <Trash2 className="h-4 w-4" />
  </button>
+ )}
  </div>
+ {confirmDeleteId === l.id && (
+ <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
+ <p className="text-sm text-red-200">Delete this list and all its subscribers? This can't be undone.</p>
+ <div className="mt-2 flex gap-2">
+ <button
+ onClick={() => deleteList(l.id)}
+ disabled={deletingId === l.id}
+ className="inline-flex items-center gap-2 rounded-lg bg-red-500/80 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60"
+ >
+ {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+ Delete it
+ </button>
+ <button
+ onClick={() => setConfirmDeleteId(null)}
+ className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/70 hover:text-white"
+ >
+ Cancel
+ </button>
+ </div>
+ </div>
+ )}
  </div>
  ))}
  </div>
  {lists.length === 0 && !showNewList && !loadError && (
  <p className="mt-6 text-center text-sm text-white/45">{t("email-list.no_lists_yet_hit_new_list_to_cre")}</p>
+ )}
+
+ {/* list-details settings for the selected list — name + the offer
+  copy on its join page, editable in place (no more delete +
+  recreate to fix wording). The handle is the list's address and
+  stays fixed. */}
+ {activeList && (
+ <div className={`${cardClass} mt-6`}>
+ <div className="flex flex-wrap items-center justify-between gap-3">
+ <h3 className="flex items-center gap-2 font-semibold"><PenLine className="h-4 w-4 text-primary" />List details — {activeList.name}</h3>
+ <select
+ value={activeListId}
+ onChange={(e) => setActiveListId(e.target.value)}
+ className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {lists.map((l) => (
+ <option key={l.id} value={l.id}>{l.name} (@{l.handle})</option>
+ ))}
+ </select>
+ </div>
+ <p className="mt-1 text-sm text-white/50">
+ The name and offer copy for this list. The description is what visitors read on the join page — line breaks are kept.
+ </p>
+ <p className="mt-2 text-xs text-white/35">Join page: bowdownvisuals.com/join/{activeList.handle} — the handle is the list's address and can't be changed.</p>
+ <input className={inputClass + " mt-3"} placeholder="List name" value={editName} maxLength={120} onChange={(e) => setEditName(e.target.value)} />
+ <textarea className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder="What do subscribers get?" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+ <p className="mt-1 text-xs text-white/35">Up to 2,000 characters. Leave empty to show no offer copy on the join page.</p>
+ <button className={tabBtn(true) + " mt-4"} onClick={saveListDetails} disabled={savingDetails}>
+ {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+ Save list details
+ </button>
+ {detailsSaved && <span className="ml-3 text-sm font-semibold text-emerald-400">Saved ✓</span>}
+ </div>
+ )}
+
+ {/* welcome-sequence settings for the selected list */}
+ {activeList && (
+ <div className={`${cardClass} mt-6`}>
+ <div className="flex flex-wrap items-center justify-between gap-3">
+ <h3 className="flex items-center gap-2 font-semibold"><Mail className="h-4 w-4 text-primary" />Welcome emails — {activeList.name}</h3>
+ <select
+ value={activeListId}
+ onChange={(e) => setActiveListId(e.target.value)}
+ className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {lists.map((l) => (
+ <option key={l.id} value={l.id}>{l.name} (@{l.handle})</option>
+ ))}
+ </select>
+ </div>
+ <p className="mt-1 text-sm text-white/50">
+ Every new subscriber gets these automatically: Step 1 on signup, Step 2 after 24 hours, Step 3 after 72 hours.
+ Leave a step's subject and body empty to skip that step.
+ </p>
+
+ {([
+ { n: 1, subject: w1Subject, setSubject: setW1Subject, body: w1Body, setBody: setW1Body },
+ { n: 2, subject: w2Subject, setSubject: setW2Subject, body: w2Body, setBody: setW2Body },
+ { n: 3, subject: w3Subject, setSubject: setW3Subject, body: w3Body, setBody: setW3Body },
+ ] as const).map((s) => (
+ <div key={s.n} className="mt-4 rounded-xl border border-white/10 bg-black/40 p-4">
+ <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Step {s.n}{s.n === 1 ? " — on signup" : s.n === 2 ? " — +24 hours" : " — +72 hours after step 2"}</p>
+ <input className={inputClass + " mt-2"} placeholder={`Step ${s.n} subject`} value={s.subject} maxLength={200} onChange={(e) => s.setSubject(e.target.value)} />
+ <textarea className={inputClass + " mt-2"} rows={5} placeholder={`Step ${s.n} body — write it like you'd text a friend. Line breaks are kept.`} value={s.body} maxLength={20000} onChange={(e) => s.setBody(e.target.value)} />
+ </div>
+ ))}
+
+ <button className={tabBtn(true) + " mt-4"} onClick={saveWelcome} disabled={savingWelcome}>
+ {savingWelcome ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+ Save welcome emails
+ </button>
+ {welcomeSaved && <span className="ml-3 text-sm font-semibold text-emerald-400">Saved ✓</span>}
+ </div>
  )}
  </div>
  )}

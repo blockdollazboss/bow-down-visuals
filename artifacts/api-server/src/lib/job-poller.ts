@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { publishDueScheduledPosts } from "./scheduler-jobs";
+import { drainEmailQueue } from "./email-campaign-sender";
 import {
   claimQueuedJobs,
   completeLipSyncJob,
@@ -138,6 +139,11 @@ export async function runPollerTick(): Promise<void> {
     /* Content Scheduler: fire due scheduled social posts (DB-backed, restart-safe). */
     await publishDueScheduledPosts().catch((err) =>
       logger.error({ err }, "[job-poller] scheduler phase failed"),
+    );
+    /* Email List: drain queued campaigns + due welcome-sequence steps
+       through the Resend sender (DB-backed, restart-safe). */
+    await drainEmailQueue().catch((err) =>
+      logger.error({ err }, "[job-poller] email sender phase failed"),
     );
   } finally {
     tickInFlight = false;

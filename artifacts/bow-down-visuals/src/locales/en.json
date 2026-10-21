@@ -3419,7 +3419,7 @@
     "embed_on_your_own_site": "Embed on your own site",
     "paste_this_anywhere_signups_land": "Paste this anywhere — signups land straight in your list. Free.",
     "how_sending_works_v1": "How sending works (v1):",
-    "campaigns_queue_through_our_simp": "campaigns\n queue through our simple server-side sender — not a dedicated email service provider.\n That means no guaranteed inbox placement, no dedicated IP reputation, and sends are\n best for lists under a few thousand. As your list grows past the free tier, we'll\n graduate you to a proper ESP integration. Opens and link clicks are tracked on every send, so the open and click rates you see are real recorded engagement — no fake numbers. Every email carries a one-click unsubscribe, and unsubscribed fans are never emailed again.",
+    "campaigns_queue_through_our_simp": "campaigns are delivered through our email service from our own verified domain. That still means no guaranteed inbox placement — no sender can promise that — and sends are best for lists under a few thousand. Opens and link clicks are tracked, so the open and click rates you see are real recorded engagement — no fake numbers. Every email carries a one-click unsubscribe, and unsubscribed fans are never emailed again.",
     "list_built_ask": "List built? Ask",
     "thy_cheat_code": "Thy Cheat Code",
     "in_the_chat_bubble_for_newslette": "in the\n chat bubble for newsletter ideas that actually get opened.",

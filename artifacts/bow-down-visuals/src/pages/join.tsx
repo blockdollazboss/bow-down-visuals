@@ -91,7 +91,7 @@ export default function JoinList() {
               <Mail className="h-3.5 w-3.5" /> {t("auth.joinTheList")}
             </p>
             <h1 className="mt-4 font-display text-3xl font-black">{list.name}</h1>
-            {list.description && <p className="mx-auto mt-2 max-w-md text-sm text-white/55">{list.description}</p>}
+            {list.description && <p className="mx-auto mt-2 max-w-md whitespace-pre-wrap text-sm leading-relaxed text-white/55">{list.description}</p>}
 
             <form onSubmit={subscribe} className="mx-auto mt-6 max-w-md space-y-3 text-left">
               <input className={inputClass} type="text" placeholder={t("auth.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />

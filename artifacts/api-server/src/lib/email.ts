@@ -16,6 +16,40 @@ import { logger } from "./logger.js";
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@bowdownvisuals.com";
 
+/** Display name every house send carries. Mail from this platform is
+    Thy Cheat Code speaking — a bare address reads as a robot. */
+export const EMAIL_FROM_NAME = "Thy Cheat Code";
+
+/**
+ * Compose the From header. If the configured value already carries a
+ * display name ("Some Name <addr>") it is respected untouched; a bare
+ * address gets the house name. (Staging's EMAIL_FROM is a bare address,
+ * which is why sends arrived with no sender name at all.)
+ */
+export function houseFromAddress(raw: string): string {
+  const value = raw.trim();
+  if (value.includes("<")) return value;
+  return `${EMAIL_FROM_NAME} <${value}>`;
+}
+
+/**
+ * The brand mark rendered in the email header: the owner's real crowned
+ * King Shark icon — the same asset the site ships as public/icon-192.png
+ * (and its PWA/app icon). NOT an emoji: mail clients render a raw 🦈 as
+ * a stock cartoon shark, which is how a stock graphic ended up in the
+ * owner's inbox.
+ *
+ * The URL must be absolute and anonymously reachable by mail clients.
+ * bowdownvisuals.com is suspended-dark until launch (503) and the
+ * staging host is password-gated (401), so the asset is served from the
+ * owner's own public repo via the jsDelivr CDN — byte-identical to the
+ * repo file (sha256 e32f03c3…). At relaunch, point EMAIL_LOGO_URL at
+ * https://bowdownvisuals.com/icon-192.png.
+ */
+export const EMAIL_LOGO_URL =
+  process.env.EMAIL_LOGO_URL ??
+  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@staging/artifacts/bow-down-visuals/public/icon-192.png";
+
 let client: Resend | null = null;
 function getClient(): Resend | null {
   if (!RESEND_API_KEY) return null;
@@ -37,6 +71,8 @@ export interface SendEmailOpts {
   /** Provider tags (Resend carries them back on webhook events, which
      is one of the joins the engagement recorder uses). */
   tags?: Array<{ name: string; value: string }>;
+  /** Extra RFC headers (e.g. List-Unsubscribe for bulk/list mail). */
+  headers?: Record<string, string>;
 }
 
 export interface SendEmailResult {
@@ -70,13 +106,14 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: EMAIL_FROM,
+      from: houseFromAddress(EMAIL_FROM),
       to,
       subject: opts.subject,
       html: opts.html,
       ...(opts.text ? { text: opts.text } : {}),
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       ...(opts.tags && opts.tags.length > 0 ? { tags: opts.tags } : {}),
+      ...(opts.headers ? { headers: opts.headers } : {}),
     });
     if (error) {
       logger.warn({ to, subject: opts.subject, error }, "[email] provider error (fail-open)");
@@ -98,7 +135,7 @@ export function emailShell(title: string, bodyHtml: string): string {
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
 <div style="text-align:center;margin-bottom:24px;">
-<span style="font-size:28px;">🦈</span>
+<img src="${EMAIL_LOGO_URL}" alt="Thy Cheat Code — Bow Down Visuals" width="72" height="72" style="width:72px;height:72px;border-radius:16px;">
 <div style="color:#d4af37;font-weight:800;font-size:20px;letter-spacing:1px;margin-top:8px;">THY CHEAT CODE</div>
 <div style="color:#888;font-size:12px;letter-spacing:3px;">BOW DOWN VISUALS</div>
 </div>

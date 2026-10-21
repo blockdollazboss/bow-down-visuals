@@ -2717,7 +2717,7 @@
     "body": "Text",
     "builder": "Builder",
     "call_to_action_optional_e_g_pre": "Call to Action (optional — z. B. Single vorspeichern)",
-    "campaigns_queue_through_our_simp": "Kampagnen\n laufen über unseren einfachen serverseitigen Versand — keinen dedizierten E-Mail-Serviceanbieter.\n Das bedeutet keine garantierte Inbox-Zustellung, keine dedizierte IP-Reputation, und der Versand eignet sich\n am besten für Listen unter einigen Tausend. Sobald Ihre Liste über die Gratis-Stufe hinauswächst,\n migrieren wir Sie auf eine richtige ESP-Integration. Öffnungen und Link-Klicks werden bei jedem Versand verfolgt, sodass die angezeigten Raten echtes, aufgezeichnetes Engagement sind — keine erfundenen Zahlen. Jede E-Mail enthält eine Ein-Klick-Abmeldung, und abgemeldete Fans erhalten nie wieder E-Mails.",
+    "campaigns_queue_through_our_simp": "Kampagnen werden über unseren E-Mail-Dienst von unserer eigenen verifizierten Domain versendet. Das bedeutet trotzdem keine garantierte Inbox-Zustellung — das kann kein Absender versprechen — und der Versand eignet sich am besten für Listen unter einigen Tausend. Öffnungen und Link-Klicks werden verfolgt, sodass die angezeigten Raten echtes, aufgezeichnetes Engagement sind — keine erfundenen Zahlen. Jede E-Mail enthält eine Ein-Klick-Abmeldung, und abgemeldete Fans erhalten nie wieder E-Mails.",
     "copy_body": "Text kopieren",
     "copy_embed_code": "Embed-Code kopieren",
     "copy_link": "Link kopieren",

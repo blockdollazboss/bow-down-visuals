@@ -2756,7 +2756,7 @@
     "embed_on_your_own_site": "Incorpore no Seu Próprio Site",
     "paste_this_anywhere_signups_land": "Cole em qualquer lugar – as inscrições vão direto para a sua lista. Grátis.",
     "how_sending_works_v1": "Como funciona o envio (v1):",
-    "campaigns_queue_through_our_simp": "As campanhas entram em fila pelo nosso remetente simples no servidor — não por um provedor de e-mail dedicado.\n Isso significa: sem garantia de entrega na caixa de entrada, sem reputação de IP dedicada, e os envios funcionam melhor para listas de até alguns milhares. Quando sua lista passar do plano gratuito, migramos você para uma integração ESP adequada. Aberturas e cliques em links são rastreados em cada envio, então as taxas que você vê são engajamento real registrado — sem números inventados. Cada e-mail traz um link de cancelamento com um clique, e fãs que cancelam nunca mais recebem e-mails.",
+    "campaigns_queue_through_our_simp": "As campanhas são enviadas pelo nosso serviço de e-mail a partir do nosso próprio domínio verificado. Isso ainda significa: sem garantia de entrega na caixa de entrada — nenhum remetente pode prometer isso — e os envios funcionam melhor para listas de até alguns milhares. Aberturas e cliques em links são rastreados, então as taxas que você vê são engajamento real registrado — sem números inventados. Cada e-mail traz um link de cancelamento com um clique, e fãs que cancelam nunca mais recebem e-mails.",
     "list_built_ask": "Lista pronta? Pergunte",
     "thy_cheat_code": "Thy Cheat Code",
     "in_the_chat_bubble_for_newslette": "no\n balão de chat para ideias de newsletter que realmente são abertas.",
