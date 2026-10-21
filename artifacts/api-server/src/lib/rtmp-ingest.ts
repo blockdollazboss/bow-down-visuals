@@ -58,6 +58,13 @@ import {
    route. */
 
 export interface RtmpIngestConfig {
+  /** Encoder ingest is OPT-IN per deployment: open only when ops set
+   *  LIVE_RTMP_INGEST=on. The RTMP door is a raw-TCP port, and not
+   *  every host routes one — on Render only HTTP is routed, so the
+   *  port is unreachable there no matter what the app does. The
+   *  honest default is therefore CLOSED: the panel says the door
+   *  isn't open yet and the mint endpoints refuse, until the owner
+   *  flips the flag on a host that actually carries the port. */
   enabled: boolean;
   port: number;
   app: string;
@@ -72,7 +79,7 @@ function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
 
 export function rtmpIngestConfig(env: NodeJS.ProcessEnv = process.env): RtmpIngestConfig {
   return {
-    enabled: env["LIVE_RTMP_INGEST"]?.trim().toLowerCase() !== "off",
+    enabled: env["LIVE_RTMP_INGEST"]?.trim().toLowerCase() === "on",
     port: intEnv(env, "LIVE_RTMP_PORT", 1935),
     app: env["LIVE_RTMP_APP"]?.trim() || "live",
     publicUrl: env["LIVE_RTMP_PUBLIC_URL"]?.trim() || null,
@@ -703,13 +710,13 @@ export function createRtmpIngestServer(deps: RtmpIngestDeps): net.Server {
 
 let runningServer: net.Server | null = null;
 
-/** Boot entry (index.ts, after the HTTP listener is up). Inert when
- *  LIVE_RTMP_INGEST=off or the routes layer hasn't registered its
+/** Boot entry (index.ts, after the HTTP listener is up). Inert unless
+ *  LIVE_RTMP_INGEST=on or the routes layer hasn't registered its
  *  host hooks — never a half-configured listener. */
 export function startRtmpIngestServer(env: NodeJS.ProcessEnv = process.env): net.Server | null {
   const cfg = rtmpIngestConfig(env);
   if (!cfg.enabled) {
-    logger.info({}, "rtmp-ingest: disabled by LIVE_RTMP_INGEST=off");
+    logger.info({}, "rtmp-ingest: door closed — LIVE_RTMP_INGEST is not 'on' for this deployment");
     return null;
   }
   if (!host) {
