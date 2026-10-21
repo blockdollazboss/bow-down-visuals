@@ -384,6 +384,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/store/buy/:kind/:id", disposition: "locked" },
   { path: "/store/success", disposition: "public" },
   { path: "/my-music", disposition: "locked" },
+  { path: "/move-home", disposition: "locked" },
   { path: "/artist-setup", disposition: "locked" },
   { path: "/publish", disposition: "locked" },
   { path: "/creator/domains", disposition: "locked" },
