@@ -19,9 +19,12 @@ import { useTranslation } from "react-i18next";
  interface/data — free. Only the AI newsletter writer burns compute
  (1 credit per draft, charged before generation, refunded on failure).
 
- Honesty (v1): sends go through a simple server-side queue, NOT a
- dedicated email service provider. Deliverability and scale limits are
- disclosed below — never promised. */
+ Honesty: sends go through our own email service with best-effort
+ delivery — disclosed below, never promised. Opens and link clicks
+ are tracked on every send (recorded engagement only — a list with
+ no tracked sends yet says exactly that), subscribers carry tags,
+ saved segments aim campaigns, and unsubscribed fans are never
+ emailed again. */
 
 type TabKey = "dashboard" | "lists" | "newsletter" | "forms";
 
@@ -41,6 +44,11 @@ interface Subscriber {
  name?: string | null;
  source: string;
  opens: number;
+ clicks: number;
+ /* Manual labels the creator applied + tags derived from house data
+    (presave / member / buyer / opened / clicked / engaged). */
+ tags: string[];
+ autoTags: string[];
  unsubscribedAt?: string | null;
  subscribedAt: string;
 }
@@ -49,12 +57,51 @@ interface ListStats {
  total: number;
  active: number;
  unsubscribed: number;
- /* null = opens are not tracked (no pixel/webhook exists) — the card
-    must say so instead of rendering a measured-looking 0. */
+ /* null = no tracked sends yet for this list — the card must say so
+    instead of rendering a measured-looking 0. Once campaigns send,
+    the rate is computed from recorded opens only. */
  openRate: number | null;
  opensTracked: boolean;
+ totalOpens: number;
+ totalClicks: number;
  freeLimit: number;
 }
+
+interface EmailTagRow {
+ id: string;
+ name: string;
+ subscriberCount: number;
+}
+
+interface SegmentCriteria {
+ tags: string[];
+ autoTags: string[];
+ sources: string[];
+ engagement: string;
+}
+
+interface SegmentRow {
+ id: string;
+ name: string;
+ criteria: SegmentCriteria;
+ size: number;
+}
+
+interface CampaignRow {
+ id: string;
+ subject: string;
+ status: string;
+ segmentId?: string | null;
+ sentAt?: string | null;
+ recipientCount: number;
+ deliveredCount: number;
+ openCount: number;
+ clickCount: number;
+ createdAt: string;
+}
+
+const AUTO_TAG_KEYS = ["presave", "member", "buyer", "opened", "clicked", "engaged"] as const;
+const SOURCE_KEYS = ["landing", "embed", "import", "presave"] as const;
 
 const TONES = [
  { key: "hype", label: "Hype", blurb: "Big-news energy" },
@@ -121,6 +168,26 @@ export default function EmailListBuilder() {
  const [nlCta, setNlCta] = useState("");
  const [nlDraft, setNlDraft] = useState<{ subject: string; body: string } | null>(null);
  const [nlLoading, setNlLoading] = useState(false);
+
+ /* tags + segments + campaigns (migration 0188) */
+ const [emailTags, setEmailTags] = useState<EmailTagRow[]>([]);
+ const [segments, setSegments] = useState<SegmentRow[]>([]);
+ const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
+ const [newTagName, setNewTagName] = useState("");
+ const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
+ const [draftTagIds, setDraftTagIds] = useState<string[]>([]);
+ const [segName, setSegName] = useState("");
+ const [segTags, setSegTags] = useState<string[]>([]);
+ const [segAutoTags, setSegAutoTags] = useState<string[]>([]);
+ const [segSources, setSegSources] = useState<string[]>([]);
+ const [segEngagement, setSegEngagement] = useState<string>("any");
+ const [segCreating, setSegCreating] = useState(false);
+ /* campaign composer (newsletter tab) */
+ const [campSubject, setCampSubject] = useState("");
+ const [campBody, setCampBody] = useState("");
+ const [campAudience, setCampAudience] = useState<string>("");
+ const [campSending, setCampSending] = useState(false);
+ const [campResult, setCampResult] = useState<string | null>(null);
 
  /* Drafts are paid — never let a refresh eat one. Persist per list. */
  const DRAFT_KEY = "bdv_email_nl_draft";
@@ -197,6 +264,139 @@ export default function EmailListBuilder() {
  useEffect(() => {
  if (activeListId) loadSubscribers(activeListId);
  }, [activeListId, loadSubscribers, subsRetryNonce]);
+
+ /* Tags, segments, and campaign history ride along with the active
+    list. A failure here leaves the panels empty — it never blocks
+    the subscriber dashboard above them. */
+ const loadEngagement = useCallback(async (listId: string) => {
+ if (!listId) return;
+ try {
+ const [tagsRes, segRes, campRes] = await Promise.all([
+ authedFetch(`/api/email-list/lists/${listId}/tags`),
+ authedFetch(`/api/email-list/lists/${listId}/segments`),
+ authedFetch(`/api/email-list/lists/${listId}/campaigns`),
+ ]);
+ if (tagsRes.ok) setEmailTags((await tagsRes.json()).tags ?? []);
+ if (segRes.ok) setSegments((await segRes.json()).segments ?? []);
+ if (campRes.ok) setCampaigns((await campRes.json()).campaigns ?? []);
+ } catch { /* panels stay empty; dashboard is unaffected */ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
+
+ useEffect(() => {
+ if (activeListId) loadEngagement(activeListId);
+ }, [activeListId, loadEngagement]);
+
+ async function createTag() {
+ if (!activeListId || !newTagName.trim()) return;
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/tags`, {
+ method: "POST",
+ body: JSON.stringify({ name: newTagName.trim() }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't create the tag.");
+ setNewTagName("");
+ loadEngagement(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't create the tag.");
+ }
+ }
+
+ async function deleteTag(tagId: string) {
+ if (!activeListId) return;
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/tags/${tagId}`, { method: "DELETE" });
+ if (!res.ok) throw new Error("Couldn't delete the tag.");
+ loadEngagement(activeListId);
+ loadSubscribers(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't delete the tag.");
+ }
+ }
+
+ async function saveSubscriberTags(subId: string) {
+ if (!activeListId) return;
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/subscribers/${subId}/tags`, {
+ method: "PUT",
+ body: JSON.stringify({ tagIds: draftTagIds }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save tags.");
+ setEditingTagsFor(null);
+ loadSubscribers(activeListId);
+ loadEngagement(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't save tags.");
+ }
+ }
+
+ async function createSegment() {
+ if (!activeListId || !segName.trim()) return;
+ setSegCreating(true);
+ setError(null);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/segments`, {
+ method: "POST",
+ body: JSON.stringify({
+ name: segName.trim(),
+ criteria: { tags: segTags, autoTags: segAutoTags, sources: segSources, engagement: segEngagement },
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't create the segment.");
+ setSegName(""); setSegTags([]); setSegAutoTags([]); setSegSources([]); setSegEngagement("any");
+ loadEngagement(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't create the segment.");
+ } finally {
+ setSegCreating(false);
+ }
+ }
+
+ async function deleteSegment(segId: string) {
+ if (!activeListId) return;
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/segments/${segId}`, { method: "DELETE" });
+ if (!res.ok) throw new Error("Couldn't delete the segment.");
+ loadEngagement(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't delete the segment.");
+ }
+ }
+
+ async function sendCampaignNow() {
+ if (!activeListId || !campSubject.trim() || !campBody.trim()) return;
+ setCampSending(true);
+ setCampResult(null);
+ setError(null);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}/campaigns`, {
+ method: "POST",
+ body: JSON.stringify({
+ subject: campSubject.trim(),
+ body: campBody.trim(),
+ status: "queued",
+ ...(campAudience ? { segmentId: campAudience } : {}),
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't send the campaign.");
+ const c = data.campaign;
+ if (c?.status === "sent") {
+ setCampResult(`${t("email-list.campaign_sent_msg")}: ${c.deliveredCount}/${c.recipientCount} ${t("email-list.delivered_word")}`);
+ } else {
+ setCampResult(`${t("email-list.campaign_failed_msg")}${data.dispatch?.reason ? ` (${data.dispatch.reason})` : ""}`);
+ }
+ loadEngagement(activeListId);
+ loadSubscribers(activeListId);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't send the campaign.");
+ } finally {
+ setCampSending(false);
+ }
+ }
 
  const activeList = lists.find((l) => l.id === activeListId);
 
@@ -414,7 +614,8 @@ export default function EmailListBuilder() {
  </>
  ) : (
  <>
- <p className="mt-2 font-display text-3xl font-black">{stats?.openRate ?? 0}</p>
+ <p className="mt-2 font-display text-3xl font-black">{stats ? Math.round((stats.openRate ?? 0) * 10) / 10 : 0}</p>
+ <p className="mt-1 text-xs text-white/40">{stats?.totalOpens ?? 0} {t("email-list.opens_total")} · {stats?.totalClicks ?? 0} {t("email-list.clicks_total")}</p>
  <p className="mt-1 text-xs text-white/40">{t("email-list.best_effort_pixel_tracking")}</p>
  </>
  )}
@@ -437,7 +638,8 @@ export default function EmailListBuilder() {
  ) : (
  <div className="mt-3 divide-y divide-white/5">
  {subscribers.slice(0, 10).map((s) => (
- <div key={s.id} className="flex items-center justify-between py-2.5 text-sm">
+ <div key={s.id} className="py-2.5 text-sm">
+ <div className="flex items-center justify-between">
  <div>
  <p className="font-medium">{s.name || s.email}</p>
  {s.name && <p className="text-xs text-white/40">{s.email}</p>}
@@ -446,11 +648,169 @@ export default function EmailListBuilder() {
  <span className="rounded-full border border-white/10 px-2 py-0.5">{s.source}</span>
  {s.unsubscribedAt && <span className="text-red-300/70">{t("email-list.unsubscribed")}</span>}
  <span>{new Date(s.subscribedAt).toLocaleDateString()}</span>
+ <button
+ type="button"
+ className="rounded-full border border-primary/40 px-2 py-0.5 font-semibold text-primary hover:bg-primary/10"
+ onClick={() => {
+ if (editingTagsFor === s.id) { setEditingTagsFor(null); return; }
+ setEditingTagsFor(s.id);
+ setDraftTagIds(emailTags.filter((tg) => s.tags.includes(tg.name)).map((tg) => tg.id));
+ }}
+ >
+ {t("email-list.tags")}
+ </button>
+ </div>
+ </div>
+ {(s.tags.length > 0 || s.autoTags.length > 0) && (
+ <div className="mt-1.5 flex flex-wrap gap-1.5">
+ {s.tags.map((tg) => (
+ <span key={tg} className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">{tg}</span>
+ ))}
+ {s.autoTags.map((tg) => (
+ <span key={tg} className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/55">{t(`email-list.at_${tg}`)}</span>
+ ))}
+ </div>
+ )}
+ {editingTagsFor === s.id && (
+ <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/40 p-3">
+ {emailTags.length === 0 && <span className="text-xs text-white/40">{t("email-list.add_tag")} ↓</span>}
+ {emailTags.map((tg) => (
+ <label key={tg.id} className="flex items-center gap-1.5 text-xs text-white/70">
+ <input
+ type="checkbox"
+ checked={draftTagIds.includes(tg.id)}
+ onChange={(e) => setDraftTagIds((prev) => e.target.checked ? [...prev, tg.id] : prev.filter((x) => x !== tg.id))}
+ />
+ {tg.name}
+ </label>
+ ))}
+ <button type="button" className={tabBtn(true) + " px-3 py-1.5 text-xs"} onClick={() => saveSubscriberTags(s.id)}>
+ {t("email-list.save_tags")}
+ </button>
+ </div>
+ )}
+ </div>
+ ))}
+ </div>
+ )}
+ </div>
+
+ {/* ── tags + segments ── */}
+ <div className={`${cardClass} mt-4`}>
+ <h3 className="font-semibold">{t("email-list.tags")} & {t("email-list.segments")}</h3>
+ <div className="mt-3 flex flex-wrap items-center gap-2">
+ {emailTags.map((tg) => (
+ <span key={tg.id} className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
+ {tg.name} · {tg.subscriberCount}
+ <button type="button" aria-label={`delete ${tg.name}`} className="text-primary/60 hover:text-primary" onClick={() => deleteTag(tg.id)}>×</button>
+ </span>
+ ))}
+ <input
+ className="w-44 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-primary/60"
+ placeholder={t("email-list.tag_name_placeholder")}
+ value={newTagName}
+ onChange={(e) => setNewTagName(e.target.value)}
+ onKeyDown={(e) => { if (e.key === "Enter") createTag(); }}
+ />
+ <button type="button" className={tabBtn(true) + " px-3 py-1.5 text-xs"} onClick={createTag}>
+ <Plus className="h-3.5 w-3.5" />{t("email-list.add_tag")}
+ </button>
+ </div>
+ <p className="mt-2 text-xs text-white/35">{t("email-list.tag_subscribers_hint")}</p>
+
+ {segments.length > 0 && (
+ <div className="mt-4 divide-y divide-white/5">
+ {segments.map((seg) => (
+ <div key={seg.id} className="flex items-center justify-between py-2 text-sm">
+ <div>
+ <p className="font-medium">{seg.name}</p>
+ <p className="text-xs text-white/40">
+ {seg.criteria.tags.join(", ")}
+ {seg.criteria.autoTags.length > 0 && ` · ${seg.criteria.autoTags.map((a) => t(`email-list.at_${a}`)).join(", ")}`}
+ {seg.criteria.sources.length > 0 && ` · ${seg.criteria.sources.join(", ")}`}
+ {seg.criteria.engagement !== "any" && ` · ${t(`email-list.eng_${seg.criteria.engagement}`)}`}
+ </p>
+ </div>
+ <div className="flex items-center gap-3">
+ <span className="text-xs font-semibold text-primary">{seg.size} {t("email-list.members_word")}</span>
+ <button type="button" aria-label={`delete ${seg.name}`} className="rounded-lg p-1.5 text-white/30 hover:bg-red-500/10 hover:text-red-300" onClick={() => deleteSegment(seg.id)}>
+ <Trash2 className="h-3.5 w-3.5" />
+ </button>
  </div>
  </div>
  ))}
  </div>
  )}
+
+ <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-3">
+ <input
+ className={inputClass}
+ placeholder={t("email-list.segment_name_placeholder")}
+ value={segName}
+ onChange={(e) => setSegName(e.target.value)}
+ />
+ <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-white/40">{t("email-list.manual_tags_all")}</p>
+ <div className="mt-1.5 flex flex-wrap gap-2">
+ {emailTags.map((tg) => (
+ <label key={tg.id} className="flex items-center gap-1.5 text-xs text-white/70">
+ <input
+ type="checkbox"
+ checked={segTags.includes(tg.name)}
+ onChange={(e) => setSegTags((prev) => e.target.checked ? [...prev, tg.name] : prev.filter((x) => x !== tg.name))}
+ />
+ {tg.name}
+ </label>
+ ))}
+ {emailTags.length === 0 && <span className="text-xs text-white/35">—</span>}
+ </div>
+ <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-white/40">{t("email-list.automatic_tags_all")}</p>
+ <div className="mt-1.5 flex flex-wrap gap-2">
+ {AUTO_TAG_KEYS.map((k) => (
+ <label key={k} className="flex items-center gap-1.5 text-xs text-white/70">
+ <input
+ type="checkbox"
+ checked={segAutoTags.includes(k)}
+ onChange={(e) => setSegAutoTags((prev) => e.target.checked ? [...prev, k] : prev.filter((x) => x !== k))}
+ />
+ {t(`email-list.at_${k}`)}
+ </label>
+ ))}
+ </div>
+ <div className="mt-3 grid gap-3 sm:grid-cols-2">
+ <div>
+ <p className="text-xs font-semibold uppercase tracking-widest text-white/40">{t("email-list.sources_any")}</p>
+ <div className="mt-1.5 flex flex-wrap gap-2">
+ {SOURCE_KEYS.map((k) => (
+ <label key={k} className="flex items-center gap-1.5 text-xs capitalize text-white/70">
+ <input
+ type="checkbox"
+ checked={segSources.includes(k)}
+ onChange={(e) => setSegSources((prev) => e.target.checked ? [...prev, k] : prev.filter((x) => x !== k))}
+ />
+ {k}
+ </label>
+ ))}
+ </div>
+ </div>
+ <div>
+ <p className="text-xs font-semibold uppercase tracking-widest text-white/40">{t("email-list.engagement_label")}</p>
+ <select
+ value={segEngagement}
+ onChange={(e) => setSegEngagement(e.target.value)}
+ className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {["any", "opened", "clicked", "engaged", "none"].map((k) => (
+ <option key={k} value={k}>{t(`email-list.eng_${k}`)}</option>
+ ))}
+ </select>
+ </div>
+ </div>
+ <button type="button" className={tabBtn(true) + " mt-3"} onClick={createSegment} disabled={segCreating}>
+ {segCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+ {t("email-list.create_segment")}
+ </button>
+ <p className="mt-2 text-xs text-white/35">{t("email-list.segments_suppression_note")}</p>
+ </div>
  </div>
  </>
  )}
@@ -570,6 +930,90 @@ export default function EmailListBuilder() {
  </div>
  <p className="mt-3 text-xs text-white/35">{t("email-list.ai_draft_read_it_make_it_yours_t")}</p>
  </div>
+ )}
+
+ {/* ── send a campaign (tracked, segment-aware) ── */}
+ {activeList && (
+ <>
+ <div className={`${cardClass} mt-4`}>
+ <h3 className="flex items-center gap-2 font-semibold"><Send className="h-4 w-4 text-primary" />{t("email-list.send_a_campaign")}</h3>
+ <div className="mt-3 flex flex-wrap items-center gap-3">
+ <label className="text-sm text-white/50">{t("email-list.list")}</label>
+ <select
+ value={activeListId}
+ onChange={(e) => setActiveListId(e.target.value)}
+ className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {lists.map((l) => (
+ <option key={l.id} value={l.id}>{l.name} (@{l.handle})</option>
+ ))}
+ </select>
+ <label className="text-sm text-white/50">{t("email-list.audience")}</label>
+ <select
+ value={campAudience}
+ onChange={(e) => setCampAudience(e.target.value)}
+ className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ <option value="">{t("email-list.whole_list")}</option>
+ {segments.map((seg) => (
+ <option key={seg.id} value={seg.id}>{seg.name} ({seg.size})</option>
+ ))}
+ </select>
+ {nlDraft && (
+ <button
+ type="button"
+ className="rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20"
+ onClick={() => { setCampSubject(nlDraft.subject); setCampBody(nlDraft.body); }}
+ >
+ {t("email-list.use_ai_draft")}
+ </button>
+ )}
+ </div>
+ <input
+ className={inputClass + " mt-3"}
+ placeholder={t("email-list.subject")}
+ value={campSubject}
+ onChange={(e) => setCampSubject(e.target.value)}
+ />
+ <textarea
+ className={inputClass + " mt-3"}
+ rows={6}
+ placeholder={t("email-list.body")}
+ value={campBody}
+ onChange={(e) => setCampBody(e.target.value)}
+ />
+ <button className={tabBtn(true) + " mt-3"} onClick={sendCampaignNow} disabled={campSending || !campSubject.trim() || !campBody.trim()}>
+ {campSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+ {t("email-list.send_campaign_btn")}
+ </button>
+ {campResult && <p className="mt-2 text-sm text-primary">{campResult}</p>}
+ <p className="mt-2 text-xs text-white/35">{t("email-list.segments_suppression_note")}</p>
+ </div>
+
+ <div className={`${cardClass} mt-4`}>
+ <h3 className="font-semibold">{t("email-list.campaign_history")}</h3>
+ {campaigns.length === 0 ? (
+ <p className="mt-2 text-sm text-white/45">{t("email-list.no_campaigns_yet")}</p>
+ ) : (
+ <div className="mt-3 divide-y divide-white/5">
+ {campaigns.map((c) => (
+ <div key={c.id} className="flex items-center justify-between py-2.5 text-sm">
+ <div>
+ <p className="font-medium">{c.subject}</p>
+ <p className="text-xs text-white/40">{new Date(c.sentAt ?? c.createdAt).toLocaleDateString()}</p>
+ </div>
+ <div className="flex items-center gap-3 text-xs text-white/50">
+ <span className={`rounded-full border px-2 py-0.5 font-semibold ${c.status === "sent" ? "border-emerald-400/40 text-emerald-300" : c.status === "failed" ? "border-red-400/40 text-red-300" : "border-white/15 text-white/50"}`}>{c.status}</span>
+ <span>{c.deliveredCount} {t("email-list.delivered_word")}</span>
+ <span>{c.openCount} {t("email-list.opens_word")}</span>
+ <span>{c.clickCount} {t("email-list.clicks_word")}</span>
+ </div>
+ </div>
+ ))}
+ </div>
+ )}
+ </div>
+ </>
  )}
  </div>
  )}

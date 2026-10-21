@@ -1,30 +1,30 @@
 /**
- * locale-email-explainer.test.ts — Stack-30 integrator resolution (item 29).
+ * locale-email-explainer.test.ts — the "how sending works" explainer,
+ * tracked era (migration 0188).
  *
- * Lane D (D2) proved no open-tracking signal exists anywhere — no
- * tracking-pixel endpoint, no provider webhook, nothing ever writes
- * email_subscribers.opens — and corrected the opens CARD to an honest
- * "Not tracked" state. But the Email List page's "how sending works"
- * explainer (email-list.campaigns_queue_through_our_simp) still closed
- * with "Open tracking uses a best-effort pixel and undercounts
- * privacy-conscious inboxes" in en AND all 9 translated catalogs —
- * the same false claim, one surface over. This resolution corrects
- * the sentence everywhere to match the card's treatment: open
- * tracking isn't wired up yet, so no open rates are reported.
+ * History: Stack-30 corrected this explainer in all 10 catalogs when
+ * the page falsely claimed pixel open tracking that did not exist.
+ * Tracking has now LANDED for real (house pixel + wrapped links on
+ * every campaign send, plus the verified provider webhook), so the
+ * explainer's closing claim changed again — in every catalog: opens
+ * and link clicks ARE tracked, rates shown are recorded engagement,
+ * and every email carries a one-click unsubscribe with absolute
+ * suppression.
  *
- * These assertions pin the contract so the pixel claim cannot creep
- * back into any catalog: the key exists everywhere, the honest en
- * wording is present, no catalog's explainer mentions a pixel in its
- * own script, and the (true) rest of the explainer — the ESP
- * graduation note — survives.
+ * Pins that survive from the Stack-30 contract, unchanged: the key
+ * exists everywhere; the ESP graduation note survives; and the
+ * explainer never uses the word "pixel" in any catalog's script —
+ * tracking is disclosed functionally ("opens and link clicks are
+ * tracked"), not by mechanism name. The en wording pins below state
+ * the new truth exactly.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const ALL = ["en", "es", "fr", "de", "it", "pt", "ar", "hi", "ja", "ko"] as const;
 
-/* "pixel" spelled in each catalog's script — the explainer must never
-   claim pixel tracking exists, in any language. */
+/* "pixel" spelled in each catalog's script — the explainer discloses
+   tracking without naming the mechanism, in any language. */
 const PIXEL_WORDS: Record<string, RegExp> = {
   en: /pixel/i,
   es: /píxel|pixel/i,
@@ -46,7 +46,7 @@ function explainer(locale: string): string {
   return v;
 }
 
-describe("email-list explainer — no catalog claims pixel open tracking", () => {
+describe("email-list explainer — tracked-era disclosure in every catalog", () => {
   it.each(ALL)("%s carries the explainer, corrected", (locale) => {
     const v = explainer(locale);
     expect(v.trim().length).toBeGreaterThan(0);
@@ -56,10 +56,12 @@ describe("email-list explainer — no catalog claims pixel open tracking", () =>
     expect(v).toMatch(/ESP|ईएसपी/);
   });
 
-  it("en states the honest position in Lane D's words", () => {
+  it("en states the tracked truth", () => {
     const v = explainer("en");
-    expect(v).toContain("Open tracking isn't wired up yet");
+    expect(v).toContain("Opens and link clicks are tracked");
     expect(v).toContain("no fake numbers");
+    expect(v).toContain("one-click unsubscribe");
+    expect(v).not.toContain("isn't wired up yet");
     expect(v).not.toContain("best-effort");
   });
 });

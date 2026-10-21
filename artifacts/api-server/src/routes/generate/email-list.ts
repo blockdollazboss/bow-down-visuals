@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, count, desc, isNull } from "drizzle-orm";
+import { eq, and, count, desc, inArray, isNull } from "drizzle-orm";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -12,8 +12,20 @@ import {
   emailListsTable,
   emailSubscribersTable,
   emailCampaignsTable,
+  emailCampaignDeliveriesTable,
+  emailSegmentsTable,
+  emailSubscriberTagsTable,
+  emailTagsTable,
   insertEmailListSchema,
 } from "@workspace/db";
+import {
+  autoTagsFor,
+  evaluateSegment,
+  loadListFacts,
+  normalizeCriteria,
+  parseStoredCriteria,
+} from "../../lib/email-segments";
+import { dispatchCampaign } from "../../lib/email-campaign-send";
 import {
   EMAIL_NEWSLETTER_CREDIT_COST,
   EMAIL_FREE_SUBSCRIBER_LIMIT,
@@ -37,9 +49,16 @@ const router = Router();
    data — free. The AI newsletter writer burns compute — 1 credit per
    draft, charged BEFORE the model call, refunded on provider failure.
 
-   Honesty (v1): sends go through a simple server-side queue, NOT a
-   dedicated email service provider. Deliverability, inbox placement, and
-   scale limits are disclosed in the UI — never promised. */
+   Honesty: sends go through the house Resend rail with best-effort
+   deliverability — no guaranteed inbox placement, disclosed in the UI.
+   Engagement (opens/clicks) is tracked for real since migration 0188:
+   a house pixel + wrapped-link redirects on every campaign send, plus
+   the signature-verified Resend webhook, deduplicated first-signal-
+   wins into email_engagement_events. Stats below read those recorded
+   signals only — a list that has never sent reports opensTracked
+   false and a null open rate, never a fabricated number. Tags and
+   segments (lib/email-segments) build audiences over the same rail;
+   unsubscribed addresses are excluded from every audience, always. */
 
 /* ── Public: subscribe (no auth — used by embed forms + landing pages) ── */
 
@@ -250,7 +269,7 @@ router.delete("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req
 router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [list] = await db
-    .select({ id: emailListsTable.id })
+    .select()
     .from(emailListsTable)
     .where(and(eq(emailListsTable.id, id), eq(emailListsTable.userId, req.userId!)))
     .limit(1);
@@ -265,22 +284,39 @@ router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, a
     .orderBy(desc(emailSubscribersTable.subscribedAt))
     .limit(500);
   const active = subscribers.filter((s) => !s.unsubscribedAt);
-  /* Open tracking is NOT wired up — reported honestly as not tracked.
-     Nothing in the system records an email open: there is no tracking
-     pixel endpoint and no provider webhook, and campaigns are queued
-     rows (no send pipeline stamps opens either). The subscribers.opens
-     column therefore stays 0 forever, and the previous code turned that
-     into a permanently-0 "openRate" the dashboard presented as a
-     measured stat. Until a real open signal exists, the stat is null
-     and opensTracked is false — never a fabricated number. */
+  /* Engagement is tracked for real (migration 0188): opens and clicks
+     land in email_engagement_events from the house pixel/redirect and
+     the verified Resend webhook, and the recorder maintains the
+     opens/clicks counters read here. A list with no tracked sends yet
+     has no signal at all — it still reports opensTracked false and a
+     null rate rather than dressing up "never measured" as 0%. */
+  const facts = await loadListFacts(list, subscribers);
+  const enriched = subscribers.map((s) => {
+    const f = facts.get(s.id);
+    return {
+      ...s,
+      tags: f ? [...f.manualTags] : [],
+      autoTags: f ? autoTagsFor(f, s.source) : [],
+    };
+  });
+  const [deliveryCount] = await db
+    .select({ value: count() })
+    .from(emailCampaignDeliveriesTable)
+    .innerJoin(emailCampaignsTable, eq(emailCampaignDeliveriesTable.campaignId, emailCampaignsTable.id))
+    .where(eq(emailCampaignsTable.listId, id));
+  const opensTracked = (deliveryCount?.value ?? 0) > 0;
+  const totalOpens = active.reduce((sum, s) => sum + s.opens, 0);
+  const totalClicks = active.reduce((sum, s) => sum + s.clicks, 0);
   res.json({
-    subscribers,
+    subscribers: enriched,
     stats: {
       total: subscribers.length,
       active: active.length,
       unsubscribed: subscribers.length - active.length,
-      openRate: null,
-      opensTracked: false,
+      openRate: opensTracked && active.length > 0 ? totalOpens / active.length : null,
+      opensTracked,
+      totalOpens,
+      totalClicks,
       freeLimit: EMAIL_FREE_SUBSCRIBER_LIMIT,
     },
   });
@@ -312,6 +348,278 @@ router.post("/email-list/lists/:id/unsubscribe", publicApiLimiter, requireAuth, 
       )
     );
   res.json({ ok: true });
+});
+
+/* ── Authed: tags (migration 0188 — manual labels per list) ────────────── */
+
+async function ownList(req: { userId?: string }, id: string) {
+  const [list] = await db
+    .select()
+    .from(emailListsTable)
+    .where(and(eq(emailListsTable.id, id), eq(emailListsTable.userId, req.userId!)))
+    .limit(1);
+  return list ?? null;
+}
+
+const tagNameSchema = z.object({
+  name: z.string().trim().min(1, "Tag name is required.").max(40),
+});
+
+router.get("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const tags = await db
+    .select()
+    .from(emailTagsTable)
+    .where(eq(emailTagsTable.listId, id))
+    .orderBy(emailTagsTable.name);
+  const links = await db
+    .select({ tagId: emailSubscriberTagsTable.tagId, value: count() })
+    .from(emailSubscriberTagsTable)
+    .innerJoin(emailTagsTable, eq(emailSubscriberTagsTable.tagId, emailTagsTable.id))
+    .where(eq(emailTagsTable.listId, id))
+    .groupBy(emailSubscriberTagsTable.tagId);
+  const counts = new Map(links.map((l) => [l.tagId, l.value]));
+  res.json({ tags: tags.map((t) => ({ ...t, subscriberCount: counts.get(t.id) ?? 0 })) });
+});
+
+router.post("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const parsed = tagNameSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid tag.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
+    return;
+  }
+  const name = parsed.data.name.toLowerCase();
+  const [existing] = await db
+    .select()
+    .from(emailTagsTable)
+    .where(and(eq(emailTagsTable.listId, id), eq(emailTagsTable.name, name)))
+    .limit(1);
+  if (existing) {
+    res.json({ tag: existing });
+    return;
+  }
+  const [tag] = await db.insert(emailTagsTable).values({ listId: id, name }).returning();
+  res.status(201).json({ tag });
+});
+
+router.delete("/email-list/lists/:id/tags/:tagId", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const tagId = String(req.params.tagId ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const [deleted] = await db
+    .delete(emailTagsTable)
+    .where(and(eq(emailTagsTable.id, tagId), eq(emailTagsTable.listId, id)))
+    .returning({ id: emailTagsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Tag not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+router.put("/email-list/lists/:id/subscribers/:subId/tags", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const subId = String(req.params.subId ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const parsed = z.object({ tagIds: z.array(z.string().uuid()).max(50) }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid tag set." });
+    return;
+  }
+  const [sub] = await db
+    .select({ id: emailSubscribersTable.id })
+    .from(emailSubscribersTable)
+    .where(and(eq(emailSubscribersTable.id, subId), eq(emailSubscribersTable.listId, id)))
+    .limit(1);
+  if (!sub) {
+    res.status(404).json({ error: "Subscriber not found." });
+    return;
+  }
+  /* Every tag must belong to THIS list — a foreign tag id is a 400,
+     never a silent cross-list link. */
+  let tags: Array<{ id: string; name: string }> = [];
+  if (parsed.data.tagIds.length > 0) {
+    tags = await db
+      .select({ id: emailTagsTable.id, name: emailTagsTable.name })
+      .from(emailTagsTable)
+      .where(and(eq(emailTagsTable.listId, id), inArray(emailTagsTable.id, parsed.data.tagIds)));
+    if (tags.length !== parsed.data.tagIds.length) {
+      res.status(400).json({ error: "One or more tags don't belong to this list." });
+      return;
+    }
+  }
+  await db.delete(emailSubscriberTagsTable).where(eq(emailSubscriberTagsTable.subscriberId, subId));
+  if (tags.length > 0) {
+    await db.insert(emailSubscriberTagsTable).values(tags.map((t) => ({ subscriberId: subId, tagId: t.id })));
+  }
+  res.json({ ok: true, tags: tags.map((t) => t.name) });
+});
+
+/* ── Authed: segments (migration 0188 — saved audiences) ──────────────── */
+
+const segmentSchema = z.object({
+  name: z.string().trim().min(1, "Segment name is required.").max(80),
+  criteria: z.unknown(),
+});
+
+async function validateCriteriaForList(listId: string, raw: unknown) {
+  const criteria = normalizeCriteria(raw);
+  if (!criteria) return null;
+  if (criteria.tags.length > 0) {
+    const known = await db
+      .select({ name: emailTagsTable.name })
+      .from(emailTagsTable)
+      .where(eq(emailTagsTable.listId, listId));
+    const knownNames = new Set(known.map((t) => t.name.toLowerCase()));
+    if (!criteria.tags.every((t) => knownNames.has(t))) return null;
+  }
+  return criteria;
+}
+
+router.get("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const segments = await db
+    .select()
+    .from(emailSegmentsTable)
+    .where(eq(emailSegmentsTable.listId, id))
+    .orderBy(desc(emailSegmentsTable.createdAt));
+  const withSizes = [];
+  for (const seg of segments) {
+    const criteria = parseStoredCriteria(seg.criteria);
+    const members = await evaluateSegment(list, criteria);
+    withSizes.push({ ...seg, criteria, size: members.length });
+  }
+  res.json({ segments: withSizes });
+});
+
+router.post("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const parsed = segmentSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid segment.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
+    return;
+  }
+  const criteria = await validateCriteriaForList(id, parsed.data.criteria);
+  if (!criteria) {
+    res.status(400).json({ error: "Invalid segment criteria — check tag names, auto tags, sources, and engagement.", code: "invalid_criteria" });
+    return;
+  }
+  const [segment] = await db
+    .insert(emailSegmentsTable)
+    .values({ listId: id, name: parsed.data.name, criteria: JSON.stringify(criteria) })
+    .returning();
+  const members = await evaluateSegment(list, criteria);
+  res.status(201).json({ segment: { ...segment, criteria, size: members.length } });
+});
+
+router.patch("/email-list/lists/:id/segments/:segId", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const segId = String(req.params.segId ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const parsed = segmentSchema.partial().safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid segment update." });
+    return;
+  }
+  const patch: { name?: string; criteria?: string; updatedAt: Date } = { updatedAt: new Date() };
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  let criteriaObj = null;
+  if (parsed.data.criteria !== undefined) {
+    criteriaObj = await validateCriteriaForList(id, parsed.data.criteria);
+    if (!criteriaObj) {
+      res.status(400).json({ error: "Invalid segment criteria.", code: "invalid_criteria" });
+      return;
+    }
+    patch.criteria = JSON.stringify(criteriaObj);
+  }
+  const [updated] = await db
+    .update(emailSegmentsTable)
+    .set(patch)
+    .where(and(eq(emailSegmentsTable.id, segId), eq(emailSegmentsTable.listId, id)))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Segment not found." });
+    return;
+  }
+  const criteria = criteriaObj ?? parseStoredCriteria(updated.criteria);
+  const members = await evaluateSegment(list, criteria);
+  res.json({ segment: { ...updated, criteria, size: members.length } });
+});
+
+router.delete("/email-list/lists/:id/segments/:segId", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const segId = String(req.params.segId ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const [deleted] = await db
+    .delete(emailSegmentsTable)
+    .where(and(eq(emailSegmentsTable.id, segId), eq(emailSegmentsTable.listId, id)))
+    .returning({ id: emailSegmentsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Segment not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+router.get("/email-list/lists/:id/segments/:segId/members", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const segId = String(req.params.segId ?? "");
+  const list = await ownList(req, id);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const [segment] = await db
+    .select()
+    .from(emailSegmentsTable)
+    .where(and(eq(emailSegmentsTable.id, segId), eq(emailSegmentsTable.listId, id)))
+    .limit(1);
+  if (!segment) {
+    res.status(404).json({ error: "Segment not found." });
+    return;
+  }
+  const members = await evaluateSegment(list, parseStoredCriteria(segment.criteria));
+  res.json({
+    segment: { ...segment, criteria: parseStoredCriteria(segment.criteria), size: members.length },
+    members: members.map((m) => ({ id: m.id, email: m.email, name: m.name, source: m.source, opens: m.opens, clicks: m.clicks })),
+  });
 });
 
 /* ── Authed: CSV export (free — pure data) ─────────────────────────────── */
@@ -448,12 +756,15 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
   }
 });
 
-/* ── Authed: campaigns (drafts + queue) ────────────────────────────────── */
+/* ── Authed: campaigns (drafts + tracked sends, migration 0188) ───────── */
 
 const campaignSchema = z.object({
   subject: z.string().min(1, "Subject is required.").max(200),
   body: z.string().min(1, "Body is required.").max(50000),
-  status: z.enum(["draft", "queued", "sent"]).default("draft"),
+  /* A campaign can no longer be created already-"sent": sending is a
+     real act performed by dispatch (or not at all). */
+  status: z.enum(["draft", "queued"]).default("draft"),
+  segmentId: z.string().uuid().nullable().optional(),
 });
 
 router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, async (req, res) => {
@@ -495,13 +806,69 @@ router.post("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, as
     });
     return;
   }
-  /* v1 honesty: "queued" means the simple server-side queue — the UI
-     discloses this is not a dedicated ESP with inbox-placement guarantees. */
+  /* A segment audience must belong to THIS list — a segment id from
+     another list (or another creator) is rejected, never widened. */
+  if (parsed.data.segmentId) {
+    const [segment] = await db
+      .select({ id: emailSegmentsTable.id })
+      .from(emailSegmentsTable)
+      .where(and(eq(emailSegmentsTable.id, parsed.data.segmentId), eq(emailSegmentsTable.listId, id)))
+      .limit(1);
+    if (!segment) {
+      res.status(400).json({ error: "That segment doesn't belong to this list.", code: "segment_mismatch" });
+      return;
+    }
+  }
   const [campaign] = await db
     .insert(emailCampaignsTable)
-    .values({ ...parsed.data, listId: id })
+    .values({ subject: parsed.data.subject, body: parsed.data.body, status: parsed.data.status, segmentId: parsed.data.segmentId ?? null, listId: id })
     .returning();
-  res.status(201).json({ campaign });
+  /* "queued" is a real send now: dispatch resolves the audience
+     (whole list or segment — unsubscribed always excluded), sends
+     through the house rail with tracking, and lands the campaign in
+     sent/failed with measured counts. */
+  let dispatch = null;
+  if (campaign.status === "queued") {
+    dispatch = await dispatchCampaign(campaign.id);
+    const [fresh] = await db.select().from(emailCampaignsTable).where(eq(emailCampaignsTable.id, campaign.id)).limit(1);
+    res.status(201).json({ campaign: fresh ?? campaign, dispatch });
+    return;
+  }
+  res.status(201).json({ campaign, dispatch });
+});
+
+router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter, requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const campaignId = String(req.params.campaignId ?? "");
+  const [list] = await db
+    .select({ id: emailListsTable.id })
+    .from(emailListsTable)
+    .where(and(eq(emailListsTable.id, id), eq(emailListsTable.userId, req.userId!)))
+    .limit(1);
+  if (!list) {
+    res.status(404).json({ error: "List not found." });
+    return;
+  }
+  const [campaign] = await db
+    .select()
+    .from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.listId, id)))
+    .limit(1);
+  if (!campaign) {
+    res.status(404).json({ error: "Campaign not found." });
+    return;
+  }
+  if (campaign.status !== "draft" && campaign.status !== "failed") {
+    res.status(409).json({ error: `Campaign is ${campaign.status} — it can't be sent again from here.`, code: "not_sendable" });
+    return;
+  }
+  await db
+    .update(emailCampaignsTable)
+    .set({ status: "queued" })
+    .where(eq(emailCampaignsTable.id, campaignId));
+  const dispatch = await dispatchCampaign(campaignId);
+  const [fresh] = await db.select().from(emailCampaignsTable).where(eq(emailCampaignsTable.id, campaignId)).limit(1);
+  res.json({ campaign: fresh ?? campaign, dispatch });
 });
 
 export default router;

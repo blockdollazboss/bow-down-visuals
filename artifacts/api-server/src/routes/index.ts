@@ -345,9 +345,11 @@ import publicStatsRouter from "./public-stats";
 import retentionDropsRouter from "./retention-drops";
 import arcadeRouter from "./arcade";
 import partyRouter from "./party";
+import emailTrackingRouter from "./email-tracking";
 
 const router: IRouter = Router();
 
+router.use("/email-track", emailTrackingRouter);
 router.use(healthRouter);
 router.use(songRouter);
 router.use(songInspoRouter);

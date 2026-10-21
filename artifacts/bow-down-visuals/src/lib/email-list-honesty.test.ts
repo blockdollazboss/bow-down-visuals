@@ -2,14 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /**
- * Stack-30 D2 (frontend half) — the Email List dashboard's opens card.
+ * Email List dashboard opens card — tracked era (migration 0188).
  *
- * No open-tracking signal exists anywhere in the system (no pixel
- * endpoint, no provider webhook), so the API now reports the opens stat
- * as openRate: null + opensTracked: false. The card must render the
- * not-tracked state — a label that says opens aren't tracked — instead
- * of the old measured-looking "0" footnoted "best-effort pixel
- * tracking" (tracking that does not exist).
+ * The Stack-30 contract stands where it is still true: the API
+ * reports openRate: null + opensTracked: false until a list has a
+ * tracked send, and the card renders the not-tracked state instead of
+ * a measured-looking 0 — "never measured" is never dressed up as a
+ * measurement. What changed: tracking now EXISTS, so the not-tracked
+ * note no longer claims tracking "isn't wired up" — it says there are
+ * no tracked sends yet — and once sends exist the card shows the
+ * recorded opens/clicks the API measured.
  */
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const pageSource = read("../pages/email-list.tsx");
@@ -30,6 +32,7 @@ describe("email-list opens card honesty", () => {
   it("the not-tracked copy exists in the English catalog and fakes nothing", () => {
     const section = en["email-list"] ?? {};
     expect(section["opens_not_tracked"]).toBe("Not tracked");
-    expect(section["opens_not_tracked_note"]).toContain("isn't wired up yet");
+    expect(section["opens_not_tracked_note"]).toContain("no tracked sends yet");
+    expect(section["opens_not_tracked_note"]).not.toContain("isn't wired up yet");
   });
 });
