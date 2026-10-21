@@ -75,8 +75,8 @@ export const OPERATOR_FEATURES: OperatorFeature[] = OPERATOR_KB.features;
 
 const STOPWORDS = new Set([
   "the", "a", "an", "i", "me", "my", "can", "you", "how", "do", "does", "is",
-  "it", "to", "for", "of", "on", "in", "what", "where", "when", "much", "many",
-  "cost", "costs", "price", "want", "need", "get", "got",
+  "are", "it", "to", "for", "of", "on", "in", "what", "where", "when", "much",
+  "many", "cost", "costs", "price", "want", "need", "get", "got",
   "with", "and", "or", "your", "yours", "this", "that", "there", "here",
   "please", "tell", "show", "give", "help", "use", "using", "about",
 ]);
@@ -108,9 +108,119 @@ function pathTokens(f: OperatorFeature): string[] {
     .filter((s) => s.length > 1);
 }
 
+/** Light plural folding ("songs" → "song", "videos" → "video") for the
+    weaker tiers only — path, price-name, and description matching. Name
+    matching deliberately stays exact/prefix: a plural query word must
+    not earn full name weight for a creation tool ("songs" is not the
+    name "Make a Song"). Words ending in "ss"/"us" are not plurals. */
+function stem(t: string): string {
+  return t.length > 3 && t.endsWith("s") && !t.endsWith("ss") && !t.endsWith("us")
+    ? t.slice(0, -1)
+    : t;
+}
+
+function stemIncludes(list: string[], t: string): boolean {
+  const s = stem(t);
+  return list.some((x) => stem(x) === s);
+}
+
+/* ── Collection intent ─────────────────────────────────────────────────
+   "Where is my music library?" is a LOCATOR question about the member's
+   own collection — but the tokenizer drops "my" as a stopword, so the
+   ownership signal never reached scoring and the question was ranked
+   exactly like "make music": a creation tool won on raw token overlap
+   while the member's collection page ("My Music") earned nothing from
+   the word "library" (its name tokenizes to just ["music"]).
+
+   The fix reads the intent off the RAW message before stopwording:
+   a possessive ("my"/"mine") or a collection noun ("library"/
+   "collection") marks collection intent — unless the message carries
+   a creation verb, which makes it a creation question no matter whose
+   name is on the output ("How do I make my music video?").
+
+   Under collection intent, a feature that IS a member collection —
+   the site's own naming convention: the name starts with "My " — earns
+   a decisive bonus when it is about the same content the member named.
+   Content is compared by domain, because the collection's head word
+   is rarely the member's word: their songs live in My MUSIC, their
+   videos in My CLIPS. Domain-less collections (My Projects, My Shop)
+   qualify only on a literal shared content token, and only when the
+   message names no domain at all. */
+
+const CREATION_VERBS = new Set([
+  "make", "makes", "making", "create", "creates", "creating",
+  "generate", "generates", "generating", "build", "builds", "building",
+]);
+
+const DOMAIN_TOKENS: Record<string, readonly string[]> = {
+  audio: ["music", "song", "track", "audio"],
+  video: ["video", "clip", "film", "movie"],
+};
+
+function domainsOf(list: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const [domain, words] of Object.entries(DOMAIN_TOKENS)) {
+    if (list.some((t) => words.includes(stem(t)))) out.add(domain);
+  }
+  return out;
+}
+
+const COLLECTION_BONUS = 10;
+
+interface MatchContext {
+  /** True when the message asks to LOCATE the member's own collection. */
+  collection: boolean;
+  /** Content domains the message names (audio / video), stemmed compare. */
+  domains: Set<string>;
+  /** The domain of the LAST domain word in the message — the head noun.
+      "music video" names two domains, but the thing being located is a
+      video; the bonus follows the head noun so a collection from the
+      other domain cannot claim it. */
+  headDomain: string | null;
+}
+
+function matchContext(message: string, q: string[]): MatchContext {
+  const possessive = /\b(my|mine)\b/i.test(message);
+  const collectionNoun = q.some((t) => stem(t) === "library" || stem(t) === "collection");
+  const creationVerb = q.some((t) => CREATION_VERBS.has(t));
+  // A price question is never a locator question, possessive or not:
+  // "how much does it cost to publish my link in bio page" is asking
+  // what a page charges, and its carrier is found through the price
+  // tier — collection treatment must not mute that tier or boost a
+  // collection page into its place.
+  const priceQuestion = /\b(cost|costs|price|pricing|much)\b/i.test(message);
+  let headDomain: string | null = null;
+  for (const t of q) {
+    for (const [domain, words] of Object.entries(DOMAIN_TOKENS)) {
+      if (words.includes(stem(t))) headDomain = domain;
+    }
+  }
+  return {
+    collection: (possessive || collectionNoun) && !creationVerb && !priceQuestion,
+    domains: domainsOf(q),
+    headDomain,
+  };
+}
+
+function collectionBonus(f: OperatorFeature, q: string[], ctx: MatchContext): number {
+  if (!ctx.collection) return 0;
+  if (!/^my\s/i.test(f.name)) return 0;
+  const own = [...nameTokens(f), ...pathTokens(f)];
+  const ownDomains = domainsOf(own);
+  if (ctx.headDomain) {
+    return ownDomains.has(ctx.headDomain) ? COLLECTION_BONUS : 0;
+  }
+  // No domain named: a domain-less collection (My Projects, My Shop)
+  // qualifies only on a literal shared content token.
+  if (ownDomains.size === 0 && own.some((t) => stemIncludes(q, t))) {
+    return COLLECTION_BONUS;
+  }
+  return 0;
+}
+
 /** Score one feature against the query tokens. Name words are the strongest
     signal, then path words, then description words. */
-function scoreFeature(f: OperatorFeature, q: string[]): number {
+function scoreFeature(f: OperatorFeature, q: string[], ctx: MatchContext): number {
   const names = nameTokens(f);
   const paths = pathTokens(f);
   const desc = f.description ? tokens(f.description) : [];
@@ -119,20 +229,30 @@ function scoreFeature(f: OperatorFeature, q: string[]): number {
   for (const t of q) {
     if (names.includes(t)) score += 5;
     else if (names.some((n) => n.startsWith(t) || t.startsWith(n))) score += 2;
-    if (paths.includes(t)) score += 3;
-    if (priceNames.includes(t)) score += 3;
-    if (desc.includes(t)) score += 1;
+    if (stemIncludes(paths, t)) score += 3;
+    // The price-name tier exists for price questions. Under collection
+    // intent the member is locating their own things, not buying — what
+    // a page can charge for must not outrank the collection page itself
+    // (the Songs tab's "Analyze Song Sections" price nearly did).
+    if (!ctx.collection && stemIncludes(priceNames, t)) score += 3;
+    if (stemIncludes(desc, t)) score += 1;
   }
   // Whole-phrase name mention ("make a song", "brand deals") is the
   // surest hit there is: the query's words, in order, spelling the name.
+  // The equality arm requires a MULTI-word name phrase: a one-word query
+  // equal to a one-word name ("songs" → Songs) is just the name hit
+  // above — paying the phrase bonus too would double-count it and let a
+  // tab named after the item outrank the member's collection page.
   const phrase = q.join(" ");
   const namePhrase = nameTokens(f).join(" ");
   if (
     phrase &&
-    (phrase === namePhrase || (q.length >= 2 && ` ${namePhrase} `.includes(` ${phrase} `)))
+    ((namePhrase.includes(" ") && phrase === namePhrase) ||
+      (q.length >= 2 && ` ${namePhrase} `.includes(` ${phrase} `)))
   ) {
     score += 8;
   }
+  score += collectionBonus(f, q, ctx);
   return score;
 }
 
@@ -140,7 +260,8 @@ function scoreFeature(f: OperatorFeature, q: string[]): number {
 export function findFeatures(message: string, limit = 4): OperatorFeature[] {
   const q = tokens(message);
   if (q.length === 0) return [];
-  return OPERATOR_FEATURES.map((f) => ({ f, s: scoreFeature(f, q) }))
+  const ctx = matchContext(message, q);
+  return OPERATOR_FEATURES.map((f) => ({ f, s: scoreFeature(f, q, ctx) }))
     .filter((x) => x.s >= 3)
     .sort((a, b) => b.s - a.s || a.f.name.localeCompare(b.f.name))
     .slice(0, limit)
