@@ -808,6 +808,12 @@ export interface ProToolsSettings {
   curves: ColorCurves | null;
   /** Custom speed-ramp segments (Stack 5 #4). null = use speedCurve/speed. */
   speedSegments: SpeedSegment[] | null;
+  /** Drawn custom speed curve (Wave 3 #18): the creator's own points,
+   *  drawn on the graph in SpeedSegmentsPanel. null = no drawn curve.
+   *  When set, speedSegments holds the segments the curve exports as
+   *  (derived by segmentsFromCustomCurve in lib/motion-pro.ts); picking a
+   *  preset/flat speed or hand-editing segments clears this to null. */
+  customSpeedCurve: SpeedCurvePoint[] | null;
   /** Grade preset used as a starting point (null = manual only). */
   colorGradePreset: string | null;
   chromaKey: ChromaKeySettings;
@@ -1653,6 +1659,7 @@ export function defaultProTools(): ProToolsSettings {
     colorCorrection: defaultColorCorrection(),
     curves: null,
     speedSegments: null,
+    customSpeedCurve: null,
     colorGradePreset: null,
     chromaKey: defaultChromaKey(),
     speed: 1,

@@ -1,4 +1,5 @@
-/* ── Custom speed segments + bézier keyframe easing (Stack 5 #4 / #8) ────
+/* ── Custom speed segments + bézier keyframe easing (Stack 5 #4 / #8)
+ *    + drawn custom speed curves (Wave 3 #18, see the section below) ────
  * #4: a custom speed ramp is a list of segments that TILE the clip — each
  * segment plays at a constant speed. Presets (SPEED_CURVE_PRESETS) remain
  * the starting points: segmentsFromPresetCurve samples a preset curve into
@@ -95,6 +96,89 @@ export function speedAtSegments(segments: SpeedSegment[], t: number): number {
 export function outputDurationForSegments(segments: SpeedSegment[], durationSec: number): number {
   return normalizeSpeedSegments(segments)
     .reduce((acc, s) => acc + ((s.endT - s.startT) * durationSec) / s.speed, 0);
+}
+
+/* ── Drawn custom speed curves (Wave 3 #18) ─────────────────────────────
+ * The creator draws a ramp as points (normalized time → speed) on a graph
+ * in SpeedSegmentsPanel. The points are the editable source and persist on
+ * ProToolsSettings.customSpeedCurve; export renders SEGMENTS derived from
+ * them by segmentsFromCustomCurve — the same sampler the preset curves use
+ * (segmentsFromPresetCurve) — and the panel states the resulting segment
+ * count, so the approximation is never silent. The derived segments live
+ * in speedSegments, so server export (buildSpeedSegmentsFilter) is the
+ * exact machinery preset-derived segments already render through. */
+
+export const SPEED_CURVE_MIN = 0.25;
+export const SPEED_CURVE_MAX = 4;
+export const MAX_CUSTOM_CURVE_POINTS = 12;
+/** Points closer than this (in normalized time) collapse into one. */
+export const MIN_CURVE_POINT_GAP = 0.02;
+
+const roundCurveT = (n: number) => Math.round(n * 1000) / 1000;
+const roundCurveSpeed = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Validate drawn points into a storable curve: finite values only, time
+ * clamped to the clip [0,1], speed clamped to the rail's supported range
+ * [0.25, 4], sorted by time. Points sharing a time collapse to the last
+ * one drawn; interior points closer than MIN_CURVE_POINT_GAP to the
+ * previous kept point are dropped (never stored corrupt) — except a point
+ * exactly at t=1, which always survives by replacing a crowding interior
+ * neighbour. Returns [] when nothing valid remains.
+ */
+export function normalizeSpeedCurvePoints(
+  points: SpeedCurvePoint[] | null | undefined,
+): SpeedCurvePoint[] {
+  const cleaned = (points ?? [])
+    .filter((p) => p && Number.isFinite(p.t) && Number.isFinite(p.speed))
+    .map((p) => ({
+      t: roundCurveT(clamp(p.t, 0, 1)),
+      speed: roundCurveSpeed(clamp(p.speed, SPEED_CURVE_MIN, SPEED_CURVE_MAX)),
+    }))
+    .sort((a, b) => a.t - b.t);
+  const deduped: SpeedCurvePoint[] = [];
+  for (const p of cleaned) {
+    const last = deduped[deduped.length - 1];
+    if (last && last.t === p.t) deduped[deduped.length - 1] = p;
+    else deduped.push(p);
+  }
+  const kept: SpeedCurvePoint[] = [];
+  deduped.forEach((p, i) => {
+    const last = kept[kept.length - 1];
+    if (!last || p.t - last.t >= MIN_CURVE_POINT_GAP) {
+      kept.push(p);
+      return;
+    }
+    const isFinal = i === deduped.length - 1;
+    if (isFinal && p.t === 1 && last.t !== 0) {
+      kept[kept.length - 1] = p;
+    }
+    // Otherwise the point crowds its predecessor — dropped, not stored.
+  });
+  return kept;
+}
+
+/**
+ * The export form of a drawn curve: sampled into constant-speed segments
+ * by the same sampler the preset curves use, with the sample count scaled
+ * to the point count (8–16), then adjacent equal-speed spans merged — a
+ * flat stretch of curve is ONE segment, so the count the panel states is
+ * the count that renders. Returns [] for an empty/invalid curve.
+ */
+export function segmentsFromCustomCurve(
+  rawPoints: SpeedCurvePoint[] | null | undefined,
+): SpeedSegment[] {
+  const points = normalizeSpeedCurvePoints(rawPoints);
+  if (points.length === 0) return [];
+  const count = Math.min(16, Math.max(8, points.length * 2));
+  const sampled = segmentsFromPresetCurve(points, count);
+  const merged: SpeedSegment[] = [];
+  for (const s of sampled) {
+    const last = merged[merged.length - 1];
+    if (last && last.speed === s.speed) last.endT = s.endT;
+    else merged.push({ ...s });
+  }
+  return merged;
 }
 
 /** Split a segment at normalized time t into two segments (same speed). */
