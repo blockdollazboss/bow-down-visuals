@@ -226,11 +226,11 @@ describe("GIF insert rides the image-attachment path", () => {
   it("produces an image attachment descriptor with the themed URL", () => {
     expect(gifImageAttachment("gif-king-bow", "dark")).toEqual({
       kind: "image",
-      url: "/gifs/dark/king-bow.gif",
+      url: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/gifs/dark/king-bow.gif",
     });
     expect(gifImageAttachment("gif-vb-coin-spin", "light")).toEqual({
       kind: "image",
-      url: "/gifs/light/vb-coin-spin.gif",
+      url: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/gifs/light/vb-coin-spin.gif",
     });
     expect(gifImageAttachment("gif-king-wave", "dark")).toBeNull();
   });
@@ -239,7 +239,7 @@ describe("GIF insert rides the image-attachment path", () => {
     expect(kingEmojiUrl("king-wave", "dark")).toBeNull();
     expect(kingGifUrl("gif-king-wave", "light")).toBeNull();
     expect(kingEmojiUrl("king-laugh", "light")).toBe("/emoji/light/king-laugh.webp");
-    expect(kingGifUrl("gif-king-laugh", "dark")).toBe("/gifs/dark/king-laugh.gif");
+    expect(kingGifUrl("gif-king-laugh", "dark")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/gifs/dark/king-laugh.gif");
   });
 });
 

@@ -310,7 +310,7 @@ function KonamiEgg() {
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src="/cheat-code-avatar.webp"
+          src={mediaUrl("cheat-code-avatar.webp")}
           alt={t("home.konamiAlt")}
           className="mx-auto mb-6 h-32 w-32 rounded-full border-2 border-primary object-cover"
         />
@@ -362,7 +362,7 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             Sits behind the glows so they wash over it; the mask fades it into the next section. */}
         <img
           className="absolute inset-0 h-full w-full object-cover"
-          src={isLight ? "/images/shark-king-final-banner-light-v1.webp" : "/images/shark-king-final-banner-dark-v1.webp"}
+          src={mediaUrl(isLight ? "images/shark-king-final-banner-light-v1.webp" : "images/shark-king-final-banner-dark-v1.webp")}
           alt=""
           aria-hidden="true"
           draggable={false}
@@ -1761,8 +1761,8 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 z-0 homepage-stage"
         style={{
           backgroundImage: isLight
-            ? "url(/images/subpage-bg-ivory-palace-v1.webp)"
-            : "url(/images/home-bg-gold-curtain-stage.webp)",
+            ? `url(${mediaUrl("images/subpage-bg-ivory-palace-v1.webp")})`
+            : `url(${mediaUrl("images/home-bg-gold-curtain-stage.webp")})`,
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat",

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { mediaUrl } from "@/lib/media-cdn";
 import { PixelSprite } from "@/components/pixel-headline";
 import { cn } from "@/lib/utils";
 import {
@@ -421,7 +422,7 @@ export function CheatCodeJackpot() {
  {/* Banner image background — theme-aware: golden palace on light, dark palace on dark */}
  <img
    className="absolute inset-0 h-full w-full object-cover opacity-40"
-   src={isLight ? "/images/shark-king-final-banner-light-v1.webp" : "/images/shark-king-final-banner-dark-v1.webp"}
+   src={mediaUrl(isLight ? "images/shark-king-final-banner-light-v1.webp" : "images/shark-king-final-banner-dark-v1.webp")}
    alt=""
    aria-hidden="true"
    draggable={false}
@@ -431,7 +432,7 @@ export function CheatCodeJackpot() {
  {/* Light theme: transparent sprite — the webp has a baked black
      background that reads as a black stamp on the cream banner. */}
  <img
- src={isLight ? "/images/thy-cheat-code-8bit-transparent.png" : "/thy-cheat-code-8bit.webp"}
+ src={mediaUrl(isLight ? "images/thy-cheat-code-8bit-transparent.png" : "thy-cheat-code-8bit.webp")}
  alt=""
  width={40}
  height={40}
@@ -671,7 +672,7 @@ export function CheatCodeJackpot() {
  >
  <div className="mb-6 flex justify-center">
  <img
- src="/thy-cheat-code-8bit.webp"
+ src={mediaUrl("thy-cheat-code-8bit.webp")}
  alt="Thy Cheat Code"
  width={120}
  height={120}

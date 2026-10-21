@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X, Gift, Timer } from "lucide-react";
+import { mediaUrl } from "@/lib/media-cdn";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -118,7 +119,7 @@ export default function SharkDropModal({
 
         {/* Mascot — the character-locked Shark King, ringed in gold */}
         <div className={`mx-auto -mt-16 mb-4 h-28 w-28 rounded-full border-[3px] border-[#e8c86a] shadow-[0_0_35px_rgba(232,200,106,0.55)] overflow-hidden ${isLight ? "bg-[#F7F1E3]" : "bg-black"}`}>
-          <img src={isLight ? "/images/shark-king-light-authority.png" : "/favicon.gif"} alt="Thy Cheat Code, the Shark King" className="h-full w-full object-cover" draggable={false} />
+          <img src={isLight ? mediaUrl("images/shark-king-light-authority.png") : "/favicon.gif"} alt="Thy Cheat Code, the Shark King" className="h-full w-full object-cover" draggable={false} />
         </div>
 
         <p className="text-[10px] font-black tracking-[0.22em] text-[#C9A84C]/80 uppercase flex items-center justify-center gap-1.5">

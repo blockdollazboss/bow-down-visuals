@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
+import { mediaUrl } from "@/lib/media-cdn";
 import {
   Crown, Users, Swords, Sparkles, Copy, Check, Play, LogOut, Trophy,
   Loader2, Radio, CircleUserRound, Hash, DoorOpen, Gamepad2,
@@ -72,8 +73,8 @@ const CATEGORY_ICON: Record<PartyCategory, typeof Music2> = {
 /** Duel crown math mirrors the server (PARTY_DUEL_ROUNDS_TO_WIN). */
 const DUEL_ROUNDS_TO_WIN = 3;
 
-const KING_AVATAR = "/cheat-code-avatar.webp";
-const COIN_IMG = "/images/visual-bucs-coin-transparent.png";
+const KING_AVATAR = mediaUrl("cheat-code-avatar.webp");
+const COIN_IMG = mediaUrl("images/visual-bucs-coin-transparent.png");
 
 /* ─── Stage motion (CSS only, namespaced — no global stylesheet edit) ── */
 const PARTY_FX_CSS = `
