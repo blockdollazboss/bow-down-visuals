@@ -18,11 +18,25 @@
 
 import kbJson from "./operator-knowledge.json" with { type: "json" };
 
+/** One duration tier of a tiered price (e.g. a song priced by length):
+    the price for anything up to `upToSeconds` long. Sourced at
+    generation time from the exported tier table the charging function
+    derives from — never hand-typed knowledge. */
+export interface OperatorPriceTier {
+  upToSeconds: number;
+  vb: number;
+}
+
 export interface OperatorPrice {
   feature: string;
   vb: number;
   endpoint: string;
   source: string;
+  /** Duration tiers when the rail prices by length. `vb` stays the
+      first tier's figure (the registry's flat record); the tiers are
+      the complete price the operator quotes. */
+  tiers?: OperatorPriceTier[];
+  tiersSource?: string;
 }
 
 /** A dollar-priced advertising placement (the takeover offers). Dollars
@@ -182,6 +196,15 @@ export function buildFeatureIndex(): string {
   return lines.join("\n");
 }
 
+/** "1 minute" / "3 minutes" / "90 seconds" for a tier length. */
+function formatTierLength(seconds: number): string {
+  if (seconds % 60 === 0) {
+    const mins = seconds / 60;
+    return `${mins} minute${mins === 1 ? "" : "s"}`;
+  }
+  return `${seconds} seconds`;
+}
+
 /** Full verified facts for one feature — the only facts the operator may
     state about it. Prices appear ONLY when the knowledge entry carries
     them (sourced from the code registry at generation time). */
@@ -192,7 +215,16 @@ export function formatFeatureFacts(f: OperatorFeature): string {
   if (f.inputs?.length) lines.push(`  Works with: ${f.inputs.join(", ")}.`);
   if (f.prices.length) {
     for (const p of f.prices.slice(0, 6)) {
-      lines.push(`  Price: ${p.feature} — ${p.vb === 0 ? "free" : `${p.vb.toLocaleString("en-US")} Visual Bucs`}.`);
+      if (p.tiers?.length) {
+        // A length-tiered price replaces the flat line entirely: quoting
+        // only the first tier's figure under-quotes every longer job.
+        const tiers = p.tiers
+          .map((t) => `up to ${formatTierLength(t.upToSeconds)} — ${t.vb.toLocaleString("en-US")} Visual Bucs`)
+          .join("; ");
+        lines.push(`  Price: ${p.feature} — priced by length: ${tiers}.`);
+      } else {
+        lines.push(`  Price: ${p.feature} — ${p.vb === 0 ? "free" : `${p.vb.toLocaleString("en-US")} Visual Bucs`}.`);
+      }
     }
   }
   if (f.offer) {
@@ -243,7 +275,13 @@ export function buildGrounding(message: string): string {
 export const KNOWN_VB_FIGURES: ReadonlySet<number> = (() => {
   const set = new Set<number>([0]);
   for (const f of OPERATOR_FEATURES) {
-    for (const p of f.prices) set.add(p.vb);
+    for (const p of f.prices) {
+      set.add(p.vb);
+      // Tier figures are vouched by the same sourced price entry that
+      // carries them — a quoted 800 / 1,200 VB song price is knowledge,
+      // not invention, exactly because the entry states the tiers.
+      for (const t of p.tiers ?? []) set.add(t.vb);
+    }
     if (f.description) {
       for (const m of f.description.matchAll(/(\d[\d,]*)\s*(?:VB|Visual Bucs)/g)) {
         set.add(Number(m[1].replace(/,/g, "")));

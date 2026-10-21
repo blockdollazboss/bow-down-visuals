@@ -29,11 +29,24 @@ const DEFAULT_LENGTH_MS = 60_000;
  * - Up to 1 min:  400 Visual Bucs (~$2.00, ~$0.30 cost)
  * - Up to 3 min:  800 Visual Bucs (~$4.00, ~$0.90 cost)
  * - Up to 5 min: 1200 Visual Bucs (~$6.00, ~$1.50 cost)
+ *
+ * SONG_PRICE_TIERS is the single source for these numbers:
+ * creditCostForLength derives from it, the operator Tier-3 song tools
+ * price through creditCostForLength, and the operator knowledge-base
+ * generator (scripts/generate-operator-knowledge.mjs) parses this table
+ * so the chat quotes the same tiers this rail charges.
  */
+export const SONG_PRICE_TIERS = [
+  { maxLengthMs: 60_000, cost: 400 },
+  { maxLengthMs: 180_000, cost: 800 },
+  { maxLengthMs: 300_000, cost: 1_200 },
+] as const;
+
 export function creditCostForLength(lengthMs: number): number {
-  if (lengthMs <= 60_000) return 400;
-  if (lengthMs <= 180_000) return 800;
-  return 1200;
+  for (const tier of SONG_PRICE_TIERS) {
+    if (lengthMs <= tier.maxLengthMs) return tier.cost;
+  }
+  return SONG_PRICE_TIERS[SONG_PRICE_TIERS.length - 1].cost;
 }
 
 export function clampLengthMs(raw: unknown): number {
