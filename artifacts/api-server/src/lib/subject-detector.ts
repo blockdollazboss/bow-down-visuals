@@ -95,6 +95,23 @@ interface ProbeInfo {
   durationSec: number;
 }
 
+/** Display dimensions for a probed stream. ffprobe reports the
+ *  CODED width/height; when the file carries a ±90°/270° display
+ *  rotation (every phone-shot portrait video does), ffmpeg decodes
+ *  — and the render crops — the SWAPPED frame. Everything
+ *  downstream (feed scaling, matte geometry, crop planning) must
+ *  work in display geometry, or the matte lands squished and the
+ *  plan is computed against a frame that doesn't exist. */
+export function displayDims(
+  width: number,
+  height: number,
+  rotation?: number | null,
+): { width: number; height: number } {
+  if (rotation == null || !isFinite(rotation)) return { width, height };
+  const quarter = ((rotation % 180) + 180) % 180 === 90;
+  return quarter ? { width: height, height: width } : { width, height };
+}
+
 async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
   try {
     const { stdout } = await execFileAsync(
@@ -103,6 +120,8 @@ async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
         "-v", "error",
         "-select_streams", "v:0",
         "-show_entries", "stream=width,height",
+        "-show_entries", "stream_side_data=rotation",
+        "-show_entries", "stream_tags=rotate",
         "-show_entries", "format=duration",
         "-of", "json",
         inputPath,
@@ -110,14 +129,30 @@ async function probeVideo(inputPath: string): Promise<ProbeInfo | null> {
       { timeout: 60_000 },
     );
     const parsed = JSON.parse(String(stdout)) as {
-      streams?: Array<{ width?: number; height?: number }>;
+      streams?: Array<{
+        width?: number;
+        height?: number;
+        side_data_list?: Array<{ rotation?: number }>;
+        tags?: { rotate?: string };
+      }>;
       format?: { duration?: string };
     };
     const stream = parsed.streams?.[0];
-    const width = stream?.width ?? 0;
-    const height = stream?.height ?? 0;
+    const codedW = stream?.width ?? 0;
+    const codedH = stream?.height ?? 0;
+    if (!codedW || !codedH) return null;
+    const sideRotation = stream?.side_data_list?.find(
+      (sd) => typeof sd.rotation === "number",
+    )?.rotation;
+    const tagRotation = stream?.tags?.rotate
+      ? Number(stream.tags.rotate)
+      : undefined;
+    const { width, height } = displayDims(
+      codedW,
+      codedH,
+      sideRotation ?? (tagRotation !== undefined && isFinite(tagRotation) ? tagRotation : null),
+    );
     const durationSec = parseFloat(parsed.format?.duration ?? "0");
-    if (!width || !height) return null;
     return {
       width,
       height,
