@@ -5629,6 +5629,23 @@
     "deleting": "Deleting…",
     "deleteError": "Deletion failed. Try again."
   },
+  "social-proof": {
+    "title": "Social proof",
+    "description": "Verified audience numbers from your connected accounts, shown on your public profile with the date they were measured.",
+    "refresh": "Refresh now",
+    "refreshing": "Refreshing…",
+    "refreshError": "The refresh didn't go through. Give it another shot.",
+    "saveError": "That switch didn't save. Give it another shot.",
+    "loadError": "Your social proof wouldn't load.",
+    "retry": "Try again",
+    "noProfile": "Social proof lives on your creator profile.",
+    "noProfileCta": "Create your profile",
+    "noAccounts": "Connect an account above and your real follower numbers can show on your profile — only numbers the platform itself reports, never estimates.",
+    "noFigures": "No numbers yet. Hit Refresh now and we'll read what your connected platforms actually report.",
+    "updated": "Updated {{date}}",
+    "disconnected": "Disconnected — no longer shown",
+    "lastSync": "Last synced {{date}}"
+  },
   "sfx": {
     "categoryAmbient": "Ambient",
     "categoryAmbientBlurb": "Beds, atmospheres",

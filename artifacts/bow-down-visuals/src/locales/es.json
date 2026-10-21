@@ -4722,6 +4722,23 @@
     "subtitle": "Tu cuenta y conexiones",
     "title": "Ajustes"
   },
+  "social-proof": {
+    "title": "Prueba social",
+    "description": "Cifras de audiencia verificadas de tus cuentas conectadas, visibles en tu perfil público con la fecha en que se midieron.",
+    "refresh": "Actualizar ahora",
+    "refreshing": "Actualizando…",
+    "refreshError": "La actualización no se completó. Inténtalo de nuevo.",
+    "saveError": "Ese cambio no se guardó. Inténtalo de nuevo.",
+    "loadError": "Tu prueba social no se pudo cargar.",
+    "retry": "Reintentar",
+    "noProfile": "La prueba social vive en tu perfil de creador.",
+    "noProfileCta": "Crea tu perfil",
+    "noAccounts": "Conecta una cuenta arriba y tus cifras reales de seguidores podrán mostrarse en tu perfil — solo números que la propia plataforma reporta, nunca estimaciones.",
+    "noFigures": "Aún no hay cifras. Pulsa Actualizar ahora y leeremos lo que tus plataformas conectadas reportan en realidad.",
+    "updated": "Actualizado el {{date}}",
+    "disconnected": "Desconectada — ya no se muestra",
+    "lastSync": "Última sincronización: {{date}}"
+  },
   "sfx": {
     "categoryAmbient": "Ambiente",
     "categoryAmbientBlurb": "Colchones, atmósferas",

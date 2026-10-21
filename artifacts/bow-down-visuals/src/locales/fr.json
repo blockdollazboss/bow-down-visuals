@@ -4722,6 +4722,23 @@
     "subtitle": "Ton compte et tes connexions",
     "title": "Paramètres"
   },
+  "social-proof": {
+    "title": "Preuve sociale",
+    "description": "Chiffres d'audience vérifiés de vos comptes connectés, affichés sur votre profil public avec la date à laquelle ils ont été mesurés.",
+    "refresh": "Actualiser",
+    "refreshing": "Actualisation…",
+    "refreshError": "L'actualisation n'a pas abouti. Réessayez.",
+    "saveError": "Ce réglage ne s'est pas enregistré. Réessayez.",
+    "loadError": "Votre preuve sociale n'a pas pu se charger.",
+    "retry": "Réessayer",
+    "noProfile": "La preuve sociale vit sur votre profil de créateur.",
+    "noProfileCta": "Créer votre profil",
+    "noAccounts": "Connectez un compte ci-dessus et vos vrais chiffres d'abonnés pourront s'afficher sur votre profil — uniquement les nombres que la plateforme elle-même rapporte, jamais des estimations.",
+    "noFigures": "Aucun chiffre pour le moment. Touchez Actualiser et nous lirons ce que vos plateformes connectées rapportent réellement.",
+    "updated": "Mis à jour le {{date}}",
+    "disconnected": "Déconnecté — n'est plus affiché",
+    "lastSync": "Dernière synchronisation : {{date}}"
+  },
   "sfx": {
     "categoryAmbient": "Ambiant",
     "categoryAmbientBlurb": "Lits, ambiances",

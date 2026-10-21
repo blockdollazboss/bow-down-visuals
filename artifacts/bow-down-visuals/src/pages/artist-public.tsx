@@ -10,6 +10,7 @@ import {
   ProfileActions, ProfileSectionByType, MadeWithBadge,
 } from "@/components/artist/profile-sections";
 import TrophyShelf from "@/components/artist/TrophyShelf";
+import SocialProofStrip from "@/components/artist/SocialProofStrip";
 import PartyTableSection from "@/components/artist/PartyTableSection";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
@@ -334,6 +335,9 @@ export default function ArtistPublic() {
               <>
                 {profile.is_official && <OfficialBadge />}
                 {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+                {/* C5: verified social proof from connected accounts
+                    (renders nothing when no figure is live). */}
+                <SocialProofStrip figures={profile.social_proof} />
               </>
             )}
           </div>

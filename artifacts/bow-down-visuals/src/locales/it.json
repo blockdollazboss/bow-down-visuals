@@ -4121,6 +4121,23 @@
     "subtitle": "Il tuo account e le tue connessioni",
     "title": "Impostazioni"
   },
+  "social-proof": {
+    "title": "Prova sociale",
+    "description": "Numeri di pubblico verificati dai tuoi account collegati, mostrati sul tuo profilo pubblico con la data in cui sono stati misurati.",
+    "refresh": "Aggiorna ora",
+    "refreshing": "Aggiornamento…",
+    "refreshError": "L'aggiornamento non è riuscito. Riprova.",
+    "saveError": "Quell'interruttore non si è salvato. Riprova.",
+    "loadError": "La tua prova sociale non si è caricata.",
+    "retry": "Riprova",
+    "noProfile": "La prova sociale vive sul tuo profilo da creator.",
+    "noProfileCta": "Crea il tuo profilo",
+    "noAccounts": "Collega un account qui sopra e i tuoi numeri reali di follower potranno apparire sul tuo profilo — solo numeri che la piattaforma stessa riporta, mai stime.",
+    "noFigures": "Ancora nessun numero. Tocca Aggiorna ora e leggeremo ciò che le tue piattaforme collegate riportano davvero.",
+    "updated": "Aggiornato il {{date}}",
+    "disconnected": "Disconnesso — non più mostrato",
+    "lastSync": "Ultima sincronizzazione: {{date}}"
+  },
   "songAndVideo": {
     "analysisComplete": "Analisi completata",
     "analyzeErrorText": "Analisi non riuscita — puoi comunque generare senza.",

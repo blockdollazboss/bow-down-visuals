@@ -409,6 +409,18 @@ export interface ProfileMediaItem {
   href?: string;
 }
 
+export interface SocialProofFigureDto {
+  key: string;
+  platform: string;
+  label: string;
+  /** The exact number the platform returned — rendered in full. */
+  value: number;
+  accountLabel: string;
+  updatedAt: string;
+  /** Past the 6h fresh window — the strip shows the date either way. */
+  stale: boolean;
+}
+
 export interface CreatorProfile {
   id: string;
   user_id: string;
@@ -441,6 +453,11 @@ export interface CreatorProfile {
   shop_handle?: string | null;
   /* Virality wave: the creator's referral rank badge (null when unranked). */
   recruiter_badge?: { stars: number; title: string; signups: number; ratePct: number } | null;
+  /* C5: live social proof — verified figures from the creator's
+     connected accounts, already shaped server-side for public display
+     (hidden / disconnected / >7-day figures never ship). updatedAt is
+     when the platform actually returned the number. */
+  social_proof?: SocialProofFigureDto[];
   custom_domain?: string | null;
   /* Extension fields (Worker 4) — optional, rendered defensively. */
   stream_schedule?: StreamInfo | null;
