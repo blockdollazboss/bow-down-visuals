@@ -58,8 +58,21 @@ describe("WorldPalace.presenceSnapshot", () => {
 
   it("never counts a ghost the sweeper would reap", () => {
     const palace = newPalace();
-    const t0 = Date.now();
     palace.hallRoom.attach(fakeSocket(), member("u-a", "Ana"));
+    /* Measure from the peer's ACTUAL silence stamp — the one attach()
+     * wrote — never a wall-clock sample taken before the attach. The
+     * old sample-first version raced the clock tick: when attach
+     * landed 1 ms after the sample, the "past the window" probe below
+     * still found the peer exactly AT the boundary (age == STALE,
+     * which presentPeers counts) and the ghost was counted. Deriving
+     * t0 from the stamp makes both probes exact arithmetic against
+     * the same reference the sweeper itself uses. */
+    const peers = (
+      palace.hallRoom as unknown as {
+        peers: Map<unknown, { lastSeenAt: number }>;
+      }
+    ).peers;
+    const t0 = [...peers.values()][0]!.lastSeenAt;
     // Just inside the stale window: still present.
     expect(palace.presenceSnapshot(t0 + WORLD_PEER_STALE_MS).total).toBe(1);
     // Past it: the peer is a ghost awaiting burial — the count drops
