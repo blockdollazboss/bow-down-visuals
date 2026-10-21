@@ -24,6 +24,7 @@ import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
+import CommandCenter from "@/components/CommandCenter";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { useTranslation } from "react-i18next";
 import {
@@ -490,6 +491,14 @@ export default function Dashboard() {
           </div>
           )}
         </section>
+
+        {/* ── HOME-BASE COMMAND CENTER ──
+            Its own five panels settle/retry independently of the four
+            core sections below (and of each other) — it renders here,
+            outside the all-sections-failed gate, on purpose: a total
+            core failure must not hide it, and its failure must never
+            hide the core. */}
+        <CommandCenter getToken={getAccessToken} isLight={isLight} />
 
         {/* ── RETENTION: CREATION STREAK + WEEKLY QUESTS (dismissible, toggleable) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
