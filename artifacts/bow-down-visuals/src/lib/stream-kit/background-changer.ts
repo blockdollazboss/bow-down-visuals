@@ -566,8 +566,8 @@ export class BackgroundChanger {
     // hostage: if no engine can load, the camera still runs raw —
     // scenes, mixer, recording, the chroma key and camera effects
     // all stay live; only the AI backdrop modes (green/blur/image)
-    // disable. The studio reads segmentationAvailable /
-    // engineError / getEngineKind() after start() resolves and
+    // disable. Engine arrival and failure report through
+    // onEngineStatus / engineError as they settle, and the studio
     // tells the creator plainly. _selectEngine never throws.
     //
     // Raw sessions (mode "none") skip the engine ENTIRELY (Lane F
@@ -587,7 +587,12 @@ export class BackgroundChanger {
     this._frameStall.reset(performance.now());
     this._loop();
     if (this.mode !== "none") {
-      await this._selectEngine();
+      /* Background, never awaited: the raw picture is already
+         live, so the engine's warm-up gates nothing — no spinner,
+         no blocked control waits on it. Its arrival (or failure)
+         reports through onEngineStatus / engineError as it
+         settles, exactly like the lazy setMode load. */
+      void this._selectEngine();
     }
     if (this.config.image) await this.setImage(this.config.image);
     return { stream: this.outputStream, changer: this };
@@ -875,7 +880,21 @@ export class BackgroundChanger {
    * an engine). NEVER throws: a load failure lands raw with
    * engineError set and onEngineStatus fired.
    */
-  private async _selectEngine(): Promise<void> {
+  /* The in-flight engine selection, if any — concurrent callers
+     (start, setMode, setQuality) share ONE load, never race two. */
+  private _engineSelecting: Promise<void> | null = null;
+
+  private _selectEngine(): Promise<void> {
+    if (this._engineSelecting) return this._engineSelecting;
+    const run = this._runEngineSelection();
+    this._engineSelecting = run;
+    void run.finally(() => {
+      if (this._engineSelecting === run) this._engineSelecting = null;
+    });
+    return run;
+  }
+
+  private async _runEngineSelection(): Promise<void> {
     /* Raw mode never selects an engine (Flag E-1) — including a
        selection that was already in flight when the mode flipped. */
     if (this.mode === "none") {
@@ -894,7 +913,14 @@ export class BackgroundChanger {
     try {
       const engine = new MediaPipeEngine(this.config.modelSelection);
       await this._initEngine(engine);
-      if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
+      if (!this._running || this._isRawMode()) {
+        /* The session stopped, or went raw, while the engine was
+           loading: the loaded engine is nobody's — dispose it and
+           (for the raw flip) stand the engine state down. */
+        await engine.dispose().catch(() => undefined);
+        if (this._isRawMode()) await this._teardownEngine();
+        return;
+      }
       await this._swapEngine(engine);
     } catch (err) {
       await this._swapEngine(null, err);
