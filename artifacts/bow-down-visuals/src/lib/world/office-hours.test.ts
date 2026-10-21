@@ -253,7 +253,19 @@ describe("the booking builder", () => {
 
   it("the next-week helper keeps the wall-clock time", () => {
     expect(plusDaysLocalValue("2026-10-18T19:00", 7)).toBe("2026-10-25T19:00");
-    expect(nextHourLocalValue(NOW)).toBe("2026-10-18T13:00");
+    /* The next-hour expectation is derived from NOW's LOCAL wall
+     * clock: the helper speaks datetime-local, so its answer is the
+     * next full hour on the runner's own clock. A literal here only
+     * passes in the author's zone (it read "2026-10-18T13:00" under
+     * UTC, "2026-10-18T09:00" under America/New_York) — derive it
+     * zone-safely instead; the :00 minutes and the +1 hour stay
+     * pinned. */
+    const next = new Date(NOW);
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expectedNext = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:00`;
+    expect(nextHourLocalValue(NOW)).toBe(expectedNext);
   });
 });
 

@@ -103,7 +103,15 @@ describe("card helpers", () => {
   });
 
   it("date labels come from the server stamp; an unusable stamp labels nothing", () => {
-    expect(promoCardDateLabel("2026-01-03T12:00:00.000Z")).toBe("Jan 3, 2026");
+    /* The label renders the stamp on the VIEWER's clock, so the
+     * expected date is derived from the stamp's local components —
+     * a literal only holds in zones where 12:00Z stays on Jan 3
+     * (under UTC+14 it is already Jan 4). */
+    const stamp = new Date("2026-01-03T12:00:00.000Z");
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    expect(promoCardDateLabel("2026-01-03T12:00:00.000Z")).toBe(
+      `${MONTHS[stamp.getMonth()]} ${stamp.getDate()}, ${stamp.getFullYear()}`,
+    );
     expect(promoCardDateLabel("")).toBe("");
     expect(promoCardDateLabel("not-a-date")).toBe("");
   });
