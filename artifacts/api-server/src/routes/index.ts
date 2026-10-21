@@ -329,6 +329,7 @@ import worldEventsRouter from "./world-events";
 import worldCourtSeasonRouter from "./world-court-season";
 import worldContestsRouter from "./world-contests";
 import worldTutorialRouter from "./world-tutorial";
+import moveHomeRouter from "./move-home";
 import dailyQuestsRouter from "./daily-quests";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
@@ -651,6 +652,7 @@ router.use(worldEventsRouter);                // /api/world/events (World Events
 router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court seasons — the Season Marks Wall read, 0153)
 router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
+router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0192)
 router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Daily Quest Trio, 0150)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)
