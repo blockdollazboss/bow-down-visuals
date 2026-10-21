@@ -165,7 +165,9 @@ export default function BroadcastStudio() {
   const [mics, setMics] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [cameraId, setCameraId] = useState("");
   const [micId, setMicId] = useState("");
-  const [mode, setMode] = useState<BackgroundMode>("green");
+  /* Fresh sessions start on Original (raw): backdrop effects are
+     opt-in, so the engine path is never the default path. */
+  const [mode, setMode] = useState<BackgroundMode>("none");
   /* True when no background engine could load: the camera runs
      plain and only the AI backdrop modes disable (one inline notice). */
   const [engineDown, setEngineDown] = useState(false);
@@ -476,16 +478,34 @@ export default function BroadcastStudio() {
           onNoiseStatus: (s) => setNcMsg(s.message),
           onEngineStatus: (kind) => {
             setEngineKind(kind);
-            setEngineDown(kind === "off");
+            /* "Off" is only a FAILURE when a backdrop mode is in
+               play and the kit is carrying an engine error. An
+               engine that is off because the creator is on
+               Original (raw by choice, no error) must not read as
+               "couldn't load" or lock the backdrop pills. */
+            const c = changerRef.current;
+            setEngineDown(kind === "off" && !(c && c.mode === "none" && !c.engineError));
+            /* Raw-first: when the engine lands after a backdrop was
+               already picked, load the chosen backdrop now. */
+            if (kind === "standard" && mode === "image" && c && !c.hasBackdrop()) {
+              void c.setImage(BACKDROP_URIS[backdropId] ?? null).catch(() => undefined);
+            }
           },
         });
       }
       const changer = changerRef.current;
       await changer.start(cameraId || undefined);
-      /* The engine never holds the camera hostage: a failed engine load
-         leaves the camera running plain with the AI backdrop modes off. */
-      const engineOk = changer.segmentationAvailable;
-      setEngineDown(!engineOk);
+      /* Raw-first: start() resolves with the camera live; the engine
+         settles in the background and reports through onEngineStatus.
+         An engine error already on the kit is the only engine-down
+         truth at this point — a still-warming engine is NOT down,
+         and a raw (Original) session is not a failure either. */
+      const backdropWanted = mode !== "none";
+      setEngineDown(backdropWanted && !!changer.engineError);
+      setEngineKind(changer.getEngineKind());
+      if (changer.segmentationAvailable && mode === "image" && !changer.hasBackdrop()) {
+        await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
+      }
       setEngineKind(changer.getEngineKind());
       if (engineOk && mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
@@ -503,7 +523,7 @@ export default function BroadcastStudio() {
       if (shareStream) mixerRef.current.setInputStream("screen", shareStream);
       setPhase("preview");
       setStatusMsg(
-        engineOk
+        !backdropWanted || !changer.engineError
           ? "That's your feed in the Camera source — frame it in a scene, pick a title, and go live when you're ready."
           : "Background effects couldn't load — your camera is running plain. Scenes, sound, recording and the green-screen key all still work.",
       );
