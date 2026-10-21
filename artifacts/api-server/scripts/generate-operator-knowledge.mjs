@@ -26,6 +26,13 @@
                                  GET /api/loading-screen/offer serve
                                  (dollar-priced advertising placements;
                                  the only dollar prices in the base)
+     duration-tiered prices .... src/routes/generate/music-audio.ts
+                                 SONG_PRICE_TIERS — the table the charging
+                                 function creditCostForLength derives from.
+                                 The CREDIT_COSTS registry records only the
+                                 first tier's flat figure for the endpoint,
+                                 so the tiers ride the price entry as
+                                 `tiers` (see TIERED_PRICE_LINKS).
 
    The only hand-kept data in THIS file is classification, mirroring how
    public-routes.ts keeps ROUTE_MATRIX: STAGE_RULES (which journey stage a
@@ -460,6 +467,36 @@ function extractTakeoverOffers() {
   });
 }
 
+/** A duration-tier price table exported from a server route file —
+    the exact table the charging function derives from. Parses the
+    literal's own rows ({ maxLengthMs, cost }); anything unparseable,
+    incomplete, or non-ascending fails the whole generation loudly —
+    the knowledge base never guesses a tier. Returns the tiers as
+    [{ upToSeconds, vb }] ascending by length. */
+function extractPriceTiers(src, constantName, fileLabel) {
+  const start = src.indexOf(`export const ${constantName}`);
+  if (start < 0) throw new Error(`tiered prices: ${constantName} not found in ${fileLabel}`);
+  const open = src.indexOf("[", start);
+  const close = src.indexOf("] as const;", start);
+  if (open < 0 || close < 0 || close < open) {
+    throw new Error(`tiered prices: ${constantName} in ${fileLabel} is not a plain array literal ending "] as const;"`);
+  }
+  const body = src.slice(open, close);
+  const tiers = [...body.matchAll(/\{\s*maxLengthMs:\s*([\d_]+),\s*cost:\s*([\d_]+)\s*\}/g)].map((m) => ({
+    upToSeconds: Number(m[1].replace(/_/g, "")) / 1000,
+    vb: Number(m[2].replace(/_/g, "")),
+  }));
+  if (tiers.length < 2) {
+    throw new Error(`tiered prices: ${constantName} in ${fileLabel} parsed only ${tiers.length} tier(s) — expected the full duration table`);
+  }
+  for (let i = 1; i < tiers.length; i++) {
+    if (tiers[i].upToSeconds <= tiers[i - 1].upToSeconds || tiers[i].vb <= tiers[i - 1].vb) {
+      throw new Error(`tiered prices: ${constantName} in ${fileLabel} is not ascending in length and price`);
+    }
+  }
+  return tiers;
+}
+
 /** Server-side *_COST / *_CREDITS constants (cross-check source). */
 function extractServerCostConstants() {
   const found = [];
@@ -600,6 +637,27 @@ const SERVER_PRICE_LINKS = [
   { constant: "ALBUM_PUBLISH_COST", endpoint: "/api/album-publish" },
 ];
 
+/** Duration-tiered price rails. CLASSIFICATION only — which endpoint is
+    priced by which exported table, and which feature entries front that
+    rail without their page sources naming the endpoint. Every number is
+    EXTRACTED: the tier rows come from the table the charging function
+    derives from, the base figure from CREDIT_COSTS, and generation
+    verifies the two agree at the first tier (and that the route file
+    still serves the endpoint) — drift throws rather than emitting a
+    flat price for a tiered rail.
+    attachToFeatureIds: "Make a Song" fronts this rail through HumToSong
+    (which calls the rail's /extend path) — two component hops from the
+    Create page, past the generator's one-hop endpoint scan — so the
+    desk entry is linked here and verified to exist at generation time. */
+const TIERED_PRICE_LINKS = [
+  {
+    endpoint: "/api/generate-music-audio",
+    tableConstant: "SONG_PRICE_TIERS",
+    routeFile: "routes/generate/music-audio.ts",
+    attachToFeatureIds: ["desk-song"],
+  },
+];
+
 function resolvePageFile(spec) {
   const base = path.join(REPO_ROOT, spec);
   for (const cand of [base + ".tsx", base + ".ts", path.join(base, "index.tsx"), path.join(base, "index.ts")]) {
@@ -619,6 +677,28 @@ function main() {
   const seoPages = extractSeoPages();
   const packs = extractPacks();
   const serverConstants = extractServerCostConstants();
+
+  /* Duration-tiered rails: extract each linked table and verify it
+     against the registry and the serving route before anything is
+     built on it (drift throws — see TIERED_PRICE_LINKS). */
+  const tieredPrices = new Map(); // endpoint -> { tiers, tiersSource }
+  for (const link of TIERED_PRICE_LINKS) {
+    const fileLabel = `artifacts/api-server/src/${link.routeFile}`;
+    const src = read(path.join(API_SRC, link.routeFile));
+    if (!src.includes(`"${link.endpoint.replace("/api", "")}"`)) {
+      throw new Error(`tiered prices: ${fileLabel} no longer serves ${link.endpoint}`);
+    }
+    const tiers = extractPriceTiers(src, link.tableConstant, fileLabel);
+    const registry = creditCosts.get(link.endpoint);
+    if (!registry) throw new Error(`tiered prices: CREDIT_COSTS has no entry for ${link.endpoint} to attach tiers to`);
+    if (registry.cost !== tiers[0].vb) {
+      throw new Error(`tiered prices: CREDIT_COSTS ${link.endpoint}=${registry.cost} disagrees with ${link.tableConstant} first tier=${tiers[0].vb} (${fileLabel})`);
+    }
+    tieredPrices.set(link.endpoint, {
+      tiers,
+      tiersSource: `${fileLabel} ${link.tableConstant} — the table the charging function derives from`,
+    });
+  }
 
   const deskByRoute = new Map(); // full route (incl ?tab) -> { desk, module|null }
   for (const desk of desks) {
@@ -654,7 +734,14 @@ function main() {
     for (const ep of endpoints) {
       const hit = priceFor(ep, creditCosts);
       if (hit && !byKey.has(hit.key)) {
-        byKey.set(hit.key, { feature: hit.feature, vb: hit.cost, endpoint: hit.key, source: CREDIT_COSTS_SOURCE });
+        const tiered = tieredPrices.get(hit.key);
+        byKey.set(hit.key, {
+          feature: hit.feature,
+          vb: hit.cost,
+          endpoint: hit.key,
+          source: CREDIT_COSTS_SOURCE,
+          ...(tiered ? { tiers: tiered.tiers, tiersSource: tiered.tiersSource } : {}),
+        });
       }
     }
     return [...byKey.values()].sort((a, b) => a.endpoint.localeCompare(b.endpoint));
@@ -861,6 +948,37 @@ function main() {
     }
   }
 
+  /* Tiered-price attach pass: features that front a tiered rail without
+     their page sources naming its endpoint (see TIERED_PRICE_LINKS)
+     gain the rail's full price entry — registry label + base figure,
+     tiers attached — so their facts quote the tiers, not just the
+     first tier's flat figure. A missing attach target throws: the
+     link was reviewed against a real feature and must not rot. */
+  for (const link of TIERED_PRICE_LINKS) {
+    const tiered = tieredPrices.get(link.endpoint);
+    const registry = creditCosts.get(link.endpoint);
+    for (const id of link.attachToFeatureIds) {
+      const entry = features.find((f) => f.id === id);
+      if (!entry) {
+        throw new Error(`tiered prices: attach target feature "${id}" for ${link.endpoint} is not in the knowledge base`);
+      }
+      if (!entry.prices.some((p) => p.endpoint === link.endpoint)) {
+        // Copy-on-write: desk entries share their host page's prices
+        // array by reference — never mutate it through one entry.
+        entry.prices = [...entry.prices];
+        entry.prices.push({
+          feature: registry.feature,
+          vb: registry.cost,
+          endpoint: link.endpoint,
+          source: CREDIT_COSTS_SOURCE,
+          tiers: tiered.tiers,
+          tiersSource: tiered.tiersSource,
+        });
+        entry.prices.sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+      }
+    }
+  }
+
   /* Takeover offers: first-class knowledge entries although they are not
      routed pages. Their path is the booking door (the Charts page, whose
      For Brands tab presents both offers and opens the inquiry modals);
@@ -949,6 +1067,9 @@ function main() {
   console.log(`routes in App.tsx: ${routes.length} · page files: ${allPageFiles.length}`);
   console.log(`features: ${features.length} · excluded routes: ${kb.counts.excludedRoutes} · excluded page files: ${kb.counts.excludedPageFiles}`);
   console.log(`priced actions in CREDIT_COSTS: ${creditCosts.size} · packs: ${packs.length} · guides: ${guides.length}`);
+  for (const [endpoint, t] of tieredPrices) {
+    console.log(`tiered price: ${endpoint} — ${t.tiers.map((x) => `≤${x.upToSeconds}s ${x.vb} VB`).join(" · ")} (from ${t.tiersSource})`);
+  }
   for (const { spec, offer } of takeoverOffers) {
     console.log(`takeover offer: ${offer.name} — $${offer.priceDollars} / ${offer.durationDays} days (from ${spec.schemaFile} ${spec.constant}, door ${spec.doorLabel} ${spec.doorPath})`);
   }

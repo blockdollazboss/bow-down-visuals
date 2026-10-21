@@ -259,6 +259,76 @@ describe("operator knowledge — the no-invention price guard", () => {
   });
 });
 
+describe("operator knowledge — song duration tiers (live defect, Oct 20)", () => {
+  const API_SRC = path.resolve(HERE, "..", "..");
+
+  /** Independent re-derivation of SONG_PRICE_TIERS from music-audio.ts —
+      the test parses the route source itself rather than trusting the
+      generator's parser, so a generator drift fails here. */
+  function deriveSongTiers() {
+    const src = read(path.join(API_SRC, "routes", "generate", "music-audio.ts"));
+    const start = src.indexOf("export const SONG_PRICE_TIERS");
+    expect(start, "SONG_PRICE_TIERS in music-audio.ts").toBeGreaterThanOrEqual(0);
+    const body = src.slice(start, src.indexOf("] as const;", start));
+    return [...body.matchAll(/\{\s*maxLengthMs:\s*([\d_]+),\s*cost:\s*([\d_]+)\s*\}/g)].map((m) => ({
+      upToSeconds: Number(m[1].replace(/_/g, "")) / 1000,
+      vb: Number(m[2].replace(/_/g, "")),
+    }));
+  }
+
+  it("the tiers are the ratified 400 / 800 / 1,200 table, and the charging function derives from it", () => {
+    expect(deriveSongTiers()).toEqual([
+      { upToSeconds: 60, vb: 400 },
+      { upToSeconds: 180, vb: 800 },
+      { upToSeconds: 300, vb: 1200 },
+    ]);
+    const src = read(path.join(API_SRC, "routes", "generate", "music-audio.ts"));
+    const fnStart = src.indexOf("export function creditCostForLength");
+    expect(fnStart).toBeGreaterThanOrEqual(0);
+    expect(src.slice(fnStart, fnStart + 400)).toContain("SONG_PRICE_TIERS");
+  });
+
+  it("every knowledge entry for the music-audio rail carries the full tier table", () => {
+    const derived = deriveSongTiers();
+    let carriers = 0;
+    for (const f of OPERATOR_FEATURES) {
+      for (const p of f.prices) {
+        if (p.endpoint !== "/api/generate-music-audio") continue;
+        carriers++;
+        expect(p.tiers, `${f.id} music-audio tiers`).toEqual(derived);
+        expect(p.tiersSource).toContain("music-audio.ts");
+        expect(p.tiersSource).toContain("SONG_PRICE_TIERS");
+        // The registry's flat base figure is the first tier's price:
+        expect(p.vb).toBe(derived[0]!.vb);
+      }
+    }
+    expect(carriers).toBeGreaterThan(10);
+  });
+
+  it("the Make a Song entry itself carries the tiered song price", () => {
+    const song = OPERATOR_FEATURES.find((f) => f.path === "/create?panel=song")!;
+    const p = song.prices.find((x) => x.endpoint === "/api/generate-music-audio");
+    expect(p).toBeTruthy();
+    expect(p!.tiers).toEqual(deriveSongTiers());
+  });
+
+  it("grounding for a 3-minute song question carries the 800 VB tier", () => {
+    const g = buildGrounding("How much is a song up to 3 minutes?");
+    expect(g).toContain("VERIFIED FACTS");
+    expect(g).toContain("priced by length");
+    expect(g).toContain("up to 3 minutes — 800 Visual Bucs");
+    expect(g).toContain("up to 5 minutes — 1,200 Visual Bucs");
+  });
+
+  it("the guard vouches the tier figures — and still catches an invented song price", () => {
+    expect(KNOWN_VB_FIGURES.has(800)).toBe(true);
+    expect(KNOWN_VB_FIGURES.has(1200)).toBe(true);
+    expect(findInventedPrice("A song up to 3 minutes is 800 Visual Bucs.")).toBeNull();
+    expect(findInventedPrice("A full 5-minute song runs 1,200 Visual Bucs.")).toBeNull();
+    expect(findInventedPrice("A song costs 999 VB.")).toBe(999);
+  });
+});
+
 describe("operator knowledge — takeover offers (wave 2 #2)", () => {
   const REPO_ROOT = path.resolve(HERE, "..", "..", "..", "..", "..");
 

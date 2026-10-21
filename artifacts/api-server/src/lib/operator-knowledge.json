@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "774e2a08c87347cc5948960f7ee99e16f115e494",
+  "baseCommit": "ff8adff089eae6e00f85eb9aca819675fec91456",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -851,7 +851,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -1057,7 +1072,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -1257,7 +1287,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -1455,7 +1500,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -1653,7 +1713,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -1851,7 +1926,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -2055,7 +2145,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -2259,7 +2364,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -2457,7 +2577,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -2655,7 +2790,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -2840,7 +2990,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -3038,7 +3203,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -3241,7 +3421,22 @@
           "feature": "Generate Music Audio",
           "vb": 400,
           "endpoint": "/api/generate-music-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate SFX",
@@ -4593,6 +4788,7 @@
         "/api/ugc-ads",
         "/api/ugc-ads/:param",
         "/api/ugc-ads/:param/generate",
+        "/api/ugc-ads/:param/pin",
         "/api/ugc-ads/persona",
         "/api/ugc-ads/products",
         "/api/ugc-ads/script",
@@ -5445,6 +5641,27 @@
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Music Audio",
+          "vb": 400,
+          "endpoint": "/api/generate-music-audio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Video Clip",
