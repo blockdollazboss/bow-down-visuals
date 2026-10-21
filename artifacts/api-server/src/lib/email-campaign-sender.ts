@@ -48,7 +48,6 @@ import {
   emailCampaignsTable,
   emailSequenceDeliveriesTable,
   emailCampaignSendsTable,
-  WELCOME_STEP_DELAYS_HOURS,
   type EmailList,
   type EmailSubscriber,
   type EmailCampaign,
@@ -108,6 +107,14 @@ export interface EmailSenderDeps {
 
 const CAMPAIGN_BATCH = 5;
 const DELIVERY_BATCH = 25;
+
+/** Welcome-sequence step timing (hours after the previous step):
+    step 1 on signup, step 2 +24h, step 3 +72h after step 2. */
+export const WELCOME_STEP_DELAYS_HOURS: Record<number, number> = {
+  1: 0,
+  2: 24,
+  3: 72,
+};
 
 /* ─── Pure helpers (unit-tested directly) ──────────────────────────────── */
 

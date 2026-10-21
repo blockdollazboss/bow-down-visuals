@@ -175,13 +175,6 @@ export type EmailCampaignSend = typeof emailCampaignSendsTable.$inferSelect;
 
 /* ─── Shared constants ───────────────────────────────────────────────────── */
 
-/** Welcome-sequence step timing (hours after the previous step). */
-export const WELCOME_STEP_DELAYS_HOURS: Record<number, number> = {
-  1: 0, // on signup
-  2: 24, // +24h after step 1
-  3: 72, // +72h after step 2
-};
-
 export const EMAIL_FREE_SUBSCRIBER_LIMIT = 1000;
 
 export const RESERVED_HANDLES = new Set([
