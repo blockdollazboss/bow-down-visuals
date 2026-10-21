@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
-  BadgeCheck, Check, Crown, Gem, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
-  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, X,
+  BadgeCheck, BarChart3, Check, Crown, Gem, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
+  Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -24,14 +24,21 @@ import {
   setBrandingCartQty, setCartLineQty,
   tierAnnualSavingLabel, tierOffersTrial, tierPriceLabel,
   SHOP_AI_DESCRIPTION_COST_VB, SHOP_AI_IMAGE_PREMIUM_COST_VB, SHOP_AI_IMAGE_STANDARD_COST_VB,
+  SHOP_AI_SHOP_DESCRIPTION_COST_VB, SHOP_DESCRIPTION_MAX, SHOP_HANDLE_MAX, SHOP_NAME_MAX,
+  SHOP_TAGLINE_MAX,
   aiOutOfCredits, applyProductSave, buildProductDescriptionPayload, buildProductImagePayload,
-  buildProductPayload, emptyProductForm, isOwnStand, parseAiDescription, parseAiImageUrl,
-  parseMineShops, productFormFromDto, productFormProblem, removeProduct, savedProductDto,
+  buildProductPayload, buildShopCreatePayload, buildShopDescriptionPayload,
+  buildShopSettingsPayload, emptyProductForm, emptyShopCreateForm,
+  isOwnStand, maxDailyViews, parseAiDescription, parseAiImageUrl,
+  parseMineShops, parseShopAnalytics, productFormFromDto, productFormProblem,
+  recentShopPending, recentShopSales, removeProduct, savedProductDto, savedShopDto,
+  shopCreateProblem, shopSettingsFormFromShop, shopSettingsProblem,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type HubShopDto,
   type MarketOrder, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
   type ProductFormState, type PublicProductDto,
-  type PublicShopDto,
+  type PublicShopDto, type ShopAnalytics, type ShopCreateFormState,
+  type ShopSettingsFormState,
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
 
@@ -77,6 +84,10 @@ function chipBtn(isLight: boolean) {
   return `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
+}
+function standTabBtn(isLight: boolean, active: boolean) {
+  if (active) return "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-black text-black transition";
+  return chipBtn(isLight);
 }
 function inputCls(isLight: boolean) {
   return `w-full rounded-xl border px-3 py-2 text-sm outline-none ${
@@ -281,6 +292,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   /* The management gate: the open shop's id must appear in MY OWN
      shops list — the only ownership proof the public DTO allows. */
   const ownsStand = isOwnStand(mineShops, shop?.id);
+  /* The owner's own full record for the open shop — the settings
+     form's source (tagline/description in full, which the public
+     DTO also carries, kept in step by every confirmed save). */
+  const ownMineShop = ownsStand ? (mineShops?.find((m) => m.id === shop?.id) ?? null) : null;
 
   /* Checkout — the marked transfer (§3.9). ONE POST for the whole
      cart: the server records the order as PENDING, prices it from
@@ -386,8 +401,25 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           </div>
         )}
 
-        {standState === "ready" && ownsStand && shop && (
-          <StandManager shop={shop} products={products} setProducts={setProducts} isLight={isLight} />
+        {standState === "ready" && ownsStand && shop && ownMineShop && (
+          <StandManager
+            key={shop.id}
+            shop={shop}
+            mineShop={ownMineShop}
+            products={products}
+            setProducts={setProducts}
+            isLight={isLight}
+            onShopSaved={(pub, mine) => {
+              setShop(pub);
+              setMineShops((ms) => (ms ? ms.map((m) => (m.id === mine.id ? mine : m)) : ms));
+              setTick((n) => n + 1);
+            }}
+            onShopDeleted={() => {
+              setMineShops((ms) => (ms ? ms.filter((m) => m.id !== shop.id) : ms));
+              setOpenHandle(null);
+              setTick((n) => n + 1);
+            }}
+          />
         )}
 
         {standState === "ready" && (detailed.length > 0 || paidOrder || pendingNote) && (
@@ -508,7 +540,124 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           ))}
         </div>
       )}
+      {/* Opening a shop (Stack-4 wave-2 #6) — the website's own
+          create rail, offered only once the caller's mine read has
+          landed (a signed-in member surface; guests and an unlanded
+          read see the square alone). The new stand joins the square
+          from the refreshed server list, never from a local guess. */}
+      {!isGuest && mineShops !== null && (
+        <StandCreateShop
+          isLight={isLight}
+          onCreated={(mine) => {
+            setMineShops((ms) => (ms ? [mine, ...ms] : [mine]));
+            setTick((n) => n + 1);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ═══ 1a. Open a shop — the create rail, at the square ════════════
+   POST /api/shops with the My Shop page's exact body. Opening a
+   shop is a Pro-tier rail on the server; a refusal (tier, taken
+   handle) is the rail's own answer, shown as-is — the form stays
+   and nothing appears on the square until the server confirms. */
+
+function StandCreateShop({
+  isLight,
+  onCreated,
+}: {
+  isLight: boolean;
+  onCreated: (mine: MineShopDto) => void;
+}) {
+  const authHeaders = useAuthHeaders();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<ShopCreateFormState>(emptyShopCreateForm());
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const set = (patch: Partial<ShopCreateFormState>) => setForm((f) => ({ ...f, ...patch }));
+
+  const create = async () => {
+    if (creating) return;
+    const problem = shopCreateProblem(form);
+    if (problem) { setError(problem); return; }
+    const payload = buildShopCreatePayload(form);
+    if (!payload) { setError("That shop can't be opened as-is — check the name and handle."); return; }
+    setCreating(true);
+    setError(null);
+    setNote(null);
+    try {
+      const res = await fetch("/api/shops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The shop didn't open — nothing was created.");
+      const saved = savedShopDto(data);
+      if (!saved) throw new Error("The shop opened but its answer came back empty — check the square before trying again.");
+      onCreated(saved.mine);
+      setForm(emptyShopCreateForm());
+      setOpen(false);
+      setNote(`"${saved.mine.name}" is open on the square — visit its stand to stock it and shape it.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The shop didn't open — nothing was created.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <NativeCard isLight={isLight} title="Your shopfront">
+      <div className="space-y-2" data-testid="world-shop-create">
+        <p className={`text-xs ${muted(isLight)}`}>
+          Every creator can hold a stand on this square. Open yours here — the same shop, the same rails as your shop page on the website.
+        </p>
+        {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
+        {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
+        {!open ? (
+          <button type="button" data-testid="world-shop-create-open" onClick={() => { setOpen(true); setError(null); }} className={goldBtn()}>
+            <Store className="h-4 w-4" /> Open a shop
+          </button>
+        ) : (
+          <div className="space-y-2" data-testid="world-shop-create-form">
+            <input
+              value={form.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder="Shop name"
+              maxLength={SHOP_NAME_MAX}
+              className={inputCls(isLight)}
+            />
+            <input
+              value={form.handle}
+              onChange={(e) => set({ handle: e.target.value })}
+              placeholder="Handle — like gold-standard (its address on the square)"
+              maxLength={SHOP_HANDLE_MAX}
+              className={inputCls(isLight)}
+            />
+            <input
+              value={form.tagline}
+              onChange={(e) => set({ tagline: e.target.value })}
+              placeholder="Tagline (optional)"
+              maxLength={SHOP_TAGLINE_MAX}
+              className={inputCls(isLight)}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" data-testid="world-shop-create-submit" onClick={() => void create()} disabled={creating} className={goldBtn(creating)}>
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Open the shop
+              </button>
+              <button type="button" onClick={() => { setOpen(false); setError(null); }} className={chipBtn(isLight)}>
+                <X className="h-3 w-3" /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </NativeCard>
   );
 }
 
@@ -519,18 +668,34 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
    create/edit/delete products, plus the two product AI helpers
    through the World's confirmed-spend seam, prices shown before
    each run. The shelf changes ONLY from server-confirmed answers;
-   a failed save or delete reports honestly and changes nothing. */
+   a failed save or delete reports honestly and changes nothing.
+
+   Wave-2 #6 completes the desk: SHOP SETTINGS (name/tagline/
+   description on PATCH /api/shops/:id, the shop-description
+   writer on the same confirmed-spend seam, delete-the-shop behind
+   the same two-step discipline as product deletes) and the SALES
+   view (GET /api/storefronts/:id/analytics — the owner-scoped
+   ledger the My Shop page reads; totals, the 30-day views strip,
+   recent sales, and pending checkouts kept visibly apart from
+   sales). Custom domains stay on the website: the settings tab
+   says so and points at this panel's standard transfer footer. */
 
 function StandManager({
   shop,
+  mineShop,
   products,
   setProducts,
   isLight,
+  onShopSaved,
+  onShopDeleted,
 }: {
   shop: PublicShopDto;
+  mineShop: MineShopDto;
   products: PublicProductDto[];
   setProducts: Dispatch<SetStateAction<PublicProductDto[]>>;
   isLight: boolean;
+  onShopSaved: (pub: PublicShopDto, mine: MineShopDto) => void;
+  onShopDeleted: () => void;
 }) {
   const authHeaders = useAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
@@ -548,6 +713,29 @@ function StandManager({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [aiDescBusy, setAiDescBusy] = useState(false);
   const [aiImageBusy, setAiImageBusy] = useState<"standard" | "premium" | null>(null);
+
+  /* The desk's three benches (wave-2 #6): products (the #7 desk),
+     shop settings, and the sales ledger. */
+  const [section, setSection] = useState<"products" | "settings" | "sales">("products");
+
+  /* Settings state — prefilled from the owner's own mine record;
+     the form changes nothing until the PATCH confirms. */
+  const [settingsForm, setSettingsForm] = useState<ShopSettingsFormState>(() => shopSettingsFormFromShop(mineShop));
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsNote, setSettingsNote] = useState<string | null>(null);
+  const [shopNiche, setShopNiche] = useState("");
+  const [aiShopDescBusy, setAiShopDescBusy] = useState(false);
+  /* Delete-the-shop arms exactly like a product delete: first tap
+     asks, second tap fires — and the stand only closes on the
+     server's confirmation. */
+  const [confirmingDeleteShop, setConfirmingDeleteShop] = useState(false);
+  const [deletingShop, setDeletingShop] = useState(false);
+
+  /* Sales state: undefined = not asked yet, null = asked and the
+     ledger wouldn't open (an honest failure, never fake zeros). */
+  const [analytics, setAnalytics] = useState<ShopAnalytics | null | undefined>(undefined);
+  const [analyticsBusy, setAnalyticsBusy] = useState(false);
 
   const set = (patch: Partial<ProductFormState>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -707,13 +895,146 @@ function StandManager({
     }
   };
 
+  const setSettings = (patch: Partial<ShopSettingsFormState>) => setSettingsForm((f) => ({ ...f, ...patch }));
+
+  /* Settings save — PATCH /api/shops/:id with the page's exact
+     body. The stand's header and the owner's record take the
+     SERVER's returned row (through the parent), never the form's
+     guess; a failure keeps the form and changes nothing. */
+  const saveSettings = async () => {
+    if (settingsSaving) return;
+    const problem = shopSettingsProblem(settingsForm);
+    if (problem) { setSettingsError(problem); return; }
+    const payload = buildShopSettingsPayload(settingsForm);
+    if (!payload) { setSettingsError("Those settings can't be saved as-is — check the name and lengths."); return; }
+    setSettingsSaving(true);
+    setSettingsError(null);
+    setSettingsNote(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "Your settings didn't save — your shop is unchanged.");
+      const saved = savedShopDto(data);
+      if (!saved) throw new Error("The save came back without your shop — reopen the stand to see its true state.");
+      onShopSaved(saved.pub, { ...saved.mine, product_count: mineShop.product_count });
+      setSettingsForm(shopSettingsFormFromShop(saved.mine));
+      setSettingsNote("Your shop's new face is live on the square.");
+    } catch (e) {
+      setSettingsError(e instanceof Error ? e.message : "Your settings didn't save — your shop is unchanged.");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  /* AI shop description — the page's exact body, through the same
+     confirmed-spend seam as the product helpers (100 VB, shown
+     before the run). The text lands in the form only, unsaved —
+     saving the settings is still the owner's own tap. */
+  const runAiShopDescription = async () => {
+    if (aiShopDescBusy) return;
+    if (!(settingsForm.name.trim() || shop.name)) { setSettingsError("Give the shop a name first — the writer needs to know whose story it's telling."); return; }
+    setAiShopDescBusy(true);
+    setSettingsError(null);
+    try {
+      const res = await confirmedFetch("/api/shops/ai/shop-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildShopDescriptionPayload({
+          shopName: settingsForm.name.trim() || shop.name,
+          tagline: settingsForm.tagline,
+          niche: shopNiche,
+          productNames: products.map((p) => p.name),
+        })),
+      });
+      if (!res) return; /* the owner declined the spend confirm — nothing charged, nothing changed */
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (aiOutOfCredits(res.status, data)) {
+        setSettingsError("You're out of Visual Bucs — top up and the writer is yours again.");
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      const description = parseAiDescription(data);
+      if (!description) throw new Error("The writer came back empty — if Visual Bucs were charged, they're refunded.");
+      setSettings({ description });
+      setSettingsNote("Your shop's story is written — read it over, then save the settings to put it on the square.");
+    } catch (e) {
+      setSettingsError(e instanceof Error ? e.message : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+    } finally {
+      setAiShopDescBusy(false);
+    }
+  };
+
+  /* Delete the shop — fires ONLY from the armed (second) step.
+     On the server's confirmation the parent closes the stand and
+     the square refreshes; a failure reports and the shop stands. */
+  const deleteShop = async () => {
+    if (deletingShop) return;
+    setDeletingShop(true);
+    setSettingsError(null);
+    setSettingsNote(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "Your shop wouldn't close — it's still on the square.");
+      onShopDeleted();
+    } catch (e) {
+      setSettingsError(e instanceof Error ? e.message : "Your shop wouldn't close — it's still on the square.");
+      setDeletingShop(false);
+    }
+  };
+
+  /* The sales ledger — read lazily when the bench first opens,
+     from the owner-scoped analytics rail the My Shop page reads.
+     A failed read is a failure state with a retry, never zeros. */
+  const loadAnalytics = async () => {
+    if (analyticsBusy) return;
+    setAnalyticsBusy(true);
+    try {
+      const res = await fetch(`/api/storefronts/${shop.id}/analytics`, { headers: await authHeaders() });
+      const data = (await res.json().catch(() => ({}))) as unknown;
+      if (!res.ok) throw new Error("analytics");
+      const parsed = parseShopAnalytics(data);
+      if (!parsed) throw new Error("analytics");
+      setAnalytics(parsed);
+    } catch {
+      setAnalytics(null);
+    } finally {
+      setAnalyticsBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (section === "sales" && analytics === undefined) void loadAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
   return (
     <NativeCard isLight={isLight} title="Your stand — manage it here">
-      <div className="space-y-2" data-testid="world-shop-manage">
+      <div className="space-y-2">
         <p className={`text-xs ${muted(isLight)}`}>
           This is your stand — the same products and prices as your shop on the website, run from right here.
           Every change saves on the real rails the moment it lands.
         </p>
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Your stand's benches">
+          <button type="button" role="tab" aria-selected={section === "products"} data-testid="world-shop-manage-tab-products" onClick={() => setSection("products")} className={standTabBtn(isLight, section === "products")}>
+            <ShoppingBag className="h-3 w-3" /> Products
+          </button>
+          <button type="button" role="tab" aria-selected={section === "settings"} data-testid="world-shop-manage-tab-settings" onClick={() => setSection("settings")} className={standTabBtn(isLight, section === "settings")}>
+            <Settings2 className="h-3 w-3" /> Shop settings
+          </button>
+          <button type="button" role="tab" aria-selected={section === "sales"} data-testid="world-shop-manage-tab-sales" onClick={() => setSection("sales")} className={standTabBtn(isLight, section === "sales")}>
+            <BarChart3 className="h-3 w-3" /> Sales
+          </button>
+        </div>
+
+        {section === "products" && (
+        <div className="space-y-2" data-testid="world-shop-manage">
         {manageError && <p className="text-xs font-semibold text-red-400">{manageError}</p>}
         {manageNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{manageNote}</p>}
 
@@ -854,6 +1175,218 @@ function StandManager({
               </button>
             </div>
           </div>
+        )}
+        </div>
+        )}
+
+        {section === "settings" && (
+        <div className="space-y-2" data-testid="world-shop-settings">
+          <p className={`text-xs ${muted(isLight)}`}>
+            Your shop&rsquo;s face on the square — the same name, tagline and story your shop page on the website shows.
+            Your stand&rsquo;s address is its handle, <span className="font-mono">{shop.handle}</span> — it never moves.
+          </p>
+          {settingsError && <p className="text-xs font-semibold text-red-400">{settingsError}</p>}
+          {settingsNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{settingsNote}</p>}
+          <input
+            value={settingsForm.name}
+            onChange={(e) => setSettings({ name: e.target.value })}
+            placeholder="Shop name"
+            maxLength={SHOP_NAME_MAX}
+            className={inputCls(isLight)}
+          />
+          <input
+            value={settingsForm.tagline}
+            onChange={(e) => setSettings({ tagline: e.target.value })}
+            placeholder="Tagline — the one line under your name"
+            maxLength={SHOP_TAGLINE_MAX}
+            className={inputCls(isLight)}
+          />
+          <textarea
+            value={settingsForm.description}
+            onChange={(e) => setSettings({ description: e.target.value })}
+            placeholder="Your shop's story — what you sell and why it's worth it"
+            maxLength={SHOP_DESCRIPTION_MAX}
+            rows={4}
+            className={inputCls(isLight)}
+          />
+          <input
+            value={shopNiche}
+            onChange={(e) => setShopNiche(e.target.value)}
+            placeholder="Your niche (optional — steers the writer below)"
+            maxLength={120}
+            className={inputCls(isLight)}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" data-testid="world-shop-settings-save" onClick={() => void saveSettings()} disabled={settingsSaving} className={goldBtn(settingsSaving)}>
+              {settingsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Save settings
+            </button>
+            <button
+              type="button"
+              data-testid="world-shop-settings-ai-description"
+              onClick={() => void runAiShopDescription()}
+              disabled={aiShopDescBusy}
+              className={chipBtn(isLight)}
+            >
+              {aiShopDescBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              Write my shop&rsquo;s story — {SHOP_AI_SHOP_DESCRIPTION_COST_VB} VB
+            </button>
+          </div>
+          <p className={`text-[11px] ${muted(isLight)}`}>
+            The writer&rsquo;s price is confirmed before it runs; a failed run is refunded by the rail itself. Its words land above, unsaved — saving is your tap.
+          </p>
+          <p className={`text-[11px] ${muted(isLight)}`}>
+            Custom domains live on your shop&rsquo;s page on the website — the quiet &ldquo;Open on the website ↗&rdquo; door at the foot of this panel takes you there.
+          </p>
+
+          <div className="space-y-2 border-t border-red-400/30 pt-3">
+            <p className={`text-xs font-black uppercase tracking-[0.14em] text-red-300`}>Close this shop</p>
+            <p className={`text-xs ${muted(isLight)}`}>
+              Closing takes the stand and its products off the square for good. Sales already made stay in your records; files are never deleted.
+            </p>
+            {confirmingDeleteShop ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Close &ldquo;{shop.name}&rdquo; for good?</span>
+                <button
+                  type="button"
+                  data-testid="world-shop-settings-delete-confirm"
+                  onClick={() => void deleteShop()}
+                  disabled={deletingShop}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50"
+                >
+                  {deletingShop ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Close it
+                </button>
+                <button type="button" onClick={() => setConfirmingDeleteShop(false)} className={chipBtn(isLight)}>Keep my shop</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-testid="world-shop-settings-delete"
+                onClick={() => { setConfirmingDeleteShop(true); setSettingsError(null); }}
+                className={chipBtn(isLight)}
+              >
+                <Trash2 className="h-3 w-3" /> Close this shop
+              </button>
+            )}
+          </div>
+        </div>
+        )}
+
+        {section === "sales" && (
+        <div className="space-y-2" data-testid="world-shop-sales">
+          {analytics === undefined || analyticsBusy ? (
+            <NativeLoadingState isLight={isLight} message="Opening your sales ledger…" />
+          ) : analytics === null ? (
+            <NativeErrorState
+              isLight={isLight}
+              title="Your sales wouldn't open"
+              message="The ledger itself is fine — it couldn't be brought to the stand just now. Nothing about your sales changed."
+              onRetry={() => { setAnalytics(undefined); void loadAnalytics(); }}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: "Views", value: String(analytics.totals.views) },
+                  { label: "Sales", value: String(analytics.totals.sales) },
+                  { label: "Gross", value: centsToDisplay(analytics.totals.gross_cents) },
+                  { label: "You keep", value: centsToDisplay(analytics.totals.seller_net_cents), gold: true },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className={`rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                  >
+                    <div className={`text-lg font-black ${s.gold ? "text-[#d4af37]" : isLight ? "text-[#2a1e07]" : "text-white"}`}>{s.value}</div>
+                    <div className={`mt-0.5 text-[10px] font-bold uppercase tracking-wider ${muted(isLight)}`}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {analytics.dailyViews.length > 0 && (
+                <div>
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>Views — last 30 days</p>
+                  <div className="mt-1.5 flex h-16 items-end gap-1">
+                    {analytics.dailyViews.map((d) => (
+                      <div
+                        key={d.day}
+                        title={`${d.day}: ${d.views} views`}
+                        className="flex-1 rounded-t bg-gradient-to-t from-amber-500/40 to-amber-300/80"
+                        style={{ height: `${Math.max(4, (d.views / maxDailyViews(analytics)) * 100)}%` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>
+                  Recent sales <span className="normal-case font-normal">— the {analytics.platformFeePct}% platform fee comes out of your cut, never on top of the buyer&rsquo;s price</span>
+                </p>
+                {analytics.sales.length === 0 ? (
+                  <p className={`mt-1.5 text-xs ${muted(isLight)}`}>No sales yet — when your first one lands, it shows here the moment it&rsquo;s paid.</p>
+                ) : (
+                  <div className="mt-1.5 space-y-1.5">
+                    {recentShopSales(analytics).map((sale) => (
+                      <div
+                        key={sale.id}
+                        data-testid="world-shop-sales-row"
+                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? "Product"}</span>
+                            {sale.payment_status === "paid" && (
+                              <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">Paid</span>
+                            )}
+                            {sale.payment_status === "no_payment_required" && (
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${isLight ? "bg-black/10 text-[#6B5B36]" : "bg-white/10 text-white/60"}`}>Free order</span>
+                            )}
+                          </div>
+                          <div className={`text-[11px] ${muted(isLight)}`}>
+                            {new Date(sale.paid_at ?? sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
+                          <div className="text-[11px] font-semibold text-emerald-300">You keep {centsToDisplay(sale.seller_net_cents)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {analytics.pendingSales.length > 0 && (
+                <div>
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>
+                    Awaiting payment <span className="normal-case font-normal">— started at checkout, not paid yet. These are not sales until the payment confirms.</span>
+                  </p>
+                  <div className="mt-1.5 space-y-1.5">
+                    {recentShopPending(analytics).map((sale) => (
+                      <div
+                        key={sale.id}
+                        data-testid="world-shop-sales-pending-row"
+                        className={`flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2 opacity-75 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/15 bg-white/[0.03]"}`}
+                      >
+                        <div className="min-w-0">
+                          <div className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? "Product"}</div>
+                          <div className={`text-[11px] ${muted(isLight)}`}>{new Date(sale.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
+                          <div className="text-[11px] font-semibold text-amber-300">{sale.payment_status === "expired" ? "Checkout expired" : "Pending"}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className={`text-[11px] ${muted(isLight)}`}>
+                Real-money sales through the website checkout — this is not Visual Bucs. Your net sits as a pending balance until it pays out through the website&rsquo;s payout path.
+              </p>
+            </>
+          )}
+        </div>
         )}
       </div>
     </NativeCard>
