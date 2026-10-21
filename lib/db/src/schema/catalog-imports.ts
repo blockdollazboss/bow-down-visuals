@@ -84,6 +84,10 @@ export const catalogImportItemsTable = pgTable(
     kind: text("kind").notNull().$type<CatalogImportKind>(),
     /** The original title/caption first line, or the upload's filename. */
     title: text("title").notNull(),
+    /** The full original caption/description from the platform — the
+        seed the rebuild draft's description is rebuilt from. NULL for
+        uploads (a file brings no caption with it). */
+    originalCaption: text("original_caption"),
     /** Permalink on the platform — provenance, shown as "view original". */
     originalUrl: text("original_url"),
     /** The platform's file URL captured at scan time. These expire; a

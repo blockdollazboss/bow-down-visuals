@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS catalog_import_items (
   external_id TEXT,
   kind TEXT NOT NULL,
   title TEXT NOT NULL,
+  original_caption TEXT,
   original_url TEXT,
   remote_file_url TEXT,
   remote_thumbnail_url TEXT,
