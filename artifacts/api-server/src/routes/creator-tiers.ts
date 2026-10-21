@@ -9,7 +9,7 @@ import { resolveCreatorTier } from "../middlewares/require-tier";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
-import { createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -57,6 +57,37 @@ function getBaseUrl(req?: Request): string {
 /** TEST MODE ONLY: the shared guard refuses live keys outright. */
 function getTestStripe(): Stripe {
   return createGuardedStripeClient();
+}
+
+/** The durable subscription state a tier purchase intent carries. */
+export interface CreatorTierSubscriptionState {
+  tier: string;
+  status: string;
+  currentPeriodEnd: Date | null;
+  stripeSubscriptionId: string | null;
+}
+
+/**
+ * Deterministic Stripe idempotency key for a creator-tier checkout.
+ * Same member + tier + price + pre-purchase subscription state ⇒ the
+ * same key (a retry reuses the session); once the webhook sync has
+ * recorded/advanced the subscription, the state differs ⇒ fresh key.
+ */
+export function buildCreatorTierCheckoutKey(args: {
+  userId: string;
+  tier: string;
+  priceId: string;
+  current: CreatorTierSubscriptionState | null;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "creator-tier",
+    purchaseIntent: {
+      tier: args.tier,
+      priceId: args.priceId,
+      currentSubscription: args.current,
+    },
+  });
 }
 
 const returnToSchema = z
@@ -192,6 +223,40 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
     return;
   }
 
+  /* Purchase intent for the session idempotency key: the profile's
+     durable subscription state (the creator_subscriptions row the
+     webhook sync maintains). A double-submit before the webhook lands
+     still sees this same state, so Stripe reuses the original session
+     instead of minting a second subscribable one; once the sync
+     records the subscription, the state has advanced and a later
+     purchase gets a fresh key. If the state can't be read, fail
+     closed rather than mint a session whose duplicate cannot be
+     recognized. */
+  let currentSub: CreatorTierSubscriptionState | null;
+  try {
+    const [row] = await db
+      .select({
+        tier: creatorSubscriptionsTable.tier,
+        status: creatorSubscriptionsTable.status,
+        currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd,
+        stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
+      })
+      .from(creatorSubscriptionsTable)
+      .where(eq(creatorSubscriptionsTable.profileId, profileId))
+      .limit(1);
+    currentSub = row ?? null;
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-tiers checkout: subscription state read failed");
+    res.status(500).json({ error: "Couldn't start checkout safely. Try again in a minute." });
+    return;
+  }
+  const idempotencyKey = buildCreatorTierCheckoutKey({
+    userId: req.userId!,
+    tier,
+    priceId,
+    current: currentSub,
+  });
+
   const back = returnTo ?? "/dashboard";
   const baseUrl = getBaseUrl(req);
   try {
@@ -202,7 +267,7 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
       cancel_url: `${baseUrl}/creator-pricing?upgrade=cancelled&returnTo=${encodeURIComponent(back)}`,
       metadata: { kind: "creator_tier", tier, user_id: req.userId!, profile_id: profileId },
       subscription_data: { metadata: { kind: "creator_tier", tier, user_id: req.userId!, profile_id: profileId } },
-    });
+    }, { idempotencyKey });
     logger.info({ userId: req.userId, tier, sessionId: session.id }, "creator tier checkout session created");
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {

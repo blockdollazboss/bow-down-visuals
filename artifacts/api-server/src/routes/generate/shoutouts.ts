@@ -15,7 +15,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    refreshSupabaseStorageUrl mints a fresh 1-day signed URL. */
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
-import { createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 
 const router = Router();
 
@@ -140,6 +140,26 @@ async function toRequestJson(r: typeof shoutoutRequestsTable.$inferSelect) {
 /* ── Checkout helpers (0142) — same shape as the storefront's ── */
 function getStripe(): Stripe {
   return createGuardedStripeClient();
+}
+
+/**
+ * Deterministic Stripe idempotency key for a shoutout checkout. The
+ * intent is the durable request row awaiting payment: repeat checkout
+ * calls for the same pending request (double-click, lost response)
+ * reuse the original session instead of minting a second payable
+ * one, and once the request leaves pending_payment the checkout
+ * endpoint refuses — a new request is a new row with a fresh key.
+ */
+export function buildShoutoutCheckoutKey(args: {
+  creatorUserId: string;
+  requestId: string;
+  priceCents: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.creatorUserId,
+    rail: "shoutout-request",
+    purchaseIntent: { requestId: args.requestId, priceCents: args.priceCents },
+  });
 }
 
 function getBaseUrl(req: import("express").Request): string {
@@ -292,6 +312,11 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
     return;
   }
   const base = getBaseUrl(req);
+  const idempotencyKey = buildShoutoutCheckoutKey({
+    creatorUserId: request.creator_user_id,
+    requestId: request.id,
+    priceCents: request.price_cents,
+  });
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -307,7 +332,7 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
     metadata: { type: "shoutout_request", requestId: request.id },
     success_url: `${base}/shoutouts?request=${request.id}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/shoutouts`,
-  });
+  }, { idempotencyKey });
   await db
     .update(shoutoutRequestsTable)
     .set({ stripe_session_id: session.id, updated_at: new Date() })

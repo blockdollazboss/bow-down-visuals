@@ -23,7 +23,7 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 import { r2Upload } from "../../lib/r2-client";
 import {
   fulfillmentMode,
@@ -416,6 +416,26 @@ router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, 
   });
 });
 
+/**
+ * Deterministic Stripe idempotency key for a branding-order checkout.
+ * The intent is the durable order row: repeat checkout calls for the
+ * same unpaid order (double-click, lost response) reuse the original
+ * session instead of minting a second payable one; once the order is
+ * paid the checkout endpoint refuses, and a new order is a new row
+ * with a fresh key.
+ */
+export function buildBrandingOrderCheckoutKey(args: {
+  userId: string;
+  orderId: string;
+  totalCents: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "branding-order",
+    purchaseIntent: { orderId: args.orderId, totalCents: args.totalCents },
+  });
+}
+
 function getBaseUrl(req: import("express").Request): string {
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
   if (domain) return `https://${domain}`;
@@ -504,6 +524,11 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
 
   const stripe = createGuardedStripeClient(stripeKey);
   const baseUrl = getBaseUrl(req);
+  const idempotencyKey = buildBrandingOrderCheckoutKey({
+    userId: req.userId!,
+    orderId: order.id,
+    totalCents: order.total_cents,
+  });
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: order.email,
@@ -528,7 +553,7 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
     },
     success_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
     cancel_url: `${baseUrl}/branding-shop?order=${order.id}`,
-  });
+  }, { idempotencyKey });
 
   await db.execute(sql`
     UPDATE branding_orders SET stripe_session_id = ${session.id} WHERE id = ${order.id}

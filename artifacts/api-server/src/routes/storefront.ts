@@ -63,7 +63,7 @@ import { logger } from "../lib/logger";
    per-tier rates in that module are PROPOSED and pending user approval, so
    the storefront uses the canonical base rate only. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
-import { createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
@@ -116,6 +116,37 @@ const ProductKindSchema = z.enum(STORE_PRODUCT_KINDS);
 
 function getStripe(): Stripe {
   return createGuardedStripeClient();
+}
+
+/**
+ * Deterministic Stripe idempotency key for a storefront checkout.
+ * The intent carries the buyer's completed-order count for this exact
+ * purchase (from store_orders, the rail's completion record): a
+ * double-submit before the order is recorded still sees the same
+ * count, so Stripe reuses the original session; after the order
+ * lands, the count advances and a repeat purchase gets a fresh key.
+ */
+export function buildStorefrontCheckoutKey(args: {
+  userId: string;
+  productId: string;
+  quantity: number;
+  unitCents: number;
+  lineTotalCents: number;
+  discountCode: string | null;
+  completedOrderCount: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "storefront",
+    purchaseIntent: {
+      productId: args.productId,
+      quantity: args.quantity,
+      unitCents: args.unitCents,
+      lineTotalCents: args.lineTotalCents,
+      discountCode: args.discountCode,
+      completedOrderCount: args.completedOrderCount,
+    },
+  });
 }
 
 function getTokenSecret(): string {
@@ -551,6 +582,27 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
 
     const lineTotal = unitCents * quantity;
     const { feeCents, creatorCents } = splitTotals(lineTotal);
+    /* Purchase sequence for the session idempotency key (see
+       buildStorefrontCheckoutKey). A read failure throws into the
+       catch below — no session is minted, so the failure is closed. */
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM store_orders
+      WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+        AND quantity = ${quantity} AND amount_cents = ${lineTotal}
+        AND discount_code IS NOT DISTINCT FROM ${discountCode}
+    `);
+    const completedOrderCount = Number(
+      (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+    );
+    const idempotencyKey = buildStorefrontCheckoutKey({
+      userId: req.userId!,
+      productId,
+      quantity,
+      unitCents,
+      lineTotalCents: lineTotal,
+      discountCode,
+      completedOrderCount,
+    });
     const baseUrl = getBaseUrl(req);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -588,7 +640,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         creator_amount_cents: String(creatorCents),
         event_id: p.event_id ?? "",
       },
-    });
+    }, { idempotencyKey });
 
     logger.info(
       { userId: req.userId, productId, quantity, lineTotal, sessionId: session.id, discountCode },

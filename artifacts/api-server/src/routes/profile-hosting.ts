@@ -1,14 +1,14 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import Stripe from "stripe";
-import { db, creatorProfilesTable } from "@workspace/db";
+import { db, creatorHostingTable, creatorProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { HOSTING_PLAN, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
-import { createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 
 /* ── Hosting plan (Stack 3, item 8) ──────────────────────────────────────
    ONE plan packaged on the creator-tiers chassis: custom domain + clean
@@ -44,6 +44,34 @@ function getBaseUrl(req?: Request): string {
 /** TEST MODE ONLY: the shared guard refuses live keys outright. */
 function getTestStripe(): Stripe {
   return createGuardedStripeClient();
+}
+
+/** The durable hosting state a hosting purchase intent carries. */
+export interface HostingSubscriptionState {
+  status: string;
+  currentPeriodEnd: Date | null;
+  stripeSubscriptionId: string | null;
+}
+
+/**
+ * Deterministic Stripe idempotency key for a hosting checkout. Same
+ * member + price + pre-purchase hosting state ⇒ the same key (a retry
+ * reuses the session); once the webhook sync has recorded/advanced
+ * the creator_hosting row, the state differs ⇒ fresh key.
+ */
+export function buildHostingCheckoutKey(args: {
+  userId: string;
+  priceId: string;
+  current: HostingSubscriptionState | null;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "creator-hosting",
+    purchaseIntent: {
+      priceId: args.priceId,
+      currentHosting: args.current,
+    },
+  });
 }
 
 export interface HostingPlanDto {
@@ -164,6 +192,38 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
   }
 
   const priceId = process.env[HOSTING_PLAN.priceIdEnv]!;
+
+  /* Purchase intent for the session idempotency key: the profile's
+     durable hosting state (the creator_hosting row the webhook sync
+     maintains), read directly so a read failure fails closed instead
+     of minting a session whose duplicate cannot be recognized. A
+     double-submit before the sync lands still sees this same state,
+     so Stripe reuses the original session; once the row records the
+     subscription, the state has advanced and a later purchase gets a
+     fresh key. */
+  let currentHosting: HostingSubscriptionState | null;
+  try {
+    const [row] = await db
+      .select({
+        status: creatorHostingTable.status,
+        currentPeriodEnd: creatorHostingTable.currentPeriodEnd,
+        stripeSubscriptionId: creatorHostingTable.stripeSubscriptionId,
+      })
+      .from(creatorHostingTable)
+      .where(eq(creatorHostingTable.profileId, profile.id))
+      .limit(1);
+    currentHosting = row ?? null;
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-hosting checkout: hosting state read failed");
+    res.status(500).json({ error: "Checkout couldn't start — try again in a moment." });
+    return;
+  }
+  const idempotencyKey = buildHostingCheckoutKey({
+    userId: req.userId!,
+    priceId,
+    current: currentHosting,
+  });
+
   const back = parsed.data.returnTo ?? "/creator-pricing";
   const baseUrl = getBaseUrl(req);
   try {
@@ -174,7 +234,7 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
       cancel_url: `${baseUrl}/creator-pricing?hosting=cancelled&returnTo=${encodeURIComponent(back)}`,
       metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id },
       subscription_data: { metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id } },
-    });
+    }, { idempotencyKey });
     logger.info({ userId: req.userId, sessionId: session.id }, "hosting checkout session created");
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
