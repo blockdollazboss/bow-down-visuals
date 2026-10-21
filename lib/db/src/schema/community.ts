@@ -80,6 +80,77 @@ export const insertGroupPostSchema = createInsertSchema(groupPostsTable).omit({ 
 export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
 export type GroupPost = typeof groupPostsTable.$inferSelect;
 
+/* ── Group forum channels / threads / replies (migration 0184, Wave 3 #13) ──
+   The group feed is one flat stream; forums give a group topic-contained
+   boards INSIDE the group: channels (topics) hold threads, threads hold
+   replies. Visibility and write rules are the group's own — the routes
+   resolve the parent group first and apply the same public/private +
+   membership gates as the feed; nothing here is reachable except
+   through a group the viewer may see.
+
+   group_id is denormalized onto threads and replies (always written
+   from the resolved parent chain, never from client input) so every
+   read can scope by group without a join — the private-group gate can
+   never be bypassed by guessing a channel or thread id from another
+   group. Tags are a plain text array on the thread: the data model
+   honestly supports per-thread labels, and nothing more (no tag
+   registry, no tag following) is claimed. ─────────────────────────── */
+
+export const groupForumChannelsTable = pgTable("group_forum_channels", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  groupId:         uuid("group_id").notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
+  name:            text("name").notNull(),
+  description:     text("description").notNull().default(""),
+  position:        integer("position").notNull().default(0),
+  createdByUserId: uuid("created_by_user_id").notNull(),
+  createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("group_forum_channels_group_idx").on(t.groupId, t.position, t.createdAt),
+]);
+
+export const insertGroupForumChannelSchema = createInsertSchema(groupForumChannelsTable).omit({ id: true, createdAt: true });
+export type InsertGroupForumChannel = z.infer<typeof insertGroupForumChannelSchema>;
+export type GroupForumChannel = typeof groupForumChannelsTable.$inferSelect;
+
+export const groupForumThreadsTable = pgTable("group_forum_threads", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  channelId:     uuid("channel_id").notNull().references(() => groupForumChannelsTable.id, { onDelete: "cascade" }),
+  groupId:       uuid("group_id").notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
+  authorUserId:  uuid("author_user_id").notNull(),
+  title:         text("title").notNull(),
+  body:          text("body").notNull(),
+  tags:          text("tags").array().notNull().default([]),
+  replyCount:    integer("reply_count").notNull().default(0),
+  lastReplyAt:   timestamp("last_reply_at", { withTimezone: true }),
+  isPinned:      boolean("is_pinned").notNull().default(false),
+  isLocked:      boolean("is_locked").notNull().default(false),
+  createdAt:     timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("group_forum_threads_channel_idx").on(t.channelId, t.createdAt),
+  index("group_forum_threads_group_idx").on(t.groupId),
+  index("group_forum_threads_author_idx").on(t.authorUserId),
+]);
+
+export const insertGroupForumThreadSchema = createInsertSchema(groupForumThreadsTable).omit({ id: true, createdAt: true });
+export type InsertGroupForumThread = z.infer<typeof insertGroupForumThreadSchema>;
+export type GroupForumThread = typeof groupForumThreadsTable.$inferSelect;
+
+export const groupForumRepliesTable = pgTable("group_forum_replies", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  threadId:     uuid("thread_id").notNull().references(() => groupForumThreadsTable.id, { onDelete: "cascade" }),
+  groupId:      uuid("group_id").notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
+  authorUserId: uuid("author_user_id").notNull(),
+  body:         text("body").notNull(),
+  createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("group_forum_replies_thread_idx").on(t.threadId, t.createdAt),
+  index("group_forum_replies_group_idx").on(t.groupId),
+]);
+
+export const insertGroupForumReplySchema = createInsertSchema(groupForumRepliesTable).omit({ id: true, createdAt: true });
+export type InsertGroupForumReply = z.infer<typeof insertGroupForumReplySchema>;
+export type GroupForumReply = typeof groupForumRepliesTable.$inferSelect;
+
 /* ── Events ─────────────────────────────────────────────────────────────── */
 
 export const eventsTable = pgTable("events", {

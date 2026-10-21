@@ -8,6 +8,9 @@ import {
   groupsTable,
   groupMembersTable,
   groupPostsTable,
+  groupForumChannelsTable,
+  groupForumThreadsTable,
+  groupForumRepliesTable,
   eventsTable,
   eventRsvpsTable,
   conversationsTable,
@@ -22,6 +25,7 @@ import {
 } from "@workspace/db";
 import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { canGroupAction, normalizeGroupRole } from "../lib/group-roles";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import {
@@ -70,6 +74,20 @@ function param(req: Request, name: string): string {
        POST   /groups/:slug/posts           (auth; member only)
        DELETE /groups/:slug/posts/:postId   (auth; owner/mod or post author)
        DELETE /groups/:slug/members/:userId (auth; owner only)
+     Group forums (0184 — channels inside the group, threads inside a
+     channel, replies inside a thread; the group's own visibility and
+     role ladder govern every path):
+       GET    /groups/:slug/forum/channels                    (public read; private = members)
+       POST   /groups/:slug/forum/channels                    (auth; admin+)
+       PATCH  /groups/:slug/forum/channels/:channelId         (auth; admin+)
+       DELETE /groups/:slug/forum/channels/:channelId         (auth; admin+)
+       GET    /groups/:slug/forum/channels/:channelId/threads (public read; private = members)
+       POST   /groups/:slug/forum/channels/:channelId/threads (auth; member only)
+       GET    /groups/:slug/forum/threads/:threadId           (public read; private = members)
+       POST   /groups/:slug/forum/threads/:threadId/replies   (auth; member only)
+       PATCH  /groups/:slug/forum/threads/:threadId           (auth; moderator+ pin/lock)
+       DELETE /groups/:slug/forum/threads/:threadId           (auth; moderator+ or author)
+       DELETE /groups/:slug/forum/threads/:threadId/replies/:replyId (auth; moderator+ or author)
      Events:
        POST   /events            (auth; must own a creator_profiles row)
        GET    /events            upcoming (public)
@@ -113,6 +131,53 @@ const createGroupSchema = z.object({
 const groupPostSchema = z.object({
   body: z.string().trim().min(1).max(2000),
 });
+
+/* Group forums (0184). Tags are normalized server-side (lowercase,
+   leading # stripped, spaces -> hyphens) and must land in slug shape;
+   the raw input cap keeps a pasted sentence from becoming a tag. */
+const createForumChannelSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  description: z.string().trim().max(500).optional().default(""),
+});
+
+const updateForumChannelSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  description: z.string().trim().max(500).optional(),
+  position: z.number().int().min(0).max(999).optional(),
+}).refine((v) => v.name !== undefined || v.description !== undefined || v.position !== undefined, {
+  message: "Nothing to change.",
+});
+
+const createForumThreadSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(5000),
+  tags: z.array(z.string().trim().min(1).max(40)).max(5).optional().default([]),
+});
+
+const createForumReplySchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+});
+
+const forumThreadModerationSchema = z.object({
+  is_pinned: z.boolean().optional(),
+  is_locked: z.boolean().optional(),
+}).refine((v) => v.is_pinned !== undefined || v.is_locked !== undefined, {
+  message: "Nothing to change.",
+});
+
+const FORUM_TAG_RE = /^[a-z0-9][a-z0-9-]{0,23}$/;
+
+/** Normalize raw tag input to stored shape; null when any tag can't
+ *  honestly be one (the caller 400s — never silently drops a tag). */
+function normalizeForumTags(raw: string[]): string[] | null {
+  const out: string[] = [];
+  for (const t of raw) {
+    const n = t.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, "-");
+    if (!FORUM_TAG_RE.test(n)) return null;
+    if (!out.includes(n)) out.push(n);
+  }
+  return out;
+}
 
 const createEventSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -597,6 +662,439 @@ router.delete("/groups/:slug/members/:userId", requireAuth, async (req, res) => 
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
     console.error("[community] DELETE /groups/:slug/members failed", err);
     res.status(500).json({ error: "Couldn't remove them — try again." });
+  }
+});
+
+/* ── GROUPS: forums (0184) ──────────────────────────────────────────────
+   Channels inside the group, threads inside a channel, replies inside
+   a thread. Every path resolves the parent group FIRST and applies the
+   group's own rules — a private group's forum is invisible to
+   non-members through list, detail and write paths alike (channel and
+   thread ids are always resolved scoped to that group, so an id from
+   another group 404s instead of leaking). Guests read what the group
+   itself shows the world (public groups) and never write. Posting and
+   replying need membership (the ladder's "post" rung); channel
+   management is admin+; pin/lock and content removal are moderator+
+   or the author — the same rails the group feed already runs on. */
+
+type ForumGroup = typeof groupsTable.$inferSelect;
+
+/** Read gate: group + viewer role, or the response is already sent. */
+async function resolveForumReadGroup(req: Request, res: Response): Promise<{ group: ForumGroup; role: string | null } | null> {
+  await optionalAuth(req);
+  const group = await getGroupBySlug(param(req, "slug"));
+  if (!group) { res.status(404).json({ error: "Group not found." }); return null; }
+  const role = await membershipRole(group.id, req.userId);
+  if (!group.isPublic && !role) {
+    res.status(403).json({ error: "This crew runs private — join to see inside." });
+    return null;
+  }
+  return { group, role };
+}
+
+/** Write gate base: group + caller role (requireAuth already ran). */
+async function resolveForumWriteGroup(req: Request, res: Response): Promise<{ group: ForumGroup; role: string | null } | null> {
+  const group = await getGroupBySlug(param(req, "slug"));
+  if (!group) { res.status(404).json({ error: "Group not found." }); return null; }
+  const role = await membershipRole(group.id, req.userId);
+  return { group, role };
+}
+
+async function getForumChannel(groupId: string, channelId: string) {
+  const rows = await db.select().from(groupForumChannelsTable)
+    .where(and(eq(groupForumChannelsTable.id, channelId), eq(groupForumChannelsTable.groupId, groupId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function getForumThread(groupId: string, threadId: string) {
+  const rows = await db.select().from(groupForumThreadsTable)
+    .where(and(eq(groupForumThreadsTable.id, threadId), eq(groupForumThreadsTable.groupId, groupId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** What the viewer may do in this group's forum — computed from the
+ *  role ladder server-side so the client never re-derives permissions. */
+function forumViewerCaps(role: string | null) {
+  return {
+    can_post: role != null,
+    can_moderate: canGroupAction(role, "deletePost"),
+    can_manage_channels: canGroupAction(role, "setJoinQuestions"),
+  };
+}
+
+function toForumChannelDto(c: typeof groupForumChannelsTable.$inferSelect, threadCount: number) {
+  return {
+    id: c.id,
+    group_id: c.groupId,
+    name: c.name,
+    description: c.description,
+    position: c.position,
+    thread_count: threadCount,
+    created_at: c.createdAt,
+  };
+}
+
+function toForumThreadDto(
+  t: typeof groupForumThreadsTable.$inferSelect,
+  author: { slug: string; displayName: string; avatarUrl: string | null } | null,
+  viewerId: string | undefined,
+  role: string | null,
+) {
+  return {
+    id: t.id,
+    channel_id: t.channelId,
+    group_id: t.groupId,
+    title: t.title,
+    body: t.body,
+    tags: t.tags,
+    reply_count: t.replyCount,
+    last_reply_at: t.lastReplyAt,
+    is_pinned: t.isPinned,
+    is_locked: t.isLocked,
+    created_at: t.createdAt,
+    author_user_id: t.authorUserId,
+    author,
+    can_delete: viewerId != null && (t.authorUserId === viewerId || canGroupAction(role, "deletePost")),
+    can_moderate: canGroupAction(role, "deletePost"),
+  };
+}
+
+function toForumReplyDto(
+  r: typeof groupForumRepliesTable.$inferSelect,
+  author: { slug: string; displayName: string; avatarUrl: string | null } | null,
+  viewerId: string | undefined,
+  role: string | null,
+) {
+  return {
+    id: r.id,
+    thread_id: r.threadId,
+    body: r.body,
+    created_at: r.createdAt,
+    author_user_id: r.authorUserId,
+    author,
+    can_delete: viewerId != null && (r.authorUserId === viewerId || canGroupAction(role, "deletePost")),
+  };
+}
+
+/** Channel list for a group (with per-channel thread counts). */
+router.get("/groups/:slug/forum/channels", async (req, res) => {
+  try {
+    const ctx = await resolveForumReadGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    const channels = await db.select().from(groupForumChannelsTable)
+      .where(eq(groupForumChannelsTable.groupId, group.id))
+      .orderBy(asc(groupForumChannelsTable.position), asc(groupForumChannelsTable.createdAt));
+    const countRows = await db.select({
+      channelId: groupForumThreadsTable.channelId,
+      n: sql<number>`count(*)::int`,
+    }).from(groupForumThreadsTable)
+      .where(eq(groupForumThreadsTable.groupId, group.id))
+      .groupBy(groupForumThreadsTable.channelId);
+    const counts = new Map(countRows.map((r) => [r.channelId, r.n]));
+    res.json({
+      channels: channels.map((c) => toForumChannelDto(c, counts.get(c.id) ?? 0)),
+      viewer_role: role,
+      ...forumViewerCaps(role),
+    });
+  } catch (err) {
+    console.error("[community] GET /groups/:slug/forum/channels failed", err);
+    res.status(500).json({ error: "Couldn't load the forum — try again." });
+  }
+});
+
+/** Create a channel. Admin+ on the group's own ladder. */
+router.post("/groups/:slug/forum/channels", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!canGroupAction(role, "setJoinQuestions")) {
+      res.status(403).json({ error: "Only the crew's admins can open a new channel." });
+      return;
+    }
+    const body = createForumChannelSchema.parse(req.body);
+    const [channel] = await db.insert(groupForumChannelsTable).values({
+      groupId: group.id,
+      name: body.name,
+      description: body.description ?? "",
+      createdByUserId: req.userId!,
+    }).returning();
+    res.status(201).json({ channel: toForumChannelDto(channel, 0) });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] POST /groups/:slug/forum/channels failed", err);
+    res.status(500).json({ error: "Couldn't open the channel — try again." });
+  }
+});
+
+/** Rename / re-describe / reorder a channel. Admin+. */
+router.patch("/groups/:slug/forum/channels/:channelId", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!canGroupAction(role, "setJoinQuestions")) {
+      res.status(403).json({ error: "Only the crew's admins can change channels." });
+      return;
+    }
+    const channel = await getForumChannel(group.id, param(req, "channelId"));
+    if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    const body = updateForumChannelSchema.parse(req.body);
+    const patch: Partial<{ name: string; description: string; position: number }> = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.description !== undefined) patch.description = body.description;
+    if (body.position !== undefined) patch.position = body.position;
+    const [updated] = await db.update(groupForumChannelsTable).set(patch)
+      .where(eq(groupForumChannelsTable.id, channel.id)).returning();
+    const countRows = await db.select({ n: sql<number>`count(*)::int` }).from(groupForumThreadsTable)
+      .where(eq(groupForumThreadsTable.channelId, channel.id));
+    res.json({ channel: toForumChannelDto(updated, countRows[0]?.n ?? 0) });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] PATCH /groups/:slug/forum/channels/:channelId failed", err);
+    res.status(500).json({ error: "Couldn't update the channel — try again." });
+  }
+});
+
+/** Delete a channel (its threads and replies cascade). Admin+. */
+router.delete("/groups/:slug/forum/channels/:channelId", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!canGroupAction(role, "setJoinQuestions")) {
+      res.status(403).json({ error: "Only the crew's admins can close a channel." });
+      return;
+    }
+    const channel = await getForumChannel(group.id, param(req, "channelId"));
+    if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    await db.delete(groupForumChannelsTable).where(eq(groupForumChannelsTable.id, channel.id));
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[community] DELETE /groups/:slug/forum/channels/:channelId failed", err);
+    res.status(500).json({ error: "Couldn't close the channel — try again." });
+  }
+});
+
+/** Threads in a channel: pinned first, then most recent activity. */
+router.get("/groups/:slug/forum/channels/:channelId/threads", async (req, res) => {
+  try {
+    const ctx = await resolveForumReadGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    const channel = await getForumChannel(group.id, param(req, "channelId"));
+    if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    const threads = await db.select().from(groupForumThreadsTable)
+      .where(eq(groupForumThreadsTable.channelId, channel.id))
+      .orderBy(
+        desc(groupForumThreadsTable.isPinned),
+        desc(sql`COALESCE(${groupForumThreadsTable.lastReplyAt}, ${groupForumThreadsTable.createdAt})`),
+      )
+      .limit(100);
+    const cards = await profileCards(threads.map((t) => t.authorUserId));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      channel: toForumChannelDto(channel, threads.length),
+      threads: threads.map((t) => toForumThreadDto(t, cards[t.authorUserId] ?? null, req.userId, role)),
+      viewer_role: role,
+      ...forumViewerCaps(role),
+    }));
+  } catch (err) {
+    console.error("[community] GET /groups/:slug/forum/channels/:channelId/threads failed", err);
+    res.status(500).json({ error: "Couldn't load the threads — try again." });
+  }
+});
+
+/** Start a thread. Members only (the group's own posting rule). */
+router.post("/groups/:slug/forum/channels/:channelId/threads", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!role) { res.status(403).json({ error: "Join the group before you talk in it." }); return; }
+    const channel = await getForumChannel(group.id, param(req, "channelId"));
+    if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    const body = createForumThreadSchema.parse(req.body);
+    const tags = normalizeForumTags(body.tags ?? []);
+    if (!tags) {
+      res.status(400).json({ error: "Tags must be short labels — letters, numbers and hyphens, up to 24 characters each." });
+      return;
+    }
+    const [thread] = await db.insert(groupForumThreadsTable).values({
+      channelId: channel.id,
+      groupId: group.id,
+      authorUserId: req.userId!,
+      title: body.title,
+      body: body.body,
+      tags,
+    }).returning();
+    const cards = await profileCards([thread.authorUserId]);
+    res.status(201).json({
+      thread: await refreshSupabaseStorageUrlsDeep(
+        toForumThreadDto(thread, cards[thread.authorUserId] ?? null, req.userId, role),
+      ),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] POST /groups/:slug/forum/channels/:channelId/threads failed", err);
+    res.status(500).json({ error: "Couldn't start the thread — try again." });
+  }
+});
+
+/** One thread with its replies, oldest first. */
+router.get("/groups/:slug/forum/threads/:threadId", async (req, res) => {
+  try {
+    const ctx = await resolveForumReadGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    const thread = await getForumThread(group.id, param(req, "threadId"));
+    if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    const replies = await db.select().from(groupForumRepliesTable)
+      .where(eq(groupForumRepliesTable.threadId, thread.id))
+      .orderBy(asc(groupForumRepliesTable.createdAt)).limit(200);
+    const cards = await profileCards([thread.authorUserId, ...replies.map((r) => r.authorUserId)]);
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      thread: toForumThreadDto(thread, cards[thread.authorUserId] ?? null, req.userId, role),
+      replies: replies.map((r) => toForumReplyDto(r, cards[r.authorUserId] ?? null, req.userId, role)),
+      viewer_role: role,
+      ...forumViewerCaps(role),
+    }));
+  } catch (err) {
+    console.error("[community] GET /groups/:slug/forum/threads/:threadId failed", err);
+    res.status(500).json({ error: "Couldn't load the thread — try again." });
+  }
+});
+
+/** Reply in a thread. Members only; a locked thread is closed to
+ *  regular members (moderator+ can still post — the moderation rail). */
+router.post("/groups/:slug/forum/threads/:threadId/replies", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!role) { res.status(403).json({ error: "Join the group before you talk in it." }); return; }
+    const thread = await getForumThread(group.id, param(req, "threadId"));
+    if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (thread.isLocked && !canGroupAction(role, "deletePost")) {
+      res.status(403).json({ error: "This thread is locked by the crew's moderators." });
+      return;
+    }
+    const body = createForumReplySchema.parse(req.body);
+    const [reply] = await db.insert(groupForumRepliesTable).values({
+      threadId: thread.id,
+      groupId: group.id,
+      authorUserId: req.userId!,
+      body: body.body,
+    }).returning();
+    await db.update(groupForumThreadsTable)
+      .set({
+        replyCount: sql`${groupForumThreadsTable.replyCount} + 1`,
+        lastReplyAt: new Date(),
+      })
+      .where(eq(groupForumThreadsTable.id, thread.id));
+    if (thread.authorUserId !== req.userId) {
+      const myCard = await profileCards([req.userId!]);
+      const who = myCard[req.userId!]?.displayName ?? "Someone";
+      await notify({
+        userId: thread.authorUserId,
+        kind: "forum_reply",
+        title: `🦈 ${who} replied in "${thread.title}"`,
+        body: `New forum reply in ${group.name}.`,
+        link: `/groups/${group.slug}`,
+      });
+    }
+    const cards = await profileCards([reply.authorUserId]);
+    res.status(201).json({
+      reply: await refreshSupabaseStorageUrlsDeep(
+        toForumReplyDto(reply, cards[reply.authorUserId] ?? null, req.userId, role),
+      ),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] POST /groups/:slug/forum/threads/:threadId/replies failed", err);
+    res.status(500).json({ error: "Couldn't post your reply — try again." });
+  }
+});
+
+/** Pin / lock a thread. Moderator+ on the group's ladder. */
+router.patch("/groups/:slug/forum/threads/:threadId", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    if (!canGroupAction(role, "deletePost")) {
+      res.status(403).json({ error: "Only the crew's moderators can pin or lock threads." });
+      return;
+    }
+    const thread = await getForumThread(group.id, param(req, "threadId"));
+    if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    const body = forumThreadModerationSchema.parse(req.body);
+    const patch: Partial<{ isPinned: boolean; isLocked: boolean }> = {};
+    if (body.is_pinned !== undefined) patch.isPinned = body.is_pinned;
+    if (body.is_locked !== undefined) patch.isLocked = body.is_locked;
+    const [updated] = await db.update(groupForumThreadsTable).set(patch)
+      .where(eq(groupForumThreadsTable.id, thread.id)).returning();
+    const cards = await profileCards([updated.authorUserId]);
+    res.json({
+      thread: await refreshSupabaseStorageUrlsDeep(
+        toForumThreadDto(updated, cards[updated.authorUserId] ?? null, req.userId, role),
+      ),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] PATCH /groups/:slug/forum/threads/:threadId failed", err);
+    res.status(500).json({ error: "Couldn't update the thread — try again." });
+  }
+});
+
+/** Delete a thread (replies cascade). Moderator+ or the author —
+ *  the same removal rail as group feed posts. */
+router.delete("/groups/:slug/forum/threads/:threadId", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    const thread = await getForumThread(group.id, param(req, "threadId"));
+    if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (thread.authorUserId !== req.userId && !canGroupAction(role, "deletePost")) {
+      res.status(403).json({ error: "Only the crew leads or the author can remove this." });
+      return;
+    }
+    await db.delete(groupForumThreadsTable).where(eq(groupForumThreadsTable.id, thread.id));
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[community] DELETE /groups/:slug/forum/threads/:threadId failed", err);
+    res.status(500).json({ error: "Couldn't delete the thread — try again." });
+  }
+});
+
+/** Delete a reply. Moderator+ or the author. */
+router.delete("/groups/:slug/forum/threads/:threadId/replies/:replyId", requireAuth, async (req, res) => {
+  try {
+    const ctx = await resolveForumWriteGroup(req, res);
+    if (!ctx) return;
+    const { group, role } = ctx;
+    const thread = await getForumThread(group.id, param(req, "threadId"));
+    if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    const rows = await db.select().from(groupForumRepliesTable)
+      .where(and(eq(groupForumRepliesTable.id, param(req, "replyId")), eq(groupForumRepliesTable.threadId, thread.id)))
+      .limit(1);
+    const reply = rows[0];
+    if (!reply) { res.status(404).json({ error: "Reply not found." }); return; }
+    if (reply.authorUserId !== req.userId && !canGroupAction(role, "deletePost")) {
+      res.status(403).json({ error: "Only the crew leads or the author can remove this." });
+      return;
+    }
+    await db.delete(groupForumRepliesTable).where(eq(groupForumRepliesTable.id, reply.id));
+    await db.update(groupForumThreadsTable)
+      .set({ replyCount: sql`GREATEST(0, ${groupForumThreadsTable.replyCount} - 1)` })
+      .where(eq(groupForumThreadsTable.id, thread.id));
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[community] DELETE /groups/:slug/forum/threads/:threadId/replies/:replyId failed", err);
+    res.status(500).json({ error: "Couldn't delete the reply — try again." });
   }
 });
 

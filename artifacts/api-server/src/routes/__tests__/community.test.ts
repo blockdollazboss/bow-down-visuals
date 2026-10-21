@@ -36,6 +36,18 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "DELETE", path: "/groups/:slug/posts/:postId" },
   { method: "DELETE", path: "/groups/:slug/members/:userId" },
   { method: "POST", path: "/groups/:slug/broadcast" },
+  // Group forums (0184, Wave 3 #13)
+  { method: "GET", path: "/groups/:slug/forum/channels" },
+  { method: "POST", path: "/groups/:slug/forum/channels" },
+  { method: "PATCH", path: "/groups/:slug/forum/channels/:channelId" },
+  { method: "DELETE", path: "/groups/:slug/forum/channels/:channelId" },
+  { method: "GET", path: "/groups/:slug/forum/channels/:channelId/threads" },
+  { method: "POST", path: "/groups/:slug/forum/channels/:channelId/threads" },
+  { method: "GET", path: "/groups/:slug/forum/threads/:threadId" },
+  { method: "POST", path: "/groups/:slug/forum/threads/:threadId/replies" },
+  { method: "PATCH", path: "/groups/:slug/forum/threads/:threadId" },
+  { method: "DELETE", path: "/groups/:slug/forum/threads/:threadId" },
+  { method: "DELETE", path: "/groups/:slug/forum/threads/:threadId/replies/:replyId" },
   // Events
   { method: "POST", path: "/events" },
   { method: "GET", path: "/events" },
