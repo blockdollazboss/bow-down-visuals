@@ -310,6 +310,10 @@ interface ReleaseRow {
   presave_headline?: string | null;
   presave_platform_links?: Record<string, string> | null;
   presave_bonus_url?: string | null;
+  /* Retargeting pixels (migration 0186) */
+  meta_pixel_id?: string | null;
+  tiktok_pixel_id?: string | null;
+  google_tag_id?: string | null;
   split_share_slug: string | null;
 }
 
@@ -1814,7 +1818,8 @@ router.get("/distribution/presave/:slug", async (req, res) => {
     const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
     const result = await db.execute(sql`
       SELECT ${RELEASE_COLUMNS},
-             presave_headline, presave_platform_links, presave_bonus_url
+             presave_headline, presave_platform_links, presave_bonus_url,
+             meta_pixel_id, tiktok_pixel_id, google_tag_id
       FROM distribution_releases
       WHERE presave_slug = ${slug ?? ""}
       LIMIT 1
@@ -1894,6 +1899,14 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         released,
         persistsAfterRelease: true,
         landing,
+        /* ── Retargeting pixels (migration 0186): the creator's own
+           ad-platform IDs for this release. The landing fires exactly
+           these on view; all null = nothing extra fires. ── */
+        pixels: {
+          metaPixelId: row.meta_pixel_id ?? null,
+          tiktokPixelId: row.tiktok_pixel_id ?? null,
+          googleTagId: row.google_tag_id ?? null,
+        },
         accountPresave: spotifyItem
           ? { platform: "spotify", supported: true, itemKind: spotifyItem.kind, actionLabel: "Save on Spotify", accountSaveCount }
           : { platform: "spotify", supported: false, reason: "No Spotify track or album link on this release yet — email pre-save is the action.", actionLabel: null, accountSaveCount },
@@ -2080,10 +2093,178 @@ router.post("/distribution/presave/:slug/share", publicApiLimiter, async (req, r
   }
 });
 
+/* ─── Release smartlink analytics + retargeting pixels (migration 0186) ──
+   Competitor gap G2 — Linkfire / Feature.fm's core paid value: the
+   release smartlink recorded follows and shares but never a landing
+   view or an outbound click, and creators couldn't attach their own
+   ad pixels. Events land in release_link_clicks with the bio_link_clicks
+   field discipline (link key + title snapshot, referrer, created_at),
+   plus kind ('view' | 'click'), the arrival channel label, and a coarse
+   CDN geo country. No IPs, no fingerprints.
+   POST /api/distribution/presave/:slug/view  (public) — a landing view.
+   POST /api/distribution/presave/:slug/click (public) — an outbound tap.
+   The click client names the link by kind + key only; the server
+   resolves it against the release's real links, so a key that isn't on
+   the page is refused and records nothing. */
+
+export const PIXEL_ID_PATTERNS = {
+  meta: /^\d{6,20}$/,
+  tiktok: /^[A-Za-z0-9]{10,32}$/,
+  google: /^(?:G|AW|GT|UA)-[A-Za-z0-9-]{4,24}$/,
+} as const;
+export type PixelKind = keyof typeof PIXEL_ID_PATTERNS;
+const PIXEL_LABELS: Record<PixelKind, string> = {
+  meta: "Meta Pixel",
+  tiktok: "TikTok Pixel",
+  google: "Google tag",
+};
+
+/* undefined = leave as-is · "" = clear · anything else must match the
+   platform's published ID shape or the save is refused honestly — a
+   bad ID stored silently would fire nothing and lie by omission. */
+export function cleanPixelId(
+  kind: PixelKind,
+  raw: string | undefined,
+  current: string | null,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (raw === undefined) return { ok: true, value: current };
+  const v = raw.trim();
+  if (!v) return { ok: true, value: null };
+  if (!PIXEL_ID_PATTERNS[kind].test(v)) {
+    return { ok: false, error: `That ${PIXEL_LABELS[kind]} ID doesn't look right — double-check it and try again.` };
+  }
+  return { ok: true, value: v };
+}
+
+function cleanChannel(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40);
+  return v || null;
+}
+
+/* Coarse geography only: the CDN's country header, validated to an ISO
+   code ('XX'/unknown is dropped). The fan's IP is never read or stored. */
+function requestCountry(req: Request): string | null {
+  const raw = (req.get("cf-ipcountry") ?? req.get("x-vercel-ip-country") ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(raw) && raw !== "XX" ? raw : null;
+}
+
+interface SmartlinkTarget { linkKey: string; linkTitle: string }
+async function resolveSmartlinkTarget(
+  release: { id: string; platformLinks: Record<string, string>; bonusUrl: string | null },
+  kind: string,
+  key: string,
+): Promise<SmartlinkTarget | null> {
+  if (kind === "platform") {
+    if (!PRESAVE_LINK_PLATFORMS.has(key) || !release.platformLinks[key]) return null;
+    return { linkKey: key, linkTitle: (PLATFORM_LABEL as Record<string, string>)[key] ?? key };
+  }
+  if (kind === "bonus") {
+    return release.bonusUrl ? { linkKey: "bonus", linkTitle: "Bonus content" } : null;
+  }
+  /* video / store / social ride the landing-content extras table. */
+  let landing: { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | null = null;
+  try {
+    const lr = await db.execute(sql`
+      SELECT video_url, store_url, social_links FROM release_landing_content WHERE release_id = ${release.id} LIMIT 1
+    `);
+    landing = (lr.rows[0] as { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | undefined) ?? null;
+  } catch { /* extras table absent on older installs — target stays unresolved */ }
+  if (!landing) return null;
+  if (kind === "video") return landing.video_url ? { linkKey: "video", linkTitle: "Video" } : null;
+  if (kind === "store") return landing.store_url ? { linkKey: "store", linkTitle: "Store" } : null;
+  if (kind === "social") {
+    const socials = landing.social_links ?? {};
+    if (!key || !socials[key]) return null;
+    return { linkKey: `social:${key}`, linkTitle: key === "x" ? "X" : key.charAt(0).toUpperCase() + key.slice(1) };
+  }
+  return null;
+}
+
+const linkEventSchema = z.object({
+  channel: z.string().max(120).optional().default(""),
+});
+
+const linkClickSchema = z.object({
+  kind: z.enum(["platform", "video", "store", "social", "bonus"]).optional().default("platform"),
+  key: z.string().max(60).optional().default(""),
+  channel: z.string().max(120).optional().default(""),
+});
+
+async function recordLinkEvent(
+  req: Request,
+  releaseId: string,
+  ownerId: string,
+  kind: "view" | "click",
+  target: SmartlinkTarget | null,
+  channelRaw: string,
+): Promise<void> {
+  await db.execute(sql`
+    INSERT INTO release_link_clicks (id, release_id, user_id, kind, link_key, link_title, channel, referrer, country)
+    VALUES (${randomUUID()}, ${releaseId}, ${ownerId}, ${kind}, ${target?.linkKey ?? ""}, ${target?.linkTitle ?? ""},
+            ${cleanChannel(channelRaw)}, ${req.get("referer") ?? req.get("referrer") ?? null}, ${requestCountry(req)})
+  `);
+}
+
+router.post("/distribution/presave/:slug/view", publicApiLimiter, async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const release = await getPublicReleaseBySlug(slug ?? "");
+  if (!release) {
+    res.status(404).json({ error: "Pre-save link not found." });
+    return;
+  }
+  const parsed = linkEventSchema.safeParse(req.body ?? {});
+  try {
+    await recordLinkEvent(req, release.id, release.userId, "view", null, parsed.success ? parsed.data.channel : "");
+  } catch (err) {
+    /* Analytics must never break the fan's page — the bio-click rule. */
+    logger.error({ err }, "[distribution] smartlink view track failed");
+  }
+  res.json({ ok: true });
+});
+
+router.post("/distribution/presave/:slug/click", publicApiLimiter, async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const release = await getPublicReleaseBySlug(slug ?? "");
+  if (!release) {
+    res.status(404).json({ error: "Pre-save link not found." });
+    return;
+  }
+  const parsed = linkClickSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid click data." });
+    return;
+  }
+  try {
+    const full = await db.execute(sql`
+      SELECT presave_platform_links FROM distribution_releases WHERE id = ${release.id} LIMIT 1
+    `);
+    const row = (full.rows[0] ?? {}) as { presave_platform_links?: Record<string, string> | null };
+    const target = await resolveSmartlinkTarget(
+      { id: release.id, platformLinks: row.presave_platform_links ?? {}, bonusUrl: release.bonusUrl },
+      parsed.data.kind,
+      parsed.data.key.trim().toLowerCase(),
+    );
+    if (!target) {
+      res.status(400).json({ error: "That link isn't on this release page." });
+      return;
+    }
+    await recordLinkEvent(req, release.id, release.userId, "click", target, parsed.data.channel);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "[distribution] smartlink click track failed");
+    res.json({ ok: true });
+  }
+});
+
 const presaveSettingsSchema = z.object({
   headline: z.string().max(140).optional(),
   platformLinks: z.record(z.string(), z.string().max(500)).optional(),
   bonusUrl: z.string().max(500).optional(),
+  /* Retargeting pixels (migration 0186) — the creator's own IDs. */
+  metaPixelId: z.string().max(64).optional(),
+  tiktokPixelId: z.string().max(64).optional(),
+  googleTagId: z.string().max(64).optional(),
 });
 
 const PRESAVE_LINK_PLATFORMS = new Set([
@@ -2110,7 +2291,7 @@ router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (
       res.status(400).json({ error: "Invalid pre-save settings." });
       return;
     }
-    const { headline, platformLinks, bonusUrl } = parsed.data;
+    const { headline, platformLinks, bonusUrl, metaPixelId, tiktokPixelId, googleTagId } = parsed.data;
 
     /* Keep only known platform keys with real http(s) URLs. */
     const links: Record<string, string> = {};
@@ -2122,28 +2303,46 @@ router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (
     }
 
     const current = await db.execute(sql`
-      SELECT presave_headline, presave_platform_links, presave_bonus_url
+      SELECT presave_headline, presave_platform_links, presave_bonus_url,
+             meta_pixel_id, tiktok_pixel_id, google_tag_id
       FROM distribution_releases WHERE id = ${release.id}
     `);
     const cur = (current.rows[0] ?? {}) as {
       presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+      meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
     };
     const currentLinks = (cur.presave_platform_links ?? {}) as Record<string, string>;
     const merged = platformLinks ? links : currentLinks;
     const nextHeadline = headline !== undefined ? headline.trim() || null : (cur.presave_headline ?? null);
     const nextBonus = bonusUrl !== undefined ? cleanUrl(bonusUrl) : (cur.presave_bonus_url ?? null);
 
+    /* Retargeting pixels: invalid IDs are refused, never stored bent. */
+    const metaPx = cleanPixelId("meta", metaPixelId, cur.meta_pixel_id ?? null);
+    if (!metaPx.ok) { res.status(400).json({ error: metaPx.error }); return; }
+    const tiktokPx = cleanPixelId("tiktok", tiktokPixelId, cur.tiktok_pixel_id ?? null);
+    if (!tiktokPx.ok) { res.status(400).json({ error: tiktokPx.error }); return; }
+    const googlePx = cleanPixelId("google", googleTagId, cur.google_tag_id ?? null);
+    if (!googlePx.ok) { res.status(400).json({ error: googlePx.error }); return; }
+
     await db.execute(sql`
       UPDATE distribution_releases
       SET presave_headline = ${nextHeadline},
           presave_platform_links = ${JSON.stringify(merged)}::jsonb,
           presave_bonus_url = ${nextBonus},
+          meta_pixel_id = ${metaPx.value},
+          tiktok_pixel_id = ${tiktokPx.value},
+          google_tag_id = ${googlePx.value},
           updated_at = now()
       WHERE id = ${release.id}
     `);
     res.json({
       ok: true,
-      settings: { headline: nextHeadline, platformLinks: merged, bonusUrl: nextBonus },
+      settings: {
+        headline: nextHeadline,
+        platformLinks: merged,
+        bonusUrl: nextBonus,
+        pixels: { metaPixelId: metaPx.value, tiktokPixelId: tiktokPx.value, googleTagId: googlePx.value },
+      },
     });
   } catch (err) {
     logger.error({ err }, "[distribution] presave settings save failed");
@@ -2169,7 +2368,8 @@ router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, 
         LIMIT 50
       `),
       db.execute(sql`
-        SELECT presave_headline, presave_platform_links, presave_bonus_url
+        SELECT presave_headline, presave_platform_links, presave_bonus_url,
+               meta_pixel_id, tiktok_pixel_id, google_tag_id
         FROM distribution_releases
         WHERE id = ${release.id}
         LIMIT 1
@@ -2177,13 +2377,62 @@ router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, 
     ]);
     const s = (settingsRow.rows[0] ?? {}) as {
       presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+      meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
     };
+    /* Smartlink analytics (migration 0186): views + outbound clicks with
+       per-link / per-channel / per-country splits, bio-dashboard style.
+       A pre-0186 install has no events table — answer null (not
+       collected) rather than dressing an absence up as zeros. */
+    let linkAnalytics: {
+      views: number; clicks: number; clicksLast7d: number;
+      perLink: Array<{ linkKey: string; linkTitle: string; clicks: number }>;
+      perChannel: Array<{ channel: string; clicks: number }>;
+      perCountry: Array<{ country: string; clicks: number }>;
+    } | null = null;
+    try {
+      const [totals, perLinkRows, perChannelRows, perCountryRows, recentRows] = await Promise.all([
+        db.execute(sql`SELECT kind, COUNT(*) AS c FROM release_link_clicks WHERE release_id = ${release.id} GROUP BY kind`),
+        db.execute(sql`
+          SELECT link_key, link_title, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click'
+          GROUP BY link_key, link_title ORDER BY c DESC LIMIT 50`),
+        db.execute(sql`
+          SELECT channel, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND channel IS NOT NULL
+          GROUP BY channel ORDER BY c DESC LIMIT 20`),
+        db.execute(sql`
+          SELECT country, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND country IS NOT NULL
+          GROUP BY country ORDER BY c DESC LIMIT 50`),
+        db.execute(sql`
+          SELECT COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND created_at > NOW() - INTERVAL '7 days'`),
+      ]);
+      const totalsMap = new Map((totals.rows as Array<{ kind: string; c: string | number }>).map((r) => [r.kind, Number(r.c ?? 0)]));
+      linkAnalytics = {
+        views: totalsMap.get("view") ?? 0,
+        clicks: totalsMap.get("click") ?? 0,
+        clicksLast7d: Number((recentRows.rows[0] as { c?: string | number } | undefined)?.c ?? 0),
+        perLink: (perLinkRows.rows as Array<{ link_key: string; link_title: string; c: string | number }>)
+          .map((r) => ({ linkKey: r.link_key, linkTitle: r.link_title, clicks: Number(r.c ?? 0) })),
+        perChannel: (perChannelRows.rows as Array<{ channel: string; c: string | number }>)
+          .map((r) => ({ channel: r.channel, clicks: Number(r.c ?? 0) })),
+        perCountry: (perCountryRows.rows as Array<{ country: string; c: string | number }>)
+          .map((r) => ({ country: r.country, clicks: Number(r.c ?? 0) })),
+      };
+    } catch { linkAnalytics = null; }
     res.json({
       settings: {
         headline: s.presave_headline ?? null,
         platformLinks: s.presave_platform_links ?? {},
         bonusUrl: s.presave_bonus_url ?? null,
+        pixels: {
+          metaPixelId: s.meta_pixel_id ?? null,
+          tiktokPixelId: s.tiktok_pixel_id ?? null,
+          googleTagId: s.google_tag_id ?? null,
+        },
       },
+      linkAnalytics,
       followers: Number((followCount.rows[0] as { c: string | number }).c ?? 0),
       shares: Number((shareCount.rows[0] as { c: string | number }).c ?? 0),
       recentFollows: recent.rows as Array<{
