@@ -94,6 +94,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           volume: s.volume, muted: s.muted, solo: s.solo, pan: s.pan,
           trimStart: s.trimStart, trimEnd: s.trimEnd,
           effects: s.effects,
+          ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       }, confirmedFetch);

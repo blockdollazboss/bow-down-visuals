@@ -123,6 +123,7 @@ export function ManualDAW({
           trimStart: s.trimStart,
           trimEnd: s.trimEnd,
           effects: s.effects,
+          ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       }, confirmedFetch);
@@ -232,6 +233,7 @@ export function ManualDAW({
           trimStart: s.trimStart,
           trimEnd: s.trimEnd,
           effects: s.effects,
+          ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       }, confirmedFetch);

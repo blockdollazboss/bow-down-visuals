@@ -84,5 +84,6 @@ export function stemFromLibraryAsset(asset: LibraryAsset, now = new Date()): Aud
     trimEnd: 0,
     startTime: 0,
     effects: defaultStemEffects(),
+    fxChain: [],
   };
 }

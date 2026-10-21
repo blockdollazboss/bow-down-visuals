@@ -129,6 +129,7 @@ export function MusicStudio({
         trimEnd: 0,
         startTime: 0,
         effects: defaultStemEffects(),
+        fxChain: [],
       };
       onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
     } catch {

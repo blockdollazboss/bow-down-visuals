@@ -668,6 +668,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       trimEnd: 0,
       startTime: 0,
       effects: defaultStemEffects(),
+      fxChain: [],
     };
   }
 

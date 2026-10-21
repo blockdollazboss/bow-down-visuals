@@ -1,4 +1,6 @@
 import type { SceneData } from "@/lib/scene-parser";
+import type { FxStep } from "@/lib/arrangement";
+import { normalizeStemFxChain } from "@/lib/stem-fx-chain";
 import { sanitizeLanes, type TimelineLanes } from "@/lib/timeline-lanes";
 import { defaultDuckingSettings, type DuckingSettings } from "@/lib/ducking";
 export type { DuckingSettings } from "@/lib/ducking";
@@ -1231,6 +1233,11 @@ export interface AudioStem {
   /** Alignment offset on the timeline, in seconds (plan only). */
   startTime: number;
   effects: StemEffects;
+  /** Parametric FX chain (Wave 3 #16) — parametric EQ bands, compressor,
+   *  saturation, reverb, delay in the user's order. When non-empty it
+   *  REPLACES the preset `effects` above in both the preview engine and
+   *  the server render; empty = presets apply, as before. */
+  fxChain: FxStep[];
 }
 
 export interface AiMixOptions {
@@ -2036,6 +2043,7 @@ export function normalizeStem(s: Partial<AudioStem>): AudioStem {
     trimEnd: s.trimEnd ?? 0,
     startTime: s.startTime ?? 0,
     effects: { ...defaultStemEffects(), ...(s.effects ?? {}) },
+    fxChain: normalizeStemFxChain(s.fxChain),
   };
 }
 
