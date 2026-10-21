@@ -450,7 +450,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     setErr("");
     if (!form.title.trim()) { setErr("Give it a title."); return; }
     const cents = dollarsToCents(form.priceDollars);
-    if (!Number.isFinite(cents) || cents <= 0) { setErr("Set a real price (more than $0)."); return; }
+    /* $0 is a real price here: a free lead magnet (0189) — fans claim
+       it with their email instead of checking out. Negative isn't. */
+    if (!Number.isFinite(cents) || cents < 0) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
     setBusy(true);
     try {
       const token = await getToken();
@@ -542,6 +544,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
               </button>
             </div>
           </div>
+          <p className="mt-2 text-[11px] text-white/45">
+            Set the price to $0 and this becomes a <span className="font-bold text-primary">free lead magnet</span> — fans claim it with their email (which joins your list) and get it instantly. No checkout, no card.
+          </p>
 
           {/* 2-3★: guided */}
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-min-stars="2">
@@ -639,7 +644,16 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                     <p className="text-[10px] text-white/30">→ {p.links.productUrl}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-white/60">{KIND_EMOJI[p.kind]} {KIND_LABELS[p.kind]}</td>
-                  <td className="px-4 py-3 font-bold text-primary">{p.price}</td>
+                  <td className="px-4 py-3 font-bold text-primary">
+                    {p.priceCents === 0 ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        FREE
+                        <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">Lead magnet</span>
+                      </span>
+                    ) : (
+                      p.price
+                    )}
+                  </td>
                   <td className="px-4 py-3" data-min-stars="4">
                     {p.unlimited ? (
                       <span className="text-xs text-white/40">∞ unlimited</span>

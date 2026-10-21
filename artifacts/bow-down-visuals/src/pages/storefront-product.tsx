@@ -33,6 +33,8 @@ interface ProductData {
     description: string | null;
     priceCents: number;
     price: string;
+    /** $0 = lead magnet (0189): claimed by email, never checked out. */
+    free?: boolean;
     compareAtCents: number | null;
     inventory: number;
     soldOut: boolean;
@@ -44,6 +46,9 @@ interface ProductData {
       productUrl: string;
     };
   };
+  /** Present on the detail payload for $0 products. */
+  free?: boolean;
+  note?: string;
   feeSplit: {
     priceCents: number;
     price: string;
@@ -53,6 +58,13 @@ interface ProductData {
     creatorCents: number;
     creatorAmount: string;
   };
+}
+
+interface ClaimResult {
+  duplicate: boolean;
+  delivery: { url: string; expiresAt: string; maxUses: number } | null;
+  fulfillmentNote: string | null;
+  listName: string;
 }
 
 export default function StorefrontProduct() {
@@ -68,6 +80,13 @@ export default function StorefrontProduct() {
   const [shared, setShared] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [discountCode, setDiscountCode] = useState("");
+  /* Lead-magnet claim state (0189). */
+  const [claimEmail, setClaimEmail] = useState("");
+  const [claimName, setClaimName] = useState("");
+  const [claimConsent, setClaimConsent] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimed, setClaimed] = useState<ClaimResult | null>(null);
 
   async function onShare() {
     if (!data) return;
@@ -104,6 +123,60 @@ export default function StorefrontProduct() {
   }, [params.id]);
 
   const maxQty = data ? maxQuantity(data.product.inventory, data.product.unlimited) : 99;
+  const isFree = !!data && (data.free === true || data.product.free === true || data.product.priceCents === 0);
+
+  /* Claim a free lead magnet: the exchange is the email — it joins the
+     creator's list (consent checkbox, mirrored server-side) and the
+     product delivers instantly on the house delivery rail. No card,
+     no checkout session, ever. */
+  async function claimNow() {
+    if (!data) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (!claimConsent) {
+      setClaimError("Tick the box to claim it — your email joining the creator's list is the exchange for the freebie.");
+      return;
+    }
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/storefront/claim", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          productId: data.product.id,
+          emailConsent: true,
+          ...(claimEmail.trim() ? { email: claimEmail.trim() } : {}),
+          ...(claimName.trim() ? { name: claimName.trim() } : {}),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        duplicate?: boolean;
+        delivery?: ClaimResult["delivery"];
+        order?: { fulfillmentNote?: string | null };
+        subscribed?: { listName?: string };
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(body.message || body.error || "Couldn't claim this product.");
+      setClaimed({
+        duplicate: body.duplicate === true,
+        delivery: body.delivery ?? null,
+        fulfillmentNote: body.order?.fulfillmentNote ?? null,
+        listName: body.subscribed?.listName ?? "the creator's list",
+      });
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : "Couldn't claim this product.");
+    } finally {
+      setClaiming(false);
+    }
+  }
 
   async function buyNow() {
     if (!data) return;
@@ -200,30 +273,107 @@ export default function StorefrontProduct() {
                         ${(data.product.compareAtCents / 100).toFixed(2)}
                       </span>
                     )}
-                    <span className="text-3xl font-bold text-amber-300">{data.product.price}</span>
+                    {isFree ? (
+                      <span className="text-3xl font-bold text-amber-300">FREE</span>
+                    ) : (
+                      <span className="text-3xl font-bold text-amber-300">{data.product.price}</span>
+                    )}
                   </span>
                 </div>
-                <div className="mt-3 space-y-1.5 border-t border-amber-500/10 pt-3 text-sm">
-                  <div className="flex justify-between text-amber-100/70">
-                    <span className="inline-flex items-center gap-1.5">
-                      <BadgeDollarSign className="h-4 w-4 text-amber-400" /> Goes to {data.product.links.creatorName}
-                    </span>
-                    <span className="font-semibold text-amber-200">{data.feeSplit.creatorAmount}</span>
-                  </div>
-                  <div className="flex justify-between text-amber-100/50">
-                    <span>Platform fee ({data.feeSplit.platformFeePct}%)</span>
-                    <span>{data.feeSplit.platformFee}</span>
-                  </div>
-                </div>
-                <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-100/50">
-                  <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Real-money purchase through secure checkout. This is not Visual Bucs (AI credits).
-                </p>
+                {isFree ? (
+                  <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
+                    <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                    Free from {data.product.links.creatorName} — claim it with your email and it's delivered instantly. Claiming adds your email to their list; every email carries an unsubscribe link. No card, no charge.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-3 space-y-1.5 border-t border-amber-500/10 pt-3 text-sm">
+                      <div className="flex justify-between text-amber-100/70">
+                        <span className="inline-flex items-center gap-1.5">
+                          <BadgeDollarSign className="h-4 w-4 text-amber-400" /> Goes to {data.product.links.creatorName}
+                        </span>
+                        <span className="font-semibold text-amber-200">{data.feeSplit.creatorAmount}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-100/50">
+                        <span>Platform fee ({data.feeSplit.platformFeePct}%)</span>
+                        <span>{data.feeSplit.platformFee}</span>
+                      </div>
+                    </div>
+                    <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-100/50">
+                      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Real-money purchase through secure checkout. This is not Visual Bucs (AI credits).
+                    </p>
+                  </>
+                )}
               </div>
 
               {data.product.soldOut ? (
                 <div className="mt-6 rounded-full border border-amber-500/30 px-6 py-4 text-center text-lg font-bold text-amber-200/70">
                   Sold out — the creator's restocking
+                </div>
+              ) : isFree ? (
+                <div className="mt-6">
+                  {claimed ? (
+                    <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5 text-center">
+                      <div className="text-lg font-bold text-emerald-200">
+                        {claimed.duplicate ? "You've already claimed this one — here's your copy again." : "It's yours. 🎉"}
+                      </div>
+                      {claimed.fulfillmentNote && (
+                        <p className="mt-1 text-sm text-emerald-100/80">{claimed.fulfillmentNote}</p>
+                      )}
+                      {claimed.delivery && (
+                        <a
+                          href={claimed.delivery.url}
+                          className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-3 font-bold text-black transition hover:brightness-110"
+                        >
+                          <Zap className="h-4 w-4" /> Download it now
+                        </a>
+                      )}
+                      <p className="mt-3 text-xs text-emerald-100/60">
+                        Your email joined {claimed.listName} — that's the exchange for the freebie. Unsubscribe anytime.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={claimEmail}
+                          onChange={(e) => setClaimEmail(e.target.value)}
+                          type="email"
+                          placeholder="Email for delivery (blank = your account email)"
+                          aria-label="Email for delivery"
+                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                        />
+                        <input
+                          value={claimName}
+                          onChange={(e) => setClaimName(e.target.value)}
+                          placeholder="Your name (optional)"
+                          aria-label="Your name"
+                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                        />
+                      </div>
+                      <label className="mt-3 flex cursor-pointer items-start gap-2 text-left text-xs text-amber-100/70">
+                        <input
+                          type="checkbox"
+                          checked={claimConsent}
+                          onChange={(e) => setClaimConsent(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
+                        />
+                        <span>
+                          Add my email to {data.product.links.creatorName}'s list — that's the exchange for this free product. Every email carries an unsubscribe link.
+                        </span>
+                      </label>
+                      {claimError && <p className="mt-3 text-sm font-bold text-red-300">{claimError}</p>}
+                      <button
+                        onClick={claimNow}
+                        disabled={claiming}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                      >
+                        {claiming ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                        {claiming ? "Claiming…" : user ? "Claim it free" : "Sign in to claim it free"}
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
