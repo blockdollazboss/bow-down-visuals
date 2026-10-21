@@ -1294,7 +1294,7 @@ router.get("/store/price-guide", publicApiLimiter, (req, res) => {
     verticalLabel: VERTICAL_LABELS[pricePointFor(vertical, kind || "track").vertical] ?? "Creator",
     verticals: STORE_VERTICALS.map((v) => ({ id: v, label: VERTICAL_LABELS[v] })),
     guide,
-    note: "Benchmarks from what creators actually charge — a starting point, not a rule. You keep 90% of every sale.",
+    note: "Benchmarks from what creators actually charge — a starting point, not a rule. You keep 95% of every sale.",
   });
 });
 

@@ -1861,7 +1861,7 @@ function DigitalSalesTab() {
                 : stars <= 3
                   ? "Pick a proven price point, or let the smart default decide."
                   : "Full control: any price you want, with the fee math live."}{" "}
-              You always keep 90%.
+              You always keep 95%.
             </p>
 
             {sectionStates.products === "loading" && !products ? (
