@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +17,7 @@ interface PublishToShowcaseProps {
 }
 
 export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTitle }: PublishToShowcaseProps) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -27,7 +29,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
 
   async function handlePublish() {
     if (!title.trim()) {
-      toast({ title: "Add a title", description: "Give your creation a title first.", variant: "destructive" });
+      toast({ title: t("showcasePublish.toastNeedTitle"), description: t("showcasePublish.toastNeedTitleDesc"), variant: "destructive" });
       return;
     }
     setPublishing(true);
@@ -46,13 +48,13 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not publish.");
+      if (!res.ok) throw new Error(data.error || t("showcasePublish.errPublishFallback"));
       setPublishedSlug(data.item.slug);
-      toast({ title: "Published!", description: "Your creation is live on the showcase." });
+      toast({ title: t("showcasePublish.toastPublished"), description: t("showcasePublish.toastPublishedDesc") });
     } catch (err) {
       toast({
-        title: "Publish failed",
-        description: err instanceof Error ? err.message : "Please try again.",
+        title: t("showcasePublish.toastFailed"),
+        description: err instanceof Error ? err.message : t("showcasePublish.toastFailedFallback"),
         variant: "destructive",
       });
     } finally {
@@ -66,7 +68,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
         href={`/showcase/${publishedSlug}`}
         className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:underline"
       >
-        <Check className="h-3.5 w-3.5" /> View on showcase
+        <Check className="h-3.5 w-3.5" /> {t("showcasePublish.viewLink")}
       </a>
     );
   }
@@ -79,37 +81,37 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
         onClick={() => setOpen(!open)}
         className="gap-2 border-white/15 text-white/60 hover:border-[#e8c86a]/50 hover:text-white text-xs h-8"
       >
-        <Share2 className="h-3.5 w-3.5" /> Publish to showcase
+        <Share2 className="h-3.5 w-3.5" /> {t("showcasePublish.btnToggle")}
       </Button>
       {open && (
         <div className="mt-3 rounded-xl border border-white/10 bg-black/60 p-4 space-y-3">
           <div>
-            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Title</label>
+            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.titleLabel")}</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Name your creation"
+              placeholder={t("showcasePublish.titlePlaceholder")}
               maxLength={120}
               className="mt-1 w-full rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-[#e8c86a]/50 focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Description <span className="text-white/25 normal-case">(optional)</span></label>
+            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.descLabel")} <span className="text-white/25 normal-case">{t("showcasePublish.optionalTag")}</span></label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell the story behind it"
+              placeholder={t("showcasePublish.descPlaceholder")}
               maxLength={500}
               rows={2}
               className="mt-1 w-full rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-[#e8c86a]/50 focus:outline-none resize-none"
             />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Creator name <span className="text-white/25 normal-case">(optional)</span></label>
+            <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.creatorLabel")} <span className="text-white/25 normal-case">{t("showcasePublish.optionalTag")}</span></label>
             <input
               value={creatorName}
               onChange={(e) => setCreatorName(e.target.value)}
-              placeholder="How should you be credited?"
+              placeholder={t("showcasePublish.creatorPlaceholder")}
               maxLength={60}
               className="mt-1 w-full rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-[#e8c86a]/50 focus:outline-none"
             />
@@ -120,10 +122,10 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
             disabled={publishing}
             className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-xs h-9"
           >
-            {publishing ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Publishing…</> : "Publish (free)"}
+            {publishing ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> {t("showcasePublish.publishing")}</> : t("showcasePublish.btnPublish")}
           </Button>
           <p className="text-[11px] text-white/30 text-center">
-            Publishing is opt-in and free. Your page will be public and shareable.
+            {t("showcasePublish.note")}
           </p>
         </div>
       )}
