@@ -21,6 +21,7 @@ export * from "./stripe-payments";
 export * from "./social-stat-snapshots";
 export * from "./credit-usage";
 export * from "./artist-vaults";
+export * from "./artist-vault-identity";
 export * from "./artist-character-links";
 export * from "./generated-clips";
 export * from "./project-drafts";
