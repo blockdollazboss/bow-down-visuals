@@ -1,12 +1,12 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
   Loader2, Wallet, TrendingUp, BadgeDollarSign, PiggyBank, Copy, Check,
   Plus, Minus, Tag, ShoppingBag, CalendarClock, ExternalLink, AlertCircle,
   CheckCircle2, Sparkles, ArrowRight, CircleDollarSign,
   PlusCircle, ListChecks, CircleDashed, Wand2, Music2, AlertTriangle,
-  RotateCcw,
+  RotateCcw, Upload, Download, FileSpreadsheet,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -16,9 +16,11 @@ import {
   listProducts, moneyChecklist, mySales, createProduct, updateProduct, deactivateProduct,
   listDiscounts, createDiscount, updateDiscount, deleteDiscount,
   logSaleToTracker, confirmServiceBooking,
+  previewShopifyImport, commitShopifyImport, downloadShopifyExport,
   KIND_LABELS, KIND_EMOJI, dollarsToCents, usd,
   type StoreProductDTO, type StoreOrderDTO, type DiscountCodeDTO,
   type MoneyChecklist, type CreateProductInput, type StoreProductKind,
+  type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
 import PromoteButton from "@/components/storefront/PromoteButton";
 import {
@@ -1204,12 +1206,226 @@ export default function StoreDashboard() {
             </div>
           )}
           {tab === "products" && <ProductsTab slug={slug} onChanged={load} />}
+          {tab === "products" && (
+            <div className="mt-5">
+              <ShopifyBridgeCard onImported={load} />
+            </div>
+          )}
           {tab === "orders" && <OrdersTab />}
           {tab === "discounts" && <DiscountsTab />}
           </>
           )}
           {surface === "digital" && <DigitalSalesTab />}
         </>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SHOPIFY CSV BRIDGE — docked in shop management (Products tab).
+   "Shopify" is named only as the file format's label. Import previews
+   EVERY row (create / update / image / reject-with-reason) before a
+   single listing saves; exports hand the creator their catalog, orders,
+   and fan list in Shopify's CSV shapes. No lock-in, either direction. */
+function ShopifyBridgeCard({ onImported }: { onImported: () => void }) {
+  const isLight = useIsLightTheme();
+  const getToken = useToken();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [csvText, setCsvText] = useState("");
+  const [report, setReport] = useState<ShopifyImportResultDTO | null>(null);
+  const [committed, setCommitted] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+
+  const headCls = isLight ? "text-[#2A1E07]" : "text-white";
+  const subCls = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const cellCls = isLight ? "text-[#2A1E07]" : "text-white/80";
+  const borderCls = isLight ? "border-[#C9A84C]/40" : "border-white/10";
+
+  const runPreview = async (csv: string) => {
+    setBusy("preview"); setErr("");
+    try {
+      const token = await getToken();
+      setReport(await previewShopifyImport(token, csv));
+      setCommitted(false);
+    } catch (e) {
+      setReport(null);
+      setErr(e instanceof Error ? e.message : "Couldn't read that file.");
+    } finally { setBusy(null); }
+  };
+
+  const onFile = async (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    setFileName(f.name);
+    setReport(null); setCommitted(false); setErr("");
+    const text = await f.text();
+    setCsvText(text);
+    await runPreview(text);
+  };
+
+  const doCommit = async () => {
+    setBusy("commit"); setErr("");
+    try {
+      const token = await getToken();
+      setReport(await commitShopifyImport(token, csvText));
+      setCommitted(true);
+      onImported();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't import that file.");
+    } finally { setBusy(null); }
+  };
+
+  const doExport = async (kind: ShopifyExportKind) => {
+    setBusy(`export-${kind}`); setErr("");
+    try {
+      const token = await getToken();
+      const { blob, filename } = await downloadShopifyExport(token, kind);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Export failed.");
+    } finally { setBusy(null); }
+  };
+
+  const actionChip = (action: string) => {
+    const styles: Record<string, string> = {
+      create: "bg-emerald-500/15 text-emerald-500",
+      update: "bg-sky-500/15 text-sky-500",
+      image: "bg-zinc-500/15 text-zinc-400",
+      reject: "bg-red-500/15 text-red-500",
+    };
+    const labels: Record<string, string> = {
+      create: committed ? "Created" : "New",
+      update: committed ? "Updated" : "Update",
+      image: "Image",
+      reject: "Skipped",
+    };
+    return (
+      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${styles[action] ?? ""}`}>
+        {labels[action] ?? action}
+      </span>
+    );
+  };
+
+  const actionable = report ? report.summary.creates + report.summary.updates : 0;
+
+  return (
+    <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-white/10 bg-white/[0.03]"}`}>
+      <h3 className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${headCls}`}>
+        <FileSpreadsheet className="h-4 w-4 text-primary" /> Shopify CSV bridge
+      </h3>
+      <p className={`mt-1 text-xs leading-relaxed ${subCls}`}>
+        Bring a Shopify catalog in, or take yours out — plain CSV files, no lock-in either way.
+        Every variant becomes its own listing (store listings carry one price each), prices land
+        exactly as the file states them, and re-importing the same file updates listings instead
+        of duplicating them.
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <p className={`text-xs font-bold ${headCls}`}>Import products</p>
+          <p className={`mt-0.5 text-[11px] ${subCls}`}>
+            Export your products CSV from Shopify, then pick it here. You preview every row before anything saves.
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => { void onFile(e.target.files); e.target.value = ""; }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="mt-2 inline-flex items-center gap-2 rounded-full border border-primary/50 px-4 py-2 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"
+          >
+            {busy === "preview" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            {fileName ? `Chosen: ${fileName}` : "Choose Shopify products CSV"}
+          </button>
+        </div>
+        <div>
+          <p className={`text-xs font-bold ${headCls}`}>Export in Shopify format</p>
+          <p className={`mt-0.5 text-[11px] ${subCls}`}>Your data, in the shape Shopify imports — leave whenever you want.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {([
+              { kind: "products", label: "Products CSV" },
+              { kind: "orders", label: "Orders CSV" },
+              { kind: "customers", label: "Customers CSV (fan list)" },
+            ] as { kind: ShopifyExportKind; label: string }[]).map((b) => (
+              <button
+                key={b.kind}
+                type="button"
+                onClick={() => { void doExport(b.kind); }}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition ${borderCls} ${headCls} hover:border-primary/50 hover:text-primary`}
+              >
+                {busy === `export-${b.kind}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {err && (
+        <p className="mt-3 flex items-start gap-1.5 text-xs font-bold text-red-500">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {err}
+        </p>
+      )}
+
+      {report && (
+        <div className="mt-4">
+          <div className={`flex flex-wrap items-center gap-2 text-xs font-bold ${headCls}`}>
+            <span>{report.summary.products} products</span>
+            <span className="text-emerald-500">{report.summary.creates} new</span>
+            <span className="text-sky-500">{report.summary.updates} updates</span>
+            <span className={subCls}>{report.summary.images} image rows</span>
+            {report.summary.rejected > 0 && <span className="text-red-500">{report.summary.rejected} skipped</span>}
+            {committed && <span className="inline-flex items-center gap-1 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /> Imported</span>}
+          </div>
+          <div className={`mt-2 max-h-64 overflow-y-auto rounded-xl border ${borderCls}`}>
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className={`${subCls} border-b ${borderCls}`}>
+                  <th className="px-3 py-2 font-bold">Row</th>
+                  <th className="px-3 py-2 font-bold">Listing</th>
+                  <th className="px-3 py-2 font-bold">Action</th>
+                  <th className="px-3 py-2 font-bold">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.map((r) => (
+                  <tr key={r.row} className={`border-b last:border-0 ${borderCls}`}>
+                    <td className={`px-3 py-1.5 ${subCls}`}>{r.row}</td>
+                    <td className={`px-3 py-1.5 font-bold ${cellCls}`}>{r.title ?? "—"}{r.sku ? <span className={`font-normal ${subCls}`}> · {r.sku}</span> : null}</td>
+                    <td className="px-3 py-1.5">{actionChip(r.action)}</td>
+                    <td className={`px-3 py-1.5 ${r.action === "reject" ? "text-red-500" : subCls}`}>
+                      {r.reason ?? r.warnings.join(" ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!committed && actionable > 0 && (
+            <button
+              type="button"
+              onClick={() => { void doCommit(); }}
+              disabled={busy === "commit"}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy === "commit" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Import {actionable} listing{actionable === 1 ? "" : "s"}
+            </button>
+          )}
+          {!committed && actionable === 0 && (
+            <p className={`mt-3 text-xs ${subCls}`}>Nothing importable in this file — every row above says why.</p>
+          )}
+        </div>
       )}
     </div>
   );

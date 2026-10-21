@@ -205,6 +205,51 @@ export const emailPromoteHook = (token: string, productId?: string) =>
     } | null;
   }>(`/promote/email${productId ? `?productId=${encodeURIComponent(productId)}` : ""}`, token);
 
+/* ── Shopify CSV bridge (factual format label only) ───────────────────
+   Import a Shopify products CSV into this store, or export catalog /
+   orders / fan list as Shopify-format CSV files. Preview first: every
+   row comes back as create / update / image / reject-with-reason before
+   anything is saved. */
+export interface ShopifyImportRowDTO {
+  row: number;
+  handle: string;
+  sku: string | null;
+  title: string | null;
+  action: "create" | "update" | "image" | "reject";
+  reason?: string;
+  warnings: string[];
+  productId?: string;
+}
+
+export interface ShopifyImportResultDTO {
+  summary: { products: number; listings: number; creates: number; updates: number; images: number; rejected: number };
+  rows: ShopifyImportRowDTO[];
+}
+
+export const previewShopifyImport = (token: string, csv: string) =>
+  post<ShopifyImportResultDTO>("/shopify-import/preview", { csv }, token);
+
+export const commitShopifyImport = (token: string, csv: string) =>
+  post<ShopifyImportResultDTO>("/shopify-import/commit", { csv }, token);
+
+export type ShopifyExportKind = "products" | "orders" | "customers";
+
+export async function downloadShopifyExport(
+  token: string,
+  kind: ShopifyExportKind,
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${BASE}/shopify-export/${kind}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    throw new Error(data.message ?? data.error ?? `Export failed (${res.status})`);
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  return { blob: await res.blob(), filename: match?.[1] ?? `shopify-${kind}.csv` };
+}
+
 /* ── Money formatting (real dollars; never Visual Bucs) ─────────────── */
 export const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 export const dollarsToCents = (dollars: string | number) =>
