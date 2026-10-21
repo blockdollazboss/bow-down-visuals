@@ -387,11 +387,22 @@ const CATEGORY_ORDER: Record<string, number> = {
   creator: 5,
 };
 
+/** Timestamps arrive as Date from pg; some drivers/tests hand back
+    strings — order and format defensively either way. */
+function timeOf(v: Date | string): number {
+  return v instanceof Date ? v.getTime() : new Date(v).getTime();
+}
+
+function isoOf(v: Date | string | null): string | null {
+  if (!v) return null;
+  return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
+}
+
 function byPositionThenTime(
   a: { position: number; createdAt: Date },
   b: { position: number; createdAt: Date },
 ): number {
-  return a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime();
+  return a.position - b.position || timeOf(a.createdAt) - timeOf(b.createdAt);
 }
 
 async function cardDtos(rows: Tutorial[]): Promise<TutorialCardDto[]> {
@@ -1026,7 +1037,7 @@ function progressDto(row: {
   completedChapters: string[];
   lastChapterId: string | null;
   lastPositionSec: number;
-  completedAt: Date | null;
+  completedAt: Date | string | null;
 }): TutorialProgressDto {
   return {
     tutorialId: row.tutorialId,
@@ -1034,7 +1045,7 @@ function progressDto(row: {
     completedChapterIds: row.completedChapters ?? [],
     lastChapterId: row.lastChapterId,
     lastPositionSec: row.lastPositionSec,
-    completedAt: row.completedAt ? row.completedAt.toISOString() : null,
+    completedAt: isoOf(row.completedAt),
   };
 }
 
