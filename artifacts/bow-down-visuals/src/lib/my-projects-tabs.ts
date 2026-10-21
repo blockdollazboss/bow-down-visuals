@@ -1,10 +1,12 @@
 /* ─── My Projects tab ids + ?tab= deep-link parsing ──────────────────────
-   The page's six tabs are addressable: shipped routes depend on it —
+   The page's seven tabs are addressable: shipped routes depend on it —
    /generations redirects to /my-projects?tab=history and /my-clips and
    /songs redirect to their tabs (App.tsx + lib/public-routes.ts). The
    parser must therefore honor EVERY tab id, not a subset: a ?tab=
    value it doesn't recognize falls back to the Projects tab, but a
-   valid one always lands where the link promised. */
+   valid one always lands where the link promised. ("websites" joined
+   with website-builder persistence, migration 0195: saved AI Website
+   Builder projects live where the creator's other projects live.) */
 
 export const MY_PROJECTS_TABS = [
   "projects",
@@ -12,6 +14,7 @@ export const MY_PROJECTS_TABS = [
   "clips",
   "myclips",
   "songs",
+  "websites",
   "history",
 ] as const;
 
@@ -27,7 +30,7 @@ export function isMyProjectsTab(value: string | null | undefined): value is MyPr
 }
 
 /** The tab a ?tab= query string asks for — default tab when the param
-    is absent or isn't one of the six real tab ids. */
+    is absent or isn't one of the seven real tab ids. */
 export function parseMyProjectsTab(search: string): MyProjectsTab {
   try {
     const q = new URLSearchParams(search).get("tab");

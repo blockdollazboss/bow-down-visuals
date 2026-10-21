@@ -13,7 +13,7 @@ import {
    of stranding the user on a tab that doesn't exist. */
 
 describe("parseMyProjectsTab", () => {
-  it("honors every one of the six tab ids", () => {
+  it("honors every one of the seven tab ids", () => {
     for (const tab of MY_PROJECTS_TABS) {
       expect(parseMyProjectsTab(`?tab=${tab}`)).toBe(tab);
     }
@@ -42,8 +42,8 @@ describe("parseMyProjectsTab", () => {
 });
 
 describe("isMyProjectsTab", () => {
-  it("accepts exactly the six ids", () => {
-    expect(MY_PROJECTS_TABS).toHaveLength(6);
+  it("accepts exactly the seven ids", () => {
+    expect(MY_PROJECTS_TABS).toHaveLength(7);
     for (const tab of MY_PROJECTS_TABS) expect(isMyProjectsTab(tab)).toBe(true);
     expect(isMyProjectsTab("Projects")).toBe(false);
     expect(isMyProjectsTab("")).toBe(false);

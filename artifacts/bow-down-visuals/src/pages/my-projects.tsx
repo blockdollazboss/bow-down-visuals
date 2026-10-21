@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film, Download,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
-  FileEdit, Play, ExternalLink, Clock, RefreshCcw, History,
+  FileEdit, Play, ExternalLink, Clock, RefreshCcw, History, Globe,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
@@ -81,6 +81,30 @@ interface Project {
   credits_used: number;
   created_at: string;
 }
+
+/* A saved AI Website Builder project (migration 0195) — the summary
+   shape of GET /api/website-builder/projects. The full files live
+   behind the builder's version endpoints; this tab lists and opens,
+   it never renders a stored preview (none exists — the preview
+   renders live inside the builder). */
+interface WebsiteBuildRow {
+  id: string;
+  name: string;
+  template: string;
+  templateLabel: string;
+  versionCount: number;
+  latestVersion: number;
+  fileCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const WEBSITE_TEMPLATE_LABEL_KEYS: Record<string, string> = {
+  "artist-site": "websiteBuilder.templateArtistSite",
+  "press-kit": "websiteBuilder.templatePressKit",
+  "link-in-bio": "websiteBuilder.templateLinkInBio",
+  "tour-page": "websiteBuilder.templateTourPage",
+};
 
 function extractLyricsFromProject(project: Project): string | null {
   const inputLyrics = project.input_data?.["lyrics"];
@@ -700,7 +724,7 @@ export default function MyProjects() {
   const { user, getAccessToken } = useAuth();
   /* Every tab is deep-linkable: shipped redirects promise specific
      tabs (/generations → ?tab=history, /my-clips → ?tab=myclips,
-     /songs → ?tab=songs), and the parser honors all six ids. */
+     /songs → ?tab=songs), and the parser honors all seven ids. */
   const [tab, setTab] = useState<MyProjectsTab>(() => {
     try {
       return parseMyProjectsTab(window.location.search);
@@ -737,6 +761,10 @@ export default function MyProjects() {
   const [clipsLoading, setClipsLoading] = useState(false);
   const [clipsError, setClipsError] = useState<string | null>(null);
 
+  const [websites, setWebsites] = useState<WebsiteBuildRow[]>([]);
+  const [websitesLoading, setWebsitesLoading] = useState(false);
+  const [websitesError, setWebsitesError] = useState<string | null>(null);
+
   const [openProject, setOpenProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -744,6 +772,7 @@ export default function MyProjects() {
       void loadProjects();
       void loadDrafts();
       void loadClips();
+      void loadWebsites();
       void loadHistory();
     }
   }, [user]);
@@ -796,6 +825,22 @@ export default function MyProjects() {
     }
   }
 
+  async function loadWebsites() {
+    setWebsitesLoading(true);
+    setWebsitesError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/website-builder/projects", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) throw new Error(t("myProjects.failedLoadWebsites"));
+      const data = (await res.json()) as { projects: WebsiteBuildRow[] };
+      setWebsites(data.projects);
+    } catch (err) {
+      setWebsitesError(err instanceof Error ? err.message : t("myProjects.failedLoadWebsites"));
+    } finally {
+      setWebsitesLoading(false);
+    }
+  }
+
   async function handleDeleteProject(id: string) {
     try {
       const token = await getAccessToken();
@@ -821,6 +866,14 @@ export default function MyProjects() {
     } catch { alert(t("myProjects.failedDeleteClip")); }
   }
 
+  async function handleDeleteWebsite(id: string) {
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/website-builder/projects/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
+      setWebsites((prev) => prev.filter((w) => w.id !== id));
+    } catch { alert(t("myProjects.failedDeleteWebsite")); }
+  }
+
   async function loadHistory() {
     setHistoryLoading(true);
     setHistoryError(null);
@@ -843,6 +896,7 @@ export default function MyProjects() {
     { id: "clips"    as const, labelKey: "myProjects.tabClips",             count: clips.length },
     { id: "myclips"  as const, labelKey: "myProjects.tabMyClips",           count: 0 },
     { id: "songs"    as const, labelKey: "myProjects.tabSongs",             count: 0 },
+    { id: "websites" as const, labelKey: "myProjects.tabWebsites",          count: websites.length },
     { id: "history"  as const, labelKey: "myProjects.tabHistory",           count: history.length },
   ];
 
@@ -1022,6 +1076,75 @@ export default function MyProjects() {
                   <ClipCard key={clip.id} clip={clip} onDelete={handleDeleteClip} />
                 ))}
               </div>
+            </div>
+          )
+        )}
+
+        {/* ── WEBSITES TAB ──
+            Saved AI Website Builder projects (0195). Cards carry
+            metadata only — no preview image is stored anywhere; the
+            preview renders live inside the builder on open. */}
+        {tab === "websites" && (
+          websitesLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            </div>
+          ) : websitesError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-red-400 font-semibold">{websitesError}</p>
+              <Button onClick={() => void loadWebsites()} variant="outline" size="sm"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">{t("myProjects.tryAgain")}</Button>
+            </div>
+          ) : websites.length === 0 ? (
+            <div className="my-projects-empty flex flex-col items-center justify-center text-center py-24 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-primary/[0.08] border border-primary/25 flex items-center justify-center">
+                <Globe className="h-8 w-8 text-primary/60" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white">{t("myProjects.noWebsites")}</h2>
+                <p className="text-white/45 max-w-xs">
+                  {t("myProjects.noWebsitesHint")}
+                </p>
+              </div>
+              <Link href="/website-builder">
+                <Button className="gold-glow font-semibold gap-2"><Globe className="h-4 w-4" /> {t("myProjects.buildWebsite")}</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {websites.map((site) => (
+                <div key={site.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-white">{site.name}</p>
+                      <p className="text-sm font-semibold text-primary">
+                        {t(WEBSITE_TEMPLATE_LABEL_KEYS[site.template] ?? "myProjects.tabWebsites")}
+                      </p>
+                    </div>
+                    <Globe className="h-5 w-5 shrink-0 text-white/30" />
+                  </div>
+                  <p className="mt-2 text-xs text-white/40">
+                    {t("myProjects.websiteVersionMeta", { version: site.latestVersion, count: site.fileCount })}
+                    {" · "}
+                    {new Date(site.updatedAt).toLocaleDateString()}
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <Link href={`/website-builder?project=${site.id}`}>
+                      <Button size="sm" className="gold-glow font-semibold gap-2">
+                        <FolderOpen className="h-4 w-4" /> {t("myProjects.openInBuilder")}
+                      </Button>
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleDeleteWebsite(site.id)}
+                      className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-red-300 gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" /> {t("websiteBuilder.deleteButton")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )
         )}
