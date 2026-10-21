@@ -273,10 +273,13 @@ export type EmailEngagementEvent = typeof emailEngagementEventsTable.$inferSelec
                            rows (buyer email resolved through the auth
                            rail, the same lookup Stripe Connect uses)
      abandoned_checkout  — shop_events 'pending_sale' rows that never
-                           flip to 'sale'. ONLY the shop card checkout
-                           records a pending row (migration 0144), so
-                           this trigger honestly cannot see checkouts
-                           that start anywhere else.
+                           flip to 'sale' (the shop card checkout records
+                           a pending row at start) + abandoned_checkouts
+                           rows (migration 0204): the store + storefront
+                           card checkouts record nothing at start, so the
+                           central webhook files their
+                           checkout.session.expired events there instead;
+                           buyer email resolved through the auth rail.
      membership_winback  — fan_members rows in canceled / expired. */
 
 export const EMAIL_AUTOMATION_KINDS = ["post_purchase", "abandoned_checkout", "membership_winback"] as const;
@@ -326,7 +329,8 @@ export const emailAutomationSendsTable = pgTable("email_automation_sends", {
   deliveryId:   uuid("delivery_id").references(() => emailCampaignDeliveriesTable.id, { onDelete: "set null" }),
   triggerKind:  text("trigger_kind").notNull().$type<EmailAutomationKind>(),
   /* The dedupe key: shop_sale:<event id> | digital_sale:<sale id> |
-     checkout:<checkout group> | member:<fan member id>. */
+     checkout:<checkout group> | stripe_checkout:<session id> |
+     member:<fan member id>. */
   triggerRef:   text("trigger_ref").notNull(),
   recipientEmail: text("recipient_email").notNull(),
   /* queued → sent | failed | no_provider | skipped_unsubscribed */
@@ -338,6 +342,42 @@ export const emailAutomationSendsTable = pgTable("email_automation_sends", {
 ]);
 
 export type EmailAutomationSend = typeof emailAutomationSendsTable.$inferSelect;
+
+/* ─── Abandoned checkouts (migration 0204) ───────────────────────────────
+   One row per store / storefront Stripe checkout that expired unpaid,
+   filed by the central webhook's checkout.session.expired branch. The
+   shop card checkout needs no row here — its pending_sale shop_events
+   are its record. The unique stripe_session_id is the replay law: a
+   redelivered webhook records nothing twice. The abandoned_checkout
+   automation reads these rows per creator profile; the buyer's email
+   is NOT stored — it is resolved through the auth rail when the
+   sweeper evaluates, exactly like digital_sales triggers. */
+
+export const ABANDONED_CHECKOUT_RAILS = ["storefront", "store"] as const;
+export type AbandonedCheckoutRail = (typeof ABANDONED_CHECKOUT_RAILS)[number];
+
+export const abandonedCheckoutsTable = pgTable("abandoned_checkouts", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  stripeSessionId: text("stripe_session_id").notNull().unique(),
+  /* Which creator-goods rail the session belonged to. */
+  rail:            text("rail").notNull().$type<AbandonedCheckoutRail>(),
+  /* The creator whose goods were being bought (creator_profiles.id),
+     and the signed-in buyer (auth user id — both checkout routes are
+     requireAuth, and the session metadata carries both). Plain uuids
+     like digital_sales: a deleted profile must never break the
+     webhook's insert. */
+  profileId:       uuid("profile_id").notNull(),
+  buyerUserId:     uuid("buyer_user_id").notNull(),
+  /* What was in the cart, for the record: the storefront product id,
+     or "<item_kind>:<item_id>" for a digital-store checkout. */
+  itemRef:         text("item_ref"),
+  amountCents:     integer("amount_cents"),
+  /* When the expiry was recorded — the abandonment moment the
+     automation's enabled-at and delay gates measure from. */
+  createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type AbandonedCheckout = typeof abandonedCheckoutsTable.$inferSelect;
 
 /* ─── Welcome-sequence deliveries ─────────────────────────────────────────
    One row per subscriber per sequence step, queued at signup by the
