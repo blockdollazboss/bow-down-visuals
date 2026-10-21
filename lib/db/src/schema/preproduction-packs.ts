@@ -38,6 +38,21 @@ export interface PackProp {
   assetImageUrl: string | null;
 }
 
+/** One image in a shot's locked REFERENCE SET — a labeled visual the
+    video model should match, with the role it plays in the shot.
+    Assembled at pack lock (finalize) from the creator's OWN Artist
+    Vault, pack assets/props, locations library, and brand kit; the
+    creator sees the set (and its gaps) before any generation runs. */
+export interface PackReference {
+  role: "character" | "location" | "product" | "style";
+  /** Image URL or storage ref (re-signed on every pack read). */
+  url: string;
+  /** Human label, e.g. the vault artist's name or the prop's name. */
+  label: string;
+  /** Where the reference came from. */
+  source: "artist_vault" | "pack_asset" | "pack_prop" | "location_library" | "brand_kit";
+}
+
 /** The locked generation recipe for one shot — everything the scene
     generator needs, decided up front. */
 export interface PackIngredients {
@@ -48,6 +63,13 @@ export interface PackIngredients {
   negativePrompt: string;
   /** Locked reference asset URLs (prop/location/wardrobe plates). */
   referenceAssetUrls: string[];
+  /** The shot's locked reference SET (character/location/product/style),
+   *  assembled at finalize from the creator's own vault + brand kit.
+   *  Absent on packs locked before reference sets existed. */
+  referenceSet?: PackReference[];
+  /** Plain-language reference gaps found at lock time (e.g. "No location
+   *  reference for this scene") — surfaced to the creator, never hidden. */
+  referenceGaps?: string[];
   /** Locked continuity reminders injected into every generation. */
   continuityNotes: string;
   /** Suggested model settings, locked in. */

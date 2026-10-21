@@ -1,3 +1,5 @@
+import type { SceneReference } from "./scene-references";
+
 export interface SceneData {
   id: string;
   sceneNumber: number;
@@ -34,6 +36,13 @@ export interface SceneData {
   /** Image URL of the location picked from the user's Locations library
    *  (visual reference for the scene's setting; label goes in `location`). */
   locationImageUrl?: string | null;
+  /** The scene's multi-reference SET (character / location / product /
+   *  style), proposed from the creator's own vault + brand kit and
+   *  approved in Scene Studio — removals persist here. Undefined = not
+   *  yet materialized; the picker proposes from live sources instead.
+   *  At generation the server maps the set onto what the picked model
+   *  actually accepts (see lib/scene-references.ts). */
+  referenceSet?: SceneReference[];
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */

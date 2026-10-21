@@ -17,6 +17,8 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
+import { buildProposedReferenceSet, normalizeReferenceSet, planSceneReferences, sortReferenceSet, REFERENCE_ROLE_LABEL, type SceneReference } from "@/lib/scene-references";
+import { fetchBrandKit } from "@/lib/brand-kit";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 /* ─── Section color badges ──────────────────────────────────── */
@@ -227,6 +229,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
     scene.referenceSource ?? null,
   );
+  /* Plain-language note from the server's submit response when the picked
+     model did not receive the whole reference set (never silent). */
+  const [referenceNote, setReferenceNote] = useState<string | null>(null);
+  /* The creator's brand-kit logo — the style entry of the reference set. */
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ── Wardrobe: the artist's outfits, picked per scene. The picked outfit's
@@ -288,6 +295,73 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Reference set (multi-reference generation) ──────────────────────
+     Proposed from the creator's OWN seed sources — Artist Vault photo,
+     picked co-stars, brand-kit logo — plus the scene's location plate,
+     reconciled at render. Visible in the picker below with role labels;
+     nothing is attached silently. Once the creator edits the set (a
+     removal, a cast change) the approved set persists on the scene and
+     wins over the live proposal. */
+  const proposedReferenceSet: SceneReference[] = buildProposedReferenceSet({
+    characterPhotoUrl: artistVault && hasReferencePhoto(artistVault) ? artistVault.reference_image_url : null,
+    characterName: artistVault?.artist_name ?? null,
+    coStars: allVaults
+      .filter((v) => pickedCoStarIds.has(v.id) && v.id !== artistVault?.id && hasReferencePhoto(v))
+      .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
+    brandLogoUrl,
+  });
+  const baseReferenceSet: SceneReference[] = scene.referenceSet
+    ? normalizeReferenceSet(scene.referenceSet)
+    : proposedReferenceSet;
+  const effectiveReferenceSet: SceneReference[] = (() => {
+    const plate = scene.locationImageUrl;
+    if (!plate || !/^https:\/\//i.test(plate)) {
+      return baseReferenceSet.filter((r) => r.role !== "location");
+    }
+    if (baseReferenceSet.some((r) => r.role === "location" && r.url === plate)) {
+      return baseReferenceSet;
+    }
+    return sortReferenceSet([
+      ...baseReferenceSet.filter((r) => r.role !== "location"),
+      {
+        role: "location" as const,
+        url: plate,
+        label: scene.location?.trim() || "Scene location",
+        source: "location_library",
+      },
+    ]);
+  })();
+  const referencePlan = planSceneReferences(clipModel, effectiveReferenceSet);
+
+  /* Remove one entry — the approved set persists on the scene. Removing
+     the location plate also clears the scene's location image, since the
+     plate IS that reference (one source of truth). */
+  function removeReference(url: string) {
+    const removed = effectiveReferenceSet.find((r) => r.url === url);
+    const patch: Partial<SceneData> = {
+      referenceSet: effectiveReferenceSet.filter((r) => r.url !== url),
+    };
+    if (removed?.role === "location" && scene.locationImageUrl === url) {
+      patch.locationImageUrl = null;
+    }
+    onUpdate(patch);
+  }
+
+  /* Brand kit (style reference source) — optional; the set works without it. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const kit = await fetchBrandKit(getAccessToken);
+        if (!cancelled) setBrandLogoUrl(kit?.logoUrl ?? null);
+      } catch {
+        /* brand kit is optional — the reference set works without it */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toggleCoStar(id: string) {
     setPickedCoStarIds((prev) => {
       const next = new Set(prev);
@@ -295,6 +369,24 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       else next.add(id);
       return next;
     });
+    /* Keep a materialized reference set in sync with the cast: a picked
+       co-star's photo joins the set, an unpicked one leaves it. */
+    if (scene.referenceSet) {
+      const vault = allVaults.find((v) => v.id === id);
+      if (vault && hasReferencePhoto(vault)) {
+        const url = vault.reference_image_url!;
+        if (pickedCoStarIds.has(id)) {
+          onUpdate({ referenceSet: effectiveReferenceSet.filter((r) => r.url !== url) });
+        } else if (!effectiveReferenceSet.some((r) => r.url === url)) {
+          onUpdate({
+            referenceSet: sortReferenceSet([
+              ...effectiveReferenceSet,
+              { role: "character", url, label: vault.artist_name, source: "artist_vault" },
+            ]),
+          });
+        }
+      }
+    }
   }
 
   /* Manually picked co-stars + vault-linked co-stars, deduped by vault id. */
@@ -477,6 +569,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setIsGenerating(true);
     setError(null);
     setProgress(null);
+    setReferenceNote(null);
     /* Optimistic guess for the "generating…" badge — server confirms/corrects
        via the response's referenceSource once the extraction actually runs. */
     setReferenceSource(
@@ -514,6 +607,10 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
           referenceImageUrl,
+          /* The scene's approved reference set — the server maps it onto
+             what the picked model actually accepts and reports back any
+             reduction in `references.note` (never a silent drop). */
+          referenceSet: effectiveReferenceSet.length > 0 ? effectiveReferenceSet : undefined,
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
           durationSec: clipModel === "veo3_1" ? 8 : clipModel === "seedance2_5" ? clipDuration : 5,
@@ -526,10 +623,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         skipConfirm: opts?.skipConfirm,
       });
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
-      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean };
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean; references?: { mode: string; submitted: number; inSet: number; reduced: boolean; note: string | null } };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
+      /* Surface the server's reference accounting (e.g. a single-image
+         model using 1 of N set references) right where the creator looks. */
+      setReferenceNote(data.references?.note ?? null);
       /* Keep the draft's seed so "Enhance to 1080p" can re-render it. */
       if (typeof data.seed === "number") setDraftSeed(data.seed);
       setTaskId(data.taskId);
@@ -553,6 +653,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setTaskId(null);
     setError(null);
     setProgress(null);
+    setReferenceNote(null);
     setShowRemoveConfirm(false);
     onUpdateRef.current({
       demoClipUrl: null,
@@ -607,6 +708,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           {label && (
             <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1" data-testid="text-reference-source">
               <ShieldCheck className="h-3 w-3" /> {label}
+            </p>
+          )}
+          {referenceNote && (
+            <p className="text-[10px] text-primary/60 mt-0.5" data-testid="text-reference-note">
+              {referenceNote}
             </p>
           )}
           <p className="text-[11px] text-white/30 mt-0.5">{genTimeHint}</p>
@@ -931,6 +1037,46 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           </>
         )}
       </div>
+
+      {/* Reference set — the images this scene shows the model, assembled
+          from the creator's own vault / locations / brand kit. Every entry
+          is labeled with its role and can be removed (removals persist on
+          the scene); the picked model's real capacity is stated plainly. */}
+      {effectiveReferenceSet.length > 0 && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="reference-set-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            🖼️ Reference set for this scene
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {effectiveReferenceSet.map((r) => (
+              <div
+                key={r.url}
+                className="relative h-11 w-11 rounded-lg overflow-hidden border border-white/10 shrink-0"
+                title={`${REFERENCE_ROLE_LABEL[r.role]} — ${r.label}`}
+              >
+                <img src={r.url} alt={r.label} className="h-full w-full object-cover object-top" loading="lazy" />
+                <button
+                  type="button"
+                  onClick={() => removeReference(r.url)}
+                  title={`Remove ${r.label}`}
+                  data-testid={`reference-remove-${r.role}`}
+                  className="absolute top-0 right-0 bg-black/70 text-white/80 hover:text-white rounded-bl-md p-0.5"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+                <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] font-bold uppercase tracking-wide text-white/80 text-center leading-tight py-px pointer-events-none">
+                  {REFERENCE_ROLE_LABEL[r.role]}
+                </span>
+              </div>
+            ))}
+          </div>
+          {referencePlan.summary && (
+            <p className="text-[10px] text-white/40 mt-1.5" data-testid="reference-plan-note">
+              {referencePlan.summary}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Generate controls — credit confirmation handled by the universal popup */}
       <div className="flex items-center gap-2 flex-wrap">

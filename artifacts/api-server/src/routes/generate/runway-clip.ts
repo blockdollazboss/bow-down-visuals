@@ -34,6 +34,11 @@ import {
 } from "./clip-pricing";
 import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
 import { getLockedPack } from "./pre-production";
+import {
+  planClipReferences,
+  type SceneReference,
+} from "./clip-references";
+import type { ClipModel } from "./clip-pricing";
 import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
@@ -224,6 +229,24 @@ const runwayClipSchema = z.object({
    *  ingredients — the client's promptText is ignored. */
   packId: z.string().max(100).optional().nullable(),
   shotNumber: z.number().int().min(0).max(1000).optional().nullable(),
+  /** The scene's REFERENCE SET — labeled images (character / location /
+   *  product / style) the generation should match. How much of the set a
+   *  model actually receives is decided per model in clip-references.ts
+   *  (Seedance takes the set; single-image models take the priority
+   *  reference) and reported back in the response's `references` block —
+   *  never silently dropped. Ignored in pack mode: a locked pack's own
+   *  reference set is the source of truth. */
+  referenceSet: z
+    .array(
+      z.object({
+        role: z.enum(["character", "location", "product", "style"]),
+        url: z.string().max(2048),
+        label: z.string().max(200).optional(),
+        source: z.string().max(60).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 
 const submitRunwayClipHandler = async (req: Request, res: Response) => {
@@ -235,7 +258,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber } = parsed.data;
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, referenceSet } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -358,7 +381,74 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     }
   }
 
-  const useImageRef = !!refImage;
+  /* ── Reference SET planning (multi-reference generation) ───────────────
+     The scene's reference set comes from the locked pack when in pack
+     mode (the client's set is ignored — the lock is the truth), else
+     from the request body. What each model actually receives is planned
+     in clip-references.ts from the model's real input shape: Seedance
+     2.5 takes the set as reference images; Gen-4.5 / Veo take a single
+     first frame (the anchor, else the highest-priority set member —
+     character first). Reductions are reported, never silent.
+     The resolved single image above (chain frame / vault photo) is the
+     plan's ANCHOR — except in pack mode with a locked set, where a
+     client-sent photo must not override the lock (the chain frame still
+     anchors continuity). Legacy packs without a set keep today's
+     behavior, with their locked plates riding as product references. */
+  const hasLockedSet = !!lockedIngredients?.referenceSet?.length;
+  let effectiveSet: SceneReference[] = [];
+  if (lockedIngredients) {
+    if (hasLockedSet) {
+      effectiveSet = lockedIngredients.referenceSet!.map((r) => ({
+        role: r.role,
+        url: r.url,
+        label: r.label,
+        source: r.source,
+      }));
+    } else if (lockedIngredients.referenceAssetUrls?.length) {
+      effectiveSet = lockedIngredients.referenceAssetUrls.map((url, i) => ({
+        role: "product" as const,
+        url,
+        label: `Locked pack reference ${i + 1}`,
+        source: "legacy",
+      }));
+    }
+  } else if (referenceSet?.length) {
+    effectiveSet = referenceSet.map((r) => ({
+      role: r.role,
+      url: r.url,
+      label: r.label ?? "",
+      source: r.source ?? "upload",
+    }));
+  }
+  const anchorUrl = hasLockedSet
+    ? referenceSource === "previous_scene"
+      ? refImage ?? null
+      : null
+    : refImage ?? null;
+  const planModel: ClipModel = useVeo ? "veo3_1" : useSeedance ? "seedance2_5" : "gen4.5";
+  const refPlan = planClipReferences({
+    model: planModel,
+    referenceSet: effectiveSet,
+    anchorUrl,
+    anchorKind: referenceSource === "previous_scene" ? "previous_scene" : "single_photo",
+  });
+  const useImageRef = refPlan.submittedUrls.length > 0;
+  /* Legacy badge semantics, kept truthful under sets: a set-driven
+     submission whose first image is the character reads as the vault
+     photo it is; anchor-driven submissions keep their existing source. */
+  const responseReferenceSource: typeof referenceSource = anchorUrl
+    ? referenceSource
+    : refPlan.submittedFromSet > 0 &&
+        effectiveSet.find((r) => r.url === refPlan.submittedUrls[0])?.role === "character"
+      ? "vault_photo"
+      : referenceSource;
+  const referencesReport = {
+    mode: refPlan.mode,
+    submitted: refPlan.submittedUrls.length,
+    inSet: refPlan.setSize,
+    reduced: refPlan.reduced,
+    note: refPlan.note,
+  };
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   // Veo 3.1 runs on Gemini, never touches Runway — don't block it on the
@@ -448,9 +538,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     try {
       let imageBase64: string | undefined;
       let imageMimeType: string | undefined;
-      if (useImageRef) {
+      if (refPlan.singleUrl) {
         try {
-          const imgRes = await fetch(refImage!, { signal: AbortSignal.timeout(60_000) });
+          const imgRes = await fetch(refPlan.singleUrl, { signal: AbortSignal.timeout(60_000) });
           if (imgRes.ok) {
             const buf = Buffer.from(await imgRes.arrayBuffer());
             if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
@@ -482,7 +572,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
       res.json({
         taskId: veoTaskId,
-        referenceSource,
+        referenceSource: responseReferenceSource,
+        references: referencesReport,
         creditCost,
         model: "veo3_1",
         durationSec: resolvedDurationSec,
@@ -520,14 +611,26 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       ? (typeof seed === "number" ? seed : Math.floor(Math.random() * 4294967296))
       : undefined;
 
-    /* Image-to-video: anchor the artist's face/look to their vault photo so every
-       generated scene keeps the same visual identity. Falls back to text-to-video
-       when no usable reference photo is provided. */
+    /* Image-to-video: anchor the artist's face/look to their references so
+       every generated scene keeps the same visual identity. Seedance 2.5
+       receives the reference SET (unpositioned reference images) when the
+       plan says so; Gen-4.5 receives the single planned image. Falls back
+       to text-to-video when the plan submits no image. */
     const task = useSeedance
-      ? useImageRef
+      ? refPlan.mode === "reference_images"
         ? await client.imageToVideo.create({
             model: "seedance2_5",
-            promptImage: refImage!,
+            promptImage: refPlan.promptImage as Array<{ uri: string }>,
+            promptText: seedancePrompt,
+            duration: resolvedDurationSec,
+            ratio: seedanceRatio,
+            audio: false,
+            seed: resolvedSeed,
+          })
+        : refPlan.mode === "single"
+        ? await client.imageToVideo.create({
+            model: "seedance2_5",
+            promptImage: refPlan.singleUrl!,
             promptText: seedancePrompt,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
@@ -545,7 +648,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       : useImageRef
       ? await client.imageToVideo.create({
           model: "gen4.5",
-          promptImage: refImage!,
+          promptImage: refPlan.singleUrl!,
           promptText: finalPrompt,
           duration: 5,
           ratio: resolvedRatio,
@@ -563,7 +666,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
 
     res.json({
       taskId: task.id,
-      referenceSource,
+      referenceSource: responseReferenceSource,
+      references: referencesReport,
       creditCost,
       model: useSeedance ? "seedance2_5" : "gen4.5",
       durationSec: resolvedDurationSec,
