@@ -106,8 +106,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the parity lane audited (500 keys)", () => {
-    expect(REQUIRED.length).toBe(500);
+  it("the required set is the size the parity lane audited (899 keys)", () => {
+    expect(REQUIRED.length).toBe(899);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
