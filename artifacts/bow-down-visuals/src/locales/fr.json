@@ -6701,7 +6701,8 @@
     "packetStats": "Statistiques de la sortie",
     "packetTitle": "Dossier de pitch",
     "packetAudioLabel": "Audio du titre",
-    "packetProfileLabel": "Profil de l'artiste"
+    "packetProfileLabel": "Profil de l'artiste",
+    "packetPresaveLabel": "Pré-enregistrement / smartlink"
   },
   "refundPolicy": {
     "nav": {

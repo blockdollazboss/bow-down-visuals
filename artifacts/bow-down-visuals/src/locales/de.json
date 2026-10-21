@@ -6701,7 +6701,8 @@
     "packetStats": "Release-Statistiken bisher",
     "packetTitle": "Pitch-Paket",
     "packetAudioLabel": "Track-Audio",
-    "packetProfileLabel": "Künstlerprofil"
+    "packetProfileLabel": "Künstlerprofil",
+    "packetPresaveLabel": "Pre-Save / Smartlink"
   },
   "refundPolicy": {
     "nav": {

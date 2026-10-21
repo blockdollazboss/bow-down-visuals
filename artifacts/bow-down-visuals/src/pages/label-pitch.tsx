@@ -1120,7 +1120,7 @@ interface PlaylistPacket {
   track: { title: string; audioUrl?: string | null };
   genre: string[];
   description?: string | null;
-  links: { streaming: Record<string, string>; audioUrl?: string | null; profileUrl?: string | null };
+  links: { streaming: Record<string, string>; presaveUrl?: string | null; audioUrl?: string | null; profileUrl?: string | null };
   stats: { presaves: number; shares: number; linkViews: number; linkClicks: number };
   pressAssets: {
     artworkUrl?: string | null;
@@ -1401,6 +1401,7 @@ function PlaylistsPitchTab() {
     for (const [platform, url] of Object.entries(p.links.streaming)) {
       lines.push(`${platform}: ${url}`);
     }
+    if (p.links.presaveUrl) lines.push(`${t("playlistPitch.packetPresaveLabel")}: ${p.links.presaveUrl}`);
     if (p.links.profileUrl) lines.push(`${t("playlistPitch.packetLinks")}: ${p.links.profileUrl}`);
     lines.push(
       `${t("playlistPitch.packetStatPresaves")}: ${p.stats.presaves} · ` +
@@ -2170,6 +2171,13 @@ function PlaylistsPitchTab() {
                         {t("playlistPitch.packetLinks")}
                       </p>
                       <div className="mt-2 space-y-1 text-sm">
+                        {packet.links.presaveUrl && (
+                          <p className="truncate text-white/70">
+                            <span className="font-semibold text-white">{t("playlistPitch.packetPresaveLabel")}</span>
+                            {" — "}
+                            <a href={packet.links.presaveUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">{packet.links.presaveUrl}</a>
+                          </p>
+                        )}
                         {Object.entries(packet.links.streaming).map(([platform, url]) => (
                           <p key={platform} className="truncate text-white/70">
                             <span className="font-semibold capitalize text-white">{platform.replace(/_/g, " ")}</span>
