@@ -154,6 +154,15 @@ vi.mock("@workspace/db", () => {
           return chain;
         },
       }),
+      /* Raw SQL: the packet endpoint's presave_slug read is the only
+         execute() in this router. The mocked sql marker carries the
+         bound values — vals[0] is the release id — answered from the
+         same fake release rows the drizzle selects read. */
+      execute: async (q: any) => {
+        const id = q?.vals?.[0];
+        const row = dbState.releaseRows.find((r: any) => r.id === id);
+        return { rows: row ? [{ presave_slug: row.presave_slug ?? null }] : [] };
+      },
     },
     playlistPitchesTable: mkTable("playlist_pitches", "pitchRows", [
       "id", "user_id", "song_title", "artist_name", "curator_name",
@@ -184,6 +193,7 @@ import router, {
   summarizeDeadlines,
   PITCH_DEADLINE_STATUSES,
 } from "../playlist-pitch";
+import { presaveUrl } from "../../../lib/presave-url";
 import { chargeCredits, refundCredits } from "../../../lib/credits";
 
 const mockCharge = vi.mocked(chargeCredits);
@@ -356,6 +366,7 @@ describe("buildPitchPacket", () => {
     expect(packet.description).toBeNull();
     expect(packet.track.audioUrl).toBeNull();
     expect(packet.links.streaming).toEqual({});
+    expect(packet.links.presaveUrl).toBeNull();
     expect(packet.artist.profileUrl).toBeNull();
     expect(packet.artist.followerCount).toBeNull();
     // The artist name falls back to the RELEASE record's own artist
@@ -381,6 +392,55 @@ describe("buildPitchPacket", () => {
     expect(packet.missing).toContain("artistBio");
     expect(packet.missing).not.toContain("artistProfile");
   });
+
+  it("composes the track's own presave/smartlink URL from the stored slug", () => {
+    const packet = buildPitchPacket({
+      release: { ...FULL_RELEASE, presave_slug: "midnight-gold" } as any,
+      profile: FULL_PROFILE as any,
+      stats: { presaves: 3, shares: 2, linkViews: 2, linkClicks: 3 },
+    });
+    // Formed by the SAME canonical helper the mint endpoint returns —
+    // never a second URL scheme.
+    expect(packet.links.presaveUrl).toBe(presaveUrl("midnight-gold"));
+    expect(packet.links.presaveUrl).toMatch(/\/presave\/midnight-gold$/);
+    // The pasted platform links ride alongside, untouched.
+    expect(packet.links.streaming).toEqual({ spotify: "https://open.spotify.com/track/x" });
+    expect(packet.missing).toEqual([]);
+  });
+
+  it("a minted slug alone satisfies the links requirement — no pasted links needed", () => {
+    const packet = buildPitchPacket({
+      release: { ...FULL_RELEASE, presave_platform_links: {}, presave_slug: "midnight-gold" } as any,
+      profile: FULL_PROFILE as any,
+      stats: { presaves: 0, shares: 0, linkViews: 0, linkClicks: 0 },
+    });
+    expect(packet.links.streaming).toEqual({});
+    expect(packet.links.presaveUrl).toBe(presaveUrl("midnight-gold"));
+    expect(packet.missing).not.toContain("streamingLinks");
+    expect(packet.missing).toEqual([]);
+  });
+
+  it("falls back to the pasted links when no slug was minted — presaveUrl stays null", () => {
+    const packet = buildPitchPacket({
+      release: { ...FULL_RELEASE, presave_slug: null } as any,
+      profile: FULL_PROFILE as any,
+      stats: { presaves: 0, shares: 0, linkViews: 0, linkClicks: 0 },
+    });
+    expect(packet.links.presaveUrl).toBeNull();
+    expect(packet.links.streaming).toEqual({ spotify: "https://open.spotify.com/track/x" });
+    expect(packet.missing).not.toContain("streamingLinks");
+  });
+
+  it("no slug and no pasted links: streamingLinks is named missing, never fabricated", () => {
+    const packet = buildPitchPacket({
+      release: { ...FULL_RELEASE, presave_platform_links: {}, presave_slug: "   " } as any,
+      profile: FULL_PROFILE as any,
+      stats: { presaves: 0, shares: 0, linkViews: 0, linkClicks: 0 },
+    });
+    expect(packet.links.presaveUrl).toBeNull();
+    expect(packet.links.streaming).toEqual({});
+    expect(packet.missing).toContain("streamingLinks");
+  });
 });
 
 /* ── Packet + releases endpoints ──────────────────────────────────────── */
@@ -393,8 +453,44 @@ describe("GET /playlist-pitch/packet/:releaseId", () => {
     expect(packet.releaseId).toBe("rel-1");
     expect(packet.stats).toEqual({ presaves: 3, shares: 2, linkViews: 2, linkClicks: 3 });
     expect(packet.missing).toEqual([]);
+    // No slug minted on this record — no URL is composed for it.
+    expect(packet.links.presaveUrl).toBeNull();
     expect(mockCharge).not.toHaveBeenCalled();
     expect(mockRefund).not.toHaveBeenCalled();
+  });
+
+  it("composes the release's live presave/smartlink URL when a slug is minted", async () => {
+    dbState.releaseRows[0] = { ...dbState.releaseRows[0], presave_slug: "midnight-gold" };
+    const res = await get("/playlist-pitch/packet/rel-1");
+    expect(res.status).toBe(200);
+    const { packet } = await res.json();
+    expect(packet.links.presaveUrl).toBe(presaveUrl("midnight-gold"));
+    expect(packet.links.presaveUrl).toMatch(/\/presave\/midnight-gold$/);
+    expect(packet.missing).toEqual([]);
+    expect(mockCharge).not.toHaveBeenCalled();
+  });
+
+  it("the composed link alone keeps streamingLinks out of missing (no pasted links)", async () => {
+    dbState.releaseRows[0] = {
+      ...dbState.releaseRows[0],
+      presave_slug: "midnight-gold",
+      presave_platform_links: {},
+    };
+    const res = await get("/playlist-pitch/packet/rel-1");
+    expect(res.status).toBe(200);
+    const { packet } = await res.json();
+    expect(packet.links.streaming).toEqual({});
+    expect(packet.links.presaveUrl).toBe(presaveUrl("midnight-gold"));
+    expect(packet.missing).toEqual([]);
+  });
+
+  it("no slug and no pasted links: presaveUrl null, streamingLinks named missing", async () => {
+    dbState.releaseRows[0] = { ...dbState.releaseRows[0], presave_platform_links: {} };
+    const res = await get("/playlist-pitch/packet/rel-1");
+    expect(res.status).toBe(200);
+    const { packet } = await res.json();
+    expect(packet.links.presaveUrl).toBeNull();
+    expect(packet.missing).toContain("streamingLinks");
   });
 
   it("404s for a stranger's release — the packet never leaks", async () => {
