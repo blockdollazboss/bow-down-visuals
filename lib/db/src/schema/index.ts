@@ -107,6 +107,7 @@ export * from "./wave8";
 export * from "./wave9";
 export * from "./wave9a";
 export * from "./retention";
+export * from "./feed-preferences";
 export * from "./thy-books";
 export * from "./reach";
 export * from "./trust";
