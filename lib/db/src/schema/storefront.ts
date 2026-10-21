@@ -62,7 +62,9 @@ export const storeProductsTable = pgTable("store_products", {
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket')`),
-  check("store_products_price_check", sql`${t.priceCents} > 0`),
+  /* >= 0 (migration 0189): $0 is a lead magnet — claimed by email via
+     POST /api/storefront/claim, never run through Stripe checkout. */
+  check("store_products_price_check", sql`${t.priceCents} >= 0`),
   index("store_products_profile_idx").on(t.profileId),
   index("store_products_profile_active_idx").on(t.profileId, t.isActive),
 ]);

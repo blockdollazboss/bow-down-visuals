@@ -33,6 +33,8 @@ export interface MarketSaleRow {
   payment_status: string | null;
   stripe_session_id: string | null;
   checkout_group_id: string | null;
+  /** Shop discount code the checkout was priced with (migration 0189). */
+  discount_code: string | null;
   paid_at: string | null;
   created_at: string;
 }
@@ -41,6 +43,7 @@ const SALE_COLUMNS = sql`
   e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
   e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email,
   e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
+  e.discount_code,
   e.paid_at, e.created_at
 `;
 
@@ -75,6 +78,29 @@ export async function markMarketSalePaid(
     RETURNING id
   `);
   const rows = await fetchMarketSaleBySession(sessionId);
+  /* Discount redemption counting (0189) — the storefront's discipline:
+     a code's use is counted when the sale is RECORDED, never at
+     validate/checkout time. The guarded flip above lands exactly once
+     (replays flip 0 rows), so counting here is exactly-once too. One
+     checkout = one use, however many lines it carried: count each
+     distinct (shop, code) among the rows THIS call flipped. */
+  if (updated.rows.length > 0) {
+    const flippedIds = new Set(
+      (updated.rows as Array<Record<string, unknown>>).map((r) => String(r["id"])),
+    );
+    const counted = new Set<string>();
+    for (const row of rows) {
+      if (!flippedIds.has(String(row.id)) || !row.discount_code) continue;
+      const key = `${row.shop_id}:${row.discount_code.toUpperCase()}`;
+      if (counted.has(key)) continue;
+      counted.add(key);
+      await db.execute(sql`
+        UPDATE shop_discount_codes
+        SET used_count = used_count + 1
+        WHERE shop_id = ${row.shop_id} AND UPPER(code) = ${row.discount_code.toUpperCase()}
+      `);
+    }
+  }
   return { flipped: updated.rows.length, rows };
 }
 

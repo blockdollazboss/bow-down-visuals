@@ -262,6 +262,79 @@ async function productCount(shopId: string): Promise<number> {
   return (result.rows as unknown as Array<{ count: number }>)[0]?.count ?? 0;
 }
 
+/* ── Shop discount codes (migration 0189) ────────────────────────────────
+   Parity with the profile storefront's discount_codes (routes/
+   storefront.ts): same fields, same validation, same redemption
+   discipline — keyed by shop instead of creator profile, on
+   shop_discount_codes. A code is validated server-side at checkout; a
+   use is counted only when the sale is RECORDED (the paid flip in
+   lib/market-sale.ts, or the free-cart record in the checkout route
+   below) — never at validate time. Money math is the storefront's
+   exact sequence: percent off the UNIT price (rounded to the cent),
+   line gross from the discounted unit, then the ruled 5% marketplace
+   fee (STOREFRONT_PLATFORM_FEE_BPS) out of the discounted gross. A
+   code is scoped to its shop by the table's key: the same code name
+   at another shop is a different code and never applies here. */
+
+interface ShopDiscountRow {
+  id: string;
+  shop_id: string;
+  code: string;
+  percent_off: number;
+  max_uses: number;
+  used_count: number;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+async function findShopDiscount(shopId: string, code: string): Promise<ShopDiscountRow | null> {
+  const r = await db.execute(sql`
+    SELECT id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    FROM shop_discount_codes
+    WHERE shop_id = ${shopId} AND UPPER(code) = ${code.trim().toUpperCase()}
+    LIMIT 1
+  `);
+  return (r.rows as unknown as ShopDiscountRow[])[0] ?? null;
+}
+
+function shopDiscountUsable(d: ShopDiscountRow): { ok: boolean; reason?: string } {
+  if (!d.is_active) return { ok: false, reason: "This code is no longer active." };
+  if (d.expires_at && new Date(d.expires_at).getTime() < Date.now()) return { ok: false, reason: "This code has expired." };
+  if (d.max_uses !== -1 && d.used_count >= d.max_uses) return { ok: false, reason: "This code has hit its usage limit." };
+  return { ok: true };
+}
+
+/** The storefront's discount step, verbatim: percent off the unit
+    price, rounded to the cent. Line gross and fee derive from this. */
+export function discountedUnitCents(unitCents: number, percentOff: number): number {
+  return Math.round((unitCents * (100 - percentOff)) / 100);
+}
+
+/** Count one redemption of a code — called ONLY where a sale is
+    recorded (paid flip / free-cart record), never at validate. */
+async function countShopDiscountUse(shopId: string, code: string): Promise<void> {
+  await db.execute(sql`
+    UPDATE shop_discount_codes
+    SET used_count = used_count + 1
+    WHERE shop_id = ${shopId} AND UPPER(code) = ${code.toUpperCase()}
+  `);
+}
+
+function presentShopDiscount(c: ShopDiscountRow) {
+  return {
+    id: String(c.id),
+    shopId: String(c.shop_id),
+    code: String(c.code),
+    percentOff: Number(c.percent_off),
+    maxUses: Number(c.max_uses),
+    usedCount: Number(c.used_count),
+    expiresAt: c.expires_at ? String(c.expires_at) : null,
+    isActive: Boolean(c.is_active),
+    createdAt: String(c.created_at),
+  };
+}
+
 /** First value of a route param (Express 5 types params as string | string[]). */
 function param(v: string | string[] | undefined): string {
   return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
@@ -566,6 +639,169 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
     DELETE FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id}
   `);
   res.json({ deleted: true });
+});
+
+/* ── Shop discount codes: owner management (0189) ────────────────────────
+   Mirrors the storefront's /storefront/discounts CRUD, scoped to a
+   shop the caller owns (getOwnedShop — another owner's shop 404s
+   exactly like a missing one, on every verb). */
+
+const UUID_PARAM_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+const createShopDiscountSchema = z.object({
+  code: z.string().trim().min(2).max(40).regex(/^[A-Za-z0-9_-]+$/, "Letters, numbers, - and _ only."),
+  percentOff: z.number().int().min(1).max(90),
+  maxUses: z.number().int().min(-1).default(-1),
+  expiresAt: z.string().datetime().nullable().optional(),
+});
+
+router.get("/shops/:id/discounts", requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const r = await db.execute(sql`
+    SELECT id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    FROM shop_discount_codes
+    WHERE shop_id = ${shop.id}
+    ORDER BY created_at DESC
+    LIMIT 200
+  `);
+  const activeProducts = await productCount(shop.id);
+  const codes = (r.rows as unknown as ShopDiscountRow[]).map((c) => ({
+    ...presentShopDiscount(c),
+    /* Codes are shop-wide: they apply to every product in the shop. */
+    appliesTo: `${activeProducts} product(s)`,
+  }));
+  res.json({ codes });
+});
+
+router.post("/shops/:id/discounts", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = createShopDiscountSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid discount code.", details: parsed.error.issues });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = parsed.data;
+  /* Duplicate name → 409, the storefront's answer. SELECT-first (the
+     unique index stays the backstop for a same-instant race): the
+     storefront's ON CONFLICT … DO NOTHING + empty-RETURNING idiom
+     reads differently under the pg-mem test engine, and this route's
+     behavior must be identical on both. */
+  const existing = await findShopDiscount(shop.id, d.code);
+  if (existing) {
+    res.status(409).json({ error: "CODE_TAKEN", message: "This shop already has a code with that name." });
+    return;
+  }
+  let r;
+  try {
+    r = await db.execute(sql`
+      INSERT INTO shop_discount_codes (shop_id, code, percent_off, max_uses, expires_at)
+      VALUES (${shop.id}, ${d.code.trim().toUpperCase()}, ${d.percentOff}, ${d.maxUses}, ${d.expiresAt ?? null})
+      RETURNING id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    `);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/duplicate key|unique/i.test(msg)) {
+      res.status(409).json({ error: "CODE_TAKEN", message: "This shop already has a code with that name." });
+      return;
+    }
+    throw err;
+  }
+  logger.info({ userId: req.userId, shopId: shop.id, code: (r.rows[0] as Record<string, unknown>)["code"] }, "[shops] discount code created");
+  res.status(201).json({ code: presentShopDiscount(r.rows[0] as unknown as ShopDiscountRow) });
+});
+
+router.patch("/shops/:id/discounts/:codeId", publicApiLimiter, requireAuth, async (req, res) => {
+  const codeId = param(req.params.codeId);
+  const parsed = z.object({
+    isActive: z.boolean().optional(),
+    expiresAt: z.string().datetime().nullable().optional(),
+    maxUses: z.number().int().min(-1).optional(),
+  }).safeParse(req.body ?? {});
+  if (!UUID_PARAM_RE.test(codeId) || !parsed.success) {
+    res.status(400).json({ error: "Invalid request." });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = parsed.data;
+  const sets: ReturnType<typeof sql>[] = [];
+  if (d.isActive !== undefined) sets.push(sql`is_active = ${d.isActive}`);
+  if (d.expiresAt !== undefined) sets.push(sql`expires_at = ${d.expiresAt}`);
+  if (d.maxUses !== undefined) sets.push(sql`max_uses = ${d.maxUses}`);
+  if (sets.length === 0) {
+    res.status(400).json({ error: "Nothing to update." });
+    return;
+  }
+  const r = await db.execute(sql`
+    UPDATE shop_discount_codes SET ${sql.join(sets, sql`, `)}
+    WHERE id = ${codeId} AND shop_id = ${shop.id}
+    RETURNING id
+  `);
+  if (r.rows.length === 0) {
+    res.status(404).json({ error: "Discount code not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+router.delete("/shops/:id/discounts/:codeId", requireAuth, async (req, res) => {
+  const codeId = param(req.params.codeId);
+  if (!UUID_PARAM_RE.test(codeId)) {
+    res.status(400).json({ error: "Invalid id." });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const r = await db.execute(sql`
+    DELETE FROM shop_discount_codes WHERE id = ${codeId} AND shop_id = ${shop.id} RETURNING id
+  `);
+  if (r.rows.length === 0) {
+    res.status(404).json({ error: "Discount code not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+/* ── GET /api/shops/:id/discounts/validate?code= — public ──────────────────
+   Answers "is this code good at THIS shop?" without spending a use —
+   uses are only incremented when a sale is recorded. */
+router.get("/shops/:id/discounts/validate", publicApiLimiter, async (req, res) => {
+  const shopId = param(req.params.id);
+  const code = String(req.query.code ?? "").trim();
+  if (!UUID_PARAM_RE.test(shopId) || !code) {
+    res.status(400).json({ error: "code is required." });
+    return;
+  }
+  const shopRes = await db.execute(sql`SELECT id FROM shops WHERE id = ${shopId} LIMIT 1`);
+  if (shopRes.rows.length === 0) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = await findShopDiscount(shopId, code);
+  if (!d) {
+    res.json({ valid: false, reason: "That code doesn't exist for this shop." });
+    return;
+  }
+  const usable = shopDiscountUsable(d);
+  if (!usable.ok) {
+    res.json({ valid: false, reason: usable.reason });
+    return;
+  }
+  res.json({ valid: true, code: d.code, percentOff: Number(d.percent_off) });
 });
 
 /* ── AI: shop description writer — 1 credit ───────────────────────────────── */
@@ -1141,7 +1377,12 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
    account, the row records the seller (shop owner user_id) and their
    net, settled later through the existing creator-payout path.
    A zero-total cart (free goods) needs no card: it records as paid
-   with payment_status='no_payment_required', honestly labelled. */
+   with payment_status='no_payment_required', honestly labelled.
+   Discount codes (0189): an optional code is validated against THIS
+   shop's shop_discount_codes, applied to unit prices before the fee
+   (the storefront's sequence), carried on the order rows, and counted
+   as used only when the sale records — at the flip, or right here for
+   a free cart. */
 const checkoutSchema = z.object({
   shopId: z.string().uuid(),
   /* Legacy single-line shape (kept for older callers). */
@@ -1153,12 +1394,19 @@ const checkoutSchema = z.object({
     quantity: z.number().int().min(1).max(99).default(1),
   })).min(1).max(50).optional(),
   buyerEmail: z.string().trim().email().max(254).optional().default(""),
+  /* Optional shop discount code (0189) — validated server-side against
+     THIS shop's codes, exactly like the storefront rail validates
+     against the seller's profile. */
+  discountCode: z.string().trim().min(1).max(40).optional(),
 });
 
 interface CheckoutLine {
   productId: string;
   name: string;
+  /** The unit price actually charged (after any discount). */
   unitCents: number;
+  /** The listed unit price before any discount. */
+  listUnitCents: number;
   quantity: number;
   gross: number;
   fee: number;
@@ -1190,6 +1438,26 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     return;
   }
 
+  /* Server-side discount validation (0189), before any row is written:
+     the code must exist for THIS shop and be usable. A code from
+     another shop — even with the same name — never applies here. */
+  let discountCode: string | null = null;
+  let percentOff = 0;
+  if (parsed.data.discountCode) {
+    const d = await findShopDiscount(shopId, parsed.data.discountCode);
+    if (!d) {
+      res.status(400).json({ error: "BAD_CODE", message: "That discount code doesn't exist for this shop." });
+      return;
+    }
+    const usable = shopDiscountUsable(d);
+    if (!usable.ok) {
+      res.status(400).json({ error: "BAD_CODE", message: usable.reason });
+      return;
+    }
+    discountCode = d.code;
+    percentOff = Number(d.percent_off);
+  }
+
   const lines: CheckoutLine[] = [];
   for (const [productId, quantity] of wanted) {
     const prod = await db.execute(sql`
@@ -1207,18 +1475,27 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       res.status(404).json({ error: "Product not found." });
       return;
     }
-    const gross = Number(product.price_cents) * quantity;
+    /* The storefront's money sequence (0189): discount the unit price
+       first (rounded), line gross from the discounted unit, then the
+       ruled 5% fee out of the discounted gross. */
+    const listUnitCents = Number(product.price_cents);
+    const unitCents = percentOff > 0 ? discountedUnitCents(listUnitCents, percentOff) : listUnitCents;
+    const gross = unitCents * quantity;
     lines.push({
-      productId, name: product.name, unitCents: Number(product.price_cents), quantity,
+      productId, name: product.name, unitCents, listUnitCents, quantity,
       gross, fee: Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
       saleId: randomUUID(),
     });
   }
   const gross = lines.reduce((s, l) => s + l.gross, 0);
+  const listGross = lines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
   const fee = lines.reduce((s, l) => s + l.fee, 0);
   const groupId = randomUUID();
   const totals = {
     gross_cents: gross,
+    list_gross_cents: listGross,
+    discount_code: discountCode,
+    percent_off: percentOff,
     platform_fee_cents: fee,
     platform_fee_pct: PLATFORM_FEE_PCT,
     seller_net_cents: gross - fee,
@@ -1226,6 +1503,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   };
   const lineReceipts = lines.map((l) => ({
     saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
+    unit_cents: l.unitCents, list_unit_cents: l.listUnitCents,
     gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
   }));
 
@@ -1234,9 +1512,14 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   if (gross <= 0) {
     for (const l of lines) {
       await db.execute(sql`
-        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id)
-        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId})
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
+        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode})
       `);
+    }
+    /* The sale is recorded right here, so a presented code's use is
+       counted right here too (0189 redemption discipline). */
+    if (discountCode) {
+      await countShopDiscountUse(shopId, discountCode);
     }
     res.status(201).json({
       saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
@@ -1261,8 +1544,8 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   /* 1) Record the order as PENDING first (brief + house pattern). */
   for (const l of lines) {
     await db.execute(sql`
-      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id)
-      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId})
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code)
+      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${discountCode})
     `);
   }
 
@@ -1288,6 +1571,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
         shop_id: shopId,
         checkout_group_id: groupId,
         sale_id: lines[0]!.saleId,
+        discount_code: discountCode ?? "",
       },
       success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,

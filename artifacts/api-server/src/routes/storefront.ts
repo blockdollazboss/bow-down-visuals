@@ -26,6 +26,7 @@
  *   DELETE /storefront/products/:id               auth: soft-deactivate (own profile)
  *   POST   /storefront/checkout                   auth: Stripe session (discount validated server-side)
  *   POST   /storefront/verify                     auth: confirm payment, record order idempotently
+ *   POST   /storefront/claim                      auth: claim a $0 lead-magnet product by email (no Stripe)
  *   GET    /storefront/discounts                   auth: seller's codes
  *   POST   /storefront/discounts                  auth: create code
  *   PATCH  /storefront/discounts/:id              auth: toggle/expire
@@ -53,7 +54,7 @@ import { Router } from "express";
 import Stripe from "stripe";
 import { z } from "zod";
 import { createHmac, randomBytes } from "crypto";
-import { db } from "@workspace/db";
+import { db, EMAIL_FREE_SUBSCRIBER_LIMIT } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
@@ -233,6 +234,10 @@ function withLinks(p: ProductRow) {
     description: p.description,
     priceCents: Number(p.price_cents),
     price: money(Number(p.price_cents)),
+    /* $0 = lead magnet (migration 0189): claimed by email, never
+       checked out. Every product payload carries the flag so every
+       surface renders it FREE instead of $0.00. */
+    free: Number(p.price_cents) === 0,
     compareAtCents: p.compare_at_cents == null ? null : Number(p.compare_at_cents),
     inventory: Number(p.inventory),
     soldOut: Number(p.inventory) === 0,
@@ -346,15 +351,19 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
       return;
     }
     const { feeCents, creatorCents } = splitTotals(Number(p.price_cents));
+    const isFree = Number(p.price_cents) === 0;
     res.json({
       product: await presentProduct(p),
+      free: isFree,
       feeSplit: {
         priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
         platformFeeCents: feeCents, platformFee: money(feeCents),
         platformFeePct: PLATFORM_FEE_PCT,
         creatorCents, creatorAmount: money(creatorCents),
       },
-      note: "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
+      note: isFree
+        ? "Free product — claim it with your email, no card and no charge. Claiming adds your email to this creator's list; unsubscribe anytime."
+        : "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
     });
   } catch (err) {
     logger.error({ err, id }, "[storefront] product detail failed");
@@ -379,7 +388,9 @@ const BaseProductSchema = z.object({
   kind: ProductKindSchema,
   title: z.string().trim().min(1, "A title is required.").max(160),
   description: z.string().max(5000).default(""),
-  priceCents: z.number().int().positive().max(10_000_00 * 100),
+  /* 0 is allowed (migration 0189): a $0 product is a lead magnet —
+     claimed by email via /storefront/claim, never checked out. */
+  priceCents: z.number().int().nonnegative().max(10_000_00 * 100),
   compareAtCents: z.number().int().positive().nullable().optional(),
   /* -1 = unlimited/digital, 0 = sold out. */
   inventory: z.number().int().min(-1).default(-1),
@@ -548,6 +559,15 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     const p = await fetchProduct(productId, true);
     if (!p) {
       res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't for sale right now." });
+      return;
+    }
+    /* A $0 lead magnet never reaches Stripe (migration 0189): there is
+       no card to charge. It is claimed by email on the house rail. */
+    if (Number(p.price_cents) === 0) {
+      res.status(400).json({
+        error: "FREE_PRODUCT",
+        message: "This product is free — claim it with your email instead of checking out. No card, no charge.",
+      });
       return;
     }
     const inventory = Number(p.inventory);
@@ -895,6 +915,272 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
   } catch (err) {
     logger.error({ err, sessionId }, "[storefront] verify failed");
     res.status(500).json({ error: "Payment confirmed but the order couldn't be recorded. Contact support." });
+  }
+});
+
+/* ═══════════════════ CLAIM (free lead magnets, 0189) ═══════════════
+   A $0 product is a lead magnet, not a sale: no Stripe session exists
+   for it and none is ever created here. The buyer claims it — the
+   claim subscribes their email to the creator's email list (the
+   exchange, stated in the UI and consented to in this request),
+   records a completed $0 order on the same store_orders rail verify
+   writes, and fulfils on the same delivery rail (signed token for
+   digital/download, RSVP for tickets, booking note + creator ping for
+   services, merch handoff note). Idempotent: one completed claim
+   order per buyer per product — a repeat claim returns the same
+   order with a fresh delivery link and never double-subscribes. */
+const ClaimSchema = z.object({
+  productId: z.string().regex(UUID_RE, "productId must be a UUID"),
+  email: z.string().trim().email().max(254).optional(),
+  name: z.string().trim().max(120).optional(),
+  emailConsent: z.boolean().optional(),
+});
+
+router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = ClaimSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request.", details: parsed.error.issues });
+    return;
+  }
+  const { productId } = parsed.data;
+  if (parsed.data.emailConsent !== true) {
+    res.status(400).json({
+      error: "CONSENT_REQUIRED",
+      message: "Claiming this free product adds your email to the creator's list — that's the exchange. Tick the box to claim it.",
+    });
+    return;
+  }
+  const email = (parsed.data.email ?? req.userEmail ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({
+      error: "EMAIL_REQUIRED",
+      message: "We need the email this free product goes to — it's also how you join the creator's list.",
+    });
+    return;
+  }
+  const claimerName = (parsed.data.name ?? "").trim();
+
+  try {
+    const p = await fetchProduct(productId, true);
+    if (!p) {
+      res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't available right now." });
+      return;
+    }
+    if (Number(p.price_cents) !== 0) {
+      res.status(400).json({
+        error: "NOT_FREE",
+        message: "This product isn't free — it goes through regular checkout.",
+      });
+      return;
+    }
+    const inventory = Number(p.inventory);
+    if (inventory === 0) {
+      res.status(400).json({ error: "SOLD_OUT", message: "This one just sold out — the creator's restocking." });
+      return;
+    }
+    const kind = p.kind;
+    const eventId = p.event_id ?? null;
+
+    /* The creator side of the exchange: their email list (the oldest
+       list is the default, same as their /join landing). */
+    const creatorRes = await db.execute(sql`
+      SELECT user_id FROM creator_profiles WHERE id = ${p.profile_id} LIMIT 1
+    `);
+    const creatorRow = creatorRes.rows[0] as Record<string, unknown> | undefined;
+    const creatorUserId = creatorRow?.["user_id"] ? String(creatorRow["user_id"]) : null;
+    const listRes = creatorUserId
+      ? await db.execute(sql`
+          SELECT id, name FROM email_lists WHERE user_id = ${creatorUserId}
+          ORDER BY created_at ASC LIMIT 1
+        `)
+      : { rows: [] as Record<string, unknown>[] };
+    const list = listRes.rows[0] as Record<string, unknown> | undefined;
+    if (!list) {
+      res.status(409).json({
+        error: "CREATOR_LIST_MISSING",
+        message: `${p.artist_name} hasn't set up their email list yet, so this free product can't be claimed yet.`,
+      });
+      return;
+    }
+    const listId = String(list["id"]);
+    const listName = String(list["name"]);
+
+    /* Subscribe with the subscribe rail's exact discipline
+       (POST /email-list/subscribe): the free-tier cap counts active
+       subscribers and is checked first; an existing live subscription
+       stands; an unsubscribed address reactivates. */
+    const subCountRes = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM email_subscribers
+      WHERE list_id = ${listId} AND unsubscribed_at IS NULL
+    `);
+    const subCount = Number((subCountRes.rows[0] as Record<string, unknown>)?.["c"] ?? 0);
+    if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT) {
+      res.status(403).json({
+        error: "LIST_FULL",
+        message: `This creator's list has reached the ${EMAIL_FREE_SUBSCRIBER_LIMIT}-subscriber free tier, so the claim can't go through right now.`,
+      });
+      return;
+    }
+    const existingSubRes = await db.execute(sql`
+      SELECT id, unsubscribed_at FROM email_subscribers
+      WHERE list_id = ${listId} AND email = ${email} LIMIT 1
+    `);
+    const existingSub = existingSubRes.rows[0] as Record<string, unknown> | undefined;
+    let alreadySubscribed = false;
+    if (existingSub) {
+      alreadySubscribed = !existingSub["unsubscribed_at"];
+      if (existingSub["unsubscribed_at"]) {
+        await db.execute(sql`
+          UPDATE email_subscribers
+          SET unsubscribed_at = NULL, source = 'storefront'
+          WHERE id = ${String(existingSub["id"])}
+        `);
+      }
+    } else {
+      await db.execute(sql`
+        INSERT INTO email_subscribers (list_id, email, name, source, confirmed)
+        VALUES (${listId}, ${email}, ${claimerName || null}, 'storefront', true)
+      `);
+    }
+
+    /* Delivery is minted the same way verify mints it. */
+    const buildDelivery = async (orderId: string) => {
+      if (kind !== "digital" && kind !== "download") return null;
+      const fileUrl = (p.media_urls ?? [])[0];
+      if (!fileUrl) return null;
+      const link = await mintDeliveryToken(orderId, fileUrl);
+      return {
+        url: `/api/storefront/deliver/${link.token}`,
+        expiresAt: link.expiresAt.toISOString(),
+        maxUses: DELIVERY_MAX_USES,
+      };
+    };
+    const claimLinks = {
+      productUrl: `/storefront/product/${p.id}`,
+      creatorUrl: `/artist/${p.artist_slug}`,
+      eventUrl: eventId ? `/shows#event-${eventId}` : null,
+      purchasesEndpoint: "/api/storefront/orders/purchases",
+    };
+    const claimNote = `Free product — no payment was taken and no checkout was opened. Your email joined ${p.artist_name}'s list (“${listName}”) — that's the exchange for the freebie, and every email from it carries an unsubscribe link.`;
+
+    /* Already claimed: the same order comes back with a fresh
+       delivery link — delivered once, never twice. */
+    const existingOrder = await db.execute(sql`
+      SELECT id, fulfillment_note FROM store_orders
+      WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+        AND stripe_session_id IS NULL AND status = 'completed'
+      ORDER BY created_at ASC LIMIT 1
+    `);
+    if (existingOrder.rows.length > 0) {
+      const er = existingOrder.rows[0] as Record<string, unknown>;
+      const orderId = String(er["id"]);
+      logger.info({ userId: req.userId, productId, orderId }, "[storefront] claim: duplicate returned");
+      res.json({
+        success: true,
+        duplicate: true,
+        free: true,
+        order: {
+          id: orderId,
+          productKind: kind,
+          quantity: 1,
+          amountCents: 0, amount: money(0),
+          platformFeeCents: 0, platformFee: money(0),
+          platformFeePct: PLATFORM_FEE_PCT,
+          creatorAmountCents: 0, creatorAmount: money(0),
+          discountCode: null,
+          fulfillmentNote: (er["fulfillment_note"] as string | null) ?? null,
+        },
+        delivery: await buildDelivery(orderId),
+        subscribed: { email, listName, alreadySubscribed },
+        links: claimLinks,
+        note: claimNote,
+      });
+      return;
+    }
+
+    /* Claim finite inventory atomically (unlimited = -1 skips). */
+    if (inventory > 0) {
+      const claimed = await db.execute(sql`
+        UPDATE store_products
+        SET inventory = inventory - 1, updated_at = now()
+        WHERE id = ${productId} AND inventory >= 1
+        RETURNING id
+      `);
+      if (claimed.rows.length === 0) {
+        res.status(400).json({ error: "SOLD_OUT", message: "This one just sold out — the creator's restocking." });
+        return;
+      }
+    }
+
+    const inserted = await db.execute(sql`
+      INSERT INTO store_orders
+        (buyer_user_id, profile_id, product_id, product_title, product_kind,
+         quantity, amount_cents, discount_code, platform_fee_cents,
+         creator_amount_cents, stripe_session_id, status, fulfillment_note)
+      VALUES (${req.userId!}, ${p.profile_id}, ${productId}, ${p.title}, ${kind},
+              1, 0, NULL, 0, 0, NULL, 'completed', NULL)
+      RETURNING id
+    `);
+    const orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+
+    /* Kind-specific fulfillment — the same notes verify records. */
+    let fulfillmentNote: string;
+    if (kind === "ticket" && eventId) {
+      const rsvp = await db.execute(sql`
+        INSERT INTO event_rsvps (event_id, user_id)
+        VALUES (${eventId}, ${req.userId!})
+        ON CONFLICT DO NOTHING
+        RETURNING event_id
+      `);
+      if (rsvp.rows.length > 0) {
+        await db.execute(sql`UPDATE events SET rsvp_count = rsvp_count + 1 WHERE id = ${eventId}`);
+      }
+      fulfillmentNote = "Ticket secured — you're on the list. Show this order at the door (or follow the event link).";
+    } else if (kind === "service") {
+      fulfillmentNote = "Booking request received — the creator confirms your slot from their dashboard.";
+      if (creatorUserId) {
+        await db.execute(sql`
+          INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
+          VALUES ('storefront_service_booking', ${orderId}, ${creatorUserId},
+                  'completed', ${`New booking: ${p.title}`},
+                  ${`Someone just claimed "${p.title}" (free). Confirm their slot from your store dashboard.`})
+          ON CONFLICT DO NOTHING
+        `);
+      }
+    } else if (kind === "merch") {
+      /* MERCH BOUNDARY: physical fulfillment lives in the merch system. */
+      fulfillmentNote = "Order received — the creator fulfills it through their merch/print pipeline.";
+    } else {
+      fulfillmentNote = "Digital delivery ready.";
+    }
+    await db.execute(sql`
+      UPDATE store_orders SET fulfillment_note = ${fulfillmentNote} WHERE id = ${orderId}
+    `);
+    logger.info({ userId: req.userId, productId, orderId, kind }, "[storefront] free product claimed");
+
+    res.status(201).json({
+      success: true,
+      duplicate: false,
+      free: true,
+      order: {
+        id: orderId,
+        productKind: kind,
+        quantity: 1,
+        amountCents: 0, amount: money(0),
+        platformFeeCents: 0, platformFee: money(0),
+        platformFeePct: PLATFORM_FEE_PCT,
+        creatorAmountCents: 0, creatorAmount: money(0),
+        discountCode: null,
+        fulfillmentNote,
+      },
+      delivery: await buildDelivery(orderId),
+      subscribed: { email, listName, alreadySubscribed },
+      links: claimLinks,
+      note: claimNote,
+    });
+  } catch (err) {
+    logger.error({ err, productId }, "[storefront] claim failed");
+    res.status(500).json({ error: "Could not claim this product. Nothing was charged — a free product never charges." });
   }
 });
 
