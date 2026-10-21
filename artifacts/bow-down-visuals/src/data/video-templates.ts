@@ -115,6 +115,126 @@ export const VIDEO_TEMPLATE_METAS: VideoTemplateMeta[] = [
     category: "Podcast",
     outcome: "Quotable moments, framed to be shared",
   },
+  {
+    key: "launch-announcement",
+    name: "Launch Announcement",
+    tagline: "Tease it, reveal it, date it",
+    description:
+      "A three-act launch post: a shadowy teaser, the big reveal, then the details. Built for drop days, grand openings, and first episodes.",
+    aspect: "9:16",
+    durationLabel: "~6s",
+    slotCount: 4,
+    category: "Promo",
+    outcome: "Drop days that feel like premieres",
+  },
+  {
+    key: "product-showcase",
+    name: "Product Showcase",
+    tagline: "A slow, premium walk-around",
+    description:
+      "Landscape product tour: hero angle, two feature close-ups, the product in real life, and a clean closing card. Callouts land on each feature as it appears.",
+    aspect: "16:9",
+    durationLabel: "~8s",
+    slotCount: 5,
+    category: "Promo",
+    outcome: "Product tours with feature callouts",
+  },
+  {
+    key: "sale-announcement",
+    name: "Sale Announcement",
+    tagline: "The offer, loud and clear",
+    description:
+      "Deal-first and direct: your offer stamped big over product shots, the details underneath, and a hard close on how to claim it. No timers, no games — just the offer.",
+    aspect: "9:16",
+    durationLabel: "~5s",
+    slotCount: 4,
+    category: "Promo",
+    outcome: "Offers nobody can scroll past",
+  },
+  {
+    key: "seasonal-drop",
+    name: "Seasonal Drop",
+    tagline: "This season only",
+    description:
+      "A limited-run drop wrapped in the season's mood: a moody opener, the pieces one by one, and a while-it's-here close. Holidays, capsules, and limited runs.",
+    aspect: "9:16",
+    durationLabel: "~6s",
+    slotCount: 5,
+    category: "Promo",
+    outcome: "Limited runs wrapped in the season",
+  },
+  {
+    key: "testimonial-spotlight",
+    name: "Testimonial Spotlight",
+    tagline: "A happy customer, in their own words",
+    description:
+      "One testimonial clip framed with a big pull-quote and a five-star stamp — the review your future customers actually believe.",
+    aspect: "9:16",
+    durationLabel: "~12s",
+    slotCount: 1,
+    category: "Creator",
+    outcome: "Reviews your next customers believe",
+  },
+  {
+    key: "quote-card",
+    name: "Quote Card",
+    tagline: "One line worth framing",
+    description:
+      "Your strongest line over a slow-drifting photo, set big and gold, with your name signed underneath. Made for saves, shares, and story reposts.",
+    aspect: "1:1",
+    durationLabel: "~6s",
+    slotCount: 1,
+    category: "Creator",
+    outcome: "Lines worth saving and sharing",
+  },
+  {
+    key: "event-recap",
+    name: "Event Recap",
+    tagline: "The whole night, one highlight reel",
+    description:
+      "Eight fast hits — doors, crowd, stage, the moment everyone lost it — cut hard with your event name stamped over the peak. Relive it, then sell the next one.",
+    aspect: "9:16",
+    durationLabel: "~11s",
+    slotCount: 8,
+    category: "Slideshow",
+    outcome: "Nights relived in one reel",
+  },
+  {
+    key: "tutorial-steps",
+    name: "Tutorial Steps",
+    tagline: "Step one, step two, done",
+    description:
+      "An intro card, four steps each stamped with its number as it plays, and a clean you're-done close. How-tos, recipes, setups, and routines.",
+    aspect: "9:16",
+    durationLabel: "~14s",
+    slotCount: 6,
+    category: "Tutorial",
+    outcome: "How-tos with every step stamped",
+  },
+  {
+    key: "podcast-clip-vertical",
+    name: "Podcast Clip",
+    tagline: "The moment, cut vertical",
+    description:
+      "Your podcast's best stretch in vertical: a hook line up top in the first breath, the exchange in the middle, and the show name stamped at the close.",
+    aspect: "9:16",
+    durationLabel: "~30s",
+    slotCount: 1,
+    category: "Podcast",
+    outcome: "Best moments, cut for the feed",
+  },
+  {
+    key: "lyric-video-landscape",
+    name: "Lyric Video",
+    tagline: "The full song, every word framed",
+    description:
+      "Landscape lyric layout for the official upload: your performance or visual loop underneath, each lyric line centered and timed to its section. The long-form companion to the snippet cut.",
+    aspect: "16:9",
+    durationLabel: "~11s",
+    slotCount: 4,
+    category: "Music",
+    outcome: "Full-song lyric videos, framed",
+  },
 ];
 
 export const VIDEO_TEMPLATE_CATEGORIES = [
@@ -125,6 +245,7 @@ export const VIDEO_TEMPLATE_CATEGORIES = [
   "Reveal",
   "Creator",
   "Podcast",
+  "Tutorial",
 ];
 
 export function getVideoTemplateMeta(key: string): VideoTemplateMeta | null {
