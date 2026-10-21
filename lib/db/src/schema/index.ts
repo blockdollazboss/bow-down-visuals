@@ -124,3 +124,4 @@ export * from "./ugc-ads";
 export * from "./coach-tracker";
 export * from "./content-reports";
 export * from "./operator-actions";
+export * from "./clip-charge-obligations";
