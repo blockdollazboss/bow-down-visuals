@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 
 /* ─── Tip Jar ──────────────────────────────────────────────────────────────
    Creators accept tips/donations from fans at /tips/:handle.
@@ -291,6 +291,20 @@ function getStripe(): Stripe {
   return createGuardedStripeClient();
 }
 
+/**
+ * Deterministic Stripe idempotency key for a tip checkout. The intent
+ * is the durable tip row inserted just before the session is created:
+ * a retry of the same tip's session creation reuses the original
+ * session, and every genuinely new tip is a new row with a fresh key.
+ */
+export function buildTipCheckoutKey(args: { pageOwnerId: string; tipId: string }): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.pageOwnerId,
+    rail: "tip-jar",
+    purchaseIntent: { tipId: args.tipId },
+  });
+}
+
 function getBaseUrl(req: import("express").Request): string {
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
   if (domain) return `https://${domain}`;
@@ -345,6 +359,7 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
     .returning();
   try {
     const base = getBaseUrl(req);
+    const idempotencyKey = buildTipCheckoutKey({ pageOwnerId: ownerId, tipId: tip!.id });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -360,7 +375,7 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
       metadata: { type: "tip_jar", tipId: tip!.id },
       success_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/tips/${page.handle}`,
-    });
+    }, { idempotencyKey });
     await db
       .update(tipJarTipsTable)
       .set({ stripe_session_id: session.id })

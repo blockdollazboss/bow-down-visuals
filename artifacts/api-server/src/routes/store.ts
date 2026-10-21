@@ -46,7 +46,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
-import { createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 
@@ -68,6 +68,33 @@ const ItemKindSchema = z.enum(DIGITAL_ITEM_KINDS);
 function getStripe(): Stripe {
   /* Fail closed on live keys (Lane V3 F7) via the shared guard. */
   return createGuardedStripeClient();
+}
+
+/**
+ * Deterministic Stripe idempotency key for a digital-store checkout.
+ * The intent carries the buyer's completed-sale count for this exact
+ * purchase (from digital_sales, the rail's completion record): a
+ * double-submit before the sale is recorded still sees the same
+ * count, so Stripe reuses the original session; after the sale lands,
+ * the count advances and a repeat purchase gets a fresh key.
+ */
+export function buildStoreCheckoutKey(args: {
+  userId: string;
+  kind: string;
+  itemId: string;
+  amountCents: number;
+  completedSaleCount: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "digital-store",
+    purchaseIntent: {
+      kind: args.kind,
+      itemId: args.itemId,
+      amountCents: args.amountCents,
+      completedSaleCount: args.completedSaleCount,
+    },
+  });
 }
 
 function getTokenSecret(): string {
@@ -344,6 +371,24 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     }
     const chargeCents = resolved.amountCents;
     const { feeCents, creatorCents } = splitFee(chargeCents);
+    /* Purchase sequence for the session idempotency key (see
+       buildStoreCheckoutKey). A read failure throws into the catch
+       below — no session is minted, so the failure is closed. */
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM digital_sales
+      WHERE buyer_user_id = ${req.userId!} AND item_kind = ${kind}
+        AND item_id = ${id} AND amount_cents = ${chargeCents}
+    `);
+    const completedSaleCount = Number(
+      (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+    );
+    const idempotencyKey = buildStoreCheckoutKey({
+      userId: req.userId!,
+      kind,
+      itemId: id,
+      amountCents: chargeCents,
+      completedSaleCount,
+    });
     const baseUrl = getBaseUrl(req);
     /* Same stored artwork value flows to Stripe as the checkout image:
        an r2:// / supabase:// ref is unfetchable by Stripe, so refresh
@@ -377,7 +422,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
       },
-    });
+    }, { idempotencyKey });
 
     logger.info(
       { userId: req.userId, kind, id, priceCents: chargeCents, pwyw: item.pwywEnabled, sessionId: session.id },
