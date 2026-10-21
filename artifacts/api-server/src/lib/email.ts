@@ -33,22 +33,25 @@ export function houseFromAddress(raw: string): string {
 }
 
 /**
- * The brand mark rendered in the email header: the owner's real crowned
- * King Shark icon — the same asset the site ships as public/icon-192.png
- * (and its PWA/app icon). NOT an emoji: mail clients render a raw 🦈 as
- * a stock cartoon shark, which is how a stock graphic ended up in the
- * owner's inbox.
+ * The brand mark rendered in the email header: the owner's REAL logo —
+ * the full illustrated lockup (King Shark over the BOW DOWN VISUALS
+ * banner, "THE CONTENT CREATOR'S CHEAT CODE"), exported from
+ * public/logo-static.webp as public/logo-email.png (600×600). The app
+ * icon (public/icon-192.png) is NOT the logo and must never stand in
+ * for it. Also NOT an emoji: mail clients render a raw 🦈 as a stock
+ * cartoon shark, which is how a stock graphic ended up in the owner's
+ * inbox.
  *
  * The URL must be absolute and anonymously reachable by mail clients.
  * bowdownvisuals.com is suspended-dark until launch (503) and the
  * staging host is password-gated (401), so the asset is served from the
  * owner's own public repo via the jsDelivr CDN — byte-identical to the
- * repo file (sha256 e32f03c3…). At relaunch, point EMAIL_LOGO_URL at
- * https://bowdownvisuals.com/icon-192.png.
+ * repo file (sha256 1c583113…). At relaunch, point EMAIL_LOGO_URL at
+ * https://bowdownvisuals.com/logo-email.png.
  */
 export const EMAIL_LOGO_URL =
   process.env.EMAIL_LOGO_URL ??
-  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@staging/artifacts/bow-down-visuals/public/icon-192.png";
+  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@staging/artifacts/bow-down-visuals/public/logo-email.png";
 
 let client: Resend | null = null;
 function getClient(): Resend | null {
@@ -135,7 +138,7 @@ export function emailShell(title: string, bodyHtml: string): string {
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
 <div style="text-align:center;margin-bottom:24px;">
-<img src="${EMAIL_LOGO_URL}" alt="Thy Cheat Code — Bow Down Visuals" width="72" height="72" style="width:72px;height:72px;border-radius:16px;">
+<img src="${EMAIL_LOGO_URL}" alt="Bow Down Visuals — The Content Creator's Cheat Code" width="240" height="240" style="width:240px;height:240px;">
 <div style="color:#d4af37;font-weight:800;font-size:20px;letter-spacing:1px;margin-top:8px;">THY CHEAT CODE</div>
 <div style="color:#888;font-size:12px;letter-spacing:3px;">BOW DOWN VISUALS</div>
 </div>

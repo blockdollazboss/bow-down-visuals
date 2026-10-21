@@ -3,8 +3,10 @@
  *
  * 1. The email header rendered a raw 🦈 emoji, which mail clients show
  *    as a STOCK cartoon shark — not the owner's logo. The shell must
- *    render the real crowned King Shark icon (public/icon-192.png)
- *    as an <img>, with zero emoji anywhere in the shell.
+ *    render the real logo — the full illustrated lockup
+ *    (public/logo-email.png, exported from public/logo-static.webp).
+ *    The app icon (public/icon-*.png) is NOT the logo and must never
+ *    stand in for it. Zero emoji anywhere in the shell.
  * 2. Sends arrived from a bare address with no display name. House
  *    sends must read "Thy Cheat Code" — houseFromAddress composes it
  *    when the configured From is bare and respects an env value that
@@ -19,10 +21,11 @@ import { emailShell, houseFromAddress, EMAIL_LOGO_URL, EMAIL_FROM_NAME } from ".
 import { withWelcomeGreeting } from "../email-campaign-sender";
 
 describe("email shell brand mark", () => {
-  it("renders the real King Shark icon as an image, not an emoji", () => {
+  it("renders the real logo lockup as an image, not an emoji or the app icon", () => {
     const html = emailShell("Subject line", "<p>Body</p>");
     expect(html).toContain(`<img src="${EMAIL_LOGO_URL}"`);
-    expect(EMAIL_LOGO_URL).toContain("icon-192.png");
+    expect(EMAIL_LOGO_URL).toContain("logo-email.png");
+    expect(EMAIL_LOGO_URL).not.toMatch(/icon-\d+\.png/);
     expect(html).not.toContain("🦈");
   });
 
