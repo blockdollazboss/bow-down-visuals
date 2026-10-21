@@ -49,8 +49,9 @@ import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
      (2) the judge payout caps the trailing-7-day payout total at 1,000 VB —
          prizes beyond the cap are skipped (reported in `budget_capped`) and
          can be re-judged once the window clears.
-   NOTE: the GET /challenges/:slug detail endpoint in shorts.ts is extended
-   in place (lifecycle fields, prize list, vote counts, viewer votes).
+   NOTE: the GET /challenges/:slug detail endpoint below extends the
+   original shorts-era detail shape in place (lifecycle fields, prize
+   list, vote counts, viewer votes).
 */
 
 const router = Router();
@@ -1162,8 +1163,10 @@ router.post("/admin/challenges/weekly-launch", requireAuth, requireAdmin, adminW
    Moved verbatim from routes/shorts.ts: these four routes, the create +
    enter schemas, the hashtag normalizer, and the challenge-card DTO now
    live on the ONE canonical challenge surface (this engine). Shorts
-   keeps /shorts, /sounds, /videos and /hashtag, and mounts this router
-   so its historical import surface is unchanged. Bow Challenge
+   keeps /shorts, /sounds, /videos and /hashtag and imports this
+   engine's shared helpers; the engine itself is mounted exactly once,
+   by the coordinator in routes/index.ts (Wave 3 #12 removed the old
+   nested mount that lived inside shorts.ts). Bow Challenge
    (routes/bow-challenge.ts, POST /bow) is a different game — Supabase
    bow_race_* tables + RPCs, no challenges-table involvement — and is a
    documented non-merge in the Stack 8 report. */
