@@ -9,6 +9,11 @@
  * reaching the right span of a fixture transcript, semantic picks
  * outranking the energy-only signal, the honest no-transcript energy
  * fallback, and the rail's auth gate + per-clip price pin.
+ *
+ * The propose → approve → render contract is pinned too: proposals come
+ * from the analysis step (which never charges and never renders), and
+ * the render step accepts ONLY an explicit approved-clips list — there
+ * is no request shape that makes the server choose moments itself.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -19,6 +24,11 @@ import {
 import smartClipsRouter, {
   selectClipCandidates,
   pickEnergySegments,
+  normalizeApprovedClips,
+  analysisMethodOf,
+  smartClipsRenderSchema,
+  APPROVED_CLIP_MIN_SEC,
+  APPROVED_CLIP_MAX_SEC,
   SMART_CLIPS_PER_CLIP,
   type ClipCandidate,
 } from "../generate/video-to-shorts";
@@ -265,5 +275,157 @@ describe("rail guards", () => {
     expect(layer).toBeTruthy();
     const handlers = layer.route.stack.map((s: any) => s.handle);
     expect(handlers).toContain(requireAuth);
+  });
+
+  it("POST /smart-clips/propose sits behind requireAuth too", () => {
+    const stack = (smartClipsRouter as unknown as { stack: Array<any> }).stack;
+    const layer = stack.find(
+      (l) => l.route?.path === "/smart-clips/propose" && l.route?.methods?.post,
+    );
+    expect(layer).toBeTruthy();
+    const handlers = layer.route.stack.map((s: any) => s.handle);
+    expect(handlers).toContain(requireAuth);
+  });
+});
+
+describe("propose step — analysis only, never charges, never renders", () => {
+  function handlerFor(path: string) {
+    const stack = (smartClipsRouter as unknown as { stack: Array<any> }).stack;
+    const layer = stack.find((l) => l.route?.path === path && l.route?.methods?.post);
+    expect(layer).toBeTruthy();
+    const handlers = layer.route.stack.map((s: any) => s.handle as Function);
+    return handlers[handlers.length - 1]!;
+  }
+
+  it("the propose handler touches no charge, render, or upload rail", () => {
+    const src = handlerFor("/smart-clips/propose").toString();
+    expect(src).not.toContain("chargeCredits");
+    expect(src).not.toContain("refundCredits");
+    expect(src).not.toContain("execFileAsync"); // no ffmpeg → nothing renders
+    expect(src).not.toContain("uploadMediaToSupabaseStorage");
+    expect(src).toContain("analyzeClipCandidates");
+  });
+
+  it("the render handler is the one that charges (200 VB per approved clip)", () => {
+    const src = handlerFor("/smart-clips").toString();
+    expect(src).toContain("chargeCredits");
+    expect(src).toContain("normalizeApprovedClips");
+  });
+});
+
+describe("render contract — no approved list, no render (no auto-render path)", () => {
+  it("refuses a request with no clips field at all", () => {
+    const out = smartClipsRenderSchema.safeParse({ videoUrl: "https://x/v.mp4" });
+    expect(out.success).toBe(false);
+  });
+
+  it("refuses an empty clips list", () => {
+    const out = smartClipsRenderSchema.safeParse({ videoUrl: "https://x/v.mp4", clips: [] });
+    expect(out.success).toBe(false);
+  });
+
+  it("refuses more clips than the rail's per-job cap", () => {
+    const clip = { startTime: 0, endTime: 30 };
+    const out = smartClipsRenderSchema.safeParse({
+      videoUrl: "https://x/v.mp4",
+      clips: [clip, clip, clip, clip, clip, clip],
+    });
+    expect(out.success).toBe(false);
+  });
+
+  it("accepts an explicit approved window with its proposal metadata", () => {
+    const out = smartClipsRenderSchema.safeParse({
+      videoUrl: "https://x/v.mp4",
+      clips: [
+        {
+          startTime: 120,
+          endTime: 150,
+          title: "The pricing breakdown",
+          reason: "Direct match",
+          quote: "the price breaks down into three simple tiers",
+          score: 88,
+          method: "semantic",
+        },
+      ],
+    });
+    expect(out.success).toBe(true);
+  });
+});
+
+describe("normalizeApprovedClips — renders exactly what the creator approved", () => {
+  it("keeps a valid approved window with its metadata, in timeline order", () => {
+    const out = normalizeApprovedClips(
+      [
+        { startTime: 300, endTime: 330, title: "Later", reason: "r2", quote: "q2", score: 70, method: "semantic" },
+        { startTime: 120, endTime: 150, title: "Pricing breakdown", reason: "Direct match", quote: "q1", score: 92, method: "semantic" },
+      ],
+      900,
+    );
+    expect(out.map((c) => c.start)).toEqual([120, 300]);
+    expect(out[0]).toMatchObject({ end: 150, title: "Pricing breakdown", score: 92, method: "semantic" });
+  });
+
+  it("honors a creator trim (shorter than the proposed window)", () => {
+    const out = normalizeApprovedClips(
+      [{ startTime: 122, endTime: 140, title: "Trimmed", method: "semantic", score: 80 }],
+      900,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ start: 122, end: 140 });
+  });
+
+  it("clamps an end past the video's end to the video end", () => {
+    const out = normalizeApprovedClips(
+      [{ startTime: 880, endTime: 990, title: "Tail", method: "semantic", score: 60 }],
+      900,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.end).toBe(900);
+  });
+
+  it("caps an over-long window at the max clip length", () => {
+    const out = normalizeApprovedClips(
+      [{ startTime: 0, endTime: 900, title: "Everything", method: "semantic", score: 50 }],
+      900,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.end - out[0]!.start).toBe(APPROVED_CLIP_MAX_SEC);
+  });
+
+  it("drops windows trimmed below the minimum length — and a fully-invalid set yields nothing to render", () => {
+    const tooShort = normalizeApprovedClips(
+      [{ startTime: 100, endTime: 100 + APPROVED_CLIP_MIN_SEC - 1, title: "Stub", method: "semantic" }],
+      900,
+    );
+    expect(tooShort).toEqual([]);
+    const beyondVideo = normalizeApprovedClips(
+      [{ startTime: 950, endTime: 980, title: "Ghost", method: "semantic" }],
+      900,
+    );
+    expect(beyondVideo).toEqual([]);
+    expect(normalizeApprovedClips([], 900)).toEqual([]);
+  });
+
+  it("collapses duplicate windows so the same moment is never rendered (or charged) twice", () => {
+    const clip = { startTime: 120, endTime: 150, title: "Once", method: "semantic" as const, score: 90 };
+    const out = normalizeApprovedClips([clip, { ...clip }], 900);
+    expect(out).toHaveLength(1);
+  });
+
+  it("an energy window can never gain a score at render time (honesty pin)", () => {
+    const out = normalizeApprovedClips(
+      [{ startTime: 60, endTime: 90, title: "Loud part", method: "energy", score: 99 }],
+      900,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.score).toBeNull();
+  });
+});
+
+describe("analysisMethodOf — the set label both steps share", () => {
+  it("labels homogeneous and mixed sets", () => {
+    expect(analysisMethodOf([{ method: "semantic" }, { method: "semantic" }])).toBe("semantic");
+    expect(analysisMethodOf([{ method: "energy" }])).toBe("energy");
+    expect(analysisMethodOf([{ method: "semantic" }, { method: "energy" }])).toBe("mixed");
   });
 });

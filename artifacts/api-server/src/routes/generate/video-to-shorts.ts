@@ -21,16 +21,25 @@ import {
   detectSemanticHighlights,
   SEMANTIC_VIBES,
   type SemanticHighlight,
+  type SemanticVibe,
 } from "../../lib/semantic-highlights";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ─── Smart clips (unified auto-clip extraction) ───
-   Analyzes a long video, finds its best moments, and extracts them as
-   vertical shorts (9:16). Configurable count (1-5) and duration (15-60s).
-   200 Visual Bucs per clip — one charge for the whole job, refunded in
-   full if the job fails (the rail's charge discipline is unchanged).
+   TWO-STEP flow — the AI proposes, the creator disposes:
+   1. POST /smart-clips/propose analyzes a long video and returns ranked
+      moment proposals (start/end, title, score, reason, and the
+      transcript excerpt each came from). Nothing is rendered and
+      nothing is charged at this step.
+   2. POST /smart-clips renders EXACTLY the windows the creator approved
+      (they may trim start/end first) as vertical shorts (9:16). There
+      is no auto-render path: a render request without an explicit
+      approved-clips list is refused.
+   200 Visual Bucs per RENDERED clip — one charge for the whole render
+   job, refunded in full if the job fails (the rail's charge discipline
+   is unchanged; analysis was never a separate charge).
 
    Moment finding is SEMANTIC first (ported from the streamer-clips
    rail): the video is transcribed with timed transcription
@@ -39,7 +48,7 @@ const execFileAsync = promisify(execFile);
    the creator ("find the part where I explain pricing"). Audio ENERGY
    (ffmpeg astats) remains as the fallback signal: when there is no
    speech to analyze, the semantic pass finds nothing, or it errors,
-   energy picks fill the request — and every clip says which method
+   energy picks fill the request — and every proposal says which method
    found it, with energy picks carrying an honest reason and NO score
    (a loudness number dressed up as a quality score would be fake
    precision). */
@@ -57,6 +66,31 @@ const smartClipsSchema = z.object({
   vibe: z.enum(SEMANTIC_VIBES).optional(),
 });
 
+/* ── Render step: only creator-approved windows ─────────────────────────
+   The render request carries the proposals the creator kept, with the
+   start/end they settled on (trimming a proposal is the whole point of
+   the approval step). Display metadata (title/reason/quote/score/method)
+   rides along so finished clips keep the labels the creator approved. */
+export const APPROVED_CLIP_MIN_SEC = 5;
+export const APPROVED_CLIP_MAX_SEC = 120;
+
+const approvedClipSchema = z.object({
+  startTime: z.number().finite().min(0),
+  endTime: z.number().finite().positive(),
+  title: z.string().trim().max(120).optional(),
+  reason: z.string().trim().max(300).optional(),
+  quote: z.string().trim().max(200).optional(),
+  score: z.number().finite().min(0).max(100).nullable().optional(),
+  method: z.enum(["semantic", "energy"]).optional(),
+});
+
+export const smartClipsRenderSchema = z.object({
+  videoUrl: z.string().trim().min(1).max(2048),
+  /** REQUIRED and non-empty — its absence is what makes auto-render
+   *  impossible: the server never chooses windows at render time. */
+  clips: z.array(approvedClipSchema).min(1).max(MAX_CLIPS),
+});
+
 interface Segment {
   start: number;
   energy: number;
@@ -71,6 +105,66 @@ export interface ClipCandidate {
   /** Semantic picks only — the model's 0–100 strength score, or null
    *  when the model gave none. Energy picks always carry null. */
   score: number | null;
+}
+
+/** A proposal the creator approved (possibly trimmed): a ClipCandidate
+ *  window plus its explicit end. */
+export interface ApprovedClip extends ClipCandidate {
+  end: number;
+}
+
+/**
+ * Validate + normalize the creator-approved windows against the probed
+ * video duration. Pure — exported for tests. Windows that end up shorter
+ * than APPROVED_CLIP_MIN_SEC after clamping are dropped; if every window
+ * drops, the caller refuses the render (400) rather than rendering
+ * something the creator didn't approve. Ends clamp to the video end;
+ * lengths clamp to APPROVED_CLIP_MAX_SEC. Duplicate windows collapse.
+ * Returned in timeline order.
+ */
+export function normalizeApprovedClips(
+  clips: Array<{
+    startTime: number;
+    endTime: number;
+    title?: string;
+    reason?: string;
+    quote?: string;
+    score?: number | null;
+    method?: "semantic" | "energy";
+  }>,
+  durationSec: number,
+): ApprovedClip[] {
+  const out: ApprovedClip[] = [];
+  for (const c of clips) {
+    const start = Math.round(Math.max(0, c.startTime) * 10) / 10;
+    let end = Math.round(c.endTime * 10) / 10;
+    if (durationSec > 0) end = Math.min(end, Math.round(durationSec * 10) / 10);
+    if (end - start > APPROVED_CLIP_MAX_SEC) end = start + APPROVED_CLIP_MAX_SEC;
+    if (end - start < APPROVED_CLIP_MIN_SEC) continue;
+    if (out.some((e) => Math.abs(e.start - start) < 0.05 && Math.abs(e.end - end) < 0.05)) continue;
+    const method = c.method ?? "semantic";
+    out.push({
+      start,
+      end,
+      method,
+      title: c.title?.trim() ? c.title.trim() : `Clip at ${formatTimestamp(start)}`,
+      reason: c.reason ?? "",
+      quote: c.quote ?? "",
+      // Honesty pin: an energy window never gains a score at render time.
+      score: method === "energy" ? null : (c.score ?? null),
+    });
+  }
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
+/** The set-level method label shared by the propose + render responses. */
+export function analysisMethodOf(
+  picks: Array<{ method: "semantic" | "energy" }>,
+): "semantic" | "mixed" | "energy" {
+  if (picks.length > 0 && picks.every((c) => c.method === "semantic")) return "semantic";
+  if (picks.every((c) => c.method === "energy")) return "energy";
+  return "mixed";
 }
 
 /* ── Energy signal (fallback): astats window scan ─────────────────────── */
@@ -233,9 +327,82 @@ export function selectClipCandidates(opts: {
   return picked;
 }
 
-/* ── POST /smart-clips ────────────────────────────────────────────────── */
+/* ── Shared analysis (propose step) ─────────────────────────────────────
+   Transcribe → semantic ranking → energy fallback → candidate merge.
+   Used by POST /smart-clips/propose only. The render step never calls
+   this: it renders only what the creator approved. */
+async function analyzeClipCandidates(
+  inputPath: string,
+  opts: { count: number; clipDuration: number; query?: string; vibe?: SemanticVibe },
+  onSemanticUnavailable?: (err: unknown) => void,
+): Promise<{ candidates: ClipCandidate[]; durationSec: number; outcome: SemanticOutcome }> {
+  const { count, clipDuration, query, vibe } = opts;
 
-router.post("/smart-clips", requireAuth, async (req, res) => {
+  /* Semantic pass (best-effort): transcribe → timestamped transcript →
+     model-ranked moments. Any failure degrades to the energy signal —
+     every proposal labels the method that found it. */
+  let semantic: SemanticHighlight[] = [];
+  let outcome: SemanticOutcome = "unavailable";
+  let durationSec = 0;
+  try {
+    const transcribed = await transcribeVideoFile(inputPath, "input.mp4");
+    durationSec = transcribed.durationSec;
+    if (transcribed.segments.length === 0) {
+      outcome = "no-speech";
+    } else {
+      const transcript = buildTimestampedTranscript(transcribed.segments);
+      semantic = await detectSemanticHighlights(transcript, {
+        clipLength: clipDuration,
+        // Ask for spares: window clamping and overlap checks drop some.
+        maxClips: Math.min(count + 3, 10),
+        durationSec,
+        query,
+        vibe,
+      });
+      outcome = semantic.length > 0 ? "ok" : "no-match";
+    }
+  } catch (err) {
+    outcome = "unavailable";
+    onSemanticUnavailable?.(err);
+  }
+
+  /* Energy windows are only scanned when semantics couldn't fill the
+     request on their own (the scan is the slow part of the old rail).
+     Selection runs first; if overlap rules dropped it below the
+     requested count, the scan runs then and selection tops up. */
+  if (!(durationSec > 0)) {
+    durationSec = await probeDurationSec(inputPath).catch(() => 0);
+  }
+  let energyWindows: Segment[] = [];
+  let candidates = selectClipCandidates({
+    semantic,
+    energyWindows,
+    count,
+    clipDuration,
+    durationSec,
+    outcome,
+    query,
+  });
+  if (candidates.length < count && durationSec > clipDuration) {
+    energyWindows = await scanWindowEnergies(inputPath, durationSec);
+    candidates = selectClipCandidates({
+      semantic,
+      energyWindows,
+      count,
+      clipDuration,
+      durationSec,
+      outcome,
+      query,
+    });
+  }
+  return { candidates, durationSec, outcome };
+}
+
+/* ── POST /smart-clips/propose — analysis ONLY ──────────────────────────
+   Returns ranked proposals for the creator to approve, trim, or drop.
+   Renders NOTHING and charges NOTHING — rendering happens only in the
+   render step below, only for windows the creator sends back. */
+router.post("/smart-clips/propose", requireAuth, async (req, res) => {
   const parsed = smartClipsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -246,106 +413,114 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
   }
   const { count, durationSec: clipDuration, query, vibe } = parsed.data;
 
-  const totalCost = SMART_CLIPS_PER_CLIP * count;
-  const currentCredits = req.userCredits ?? 0;
-  if (currentCredits < totalCost) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
+  const workDir = await mkdtemp(join(tmpdir(), "smart-clips-propose-"));
+  const inputPath = join(workDir, "input.mp4");
+  try {
+    const vidRes = await fetch(parsed.data.videoUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!vidRes.ok) throw new Error("Could not download the video.");
+    await writeFile(inputPath, Buffer.from(await vidRes.arrayBuffer()));
+
+    const { candidates, durationSec, outcome } = await analyzeClipCandidates(
+      inputPath,
+      { count, clipDuration, query, vibe },
+      (err) =>
+        req.log.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[smart-clips] semantic analysis unavailable — falling back to energy",
+        ),
+    );
+    req.log.info(
+      { candidates: candidates.length, analysisMethod: analysisMethodOf(candidates), outcome },
+      "[smart-clips] proposed clip candidates",
+    );
+
+    res.json({
+      proposals: candidates.map((c) => ({
+        startTime: c.start,
+        endTime: Math.round((c.start + clipDuration) * 10) / 10,
+        title: c.title,
+        score: c.score,
+        reason: c.reason,
+        quote: c.quote,
+        method: c.method,
+      })),
+      count: candidates.length,
+      analysisMethod: analysisMethodOf(candidates),
+      durationSec,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Smart clip analysis failed.";
+    req.log.error({ err: message }, "[smart-clips] propose failed");
+    res.status(500).json({ error: message });
+  } finally {
+    await unlink(inputPath).catch(() => {});
+    const { rm } = await import("fs/promises");
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+});
+
+/* ── POST /smart-clips — render creator-approved windows ONLY ──────────
+   The request MUST carry the approved clips (see smartClipsRenderSchema):
+   without them the request is refused, so no code path exists where the
+   server picks moments and renders them unapproved. Charge = 200 VB per
+   rendered clip, taken once the approved windows validate against the
+   actual video, and refunded in full if the render job fails. */
+router.post("/smart-clips", requireAuth, async (req, res) => {
+  const parsed = smartClipsRenderSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      message:
+        "Smart Clips renders only the moments you approved — find moments first, keep the ones you want, then render.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
     return;
   }
 
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, totalCost, {
-      action: `Smart Clips (${count})`,
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
-    }
-    throw err;
-  }
-
   const workDir = await mkdtemp(join(tmpdir(), "smart-clips-"));
   const inputPath = join(workDir, "input.mp4");
+  let totalCost = 0;
+  let charged = false;
 
   try {
     const vidRes = await fetch(parsed.data.videoUrl, { signal: AbortSignal.timeout(120_000) });
     if (!vidRes.ok) throw new Error("Could not download the video.");
     await writeFile(inputPath, Buffer.from(await vidRes.arrayBuffer()));
 
-    /* Semantic pass (best-effort): transcribe → timestamped transcript →
-       model-ranked moments. Any failure degrades to the energy signal —
-       the response labels every clip with the method that found it. */
-    let semantic: SemanticHighlight[] = [];
-    let outcome: SemanticOutcome = "unavailable";
-    let durationSec = 0;
-    try {
-      const transcribed = await transcribeVideoFile(inputPath, "input.mp4");
-      durationSec = transcribed.durationSec;
-      if (transcribed.segments.length === 0) {
-        outcome = "no-speech";
-      } else {
-        const transcript = buildTimestampedTranscript(transcribed.segments);
-        semantic = await detectSemanticHighlights(transcript, {
-          clipLength: clipDuration,
-          // Ask for spares: window clamping and overlap checks drop some.
-          maxClips: Math.min(count + 3, 10),
-          durationSec,
-          query,
-          vibe,
-        });
-        outcome = semantic.length > 0 ? "ok" : "no-match";
-      }
-    } catch (err) {
-      outcome = "unavailable";
-      req.log.warn(
-        { err: err instanceof Error ? err.message : String(err) },
-        "[smart-clips] semantic analysis unavailable — falling back to energy",
-      );
+    const durationSec = await probeDurationSec(inputPath).catch(() => 0);
+    const approved = normalizeApprovedClips(parsed.data.clips, durationSec);
+    if (approved.length === 0) {
+      res.status(400).json({
+        error: "no_valid_clips",
+        message:
+          "None of the approved moments fit inside this video — adjust the start/end times and try again.",
+      });
+      return;
     }
 
-    /* Energy windows are only scanned when semantics couldn't fill the
-       request on their own (the scan is the slow part of the old rail).
-       Selection runs first; if overlap rules dropped it below the paid
-       count, the scan runs then and selection tops up from energy. */
-    if (!(durationSec > 0)) {
-      durationSec = await probeDurationSec(inputPath).catch(() => 0);
-    }
-    let energyWindows: Segment[] = [];
-    let candidates = selectClipCandidates({
-      semantic,
-      energyWindows,
-      count,
-      clipDuration,
-      durationSec,
-      outcome,
-      query,
-    });
-    if (candidates.length < count && durationSec > clipDuration) {
-      energyWindows = await scanWindowEnergies(inputPath, durationSec);
-      candidates = selectClipCandidates({
-        semantic,
-        energyWindows,
-        count,
-        clipDuration,
-        durationSec,
-        outcome,
-        query,
+    totalCost = SMART_CLIPS_PER_CLIP * approved.length;
+    const currentCredits = req.userCredits ?? 0;
+    if (currentCredits < totalCost) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
       });
+      return;
     }
-    const analysisMethod = candidates.every((c) => c.method === "semantic")
-      ? "semantic"
-      : candidates.every((c) => c.method === "energy")
-        ? "energy"
-        : "mixed";
-    req.log.info(
-      { candidates: candidates.length, analysisMethod, outcome },
-      "[smart-clips] selected clip candidates",
-    );
+
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(req.userId!, totalCost, {
+        action: `Smart Clips (${approved.length})`,
+      });
+      charged = true;
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+        return;
+      }
+      throw err;
+    }
 
     const clips: Array<{
       url: string;
@@ -358,14 +533,15 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
       quote: string;
       method: "semantic" | "energy";
     }> = [];
-    for (let i = 0; i < candidates.length; i++) {
-      const cand = candidates[i]!;
+    for (let i = 0; i < approved.length; i++) {
+      const cand = approved[i]!;
       const outputPath = join(workDir, `clip-${i}.mp4`);
+      const lengthSec = Math.round((cand.end - cand.start) * 10) / 10;
 
-      // Extract segment AND reframe to 9:16 in one pass
+      // Extract the approved window AND reframe to 9:16 in one pass
       await execFileAsync("ffmpeg", [
         "-y", "-ss", cand.start.toFixed(1), "-i", inputPath,
-        "-t", clipDuration.toFixed(0),
+        "-t", lengthSec.toFixed(1),
         "-vf", "crop='if(gt(iw/ih,0.5625),ih*0.5625,iw)':'if(gt(iw/ih,0.5625),ih,iw/0.5625)',scale=1080:1920",
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
         "-pix_fmt", "yuv420p",
@@ -382,7 +558,7 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
         url,
         storageRef,
         startTime: cand.start,
-        endTime: Math.round((cand.start + clipDuration) * 10) / 10,
+        endTime: cand.end,
         title: cand.title,
         score: cand.score,
         reason: cand.reason,
@@ -395,15 +571,17 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
     res.json({
       clips,
       count: clips.length,
-      analysisMethod,
+      analysisMethod: analysisMethodOf(approved),
       creditsRemaining: creditsAfter,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Smart clips failed.";
     req.log.error({ err: message }, "[smart-clips] failed");
-    await refundCredits(req.userId!, totalCost, {
-      action: "Smart Clips — Refund",
-    }).catch(() => {});
+    if (charged) {
+      await refundCredits(req.userId!, totalCost, {
+        action: "Smart Clips — Refund",
+      }).catch(() => {});
+    }
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});
@@ -411,6 +589,7 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 });
+
 
 export { SMART_CLIPS_PER_CLIP };
 export default router;
