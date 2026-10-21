@@ -5,6 +5,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { WEBSITE_TEMPLATES, WEBSITE_TEMPLATE_IDS, siteFilesSchema } from "./website-templates";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: the customer describes a site, AI builds a complete static
@@ -13,8 +14,11 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    their own domain. NOTHING customer-made is ever published or hosted on
    bowdownvisuals.com — the handoff is the product.
 
-   Scoped to creator-niche templates: artist sites, press kits,
-   link-in-bio-plus, and tour pages. */
+   Scoped to creator-niche templates. Two ways in: describe a site from a
+   brief (the original templates), or start from the template GALLERY —
+   real, finished starter builds per creator vertical (website-templates.ts)
+   that a creator can remix instantly and then refine with the same
+   conversational edits. */
 
 const router = Router();
 
@@ -27,31 +31,41 @@ export { WEBSITE_BUILD_CREDITS };
 const WEBSITE_EDIT_CREDITS = Number(process.env["WEBSITE_EDIT_CREDIT_COST"]) || 200;
 export { WEBSITE_EDIT_CREDITS };
 
+/* Template keys = the gallery templates (canonical data in
+   website-templates.ts) + the original brief-only templates. */
 const TEMPLATES = [
-  "artist-site",
+  ...WEBSITE_TEMPLATE_IDS,
   "press-kit",
   "link-in-bio",
   "tour-page",
 ] as const;
 type TemplateKey = (typeof TEMPLATES)[number];
 
-const TEMPLATE_LABELS: Record<TemplateKey, string> = {
-  "artist-site": "Artist Site",
-  "press-kit": "Press Kit",
-  "link-in-bio": "Link-in-Bio Plus",
-  "tour-page": "Tour Page",
-};
+/* Gallery labels/descriptions come from the canonical gallery data;
+   the cast is safe because WEBSITE_TEMPLATE_IDS covers every remaining
+   TemplateKey (pinned by the gallery tests). */
+const TEMPLATE_LABELS = ((): Record<TemplateKey, string> => {
+  const labels: Record<string, string> = {
+    "press-kit": "Press Kit",
+    "link-in-bio": "Link-in-Bio Plus",
+    "tour-page": "Tour Page",
+  };
+  for (const t of WEBSITE_TEMPLATES) labels[t.id] = t.name;
+  return labels as Record<TemplateKey, string>;
+})();
 
-const TEMPLATE_DESCRIPTIONS: Record<TemplateKey, string> = {
-  "artist-site":
-    "Full artist homepage: hero with name + tagline, music player embed section, about, upcoming shows, gallery, mailing list signup, contact.",
-  "press-kit":
-    "Electronic press kit: bio, high-res photo placeholders, music/videos, press quotes, tour dates, contact for booking. What bookers and press actually want.",
-  "link-in-bio":
-    "Link-in-bio on steroids: profile header, smart link cards (music, videos, merch, tour), latest release spotlight, social icons, newsletter capture.",
-  "tour-page":
-    "Tour landing page: date list with ticket links, VIP package section, city-by-city details, mailing list for presale codes.",
-};
+const TEMPLATE_DESCRIPTIONS = ((): Record<TemplateKey, string> => {
+  const descriptions: Record<string, string> = {
+    "press-kit":
+      "Electronic press kit: bio, high-res photo placeholders, music/videos, press quotes, tour dates, contact for booking. What bookers and press actually want.",
+    "link-in-bio":
+      "Link-in-bio on steroids: profile header, smart link cards (music, videos, merch, tour), latest release spotlight, social icons, newsletter capture.",
+    "tour-page":
+      "Tour landing page: date list with ticket links, VIP package section, city-by-city details, mailing list for presale codes.",
+  };
+  for (const t of WEBSITE_TEMPLATES) descriptions[t.id] = t.description;
+  return descriptions as Record<TemplateKey, string>;
+})();
 
 export const generateSchema = z.object({
   template: z.enum(TEMPLATES),
@@ -66,7 +80,7 @@ export const generateSchema = z.object({
 
 export type GenerateInput = z.infer<typeof generateSchema>;
 
-const SYSTEM_PROMPT = `You are an expert web designer and front-end developer building complete static websites for music creators. You output a full multi-page static site as JSON.
+const SYSTEM_PROMPT = `You are an expert web designer and front-end developer building complete static websites for creators (musicians, podcasters, streamers, video creators, and more). You output a full multi-page static site as JSON.
 
 CRITICAL RULES:
 - Output ONLY valid JSON. No markdown fences, no commentary, no explanations.
@@ -91,7 +105,7 @@ JSON shape (keys are file paths, values are full file contents as strings):
 
 For press-kit and link-in-bio templates, index.html alone may suffice plus about.html — but ALWAYS include all 5 files. Extra pages (shows.html, gallery.html) are welcome when the template calls for them.
 
-Design bar: dark, premium, gold-accented aesthetic suitable for music creators. Generous whitespace, big typography, smooth hover states. This must look like a $2,000 custom site, not a template.`;
+Design bar: dark, premium aesthetic suited to the creator's niche and the requested color scheme. Generous whitespace, big typography, smooth hover states. This must look like a $2,000 custom site, not a template.`;
 
 function buildUserPrompt(input: GenerateInput): string {
   const { template, businessName, description, style, colorScheme } = input;
@@ -107,6 +121,15 @@ ${colorScheme ? `\nColor scheme: ${colorScheme}` : ""}
 
 Generate the complete static site now as JSON. Remember: ONLY valid JSON, no other text.`;
 }
+
+/* ─── Template gallery ───────────────────────────────────────────────────
+   The gallery's starting builds for the builder page: metadata plus the
+   real file maps, so "Remix this template" can seed a build client-side
+   with the template's actual structure. Static data — free, no AI call,
+   no charge. */
+router.get("/templates", publicApiLimiter, (_req, res) => {
+  res.json({ templates: WEBSITE_TEMPLATES });
+});
 
 router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = generateSchema.safeParse(req.body);
@@ -142,8 +165,8 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("AI returned unparseable site files");
     }
 
-    // Sanity: must have at least index.html and styles.css
-    if (!files["index.html"] || !files["styles.css"]) {
+    // Sanity: output must satisfy the build schema (index.html + styles.css).
+    if (!siteFilesSchema.safeParse(files).success) {
       throw new Error("AI output missing required files (index.html / styles.css)");
     }
 
@@ -229,7 +252,7 @@ router.post("/edit", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("AI returned unparseable site files");
     }
 
-    if (!files["index.html"] || !files["styles.css"]) {
+    if (!siteFilesSchema.safeParse(files).success) {
       throw new Error("AI output missing required files after edit");
     }
 

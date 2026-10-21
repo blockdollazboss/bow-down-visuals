@@ -3,12 +3,21 @@ import { useState, useEffect, useRef } from "react";
 import {
   Globe, Loader2, Sparkles, Download, Eye, FileCode2, Wand2,
   Mic2, Newspaper, Link2, MapPin, CheckCircle2, AlertTriangle,
+  LayoutTemplate, Shuffle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import {
+  parseGalleryTemplates,
+  cloneTemplateFiles,
+  starterBrief,
+  isGalleryTemplateKey,
+  type GalleryTemplate,
+  type GalleryTemplateKey,
+} from "@/lib/website-builder-gallery";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: describe a site → AI builds a complete static site package
@@ -48,7 +57,9 @@ const TEMPLATES = [
     blurbKey: "websiteBuilder.templateTourPageBlurb",
   },
 ] as const;
-type TemplateKey = (typeof TEMPLATES)[number]["key"];
+/* The active template can also be a gallery template (remix seeds a real
+   starting build; generate/edit accept the same keys server-side). */
+type TemplateKey = (typeof TEMPLATES)[number]["key"] | GalleryTemplateKey;
 
 type FilesMap = Record<string, string>;
 
@@ -115,6 +126,44 @@ export default function WebsiteBuilder() {
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [gallery, setGallery] = useState<GalleryTemplate[]>([]);
+  const [remixedFrom, setRemixedFrom] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  /* Template gallery — real starter builds served by the API. If the
+     fetch fails, the gallery simply does not render; the brief flow is
+     untouched. */
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/website-builder/templates")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setGallery(parseGalleryTemplates(data));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Remix: start a build from the template's real files — preview,
+     edits, and download all work on it exactly like a generated build —
+     and prefill the brief from the template's starter brief. */
+  function remix(tpl: GalleryTemplate) {
+    if (!isGalleryTemplateKey(tpl.id)) return;
+    setTemplate(tpl.id);
+    const brief = starterBrief(tpl);
+    setDescription(brief.description);
+    setStyle(brief.style);
+    setColorScheme(brief.colorScheme);
+    setFiles(cloneTemplateFiles(tpl));
+    setShowPreview(true);
+    setRemixedFrom(tpl.name);
+    setError("");
+    requestAnimationFrame(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   const canGenerate =
     businessName.trim().length >= 1 && description.trim().length >= 20 && !loading;
@@ -130,6 +179,7 @@ export default function WebsiteBuilder() {
     setLoading(true);
     setError("");
     setFiles(null);
+    setRemixedFrom(null);
     try {
       const res = await confirmedFetch("/api/website-builder/generate", {
         method: "POST",
@@ -246,6 +296,61 @@ export default function WebsiteBuilder() {
           </div>
         )}
 
+        {/* Template gallery — real starter builds, one per creator niche.
+            Remix seeds a build with the template's actual files. */}
+        {gallery.length > 0 && (
+          <div className="mb-12">
+            <h2 className="mb-2 flex items-center gap-2 text-xl font-bold">
+              <LayoutTemplate className="h-5 w-5 text-primary" />
+              {t("websiteBuilder.galleryTitle")}
+            </h2>
+            <p className="mb-5 max-w-3xl text-white/55">
+              {t("websiteBuilder.galleryDesc")}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {gallery.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40"
+                >
+                  <span className="mb-3 inline-flex w-fit rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {tpl.verticalLabel}
+                  </span>
+                  <p className="mb-1 font-bold">{tpl.name}</p>
+                  <p className="mb-3 text-sm text-white/55">{tpl.bestFor}</p>
+                  <div className="mb-4 flex flex-wrap gap-1.5">
+                    {tpl.sections.slice(0, 4).map((section) => (
+                      <span
+                        key={section}
+                        className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50"
+                      >
+                        {section}
+                      </span>
+                    ))}
+                    {tpl.sections.length > 4 && (
+                      <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50">
+                        +{tpl.sections.length - 4}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mb-4 text-xs text-white/40">
+                    {t("websiteBuilder.galleryFiles", {
+                      count: Object.keys(tpl.files).length,
+                    })}
+                  </p>
+                  <button
+                    onClick={() => remix(tpl)}
+                    className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+                  >
+                    <Shuffle className="h-4 w-4" />
+                    {t("websiteBuilder.remixButton")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Template picker */}
         <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepPickTemplate")}</h2>
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -348,7 +453,12 @@ export default function WebsiteBuilder() {
 
         {/* Result */}
         {files && (
-          <div>
+          <div ref={resultRef}>
+            {remixedFrom && (
+              <p className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/70">
+                {t("websiteBuilder.remixedFrom", { name: remixedFrom })}
+              </p>
+            )}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Eye className="h-5 w-5 text-primary" /> {t("websiteBuilder.stepPreview")}
