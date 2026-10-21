@@ -167,7 +167,7 @@ function smoothPitch(frames: PitchFrame[]): PitchFrame[] {
 }
 
 /** Onset envelope: positive spectral-flux proxy via frame-energy difference. */
-function onsetEnvelope(samples: Float32Array): Float32Array {
+export function onsetEnvelope(samples: Float32Array): Float32Array {
   const frame = 1024;
   const hop = 512;
   const energies: number[] = [];

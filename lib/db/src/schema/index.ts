@@ -35,6 +35,7 @@ export * from "./export-jobs";
 export * from "./lip-sync-jobs";
 export * from "./job-notifications";
 export * from "./songs";
+export * from "./dj";
 export * from "./albums";
 export * from "./social-accounts";
 export * from "./social-publish-attempts";
