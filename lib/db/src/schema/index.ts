@@ -39,6 +39,7 @@ export * from "./songs";
 export * from "./dj";
 export * from "./albums";
 export * from "./social-accounts";
+export * from "./social-proof";
 export * from "./social-publish-attempts";
 export * from "./locations";
 export * from "./artist-outfits";
