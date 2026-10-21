@@ -20,6 +20,8 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
 import { composeScenePrompt } from "@/lib/scene-look";
 import { LookRailsPanel } from "@/components/SceneStudio/LookRailsPanel";
+import { EffectsRail } from "@/components/SceneStudio/EffectsRail";
+import { Link } from "wouter";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 /* ─── Section color badges ──────────────────────────────────── */
@@ -276,6 +278,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
     scene.referenceSource ?? null,
   );
+  /* Viral Effects picks for this scene — persisted on the scene record so
+     they survive re-renders and ride the next generation. */
+  const [pickedEffectIds, setPickedEffectIds] = useState<string[]>(scene.effectIds ?? []);
+  function handleEffectChange(ids: string[]) {
+    setPickedEffectIds(ids);
+    onUpdate({ effectIds: ids });
+  }
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ── Wardrobe: the artist's outfits, picked per scene. The picked outfit's
@@ -646,6 +655,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           resolution: isEnhance ? "1080p" : clipRes,
           draft: clipModel === "seedance2_5" && draftMode && !isEnhance,
           seed: isEnhance ? draftSeed : undefined,
+          /* Viral Effects: woven server-side into the prompt. Enhance
+             re-renders keep the scene's effects too. */
+          effectIds: pickedEffectIds.length > 0 ? pickedEffectIds : undefined,
         }),
         overrideCost: isEnhance ? enhanceCost : clipCost,
         overrideFeature: isEnhance ? "Enhance Draft to 1080p" : "Generate Video Clip",
@@ -819,6 +831,19 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           playsInline
           className="w-full rounded-xl bg-black border border-white/10 max-h-64"
         />
+        {/* CREATE → PROMOTE handoff: a finished clip (effected or not) goes
+            straight into the Promo Clips desk; the clip is already saved
+            to the creator's library by autoSaveClip. */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/promo-clip"
+            data-testid="link-make-promo-clip"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Film className="h-3 w-3" /> Make a Promo Clip
+          </Link>
+          <span className="text-[10px] text-white/35">Cut this clip into a promo in the Promote desk.</span>
+        </div>
       </div>
     );
   }
@@ -1104,6 +1129,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       {modelSupportsEndFrame(clipModel) && (
         <EndFramePicker scene={scene} onPick={onUpdate} />
       )}
+      {/* Viral Effects rail — generation-time effect recipes + Turbo Effect Match */}
+      <EffectsRail
+        scene={scene}
+        pickedIds={pickedEffectIds}
+        onChange={handleEffectChange}
+        getAccessToken={getAccessToken}
+      />
 
       {/* Generate controls — credit confirmation handled by the universal popup */}
       <div className="flex items-center gap-2 flex-wrap">

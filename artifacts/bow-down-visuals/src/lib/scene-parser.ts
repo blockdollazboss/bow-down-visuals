@@ -46,6 +46,9 @@ export interface SceneData {
    *  by the shared composer. Persists with the scene like every other
    *  scene field; absent on scenes saved before the rails existed. */
   look?: SceneLookPicks;
+  /** Viral Effects picks (server recipe ids, lib/scene-effects.ts): woven
+   *  into the generation prompt by /generate-runway-clip. Max 2. */
+  effectIds?: string[];
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
