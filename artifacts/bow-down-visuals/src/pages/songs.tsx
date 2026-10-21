@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard, Megaphone } from "lucide-react";
+import { Loader2, Upload, Music2, Sparkles, RefreshCw, Disc3, Check, Plus, DiscAlbum, ChevronDown, Blend, Shuffle, Clapperboard, Megaphone, Gauge, ListMusic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -10,6 +10,7 @@ import { CoverSongModal, type CoverSource } from "@/components/song/CoverSongMod
 import { CoverComparePlayer } from "@/components/song/CoverComparePlayer";
 import { RemixChain } from "@/components/songs/RemixChain";
 import AlbumsSection from "./songs/albums-section";
+import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 
@@ -36,7 +37,7 @@ interface AlbumLite {
   track_count: number;
 }
 
-type LibraryTab = "songs" | "albums";
+type LibraryTab = "songs" | "albums" | "dj";
 
 const SOURCE_LABEL_KEYS: Record<string, string> = {
   upload: "songs.sourceUpload",
@@ -152,6 +153,53 @@ export default function SongsPage() {
       setLoading(false);
     }
   }, [authHeaders]);
+
+  /* DJ Set-Prep: per-song BPM/key/Camelot chips on the cards. The full
+     crate builder lives in the DJ Sets tab; here a card shows the read
+     if it exists and offers the (free) analysis if it doesn't. */
+  const [djAnalysisById, setDjAnalysisById] = useState<Record<string, DjAnalysis | null>>({});
+  const [djAnalyzing, setDjAnalyzing] = useState<string | null>(null);
+
+  const loadDjAnalysis = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dj/library", { headers: await authHeaders() });
+      if (!res.ok) return;
+      const data = (await res.json()) as { tracks?: Array<{ id: string; analysis: DjAnalysis | null }> };
+      const map: Record<string, DjAnalysis | null> = {};
+      for (const tr of data.tracks ?? []) map[tr.id] = tr.analysis;
+      setDjAnalysisById(map);
+    } catch {
+      /* chips are a shortcut — the DJ Sets tab is the full surface */
+    }
+  }, [authHeaders]);
+
+  useEffect(() => {
+    void loadDjAnalysis();
+  }, [loadDjAnalysis]);
+
+  async function analyzeSongForDj(songId: string) {
+    setDjAnalyzing(songId);
+    try {
+      const res = await fetch("/api/dj/analyze", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ songIds: [songId] }),
+      });
+      const data = (await res.json()) as {
+        results?: Array<{ status: string; analysis?: DjAnalysis; error?: string }>;
+      };
+      const r = (data.results ?? [])[0];
+      if (res.ok && r?.analysis) {
+        setDjAnalysisById((m) => ({ ...m, [songId]: r.analysis! }));
+      } else if (res.ok && r?.status === "failed") {
+        setError(r.error || t("djSets.errorAnalyze"));
+      }
+    } catch {
+      setError(t("djSets.errorAnalyze"));
+    } finally {
+      setDjAnalyzing(null);
+    }
+  }
 
   const loadVaults = useCallback(async () => {
     try {
@@ -303,9 +351,10 @@ export default function SongsPage() {
         {t("songs.intro")}
       </p>
 
-      {/* Library tabs: songs | albums (Album/EP Builder docks here — no new sidebar item) */}
+      {/* Library tabs: songs | albums | DJ sets (Album/EP Builder and the
+          DJ Set-Prep Pack dock here — no new sidebar items) */}
       <div className="flex gap-2 mb-6">
-        {(["songs", "albums"] as const).map((v) => (
+        {(["songs", "albums", "dj"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setTab(v)}
@@ -316,13 +365,16 @@ export default function SongsPage() {
             }`}
           >
             {v === "albums" && <Disc3 className="h-4 w-4" />}
-            {v === "songs" ? t("songs.title") : "Albums"}
+            {v === "dj" && <ListMusic className="h-4 w-4" />}
+            {v === "songs" ? t("songs.title") : v === "albums" ? "Albums" : t("djSets.tab")}
           </button>
         ))}
       </div>
 
       {tab === "albums" ? (
         <AlbumsSection songs={songs} authHeaders={authHeaders} />
+      ) : tab === "dj" ? (
+        <DjSetPrep authHeaders={authHeaders} />
       ) : (
       <>
       {/* Upload */}
@@ -389,6 +441,26 @@ export default function SongsPage() {
                 </span>
               </div>
               <audio controls src={s.audio_url} className="w-full h-8" />
+              {/* DJ read: BPM · key · Camelot chips, or the free analysis. */}
+              <div className="mt-2">
+                {djAnalysisById[s.id] ? (
+                  <DjChips analysis={djAnalysisById[s.id]!} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void analyzeSongForDj(s.id)}
+                    disabled={djAnalyzing === s.id}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    {djAnalyzing === s.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Gauge className="h-3.5 w-3.5" />
+                    )}
+                    {djAnalyzing === s.id ? t("djSets.analyzing") : t("djSets.analyze")}
+                  </button>
+                )}
+              </div>
               <div className="mt-2 flex items-center gap-2">
                 {remixTarget === s.id ? (
                   <>
