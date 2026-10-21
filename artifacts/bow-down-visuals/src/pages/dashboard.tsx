@@ -22,6 +22,7 @@ import CreationStreakWidget from "@/components/CreationStreakWidget";
 import QuestsWidget from "@/components/QuestsWidget";
 import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
+import { MoveHomeCard } from "@/components/MoveHomeCard";
 import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
@@ -499,6 +500,9 @@ export default function Dashboard() {
 
         {/* ── LIVE FOMO FEED (real anonymized activity; renders nothing when fomo_feed_enabled is off) ── */}
         <FomoFeed getToken={getAccessToken} />
+
+        {/* ── MOVE HOME (concierge onboarding; hides when complete) ── */}
+        <MoveHomeCard />
 
         {/* ── THY DAILY DROP ── */}
         <DailyDropCard />
