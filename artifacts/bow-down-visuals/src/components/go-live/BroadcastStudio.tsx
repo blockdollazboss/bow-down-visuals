@@ -49,6 +49,8 @@ import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
 import { refreshStageVaultAvatars } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters } from "@/lib/world/characters";
 import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
+import { guestFeeds } from "@/lib/go-live/guest-feeds";
+import { registerStudioStage, clearStudioStage, registerStudioMixer, clearStudioMixer } from "@/lib/go-live/studio-bridge";
 import type { SceneSource } from "@/lib/stream-kit/scenes";
 import ScenesPanel from "./studio/ScenesPanel";
 import SourcesPanel from "./studio/SourcesPanel";
@@ -370,6 +372,11 @@ export default function BroadcastStudio() {
     stage.pool.avatarVideo = () => changerRef.current?.getSourceVideo() ?? null;
     stage.pool.avatarAnalyser = () =>
       mixerRef.current?.getAnalyser("mic") ?? changerRef.current?.getAnalyser() ?? null;
+    /* Guest sources (0198): tiles resolve their live feed from the
+       backstage registry, and the GuestPanel reaches this stage
+       through the studio bridge (promote = source on air). */
+    stage.pool.guestVideoFor = (sessionId) => guestFeeds.videoFor(sessionId);
+    registerStudioStage(stage);
     stage.onChange = bump;
     stageRef.current = stage;
     /* Vault-linked avatars re-resolve at studio load: a portrait
@@ -388,9 +395,11 @@ export default function BroadcastStudio() {
     return () => {
       preview.stop();
       stage.stop();
+      clearStudioStage(stage);
       if (!liveRef.current) {
         void changerRef.current?.stop().catch(() => undefined);
         changerRef.current = null;
+        if (mixerRef.current) clearStudioMixer(mixerRef.current);
         void mixerRef.current?.close().catch(() => undefined);
         mixerRef.current = null;
       }
@@ -486,6 +495,7 @@ export default function BroadcastStudio() {
         mixer.addInput("mic");
         mixer.addInput("screen");
         mixerRef.current = mixer;
+        registerStudioMixer(mixer);
       }
       await mixerRef.current.resume();
       wireMicIntoMixer();
