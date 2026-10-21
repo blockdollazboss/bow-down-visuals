@@ -13521,6 +13521,7 @@
     "title": "Command center",
     "subtitle": "Your whole home business, one view.",
     "brief_label": "Thy Cheat Code’s morning brief",
+    "brief_narrative_unavailable": "The written brief couldn’t be written just now — here are your numbers, straight from your business.",
     "brief_next_move": "Next best move — drafted for you",
     "brief_copy": "Copy draft",
     "brief_copied": "Copied",

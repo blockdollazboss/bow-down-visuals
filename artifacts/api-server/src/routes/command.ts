@@ -400,17 +400,27 @@ panelRoute("/command/actions", commandActions);
 
 router.get("/command/brief", requireAuth, async (req, res) => {
   const userId = req.userId!;
-  /* House AI discipline (wave8 pattern): prove the provider exists
-     BEFORE doing any work — a missing key is a clean 503, and this
-     panel simply fails on its own with its own Retry. */
+  /* Resilience contract (dashboard law, extended to this panel): the
+     digest is built FIRST because it is both the model's evidence and
+     the fallback payload. The written narrative is the only part of
+     this panel the AI provider can kill — when it fails (no key,
+     provider error, unusable output) the panel serves the digest
+     itself, flagged narrativeUnavailable, instead of failing. The
+     endpoint answers an error ONLY when the digest itself cannot be
+     built at all: the build threw, or every panel inside it failed,
+     leaving no real data to show. */
+  let digest: Awaited<ReturnType<typeof buildCommandDigest>>;
   try {
-    getOpenAI();
-  } catch {
-    res.status(503).json({ error: "ai_unavailable" });
+    digest = await buildCommandDigest(userId);
+  } catch (err) {
+    logger.error({ err, userId }, "[command] brief digest failed");
+    res.status(502).json({ error: "brief_unavailable" });
     return;
   }
-
-  const digest = await buildCommandDigest(userId);
+  if (!digest.audience && !digest.revenue && !digest.content && !digest.actions) {
+    res.status(502).json({ error: "brief_unavailable" });
+    return;
+  }
 
   let completion;
   try {
@@ -448,11 +458,10 @@ router.get("/command/brief", requireAuth, async (req, res) => {
     });
   } catch (err) {
     logger.error({ err, userId }, "[command] brief generation failed");
-    res.status(502).json({ error: "brief_unavailable" });
-    return;
+    completion = null;
   }
 
-  const text = completion.choices[0]?.message?.content ?? "";
+  const text = completion?.choices[0]?.message?.content ?? "";
   let parsed: { summary?: unknown; move?: { kind?: unknown; title?: unknown; draft?: unknown } } = {};
   try {
     parsed = JSON.parse(text);
@@ -469,7 +478,19 @@ router.get("/command/brief", requireAuth, async (req, res) => {
     : "Your next move";
   const draft = typeof parsed.move?.draft === "string" ? parsed.move.draft.trim().slice(0, 1000) : "";
   if (!summary || !draft) {
-    res.status(502).json({ error: "brief_unavailable" });
+    /* The narrative couldn't be written — provider down, no key, or
+       output we can't use. Serve the digest itself, flagged, rather
+       than failing the panel: summary stays honestly empty, move is
+       null (no draft exists), and the client renders the real numbers
+       and doors from the digest. Nothing here is cached or invented —
+       this response is built from this request's own digest. */
+    res.json({
+      summary: "",
+      move: null,
+      digest,
+      generatedAt: new Date().toISOString(),
+      narrativeUnavailable: true,
+    });
     return;
   }
   res.json({

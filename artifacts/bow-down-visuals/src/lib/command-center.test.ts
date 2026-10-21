@@ -6,6 +6,7 @@ import {
   shapeActions,
   shapeAudience,
   shapeBrief,
+  shapeBriefFallback,
   shapeContent,
   shapeRevenue,
 } from "./command-center";
@@ -157,6 +158,94 @@ describe("the brief is draft-only", () => {
   });
 });
 
+/* ── The brief's digest fallback ────────────────────────────────────
+   When the written narrative can't be made, the server answers 200
+   with the digest, flagged. Shaping applies the SAME panel shapers —
+   the fallback can no more invent a number than the panels can — and
+   only a flagged payload with a real digest object shapes at all. */
+
+const FALLBACK_RAW = {
+  summary: "",
+  move: null,
+  narrativeUnavailable: true,
+  generatedAt: "2026-10-21T09:00:00.000Z",
+  digest: {
+    audience: {
+      followers: { total: 3, new7: 2 },
+      subscribers: { total: 4, new7: 1 },
+      members: { total: 4, new7: 1 },
+      offPlatform: { connected: false, platforms: [] },
+      partial: false,
+    },
+    revenue: {
+      totalCents: 34500,
+      totalTipsVb: 500,
+      rails: {
+        store: { status: "ok", totalCents: 17250, count: 3 },
+        memberships: { status: "ok", totalCents: 1500, count: 1 },
+        brandDeals: { status: "ok", totalCents: 3000, count: 1 },
+        beats: { status: "ok", totalCents: 12750, count: 2 },
+        tips: { status: "ok", streamTipsVb: 500, tipJarPendingCents: 0 },
+      },
+      partial: false,
+    },
+    content: {
+      hasProfile: true,
+      profile: { slug: "me", totalPlays: 150, followerCount: 3 },
+      topTrack: { title: "Top Song", playCount: 120 },
+      topVideo: null,
+      totals: { trackCount: 2, trackPlays: 150, videoCount: 2, videoViews: 910 },
+      partial: false,
+    },
+    actions: {
+      items: [{ key: "pastDueMembers", count: 2, href: "/memberships" }],
+      total: 2,
+      partial: false,
+    },
+  },
+};
+
+describe("the brief's digest fallback", () => {
+  it("shapes a flagged payload: the digest's numbers and doors survive, panel-shaped", () => {
+    const shaped = shapeBriefFallback(FALLBACK_RAW);
+    expect(shaped).not.toBeNull();
+    expect(shaped!.narrativeUnavailable).toBe(true);
+    expect(shaped!.digest.audience?.followers).toEqual({ total: 3, new7: 2 });
+    expect(shaped!.digest.revenue?.totalCents).toBe(34500);
+    expect(shaped!.digest.revenue?.totalTipsVb).toBe(500);
+    expect(shaped!.digest.content?.topTrack).toEqual({ title: "Top Song", playCount: 120 });
+    expect(shaped!.digest.actions?.items).toEqual([{ key: "pastDueMembers", count: 2, href: "/memberships" }]);
+    expect(shaped!.digest.actions?.total).toBe(2);
+  });
+
+  it("failed digest panels stay null — never shaped into zeros", () => {
+    const shaped = shapeBriefFallback({
+      narrativeUnavailable: true,
+      digest: { audience: null, revenue: FALLBACK_RAW.digest.revenue, content: null, actions: null },
+    });
+    expect(shaped!.digest.audience).toBeNull();
+    expect(shaped!.digest.content).toBeNull();
+    expect(shaped!.digest.actions).toBeNull();
+    expect(shaped!.digest.revenue?.totalCents).toBe(34500);
+  });
+
+  it("only a flagged payload shapes: success payloads, unflagged digests, and junk do not", () => {
+    expect(shapeBriefFallback({
+      summary: "A fine morning.",
+      move: { kind: "post", title: "T", draft: "D" },
+    })).toBeNull();
+    expect(shapeBriefFallback({ digest: FALLBACK_RAW.digest })).toBeNull();
+    expect(shapeBriefFallback({ narrativeUnavailable: false, digest: FALLBACK_RAW.digest })).toBeNull();
+    expect(shapeBriefFallback({ narrativeUnavailable: true })).toBeNull();
+    expect(shapeBriefFallback({ narrativeUnavailable: true, digest: "nope" })).toBeNull();
+    expect(shapeBriefFallback(null)).toBeNull();
+  });
+
+  it("a fallback payload never shapes as a brief (no narrative, no move renders)", () => {
+    expect(shapeBrief(FALLBACK_RAW)).toBeNull();
+  });
+});
+
 /* ── Source pins: the component + the dashboard dock ──────────────── */
 
 const componentSource = readFileSync(new URL("../components/CommandCenter.tsx", import.meta.url), "utf8");
@@ -183,6 +272,19 @@ describe("CommandCenter.tsx wiring (source pins)", () => {
     expect(componentSource).not.toContain('method:"POST"');
     expect(componentSource).toContain("briefApproveTarget(brief)");
     expect(componentSource).toContain("navigator.clipboard.writeText");
+  });
+
+  it("renders the digest fallback as its own state — flagged payload, honest line, never the failure note", () => {
+    expect(componentSource).toContain("shapeBriefFallback(raw)");
+    expect(componentSource).toContain('data-testid="command-brief-digest"');
+    expect(componentSource).toContain("command.brief_narrative_unavailable");
+    /* The failure note stays reserved for a response that never
+       arrives: the fallback branch renders ABOVE the empty state and
+       does not reuse the failure testid. */
+    const digestAt = componentSource.indexOf('data-testid="command-brief-digest"');
+    const failureAt = componentSource.indexOf('testId="command-brief-failure"');
+    expect(digestAt).toBeGreaterThan(-1);
+    expect(failureAt).toBeGreaterThan(-1);
   });
 
   it("is docked inside the dashboard, above the retention row, outside the core-failure gate", () => {

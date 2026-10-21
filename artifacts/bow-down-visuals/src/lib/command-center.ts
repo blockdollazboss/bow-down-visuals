@@ -257,3 +257,43 @@ export function shapeBrief(raw: unknown): BriefPayload | null {
 export function briefApproveTarget(brief: BriefPayload): string {
   return brief.move.href;
 }
+
+/* ── The brief's fallback state ─────────────────────────────────────
+   When the AI narrative can't be written (provider down, no key,
+   unusable output), the server answers 200 with the digest it built
+   for the model, flagged narrativeUnavailable, with summary honestly
+   empty and move null — nothing cached, nothing invented. The panel
+   renders THAT state: the real numbers and action doors from the
+   digest, under a plain line saying the written brief is unavailable
+   right now. The failure state is reserved for a response that never
+   arrives (the digest itself couldn't be built server-side). */
+
+export interface BriefDigestPayload {
+  audience: AudiencePayload | null;
+  revenue: RevenuePayload | null;
+  content: ContentPayload | null;
+  actions: ActionsPayload | null;
+}
+
+export interface BriefFallbackPayload {
+  narrativeUnavailable: true;
+  digest: BriefDigestPayload;
+}
+
+export function shapeBriefFallback(raw: unknown): BriefFallbackPayload | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, any>;
+  if (o.narrativeUnavailable !== true) return null;
+  const d = o.digest;
+  if (!d || typeof d !== "object") return null;
+  const dg = d as Record<string, any>;
+  return {
+    narrativeUnavailable: true,
+    digest: {
+      audience: dg.audience ? shapeAudience(dg.audience) : null,
+      revenue: dg.revenue ? shapeRevenue(dg.revenue) : null,
+      content: dg.content ? shapeContent(dg.content) : null,
+      actions: dg.actions ? shapeActions(dg.actions) : null,
+    },
+  };
+}

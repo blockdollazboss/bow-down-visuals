@@ -19,10 +19,12 @@ import {
   shapeActions,
   shapeAudience,
   shapeBrief,
+  shapeBriefFallback,
   shapeContent,
   shapeRevenue,
   type ActionsPayload,
   type AudiencePayload,
+  type BriefFallbackPayload,
   type BriefMoveKind,
   type BriefPayload,
   type CommandPanelKey,
@@ -136,6 +138,7 @@ export default function CommandCenter({ getToken, isLight }: {
   const { t } = useTranslation();
   const [states, setStates] = useState<PanelStates>(() => initialSectionStates(COMMAND_PANEL_KEYS));
   const [brief, setBrief] = useState<BriefPayload | null>(null);
+  const [briefDigest, setBriefDigest] = useState<BriefFallbackPayload | null>(null);
   const [audience, setAudience] = useState<AudiencePayload | null>(null);
   const [revenue, setRevenue] = useState<RevenuePayload | null>(null);
   const [content, setContent] = useState<ContentPayload | null>(null);
@@ -160,7 +163,13 @@ export default function CommandCenter({ getToken, isLight }: {
       if (res.ok) {
         const raw = await res.json().catch(() => null);
         if (!mountedRef.current) return res;
-        if (key === "brief") setBrief(shapeBrief(raw));
+        if (key === "brief") {
+          const shaped = shapeBrief(raw);
+          setBrief(shaped);
+          /* A 200 without a narrative is the digest fallback, not a
+             failure: keep whichever state the payload actually is. */
+          setBriefDigest(shaped ? null : shapeBriefFallback(raw));
+        }
         else if (key === "audience") setAudience(shapeAudience(raw));
         else if (key === "revenue") setRevenue(shapeRevenue(raw));
         else if (key === "content") setContent(shapeContent(raw));
@@ -284,6 +293,102 @@ export default function CommandCenter({ getToken, isLight }: {
               </span>
             </div>
           </div>
+        </div>
+      ) : briefDigest ? (
+        /* ── BRIEF FALLBACK: the written narrative couldn't be made,
+           so the panel shows the real digest it was built from —
+           numbers and doors, honestly labeled. Never the failure
+           note: the data exists, only the writing is missing. ── */
+        <div data-testid="command-brief-digest" className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.13] via-primary/[0.05] to-transparent p-5 md:p-6">
+          <p className="flex items-center gap-2 text-[10px] font-black tracking-[0.22em] text-primary/70 uppercase">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t("command.brief_label", { defaultValue: "Thy Cheat Code’s morning brief" })}
+          </p>
+          <p className={`mt-2 text-sm leading-relaxed ${isLight ? "text-[#2A1E07]/75" : "text-white/60"}`}>
+            {t("command.brief_narrative_unavailable", { defaultValue: "The written brief couldn’t be written just now — here are your numbers, straight from your business." })}
+          </p>
+          {briefDigest.digest.audience && (
+            <div className="mt-3">
+              <StatRow isLight={isLight} label={t("command.aud_followers", { defaultValue: "Followers" })} stat={briefDigest.digest.audience.followers} />
+              <StatRow isLight={isLight} label={t("command.aud_subscribers", { defaultValue: "Email list" })} stat={briefDigest.digest.audience.subscribers} />
+              <StatRow isLight={isLight} label={t("command.aud_members", { defaultValue: "Members" })} stat={briefDigest.digest.audience.members} />
+            </div>
+          )}
+          {briefDigest.digest.revenue && (
+            <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-white/[0.07] pt-2.5">
+              <span className={`text-xs font-black tracking-wide uppercase ${isLight ? "text-[#2A1E07]/60" : "text-white/40"}`}>
+                {t("command.rev_total", { defaultValue: "Total earned" })}
+                {briefDigest.digest.revenue.partial && <span className="ml-1.5 normal-case tracking-normal text-amber-300/80">{t("command.rev_partial", { defaultValue: "(partial — a floor)" })}</span>}
+              </span>
+              <span className={`text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+                {briefDigest.digest.revenue.totalCents === null ? "—" : fmtMoney(briefDigest.digest.revenue.totalCents)}
+                {briefDigest.digest.revenue.totalTipsVb !== null && (
+                  <span className="ml-2 text-[11px] font-bold text-white/35">+ {fmtInt(briefDigest.digest.revenue.totalTipsVb)} VB {t("command.rev_tips", { defaultValue: "Stream tips" })}</span>
+                )}
+              </span>
+            </div>
+          )}
+          {briefDigest.digest.content?.topTrack && (
+            <p className="mt-3 text-sm">
+              <span className="font-bold text-white/40">{t("command.content_top_track", { defaultValue: "Top track:" })} </span>
+              <span className={`font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{briefDigest.digest.content.topTrack.title}</span>
+              <span className="text-white/35 text-xs font-bold"> · {fmtInt(briefDigest.digest.content.topTrack.playCount)} {t("command.content_plays", { defaultValue: "plays" })}</span>
+            </p>
+          )}
+          {briefDigest.digest.content?.topVideo && (
+            <p className="mt-1.5 text-sm">
+              <span className="font-bold text-white/40">{t("command.content_top_video", { defaultValue: "Top video:" })} </span>
+              <span className={`font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{briefDigest.digest.content.topVideo.title}</span>
+              <span className="text-white/35 text-xs font-bold"> · {fmtInt(briefDigest.digest.content.topVideo.viewCount)} {t("command.content_views", { defaultValue: "views" })}</span>
+            </p>
+          )}
+          {briefDigest.digest.content && !briefDigest.digest.content.hasProfile && (
+            <div className="mt-4">
+              <Link href="/create">
+                <span className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-black text-black hover:brightness-110 transition-all cursor-pointer">
+                  {t("command.brief_cta_create", { defaultValue: "Start creating" })}<ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            </div>
+          )}
+          {briefDigest.digest.actions && (
+            <div className={`mt-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/[0.08] bg-black/30"}`}>
+              <p className="text-[10px] font-black tracking-[0.18em] text-primary/60 uppercase">
+                {t("command.actions_label", { defaultValue: "Needs you today" })}
+              </p>
+              {briefDigest.digest.actions.total === 0 ? (
+                <p className={`mt-1.5 flex items-center gap-2 text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+                  <Check className="h-4 w-4 text-green-400" />
+                  {t("command.actions_clear", { defaultValue: "All clear." })}
+                </p>
+              ) : (
+                <div className="divide-y divide-white/[0.05]">
+                  {briefDigest.digest.actions.items.filter((i) => i.count > 0).map((item) => (
+                    <Link key={item.key} href={item.href}>
+                      <span className="flex items-center gap-3 py-2.5 cursor-pointer group">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/[0.12] border border-primary/20 text-primary shrink-0">
+                          {actionMeta[item.key]?.icon ?? <Inbox className="h-4 w-4" />}
+                        </span>
+                        <span className={`flex-1 text-sm font-bold group-hover:text-primary transition-colors ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+                          {actionMeta[item.key]?.label ?? item.key}
+                        </span>
+                        <span className="rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-black text-black">{fmtInt(item.count)}</span>
+                        <ArrowRight className="h-3.5 w-3.5 text-white/30 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {[briefDigest.digest.audience, briefDigest.digest.revenue, briefDigest.digest.content, briefDigest.digest.actions].some((p) => p?.partial) && <PartialNote />}
+          <button
+            type="button"
+            onClick={() => retryPanel("brief")}
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> {t("command.try_again", { defaultValue: "Try again" })}
+          </button>
         </div>
       ) : (
         <div className={`rounded-2xl border p-5 text-center ${card}`}>

@@ -8,8 +8,11 @@
  * Revenue math reuses the /api/earnings readers (store, memberships,
  * brand deals, tips-in-VB) plus the beats rail net of commission.
  * The brief is draft-only: the model's href is never trusted (the
- * server maps kind → href), the endpoint writes nothing, and a
- * missing AI provider is a clean 503 for that panel alone.
+ * server maps kind → href), the endpoint writes nothing, and the
+ * written narrative is the only part the AI provider can kill: a
+ * provider failure (no key, a thrown call, unusable output) serves
+ * the digest itself with narrativeUnavailable: true — the panel fails
+ * only when the digest itself cannot be built at all.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
@@ -19,7 +22,7 @@ import { sql } from "drizzle-orm";
 
 const testState = vi.hoisted(() => ({ db: null as any }));
 const aiState = vi.hoisted(() => ({
-  mode: "ok" as "ok" | "down" | "garbage",
+  mode: "ok" as "ok" | "down" | "garbage" | "throws",
   response: null as any,
   lastUserContent: "",
 }));
@@ -42,6 +45,7 @@ vi.mock("../../lib/ai-clients", () => ({
     return {
       chat: { completions: { create: async (args: any) => {
         aiState.lastUserContent = args.messages[1].content;
+        if (aiState.mode === "throws") throw new Error("provider exploded mid-call");
         if (aiState.mode === "garbage") {
           return { choices: [{ message: { content: "not json at all" } }] };
         }
@@ -316,6 +320,8 @@ describe("command brief", () => {
     const digest = JSON.parse(aiState.lastUserContent);
     const pastDue = digest.actions.items.find((i: any) => i.key === "pastDueMembers");
     expect(pastDue.count).toBe(2);
+    /* Success shape is exact: no fallback flag, no digest echo. */
+    expect(Object.keys(body).sort()).toEqual(["generatedAt", "move", "summary"]);
   });
 
   it("is draft-only: generating a brief writes nothing anywhere", async () => {
@@ -333,22 +339,67 @@ describe("command brief", () => {
     expect(msgs[0].n).toBe(5);
   });
 
-  it("a missing AI provider is a clean 503 for this panel alone", async () => {
+  it("a missing AI provider serves the digest, flagged — the panel lives on its data", async () => {
     await seedAll();
     aiState.mode = "down";
     const brief = await get("/command/brief");
-    expect(brief.status).toBe(503);
-    expect(brief.body.error).toBe("ai_unavailable");
+    expect(brief.status).toBe(200);
+    expect(brief.body.narrativeUnavailable).toBe(true);
+    /* The narrative fields are honestly empty — nothing invented. */
+    expect(brief.body.summary).toBe("");
+    expect(brief.body.move).toBeNull();
+    expect(typeof brief.body.generatedAt).toBe("string");
+    /* The digest is this request's real data, panel-shaped. */
+    expect(brief.body.digest.audience.followers).toEqual({ total: 3, new7: 2 });
+    expect(brief.body.digest.revenue.totalCents).toBe(34500);
+    const pastDue = brief.body.digest.actions.items.find((i: any) => i.key === "pastDueMembers");
+    expect(pastDue.count).toBe(2);
     const aud = await get("/command/audience");
     expect(aud.status).toBe(200);
   });
 
-  it("unparseable AI output is a 502, never an invented brief", async () => {
+  it("a provider call that throws serves the digest, flagged", async () => {
+    await seedAll();
+    aiState.mode = "throws";
+    const brief = await get("/command/brief");
+    expect(brief.status).toBe(200);
+    expect(brief.body.narrativeUnavailable).toBe(true);
+    expect(brief.body.summary).toBe("");
+    expect(brief.body.move).toBeNull();
+    expect(brief.body.digest.content.topTrack).toEqual({ title: "Top Song", playCount: 120 });
+  });
+
+  it("unparseable AI output serves the digest, flagged — never an invented brief", async () => {
     await seedAll();
     aiState.mode = "garbage";
     const brief = await get("/command/brief");
+    expect(brief.status).toBe(200);
+    expect(brief.body.narrativeUnavailable).toBe(true);
+    expect(brief.body.summary).toBe("");
+    expect(brief.body.move).toBeNull();
+    expect(brief.body.digest.audience.subscribers).toEqual({ total: 4, new7: 1 });
+  });
+
+  it("a partial digest still serves: surviving panels real, failed panels null", async () => {
+    freshDb(NO_AUDIENCE_DDL);
+    aiState.mode = "down";
+    const brief = await get("/command/brief");
+    expect(brief.status).toBe(200);
+    expect(brief.body.narrativeUnavailable).toBe(true);
+    expect(brief.body.digest.audience).toBeNull();
+    expect(brief.body.digest.content).toBeNull();
+    expect(brief.body.digest.actions).toBeNull();
+    expect(brief.body.digest.revenue).not.toBeNull();
+    expect(brief.body.digest.revenue.partial).toBe(true);
+  });
+
+  it("the failure state remains only for a digest that cannot be built at all", async () => {
+    freshDb("CREATE TABLE unrelated (id int);"); // no real tables: every panel builder fails, the digest is empty
+    const brief = await get("/command/brief");
     expect(brief.status).toBe(502);
     expect(brief.body.error).toBe("brief_unavailable");
+    expect(brief.body.narrativeUnavailable).toBeUndefined();
+    expect(brief.body.digest).toBeUndefined();
   });
 });
 
