@@ -1,5 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useRoute } from "wouter";
 import {
   Play, Pause, ArrowLeft, ListMusic, ListPlus, ListVideo,
@@ -43,13 +44,13 @@ interface ResolvedItem {
   isPreview?: boolean;
 }
 
-async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<ResolvedItem[]> {
+async function resolveItems(pl: StreamPlaylist, artistName: string, untitled: string): Promise<ResolvedItem[]> {
   if (pl.resolved_items && pl.resolved_items.length) {
     return pl.resolved_items.map((r) => {
       if (r.kind === "track") {
         const t = r.item;
         return {
-          kind: "track" as const, id: String(t.id), title: t.title ?? "Untitled",
+          kind: "track" as const, id: String(t.id), title: t.title ?? untitled,
           thumb: t.artwork_url, duration: t.duration_sec, plays: t.play_count,
           src: resolveMedia(t.audio_url), artwork: t.artwork_url,
           price: t.download_price_cents ?? null,
@@ -58,7 +59,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
       }
       const v = r.item;
       return {
-        kind: "video" as const, id: String(v.id), title: v.title ?? "Untitled",
+        kind: "video" as const, id: String(v.id), title: v.title ?? untitled,
         thumb: v.thumbnail_url, duration: v.duration_sec, plays: v.view_count,
         src: "", artwork: v.thumbnail_url,
         season: v.season_number ?? null, episode: v.episode_number ?? null,
@@ -74,7 +75,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
       if (ref.kind === "track") {
         const r = await fetchTrack(String(ref.id));
         if (r) out.push({
-          kind: "track", id: String(r.track.id), title: r.track.title ?? "Untitled",
+          kind: "track", id: String(r.track.id), title: r.track.title ?? untitled,
           thumb: r.track.artwork_url, duration: r.track.duration_sec, plays: r.track.play_count,
           src: resolveMedia(r.track.audio_url), artwork: r.track.artwork_url,
           price: r.track.download_price_cents ?? null,
@@ -82,7 +83,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
       } else {
         const r = await fetchVideo(String(ref.id));
         if (r) out.push({
-          kind: "video", id: String(r.video.id), title: r.video.title ?? "Untitled",
+          kind: "video", id: String(r.video.id), title: r.video.title ?? untitled,
           thumb: r.video.thumbnail_url, duration: r.video.duration_sec, plays: r.video.view_count,
           src: "", artwork: r.video.thumbnail_url,
           season: r.video.season_number ?? null, episode: r.video.episode_number ?? null,
@@ -97,6 +98,7 @@ async function resolveItems(pl: StreamPlaylist, artistName: string): Promise<Res
 }
 
 export default function StreamPlaylistPage() {
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [, params] = useRoute("/playlist/:id");
   const id = params?.id ?? "";
@@ -150,7 +152,7 @@ export default function StreamPlaylistPage() {
       setPreviewKey(
         res.playlist.preview_item ? `${res.playlist.preview_item.kind}:${res.playlist.preview_item.id}` : "",
       );
-      const resolved = await resolveItems(res.playlist, res.owner?.display_name ?? "Creator");
+      const resolved = await resolveItems(res.playlist, res.owner?.display_name ?? t("playlist.creatorFallback"), t("playlist.untitled"));
       if (alive) { setItems(resolved); setLoading(false); }
     })();
     return () => { alive = false; };
@@ -173,12 +175,12 @@ export default function StreamPlaylistPage() {
   }, [playlist?.id, playlist?.is_owner, playlist?.kind]);
 
   usePageTitle(
-    playlist ? `${playlist.title} — Playlist` : "Playlist",
-    playlist ? `${playlist.description ?? playlist.title} — a creator playlist on Bow Down Visuals.` : "Creator playlists on Bow Down Visuals."
+    playlist ? t("playlist.pageTitleWith", { title: playlist.title }) : t("playlist.kindPlaylist"),
+    playlist ? t("playlist.pageDescWith", { text: playlist.description ?? playlist.title }) : t("playlist.pageDescDefault")
   );
 
   const isSeries = (playlist?.kind ?? "").toLowerCase() === "series";
-  const ownerName = owner?.display_name ?? "Creator";
+  const ownerName = owner?.display_name ?? t("playlist.creatorFallback");
   /* Paid Series state for this viewer. */
   const isPaidSeries = isSeries && !!playlist?.is_paid_series;
   const seriesAccess = playlist?.series_access ?? "free";
@@ -245,24 +247,24 @@ export default function StreamPlaylistPage() {
      Turbo draft, which only ever happens on the creator's own tap. */
   async function refreshPlaylist(updated: StreamPlaylist) {
     setPlaylist(updated);
-    setItems(await resolveItems(updated, ownerName));
+    setItems(await resolveItems(updated, ownerName, t("playlist.untitled")));
   }
 
   async function saveSeriesSettings() {
     if (!playlist) return;
     const headers = await authHeaders();
-    if (!headers) { setSettingsMsg("Sign in again to save — your session lapsed."); return; }
+    if (!headers) { setSettingsMsg(t("paidSeries.msgSignInSave")); return; }
     let priceCents: number | null = null;
     const trimmed = priceDollars.trim();
     if (trimmed) {
       const parsed = Number.parseFloat(trimmed);
       if (!Number.isFinite(parsed) || parsed < 0) {
-        setSettingsMsg("That price doesn't parse — use dollars, like 14.99.");
+        setSettingsMsg(t("paidSeries.msgPriceParse"));
         return;
       }
       priceCents = Math.round(parsed * 100);
       if (priceCents > 0 && priceCents < 50) {
-        setSettingsMsg("The minimum is $0.50 — that's the card floor, not ours.");
+        setSettingsMsg(t("paidSeries.msgPriceMin"));
         return;
       }
     }
@@ -275,22 +277,22 @@ export default function StreamPlaylistPage() {
       playlist.id, { price_cents: priceCents, preview_item: preview }, headers,
     );
     setSavingSettings(false);
-    if (!updated) { setSettingsMsg("Couldn't save — try again."); return; }
+    if (!updated) { setSettingsMsg(t("paidSeries.msgSaveFailed")); return; }
     await refreshPlaylist(updated);
     setSettingsMsg(priceCents
-      ? `Saved — the full series unlocks at $${(priceCents / 100).toFixed(2)} per buyer.`
-      : "Saved — the series is free for everyone now.");
+      ? t("paidSeries.msgSavedPaid", { price: `$${(priceCents / 100).toFixed(2)}` })
+      : t("paidSeries.msgSavedFree"));
   }
 
   async function buildWithAssist() {
     if (!playlist) return;
     const headers = await authHeaders();
-    if (!headers) { setAssistMsg("Sign in again — your session lapsed."); return; }
+    if (!headers) { setAssistMsg(t("paidSeries.msgSignInAssist")); return; }
     setAssistBusy(true);
     setAssistMsg(null);
     const draft = await runSeriesAssist(playlist.id, headers);
     setAssistBusy(false);
-    if (!draft) { setAssistMsg("The Builder couldn't draft just now — nothing was changed. Try again."); return; }
+    if (!draft) { setAssistMsg(t("paidSeries.msgAssistFailed")); return; }
     setAssistDraft(draft);
   }
 
@@ -304,8 +306,8 @@ export default function StreamPlaylistPage() {
     setAssistBusy(true);
     const updated = await updatePlaylistSettings(playlist.id, { items: refs }, headers);
     setAssistBusy(false);
-    if (updated) { await refreshPlaylist(updated); setAssistMsg("Order applied — your season, your call."); }
-    else setAssistMsg("Couldn't apply that order — try again.");
+    if (updated) { await refreshPlaylist(updated); setAssistMsg(t("paidSeries.msgOrderApplied")); }
+    else setAssistMsg(t("paidSeries.msgOrderFailed"));
   }
 
   async function applyAssistCopy(field: "title" | "description") {
@@ -318,8 +320,8 @@ export default function StreamPlaylistPage() {
     setAssistBusy(true);
     const updated = await updatePlaylistSettings(playlist.id, patch, headers);
     setAssistBusy(false);
-    if (updated) { await refreshPlaylist(updated); setAssistMsg(field === "title" ? "Title applied." : "Description applied."); }
-    else setAssistMsg("Couldn't apply that copy — try again.");
+    if (updated) { await refreshPlaylist(updated); setAssistMsg(field === "title" ? t("paidSeries.msgTitleApplied") : t("paidSeries.msgDescApplied")); }
+    else setAssistMsg(t("paidSeries.msgCopyFailed"));
   }
 
   function ItemRow({ item, position }: { item: ResolvedItem; position: number }) {
@@ -339,16 +341,16 @@ export default function StreamPlaylistPage() {
           <p className={`text-sm truncate ${isCurrentAudio ? "text-[#e8c86a] font-semibold" : "text-white/85"}`}>{item.title}</p>
           <p className="text-xs text-white/40 flex items-center gap-2">
             {item.kind === "video" ? (
-              <><Clapperboard className="h-3 w-3" /> Video • {formatCount(item.plays)} views</>
+              <><Clapperboard className="h-3 w-3" /> {t("playlist.rowVideoViews", { count: formatCount(item.plays) })}</>
             ) : (
-              <><Music2 className="h-3 w-3" /> Audio • {formatCount(item.plays)} plays</>
+              <><Music2 className="h-3 w-3" /> {t("playlist.rowAudioPlays", { count: formatCount(item.plays) })}</>
             )}
             {seriesLabel && <span className="text-[#e8c86a]/80 font-semibold">{seriesLabel}</span>}
             {item.isPreview && (
-              <span className="rounded-full bg-[#e8c86a] text-black px-1.5 py-px text-[10px] font-bold uppercase tracking-wide">Free preview</span>
+              <span className="rounded-full bg-[#e8c86a] text-black px-1.5 py-px text-[10px] font-bold uppercase tracking-wide">{t("paidSeries.freePreviewBadge")}</span>
             )}
             {item.locked && (
-              <span className="inline-flex items-center gap-1 text-white/40"><Lock className="h-3 w-3" /> Locked</span>
+              <span className="inline-flex items-center gap-1 text-white/40"><Lock className="h-3 w-3" /> {t("paidSeries.lockedWord")}</span>
             )}
           </p>
         </div>
@@ -378,13 +380,13 @@ export default function StreamPlaylistPage() {
         <div data-min-stars="3" className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1 bg-black/70 rounded-full px-1">
           <button
             onClick={() => player.playNext(toQueueItem(item))}
-            className="p-1.5 text-white/60 hover:text-[#e8c86a]" title="Play next" aria-label="Play next"
+            className="p-1.5 text-white/60 hover:text-[#e8c86a]" title={t("playlist.playNext")} aria-label={t("playlist.playNext")}
           >
             <ListVideo className="h-4 w-4" />
           </button>
           <button
             onClick={() => player.addToQueue(toQueueItem(item))}
-            className="p-1.5 text-white/60 hover:text-[#e8c86a]" title="Add to queue" aria-label="Add to queue"
+            className="p-1.5 text-white/60 hover:text-[#e8c86a]" title={t("playlist.addToQueue")} aria-label={t("playlist.addToQueue")}
           >
             <ListPlus className="h-4 w-4" />
           </button>
@@ -396,7 +398,7 @@ export default function StreamPlaylistPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-white/40">Loading playlist…</p>
+        <p className="text-white/40">{t("playlist.loading")}</p>
       </div>
     );
   }
@@ -406,9 +408,9 @@ export default function StreamPlaylistPage() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
         <div className="text-center max-w-sm">
           <ListMusic className="h-12 w-12 text-[#e8c86a]/40 mx-auto mb-4" />
-          <p className="text-xl font-bold mb-2">Playlist not found</p>
-          <p className="text-white/40 text-sm mb-6">Private, deleted, or a bad link — the cheat code keeps moving either way.</p>
-          <Link href="/showcase"><span className="text-[#e8c86a] underline text-sm">Back to the showcase</span></Link>
+          <p className="text-xl font-bold mb-2">{t("playlist.notFoundTitle")}</p>
+          <p className="text-white/40 text-sm mb-6">{t("playlist.notFoundBody")}</p>
+          <Link href="/showcase"><span className="text-[#e8c86a] underline text-sm">{t("playlist.backToShowcase")}</span></Link>
         </div>
       </div>
     );
@@ -430,7 +432,7 @@ export default function StreamPlaylistPage() {
       <JsonLd data={jsonLd} />
       <div className="mx-auto max-w-4xl px-4 md:px-6 py-8">
         <Link href="/showcase" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-[#e8c86a] mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("playlist.back")}
         </Link>
 
         <div className="grid md:grid-cols-[280px_1fr] gap-8">
@@ -447,27 +449,27 @@ export default function StreamPlaylistPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-bold uppercase tracking-widest text-[#e8c86a]">
-                {isSeries ? "Series" : "Playlist"}
+                {isSeries ? t("paidSeries.kindSeries") : t("playlist.kindPlaylist")}
               </span>
               {!playlist.is_public && (
-                <span className="text-xs text-white/40 border border-white/15 rounded-full px-2 py-0.5">Private</span>
+                <span className="text-xs text-white/40 border border-white/15 rounded-full px-2 py-0.5">{t("playlist.privateBadge")}</span>
               )}
               {isPaidSeries && seriesPrice && (
-                <span className="text-xs font-bold text-black bg-[#e8c86a] rounded-full px-2 py-0.5">{seriesPrice} unlock</span>
+                <span className="text-xs font-bold text-black bg-[#e8c86a] rounded-full px-2 py-0.5">{t("paidSeries.priceUnlockBadge", { price: seriesPrice })}</span>
               )}
             </div>
             <h1 className="text-3xl md:text-4xl font-black leading-tight">{playlist.title}</h1>
             {playlist.description && <p className="mt-2 text-white/55 text-sm leading-relaxed">{playlist.description}</p>}
             <p className="mt-3 text-sm text-white/45">
-              by {owner?.slug ? (
+              {t("playlist.byWord")} {owner?.slug ? (
                 <Link href={`/artist/${owner.slug}`} className="text-[#e8c86a] hover:underline font-semibold">{ownerName}</Link>
               ) : (
                 <span className="text-[#e8c86a] font-semibold">{ownerName}</span>
               )}
               <span className="mx-2 text-white/20">•</span>
-              {items.length} {items.length === 1 ? "item" : "items"}
+              {t("playlist.itemsCount", { count: items.length, plural: items.length === 1 ? "" : "s" })}
               {audioItems.length > 0 && videoCount > 0 && (
-                <span className="text-white/35"> ({audioItems.length} audio · {videoCount} video)</span>
+                <span className="text-white/35"> {t("playlist.mixBreakdown", { audio: audioItems.length, video: videoCount })}</span>
               )}
               {totalSecs > 0 && <><span className="mx-2 text-white/20">•</span>{formatDuration(totalSecs)}</>}
             </p>
@@ -479,11 +481,11 @@ export default function StreamPlaylistPage() {
                 className="flex items-center gap-2 rounded-full bg-[#e8c86a] text-black font-bold px-6 py-3 text-sm hover:bg-[#f5d67e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isPlayingPlaylist && player.playing ? <Pause className="h-5 w-5 fill-black" /> : <Play className="h-5 w-5 fill-black" />}
-                {isPlayingPlaylist && player.playing ? "Pause" : "Play all"}
+                {isPlayingPlaylist && player.playing ? t("playlist.pause") : t("playlist.playAll")}
               </button>
               <button
                 onClick={handleFollow}
-                title={user ? (following ? "Unfollow playlist" : "Follow playlist") : "Sign in to follow"}
+                title={user ? (following ? t("playlist.unfollowTitle") : t("playlist.followTitle")) : t("playlist.signInToFollow")}
                 className={`flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition-colors ${
                   following
                     ? "border-[#e8c86a] bg-[#e8c86a]/15 text-[#e8c86a]"
@@ -491,14 +493,14 @@ export default function StreamPlaylistPage() {
                 }`}
               >
                 {following ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                {following ? "Following" : "Follow"} <span className="text-white/40">({formatCount(followers)})</span>
+                {following ? t("playlist.following") : t("playlist.follow")} <span className="text-white/40">({formatCount(followers)})</span>
               </button>
               <div className="relative">
                 <button
                   onClick={() => setShareOpen((v) => !v)}
                   className="flex items-center gap-2 rounded-full border border-white/15 text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] px-5 py-3 text-sm font-semibold transition-colors"
                 >
-                  <Share2 className="h-4 w-4" /> Share
+                  <Share2 className="h-4 w-4" /> {t("playlist.share")}
                 </button>
                 {shareOpen && (
                   <PlayerShareMenu title={playlist.title} artistName={ownerName} sharePath={`/playlist/${playlist.id}`} onClose={() => setShareOpen(false)} />
@@ -511,29 +513,27 @@ export default function StreamPlaylistPage() {
             {isPaidSeries && seriesAccess === "locked" && (
               <div id="series-unlock" className="mt-6 rounded-2xl border border-[#e8c86a]/40 bg-gradient-to-br from-[#e8c86a]/15 via-transparent to-transparent p-5">
                 <p className="flex items-center gap-2 text-sm font-bold text-[#e8c86a]">
-                  <Lock className="h-4 w-4" /> This series is an unlock
+                  <Lock className="h-4 w-4" /> {t("paidSeries.unlockTitle")}
                 </p>
                 <p className="mt-1.5 text-sm text-white/60 leading-relaxed">
-                  The marked preview plays free. The full season — every episode — unlocks once for {seriesPrice},
-                  yours to watch anytime. {ownerName} keeps 95% of it, and your name lands on their buyer list —
-                  not locked inside a platform that keeps the customer.
+                  {t("paidSeries.unlockBody", { price: seriesPrice, owner: ownerName })}
                 </p>
                 <Link
                   href={`/store/buy/series/${playlist.id}`}
                   className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#e8c86a] text-black font-bold px-6 py-3 text-sm hover:bg-[#f5d67e] transition-colors"
                 >
-                  <BadgeDollarSign className="h-4 w-4" /> Unlock the full series — {seriesPrice}
+                  <BadgeDollarSign className="h-4 w-4" /> {t("paidSeries.unlockCta", { price: seriesPrice })}
                 </Link>
               </div>
             )}
             {isPaidSeries && seriesAccess === "purchased" && (
               <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/50 bg-[#e8c86a]/10 px-4 py-2 text-sm font-semibold text-[#e8c86a]">
-                <Crown className="h-4 w-4" /> You own this series — every episode is unlocked.
+                <Crown className="h-4 w-4" /> {t("paidSeries.ownSeries")}
               </p>
             )}
             {audioItems.length === 0 && items.length > 0 && (
               <p className="mt-3 text-xs text-white/40">
-                This one's all video — hit any episode to watch. Audio uploads join the play-all queue.
+                {t("playlist.allVideoNote")}
               </p>
             )}
           </div>
@@ -545,44 +545,44 @@ export default function StreamPlaylistPage() {
         {isSeriesOwner && (
           <section className="mt-10 rounded-2xl border border-[#e8c86a]/30 bg-gradient-to-b from-[#171208] to-[#0d0a04] p-5 md:p-6">
             <h2 className="flex items-center gap-2 text-base font-black text-[#e8c86a]">
-              <Sparkles className="h-5 w-5" /> Series Studio
+              <Sparkles className="h-5 w-5" /> {t("paidSeries.studioTitle")}
             </h2>
             <p className="mt-1 text-sm text-white/50">
-              Your series, your price, your buyer list. The platform takes its 5% off your cut — buyers never pay extra.
+              {t("paidSeries.studioIntro")}
             </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Unlock price (USD)</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t("paidSeries.priceLabel")}</span>
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-white/40">$</span>
                   <input
                     value={priceDollars}
                     onChange={(e) => setPriceDollars(e.target.value)}
                     inputMode="decimal"
-                    placeholder="Leave empty for a free series"
+                    placeholder={t("paidSeries.pricePlaceholder")}
                     className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-[#e8c86a]/60 focus:outline-none"
                   />
                 </div>
                 <span className="mt-1 block text-xs text-white/35">
-                  {seriesPrice ? `On sale now at ${seriesPrice} — you keep $${(((playlist.price_cents ?? 0) * 0.95) / 100).toFixed(2)} per sale.` : "Free right now. Set a price to sell the unlock."}
+                  {seriesPrice ? t("paidSeries.onSaleNote", { price: seriesPrice, keep: `$${(((playlist.price_cents ?? 0) * 0.95) / 100).toFixed(2)}` }) : t("paidSeries.freeNowNote")}
                 </span>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Free preview episode</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t("paidSeries.previewLabel")}</span>
                 <select
                   value={previewKey}
                   onChange={(e) => setPreviewKey(e.target.value)}
                   className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white focus:border-[#e8c86a]/60 focus:outline-none"
                 >
-                  <option value="">No free preview</option>
+                  <option value="">{t("paidSeries.noPreview")}</option>
                   {(playlist.items ?? []).map((ref) => (
                     <option key={`${ref.kind}:${ref.id}`} value={`${ref.kind}:${ref.id}`}>
-                      {titleByKey.get(`${ref.kind}:${ref.id}`) ?? "Episode"}
+                      {titleByKey.get(`${ref.kind}:${ref.id}`) ?? t("paidSeries.episodeFallback")}
                     </option>
                   ))}
                 </select>
-                <span className="mt-1 block text-xs text-white/35">One episode everyone can watch free — your trailer.</span>
+                <span className="mt-1 block text-xs text-white/35">{t("paidSeries.previewNote")}</span>
               </label>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -591,7 +591,7 @@ export default function StreamPlaylistPage() {
                 disabled={savingSettings}
                 className="rounded-full bg-[#e8c86a] text-black font-bold px-5 py-2.5 text-sm hover:bg-[#f5d67e] transition-colors disabled:opacity-40"
               >
-                {savingSettings ? "Saving…" : "Save series settings"}
+                {savingSettings ? t("paidSeries.saving") : t("paidSeries.saveSettings")}
               </button>
               <button
                 onClick={buildWithAssist}
@@ -599,7 +599,7 @@ export default function StreamPlaylistPage() {
                 className="inline-flex items-center gap-2 rounded-full border border-[#e8c86a]/50 text-[#e8c86a] font-semibold px-5 py-2.5 text-sm hover:bg-[#e8c86a]/10 transition-colors disabled:opacity-40"
               >
                 {assistBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Turbo Series Builder
+                {t("paidSeries.turboBuilder")}
               </button>
               {settingsMsg && <span className="text-xs text-white/55">{settingsMsg}</span>}
               {assistMsg && <span className="text-xs text-white/55">{assistMsg}</span>}
@@ -609,16 +609,15 @@ export default function StreamPlaylistPage() {
               <div className="mt-5 space-y-5 rounded-xl border border-white/10 bg-black/30 p-4">
                 <p className="text-xs text-white/45">{assistDraft.note}</p>
                 <p className="text-xs text-white/55">
-                  <span className="font-bold text-white/75">Price read:</span>{" "}
-                  seasons like this go for ${(assistDraft.price_advice.low_cents / 100).toFixed(2)}–${(assistDraft.price_advice.high_cents / 100).toFixed(2)},
-                  sweet spot ${(assistDraft.price_advice.smart_cents / 100).toFixed(2)}. {assistDraft.price_advice.label}
+                  <span className="font-bold text-white/75">{t("paidSeries.priceReadLabel")}</span>{" "}
+                  {t("paidSeries.priceReadRange", { low: `$${(assistDraft.price_advice.low_cents / 100).toFixed(2)}`, high: `$${(assistDraft.price_advice.high_cents / 100).toFixed(2)}`, smart: `$${(assistDraft.price_advice.smart_cents / 100).toFixed(2)}` })} {assistDraft.price_advice.label}
                 </p>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">Suggested episode order</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">{t("paidSeries.suggestedOrder")}</p>
                   <ol className="mt-2 space-y-1 text-sm text-white/75">
                     {assistDraft.suggested_order.map((k, i) => (
                       <li key={k} className="flex gap-2">
-                        <span className="text-white/30 tabular-nums">{i + 1}.</span> {titleByKey.get(k) ?? "Episode"}
+                        <span className="text-white/30 tabular-nums">{i + 1}.</span> {titleByKey.get(k) ?? t("paidSeries.episodeFallback")}
                       </li>
                     ))}
                   </ol>
@@ -627,11 +626,11 @@ export default function StreamPlaylistPage() {
                     disabled={assistBusy}
                     className="mt-2 rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
                   >
-                    Apply this order
+                    {t("paidSeries.applyOrder")}
                   </button>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">Sales copy draft</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">{t("paidSeries.salesCopyDraft")}</p>
                   <p className="mt-2 text-sm font-bold text-white/90">{assistDraft.sales_copy.headline}</p>
                   <p className="mt-1 text-sm text-white/60 leading-relaxed">{assistDraft.sales_copy.description}</p>
                   <div className="mt-2 flex gap-2">
@@ -640,26 +639,26 @@ export default function StreamPlaylistPage() {
                       disabled={assistBusy}
                       className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
                     >
-                      Use as title
+                      {t("paidSeries.useAsTitle")}
                     </button>
                     <button
                       onClick={() => applyAssistCopy("description")}
                       disabled={assistBusy}
                       className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40"
                     >
-                      Use as description
+                      {t("paidSeries.useAsDescription")}
                     </button>
                   </div>
                 </div>
                 {assistDraft.trailer_shot_list.length > 0 && (
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-white/40">Trailer shot-list</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-white/40">{t("paidSeries.trailerShotList")}</p>
                     <ul className="mt-2 space-y-1.5 text-sm text-white/70">
                       {assistDraft.trailer_shot_list.map((s, i) => (
                         <li key={i} className="flex gap-2">
                           <Clapperboard className="mt-0.5 h-4 w-4 shrink-0 text-[#e8c86a]/60" />
                           <span>
-                            <span className="font-semibold text-white/85">{titleByKey.get(s.item) ?? "Episode"}:</span>{" "}
+                            <span className="font-semibold text-white/85">{titleByKey.get(s.item) ?? t("paidSeries.episodeFallback")}:</span>{" "}
                             {s.moment}{s.caption ? <> — <span className="text-white/50">“{s.caption}”</span></> : null}
                           </span>
                         </li>
@@ -672,13 +671,12 @@ export default function StreamPlaylistPage() {
 
             <div className="mt-6 border-t border-white/10 pt-5">
               <h3 className="text-sm font-bold text-white/85">
-                Your buyer list
-                {buyerTotals && <span className="ml-2 text-white/40 font-normal">{buyerTotals.buyers} buyers · {buyerTotals.gross} gross</span>}
+                {t("paidSeries.buyerListTitle")}
+                {buyerTotals && <span className="ml-2 text-white/40 font-normal">{t("paidSeries.buyerTotals", { buyers: buyerTotals.buyers, gross: buyerTotals.gross })}</span>}
               </h3>
               {buyers.length === 0 ? (
                 <p className="mt-2 text-sm text-white/45">
-                  No sales yet. When fans unlock this series, they land here — names, amounts, dates.
-                  This list is yours; no platform keeps your customers from you.
+                  {t("paidSeries.noSalesYet")}
                 </p>
               ) : (
                 <ul className="mt-3 space-y-2">
@@ -688,7 +686,7 @@ export default function StreamPlaylistPage() {
                         <img src={b.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8c86a]/15 text-xs font-bold text-[#e8c86a]">
-                          {(b.display_name ?? "F").slice(0, 1)}
+                          {(b.display_name ?? t("paidSeries.buyerInitial")).slice(0, 1)}
                         </span>
                       )}
                       <span className="min-w-0 flex-1 truncate text-white/85">
@@ -714,16 +712,16 @@ export default function StreamPlaylistPage() {
           {items.length === 0 ? (
             <div className={`rounded-2xl border border-dashed px-6 py-12 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <ListMusic className="h-10 w-10 text-[#e8c86a]/40 mx-auto mb-3" />
-              <p className="text-white/70 font-semibold">An empty playlist? Bold strategy.</p>
-              <p className="text-sm text-white/40 mt-1">The curator hasn't dropped anything in here yet — check back when the heat lands.</p>
-              <p className="text-xs text-white/35 mt-3">Your playlist could be earning followers right now. <Link href="/publish"><span className="text-[#e8c86a] hover:underline">Upload your first drop</span></Link></p>
+              <p className="text-white/70 font-semibold">{t("playlist.emptyTitle")}</p>
+              <p className="text-sm text-white/40 mt-1">{t("playlist.emptyBody")}</p>
+              <p className="text-xs text-white/35 mt-3">{t("playlist.emptyYours")} <Link href="/publish"><span className="text-[#e8c86a] hover:underline">{t("playlist.uploadFirstDrop")}</span></Link></p>
             </div>
           ) : seasons ? (
             seasons.map(([season, group]) => (
               <div key={String(season)} className="mb-8">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-[#e8c86a] mb-3">
                   <Layers className="h-4 w-4" />
-                  {season === "other" ? "More episodes" : `Season ${season}`}
+                  {season === "other" ? t("paidSeries.moreEpisodes") : t("paidSeries.seasonHeading", { season })}
                   <span className="text-white/30 font-normal">({group.length})</span>
                 </h2>
                 <div className="space-y-1">
@@ -740,7 +738,7 @@ export default function StreamPlaylistPage() {
 
         {firstVideo && (
           <p className="mt-6 text-xs text-white/35 text-center">
-            Videos play on their own watch pages — audio rides the cheat-code player bar below. 🎬
+            {t("playlist.footerNote")}
           </p>
         )}
       </div>
