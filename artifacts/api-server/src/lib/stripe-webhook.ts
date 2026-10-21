@@ -119,6 +119,19 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         res.status(200).json({ received: true, kind: "marketplace_shop_purchase", expired: true });
         return;
       }
+      /* An abandoned store / storefront checkout: those rails write
+         nothing when a checkout starts, so this event is the only
+         trace. File it for the abandoned-checkout email automation
+         (migration 0204) — the recorder classifies from the session
+         metadata the checkout routes stamped (buyer_user_id +
+         profile_id) and dedupes per session, so webhook replays land
+         exactly once. Sessions it doesn't recognize fall through
+         unrecorded, exactly as before. */
+      const { recordAbandonedStripeCheckout } = await import("./email-automations");
+      if (await recordAbandonedStripeCheckout(s)) {
+        res.status(200).json({ received: true, kind: "abandoned_checkout", expired: true });
+        return;
+      }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.metadata?.kind === "creator_tier") {
