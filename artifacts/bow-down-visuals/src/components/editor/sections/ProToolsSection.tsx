@@ -499,7 +499,7 @@ export function ProToolsSection({
           <div className="flex flex-wrap gap-1.5">
             {SPEED_PRESETS.map((p) => (
               <Chip key={p.value} active={pt.speed === p.value && !pt.speedCurve}
-                onClick={() => patchProTools({ speed: p.value, speedCurve: null, speedSegments: null })}>
+                onClick={() => patchProTools({ speed: p.value, speedCurve: null, speedSegments: null, customSpeedCurve: null })}>
                 {p.label}
               </Chip>
             ))}
@@ -517,6 +517,7 @@ export function ProToolsSection({
                       speedCurve: active ? null : [...c.points],
                       speed: 1,
                       speedSegments: null,
+                      customSpeedCurve: null,
                     })}
                     title={c.blurb}>
                     {c.label}

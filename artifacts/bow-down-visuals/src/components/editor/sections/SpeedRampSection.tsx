@@ -17,8 +17,9 @@ import { useToast } from "@/hooks/use-toast";
         via GET /api/speed-presets + POST /api/apply-speed.
      3. Speed ramps — preset-based 8-segment animated curves (slow-mo in,
         ramp out, pulse, wave…) for 150 VB via POST /api/apply-speed.
-   NOTE: true freeform per-segment ramping is NOT supported by the current
-   backends — ramping is preset-based only (see the note on the section).
+   NOTE: this desk applies ready-made ramps only. Freeform drawn curves
+   live in Pro Tools → Speed & Reverse (Custom speed ramp, Wave 3 #18),
+   where drawn points export through the segment machinery.
    After processing: replace the scene clip + "Use in export" handoff. */
 
 const SLOW_MO_COST = 300;
@@ -389,7 +390,7 @@ export function SpeedRampSection({
             </div>
           )}
           <p className="text-[10px] text-white/30 mt-2 italic">
-            Note: ramps are preset curves — custom-drawn per-segment ramping isn't supported by the current backend.
+            Note: this desk applies preset curves. To draw your own ramp point-by-point, open Pro Tools → Speed &amp; Reverse → Custom speed ramp.
           </p>
         </div>
 
