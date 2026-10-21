@@ -16,6 +16,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { isPublicSubscribePost } from "./public-subscribe-door";
 
 const COOKIE_NAME = "bdv_staging_auth";
 const LOGIN_PATH = "/__staging_login";
@@ -79,6 +80,16 @@ export function stagingGate(req: Request, res: Response, next: NextFunction): vo
   // Admin export endpoint bypasses the gate (has its own requireAuth + requireAdmin).
   // This allows production to pull the owner's data for syncing.
   if (req.path === "/api/admin/export-my-artists") {
+    next();
+    return;
+  }
+
+  // Public subscribe door (lib/public-subscribe-door.ts): the pre-launch
+  // signup page at join.bowdownvisuals.com posts new subscribers to
+  // POST /api/email-list/subscribe. That endpoint is unauthenticated and
+  // rate-limited by design — it is the public join endpoint. ONLY this
+  // exact method+path passes; GET and every other route stay gated.
+  if (isPublicSubscribePost(req)) {
     next();
     return;
   }

@@ -10,6 +10,7 @@ import { embedPageRouter } from "./routes/embed";
 import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { stagingGate } from "./lib/staging-gate";
+import { publicSubscribeCors, PUBLIC_SUBSCRIBE_PATH } from "./lib/public-subscribe-door";
 import { ogPreviewMiddleware } from "./lib/og-preview";
 import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
@@ -99,6 +100,14 @@ app.use(
     },
   }),
 );
+/* Public subscribe door CORS (lib/public-subscribe-door.ts): the
+   pre-launch signup page at join.bowdownvisuals.com posts cross-origin
+   to exactly one route — POST /api/email-list/subscribe. Scoped to that
+   path and that origin only, and mounted BEFORE the global CORS below
+   so this route's preflights are answered here. The global allowlist
+   is unchanged; no other route gains a new origin. */
+app.use(PUBLIC_SUBSCRIBE_PATH, publicSubscribeCors);
+
 app.use(cors({
   origin: [
     "https://bowdownvisuals.com",
