@@ -20,12 +20,26 @@ export interface PackBible {
   doNotChange: string;
 }
 
+/** Director's Look Rails picks for a pack shot — the same genre / era /
+ *  lens / lighting / emotion keys as Scene Studio's scene.look
+ *  (lib/scene-look.ts on both sides of the wire; keys validated server-side
+ *  by normalizeLookPicks, never trusted raw). */
+export interface PackLookPicks {
+  genre?: string;
+  era?: string;
+  lens?: string;
+  lighting?: string;
+  emotion?: string;
+}
+
 /** One locked storyboard shot. */
 export interface PackShot {
   shotNumber: number;
   description: string;
   cameraAngle: string;
   durationSec: number;
+  /** Structured look picks for this shot, when the plan set them. */
+  look?: PackLookPicks;
 }
 
 /** A hero prop, locked in with its reference asset image. */
@@ -59,6 +73,9 @@ export interface PackIngredients {
   model: "gen4.5" | "seedance2_5";
   durationSec: number;
   ratio: string;
+  /** Locked Director's Look picks — woven into the shot's prompt by the
+   *  shared composer when the clip is generated from this pack. */
+  look?: PackLookPicks;
 }
 
 /** A generated production asset (prop plate, location plate, wardrobe...). */

@@ -1,6 +1,7 @@
 import type { SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
+import { composeSceneSeedPrompt } from "@/lib/scene-look";
 
 /** Payload shape the `/api/improve-prompt` endpoint expects for Creator Vault context. */
 export interface ArtistVaultPayload {
@@ -126,6 +127,7 @@ export async function requestImprovedPrompt(params: {
           cameraMovement: scene.cameraMovement,
           lighting: scene.lighting,
           mood: scene.mood,
+          look: scene.look ?? undefined,
         },
         videoStyle,
         platform,
@@ -162,14 +164,13 @@ export async function requestImprovedPrompt(params: {
   return improvedPrompt;
 }
 
-/** Seed text used to improve a scene: its prompt, or a fallback built from details. */
+/** Seed text used to improve a scene: its prompt, or a fallback built from details.
+ *  Delegates to the ONE shared look composer (lib/scene-look.ts) so the
+ *  Director's Look Rails picks weave into the seed exactly as they weave
+ *  into the generation prompt; byte-identical to the pre-rails seed when
+ *  no pick applies. */
 export function sceneSeedPrompt(scene: SceneData): string {
-  return (
-    (scene.aiVideoPrompt ?? "").trim() ||
-    [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
-      .filter(Boolean)
-      .join(", ")
-  );
+  return composeSceneSeedPrompt(scene);
 }
 
 /**

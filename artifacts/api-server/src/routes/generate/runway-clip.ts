@@ -35,6 +35,7 @@ import {
 } from "./clip-pricing";
 import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
 import { getLockedPack } from "./pre-production";
+import { weaveLookIntoPrompt } from "../../lib/scene-look";
 import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
@@ -263,7 +264,11 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     }
   }
 
-  const effectivePrompt = lockedIngredients?.prompt ?? promptText;
+  /* Locked pack look picks weave into the locked prompt through the shared
+     composer (lib/scene-look.ts); a pack without picks is byte-identical. */
+  const effectivePrompt = lockedIngredients
+    ? weaveLookIntoPrompt(lockedIngredients.prompt, { look: lockedIngredients.look })
+    : promptText;
   const effectiveNegative = lockedIngredients?.negativePrompt ?? negativePrompt;
   /* The end frame rides the locked pack like every other ingredient: a
      locked shot's end frame wins over the per-request field. */

@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
+import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
@@ -483,7 +484,8 @@ Do two jobs and return ONLY valid JSON (no markdown, no commentary):
   "continuityNotes": "one line reminding the generator what must stay identical to other shots",
   "model": "seedance2_5",
   "durationSec": <clamp the shot's duration to 3-30>,
-  "ratio": "${outRatio}"
+  "ratio": "${outRatio}",
+  "look": { "genre": "<one of: ${LOOK_RAIL_KEYS.genre.join(" | ")}>", "era": "<one of: ${LOOK_RAIL_KEYS.era.join(" | ")}>", "lens": "<one of: ${LOOK_RAIL_KEYS.lens.join(" | ")}>", "lighting": "<one of: ${LOOK_RAIL_KEYS.lighting.join(" | ")}>", "emotion": "<one of: ${LOOK_RAIL_KEYS.emotion.join(" | ")}>" } — the shot's structured Director's Look; keep it consistent with the bible and the shot, vary it only when the story does. Omit a rail rather than forcing a bad fit.
 }
 
 Return: { "props": [...], "ingredients": [...] }` }],
@@ -497,20 +499,26 @@ Return: { "props": [...], "ingredients": [...] }` }],
       shots: Array.isArray(p.shots) ? p.shots.map(Number) : [],
       assetImageUrl: null,
     }));
-    const ingredients: PackIngredients[] = (plan.ingredients ?? []).map((g: any) => ({
-      shotNumber: Number(g.shotNumber ?? 0),
-      prompt: String(g.prompt ?? ""),
-      negativePrompt: String(g.negativePrompt ?? ""),
-      referenceAssetUrls: [],
-      endFrameImageUrl:
-        typeof g.endFrameImageUrl === "string" && /^https:\/\//i.test(g.endFrameImageUrl)
-          ? g.endFrameImageUrl
-          : null,
-      continuityNotes: String(g.continuityNotes ?? ""),
-      model: g.model === "gen4.5" ? "gen4.5" : "seedance2_5",
-      durationSec: Math.min(Math.max(Number(g.durationSec ?? 5) || 5, 3), 30),
-      ratio: String(g.ratio || outRatio),
-    }));
+    const ingredients: PackIngredients[] = (plan.ingredients ?? []).map((g: any) => {
+      /* Look picks are validated against the rail vocabularies — the plan's
+         raw keys are never trusted into the locked pack. */
+      const look = normalizeLookPicks(g.look);
+      return {
+        shotNumber: Number(g.shotNumber ?? 0),
+        prompt: String(g.prompt ?? ""),
+        negativePrompt: String(g.negativePrompt ?? ""),
+        referenceAssetUrls: [],
+        endFrameImageUrl:
+          typeof g.endFrameImageUrl === "string" && /^https:\/\//i.test(g.endFrameImageUrl)
+            ? g.endFrameImageUrl
+            : null,
+        continuityNotes: String(g.continuityNotes ?? ""),
+        model: g.model === "gen4.5" ? "gen4.5" : "seedance2_5",
+        durationSec: Math.min(Math.max(Number(g.durationSec ?? 5) || 5, 3), 30),
+        ratio: String(g.ratio || outRatio),
+        ...(Object.keys(look).length > 0 ? { look } : {}),
+      };
+    });
     // Stash the prop-name references; finalize resolves them to asset URLs.
     const propNameRefs: Record<number, string[]> = {};
     for (const g of plan.ingredients ?? []) {

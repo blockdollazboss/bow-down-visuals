@@ -1,3 +1,5 @@
+import type { SceneLookPicks } from "@/lib/scene-look";
+
 export interface SceneData {
   id: string;
   sceneNumber: number;
@@ -39,6 +41,11 @@ export interface SceneData {
    *  library as the location image. Only sent to models whose API accepts
    *  a last frame (seedance2_5 / veo3_1); see lib/scene-end-frame. */
   endFrameImageUrl?: string | null;
+  /** Director's Look Rails picks (lib/scene-look.ts) — structured genre /
+   *  era / lens / lighting / emotion keys woven into the generation prompt
+   *  by the shared composer. Persists with the scene like every other
+   *  scene field; absent on scenes saved before the rails existed. */
+  look?: SceneLookPicks;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
