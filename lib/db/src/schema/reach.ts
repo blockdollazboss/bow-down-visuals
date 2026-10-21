@@ -37,6 +37,50 @@ export const liveDestinationKeysTable = pgTable(
 );
 export type LiveDestinationKey = typeof liveDestinationKeysTable.$inferSelect;
 
+/* ── #1b RTMP ingest keys (migration 0193) ──────────────────────────
+   The mirror image of destination keys: a personal key an external
+   encoder (OBS, VirtualDJ, Serato, djay) uses to push RTMP INTO the
+   creator's Go Live stage. One active key per creator. The key is a
+   secret with the same discipline as destination keys — protected at
+   rest (lib/multistream protectKey), shown only to its owner through
+   the owner-only reveal/regenerate responses, and NEVER present in
+   any stream DTO. key_lookup is a one-way SHA-256 of the plain key:
+   the publish path authenticates by hash so the hot lookup never
+   needs the plain text, and a database read alone doesn't hand out
+   working keys. revoked_at set = the key is dead; the publish path
+   re-checks on every connect, and revocation also drops any live
+   encoder connection for the creator. */
+export const liveIngestKeysTable = pgTable(
+  "live_ingest_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: uuid("user_id").notNull(),
+    profile_id: uuid("profile_id").notNull().references(() => creatorProfilesTable.id, { onDelete: "cascade" }),
+    /* The stream key, protected at rest like destination keys. */
+    stream_key: text("stream_key").notNull(),
+    /* SHA-256 hex of the plain key — the publish-auth lookup column. */
+    key_lookup: text("key_lookup").notNull(),
+    /* Last 4 characters of the plain key: safe for the owner to
+       recognize which key a program holds. Not a secret. */
+    key_hint: text("key_hint").notNull(),
+    /* The creator's standing title for encoder-started streams
+       (an encoder can't type one); null → the stage falls back to
+       "<display name> live". */
+    stream_title: text("stream_title"),
+    /* Set when the creator revokes the key. Revocation is immediate:
+       new publishes are refused and a live connection is dropped. */
+    revoked_at: timestamp("revoked_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("live_ingest_keys_user_uidx").on(t.user_id),
+    uniqueIndex("live_ingest_keys_lookup_uidx").on(t.key_lookup),
+    index("live_ingest_keys_profile_idx").on(t.profile_id),
+  ],
+);
+export type LiveIngestKey = typeof liveIngestKeysTable.$inferSelect;
+
 /* ── #2 Premieres ───────────────────────────────────────────────────────
    A finished video scheduled to play as a live event. The chat room is
    a real live_streams row (provider 'premiere') created when the

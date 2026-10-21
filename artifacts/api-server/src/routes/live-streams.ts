@@ -10,6 +10,7 @@ import {
   generatedClipsTable,
   type LiveStream,
   type CreatorProfile,
+  type LiveIngestKey,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
@@ -25,6 +26,17 @@ import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config"
 import { stopAllRelays } from "../lib/multistream";
 import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
+import {
+  initRtmpIngest,
+  getIngestKeyRow,
+  getOrCreateIngestKey,
+  regenerateIngestKey,
+  revokeIngestKey,
+  setIngestStreamTitle,
+  dropIngestConnectionsForUser,
+  ingestUrlFor,
+  rtmpIngestConfig,
+} from "../lib/rtmp-ingest";
 import {
   initOwnServerLive,
   beginSession,
@@ -66,6 +78,11 @@ import {
    POST   /live-streams/:id/end         (auth, owner) → end session (idempotent)
    POST   /live-streams/:id/vod         (auth, owner) → register the browser-recorded VOD
    POST   /live-streams/:id/ingest/segment (auth, owner) → own-server media chunk in
+   GET    /live-streams/ingest-key      (auth)  → RTMP ingest key status (never the key)
+   POST   /live-streams/ingest-key/reveal (auth) → the owner's key (creates on first ask)
+   POST   /live-streams/ingest-key/regenerate (auth) → new key; the old one dies at once
+   POST   /live-streams/ingest-key/revoke (auth) → key dies + live encoder dropped
+   PATCH  /live-streams/ingest-key      (auth)  → standing title for encoder-started streams
    GET    /live-streams/:id/hls/:file   (public) → own-server live playlist/segments
    GET    /live-streams/live            (public) → the "Live now" rail list
    GET    /live-streams/profile/:slug   (public) → that creator's live stream, if any
@@ -290,6 +307,10 @@ export interface LiveStreamDto {
   id: string;
   title: string;
   status: string;
+  /** Honest source label: 'camera' (browser studio) | 'rtmp'
+   *  (external encoder). Everything else about the stream — chat,
+   *  playback, fan-out — is identical either way. */
+  source: string;
   started_at: string | null;
   ended_at: string | null;
   viewer_count: number;
@@ -335,6 +356,7 @@ export function toStreamDto(
     id: row.id,
     title: row.title,
     status: row.status,
+    source: row.ingest_source ?? "camera",
     started_at: iso(row.started_at),
     ended_at: iso(row.ended_at),
     viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
@@ -555,6 +577,114 @@ initOwnServerLive({
   },
 });
 
+/* ── RTMP ingest host (lib/rtmp-ingest) ───────────────────────────────────
+   An accepted encoder publish lands HERE, on the same lifecycle as a
+   studio go-live: same row shape (provider 'own-server'), same engine
+   slot + capacity honesty, same go-live alerts, same end + finalize.
+   The only differences are the honest ones: ingest_source 'rtmp',
+   and the title comes from the creator's standing ingest title (an
+   encoder can't type one) or "<display name> live". */
+
+async function startRtmpIngestStream(input: {
+  userId: string;
+  profileId: string;
+  title: string | null;
+}): Promise<{ ok: true; streamId: string } | { ok: false; message: string }> {
+  const transport = selectedLiveTransport();
+  if (transport !== "own" || !isLiveTransportReady(transport)) {
+    return { ok: false, message: "This stage isn't accepting program feeds right now." };
+  }
+  const profile = await getProfileById(input.profileId);
+  if (!profile || profile.userId !== input.userId) {
+    return { ok: false, message: "That stream key isn't tied to a creator profile." };
+  }
+  const existing = await getLiveStreamForUser(input.userId);
+  if (existing) {
+    const reconciled = await reconcileStale(existing);
+    if (reconciled.status === "live") {
+      return {
+        ok: false,
+        message: "You're already live. End that stream before your program can take the stage.",
+      };
+    }
+  }
+  if (activeSessionCount() >= ownServerConfig().maxConcurrent) {
+    return {
+      ok: false,
+      message: "The live stage is full right now — a few creators are already on. Try again in a little while.",
+    };
+  }
+  const title = (input.title?.trim() || `${profile.displayName} live`).slice(0, 200);
+  try {
+    const inserted = await db
+      .insert(liveStreamsTable)
+      .values({
+        user_id: input.userId,
+        profile_id: profile.id,
+        title,
+        status: "live",
+        provider: "own-server",
+        ingest_source: "rtmp",
+        provider_input_id: null,
+        playback_id: null,
+        whip_url: null,
+        destinations: sanitizeRequestedDestinations(undefined),
+      })
+      .returning();
+    const row = inserted[0]!;
+    const begun = beginSession(row.id);
+    if (!begun.ok) {
+      // Lost the capacity race between the check and the insert.
+      await endStreamRow(row, 0).catch(() => undefined);
+      return {
+        ok: false,
+        message: "The live stage is full right now — a few creators are already on. Try again in a little while.",
+      };
+    }
+    void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
+    return { ok: true, streamId: row.id };
+  } catch (err) {
+    if ((err as { code?: string })?.code === "23505") {
+      return {
+        ok: false,
+        message: "You're already live. End that stream before your program can take the stage.",
+      };
+    }
+    logger.error({ err }, "live-streams: RTMP ingest start failed");
+    return { ok: false, message: "The stage couldn't start this stream." };
+  }
+}
+
+/** An encoder disconnected (or was dropped): the /end lifecycle,
+ *  minus the HTTP — end the row, close destinations out, finalize
+ *  the recording through the same own-server path. */
+async function endRtmpIngestStream(streamId: string): Promise<void> {
+  const row = await getStreamById(streamId).catch(() => null);
+  if (!row) {
+    await endOwnServerSession(streamId).catch(() => undefined);
+    return;
+  }
+  if (row.status === "live") {
+    const finalCount = countViewers(row.id);
+    await endStreamRow(row, finalCount).catch(() => undefined);
+    clearViewers(row.id);
+    await closeOutDestinations(row.id).catch(() => undefined);
+  }
+  if (row.provider === "own-server") {
+    await finalizeOwnServerStream(row);
+  }
+}
+
+initRtmpIngest({
+  startStream: startRtmpIngestStream,
+  firstMedia: (streamId) => {
+    // Same trigger as the first browser chunk: fan-out starts when
+    // real media does, never on a bare connect.
+    void attemptFanOut(streamId);
+  },
+  endStream: endRtmpIngestStream,
+});
+
 /* ── Schemas ────────────────────────────────────────────────────────────── */
 
 const createSchema = z.object({
@@ -657,6 +787,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
             title: parsed.data.title,
             status: "live",
             provider: "own-server",
+            ingest_source: "camera",
             provider_input_id: null,
             playback_id: null,
             whip_url: null,
@@ -826,6 +957,126 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
   } catch (err) {
     logger.error({ err }, "live-streams vod failed");
     res.status(500).json({ error: "Could not save your recording." });
+  }
+});
+
+/* ── RTMP ingest keys (owner-only) ────────────────────────────────────────
+   The key itself is a secret with exactly two doors, both behind the
+   owner's session: reveal and regenerate. Everything else — status,
+   the public stream DTOs, the watch page — sees only that a key
+   exists and its last-4 hint. Revoke/regenerate kill the old key in
+   the table AND drop a live encoder connection using it, so a
+   compromised key stops working the moment the owner acts. */
+
+export interface IngestKeyDto {
+  enabled: boolean;
+  ingest_url: string | null;
+  has_key: boolean;
+  key_hint: string | null;
+  stream_title: string | null;
+  revoked: boolean;
+}
+
+function toIngestKeyDto(row: LiveIngestKey | null): IngestKeyDto {
+  const cfg = rtmpIngestConfig();
+  const active = !!row && !row.revoked_at;
+  return {
+    enabled:
+      cfg.enabled && selectedLiveTransport() === "own" && isLiveTransportReady("own"),
+    ingest_url: ingestUrlFor(),
+    has_key: active,
+    key_hint: active ? row!.key_hint : null,
+    stream_title: row?.stream_title ?? null,
+    revoked: !!row?.revoked_at,
+  };
+}
+
+router.get("/live-streams/ingest-key", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const row = await getIngestKeyRow(req.userId!);
+    res.json({ ingest: toIngestKeyDto(row) });
+  } catch (err) {
+    logger.error({ err }, "live-streams ingest-key status failed");
+    res.status(500).json({ error: "Could not load your stream key status." });
+  }
+});
+
+router.post("/live-streams/ingest-key/reveal", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const profile = await getProfileByUserId(req.userId!);
+    if (!profile) {
+      res.status(400).json({
+        error: "Create your creator profile first — your stream key belongs to it.",
+        code: "NO_PROFILE",
+      });
+      return;
+    }
+    const { row, plainKey } = await getOrCreateIngestKey(req.userId!, profile.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ stream_key: plainKey, ingest: toIngestKeyDto(row) });
+  } catch (err) {
+    logger.error({ err }, "live-streams ingest-key reveal failed");
+    res.status(500).json({ error: "Could not load your stream key." });
+  }
+});
+
+router.post("/live-streams/ingest-key/regenerate", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const profile = await getProfileByUserId(req.userId!);
+    if (!profile) {
+      res.status(400).json({
+        error: "Create your creator profile first — your stream key belongs to it.",
+        code: "NO_PROFILE",
+      });
+      return;
+    }
+    const { row, plainKey } = await regenerateIngestKey(req.userId!, profile.id);
+    // The old key is dead in the table; an encoder still pushing with
+    // it is dropped now, not at its next reconnect.
+    dropIngestConnectionsForUser(req.userId!);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ stream_key: plainKey, ingest: toIngestKeyDto(row) });
+  } catch (err) {
+    logger.error({ err }, "live-streams ingest-key regenerate failed");
+    res.status(500).json({ error: "Could not regenerate your stream key." });
+  }
+});
+
+router.post("/live-streams/ingest-key/revoke", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const row = await revokeIngestKey(req.userId!);
+    dropIngestConnectionsForUser(req.userId!);
+    res.json({ ingest: toIngestKeyDto(row) });
+  } catch (err) {
+    logger.error({ err }, "live-streams ingest-key revoke failed");
+    res.status(500).json({ error: "Could not revoke your stream key." });
+  }
+});
+
+const ingestTitleSchema = z.object({
+  stream_title: z.string().trim().max(120).nullable().optional(),
+});
+
+router.patch("/live-streams/ingest-key", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parsed = ingestTitleSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "That title is too long — 120 characters max." });
+      return;
+    }
+    const title = parsed.data.stream_title?.trim() ? parsed.data.stream_title.trim() : null;
+    const row = await setIngestStreamTitle(req.userId!, title);
+    if (!row) {
+      res.status(404).json({
+        error: "You don't have a stream key yet — reveal yours first, then set its title.",
+        code: "NO_KEY",
+      });
+      return;
+    }
+    res.json({ ingest: toIngestKeyDto(row) });
+  } catch (err) {
+    logger.error({ err }, "live-streams ingest-key title failed");
+    res.status(500).json({ error: "Could not save your stream title." });
   }
 });
 

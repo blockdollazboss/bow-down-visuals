@@ -73,7 +73,7 @@ export type RelayVerdict =
 /** Container/codec facts about the own-server session's source. */
 export interface RelaySource {
   transport: "own" | "cloudflare";
-  /** Session container: 'mp4' | 'webm' | null (no media yet). */
+  /** Session container: 'mp4' | 'webm' | 'flv' (RTMP ingest) | null (no media yet). */
   container: string | null;
   /** Absolute path of the live source ffmpeg should read (the raw
    *  master file the engine is appending, or the live playlist). */
@@ -92,12 +92,21 @@ export function relayPlan(source: RelaySource, dest: DestinationKeyMaterial): Re
   if (!source.sourcePath || !source.container) {
     return { ok: false, code: "NO_SOURCE", reason: "No video has reached the stage yet — the relay starts once your camera feed does." };
   }
-  if (source.container !== "mp4") {
+  /* MP4 sessions carry H.264/AAC by construction. FLV sessions are
+     RTMP-ingest sources (lib/rtmp-ingest): FLV is RTMP's own container,
+     and an encoder feed that reached the stage already remuxed into
+     the HLS program with -c copy, so copying it back out to an RTMP
+     destination is the same passthrough. WebM (VP9/Opus) is the one
+     that genuinely can't ride — it would need a re-encode this box
+     doesn't do. */
+  if (source.container !== "mp4" && source.container !== "flv") {
     return {
       ok: false,
       code: "CODEC_UNSUPPORTED",
       reason:
-        "This browser recorded in WebM (VP9/Opus), which can't be copied into an RTMP feed without re-encoding — and this server doesn't re-encode live video. Use a browser/recording format that produces MP4 (H.264) to multistream this destination.",
+        source.container === "webm"
+          ? "This browser recorded in WebM (VP9/Opus), which can't be copied into an RTMP feed without re-encoding — and this server doesn't re-encode live video. Use a browser/recording format that produces MP4 (H.264) to multistream this destination."
+          : "This stream's recording format can't be copied into an RTMP feed without re-encoding — and this server doesn't re-encode live video.",
     };
   }
   let parsed: URL;

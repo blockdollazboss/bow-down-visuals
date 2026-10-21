@@ -47,6 +47,7 @@ import GamersHub from "@/pages/gamers";
 import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 import BroadcastStudio from "@/components/go-live/BroadcastStudio";
 import DestinationKeysPanel from "@/components/reach/DestinationKeysPanel";
+import IngestKeyPanel from "@/components/reach/IngestKeyPanel";
 import LoyaltySettingsPanel from "@/components/reach/LoyaltySettingsPanel";
 
 type LiveTab = "broadcast" | "golive" | "shows" | "discord" | "gamers" | "copilot";
@@ -500,7 +501,7 @@ export default function GoLive() {
           </span>
         </Link>
       </div>
-      {tab === "broadcast" ? <><BroadcastStudio /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      {tab === "broadcast" ? <><BroadcastStudio /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
       <div className="mt-6"><StageRooms /></div>
     </div>
   );
