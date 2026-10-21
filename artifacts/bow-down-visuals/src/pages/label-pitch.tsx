@@ -5,7 +5,7 @@ import {
   Disc3, Sparkles, Loader2, Copy, Check, Mail, FileText,
   Building2, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
   AlertTriangle, Music2, ListMusic, Clapperboard, Users, MessageCircle, ChevronDown,
-  Rocket, CalendarClock,
+  Rocket, CalendarClock, Link2,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
@@ -1091,6 +1091,78 @@ const PLAYLIST_STATUS_META: Record<string, { labelKey: string; icon: typeof Send
   rejected: { labelKey: "playlistPitch.statusRejected", icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
 };
 
+/* ── Pitch packet (from the release record) + submission deadlines ─────
+   The packet is assembled server-side from the creator's REAL release
+   record + profile + stats; `missing` names what the record doesn't
+   hold — the UI lists it verbatim, never fills it in. Deadlines are the
+   pitch-window workflow (drafted → sent → followed_up → answered),
+   a separate vocabulary from the tracker outcomes above. */
+
+interface PlaylistRelease {
+  id: string;
+  title: string;
+  artistName: string;
+  releaseDate?: string | null;
+  status: string;
+}
+
+interface PlaylistPacket {
+  releaseId: string;
+  artist: {
+    name: string;
+    profileUrl?: string | null;
+    bio?: string | null;
+    followerCount?: number | null;
+    totalPlays?: number | null;
+    socialLinks: Record<string, string>;
+  };
+  release: { title: string; releaseDate?: string | null; status: string; platforms: string[] };
+  track: { title: string; audioUrl?: string | null };
+  genre: string[];
+  description?: string | null;
+  links: { streaming: Record<string, string>; audioUrl?: string | null; profileUrl?: string | null };
+  stats: { presaves: number; shares: number; linkViews: number; linkClicks: number };
+  pressAssets: {
+    artworkUrl?: string | null;
+    headline?: string | null;
+    bonusUrl?: string | null;
+    bannerUrl?: string | null;
+    avatarUrl?: string | null;
+  };
+  missing: string[];
+}
+
+interface PlaylistDeadline {
+  id: string;
+  pitchId?: string | null;
+  releaseId?: string | null;
+  curatorName?: string | null;
+  playlistName: string;
+  deadlineAt: string;
+  status: string;
+  notes?: string | null;
+  overdue: boolean;
+}
+
+const PLAYLIST_DEADLINE_STATUS_META: Record<string, { labelKey: string; cls: string }> = {
+  drafted: { labelKey: "playlistPitch.deadlineStatusDrafted", cls: "border-white/25 bg-white/[0.06] text-white/70" },
+  sent: { labelKey: "playlistPitch.statusSent", cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+  followed_up: { labelKey: "playlistPitch.deadlineStatusFollowedUp", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  answered: { labelKey: "playlistPitch.deadlineStatusAnswered", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+};
+
+const PACKET_MISSING_LABEL_KEYS: Record<string, string> = {
+  genre: "playlistPitch.missingGenre",
+  description: "playlistPitch.missingDescription",
+  releaseDate: "playlistPitch.missingReleaseDate",
+  trackAudio: "playlistPitch.missingTrackAudio",
+  streamingLinks: "playlistPitch.missingStreamingLinks",
+  artwork: "playlistPitch.missingArtwork",
+  headline: "playlistPitch.missingHeadline",
+  artistProfile: "playlistPitch.missingArtistProfile",
+  artistBio: "playlistPitch.missingArtistBio",
+};
+
 function PlaylistCopyButton({ text, labelKey }: { text: string; labelKey: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -1188,6 +1260,19 @@ function PlaylistsPitchTab() {
     songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "",
   });
 
+  /* ── packet + deadlines state ── */
+  const [releases, setReleases] = useState<PlaylistRelease[]>([]);
+  const [packetReleaseId, setPacketReleaseId] = useState("");
+  const [packet, setPacket] = useState<PlaylistPacket | null>(null);
+  const [packetLoading, setPacketLoading] = useState(false);
+  const [deadlines, setDeadlines] = useState<PlaylistDeadline[]>([]);
+  const [dueNext, setDueNext] = useState<PlaylistDeadline | null>(null);
+  const [deadlinesLoading, setDeadlinesLoading] = useState(false);
+  const [showDeadlineForm, setShowDeadlineForm] = useState(false);
+  const [newDeadline, setNewDeadline] = useState({
+    playlistName: "", curatorName: "", deadlineDate: "", releaseId: "",
+  });
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -1200,6 +1285,8 @@ function PlaylistsPitchTab() {
     })();
     loadCurators("all");
     loadTracker();
+    loadReleases();
+    loadDeadlines();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -1222,6 +1309,106 @@ function PlaylistsPitchTab() {
       if (res.ok) setPitches((data as { pitches: PlaylistPitch[] }).pitches ?? []);
     } catch { /* non-fatal */ }
     finally { setTrackerLoading(false); }
+  }
+
+  async function loadReleases() {
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/releases");
+      if (res.ok) setReleases((data as { releases: PlaylistRelease[] }).releases ?? []);
+    } catch { /* non-fatal */ }
+  }
+
+  async function loadPacket(releaseId: string) {
+    if (!releaseId) {
+      setPacket(null);
+      return;
+    }
+    setPacketLoading(true);
+    try {
+      const { res, data } = await playlistAuthedFetch(
+        getAccessToken, `/api/playlist-pitch/packet/${releaseId}`,
+      );
+      setPacket(res.ok ? ((data as { packet: PlaylistPacket }).packet ?? null) : null);
+    } catch { setPacket(null); }
+    finally { setPacketLoading(false); }
+  }
+
+  async function loadDeadlines() {
+    setDeadlinesLoading(true);
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/deadlines");
+      if (res.ok) {
+        const d = data as { deadlines: PlaylistDeadline[]; dueNext: PlaylistDeadline | null };
+        setDeadlines(d.deadlines ?? []);
+        setDueNext(d.dueNext ?? null);
+      }
+    } catch { /* non-fatal */ }
+    finally { setDeadlinesLoading(false); }
+  }
+
+  async function addDeadline() {
+    if (!newDeadline.playlistName.trim() || !newDeadline.deadlineDate) {
+      setError(t("playlistPitch.deadlineRequired"));
+      return;
+    }
+    setError(null);
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/deadlines", {
+        method: "POST",
+        body: JSON.stringify({
+          playlistName: newDeadline.playlistName.trim(),
+          curatorName: newDeadline.curatorName.trim(),
+          /* A deadline named by date is due at the END of that day. */
+          deadlineAt: `${newDeadline.deadlineDate}T23:59:59.999Z`,
+          ...(newDeadline.releaseId ? { releaseId: newDeadline.releaseId } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error(t("playlistPitch.deadlineSaveFailed"));
+      setNewDeadline({ playlistName: "", curatorName: "", deadlineDate: "", releaseId: "" });
+      setShowDeadlineForm(false);
+      loadDeadlines();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("playlistPitch.deadlineSaveFailed"));
+    }
+  }
+
+  async function updateDeadlineStatus(id: string, status: string) {
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) loadDeadlines();
+    } catch { /* non-fatal */ }
+  }
+
+  async function deleteDeadline(id: string) {
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) loadDeadlines();
+    } catch { /* non-fatal */ }
+  }
+
+  function packetAsText(p: PlaylistPacket): string {
+    const lines: string[] = [`${p.release.title} — ${p.artist.name}`];
+    if (p.genre.length) lines.push(`${t("playlistPitch.packetGenre")}: ${p.genre.join(", ")}`);
+    if (p.description) lines.push(p.description);
+    if (p.release.releaseDate) {
+      lines.push(`${t("playlistPitch.packetReleaseDate")}: ${p.release.releaseDate}`);
+    }
+    for (const [platform, url] of Object.entries(p.links.streaming)) {
+      lines.push(`${platform}: ${url}`);
+    }
+    if (p.links.profileUrl) lines.push(`${t("playlistPitch.packetLinks")}: ${p.links.profileUrl}`);
+    lines.push(
+      `${t("playlistPitch.packetStatPresaves")}: ${p.stats.presaves} · ` +
+      `${t("playlistPitch.packetStatShares")}: ${p.stats.shares} · ` +
+      `${t("playlistPitch.packetStatViews")}: ${p.stats.linkViews} · ` +
+      `${t("playlistPitch.packetStatClicks")}: ${p.stats.linkClicks}`,
+    );
+    return lines.join("\n");
   }
 
   async function generateKit() {
@@ -1736,6 +1923,337 @@ function PlaylistsPitchTab() {
       {/* ═══ TRACKER TAB ═══ */}
       {tab === "tracker" && (
         <div id="pitch-tracker" className="relative mt-8">
+          {/* ── Submission deadlines ── */}
+          <div className={`${isLight ? "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="inline-flex items-center gap-2 text-lg font-bold">
+                <CalendarClock className="h-5 w-5 text-primary" aria-hidden="true" />
+                {t("playlistPitch.deadlinesTitle")}
+              </h3>
+              <button
+                onClick={() => setShowDeadlineForm((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                {t("playlistPitch.deadlineAdd")}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-white/50">{t("playlistPitch.deadlinesIntro")}</p>
+
+            {dueNext && (
+              <div className={`mt-4 flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${dueNext.overdue ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-primary/40 bg-primary/10 text-white"}`}>
+                <span className="font-black uppercase tracking-wide text-xs">
+                  {t("playlistPitch.dueNext")}
+                </span>
+                <span className="font-bold">{dueNext.playlistName}</span>
+                {dueNext.curatorName ? <span className="text-white/50">· {dueNext.curatorName}</span> : null}
+                <span className="text-white/60">
+                  {t("playlistPitch.dueOn", { date: new Date(dueNext.deadlineAt).toLocaleDateString() })}
+                </span>
+                {dueNext.overdue && (
+                  <span className="rounded-full border border-red-500/50 bg-red-500/15 px-2.5 py-0.5 text-xs font-bold text-red-300">
+                    {t("playlistPitch.overdue")}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {showDeadlineForm && (
+              <div className="mt-4 rounded-2xl border border-white/10 p-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input
+                    value={newDeadline.playlistName}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, playlistName: e.target.value })}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.playlistNamePlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    value={newDeadline.curatorName}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, curatorName: e.target.value })}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.curatorNamePlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    type="date"
+                    value={newDeadline.deadlineDate}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, deadlineDate: e.target.value })}
+                    className={inputClass}
+                    aria-label={t("playlistPitch.deadlinesTitle")}
+                  />
+                  <select
+                    value={newDeadline.releaseId}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, releaseId: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">{t("playlistPitch.deadlineReleaseNone")}</option>
+                    {releases.map((r) => (
+                      <option key={r.id} value={r.id}>{r.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={addDeadline}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                    {t("playlistPitch.deadlineSave")}
+                  </button>
+                  <button
+                    onClick={() => setShowDeadlineForm(false)}
+                    className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:text-white"
+                  >
+                    {t("playlistPitch.cancel")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3">
+              {deadlinesLoading && (
+                <p className="py-6 text-center text-sm text-white/40">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+                </p>
+              )}
+              {!deadlinesLoading && deadlines.map((d) => {
+                const meta = PLAYLIST_DEADLINE_STATUS_META[d.status] ?? PLAYLIST_DEADLINE_STATUS_META["drafted"]!;
+                const releaseTitle = d.releaseId ? releases.find((r) => r.id === d.releaseId)?.title : undefined;
+                return (
+                  <div key={d.id} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-black text-white">
+                          {d.playlistName}
+                          {d.curatorName ? <span className="font-normal text-white/45"> · {d.curatorName}</span> : null}
+                        </p>
+                        <p className="mt-1 text-sm text-white/55">
+                          {t("playlistPitch.dueOn", { date: new Date(d.deadlineAt).toLocaleDateString() })}
+                          {releaseTitle ? <span className="text-white/35"> · {releaseTitle}</span> : null}
+                          {d.overdue && (
+                            <span className="ml-2 rounded-full border border-red-500/50 bg-red-500/15 px-2 py-0.5 text-[11px] font-bold text-red-300">
+                              {t("playlistPitch.overdue")}
+                            </span>
+                          )}
+                        </p>
+                        {d.notes ? (
+                          <p className="mt-1.5 text-[13px] italic text-white/40">{d.notes}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${meta.cls}`}>
+                          {t(meta.labelKey)}
+                        </span>
+                        <button
+                          onClick={() => deleteDeadline(d.id)}
+                          className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300"
+                          aria-label={t("playlistPitch.deadlineDelete")}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {Object.entries(PLAYLIST_DEADLINE_STATUS_META).map(([key, m]) => (
+                        <button
+                          key={key}
+                          onClick={() => updateDeadlineStatus(d.id, key)}
+                          disabled={d.status === key}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                            d.status === key
+                              ? "cursor-default bg-white/10 text-white/40"
+                              : "border border-white/10 text-white/55 hover:border-primary/50 hover:text-white"
+                          }`}
+                        >
+                          {t("playlistPitch.markStatus", { status: t(m.labelKey).toLowerCase() })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!deadlinesLoading && deadlines.length === 0 && (
+                <p className="py-2 text-sm text-white/45">{t("playlistPitch.deadlineNone")}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Pitch packet from the release record ── */}
+          <div className={`${isLight ? "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
+            <h3 className="inline-flex items-center gap-2 text-lg font-bold">
+              <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
+              {t("playlistPitch.packetTitle")}
+            </h3>
+            <p className="mt-1 text-sm text-white/50">{t("playlistPitch.packetIntro")}</p>
+
+            {releases.length === 0 ? (
+              <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNoReleases")}</p>
+            ) : (
+              <>
+                <select
+                  value={packetReleaseId}
+                  onChange={(e) => {
+                    setPacketReleaseId(e.target.value);
+                    loadPacket(e.target.value);
+                  }}
+                  className={`${inputClass} mt-4`}
+                >
+                  <option value="">{t("playlistPitch.packetReleasePick")}</option>
+                  {releases.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title} — {r.artistName}
+                    </option>
+                  ))}
+                </select>
+
+                {packetLoading && (
+                  <p className="py-8 text-center text-sm text-white/40">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+                  </p>
+                )}
+
+                {!packetLoading && !packet && (
+                  <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNone")}</p>
+                )}
+
+                {!packetLoading && packet && (
+                  <div className="mt-5 space-y-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xl font-black text-white">
+                          {packet.release.title}
+                          <span className="font-normal text-white/45"> — {packet.artist.name}</span>
+                        </p>
+                        <p className="mt-1 text-sm text-white/55">
+                          {packet.artist.followerCount != null && (
+                            <span>{t("playlistPitch.packetFollowers", { count: packet.artist.followerCount })} · </span>
+                          )}
+                          {packet.artist.totalPlays != null && (
+                            <span>{t("playlistPitch.packetPlays", { count: packet.artist.totalPlays })}</span>
+                          )}
+                        </p>
+                        {packet.artist.bio ? (
+                          <p className="mt-2 max-w-xl text-sm text-white/60">{packet.artist.bio}</p>
+                        ) : null}
+                      </div>
+                      <PlaylistCopyButton text={packetAsText(packet)} labelKey="playlistPitch.packetTitle" />
+                    </div>
+
+                    {packet.genre.length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetGenre")}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {packet.genre.map((g) => (
+                            <span key={g} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {packet.description && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetDescription")}
+                        </p>
+                        <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-white/70">{packet.description}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t("playlistPitch.packetLinks")}
+                      </p>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {Object.entries(packet.links.streaming).map(([platform, url]) => (
+                          <p key={platform} className="truncate text-white/70">
+                            <span className="font-semibold capitalize text-white">{platform.replace(/_/g, " ")}</span>
+                            {" — "}
+                            <a href={url} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">{url}</a>
+                          </p>
+                        ))}
+                        {packet.track.audioUrl && (
+                          <p className="truncate text-white/70">
+                            <span className="font-semibold text-white">{t("playlistPitch.packetAudioLabel")}</span>
+                            {" — "}
+                            <a href={packet.track.audioUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">{packet.track.audioUrl}</a>
+                          </p>
+                        )}
+                        {packet.links.profileUrl && (
+                          <p className="truncate text-white/70">
+                            <span className="font-semibold text-white">{t("playlistPitch.packetProfileLabel")}</span>
+                            {" — "}
+                            <span className="text-primary">{packet.links.profileUrl}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        {t("playlistPitch.packetStats")}
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {([
+                          ["packetStatPresaves", packet.stats.presaves],
+                          ["packetStatShares", packet.stats.shares],
+                          ["packetStatViews", packet.stats.linkViews],
+                          ["packetStatClicks", packet.stats.linkClicks],
+                        ] as const).map(([key, val]) => (
+                          <div key={key} className="rounded-2xl border border-white/10 px-4 py-3">
+                            <p className="font-display text-2xl font-black text-primary">{val}</p>
+                            <p className="mt-0.5 text-xs text-white/45">{t(`playlistPitch.${key}`)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(packet.pressAssets.artworkUrl || packet.pressAssets.headline || packet.pressAssets.bonusUrl || packet.pressAssets.bannerUrl || packet.pressAssets.avatarUrl) && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetPressAssets")}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          {packet.pressAssets.artworkUrl && (
+                            <img src={packet.pressAssets.artworkUrl} alt="" className="h-20 w-20 rounded-xl border border-white/10 object-cover" />
+                          )}
+                          {packet.pressAssets.avatarUrl && (
+                            <img src={packet.pressAssets.avatarUrl} alt="" className="h-20 w-20 rounded-full border border-white/10 object-cover" />
+                          )}
+                          {packet.pressAssets.bannerUrl && (
+                            <img src={packet.pressAssets.bannerUrl} alt="" className="h-20 w-36 rounded-xl border border-white/10 object-cover" />
+                          )}
+                        </div>
+                        {packet.pressAssets.headline && (
+                          <p className="mt-2 text-sm italic text-white/60">“{packet.pressAssets.headline}”</p>
+                        )}
+                      </div>
+                    )}
+
+                    {packet.missing.length > 0 && (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] p-4">
+                        <p className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-200">
+                          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                          {t("playlistPitch.packetMissingTitle")}
+                        </p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-100/80">
+                          {packet.missing.map((m) => (
+                            <li key={m}>{t(PACKET_MISSING_LABEL_KEYS[m] ?? m)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex gap-4 text-sm">
               <span className="text-white/50">
