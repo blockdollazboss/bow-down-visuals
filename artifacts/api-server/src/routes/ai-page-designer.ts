@@ -46,7 +46,7 @@ const BANNER_CREDITS = Number(process.env["AI_PAGE_DESIGNER_BANNER_CREDITS"]) ||
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
 const BANNER_BUCKET = "artist-references";
 
-const VERTICALS = [
+export const VERTICALS = [
   "music",
   "video",
   "gaming",
@@ -57,7 +57,7 @@ const VERTICALS = [
   "education",
   "other",
 ] as const;
-type Vertical = (typeof VERTICALS)[number];
+export type Vertical = (typeof VERTICALS)[number];
 
 const verticalSchema = z.enum(VERTICALS);
 
