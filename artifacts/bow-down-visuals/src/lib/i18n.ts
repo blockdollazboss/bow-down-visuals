@@ -3,15 +3,52 @@ import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 
 import en from "../locales/en.json";
-import es from "../locales/es.json";
-import fr from "../locales/fr.json";
-import pt from "../locales/pt.json";
-import de from "../locales/de.json";
-import it from "../locales/it.json";
-import hi from "../locales/hi.json";
-import ar from "../locales/ar.json";
-import ja from "../locales/ja.json";
-import ko from "../locales/ko.json";
+
+/*
+ * First-load performance (Stack-21): only English is bundled into the entry
+ * chunk. The other nine locale catalogs used to be static imports here,
+ * which put ~4.4 MB raw / ~1.44 MB gzip of JSON into the initial bundle
+ * that every visitor on every route had to download and parse before first
+ * paint — even though the detector below only ever activates a non-English
+ * language from an explicit stored choice (first visit is always English).
+ * Each non-English catalog is now a lazily imported chunk, fetched on
+ * demand: once at startup when a stored choice names it, and whenever the
+ * user picks it in the language switcher.
+ */
+const localeLoaders: Record<string, () => Promise<{ default: unknown }>> = {
+  es: () => import("../locales/es.json"),
+  fr: () => import("../locales/fr.json"),
+  pt: () => import("../locales/pt.json"),
+  de: () => import("../locales/de.json"),
+  it: () => import("../locales/it.json"),
+  hi: () => import("../locales/hi.json"),
+  ar: () => import("../locales/ar.json"),
+  ja: () => import("../locales/ja.json"),
+  ko: () => import("../locales/ko.json"),
+};
+
+const loadedLocales = new Set<string>(["en"]);
+
+/**
+ * Fetch a locale's catalog chunk (once) and register it with i18next.
+ * Resolves true when the locale's strings are ready to render.
+ */
+export async function ensureLocaleLoaded(lng: string): Promise<boolean> {
+  const base = lng.split("-")[0];
+  if (loadedLocales.has(base)) return true;
+  const loader = localeLoaders[base];
+  if (!loader) return false;
+  const mod = await loader();
+  i18n.addResourceBundle(base, "translation", mod.default as object, true, true);
+  loadedLocales.add(base);
+  return true;
+}
+
+/** Switch language, loading its catalog chunk first when it isn't bundled. */
+export async function setLanguage(lng: string): Promise<void> {
+  await ensureLocaleLoaded(lng);
+  await i18n.changeLanguage(lng);
+}
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", flag: "🇺🇸" },
@@ -34,15 +71,6 @@ i18n
   .init({
     resources: {
       en: { translation: en },
-      es: { translation: es },
-      fr: { translation: fr },
-      pt: { translation: pt },
-      de: { translation: de },
-      it: { translation: it },
-      hi: { translation: hi },
-      ar: { translation: ar },
-      ja: { translation: ja },
-      ko: { translation: ko },
     },
     fallbackLng: "en",
     defaultNS: "translation",
@@ -62,6 +90,17 @@ i18n
       lookupLocalStorage: "bdv-language",
     },
   });
+
+// A returning visitor's stored choice may name a language whose catalog is
+// no longer bundled. i18next already reports that language as active (its
+// strings resolve through the English fallback for the moment); fetch its
+// chunk now and re-apply so the UI re-renders in the chosen language.
+const detectedLanguage = i18n.language;
+if (detectedLanguage && !loadedLocales.has(detectedLanguage.split("-")[0])) {
+  void ensureLocaleLoaded(detectedLanguage).then((ready) => {
+    if (ready) void i18n.changeLanguage(detectedLanguage);
+  });
+}
 
 // RTL support + document language: update <html lang> and dir on language change
 const RTL_LANGUAGES = new Set(["ar"]);

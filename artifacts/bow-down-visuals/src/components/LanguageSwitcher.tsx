@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Check, ChevronDown } from "lucide-react";
-import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGES, setLanguage, type SupportedLanguage } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 
 export function LanguageSwitcher({ variant = "icon" }: { variant?: "icon" | "full" }) {
@@ -23,7 +23,9 @@ export function LanguageSwitcher({ variant = "icon" }: { variant?: "icon" | "ful
   }, []);
 
   const changeLanguage = (code: SupportedLanguage) => {
-    i18n.changeLanguage(code);
+    // Non-English catalogs load on demand (see lib/i18n) — setLanguage
+    // fetches the chunk first, then switches.
+    void setLanguage(code);
     localStorage.setItem("bdv-language", code);
     setOpen(false);
   };
