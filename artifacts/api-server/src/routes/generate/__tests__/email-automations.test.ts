@@ -1138,3 +1138,102 @@ describe("carrier campaigns are not newsletters", () => {
     expect(direct.reason).toBe("automation_carrier");
   });
 });
+
+/* ── Locale path ─────────────────────────────────────────────────────
+   The server keeps no stored language preference (the web app keeps
+   the choice in the browser), so the request carries the locale:
+   query string on GET, JSON body on PATCH. Provisioning seeds a NEW
+   list's starter copy in that language; labels + trigger notes
+   render per request; stored subject/body is never rewritten. */
+
+describe("locale path", () => {
+  const getWithLocale = async (qs: string) => {
+    const r = await api(`/api/email-list/lists/${listId}/automations${qs}`);
+    expect(r.status).toBe(200);
+    return r.json.automations as Array<Record<string, any>>;
+  };
+  const byKind = (rows: Array<Record<string, any>>, kind: string) =>
+    rows.find((a) => a.kind === kind);
+
+  it("no locale on the request → English, byte-identical", async () => {
+    const rows = await getAutomations();
+    const pp = byKind(rows, "post_purchase");
+    expect(pp.label).toBe("Post-purchase thank-you");
+    expect(pp.triggerNote).toBe(
+      "Fires once per completed purchase — a sale in your shop (one email per checkout, however many items) or a paid download. Only confirmed paid sales count.",
+    );
+    expect(pp.subject).toBe("Thank you for your purchase!");
+    expect(pp.body).toBe(
+      "Hi there,\n\nThank you for buying from my shop — it means a lot, and it directly helps me keep creating.\n\nIf anything about your order needs attention, just reply to this email.\n\nMore is on the way — stay close.",
+    );
+    const row = await automationRow("post_purchase");
+    expect(row.subject).toBe("Thank you for your purchase!");
+  });
+
+  it("GET ?locale=es provisions Spanish starter copy and renders Spanish labels + notes", async () => {
+    const rows = await getWithLocale("?locale=es");
+    const pp = byKind(rows, "post_purchase");
+    expect(pp.label).toBe("Agradecimiento poscompra");
+    expect(pp.triggerNote).toBe(
+      "Se activa una vez por cada compra completada: una venta en tu tienda (un correo por pago, sin importar cuántos artículos) o una descarga pagada. Solo cuentan las ventas confirmadas como pagadas.",
+    );
+    expect(pp.subject).toBe("¡Gracias por tu compra!");
+    const row = await automationRow("post_purchase");
+    expect(row.subject).toBe("¡Gracias por tu compra!");
+    expect(row.body).toContain("Gracias por comprar en mi tienda");
+    const ac = await automationRow("abandoned_checkout");
+    expect(ac.subject).toBe("Dejaste algo olvidado");
+  });
+
+  it("regional + unknown locales resolve: pt-BR → pt, xx → English", async () => {
+    const pt = await getWithLocale("?locale=pt-BR");
+    expect(byKind(pt, "post_purchase").label).toBe("Agradecimento pós-compra");
+    const xx = await getWithLocale("?locale=xx");
+    expect(byKind(xx, "post_purchase").label).toBe("Post-purchase thank-you");
+  });
+
+  it("an already-provisioned list is never re-seeded — stored copy stays, labels follow the request", async () => {
+    await getAutomations(); /* provision in English */
+    const fr = await getWithLocale("?locale=fr");
+    const pp = byKind(fr, "post_purchase");
+    expect(pp.label).toBe("Remerciement après achat");
+    expect(pp.subject).toBe("Thank you for your purchase!");
+    const row = await automationRow("post_purchase");
+    expect(row.subject).toBe("Thank you for your purchase!");
+
+    /* …and the mirror image: a Spanish-provisioned list read without
+       a locale keeps its Spanish stored copy under English labels. */
+    const [other] = await db
+      .insert(emailListsTable)
+      .values({ userId: OWNER, name: "Lista", handle: `lista-${randomUUID().slice(0, 8)}` })
+      .returning();
+    const r = await api(`/api/email-list/lists/${other.id}/automations?locale=es`);
+    expect(r.status).toBe(200);
+    const plain = await api(`/api/email-list/lists/${other.id}/automations`);
+    const ppEs = byKind(plain.json.automations, "post_purchase");
+    expect(ppEs.label).toBe("Post-purchase thank-you");
+    expect(ppEs.subject).toBe("¡Gracias por tu compra!");
+  });
+
+  it("PATCH carrying a body locale provisions defaults in that locale", async () => {
+    const r = await patch(`/api/email-list/lists/${listId}/automations/post_purchase`, {
+      enabled: true,
+      locale: "de",
+    });
+    expect(r.status).toBe(200);
+    expect(r.json.automation.label).toBe("Dankeschön nach dem Kauf");
+    expect(r.json.automation.subject).toBe("Danke für deinen Kauf!");
+    const ac = await automationRow("abandoned_checkout");
+    expect(ac.subject).toBe("Du hast etwas liegen lassen");
+  });
+
+  it("PATCH without a locale behaves exactly as before (English labels, stored copy untouched)", async () => {
+    await getWithLocale("?locale=ja"); /* provision in Japanese */
+    const r = await patch(`/api/email-list/lists/${listId}/automations/membership_winback`, {
+      enabled: true,
+    });
+    expect(r.status).toBe(200);
+    expect(r.json.automation.label).toBe("Membership winback");
+    expect(r.json.automation.subject).toBe("おかえりなさい — メンバーシップが待っています");
+  });
+});
