@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { freeAiLimiter } from "../../lib/rate-limit";
+import { composeLookContextText, sceneLookPicksSchema } from "../../lib/scene-look";
 
 const router = Router();
 
@@ -18,6 +19,8 @@ const improvePromptSchema = z.object({
       cameraMovement: z.string().optional(),
       lighting: z.string().optional(),
       mood: z.string().optional(),
+      /** Director's Look Rails picks (lib/scene-look.ts) — woven in below. */
+      look: sceneLookPicksSchema.optional(),
     })
     .optional(),
   artistVault: z
@@ -66,6 +69,13 @@ router.post("/improve-prompt", requireAuth, freeAiLimiter, async (req, res) => {
   if (sceneContext?.cameraMovement) contextLines.push(`Camera: ${sceneContext.cameraMovement}`);
   if (sceneContext?.lighting)       contextLines.push(`Lighting: ${sceneContext.lighting}`);
   if (sceneContext?.mood)           contextLines.push(`Mood: ${sceneContext.mood}`);
+  /* Director's Look Rails: only the picks that survive free-text
+     precedence + dedupe are named — overridden picks are already covered
+     by the creator's own Lighting/Mood lines above. */
+  const lookText = sceneContext?.look
+    ? composeLookContextText({ ...sceneContext, look: sceneContext.look })
+    : "";
+  if (lookText)                     contextLines.push(`Director's Look: ${lookText}`);
   if (videoStyle)                   contextLines.push(`Music Video Style: ${videoStyle}`);
   if (platform)                     contextLines.push(`Platform Format: ${platform}`);
 

@@ -1,3 +1,5 @@
+import type { SceneLookPicks } from "@/lib/scene-look";
+
 export interface SceneData {
   id: string;
   sceneNumber: number;
@@ -34,6 +36,11 @@ export interface SceneData {
   /** Image URL of the location picked from the user's Locations library
    *  (visual reference for the scene's setting; label goes in `location`). */
   locationImageUrl?: string | null;
+  /** Director's Look Rails picks (lib/scene-look.ts) — structured genre /
+   *  era / lens / lighting / emotion keys woven into the generation prompt
+   *  by the shared composer. Persists with the scene like every other
+   *  scene field; absent on scenes saved before the rails existed. */
+  look?: SceneLookPicks;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */

@@ -17,6 +17,8 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
+import { composeScenePrompt } from "@/lib/scene-look";
+import { LookRailsPanel } from "@/components/SceneStudio/LookRailsPanel";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 /* ─── Section color badges ──────────────────────────────────── */
@@ -379,12 +381,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createAllTrigger]);
 
-  /* Build the final prompt that will actually be sent to Runway */
+  /* Build the final prompt that will actually be sent to Runway.
+     The base + Director's Look Rails weave live in the ONE shared composer
+     (lib/scene-look.ts) — byte-identical to the old inline build when no
+     look pick applies. */
   function buildFinalPrompt(): string {
-    const basePrompt = (scene.aiVideoPrompt ?? "").trim() ||
-      [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
-        .filter(Boolean).join(", ") ||
-      "cinematic music video scene, dramatic lighting, luxury aesthetic";
+    const basePrompt = composeScenePrompt(scene);
 
     if (artistVault) {
       const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null, sceneCoStarsWithLinks);
@@ -1365,6 +1367,10 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                   </div>
                 )}
               </div>
+
+              {/* Director's Look Rails — structured genre/era/lens/lighting/
+                  emotion picks beside the free-text fields above */}
+              <LookRailsPanel scene={scene} onPick={handleUpdate} />
 
               {/* AI Video Prompt */}
               <div className="space-y-2">
