@@ -28,12 +28,16 @@
  *                       Stripe Connect uses).
  *   abandoned_checkout  shop_events 'pending_sale' rows whose
  *                       checkout group / Stripe session never flipped
- *                       to 'sale'. Only the shop card checkout
- *                       writes pending rows (migration 0144), so
- *                       checkouts started anywhere else are invisible
- *                       to this trigger — the UI copy says exactly
- *                       that. Pending rows without a buyer email are
- *                       not actionable (no address was collected).
+ *                       to 'sale' (the shop card checkout writes
+ *                       pending rows, migration 0144); PLUS
+ *                       abandoned_checkouts rows (migration 0204) —
+ *                       the store + storefront card checkouts write
+ *                       nothing at start, so the central Stripe
+ *                       webhook files their checkout.session.expired
+ *                       events there instead, the buyer address
+ *                       resolved through the auth rail like digital
+ *                       sales. Pending rows without a buyer email
+ *                       are not actionable (no address was collected).
  *   membership_winback  fan_members rows in canceled / expired.
  *                       Address from fan_user_id via the auth rail,
  *                       or the fan_label when the creator recorded
@@ -72,7 +76,9 @@ import {
   fanMembersTable,
   shopEventsTable,
   shopsTable,
+  abandonedCheckoutsTable,
   EMAIL_AUTOMATION_KINDS,
+  type AbandonedCheckoutRail,
   type EmailAutomation,
   type EmailAutomationKind,
   type EmailCampaign,
@@ -120,7 +126,7 @@ export const AUTOMATION_TRIGGER_NOTES: Record<EmailAutomationKind, string> = {
   post_purchase:
     "Fires once per completed purchase — a sale in your shop (one email per checkout, however many items) or a paid download. Only confirmed paid sales count.",
   abandoned_checkout:
-    "Fires when a shop checkout starts but never pays. Only checkouts that begin in your shop are visible to this trigger — checkouts started anywhere else can't be seen, so they never fire this email.",
+    "Fires when a checkout is started but left unpaid until it closes — a shop checkout that never pays, or a checkout in your store or on your profile that expires unpaid (an unpaid checkout closes about a day after it starts). One email per checkout.",
   membership_winback:
     "Fires when a fan's membership is canceled or expires. The fan is emailed at the address on their account, or the email you recorded for them.",
 };
@@ -228,6 +234,88 @@ export async function automationDto(automation: EmailAutomation): Promise<Automa
   };
 }
 
+/* ── Abandoned-checkout recording (the webhook's half) ──────────────── */
+
+/** The slice of a Stripe Checkout Session this rail reads. The
+ *  central webhook passes the real session object; tests pass plain
+ *  fixtures in the same shape. */
+export interface ExpiredCheckoutSessionLike {
+  id: string;
+  payment_status?: string | null;
+  amount_total?: number | null;
+  metadata?: Record<string, string> | null;
+}
+
+export interface AbandonedCheckoutClassification {
+  rail: AbandonedCheckoutRail;
+  profileId: string;
+  buyerUserId: string;
+  itemRef: string | null;
+}
+
+/** Which creator-goods rail an expired session belonged to — or null
+ *  when the session isn't a store / storefront checkout this trigger
+ *  covers. Identification is positive, from the metadata the two
+ *  checkout routes stamp:
+ *    storefront  metadata.type === "storefront_purchase"
+ *    store       no type/kind marker, but buyer_user_id + profile_id
+ *                + item_kind + item_id (the digital store's exact set)
+ *  Marketplace sessions (type "marketplace_shop_purchase") classify
+ *  null on purpose: the shop pending rows already see them, and a
+ *  second record would double-fire the fan. A session Stripe reports
+ *  as paid classifies null too — an expiry event for a paid session
+ *  would be a contradiction, and contradictions record nothing. */
+export function classifyExpiredCheckout(
+  session: ExpiredCheckoutSessionLike,
+): AbandonedCheckoutClassification | null {
+  if (!session.id) return null;
+  if (session.payment_status === "paid") return null;
+  const md = session.metadata ?? {};
+  const buyerUserId = md["buyer_user_id"];
+  const profileId = md["profile_id"];
+  if (!buyerUserId || !profileId) return null;
+  if (md["type"] === "storefront_purchase") {
+    return { rail: "storefront", profileId, buyerUserId, itemRef: md["product_id"] || null };
+  }
+  if (!md["type"] && !md["kind"] && md["item_kind"] && md["item_id"]) {
+    return { rail: "store", profileId, buyerUserId, itemRef: `${md["item_kind"]}:${md["item_id"]}` };
+  }
+  return null;
+}
+
+/** File one expired store / storefront checkout for the
+ *  abandoned_checkout trigger (migration 0204). Returns true when a
+ *  new record landed. Idempotent per session: the unique
+ *  stripe_session_id + ON CONFLICT DO NOTHING mean a replayed webhook
+ *  records nothing twice — and even a duplicate record could not
+ *  double-send, since the runner's claim ledger dedupes per trigger
+ *  ref. Sessions that don't classify record nothing. */
+export async function recordAbandonedStripeCheckout(
+  session: ExpiredCheckoutSessionLike,
+): Promise<boolean> {
+  const classified = classifyExpiredCheckout(session);
+  if (!classified) return false;
+  const [row] = await db
+    .insert(abandonedCheckoutsTable)
+    .values({
+      stripeSessionId: session.id,
+      rail: classified.rail,
+      profileId: classified.profileId,
+      buyerUserId: classified.buyerUserId,
+      itemRef: classified.itemRef,
+      amountCents: typeof session.amount_total === "number" ? session.amount_total : null,
+    })
+    .onConflictDoNothing()
+    .returning();
+  if (row) {
+    logger.info(
+      { sessionId: session.id, rail: classified.rail, profileId: classified.profileId },
+      "[email-automations] abandoned checkout recorded",
+    );
+  }
+  return !!row;
+}
+
 /* ── Trigger collection ─────────────────────────────────────────────── */
 
 export interface AutomationTrigger {
@@ -324,7 +412,7 @@ async function collectDigitalSaleTriggers(
 
 /** Pending shop checkouts that never paid. A group counts as paid
  *  when any 'sale' row shares its checkout group or Stripe session. */
-async function collectAbandonedTriggers(ownerUserId: string): Promise<AutomationTrigger[]> {
+async function collectShopAbandonedTriggers(ownerUserId: string): Promise<AutomationTrigger[]> {
   const shops = await db.select().from(shopsTable).where(eq(shopsTable.user_id, ownerUserId));
   if (shops.length === 0) return [];
   const shopIds = shops.map((s) => s.id);
@@ -359,6 +447,59 @@ async function collectAbandonedTriggers(ownerUserId: string): Promise<Automation
   return [...groups.entries()]
     .filter(([, g]) => !g.paid && g.email != null)
     .map(([key, g]) => ({ ref: `checkout:${key}`, email: g.email!, eventAt: g.eventAt }));
+}
+
+/** Store + storefront checkouts that expired unpaid, filed by the
+ *  Stripe webhook (migration 0204). The buyer's address resolves
+ *  through the auth rail like a digital sale's; an unresolvable buyer
+ *  is not actionable. The event moment is when the expiry landed —
+ *  the enabled-at and delay gates measure from the abandonment, not
+ *  from when the fan first opened the checkout. */
+async function collectStripeAbandonedTriggers(
+  ownerUserId: string,
+  deps: AutomationDeps,
+): Promise<AutomationTrigger[]> {
+  const profiles = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, ownerUserId));
+  if (profiles.length === 0) return [];
+  const records = await db
+    .select()
+    .from(abandonedCheckoutsTable)
+    .where(inArray(abandonedCheckoutsTable.profileId, profiles.map((p) => p.id)));
+  const out: AutomationTrigger[] = [];
+  const emailByUser = new Map<string, string | null>();
+  for (const rec of records) {
+    if (!emailByUser.has(rec.buyerUserId)) {
+      const resolved = await deps.resolveUserEmail(rec.buyerUserId);
+      emailByUser.set(rec.buyerUserId, resolved ? lower(resolved) : null);
+    }
+    const email = emailByUser.get(rec.buyerUserId);
+    if (!email) continue;
+    out.push({
+      ref: `stripe_checkout:${rec.stripeSessionId}`,
+      email,
+      eventAt: rec.createdAt ? new Date(rec.createdAt) : new Date(0),
+    });
+  }
+  return out;
+}
+
+/** Every abandoned checkout the house can honestly see: shop pending
+ *  rows that never paid, plus the webhook-filed store / storefront
+ *  expiries. The two sources can never describe the same checkout —
+ *  the recorder refuses marketplace sessions precisely because the
+ *  pending rows already cover them. */
+async function collectAbandonedTriggers(
+  ownerUserId: string,
+  deps: AutomationDeps,
+): Promise<AutomationTrigger[]> {
+  const [shop, stripe] = await Promise.all([
+    collectShopAbandonedTriggers(ownerUserId),
+    collectStripeAbandonedTriggers(ownerUserId, deps),
+  ]);
+  return [...shop, ...stripe];
 }
 
 /** Lapsed memberships (canceled / expired) owned by the creator. */
@@ -409,7 +550,7 @@ async function collectTriggers(
       return [...shop, ...digital];
     }
     case "abandoned_checkout":
-      return collectAbandonedTriggers(ownerUserId);
+      return collectAbandonedTriggers(ownerUserId, deps);
     case "membership_winback":
       return collectWinbackTriggers(ownerUserId, deps);
     default:
