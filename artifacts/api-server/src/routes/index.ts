@@ -132,6 +132,7 @@ import emailListRouter from "./generate/email-list";
 import liveShoppingRouter from "./live-shopping";
 import liveStreamsRouter from "./live-streams";
 import liveChatRouter from "./live-chat";
+import liveGuestsRouter from "./live-guests";
 import pushRouter from "./push";
 import liveTipsRouter from "./live-tips";
 import liveModeratorsRouter from "./live-moderators";
@@ -480,6 +481,7 @@ router.use(emailListRouter);
 router.use(liveShoppingRouter);
 router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broadcasts)
 router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat + moderation)
+router.use(liveGuestsRouter);               // /api/live-streams/:id/guest-invites + /api/live-guest/* (guest invites + backstage)
 router.use(pushRouter);                      // /api/push/* (web-push subscriptions)
 router.use(liveTipsRouter);                  // /api/live/:id/tips (stream tips + paid pins)
 router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role

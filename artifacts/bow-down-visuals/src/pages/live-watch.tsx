@@ -9,6 +9,7 @@ import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 import PartyTableSection from "@/components/artist/PartyTableSection";
+import { publicOnStageGuests } from "@/lib/go-live/guest-api";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
    Playback is WebRTC (WHEP) where the transport offers it; streams from
@@ -34,6 +35,46 @@ interface LiveStreamDto {
 
 type LoadState = "loading" | "ready" | "error" | "notfound";
 type PlayState = "idle" | "connecting" | "playing" | "failed";
+
+/* Who's on stage with the host (guest invites, 0198). The public
+   roster endpoint only ever names ON-STAGE guests — backstage stays
+   invisible to the audience, here as everywhere. Labeled "Guest"
+   because that's what they are. */
+function OnStageGuests({ streamId }: { streamId: string }) {
+  const [names, setNames] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await publicOnStageGuests(streamId);
+        if (!cancelled) setNames(data.on_stage.map((g) => g.display_name));
+      } catch {
+        /* best-effort chips */
+      }
+    };
+    void load();
+    const id = setInterval(load, 20_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [streamId]);
+  if (names.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="on-stage-guests">
+      <span className="text-xs font-bold uppercase tracking-wider text-white/40">On stage</span>
+      {names.map((name) => (
+        <span
+          key={name}
+          className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-200"
+        >
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+          {name} · Guest
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function LiveWatch() {
   const [, params] = useRoute("/live/:id");
@@ -322,6 +363,7 @@ export default function LiveWatch() {
             </div>
           )}
         </div>
+        {isLive && <OnStageGuests streamId={stream.id} />}
         {/* A party table homed to THIS stream stands at the stream
             (program 2.25) — the host's table, opened from in-world
             through the same summons door as the profile and the

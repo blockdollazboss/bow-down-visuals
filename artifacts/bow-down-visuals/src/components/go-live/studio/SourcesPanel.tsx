@@ -38,6 +38,8 @@ import {
 } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters, type VaultCharacter } from "@/lib/world/characters";
 import { useAuth } from "@/contexts/AuthContext";
+import { guestFeeds } from "@/lib/go-live/guest-feeds";
+import { attachGuestAudio } from "@/lib/go-live/studio-bridge";
 import StreamPackTray from "@/components/go-live/studio/StreamPackTray";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildSourceContextItems } from "@/lib/studio-context-menu";
@@ -72,6 +74,14 @@ export default function SourcesPanel({
 }) {
   const scene = stage.previewScene();
   const { getAccessToken } = useAuth();
+  /* On-stage guests (0198) for the quick-add chips + the guest
+     source's binding picker — the roster lives in guestFeeds. */
+  const [, setFeedsVersion] = useState(0);
+  useEffect(() => guestFeeds.subscribe(() => setFeedsVersion((v) => v + 1)), []);
+  const onStageGuests = guestFeeds.onStage();
+  const guestsInScene = new Set(
+    scene.sources.filter((s) => s.type === "guest" && s.guest?.sessionId).map((s) => s.guest!.sessionId),
+  );
   const [menu, setMenu] = useState<{ x: number; y: number; sourceId: string } | null>(null);
   const [addType, setAddType] = useState<SourceType>("text");
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -178,6 +188,35 @@ export default function SourcesPanel({
           <Plus className="h-3 w-3" /> Add
         </button>
       </div>
+
+      {onStageGuests.filter((g) => !guestsInScene.has(g.sessionId)).length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className={`text-[11px] font-semibold uppercase tracking-wide ${label}`}>On stage now:</span>
+          {onStageGuests
+            .filter((g) => !guestsInScene.has(g.sessionId))
+            .map((g) => (
+              <button
+                key={g.sessionId}
+                type="button"
+                onClick={() => {
+                  const created = stage.addSource(scene.id, "guest");
+                  if (!created) return;
+                  stage.updateSource(scene.id, created.id, {
+                    name: g.name,
+                    guest: { sessionId: g.sessionId, name: g.name },
+                  });
+                  attachGuestAudio(g.sessionId, guestFeeds.streamFor(g.sessionId));
+                  onSelect(created.id);
+                  onNotify(`${g.name} (Guest) added to ${scene.name} — they'll be on air when this scene is Program.`);
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-red-400/50 px-2 py-1 text-[11px] font-semibold text-red-500 transition hover:bg-red-500/10"
+                data-testid={`btn-add-guest-source-${g.sessionId}`}
+              >
+                <Plus className="h-3 w-3" /> {g.name} · Guest
+              </button>
+            ))}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         {frontFirst.length === 0 && (
@@ -614,6 +653,37 @@ export default function SourcesPanel({
               <p className={`text-[11px] leading-snug ${label}`}>
                 The browser asks which screen or window to share. If you share a tab or window with sound, its audio
                 joins the mixer.
+              </p>
+            </div>
+          )}
+
+          {selected.type === "guest" && (
+            <div className="space-y-1.5">
+              <label className="block">
+                <span className={`text-[11px] font-semibold uppercase tracking-wide ${label}`}>Guest on this tile</span>
+                <select
+                  value={selected.guest?.sessionId ?? ""}
+                  onChange={(e) => {
+                    const feed = guestFeeds.get(e.target.value);
+                    if (!feed) return;
+                    update(selected, { name: feed.name, guest: { sessionId: feed.sessionId, name: feed.name } });
+                    attachGuestAudio(feed.sessionId, guestFeeds.streamFor(feed.sessionId));
+                  }}
+                  className={`${inputCls} mt-1`}
+                  data-testid="select-guest-binding"
+                >
+                  <option value="">— pick an on-stage guest —</option>
+                  {onStageGuests.map((g) => (
+                    <option key={g.sessionId} value={g.sessionId}>
+                      {g.name} · Guest
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className={`text-[11px] leading-snug ${label}`}>
+                This tile shows the guest's live backstage feed and their voice joins the program mix. Guests are
+                managed — invited, promoted, removed — in Guests &amp; backstage below the studio; taking a guest
+                off stage removes their tile from every scene.
               </p>
             </div>
           )}

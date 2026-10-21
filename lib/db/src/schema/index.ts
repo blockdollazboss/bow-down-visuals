@@ -60,6 +60,7 @@ export * from "./press-kits";
 export * from "./live-shopping";
 export * from "./live-streams";
 export * from "./live-chat";
+export * from "./live-guests";
 export * from "./live-alive";
 export * from "./scheduled-posts";
 export * from "./merch";

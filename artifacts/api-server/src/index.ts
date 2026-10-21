@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
+import { registerLiveBackstageWs } from "./routes/live-guests";
 import { registerLiveControlWs } from "./routes/live-control";
 import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler } from "./routes/world";
 import { startOperatorDuties } from "./lib/operator-duties";
@@ -98,6 +99,7 @@ const server = app.listen(port, (err) => {
    authed — see lib/live-ws.ts. */
 const wsGateway = new LiveWsGateway();
 registerLiveChatWs(wsGateway);
+registerLiveBackstageWs(wsGateway);
 registerLiveControlWs(wsGateway);
 const worldPalace = registerWorldWs(wsGateway);
 /* The palace calendar (World Events, 0145): due stage shows,

@@ -75,6 +75,12 @@ export class SourcePool {
   screenStream: MediaStream | null = null;
   screenEnded = false;
 
+  /* Guest sources (Go Live guests, 0198): the live video element for
+     an on-stage guest's WebRTC feed, resolved by guest session id.
+     Wired by the studio to the backstage mesh's feed registry; the
+     default keeps guest tiles at their honest placeholder. */
+  guestVideoFor: (sessionId: string) => HTMLVideoElement | null = () => null;
+
   private _images = new Map<string, ImageEntry>();
   private _media = new Map<string, MediaEntry>();
   private _keyCanvas: HTMLCanvasElement | null = null;
@@ -333,6 +339,16 @@ function drawSource(
       }
       if (pool.screenEnded) {
         placeholder(ctx, dest, source.name, "Screen share ended");
+        return;
+      }
+      drawFit(ctx, video, video.videoWidth, video.videoHeight, dest, source.fit);
+      return;
+    }
+    case "guest": {
+      const sessionId = source.guest?.sessionId ?? "";
+      const video = sessionId ? pool.guestVideoFor(sessionId) : null;
+      if (!video || video.readyState < 2 || !video.videoWidth) {
+        placeholder(ctx, dest, source.name, sessionId ? "Guest is connecting…" : "No guest assigned yet");
         return;
       }
       drawFit(ctx, video, video.videoWidth, video.videoHeight, dest, source.fit);
