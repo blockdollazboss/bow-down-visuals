@@ -170,7 +170,7 @@ function loadJsZip(): Promise<any> {
 
 export default function WebsiteBuilder() {
   const isLight = useIsLightTheme();
-  usePageTitle("Website Builder", "Describe the site you want and the AI builds it — preview it privately, then export your website package.");
+  usePageTitle("Website Builder", "Describe the site you want and the AI builds it — preview it privately, then export your website package. Every build is saved as a project with its versions kept, so you can reopen it anytime and pick up where you left off.");
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
