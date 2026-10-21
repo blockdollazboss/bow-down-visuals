@@ -41,6 +41,12 @@ interface ClipRow {
 const testState = vi.hoisted(() => ({
   userId: "",
   rows: new Map<string, ClipRow>(),
+  /* D3 wiring controls: make the clip insert fail, and script what the
+     durable-obligation refund answers. */
+  failInsert: false,
+  obligationRefund: { refunded: false, credits: 0, source: null as string | null },
+  deliveredMarks: [] as string[],
+  saveFailureCalls: [] as Array<{ taskId: string; opts: any }>,
 }));
 
 const dialect = new PgDialect();
@@ -73,6 +79,7 @@ function buildFakeDb() {
     insert: (_table: unknown) => ({
       values: (v: Omit<ClipRow, "id" | "created_at">) => ({
         returning: async (_sel: unknown) => {
+          if (testState.failInsert) throw new Error("insert exploded");
           const row: ClipRow = {
             id: randomUUID(),
             created_at: new Date(),
@@ -128,6 +135,20 @@ vi.mock("../../lib/credits", () => ({
   refundCredits: vi.fn(async () => {}),
 }));
 
+vi.mock("../../lib/clip-charge-obligations", () => ({
+  /* The durable layer's own behavior (claims, sweeps, restart) is
+     proven in lib/__tests__/clip-charge-obligations.test.ts; here we
+     pin only the route's wiring to it. */
+  markClipChargeDelivered: vi.fn(async (taskId: string) => {
+    testState.deliveredMarks.push(taskId);
+    return true;
+  }),
+  refundClipChargeOnSaveFailure: vi.fn(async (taskId: string, opts: any) => {
+    testState.saveFailureCalls.push({ taskId, opts });
+    return testState.obligationRefund;
+  }),
+}));
+
 vi.mock("../generate/runway-clip", () => ({
   chargedTasks: new Map<string, unknown>(),
 }));
@@ -149,6 +170,7 @@ vi.mock("../../lib/supabase-admin", () => ({
 }));
 
 import router from "../generated-clips";
+import { chargedTasks } from "../generate/runway-clip";
 
 const USER_A = randomUUID();
 const USER_B = randomUUID();
@@ -179,6 +201,11 @@ afterAll(async () => {
 beforeEach(() => {
   testState.userId = USER_A;
   testState.rows = new Map();
+  testState.failInsert = false;
+  testState.obligationRefund = { refunded: false, credits: 0, source: null };
+  testState.deliveredMarks = [];
+  testState.saveFailureCalls = [];
+  chargedTasks.clear();
 });
 
 function seedClip(userId: string, overrides: Partial<ClipRow> = {}): ClipRow {
@@ -237,6 +264,84 @@ describe("POST /generated-clips", () => {
     const stored = testState.rows.get(data.id);
     expect(stored?.user_id).toBe(USER_A);
     expect(stored?.title).toBe("My new clip");
+  });
+});
+
+describe("POST /generated-clips — durable charge obligation (D3)", () => {
+  it("a successful save marks the obligation delivered for the task", async () => {
+    const res = await realFetch(`${baseUrl}/generated-clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Charged clip",
+        videoUrl: "https://cdn.example.com/charged.mp4",
+        runwayJobId: "task-abc",
+        status: "completed",
+      }),
+    });
+    expect(res.status).toBe(201);
+    expect(testState.deliveredMarks).toEqual(["task-abc"]);
+    expect(testState.saveFailureCalls).toEqual([]);
+  });
+
+  it("a failed save refunds through the durable obligation — no in-memory entry needed", async () => {
+    /* The restart case at the route level: chargedTasks is EMPTY (the
+       process restarted after the charge), yet the durable obligation
+       still carries the refund. */
+    testState.failInsert = true;
+    testState.obligationRefund = { refunded: true, credits: 400, source: "durable" };
+    const res = await realFetch(`${baseUrl}/generated-clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Doomed clip",
+        videoUrl: "https://cdn.example.com/doomed.mp4",
+        runwayJobId: "task-restarted",
+        status: "completed",
+      }),
+    });
+    expect(res.status).toBe(500);
+    const data = (await res.json()) as { creditsRefunded?: number; creditMessage?: string };
+    expect(data.creditsRefunded).toBe(400);
+    expect(data.creditMessage).toContain("were refunded");
+    expect(testState.saveFailureCalls).toHaveLength(1);
+    expect(testState.saveFailureCalls[0]?.taskId).toBe("task-restarted");
+    expect(testState.saveFailureCalls[0]?.opts.userId).toBe(USER_A);
+    expect(testState.saveFailureCalls[0]?.opts.memoryCharge).toBeNull();
+  });
+
+  it("a failed save passes the in-memory entry through as the fallback", async () => {
+    testState.failInsert = true;
+    const mem = { userId: USER_A, credits: 400, refunded: false };
+    (chargedTasks as Map<string, unknown>).set("task-live", mem);
+    testState.obligationRefund = { refunded: true, credits: 400, source: "memory" };
+    const res = await realFetch(`${baseUrl}/generated-clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoUrl: "https://cdn.example.com/live.mp4",
+        runwayJobId: "task-live",
+      }),
+    });
+    expect(res.status).toBe(500);
+    expect(testState.saveFailureCalls[0]?.opts.memoryCharge).toBe(mem);
+  });
+
+  it("a failed save with nothing charged answers honestly — no refund claimed", async () => {
+    testState.failInsert = true;
+    testState.obligationRefund = { refunded: false, credits: 0, source: null };
+    const res = await realFetch(`${baseUrl}/generated-clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoUrl: "https://cdn.example.com/free.mp4",
+        runwayJobId: "task-uncharged",
+      }),
+    });
+    expect(res.status).toBe(500);
+    const data = (await res.json()) as { creditsRefunded?: number; creditMessage?: string };
+    expect(data.creditsRefunded).toBeUndefined();
+    expect(data.creditMessage).toContain("No Visual Bucs were charged");
   });
 });
 

@@ -19,6 +19,7 @@ import {
   parseSupabaseStorageRef,
 } from "../../lib/objectStorage";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import { recordClipCharge } from "../../lib/clip-charge-obligations";
 import {
   GEN45_CREDIT_COST,
   SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT,
@@ -70,8 +71,35 @@ const pendingTasks = new Map<string, { userId: string; projectId: string | null;
  * if the subsequent DB save fails.
  * Key: Runway taskId  Value: { userId, credits, refunded }
  * Auto-expires after 1 hour to prevent unbounded memory growth.
+ *
+ * D3 (migration 0183): this map is now only the FAST PATH. Every charge
+ * also writes a durable clip_charge_obligations row at charge time —
+ * that row is the source of truth, so a server restart between the
+ * charge and the save no longer loses the refund (the stale sweeper
+ * in lib/clip-charge-obligations.ts resolves orphaned rows).
  */
 export const chargedTasks = new Map<string, { userId: string; credits: number; refunded: boolean }>();
+
+/* Write the durable charge→refund obligation for a charge that just
+   landed. A failed record must never break clip delivery — it is
+   logged CRITICAL and the in-memory entry above remains the fallback
+   (the pre-D3 behavior for this one task). */
+async function recordDurableClipCharge(
+  log: Request["log"],
+  taskId: string,
+  userId: string,
+  credits: number,
+  projectId: string | null,
+): Promise<void> {
+  try {
+    await recordClipCharge({ taskId, userId, credits, projectId });
+  } catch (err) {
+    log.error(
+      { err, taskId, userId, credits },
+      "[runway-clip] CRITICAL: durable clip-charge record failed — refund protection is in-memory only for this task",
+    );
+  }
+}
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -621,6 +649,7 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
             req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: cost }, "[runway-clip] Veo 3.1 credits deducted");
             chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
             setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000);
+            await recordDurableClipCharge(req.log, taskId, req.userId!, cost, pending.projectId ?? null);
           } catch (err) {
             if (err instanceof LedgerWriteError) {
               req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after Veo deduction");
@@ -715,6 +744,7 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
           /* Track for possible refund if the subsequent save fails */
           chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
           setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
+          await recordDurableClipCharge(req.log, taskId, req.userId!, cost, projectId);
         } catch (err) {
           if (err instanceof LedgerWriteError) {
             req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after deduction — clip delivered, charge has no ledger trace");

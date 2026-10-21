@@ -12,6 +12,7 @@ import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
+import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog } from "./lib/memory-watchdog";
 
@@ -50,6 +51,13 @@ const server = app.listen(port, (err) => {
   // (deploy/restart/crash): fails them and refunds the deducted credits.
   // Runs once shortly after boot, then on SOCIAL_SWEEP_INTERVAL_MS.
   startPublishAttemptSweeper();
+
+  // Resolve durable clip-charge obligations orphaned by a previous
+  // process (payments D3): a charged Runway/Veo clip whose save never
+  // landed gets refunded exactly once; a landed clip's bookkeeping is
+  // completed instead. Runs once shortly after boot, then on
+  // CLIP_CHARGE_SWEEP_INTERVAL_MS.
+  startClipChargeSweeper();
 
   // Server-owned background poller: drives lip-sync jobs through Sync.so's
   // long runs and raises exactly-once completion notifications — no tab needed.

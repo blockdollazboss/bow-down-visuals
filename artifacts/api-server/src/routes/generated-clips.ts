@@ -5,7 +5,10 @@ import { db, generatedClipsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { recordRunwayClipHistory } from "../lib/payment-record";
-import { refundCredits } from "../lib/credits";
+import {
+  markClipChargeDelivered,
+  refundClipChargeOnSaveFailure,
+} from "../lib/clip-charge-obligations";
 import { chargedTasks } from "./generate/runway-clip";
 import { refreshSupabaseStorageUrl, normalizeToStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -81,6 +84,18 @@ const saveGeneratedClipHandler = async (req: Request, res: Response) => {
     /* ── Clean up chargedTasks entry (save succeeded — no refund needed) ── */
     if (d.runwayJobId) {
       chargedTasks.delete(d.runwayJobId);
+      /* D3: close the durable obligation too. If this mark is lost, the
+         stale sweeper finds the landed clip row and completes the
+         bookkeeping without refunding — so a mark failure is logged,
+         never fatal to the save. */
+      try {
+        await markClipChargeDelivered(d.runwayJobId);
+      } catch (markErr) {
+        req.log.error(
+          { err: markErr, taskId: d.runwayJobId },
+          "[generated-clips] durable delivered-mark failed — sweeper will reconcile from the landed clip",
+        );
+      }
     }
 
     /* ── Fire-and-forget: generation_history so it appears in Generation History tab ── */
@@ -102,38 +117,34 @@ const saveGeneratedClipHandler = async (req: Request, res: Response) => {
     const msg = err instanceof Error ? err.message : "Failed to save clip";
     req.log.error({ err: msg, userId: req.userId }, "[generated-clips] save FAILED");
 
-    /* ── Refund credits if they were already deducted for this clip ── */
+    /* ── Refund credits if they were already deducted for this clip ──
+       D3: the durable obligation (clip_charge_obligations, migration
+       0183) is the source of truth — its claim is atomic on
+       status='pending', so this refund fires exactly once even across
+       a server restart. The in-memory chargedTasks entry is passed as
+       the fallback for charges that predate the durable record. */
     const taskId = d.runwayJobId ?? null;
-    const charge = taskId ? chargedTasks.get(taskId) : null;
+    const memCharge = taskId ? chargedTasks.get(taskId) : null;
+    let refundedCredits = 0;
 
-    if (charge && charge.userId === req.userId && !charge.refunded) {
-      charge.refunded = true; /* mark immediately to prevent double-refund */
-
+    if (taskId) {
       try {
-        // Refund with a ledger trace: the clip was generated but the save
-        // failed, so the user gets their credits back. refundCredits() restores
-        // the balance and writes a negative ledger entry; a ledger failure is
-        // logged loudly (money is already back — reporting gap, not a loss).
-        try {
-          await refundCredits(req.userId!, charge.credits, {
-            action: "Runway Video Clip — Refund (save failed)",
-            projectId: d.projectId ?? null,
-          });
-          req.log.info(
-            { taskId, userId: req.userId, refundedCredits: charge.credits },
-            "[generated-clips] refund completed",
-          );
-        } catch (refundErr) {
-          req.log.error({ err: refundErr, taskId }, "[generated-clips] refund FAILED — user lost credits");
-        }
-      } catch (refundEx) {
-        req.log.error({ err: refundEx, taskId }, "[generated-clips] refund threw — user may have lost credits");
+        const outcome = await refundClipChargeOnSaveFailure(taskId, {
+          userId: req.userId!,
+          projectId: d.projectId ?? null,
+          memoryCharge: memCharge ?? null,
+        });
+        if (outcome.refunded) refundedCredits = outcome.credits;
+      } catch (refundErr) {
+        req.log.error({ err: refundErr, taskId }, "[generated-clips] refund FAILED — user lost credits");
       }
+    }
 
+    if (refundedCredits > 0) {
       res.status(500).json({
         error: msg,
         creditMessage: "Clip generated but saving failed. Your Visual Bucs were refunded.",
-        creditsRefunded: charge.credits,
+        creditsRefunded: refundedCredits,
       });
     } else {
       res.status(500).json({
