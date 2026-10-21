@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "774e2a08c87347cc5948960f7ee99e16f115e494",
+  "baseCommit": "ff8adff089eae6e00f85eb9aca819675fec91456",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-20",
+  "generatedAt": "2026-10-21",
   "counts": {
     "routesInApp": 223,
     "pageFiles": 175,
     "features": 218,
     "excludedRoutes": 64,
     "excludedPageFiles": 34,
-    "pricedActions": 200,
+    "pricedActions": 201,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2
@@ -4593,6 +4593,7 @@
         "/api/ugc-ads",
         "/api/ugc-ads/:param",
         "/api/ugc-ads/:param/generate",
+        "/api/ugc-ads/:param/pin",
         "/api/ugc-ads/persona",
         "/api/ugc-ads/products",
         "/api/ugc-ads/script",
@@ -6806,7 +6807,14 @@
         "/api/stories",
         "/api/stories/feed"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Post Assist — Write It For Me",
+          "vb": 100,
+          "endpoint": "/api/posts/assist",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 19 studios — pay only for what you create.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"home.pageDescription\"",
       "nextSteps": []

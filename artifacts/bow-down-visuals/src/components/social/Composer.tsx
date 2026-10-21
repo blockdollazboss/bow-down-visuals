@@ -341,7 +341,7 @@ export function Composer({
               value={assistPrompt}
               onChange={(e) => setAssistPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && assist()}
-              placeholder="What should it say? (1 Visual Buc)"
+              placeholder="What should it say? (100 Visual Bucs)"
               maxLength={300}
               className="flex-1 rounded-lg border border-[#d4af37]/40 bg-[#0d0d0d] px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-[#d4af37] focus:outline-none"
             />
@@ -404,7 +404,7 @@ export function Composer({
             <ShoppingBag className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">link your drop</span>
           </button>
-          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (1 Visual Buc)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>

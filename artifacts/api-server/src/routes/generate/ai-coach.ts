@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 
 const router = Router();
 
@@ -48,6 +48,20 @@ const aiCoachSchema = z.object({
 /* Text model: centralized in getTextModel() (env-overridable via
    OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
+
+/* The charge lands BEFORE the model call; any failure after it refunds
+   the exact charged amount (D5 sweep G9 — the refundOnFailure pattern
+   from academy.ts). */
+async function refundOnFailure(userId: string, action: string): Promise<void> {
+  try {
+    await refundCredits(userId, AI_COACH_CREDITS, {
+      action: `${action} — Refund (generation failed)`,
+    });
+  } catch (refundErr) {
+    /* Logged inside refundCredits; don't mask the original failure. */
+    void refundErr;
+  }
+}
 
 /* POST /api/ai-coach { platform, posts[], niche }
    → 200 { insights, patterns[], mistakes[], nextSteps[], creditsUsed, creditsRemaining }
@@ -188,6 +202,7 @@ router.post("/ai-coach", publicApiLimiter, requireAuth, async (req, res) => {
       creditsRemaining,
     });
   } catch (err) {
+    await refundOnFailure(req.userId!, "AI Performance Coach");
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[ai-coach] OpenAI rate limit / quota");
       res.status(503).json({ error: "The coach is catching its breath — try again in a moment." });

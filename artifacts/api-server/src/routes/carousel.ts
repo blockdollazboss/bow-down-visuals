@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits } from "../lib/credits.js";
+import { chargeCredits, buildChargeIdempotencyKey } from "../lib/credits.js";
 
 const router = Router();
 
@@ -14,7 +14,10 @@ router.post("/carousel/export", requireAuth, async (req, res) => {
   try {
     const userId = (req as unknown as { userId: string }).userId;
     const slideCount = Math.min(Math.max(Number(req.body?.slideCount) || 1, 1), 10);
-    const idempotencyKey = typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : null;
+    /* Derive the idempotency key server-side when the client sends none
+       (U1) — a retry of the same export can't double-charge. */
+    const clientKey = typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : null;
+    const idempotencyKey = buildChargeIdempotencyKey("carousel_export", userId, clientKey, { slideCount });
     const newBalance = await chargeCredits(
       userId,
       100,

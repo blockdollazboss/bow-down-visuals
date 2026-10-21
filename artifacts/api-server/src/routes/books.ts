@@ -4,7 +4,7 @@ import { db, booksTable, bookChaptersTable, bookPrintOrdersTable } from "@worksp
 import { eq, asc, desc, and } from "drizzle-orm";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { chargeCredits } from "../lib/credits.js";
+import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits.js";
 import { generateEpub, generatePdf, generateCoverPdf, bookFilename, type BookExportData } from "../lib/book-export";
 import { r2Upload, r2PublicUrl } from "../lib/r2-client";
 import {
@@ -388,20 +388,34 @@ router.post("/books/ai/assist", requireAuth, async (req, res) => {
     return;
   }
   const { bookId, action, text, instruction } = parsed.data;
+  /* Set once the charge lands; the provider call after it can fail and
+     that failure must give the money back (D5 sweep G6). */
+  let assistCharged = false;
+  let assistIdempotencyKey: string | null = null;
   try {
     const book = await getOwnedBook(bookId, req.userId!);
     if (!book) {
       res.status(404).json({ error: "Book not found" });
       return;
     }
-    /* Charge 1 credit (100 Visual Bucs) per AI assist — strict ledger + idempotency. */
+    /* Charge 1 credit (100 Visual Bucs) per AI assist — strict ledger + idempotency.
+       The idempotency key is derived server-side when the client sends
+       none (U1), so a retry of the same assist can't double-charge. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "books_ai_assist",
+      req.userId!,
+      parsed.data.idempotencyKey ?? null,
+      { bookId, action, text, instruction },
+    );
+    assistIdempotencyKey = idempotencyKey;
     try {
       await chargeCredits(
         req.userId!,
         100,
         { action: "books_ai_assist", projectId: bookId },
-        { idempotencyKey: parsed.data.idempotencyKey ?? null, personalOnly: true },
+        { idempotencyKey, personalOnly: true },
       );
+      assistCharged = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Insufficient credits";
       res.status(402).json({ error: message });
@@ -424,6 +438,19 @@ router.post("/books/ai/assist", requireAuth, async (req, res) => {
     const result = completion.choices[0]?.message?.content?.trim() ?? "";
     res.json({ ok: true, action, result });
   } catch (err) {
+    if (assistCharged) {
+      try {
+        await refundCredits(req.userId!, 100, {
+          action: "books_ai_assist — Refund (generation failed)",
+          projectId: bookId,
+        });
+        /* Void the charge's key so a retry charges again instead of
+           being suppressed as a replay and running free. */
+        if (assistIdempotencyKey) await voidChargeIdempotencyKey(assistIdempotencyKey);
+      } catch (refundErr) {
+        console.error("[books] CRITICAL: AI assist refund failed — manual reconciliation required", refundErr);
+      }
+    }
     res.status(500).json({ error: err instanceof Error ? err.message : "AI assist failed" });
   }
 });
@@ -510,6 +537,26 @@ router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Invalid request" });
     return;
   }
+  /* Set once the charge lands; every post-charge failure exit (provider
+     throw, empty image, R2 upload throw, DB update throw) must give the
+     money back (D5 sweep G3). */
+  let coverCharged = false;
+  let coverIdempotencyKey: string | null = null;
+  const refundCoverCharge = async (bookId: string) => {
+    if (!coverCharged) return;
+    coverCharged = false;
+    try {
+      await refundCredits(req.userId!, 200, {
+        action: "books_cover_generate — Refund (generation failed)",
+        projectId: bookId,
+      });
+      /* Void the charge's key so a retry charges again instead of
+         being suppressed as a replay and running free. */
+      if (coverIdempotencyKey) await voidChargeIdempotencyKey(coverIdempotencyKey);
+    } catch (refundErr) {
+      console.error("[books] CRITICAL: cover refund failed — manual reconciliation required", refundErr);
+    }
+  };
   try {
     const bookId = param(req, "id");
     const book = await getOwnedBook(bookId, req.userId!);
@@ -517,14 +564,24 @@ router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Book not found" });
       return;
     }
-    /* Charge 2 credits (200 Visual Bucs) for cover generation — strict ledger + idempotency. */
+    /* Charge 2 credits (200 Visual Bucs) for cover generation — strict ledger + idempotency.
+       The idempotency key is derived server-side when the client sends
+       none (U1), so a retry of the same cover can't double-charge. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "books_cover_generate",
+      req.userId!,
+      parsed.data.idempotencyKey ?? null,
+      { bookId, style: parsed.data.style },
+    );
+    coverIdempotencyKey = idempotencyKey;
     try {
       await chargeCredits(
         req.userId!,
         200,
         { action: "books_cover_generate", projectId: bookId },
-        { idempotencyKey: parsed.data.idempotencyKey ?? null, personalOnly: true },
+        { idempotencyKey, personalOnly: true },
       );
+      coverCharged = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Insufficient credits";
       res.status(402).json({ error: message });
@@ -543,6 +600,7 @@ router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
     });
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) {
+      await refundCoverCharge(bookId);
       res.status(500).json({ error: "Cover generation returned no image." });
       return;
     }
@@ -559,6 +617,7 @@ router.post("/books/:id/cover/generate", requireAuth, async (req, res) => {
 
     res.json({ ok: true, cover_url: publicUrl || coverUrl });
   } catch (err) {
+    await refundCoverCharge(param(req, "id"));
     res.status(500).json({ error: err instanceof Error ? err.message : "Cover generation failed" });
   }
 });

@@ -33,8 +33,10 @@ const state = vi.hoisted(() => ({
   balances: {} as Record<string, number>,
   taskSeq: 0,
   chargeCalls: [] as any[],
+  refundCalls: [] as any[],
   createCalls: 0,
   mirrorCalls: 0,
+  failVaultUpdates: false,
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -101,6 +103,9 @@ vi.mock("../../lib/credits", () => ({
   chargeCredits: vi.fn(async (userId: string, amount: number, meta: any) => {
     state.chargeCalls.push({ userId, amount, meta });
     return 4242;
+  }),
+  refundCredits: vi.fn(async (userId: string, amount: number, meta: any) => {
+    state.refundCalls.push({ userId, amount, meta });
   }),
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
@@ -189,6 +194,9 @@ vi.mock("@workspace/db", () => {
       update: (table: any) => ({
         set: (vals: any) => ({
           where: (w: any) => {
+            if (state.failVaultUpdates && table.__rowsKey === "vaultRows") {
+              return Promise.reject(new Error("simulated vault write failure"));
+            }
             for (const r of rowsOf(table)) if (matchRow(r, w)) Object.assign(r, vals);
             return Promise.resolve([]);
           },
@@ -258,8 +266,10 @@ beforeEach(() => {
   state.linkRows = [];
   state.balances = { "user-1": 100_000, "user-2": 100_000, "user-3": 100_000 };
   state.chargeCalls = [];
+  state.refundCalls = [];
   state.createCalls = 0;
   state.mirrorCalls = 0;
+  state.failVaultUpdates = false;
 });
 
 const post = (p: string, body: any, headers: any = AUTH) =>
@@ -380,6 +390,25 @@ describe("GET /artist-vaults/:id/reference-video/:taskId — generate poll", () 
     expect(state.chargeCalls).toEqual([]);
     expect(vaultRow("vault-own").reference_video_url).toBe("https://cdn.example/own.mp4");
   });
+
+  it("G1: if the save throws AFTER the charge, the 1,500 VB is refunded exactly once", async () => {
+    const taskId = await submitAsOwner();
+    state.failVaultUpdates = true;
+    const res = await get(`/artist-vaults/vault-own/reference-video/${taskId}`);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toMatch(/refunded/);
+    expect(state.chargeCalls).toHaveLength(1);
+    expect(state.refundCalls).toEqual([
+      {
+        userId: "user-1",
+        amount: 1500,
+        meta: { action: "Character Reference Video — Refund (save failed)", projectId: null },
+      },
+    ]);
+    // The row was never written.
+    expect(vaultRow("vault-own").reference_video_url).toBe("https://cdn.example/own.mp4");
+  });
 });
 
 describe("POST /artist-vaults/:id/reference-video/loop — loop submit", () => {
@@ -443,6 +472,23 @@ describe("GET /artist-vaults/:id/reference-video/loop/:taskId — loop poll", ()
     const body = await pollUntilTerminal(taskId);
     expect(body.status).toBe("failed");
     expect(state.chargeCalls).toEqual([]);
+    expect(vaultRow("vault-own").reference_video_url).toBe("https://cdn.example/own.mp4");
+  });
+
+  it("G4: if the save throws AFTER the charge, the 200 VB is refunded exactly once", async () => {
+    const taskId = await submitLoopAsOwner();
+    state.failVaultUpdates = true;
+    const body = await pollUntilTerminal(taskId);
+    expect(body.status).toBe("failed");
+    expect(body.error).toMatch(/refunded/);
+    expect(state.chargeCalls).toHaveLength(1);
+    expect(state.refundCalls).toEqual([
+      {
+        userId: "user-1",
+        amount: 200,
+        meta: { action: "Artist Vault Video Loop — Refund (save failed)", projectId: null },
+      },
+    ]);
     expect(vaultRow("vault-own").reference_video_url).toBe("https://cdn.example/own.mp4");
   });
 });

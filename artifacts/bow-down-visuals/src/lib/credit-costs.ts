@@ -214,6 +214,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/social/facebook/publish": { cost: 100, feature: "Publish to Facebook" },
   "/api/social/tiktok/publish": { cost: 100, feature: "Publish to TikTok" },
   "/api/generate-community-post": { cost: 50, feature: "Generate Community Post" },
+  "/api/posts/assist": { cost: 100, feature: "Post Assist — Write It For Me" },
   "/api/best-time": { cost: 75, feature: "Best Time to Post" },
 
   // ── Link-in-Bio ────────────────────────────────────────────────

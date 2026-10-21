@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -206,6 +206,15 @@ router.post("/analyze", requireAuth, async (req, res) => {
 
     res.json({ suggestions, creditsCharged: COPILOT_COST });
   } catch (err) {
+    /* Everything in this try runs AFTER the charge — refund the exact
+       charged amount on any failure (D5 sweep G14). */
+    try {
+      await refundCredits(req.userId!, COPILOT_COST, {
+        action: "AI Copilot analysis — Refund (analysis failed)",
+      });
+    } catch (refundErr) {
+      console.error("[ai-copilot] CRITICAL: refund failed after analysis failure:", refundErr);
+    }
     console.error("[ai-copilot] analyze failed:", err);
     res.status(500).json({ error: "analysis_failed", message: "Copilot analysis failed. Try again." });
   }

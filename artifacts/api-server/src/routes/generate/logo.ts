@@ -4,7 +4,7 @@ import RunwayML from "@runwayml/sdk";
 import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
 import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   resolveLogoPlan,
@@ -100,6 +100,7 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
         return;
       }
       /* Charge only after the image exists — failure above means no charge. */
+      let charged = false;
       try {
         const creditsAfter = await chargeCreditsAtomic(
           req.userId!,
@@ -107,18 +108,41 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
           { action: "Logo (Premium)" },
           { rollbackOnLedgerFailure: false },
         );
+        charged = true;
         req.log.info({ userId: req.userId, creditsAfter, deducted: creditCost }, "[logo] credits deducted (Premium)");
         const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
         res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium", creditsRemaining: creditsAfter });
       } catch (chargeErr) {
         if (chargeErr instanceof LedgerWriteError) {
+          /* rollbackOnLedgerFailure:false — the deduction STANDS (only the
+             ledger trace is missing), so the member has paid. */
+          charged = true;
           req.log.error({ err: chargeErr }, "[logo] CRITICAL: ledger write failed after deduction");
-        } else {
+        } else if (!charged) {
           req.log.error({ err: chargeErr }, "[logo] credit deduction FAILED — logo delivered without charge");
         }
         /* Image was generated; still return it so the user isn't left empty-handed. */
-        const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
-        res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium" });
+        try {
+          const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
+          res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium" });
+        } catch (uploadErr) {
+          /* Both upload attempts failed. If the charge landed, give the
+             money back — never answer "no credits charged" over a charge
+             that stands (D5 sweep G5). */
+          if (charged) {
+            try {
+              await refundCredits(req.userId!, creditCost, { action: "Logo (Premium) — Refund (delivery failed)" });
+            } catch (refundErr) {
+              req.log.error({ err: refundErr }, "[logo] CRITICAL: refund failed after delivery failure — manual reconciliation required");
+            }
+            req.log.error({ err: uploadErr }, "[logo] delivery failed after charge — credits refunded");
+            res.status(500).json({ error: "Logo delivery failed — your Visual Bucs were refunded." });
+            return;
+          }
+          req.log.error({ err: uploadErr }, "[logo] delivery failed — no credits charged");
+          res.status(500).json({ error: "Logo delivery failed. No Visual Bucs were charged." });
+          return;
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Logo generation failed";

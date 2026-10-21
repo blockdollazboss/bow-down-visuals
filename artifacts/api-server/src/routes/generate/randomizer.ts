@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -43,6 +43,20 @@ const CATEGORY_DIRECTION: Record<Category, string> = {
 /* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
+
+/* The charge lands BEFORE the model call; any failure after it refunds
+   the exact charged amount (D5 sweep G12 — the refundOnFailure pattern
+   from academy.ts). */
+async function refundOnFailure(userId: string): Promise<void> {
+  try {
+    await refundCredits(userId, RANDOMIZER_CREDITS, {
+      action: "Content Randomizer (AI) — Refund (generation failed)",
+    });
+  } catch (refundErr) {
+    /* Logged inside refundCredits; don't mask the original failure. */
+    void refundErr;
+  }
+}
 
 /* POST /api/randomizer { category } → 200 { ideas: string[5], creditsUsed, creditsRemaining }
    Paid: 1 credit per AI roll. Auth required; credits are deducted BEFORE the
@@ -117,6 +131,7 @@ router.post("/randomizer", publicApiLimiter, requireAuth, async (req, res) => {
 
     res.json({ ideas, creditsUsed: RANDOMIZER_CREDITS, creditsRemaining });
   } catch (err) {
+    await refundOnFailure(req.userId!);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err, category }, "[randomizer] OpenAI rate limit / quota");
       res.status(503).json({ error: "The idea machine is catching its breath — try rolling again in a moment." });

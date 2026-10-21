@@ -14,7 +14,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -233,6 +233,20 @@ const coachSchema = z.object({
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
+/* The charge lands BEFORE the catalog read + model call; any failure
+   after it refunds the exact charged amount (D5 sweep G11 — the
+   refundOnFailure pattern from academy.ts). */
+async function refundOnFailure(userId: string): Promise<void> {
+  try {
+    await refundCredits(userId, COACH_CREDITS, {
+      action: "Monetization Coach — Refund (generation failed)",
+    });
+  } catch (refundErr) {
+    /* Logged inside refundCredits; don't mask the original failure. */
+    void refundErr;
+  }
+}
+
 /* POST /api/monetization-coach { niche, platforms, followers, cadence }
    → 200 { eligibility[], earnings, moneyMoves[], creditsUsed, creditsRemaining }
    Paid: 1 credit per plan. Auth required; credits are deducted BEFORE the
@@ -269,6 +283,10 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
     }
     throw err;
   }
+
+  /* Everything below runs AFTER the charge — the catalog read included —
+     so it all sits inside the refunding try (see the catch at the end). */
+  try {
 
   /* ── money plan generation ──────────────────────────────────────────────
      Honest framing: thresholds and RPMs shift over time and vary by region,
@@ -314,7 +332,6 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
       ? `The creator's REAL tracked finances (treat as fact, reference them in the money moves when relevant): ${moneyLines.join(" ")}`
       : "";
 
-  try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       messages: [
@@ -426,6 +443,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
       creditsRemaining,
     });
   } catch (err) {
+    await refundOnFailure(req.userId!);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[monetization-coach] OpenAI rate limit / quota");
       res.status(503).json({ error: "The coach is catching its breath — try again in a moment." });
