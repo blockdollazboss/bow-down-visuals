@@ -44,6 +44,11 @@ interface PublicProduct {
   pinned_ad?: { id: string; video_url: string } | null;
 }
 
+/** $0 shop products are FREE goods — label them, never "$0.00". */
+function priceLabel(cents: number): string {
+  return cents === 0 ? "FREE" : centsToDisplay(cents);
+}
+
 export default function ShopStorefront() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
@@ -63,6 +68,14 @@ export default function ShopStorefront() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderDone, setOrderDone] = useState<{ lines: number; gross: number; fee: number; net: number } | null>(null);
+  /* Discount code (0189): validated against THIS shop's codes via the
+     public validate endpoint; the server re-validates at checkout and
+     is always the pricing authority — the totals shown here mirror
+     its exact unit-rounding formula. */
+  const [discountInput, setDiscountInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState<{ code: string; percentOff: number } | null>(null);
+  const [codeMsg, setCodeMsg] = useState<string | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +133,37 @@ export default function ShopStorefront() {
   );
 
   const cartTotal = cartDetailed.reduce((sum, l) => sum + l.product!.price_cents * l.qty, 0);
+  /* The server's discount sequence, mirrored for display: percent off
+     the unit price (rounded), summed per line. Checkout re-prices
+     server-side regardless — this number can never overcharge. */
+  const discountedTotal = appliedCode
+    ? cartDetailed.reduce(
+        (sum, l) => sum + Math.round((l.product!.price_cents * (100 - appliedCode.percentOff)) / 100) * l.qty,
+        0,
+      )
+    : cartTotal;
   const cartCount = cartDetailed.reduce((sum, l) => sum + l.qty, 0);
+
+  async function applyCode() {
+    if (!shop || !discountInput.trim()) return;
+    setCheckingCode(true);
+    setCodeMsg(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}/discounts/validate?code=${encodeURIComponent(discountInput.trim())}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.valid === true) {
+        setAppliedCode({ code: String(data.code), percentOff: Number(data.percentOff) });
+        setCodeMsg(`${data.code} — ${data.percentOff}% off applied.`);
+      } else {
+        setAppliedCode(null);
+        setCodeMsg(typeof data.reason === "string" ? data.reason : "That code doesn't work at this shop.");
+      }
+    } catch {
+      setCodeMsg("Couldn't check that code just now — you can still check out and the code is verified again there.");
+    } finally {
+      setCheckingCode(false);
+    }
+  }
 
   function addToCart(productId: string) {
     setCart((c) => addToCartLines(c, productId));
@@ -183,10 +226,11 @@ export default function ShopStorefront() {
           shopId: shop.id,
           items: cartDetailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          ...(appliedCode ? { discountCode: appliedCode.code } : discountInput.trim() ? { discountCode: discountInput.trim() } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("shop.errorOrderFailed"));
+      if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
       if (data.free === true && data.paid === true) {
         setOrderDone({ lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0 });
         setCart([]);
@@ -296,7 +340,7 @@ export default function ShopStorefront() {
                     )}
                     <div className="p-4">
                       <div className="font-bold truncate">{p.name}</div>
-                      <div className="mt-1 font-black" style={{ color: accent }}>{centsToDisplay(p.price_cents)}</div>
+                      <div className="mt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
                     </div>
                   </button>
                 ))}
@@ -343,7 +387,7 @@ export default function ShopStorefront() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{centsToDisplay(selected.price_cents)}</div>
+              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}
@@ -388,7 +432,7 @@ export default function ShopStorefront() {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold truncate">{l.product!.name}</div>
-                      <div className="text-sm font-bold" style={{ color: accent }}>{centsToDisplay(l.product!.price_cents)}</div>
+                      <div className="text-sm font-bold" style={{ color: accent }}>{priceLabel(l.product!.price_cents)}</div>
                       <div className="mt-1.5 flex items-center gap-2">
                         <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label={t("shop.decreaseLabel")}>
                           <Minus className="w-3.5 h-3.5" />
@@ -410,8 +454,34 @@ export default function ShopStorefront() {
               <div className="mt-4 border-t border-white/10 pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">{t("shop.totalLabel")}</span>
-                  <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
+                  {appliedCode ? (
+                    <span className="text-lg font-black">
+                      <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal)}</span>
+                      {centsToDisplay(discountedTotal)}
+                    </span>
+                  ) : (
+                    <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
+                  )}
                 </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={discountInput}
+                    onChange={(e) => { setDiscountInput(e.target.value); setAppliedCode(null); setCodeMsg(null); }}
+                    placeholder="Discount code (optional)"
+                    aria-label="Discount code"
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                  />
+                  <button
+                    onClick={applyCode}
+                    disabled={checkingCode || !discountInput.trim()}
+                    className="shrink-0 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
+                  >
+                    {checkingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </button>
+                </div>
+                {codeMsg && (
+                  <p className={`mt-2 text-xs ${appliedCode ? "text-emerald-300" : "text-red-300"}`}>{codeMsg}</p>
+                )}
                 <input
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
@@ -426,7 +496,7 @@ export default function ShopStorefront() {
                   className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                   style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(cartTotal) })}
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(discountedTotal) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/35">
                   {t("shop.checkoutNote", { feePct })}

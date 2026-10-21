@@ -1,11 +1,11 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
-  AlertTriangle, RotateCcw, Pause, Play,
+  AlertTriangle, RotateCcw, Pause, Play, Tag,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -739,6 +739,8 @@ export default function MyShop() {
                   )}
                 </section>
 
+                <DiscountCodesCard shop={activeShop} authed={authed} />
+
                 <AnalyticsCard shopId={activeShop.id} authed={authed} />
               </div>
             )}
@@ -751,6 +753,182 @@ export default function MyShop() {
       </main>
 
     </div>
+  );
+}
+
+/* ─── DiscountCodesCard — shop discount codes (0189) ─────────────────────
+   Parity with the profile store's discount system: the owner manages
+   codes against /api/shops/:id/discounts (owner-scoped server-side);
+   checkout validates + applies them and counts a use only when a sale
+   actually records. */
+interface ShopDiscountRow {
+  id: string;
+  code: string;
+  percentOff: number;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+function DiscountCodesCard({
+  shop, authed,
+}: {
+  shop: Shop;
+  authed: (path: string, init?: RequestInit) => Promise<Response>;
+}) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const [codes, setCodes] = useState<ShopDiscountRow[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newPct, setNewPct] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts`);
+      const body = (await res.json().catch(() => ({}))) as { codes?: ShopDiscountRow[] };
+      if (!res.ok || !Array.isArray(body.codes)) throw new Error("load");
+      setCodes(body.codes);
+    } catch {
+      setLoadFailed(true);
+    }
+  }, [authed, shop.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create() {
+    const code = newCode.trim().toUpperCase();
+    const pct = Number.parseInt(newPct, 10);
+    if (!code || !Number.isInteger(pct) || pct < 1 || pct > 90) {
+      setErr(t("myShop.discountCreateFailed"));
+      return;
+    }
+    setCreating(true);
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts`, {
+        method: "POST",
+        body: JSON.stringify({ code, percentOff: pct }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) {
+        setErr(body.error === "CODE_TAKEN" ? t("myShop.discountTaken") : body.message || t("myShop.discountCreateFailed"));
+        return;
+      }
+      setNewCode("");
+      setNewPct("");
+      await load();
+    } catch {
+      setErr(t("myShop.discountCreateFailed"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function toggle(row: ShopDiscountRow) {
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts/${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !row.isActive }),
+      });
+      if (!res.ok) throw new Error("patch");
+      setCodes((prev) => (prev ?? []).map((c) => (c.id === row.id ? { ...c, isActive: !row.isActive } : c)));
+    } catch {
+      setErr(t("myShop.discountUpdateFailed"));
+    }
+  }
+
+  async function remove(row: ShopDiscountRow) {
+    if (!window.confirm(t("myShop.discountDeleteConfirm"))) return;
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts/${row.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete");
+      setCodes((prev) => (prev ?? []).filter((c) => c.id !== row.id));
+    } catch {
+      setErr(t("myShop.discountDeleteFailed"));
+    }
+  }
+
+  const inputCls = "rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60";
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <h2 className="flex items-center gap-2 text-lg font-bold">
+        <Tag className="h-5 w-5 text-amber-300" /> {t("myShop.discountsTitle")}
+      </h2>
+      <p className="mt-1 text-xs text-white/45">{t("myShop.discountsHint")}</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input
+          value={newCode}
+          onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+          placeholder={t("myShop.discountCodePlaceholder")}
+          maxLength={32}
+          className={`${inputCls} w-56 uppercase`}
+        />
+        <input
+          value={newPct}
+          onChange={(e) => setNewPct(e.target.value.replace(/[^0-9]/g, ""))}
+          placeholder={t("myShop.discountPercentPlaceholder")}
+          inputMode="numeric"
+          className={`${inputCls} w-32`}
+        />
+        <button
+          onClick={create}
+          disabled={creating || !newCode.trim() || !newPct}
+          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+        >
+          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? t("myShop.discountCreating") : t("myShop.discountCreate")}
+        </button>
+      </div>
+      {err && <p className="mt-2 text-xs text-red-300">{err}</p>}
+
+      {loadFailed ? (
+        <p className="mt-4 text-sm text-red-300">{t("myShop.discountLoadFailed")}</p>
+      ) : codes === null ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-white/40">
+          <Loader2 className="h-4 w-4 animate-spin" /> …
+        </p>
+      ) : codes.length === 0 ? (
+        <p className="mt-4 text-sm text-white/40">{t("myShop.discountNone")}</p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {codes.map((c) => (
+            <div
+              key={c.id}
+              className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80" : "border-white/10 bg-black/40"}`}
+            >
+              <span className="font-mono text-sm font-bold tracking-wide text-amber-200">{c.code}</span>
+              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-300">−{c.percentOff}%</span>
+              <span className="text-xs text-white/45">
+                {t("myShop.discountUses", { used: c.usedCount })} · {c.maxUses < 0 ? t("myShop.discountUnlimited") : t("myShop.discountMaxUses", { max: c.maxUses })}
+              </span>
+              <span className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => toggle(c)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${c.isActive ? "bg-emerald-400/15 text-emerald-300" : "bg-white/[0.06] text-white/50"}`}
+                >
+                  {c.isActive ? t("myShop.discountActive") : t("myShop.discountOff")}
+                </button>
+                <button onClick={() => remove(c)} className="text-xs text-red-400/70 hover:text-red-400" aria-label={`Delete ${c.code}`}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

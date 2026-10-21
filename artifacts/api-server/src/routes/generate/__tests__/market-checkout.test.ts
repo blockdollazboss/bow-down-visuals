@@ -129,7 +129,7 @@ CREATE TABLE shop_events (
   platform_fee_cents integer NOT NULL DEFAULT 0, buyer_email text,
   settled_payout_id uuid, settled_at timestamptz, ip_hash text,
   stripe_session_id text, payment_status text, paid_at timestamptz,
-  quantity integer NOT NULL DEFAULT 1, checkout_group_id text,
+  quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE creator_profiles (
