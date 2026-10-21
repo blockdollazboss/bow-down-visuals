@@ -41,7 +41,8 @@ CREATE TABLE royalty_entries (id uuid PRIMARY KEY, user_id uuid NOT NULL, song_t
 CREATE TABLE songs (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text NOT NULL, audio_url text NOT NULL, source text NOT NULL DEFAULT 'upload', duration_sec text, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE generated_clips (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text, video_url text, thumbnail_url text, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE distribution_releases (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text NOT NULL, artist_name text NOT NULL, status text NOT NULL DEFAULT 'draft', audio_url text, artwork_url text, platforms jsonb, metadata jsonb, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE store_products (id uuid PRIMARY KEY, profile_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL, price_cents integer NOT NULL DEFAULT 0, is_active boolean NOT NULL DEFAULT true, media_urls jsonb);
+CREATE TABLE store_products (id uuid PRIMARY KEY, profile_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL, price_cents integer NOT NULL DEFAULT 0, is_active boolean NOT NULL DEFAULT true, media_urls jsonb, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE hub_projects (id uuid PRIMARY KEY, user_id uuid NOT NULL, name text NOT NULL, type text NOT NULL DEFAULT 'song', concept text NOT NULL DEFAULT '', template_key text, attribution boolean NOT NULL DEFAULT true, artist_vault_id uuid, assets jsonb NOT NULL DEFAULT '[]', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE email_lists (id uuid PRIMARY KEY, user_id uuid NOT NULL, name text NOT NULL, handle text NOT NULL);
 CREATE TABLE email_subscribers (id uuid PRIMARY KEY, list_id uuid NOT NULL, email text NOT NULL, name text, source text NOT NULL DEFAULT 'landing', unsubscribed_at timestamptz, subscribed_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE catalog_export_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, status text NOT NULL DEFAULT 'running', progress integer NOT NULL DEFAULT 0, manifest jsonb, error text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
@@ -193,5 +194,47 @@ describe("catalog export builder", () => {
   it("unauthenticated is a 401", async () => {
     await seedCatalog();
     expect((await build(null, { kind: "tracks" })).status).toBe(401);
+  });
+
+  it("projects: owner-scoped, newest-updated first, field selection honored", async () => {
+    const db = testState.db;
+    await db.execute(sql`INSERT INTO hub_projects (id, user_id, name, type, concept, updated_at) VALUES (${randomUUID()}, ${OWNER}, 'Old Project', 'song', 'first', '2026-01-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO hub_projects (id, user_id, name, type, concept, updated_at) VALUES (${randomUUID()}, ${OWNER}, 'New Project', 'video', 'second', '2026-06-01T00:00:00Z')`);
+    await db.execute(sql`INSERT INTO hub_projects (id, user_id, name) VALUES (${randomUUID()}, ${STRANGER}, 'Not Mine')`);
+    const j = await (await build(OWNER, { kind: "projects", format: "json" })).json() as any;
+    expect(j.kind).toBe("projects");
+    expect(j.fields).toEqual(["id", "name", "type", "concept", "templateKey", "attribution", "artistVaultId", "createdAt", "updatedAt"]);
+    expect(j.count).toBe(2);
+    expect(j.rows.map((r: any) => r.name)).toEqual(["New Project", "Old Project"]);
+    const picked = await (await build(OWNER, { kind: "projects", fields: ["name", "type"], format: "json" })).json() as any;
+    expect(Object.keys(picked.rows[0]).sort()).toEqual(["name", "type"]);
+    /* The stored assets blob is a package field, never a builder field. */
+    expect((await build(OWNER, { kind: "projects", fields: ["assets"] })).status).toBe(400);
+    const csv = await build(OWNER, { kind: "projects", fields: ["name"], format: "csv" });
+    const rows = parseCsv(await csv.text());
+    expect(rows[0]).toEqual(["name"]);
+    expect(rows).toHaveLength(3);
+  });
+
+  it("store: scoped through the caller's own profile — another creator's products never appear", async () => {
+    const db = testState.db;
+    const MY_PROFILE = randomUUID(), THEIR_PROFILE = randomUUID();
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${MY_PROFILE}, ${OWNER}, 'me')`);
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${THEIR_PROFILE}, ${STRANGER}, 'them')`);
+    await db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents) VALUES (${randomUUID()}, ${MY_PROFILE}, 'digital', 'My Pack', 1900)`);
+    await db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents) VALUES (${randomUUID()}, ${THEIR_PROFILE}, 'merch', 'Their Shirt', 2900)`);
+    const mine = await (await build(OWNER, { kind: "store", format: "json" })).json() as any;
+    expect(mine.kind).toBe("store");
+    expect(mine.count).toBe(1);
+    expect(mine.rows[0].title).toBe("My Pack");
+    expect(mine.rows[0].priceCents).toBe(1900);
+    const theirs = await (await build(STRANGER, { kind: "store", format: "json" })).json() as any;
+    expect(theirs.count).toBe(1);
+    expect(theirs.rows[0].title).toBe("Their Shirt");
+    const noProfile = await (await build(randomUUID(), { kind: "store", format: "json" })).json() as any;
+    expect(noProfile.count).toBe(0);
+    /* Join internals are not fields: the wire can never reach the scope columns. */
+    expect((await build(OWNER, { kind: "store", fields: ["profile_id"] })).status).toBe(400);
+    expect((await build(OWNER, { kind: "store", fields: ["user_id"] })).status).toBe(400);
   });
 });

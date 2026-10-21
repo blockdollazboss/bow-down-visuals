@@ -312,7 +312,8 @@ export function CatalogExportPanel() {
       <h2 className="text-lg font-black tracking-tight">Your whole catalog, downloadable</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         One click builds a package of everything that&apos;s yours: songs and audio files, videos, release metadata,
-        store products, and your audience list. It&apos;s a manifest, not one giant zip — video originals are large,
+        your projects and drafts, store products, and your audience — your email list, your followers, and your
+        fan-club members. It&apos;s a manifest, not one giant zip — video originals are large,
         so each entry carries the file&apos;s download link plus its metadata in open JSON. Nothing is re-encoded.
       </p>
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}

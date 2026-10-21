@@ -26,10 +26,14 @@ import trustRouter, { buildCatalogManifest } from "../trust";
 import { createTestDb } from "../../lib/__tests__/test-db";
 
 const DDL = `
-CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text);
+CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text, display_name text);
 CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE fan_members (id uuid PRIMARY KEY, user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, stripe_session_id text, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE fan_members (id uuid PRIMARY KEY, user_id uuid NOT NULL, tier_id uuid, fan_label text, status text NOT NULL DEFAULT 'active', billing_period text NOT NULL DEFAULT 'monthly', price_cents integer NOT NULL DEFAULT 0, is_gift boolean NOT NULL DEFAULT false, joined_at timestamptz NOT NULL DEFAULT now(), current_period_end timestamptz, stripe_session_id text, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE fan_tiers (id uuid PRIMARY KEY, user_id uuid NOT NULL, name text NOT NULL);
+CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE hub_projects (id uuid PRIMARY KEY, user_id uuid NOT NULL, name text NOT NULL, type text NOT NULL DEFAULT 'song', concept text NOT NULL DEFAULT '', template_key text, attribution boolean NOT NULL DEFAULT true, artist_vault_id uuid, assets jsonb NOT NULL DEFAULT '[]', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE project_drafts (id uuid PRIMARY KEY, user_id uuid NOT NULL, workflow_type text NOT NULL, title text, draft_data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE royalty_entries (id uuid PRIMARY KEY, user_id uuid NOT NULL, song_title text NOT NULL, platform text NOT NULL, period_start date NOT NULL, period_end date NOT NULL, gross_amount numeric NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE songs (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text NOT NULL, audio_url text NOT NULL, source text NOT NULL DEFAULT 'upload', duration_sec text, created_at timestamptz NOT NULL DEFAULT now());
@@ -74,6 +78,19 @@ describe("#3 catalog manifest completeness (fixture account)", () => {
     await db.execute(sql`INSERT INTO email_subscribers (id, list_id, email) VALUES (${randomUUID()}, ${list}, 'fan@example.com')`);
     await db.execute(sql`INSERT INTO email_subscribers (id, list_id, email, unsubscribed_at) VALUES (${randomUUID()}, ${list}, 'gone@example.com', now())`);
     await db.execute(sql`INSERT INTO songs (id, user_id, title, audio_url) VALUES (${randomUUID()}, ${STRANGER}, 'Not Mine', 'https://files.example/x.wav')`);
+    /* Wave-3 #14 sections: projects + drafts, followers, fan-club members. */
+    await db.execute(sql`INSERT INTO hub_projects (id, user_id, name, type, assets) VALUES (${randomUUID()}, ${OWNER}, 'Project A', 'song', '[{"kind":"audio","url":"https://files.example/p.wav"}]'::jsonb)`);
+    await db.execute(sql`INSERT INTO hub_projects (id, user_id, name) VALUES (${randomUUID()}, ${STRANGER}, 'Not My Project')`);
+    await db.execute(sql`INSERT INTO project_drafts (id, user_id, workflow_type, title, draft_data) VALUES (${randomUUID()}, ${OWNER}, 'song', 'Draft A', '{"bpm":90}'::jsonb)`);
+    const tier = randomUUID();
+    await db.execute(sql`INSERT INTO fan_tiers (id, user_id, name) VALUES (${tier}, ${OWNER}, 'Front Row')`);
+    await db.execute(sql`INSERT INTO fan_members (id, user_id, tier_id, fan_label, status, price_cents) VALUES (${randomUUID()}, ${OWNER}, ${tier}, 'member@example.com', 'active', 1500)`);
+    await db.execute(sql`INSERT INTO fan_members (id, user_id, tier_id, fan_label, status, stripe_session_id) VALUES (${randomUUID()}, ${STRANGER}, ${tier}, 'stranger@example.com', 'active', 'cs_stranger')`);
+    const FAN = randomUUID(), FAN_PROFILE = randomUUID(), STRANGER_PROFILE = randomUUID();
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug, display_name) VALUES (${FAN_PROFILE}, ${FAN}, 'fanpage', 'Fan Page')`);
+    await db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug, display_name) VALUES (${STRANGER_PROFILE}, ${STRANGER}, 'them', 'Them')`);
+    await db.execute(sql`INSERT INTO follows (follower_user_id, profile_id) VALUES (${FAN}, ${PROFILE})`);
+    await db.execute(sql`INSERT INTO follows (follower_user_id, profile_id) VALUES (${FAN}, ${STRANGER_PROFILE})`);
 
     const m: any = await buildCatalogManifest(OWNER);
     expect(m.format).toBe("manifest+links");
@@ -83,6 +100,23 @@ describe("#3 catalog manifest completeness (fixture account)", () => {
     expect(m.releases.count).toBe(1);
     expect(m.storeProducts.count).toBe(1);
     expect(m.audience.count).toBe(1); expect(m.audience.items[0].email).toBe("fan@example.com");
+    expect(m.projects.count).toBe(1); expect(m.projects.items[0].name).toBe("Project A");
+    expect(m.projects.items[0].assetCount).toBe(1); expect(m.projects.items[0].assets[0].url).toContain("p.wav");
+    expect(m.projects.truncated).toBe(false);
+    expect(m.projectDrafts.count).toBe(1); expect(m.projectDrafts.items[0].workflowType).toBe("song");
+    expect(m.followers.count).toBe(1); expect(m.followers.items[0]).toMatchObject({ name: "Fan Page", slug: "fanpage" });
+    expect(Object.keys(m.followers.items[0]).sort()).toEqual(["followedAt", "name", "slug"]);
+    expect(m.members.count).toBe(1); expect(m.members.items[0].fanLabel).toBe("member@example.com");
+    expect(m.members.items[0].tierName).toBe("Front Row"); expect(m.members.items[0].status).toBe("active");
+    expect(Object.keys(m.members.items[0]).sort()).toEqual(["billingPeriod", "currentPeriodEnd", "fanLabel", "isGift", "joinedAt", "priceCents", "status", "tierName"]);
+    /* Nothing of anyone else's rides — and no account ids or payment
+       references of anybody's ride either. */
+    const whole = JSON.stringify(m);
+    expect(whole).not.toContain("Not My Project");
+    expect(whole).not.toContain("stranger@example.com");
+    expect(whole).not.toContain("cs_stranger");
+    expect(whole).not.toContain(FAN);
+    expect(whole).not.toContain(STRANGER);
   });
 
   it("a missing source table reads status error + partial — never a fake empty section presented as complete", async () => {
