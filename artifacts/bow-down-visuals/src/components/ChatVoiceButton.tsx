@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Loader2 } from "lucide-react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   chatVoiceNote,
   createChatVoiceSession,
@@ -8,6 +9,7 @@ import {
   type ChatVoiceNote,
   type ChatVoiceSession,
   type ChatVoiceState,
+  type ChatVoiceTranscribeFetch,
 } from "@/lib/chat-voice";
 
 /* ChatVoiceButton — the mic for the Thy Cheat Code chat drawer.
@@ -23,8 +25,13 @@ import {
  * permission denied explains itself in plain words and typing keeps
  * working; a capture that hears nothing says so and offers the mic
  * again — it never invents a transcript and never fails silently.
- * On a browser with no speech recognition the button still renders,
- * and tapping it explains that instead of vanishing.
+ * On a browser with no speech recognition the button still renders:
+ * the seam falls back to recording the utterance and transcribing it
+ * on the server (free — chat voice is never charged), and only a
+ * browser with neither path gets the explanation instead of a
+ * vanishing mic. The fallback's POST rides confirmedFetch with the
+ * spend confirmation explicitly skipped (there is no spend) purely
+ * so the member's session token rides along.
  *
  * There is deliberately no speaker control on the mic itself: spoken
  * replies are the sibling ChatSpeakButton (lib/chat-speak), rendered
@@ -42,6 +49,7 @@ export function ChatVoiceButton({
   /** Blocks STARTING a capture (e.g. a reply is loading); never blocks stopping one. */
   disabled?: boolean;
 }) {
+  const { confirmedFetch } = useConfirmedApi();
   const [state, setState] = useState<ChatVoiceState>("idle");
   const [error, setError] = useState<ChatVoiceErrorKind | null>(null);
   const [supported] = useState<boolean>(() => isChatVoiceSupported());
@@ -75,15 +83,23 @@ export function ChatVoiceButton({
     }
     setError(null);
     if (!sessionRef.current) {
-      sessionRef.current = createChatVoiceSession({
-        onState: setState,
-        onInterim: (text) => onInterim?.(text),
-        onFinal: (text) => {
-          setError(null);
-          onTranscript(text);
+      /* The fallback fetch: skipConfirm because chat voice is FREE
+         (no spend to confirm) — confirmedFetch is used only so the
+         member's session token rides along to the authed endpoint. */
+      const transcribeFetch: ChatVoiceTranscribeFetch = (input, init) =>
+        confirmedFetch(input, { ...init, skipConfirm: true });
+      sessionRef.current = createChatVoiceSession(
+        {
+          onState: setState,
+          onInterim: (text) => onInterim?.(text),
+          onFinal: (text) => {
+            setError(null);
+            onTranscript(text);
+          },
+          onError: (kind) => setError(kind),
         },
-        onError: (kind) => setError(kind),
-      });
+        { server: { fetchImpl: transcribeFetch } },
+      );
     }
     sessionRef.current.start();
   };

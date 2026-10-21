@@ -6,46 +6,68 @@
  * nothing about how answers are generated and executes no actions — it
  * is a microphone, not a brain and not hands.
  *
- * Which transcription path, and why (verify-first, Oct 20):
- * The codebase has two transcription families —
- *   1. The browser's built-in speech recognition (Web Speech API),
- *      already used for voice input by VoiceInputButton (in this very
- *      chat surface) and by the editor's VoiceDirectedEditsSection.
- *      Recognition happens in the browser: NO server transcription call
- *      is made, so there is no per-call cost — none exists in code for
- *      this path and none is needed.
- *   2. The server transcription routes (POST /api/transcribe and
- *      /api/transcribe-url), built for song-length files and charged at
- *      100 Visual Bucs per call (routes/transcribe.ts). Wrong shape and
- *      wrong price for a short chat utterance.
- * This seam rides family 1, exactly like the existing precedents.
+ * Two transports behind ONE seam, decided once per session:
+ *   1. BROWSER-FIRST (the default wherever it exists): the browser's
+ *      built-in speech recognition (Web Speech API), also used by the
+ *      editor's VoiceDirectedEditsSection. Recognition happens in the
+ *      browser: NO server call, NO cost — the free path stays the
+ *      default exactly as before.
+ *   2. SERVER FALLBACK (Stack-4 wave-2 #9): where the Web Speech API is
+ *      absent, the utterance is recorded with MediaRecorder and sent
+ *      to POST /api/chat/voice/transcribe, which transcribes it through
+ *      the shared Scribe seam (api-server lib/transcription.ts). Voice
+ *      input no longer simply doesn't exist on those browsers.
  *
- * INTEGRATION NOTE (Stack-4 #9): #9 migrates the server transcription
- * paths onto one shared, env-overridable seam. If a server-backed
- * recognizer is ever wanted for chat voice, implement THIS interface
- * (createChatVoiceSession's handlers contract) on top of #9's seam and
- * swap the factory — the chat surface and its tests don't change.
+ * THE MONEY RULE for the fallback (mirrored in the server route):
+ * CHAT_VOICE_TRANSCRIBE_CREDITS is 0. Free-chat is free, so its voice
+ * fallback is free too — the server path fires ONLY where the browser
+ * API is unsupported, and a chat utterance NEVER becomes a charged
+ * transcription (the 100 VB song-file rail at /api/transcribe is a
+ * different rail and is never touched here). The house absorbs the
+ * tiny per-utterance provider cost.
  *
- * Voice OUT is deliberately NOT here either: spoken replies live in
+ * Honest states: every failure says so — mic permission `denied`,
+ * neither transport available `unsupported`, a capture that fails
+ * `recording-failed`, a server transcription that fails
+ * `transcription-failed`, a signed-out member on the fallback
+ * `unauthenticated`, and silence `no-speech`. Never a silent dead mic,
+ * never invented text. The server path has no interim stream (the
+ * transcript arrives whole), so it holds the `transcribing` state
+ * while the server works — the wait is shown, not hidden.
+ *
+ * Voice OUT is deliberately NOT here: spoken replies live in
  * lib/chat-speak.ts (POST /api/chat/speak, the King's designed voice,
  * server-priced per the owner's Oct 20, 2026 ruling). This seam stays
- * what it was built as — input only, network-free, charge-free.
+ * input only.
  */
 
 /** Capture lifecycle: idle → listening → transcribing → idle. */
 export type ChatVoiceState = "idle" | "listening" | "transcribing";
 
 /**
- * Honest failure kinds. `denied` = the browser refused mic access
- * (permission), `no-speech` = capture ended with nothing heard,
- * `failed` = the recognizer itself errored, `unsupported` = this
- * browser has no speech recognition at all.
+ * Honest failure kinds. `denied` = mic access refused (either
+ * transport), `no-speech` = capture ended with nothing heard,
+ * `failed` = the browser recognizer itself errored, `unsupported` =
+ * NEITHER transport exists in this browser (no Web Speech API and no
+ * audio recording), `recording-failed` = the server-path capture
+ * itself failed, `transcription-failed` = the recording reached the
+ * server but came back without a transcript, `unauthenticated` = the
+ * server fallback needs a signed-in member and there is no session.
  */
-export type ChatVoiceErrorKind = "denied" | "no-speech" | "failed" | "unsupported";
+export type ChatVoiceErrorKind =
+  | "denied"
+  | "no-speech"
+  | "failed"
+  | "unsupported"
+  | "recording-failed"
+  | "transcription-failed"
+  | "unauthenticated";
 
 export interface ChatVoiceHandlers {
   onState?: (state: ChatVoiceState) => void;
-  /** The full text heard so far (final chunks + current interim). */
+  /** The full text heard so far (final chunks + current interim).
+   *  Browser transport only — the server transport delivers its
+   *  transcript whole via onFinal. */
   onInterim?: (text: string) => void;
   /** The finished utterance, trimmed, exactly once per capture. */
   onFinal?: (text: string) => void;
@@ -59,6 +81,24 @@ export interface ChatVoiceSession {
   /** Tear down silently (e.g. the chat drawer closed mid-capture). */
   dispose: () => void;
 }
+
+/* ─── The fallback's price + endpoint + cap, stated in code ─────────── */
+
+/** The ONE network call this seam can ever make: the chat-voice
+ *  fallback endpoint. Never /api/transcribe (the charged song rail). */
+export const CHAT_VOICE_TRANSCRIBE_PATH = "/api/chat/voice/transcribe";
+
+/** Visual Bucs charged for a chat-voice transcription: ZERO. See the
+ *  money rule in the header — free-chat is free, so its voice
+ *  fallback is free; the server route carries the same constant. */
+export const CHAT_VOICE_TRANSCRIBE_CREDITS = 0;
+
+/** Max length of one spoken chat message, in seconds. Chat utterances
+ *  are short; the server session stops recording at this cap (and the
+ *  server route enforces its own byte cap), so a song file can never
+ *  ride the free chat rail. The server route mirrors this figure. */
+export const CHAT_VOICE_MAX_UTTERANCE_SEC = 30;
+export const CHAT_VOICE_MAX_DURATION_MS = CHAT_VOICE_MAX_UTTERANCE_SEC * 1000;
 
 /* ─── Minimal structural typing for the Web Speech API ─────────────────
    Mirrors the shape VoiceDirectedEditsSection already types locally;
@@ -103,8 +143,101 @@ export function getChatVoiceRecognitionCtor(): ChatVoiceRecognitionCtor | null {
   );
 }
 
-export function isChatVoiceSupported(): boolean {
+/** True when the free browser recognizer exists — the default path. */
+export function isBrowserChatVoiceSupported(): boolean {
   return getChatVoiceRecognitionCtor() !== null;
+}
+
+/* ─── Minimal structural typing for the recording fallback ───────────── */
+
+export interface ChatVoiceMediaTrack {
+  stop: () => void;
+}
+
+export interface ChatVoiceMediaStream {
+  getTracks: () => ChatVoiceMediaTrack[];
+}
+
+export interface ChatVoiceRecorder {
+  mimeType: string;
+  state: string;
+  ondataavailable: ((event: { data: Blob }) => void) | null;
+  onstop: (() => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  start: (timesliceMs?: number) => void;
+  stop: () => void;
+}
+
+export interface ChatVoiceRecorderCtor {
+  new (
+    stream: ChatVoiceMediaStream,
+    options?: { mimeType?: string },
+  ): ChatVoiceRecorder;
+  isTypeSupported?: (mimeType: string) => boolean;
+}
+
+export type ChatVoiceGetUserMedia = (constraints: {
+  audio: boolean;
+}) => Promise<ChatVoiceMediaStream>;
+
+/** Fetch-shaped caller for the fallback POST. The button injects the
+ *  drawer's authed fetch (which attaches the member's session token);
+ *  a null response means a wrapping layer cancelled before any request
+ *  was made — treated as a transcription failure, never as text. */
+export type ChatVoiceTranscribeFetch = (
+  input: string,
+  init?: RequestInit,
+) => Promise<Response | null>;
+
+export function getChatVoiceRecorderCtor(): ChatVoiceRecorderCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w["MediaRecorder"] as ChatVoiceRecorderCtor | undefined) ?? null;
+}
+
+function defaultGetUserMedia(): ChatVoiceGetUserMedia | null {
+  if (typeof navigator === "undefined") return null;
+  const md = (navigator as { mediaDevices?: { getUserMedia?: unknown } })
+    .mediaDevices;
+  if (!md || typeof md.getUserMedia !== "function") return null;
+  const gum = md.getUserMedia as (
+    c: { audio: boolean },
+  ) => Promise<ChatVoiceMediaStream>;
+  return (constraints) => gum.call(md, constraints);
+}
+
+/** True when the server fallback can run here: audio recording exists
+ *  (MediaRecorder + getUserMedia). Deps are injectable for tests. */
+export function isServerChatVoiceSupported(deps?: {
+  recorderCtor?: ChatVoiceRecorderCtor | null;
+  getUserMedia?: ChatVoiceGetUserMedia | null;
+}): boolean {
+  const ctor =
+    deps?.recorderCtor !== undefined
+      ? deps.recorderCtor
+      : getChatVoiceRecorderCtor();
+  const gum =
+    deps?.getUserMedia !== undefined ? deps.getUserMedia : defaultGetUserMedia();
+  return ctor !== null && gum !== null;
+}
+
+/** Which transport a session here would use: the free browser
+ *  recognizer wherever it exists, the server fallback only where it
+ *  doesn't, and null where neither exists (`unsupported`). */
+export function getChatVoiceTransport(deps?: {
+  ctor?: ChatVoiceRecognitionCtor | null;
+  recorderCtor?: ChatVoiceRecorderCtor | null;
+  getUserMedia?: ChatVoiceGetUserMedia | null;
+}): "browser" | "server" | null {
+  const browserCtor =
+    deps?.ctor !== undefined ? deps.ctor : getChatVoiceRecognitionCtor();
+  if (browserCtor) return "browser";
+  if (isServerChatVoiceSupported(deps)) return "server";
+  return null;
+}
+
+export function isChatVoiceSupported(): boolean {
+  return getChatVoiceTransport() !== null;
 }
 
 /** Map a SpeechRecognition error string onto the honest failure kinds. */
@@ -118,6 +251,21 @@ export function mapChatVoiceError(error: string): ChatVoiceErrorKind {
     default:
       return "failed";
   }
+}
+
+/** Map a getUserMedia rejection onto the honest failure kinds:
+ *  a permission refusal is `denied`; anything else (no device, device
+ *  busy, constraints) is a recording failure. */
+export function mapChatVoiceCaptureError(err: unknown): ChatVoiceErrorKind {
+  const name = (err as { name?: unknown } | null)?.name;
+  if (name === "NotAllowedError" || name === "SecurityError") return "denied";
+  return "recording-failed";
+}
+
+/** Map the fallback endpoint's HTTP status onto the honest kinds. */
+export function mapChatVoiceTranscribeStatus(status: number): ChatVoiceErrorKind {
+  if (status === 401 || status === 403) return "unauthenticated";
+  return "transcription-failed";
 }
 
 /**
@@ -141,7 +289,14 @@ export const CHAT_VOICE_ERROR_COPY: Record<ChatVoiceErrorKind, string> = {
     "The microphone is blocked. Allow mic access in your browser's site settings — or just type, typing works as always.",
   "no-speech": "I couldn't hear you — tap the mic and try again.",
   failed: "Voice input hit a snag — tap the mic to try again, or just type.",
-  unsupported: "Voice input isn't supported in this browser — typing works as always.",
+  unsupported:
+    "Voice input isn't supported in this browser — typing works as always.",
+  "recording-failed":
+    "Recording hit a snag — tap the mic to try again, or just type.",
+  "transcription-failed":
+    "I recorded you, but couldn't turn it into text — tap the mic to try again, or just type.",
+  unauthenticated:
+    "Sign in to use voice input in this browser — typing works as always.",
 };
 
 export function chatVoiceNote(
@@ -154,17 +309,34 @@ export function chatVoiceNote(
   return null;
 }
 
-/* ─── The session ────────────────────────────────────────────────────── */
+/* ─── Session options ────────────────────────────────────────────────── */
+
+export interface ChatVoiceServerOptions {
+  /** Authed fetch for the fallback POST (the button's confirmedFetch
+   *  with confirmation skipped — the call is free, per
+   *  CHAT_VOICE_TRANSCRIBE_CREDITS). */
+  fetchImpl?: ChatVoiceTranscribeFetch;
+  /** Test seams. */
+  getUserMedia?: ChatVoiceGetUserMedia | null;
+  recorderCtor?: ChatVoiceRecorderCtor | null;
+  maxDurationMs?: number;
+}
 
 export interface ChatVoiceSessionOptions {
   lang?: string;
   /** Test seam: inject a recognizer constructor (or null for unsupported). */
   ctor?: ChatVoiceRecognitionCtor | null;
+  /** Force a transport (tests); default decides browser-first. */
+  transport?: "browser" | "server";
+  /** Server-fallback wiring (only read when the server transport runs). */
+  server?: ChatVoiceServerOptions;
 }
 
-export function createChatVoiceSession(
+/* ─── The browser session (the original, free path) ──────────────────── */
+
+function createBrowserChatVoiceSession(
   handlers: ChatVoiceHandlers,
-  options: ChatVoiceSessionOptions = {},
+  options: ChatVoiceSessionOptions,
 ): ChatVoiceSession {
   let recognition: ChatVoiceRecognition | null = null;
   let active = false;
@@ -264,4 +436,279 @@ export function createChatVoiceSession(
   }
 
   return { start, stop, dispose };
+}
+
+/* ─── The server session (the fallback path) ─────────────────────────── */
+
+const CHAT_VOICE_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+  "audio/ogg;codecs=opus",
+  "audio/ogg",
+];
+
+export function pickChatVoiceRecorderMime(
+  ctor: ChatVoiceRecorderCtor,
+): string | undefined {
+  if (typeof ctor.isTypeSupported !== "function") return undefined;
+  for (const candidate of CHAT_VOICE_MIME_CANDIDATES) {
+    try {
+      if (ctor.isTypeSupported(candidate)) return candidate;
+    } catch {
+      /* a throwing probe just moves to the next candidate */
+    }
+  }
+  return undefined;
+}
+
+function chatVoiceFilename(mimeType: string): string {
+  if (mimeType.includes("mp4")) return "chat-voice.m4a";
+  if (mimeType.includes("ogg")) return "chat-voice.ogg";
+  if (mimeType.includes("mpeg")) return "chat-voice.mp3";
+  return "chat-voice.webm";
+}
+
+function createServerChatVoiceSession(
+  handlers: ChatVoiceHandlers,
+  options: ChatVoiceSessionOptions,
+): ChatVoiceSession {
+  const server = options.server ?? {};
+  let stream: ChatVoiceMediaStream | null = null;
+  let recorder: ChatVoiceRecorder | null = null;
+  let chunks: Blob[] = [];
+  let active = false;
+  let stopping = false;
+  let settled = false;
+  let disposed = false;
+  let recorderFailed = false;
+  let capTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function stopTracks() {
+    if (stream) {
+      for (const track of stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      stream = null;
+    }
+  }
+
+  function clearCap() {
+    if (capTimer) {
+      clearTimeout(capTimer);
+      capTimer = null;
+    }
+  }
+
+  /** Settle exactly once: back to idle, then the outcome. */
+  function settle(kind: ChatVoiceErrorKind | null, text?: string) {
+    if (settled || disposed) return;
+    settled = true;
+    active = false;
+    stopping = false;
+    clearCap();
+    stopTracks();
+    handlers.onState?.("idle");
+    if (kind) {
+      handlers.onError?.(kind);
+      return;
+    }
+    const final = prepareVoiceMessage(text ?? "");
+    if (final) handlers.onFinal?.(final);
+    else handlers.onError?.("no-speech");
+  }
+
+  async function finishRecording() {
+    const mime = recorder?.mimeType || "audio/webm";
+    recorder = null;
+    stopTracks();
+    if (recorderFailed) {
+      recorderFailed = false;
+      settle("recording-failed");
+      return;
+    }
+    const blob = new Blob(chunks, { type: mime });
+    chunks = [];
+    if (blob.size === 0) {
+      settle("no-speech");
+      return;
+    }
+    const fetchImpl: ChatVoiceTranscribeFetch =
+      server.fetchImpl ?? ((input, init) => fetch(input, init));
+    try {
+      const form = new FormData();
+      form.append("audio", blob, chatVoiceFilename(mime));
+      const res = await fetchImpl(CHAT_VOICE_TRANSCRIBE_PATH, {
+        method: "POST",
+        body: form,
+      });
+      if (disposed) return;
+      if (!res) {
+        settle("transcription-failed");
+        return;
+      }
+      const data = (await res.json().catch(() => null)) as {
+        transcript?: unknown;
+        error?: unknown;
+      } | null;
+      if (!res.ok) {
+        /* The server's own no-speech verdict keeps its honest kind;
+           everything else maps by status (401 → sign in, rest →
+           transcription failed). */
+        if (data?.error === "no_speech") settle("no-speech");
+        else settle(mapChatVoiceTranscribeStatus(res.status));
+        return;
+      }
+      const text = typeof data?.transcript === "string" ? data.transcript : "";
+      settle(null, text);
+    } catch {
+      if (disposed) return;
+      settle("transcription-failed");
+    }
+  }
+
+  async function start() {
+    if (active || disposed) return;
+    settled = false;
+    stopping = false;
+    recorderFailed = false;
+    const Ctor =
+      server.recorderCtor !== undefined
+        ? server.recorderCtor
+        : getChatVoiceRecorderCtor();
+    const gum =
+      server.getUserMedia !== undefined
+        ? server.getUserMedia
+        : defaultGetUserMedia();
+    if (!Ctor || !gum) {
+      /* Neither transport exists in this browser — say so. */
+      handlers.onError?.("unsupported");
+      return;
+    }
+    active = true;
+    let mediaStream: ChatVoiceMediaStream;
+    try {
+      mediaStream = await gum({ audio: true });
+    } catch (err) {
+      active = false;
+      if (disposed) return;
+      handlers.onError?.(mapChatVoiceCaptureError(err));
+      return;
+    }
+    if (disposed) {
+      for (const track of mediaStream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      active = false;
+      return;
+    }
+    stream = mediaStream;
+    chunks = [];
+    let rec: ChatVoiceRecorder;
+    try {
+      const mime = pickChatVoiceRecorderMime(Ctor);
+      rec = new Ctor(mediaStream, mime ? { mimeType: mime } : undefined);
+    } catch {
+      active = false;
+      stopTracks();
+      handlers.onError?.("recording-failed");
+      return;
+    }
+    recorder = rec;
+    rec.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    };
+    rec.onerror = () => {
+      /* A recorder error mid-capture settles as recording-failed —
+         never a partial transcript dressed up as the user's words. */
+      recorderFailed = true;
+      try {
+        rec.stop();
+      } catch {
+        settle("recording-failed");
+      }
+    };
+    rec.onstop = () => {
+      void finishRecording();
+    };
+    handlers.onState?.("listening");
+    try {
+      rec.start(250);
+    } catch {
+      recorder = null;
+      active = false;
+      stopTracks();
+      handlers.onError?.("recording-failed");
+      return;
+    }
+    /* The utterance cap: recording stops itself at the cap and the
+       transcript settles like a manual stop — never an endless mic. */
+    capTimer = setTimeout(() => {
+      stop();
+    }, server.maxDurationMs ?? CHAT_VOICE_MAX_DURATION_MS);
+  }
+
+  function stop() {
+    if (!active || stopping || !recorder) return;
+    stopping = true;
+    clearCap();
+    handlers.onState?.("transcribing");
+    try {
+      recorder.stop();
+    } catch {
+      void finishRecording();
+    }
+  }
+
+  function dispose() {
+    disposed = true;
+    clearCap();
+    if (recorder) {
+      const rec = recorder;
+      recorder = null;
+      rec.ondataavailable = null;
+      rec.onstop = null;
+      rec.onerror = null;
+      try {
+        if (rec.state !== "inactive") rec.stop();
+      } catch {
+        /* already ended — nothing to tear down */
+      }
+    }
+    stopTracks();
+    active = false;
+    stopping = false;
+  }
+
+  return { start, stop, dispose };
+}
+
+/* ─── The seam's factory: browser-first, server only where unsupported ─ */
+
+export function createChatVoiceSession(
+  handlers: ChatVoiceHandlers,
+  options: ChatVoiceSessionOptions = {},
+): ChatVoiceSession {
+  const transport =
+    options.transport ??
+    getChatVoiceTransport({
+      ctor: options.ctor,
+      recorderCtor: options.server?.recorderCtor,
+      getUserMedia: options.server?.getUserMedia,
+    });
+  if (transport === "browser") {
+    return createBrowserChatVoiceSession(handlers, options);
+  }
+  /* "server" — and the null case (neither transport exists): the
+     server session's start reports `unsupported` when it finds no
+     recording path either, which is the truthful everywhere-verdict. */
+  return createServerChatVoiceSession(handlers, options);
 }

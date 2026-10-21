@@ -11,13 +11,18 @@
  *      (POST /api/free-chat with the unchanged {message, history}
  *      payload), so a spoken message is byte-identical to a typed one;
  *  (c) the typing path is untouched (same input, same Enter handler);
- *  (d) the voice transport makes NO network calls of its own — no
- *      server transcription charge rides along with a voice message;
+ *  (d) the BROWSER transport makes NO network calls of its own; the
+ *      only network call the seam can ever make is the server fallback
+ *      (wave-2 #9) — POST /api/chat/voice/transcribe, which is FREE
+ *      (CHAT_VOICE_TRANSCRIBE_CREDITS = 0) and fires only where the
+ *      browser recognizer is absent. The charged song-file rail
+ *      (/api/transcribe) is never touched, and no credit code rides
+ *      along with a voice message on either transport;
  *  (e) voice OUT is wired ONLY through its own rail: the per-reply
  *      ChatSpeakButton → POST /api/chat/speak (see
  *      chat-speak-wiring.test.ts). No browser speech synthesis and no
  *      call to the charged voiceover rail anywhere in the chat
- *      surface — the mic seam itself stays network-free.
+ *      surface.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -87,11 +92,21 @@ describe("chat voice wiring — spoken == typed, byte-identical request path", (
 });
 
 describe("chat voice wiring — no charges on the mic seam", () => {
-  it("the seam makes no network calls and touches no credit code", () => {
-    expect(seam).not.toContain("fetch(");
+  it("the seam's only endpoint is the FREE fallback; the charged song rail is never touched", () => {
+    expect(seam).toContain('CHAT_VOICE_TRANSCRIBE_PATH = "/api/chat/voice/transcribe"');
+    expect(seam).toContain("CHAT_VOICE_TRANSCRIBE_CREDITS = 0");
     expect(seam).not.toContain("chargeCredits");
     expect(seam).not.toContain('"/api/transcribe"');
     expect(seam).toContain("SpeechRecognition");
+    /* browser-first: the recognizer is decided before the fallback */
+    expect(seam.indexOf("getChatVoiceRecognitionCtor")).toBeLessThan(
+      seam.indexOf("createServerChatVoiceSession"),
+    );
+  });
+
+  it("the button wires the fallback fetch with the spend confirmation explicitly skipped", () => {
+    expect(button).toContain("skipConfirm: true");
+    expect(button).toContain("fetchImpl: transcribeFetch");
   });
 
   it("the mic button carries no speaker control — voice-out is the sibling ChatSpeakButton", () => {
