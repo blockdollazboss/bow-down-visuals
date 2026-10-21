@@ -21,7 +21,7 @@ describe("server-strings locale path — pages pass their language", () => {
   it("both pages read the current language from i18next", () => {
     for (const page of [moveHome, catalogImport]) {
       expect(page).toContain('import { useTranslation } from "react-i18next"');
-      expect(page).toContain("const { i18n } = useTranslation()");
+      expect(page).toContain("const { t, i18n } = useTranslation();");
     }
   });
 
