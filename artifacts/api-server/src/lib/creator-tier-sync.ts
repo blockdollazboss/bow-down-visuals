@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
 import { sendEmail, emailShell, escapeHtml, baseUrlForEmail } from "./email";
+import { createGuardedStripeClient } from "./stripe-client";
 
 /* ── Creator tier subscription sync — Worker 12 ────────────────────────────
    Called from the central Stripe webhook (lib/stripe-webhook.ts). Handles:
@@ -15,9 +16,7 @@ import { sendEmail, emailShell, escapeHtml, baseUrlForEmail } from "./email";
    Visual Bucs are never mentioned here.                                   */
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 /** Stripe v22: the period lives on the subscription ITEM, not the subscription. */

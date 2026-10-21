@@ -63,6 +63,7 @@ import { logger } from "../lib/logger";
    per-tier rates in that module are PROPOSED and pending user approval, so
    the storefront uses the canonical base rate only. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
+import { createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
@@ -114,9 +115,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ProductKindSchema = z.enum(STORE_PRODUCT_KINDS);
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 function getTokenSecret(): string {

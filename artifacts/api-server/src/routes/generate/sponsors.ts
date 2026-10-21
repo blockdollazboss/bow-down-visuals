@@ -9,6 +9,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { createGuardedStripeClient } from "../../lib/stripe-client";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Money rules (standing pricing rule: AI/compute burns credits, pure UI is free):
@@ -808,8 +809,7 @@ router.post("/sponsors/deals/:id/fund", publicApiLimiter, requireAuth, async (re
       return;
     }
 
-    const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
+    const stripe = createGuardedStripeClient();
     const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
     const baseUrl = domain ? `https://${domain}` : "http://localhost";
     const session = await stripe.checkout.sessions.create({

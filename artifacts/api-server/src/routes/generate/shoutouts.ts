@@ -15,6 +15,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    refreshSupabaseStorageUrl mints a fresh 1-day signed URL. */
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { createGuardedStripeClient } from "../../lib/stripe-client";
 
 const router = Router();
 
@@ -138,9 +139,7 @@ async function toRequestJson(r: typeof shoutoutRequestsTable.$inferSelect) {
 
 /* ── Checkout helpers (0142) — same shape as the storefront's ── */
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 function getBaseUrl(req: import("express").Request): string {

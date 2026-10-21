@@ -592,6 +592,24 @@ router.post(
       return;
     }
     try {
+      /* Completed-sale sequence for this exact purchase: a retry
+         before verify records the sale reuses the original session,
+         while the next purchase after that sale lands advances the
+         sequence and gets a fresh session. */
+      const priorPaidSales = await db
+        .select()
+        .from(liveShopSalesTable)
+        .where(
+          and(
+            eq(liveShopSalesTable.buyer_user_id, req.userId!),
+            eq(liveShopSalesTable.product_id, row.id),
+            eq(liveShopSalesTable.quantity, parsed.data.quantity),
+            eq(liveShopSalesTable.status, "paid"),
+          ),
+        );
+      const completedPurchaseCount = priorPaidSales.filter(
+        (sale) => (sale.stream_id ?? null) === (parsed.data.stream_id ?? null),
+      ).length;
       const baseUrl = checkoutBaseUrl(req);
       const session = await createPaymentCheckout({
         amountCents: totalCents,
@@ -610,6 +628,18 @@ router.post(
              against these, never the product's current price. */
           unit_price_cents: String(row.price_cents),
           total_cents: String(totalCents),
+        },
+        idempotency: {
+          memberId: req.userId!,
+          rail: "live-shopping",
+          purchaseIntent: {
+            productId: row.id,
+            sellerUserId: row.user_id,
+            streamId: parsed.data.stream_id ?? null,
+            quantity: parsed.data.quantity,
+            totalCents,
+            completedPurchaseCount,
+          },
         },
       });
       res.json({
