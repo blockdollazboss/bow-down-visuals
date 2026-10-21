@@ -11,7 +11,12 @@ import type { TrackLite } from "@/components/discovery/cards";
    Extracted from the old standalone /feed page in Phase 3 (the two "feed"
    pages merged into one Feed at /home). New releases from creators you
    follow (last 30 days), newest first. "New since your last visit" is
-   badged from localStorage. Data source unchanged: /api/discovery/feed. */
+   badged from localStorage. Data source unchanged: /api/discovery/feed.
+   For-You v1 (Wave 3 #19): the same endpoint personalizes the order
+   when the member's For-You switch is on and they have engagement to
+   rank with — the switch above the wire is that control, discovery
+   picks are chipped, and ranked items carry their "why" in the meta
+   line. Off (or cold start) renders the plain wire exactly as before. */
 
 const LAST_VISIT_KEY = "bdv_feed_last_visit";
 
@@ -19,6 +24,11 @@ interface FeedItem extends TrackLite {
   kind: "track" | "video";
   thumb: string | null;
   created_at: string;
+  /* For-You v1 (Wave 3 #19): present only when personalization is on
+     and ranked this wire. `source` says how the drop got here; `why`
+     is the honest reason, present only when a signal earned it. */
+  source?: "following" | "discovery";
+  why?: { kind: string; label: string } | null;
 }
 
 export function DropsWire() {
@@ -27,6 +37,50 @@ export function DropsWire() {
   const [lastVisit, setLastVisit] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [forYou, setForYou] = useState<boolean | null>(null);
+
+  /* The explicit For-You on/off (owner law: every automated behavior
+     ships with one). Stored server-side per member; the feed read
+     honors it, so flipping the switch just re-reads the wire. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken().catch(() => null);
+        if (!token || cancelled) return;
+        const r = await fetch("/api/discovery/feed/prefs", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok || cancelled) return;
+        const d = await r.json();
+        if (!cancelled && typeof d.forYouEnabled === "boolean") setForYou(d.forYouEnabled);
+      } catch {
+        /* The toggle just stays hidden; the wire itself still loads. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAccessToken]);
+
+  const toggleForYou = async () => {
+    if (forYou === null) return;
+    const next = !forYou;
+    setForYou(next);
+    try {
+      const token = await getAccessToken().catch(() => null);
+      if (!token) return;
+      await fetch("/api/discovery/feed/prefs", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ forYouEnabled: next }),
+      });
+    } catch {
+      /* Best effort — the next prefs read re-syncs the switch. */
+    }
+    setRetryNonce((n) => n + 1);
+  };
 
   useEffect(() => {
     setLastVisit(localStorage.getItem(LAST_VISIT_KEY));
@@ -61,6 +115,50 @@ export function DropsWire() {
 
   return (
     <div>
+      {user && forYou !== null && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-zinc-950 px-4 py-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-bold text-white">
+              <Sparkles className="h-4 w-4 shrink-0 text-[#e8c86a]" />
+              For You
+              <span
+                className={
+                  forYou
+                    ? "rounded-full bg-[#e8c86a] px-2 py-0.5 text-[10px] font-black uppercase text-black"
+                    : "rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase text-white/50"
+                }
+              >
+                {forYou ? "On" : "Off"}
+              </span>
+            </p>
+            <p className="mt-0.5 text-[11px] text-white/40">
+              {forYou
+                ? "Ordered by the creators you play, like and save — every pick says why. Nothing leaves the platform."
+                : "Off — newest drops from the creators you follow, in order, nothing ranked."}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={forYou}
+            aria-label="Toggle For You personalization"
+            onClick={toggleForYou}
+            className={
+              forYou
+                ? "relative h-6 w-11 shrink-0 rounded-full bg-[#e8c86a] transition-colors"
+                : "relative h-6 w-11 shrink-0 rounded-full bg-white/15 transition-colors"
+            }
+          >
+            <span
+              className={
+                forYou
+                  ? "absolute left-0 top-0.5 h-5 w-5 translate-x-[22px] rounded-full bg-black transition-transform"
+                  : "absolute left-0 top-0.5 h-5 w-5 translate-x-0.5 rounded-full bg-white transition-transform"
+              }
+            />
+          </button>
+        </div>
+      )}
       {loadError ? (
         <div className="rounded-2xl border border-primary/25 bg-zinc-950 p-10 text-center">
           <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
@@ -103,6 +201,11 @@ export function DropsWire() {
                   </div>
                 </div>
                 <p className="mt-1 pl-1 text-[11px] text-white/30">
+                  {item.source === "discovery" && (
+                    <span className="mr-1.5 rounded-full border border-[#e8c86a]/60 px-1.5 py-px text-[9px] font-black uppercase text-[#e8c86a]">
+                      Discovery
+                    </span>
+                  )}
                   {new Date(item.created_at).toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",
@@ -111,6 +214,12 @@ export function DropsWire() {
                   <Link href={`/artist/${item.slug}`} className="hover:text-[#e8c86a]">
                     {item.display_name}
                   </Link>
+                  {item.why ? (
+                    <>
+                      {" · "}
+                      <span className="text-[#e8c86a]/80">{item.why.label}</span>
+                    </>
+                  ) : null}
                   {" · "}
                   <ShareMenu
                     getToken={getAccessToken}
