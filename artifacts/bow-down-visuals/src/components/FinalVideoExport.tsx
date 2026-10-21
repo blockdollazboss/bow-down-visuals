@@ -3,7 +3,7 @@ import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
   Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle,
-  SlidersHorizontal, Share2, CalendarClock,
+  SlidersHorizontal, Share2, CalendarClock, FileCode2,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
@@ -27,7 +27,8 @@ import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
 import { proToolsActive } from "@/lib/editor-settings";
-import { computeManualTimings } from "@/lib/scene-timing";
+import { computeManualTimings, computeSceneTimings } from "@/lib/scene-timing";
+import { buildFcpxml, fcpxmlFileName, type FcpxmlClipInput, type FcpxmlTimelineInput } from "@/lib/fcpxml-export";
 import { pollExportJob } from "@/lib/export-job-poll";
 
 interface ExportRecord {
@@ -377,15 +378,16 @@ export function FinalVideoExport({
   const [qSlider, setQSlider]                       = useState(80);
   const [qFps, setQFps]                             = useState<24 | 30 | 60>(30);
   const [qContainer, setQContainer]                 = useState<"mp4" | "mov">("mp4");
+  const [qCodec, setQCodec]                         = useState<"h264" | "prores" | "dnxhr">("h264");
   const [qWatermark, setQWatermark]                 = useState(true); // default ON (free/bonus exports)
   const [estimate, setEstimate]                     = useState<{
     sizeLabel: string; renderLabel: string; capped: boolean;
-    settings: { width: number; height: number; fps: number; crf: number; container: string };
+    settings: { width: number; height: number; fps: number; crf: number; container: string; codec?: string };
   } | null>(null);
   const [estimateLoading, setEstimateLoading]       = useState(false);
   const [estimateError, setEstimateError]           = useState<string | null>(null);
   const [exportQualityMeta, setExportQualityMeta]   = useState<{
-    resolution: string; width: number; height: number; fps: number; crf: number; container: string;
+    resolution: string; width: number; height: number; fps: number; crf: number; container: string; codec?: string;
   } | null>(null);
 
   /* The live estimate effect lives below (after estimateDurationSec) — the
@@ -475,6 +477,90 @@ export function FinalVideoExport({
   }
 
   const hasAudio = !!effectiveAudioUrl && audioSource !== "none";
+
+  /* ── FCPXML timeline (Pro Finishing Door) ──────────────────────────────
+   * The timeline handed to Final Cut Pro is built from the SAME model the
+   * render consumes: selected scenes in playback order, the editor's own
+   * scene timings (or manual placements), ClipEdit trims, and flat Pro
+   * Tools speed. No media is embedded — assets reference the clip URLs,
+   * the standard XML-only handoff (relink in Final Cut). Free: it is the
+   * creator's own edit data, not a render. */
+  function buildFcpxmlTimeline(): FcpxmlTimelineInput {
+    const dimsByAspect: Record<string, [number, number]> = {
+      "9:16": [1080, 1920],
+      "16:9": [1920, 1080],
+      "1:1": [1080, 1080],
+      "4:5": [1080, 1350],
+    };
+    const [width, height] = dimsByAspect[aspectRatio] ?? [1080, 1920];
+    const autoTimings = !isManualLayout
+      ? computeSceneTimings(scenes, audioDurationSec ?? null)
+      : null;
+
+    let cursor = 0;
+    const clips: FcpxmlClipInput[] = selectedScenes.map((scene, k) => {
+      const sceneIdx = scenes.indexOf(scene);
+      const edit = clipEdits?.[scene.id];
+      const pt = orderedClipProTools?.[k] ?? null;
+      const hasSpeedRamp = !!((pt?.speedSegments?.length ?? 0) > 0 || (pt?.speedCurve?.length ?? 0) > 0);
+      const speed = !hasSpeedRamp && pt?.speed && pt.speed > 0 ? pt.speed : 1;
+      const trimStart = Math.max(0, edit?.trimStart ?? 0);
+      const trimEnd = Math.max(0, edit?.trimEnd ?? 0);
+
+      let startSec: number;
+      let durationSec: number;
+      if (isManualLayout && manualResult && sceneIdx >= 0) {
+        const timing = manualResult.timings[sceneIdx]!;
+        startSec = timing.startSec;
+        durationSec = timing.durationSec;
+      } else {
+        durationSec = (sceneIdx >= 0 ? autoTimings?.[sceneIdx]?.durationSec : undefined) ?? 5;
+        startSec = cursor;
+      }
+      cursor = Math.max(cursor, startSec + durationSec);
+
+      return {
+        name: sceneLabel(scene, k),
+        // The clip the preview/export actually plays for this scene.
+        src: edit?.useLipSync && edit?.lipSyncUrl ? edit.lipSyncUrl : scene.demoClipUrl!,
+        startSec,
+        durationSec,
+        sourceStartSec: trimStart,
+        sourceDurationSec: durationSec + trimStart + trimEnd,
+        speed,
+        hasSpeedRamp,
+      };
+    });
+
+    return {
+      projectName: "Bow Down Visuals — Timeline Export",
+      fps: 30,
+      width,
+      height,
+      clips,
+      audio: hasAudio && effectiveAudioUrl
+        ? {
+            name: audioSourceLabel ?? "Song",
+            src: effectiveAudioUrl,
+            durationSec: audioDurationSec ?? null,
+          }
+        : null,
+    };
+  }
+
+  function handleDownloadFcpxml() {
+    const xml = buildFcpxml(buildFcpxmlTimeline());
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fcpxmlFileName("bow-down-visuals-timeline");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   /** Master player has audio but export couldn't resolve any audio URL */
   const audioSourceMismatch = !!masterAudioUrl?.trim() && !effectiveAudioUrl;
   const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
@@ -534,6 +620,7 @@ export function FinalVideoExport({
               quality: qSlider,
               fps: qFps,
               container: qContainer,
+              codec: qCodec,
             },
           }),
           signal: AbortSignal.timeout(15_000),
@@ -550,7 +637,7 @@ export function FinalVideoExport({
     }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qualityOpen, qResolution, qSlider, qFps, qContainer, hasAudio, aspectRatio, estimateDurationSec]);
+  }, [qualityOpen, qResolution, qSlider, qFps, qContainer, qCodec, hasAudio, aspectRatio, estimateDurationSec]);
 
   /** Fires the export request against a specific prepareId. When qualityOpts is
    *  given, the request goes to POST /api/export-quality (flat 150 Visual
@@ -562,6 +649,7 @@ export function FinalVideoExport({
     quality: number;
     fps: 24 | 30 | 60;
     container: "mp4" | "mov";
+    codec: "h264" | "prores" | "dnxhr";
     watermark: boolean;
   }
   async function runExportRequest(prepareIdToUse: string | null, qualityOpts?: QualityExportOpts) {
@@ -616,6 +704,7 @@ export function FinalVideoExport({
           quality: qualityOpts.quality,
           fps: qualityOpts.fps,
           container: qualityOpts.container,
+          codec: qualityOpts.codec,
         } : undefined,
       }),
       signal: AbortSignal.timeout(60 * 1000),
@@ -658,7 +747,7 @@ export function FinalVideoExport({
       exportStatus?: Record<string, unknown>;
       quality?: {
         enabled: boolean; resolution: string; width: number; height: number;
-        fps: number; crf: number; container: string;
+        fps: number; crf: number; container: string; codec?: string;
       } | null;
       debug?: { identicalClipsDetected?: boolean };
     }
@@ -679,6 +768,7 @@ export function FinalVideoExport({
           fps: data.quality.fps,
           crf: data.quality.crf,
           container: data.quality.container,
+          codec: data.quality.codec,
         });
       } else {
         setExportQualityMeta(null);
@@ -877,7 +967,7 @@ export function FinalVideoExport({
             {/* ── Quality summary (quality-controlled exports) ── */}
             {exportQualityMeta && (
               <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-quality-summary">
-                {exportQualityMeta.width}×{exportQualityMeta.height} · CRF {exportQualityMeta.crf} · {exportQualityMeta.fps}fps · {exportQualityMeta.container.toUpperCase()} · 150 Visual Bucs
+                {exportQualityMeta.width}×{exportQualityMeta.height} · {exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`} · {exportQualityMeta.fps}fps · {exportQualityMeta.container.toUpperCase()} · 150 Visual Bucs
               </p>
             )}
 
@@ -1371,6 +1461,8 @@ export function FinalVideoExport({
                     setQFps={setQFps}
                     qContainer={qContainer}
                     setQContainer={setQContainer}
+                    qCodec={qCodec}
+                    setQCodec={setQCodec}
                     qWatermark={qWatermark}
                     setQWatermark={setQWatermark}
                     isSubscriber={isSubscriber}
@@ -1383,9 +1475,35 @@ export function FinalVideoExport({
                       quality: qSlider,
                       fps: qFps,
                       container: qContainer,
+                      codec: qCodec,
                       watermark: qWatermark,
                     })}
                   />
+                )}
+
+                {/* ── Pro Finishing Door: FCPXML timeline for Final Cut Pro.
+                     Free — the creator's own edit data, not a render. ── */}
+                {prepareAllReady && !exportRangeBlocked && (
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-white/75">Finish in Final Cut Pro</p>
+                        <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
+                          Download this exact timeline as FCPXML — clips, order, trims, and timing. Media stays linked by reference; relink to your clip files in Final Cut.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDownloadFcpxml}
+                        className="shrink-0 gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                        data-testid="btn-download-fcpxml"
+                      >
+                        <FileCode2 className="h-4 w-4" />
+                        FCPXML
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Export buttons — only shown when all clips are ready and the range is valid */}
@@ -1474,12 +1592,20 @@ function crfForSlider(q: number): number {
   return Math.min(26, Math.max(16, Math.round(26 - (clamped / 100) * 10)));
 }
 
+/** Display label for an export codec (Pro Finishing Door). */
+function codecDisplayLabel(codec: string): string {
+  if (codec === "prores") return "ProRes 422 HQ";
+  if (codec === "dnxhr") return "DNxHR HQ";
+  return "H.264";
+}
+
 function QualityPanel({
   open, onToggle,
   qResolution, setQResolution,
   qSlider, setQSlider,
   qFps, setQFps,
   qContainer, setQContainer,
+  qCodec, setQCodec,
   qWatermark, setQWatermark,
   isSubscriber,
   estimate, estimateLoading, estimateError,
@@ -1495,11 +1621,13 @@ function QualityPanel({
   setQFps: (v: 24 | 30 | 60) => void;
   qContainer: "mp4" | "mov";
   setQContainer: (v: "mp4" | "mov") => void;
+  qCodec: "h264" | "prores" | "dnxhr";
+  setQCodec: (v: "h264" | "prores" | "dnxhr") => void;
   qWatermark: boolean;
   setQWatermark: (v: boolean) => void;
   isSubscriber: boolean;
   estimate: { sizeLabel: string; renderLabel: string; capped: boolean;
-    settings: { width: number; height: number; fps: number; crf: number; container: string } } | null;
+    settings: { width: number; height: number; fps: number; crf: number; container: string; codec?: string } } | null;
   estimateLoading: boolean;
   estimateError: string | null;
   disabled: boolean;
@@ -1523,7 +1651,7 @@ function QualityPanel({
         <div className="flex items-center gap-2 min-w-0">
           <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0" />
           <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">Quality</span>
-          <span className="text-[10px] text-white/30 truncate hidden sm:inline">4K · CRF · frame rate · MP4/MOV</span>
+          <span className="text-[10px] text-white/30 truncate hidden sm:inline">4K · ProRes / DNxHR · frame rate · MP4/MOV</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] font-bold text-primary">150 Visual Bucs flat</span>
@@ -1550,29 +1678,61 @@ function QualityPanel({
             )}
           </div>
 
-          {/* Quality slider → CRF */}
+          {/* Codec — H.264 for the web, ProRes / DNxHR for finishing */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quality</p>
-              <p className="text-[11px] font-bold text-white/70">
-                {qualitySliderLabel(qSlider)} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Codec</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["h264", "prores", "dnxhr"] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setQCodec(c);
+                    if (c !== "h264") setQContainer("mov");
+                  }}
+                  className={segBtn(qCodec === c)}
+                  data-testid={`quality-codec-${c}`}
+                >
+                  {codecDisplayLabel(c)}
+                </button>
+              ))}
+            </div>
+            {qCodec !== "h264" && (
+              <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
+                {codecDisplayLabel(qCodec)} is a pro finishing codec — big, pristine MOV files made for Final Cut Pro, Premiere, and Resolve. Same 150 Visual Bucs.
               </p>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={qSlider}
-              onChange={(e) => setQSlider(Number(e.target.value))}
-              className="w-full accent-[#e8c86a]"
-              data-testid="quality-slider"
-              aria-label="Export quality"
-            />
-            <div className="flex justify-between text-[9px] text-white/25 mt-0.5">
-              <span>Draft · smaller</span>
-              <span>Max · pristine</span>
-            </div>
+            )}
           </div>
+
+          {/* Quality slider → CRF (H.264 only — pro codecs are fixed-rate) */}
+          {qCodec === "h264" ? (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quality</p>
+                <p className="text-[11px] font-bold text-white/70">
+                  {qualitySliderLabel(qSlider)} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
+                </p>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={qSlider}
+                onChange={(e) => setQSlider(Number(e.target.value))}
+                className="w-full accent-[#e8c86a]"
+                data-testid="quality-slider"
+                aria-label="Export quality"
+              />
+              <div className="flex justify-between text-[9px] text-white/25 mt-0.5">
+                <span>Draft · smaller</span>
+                <span>Max · pristine</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[10px] text-white/35 leading-relaxed">
+              {codecDisplayLabel(qCodec)} renders at its fixed finishing rate — the quality slider only applies to H.264.
+            </p>
+          )}
 
           {/* Frame rate + container */}
           <div className="grid grid-cols-2 gap-3">
@@ -1590,11 +1750,21 @@ function QualityPanel({
               <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Container</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(["mp4", "mov"] as const).map((c) => (
-                  <button key={c} type="button" onClick={() => setQContainer(c)} className={segBtn(qContainer === c)} data-testid={`quality-container-${c}`}>
+                  <button
+                    key={c}
+                    type="button"
+                    disabled={qCodec !== "h264" && c === "mp4"}
+                    onClick={() => setQContainer(c)}
+                    className={`${segBtn(qContainer === c)} ${qCodec !== "h264" && c === "mp4" ? "opacity-40 cursor-not-allowed" : ""}`}
+                    data-testid={`quality-container-${c}`}
+                  >
                     {c.toUpperCase()}
                   </button>
                 ))}
               </div>
+              {qCodec !== "h264" && (
+                <p className="text-[10px] text-white/30 mt-1.5">Pro codecs deliver as MOV.</p>
+              )}
             </div>
           </div>
 
@@ -1645,7 +1815,7 @@ function QualityPanel({
                   {estimate.sizeLabel} <span className="text-white/30 font-normal">·</span> {estimate.renderLabel}
                 </p>
                 <p className="text-[10px] text-white/30 mt-0.5 font-mono">
-                  {estimate.settings.width}×{estimate.settings.height} · CRF {estimate.settings.crf} · {estimate.settings.fps}fps · {estimate.settings.container.toUpperCase()}
+                  {estimate.settings.width}×{estimate.settings.height} · {estimate.settings.codec && estimate.settings.codec !== "h264" ? codecDisplayLabel(estimate.settings.codec) : `CRF ${estimate.settings.crf}`} · {estimate.settings.fps}fps · {estimate.settings.container.toUpperCase()}
                   {estimate.capped ? " · capped to upload limit" : ""}
                 </p>
               </div>
@@ -1673,7 +1843,7 @@ function QualityPanel({
             {disabled ? "Re-preparing…" : "Export with Quality Settings — 150 Visual Bucs"}
           </Button>
           <p className="text-center text-[10px] text-white/25 -mt-2">
-            4K costs the same. Watermark {qWatermark ? "on" : "off"} · {qResolution === "4k" ? "4K" : qResolution} · {qFps}fps · {qContainer.toUpperCase()}
+            4K costs the same. Watermark {qWatermark ? "on" : "off"} · {qResolution === "4k" ? "4K" : qResolution} · {qFps}fps · {codecDisplayLabel(qCodec)} · {qContainer.toUpperCase()}
           </p>
         </div>
       )}

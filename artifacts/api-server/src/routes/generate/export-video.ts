@@ -238,6 +238,43 @@ export interface QualityOptions {
   fps: number;
   /** "mp4" | "mov" */
   container: string;
+  /** "h264" (default, legacy) | "prores" (ProRes 422 HQ) | "dnxhr" (DNxHR HQ).
+   *  Pro codecs always deliver in a MOV container and skip the x264 VBV
+   *  bitrate budget — they are fixed-bitrate finishing codecs, and the final
+   *  upload rides R2, which has no per-file size ceiling. */
+  codec: string;
+}
+
+/** Video codec choices on the export rail. "h264" is the legacy default. */
+export const EXPORT_VIDEO_CODECS = ["h264", "prores", "dnxhr"] as const;
+export type ExportVideoCodec = (typeof EXPORT_VIDEO_CODECS)[number];
+
+export function isProCodec(codec: string | null | undefined): boolean {
+  return codec === "prores" || codec === "dnxhr";
+}
+
+/** FFmpeg encoder args for the pro finishing codecs (empty for h264 — the
+ *  caller uses its x264 block). ProRes reuses the tree's existing prores_ks
+ *  encoder pattern (routes/generate/video-background-removal.ts renders
+ *  ProRes 4444 with it); profile 3 is 422 HQ, the standard finishing
+ *  deliverable. DNxHR HQ is Avid's equivalent 422 finishing codec. */
+export function proVideoCodecArgs(codec: string | null | undefined): string[] {
+  if (codec === "prores") {
+    return ["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le"];
+  }
+  if (codec === "dnxhr") {
+    return ["-c:v", "dnxhd", "-profile:v", "dnxhr_hq", "-pix_fmt", "yuv422p"];
+  }
+  return [];
+}
+
+/** Nominal bitrate (Mbps) of a pro codec at a given frame size/rate, scaled
+ *  linearly from the published 1920×1080@30 anchors (ProRes 422 HQ ≈ 220,
+ *  DNxHR HQ ≈ 175). Used only for the size estimate — the codecs themselves
+ *  are fixed-bitrate and ignore the x264 VBV budget. */
+export function proCodecBitrateMbps(codec: string, width: number, height: number, fps: number): number {
+  const anchor = codec === "prores" ? 220 : 175;
+  return (anchor * (width * height)) / (1920 * 1080) * (fps / 30);
 }
 
 /** Aspect-ratio base dims scaled to the requested resolution, kept even
@@ -262,10 +299,13 @@ export function normalizeQualityOptions(raw: QualityOptions | null | undefined):
   const resolution = ["720p", "1080p", "4k"].includes(r.resolution ?? "")
     ? (r.resolution as string) : "1080p";
   const fps = [24, 30, 60].includes(Number(r.fps)) ? Number(r.fps) : 30;
-  const container = r.container === "mov" ? "mov" : "mp4";
+  const codec = (EXPORT_VIDEO_CODECS as readonly string[]).includes(r.codec ?? "")
+    ? (r.codec as string) : "h264";
+  // Pro finishing codecs only exist as MOV deliverables.
+  const container = isProCodec(codec) ? "mov" : r.container === "mov" ? "mov" : "mp4";
   const quality = Number.isFinite(Number(r.quality))
     ? Math.min(100, Math.max(0, Number(r.quality))) : 80;
-  return { enabled: r.enabled === true, resolution, quality, fps, container };
+  return { enabled: r.enabled === true, resolution, quality, fps, container, codec };
 }
 
 export interface QualityEstimateInput {
@@ -274,6 +314,7 @@ export interface QualityEstimateInput {
   quality?: number;
   fps?: number;
   container?: string;
+  codec?: string;
   durationSec: number;
   hasAudio?: boolean;
 }
@@ -293,6 +334,8 @@ export interface QualityEstimate {
     container: string;
     resolution: string;
     quality: number;
+    /** "h264" | "prores" | "dnxhr" — crf is 0 (not applicable) for pro codecs. */
+    codec: string;
   };
 }
 
@@ -311,13 +354,19 @@ export function estimateExportQuality(input: QualityEstimateInput): QualityEstim
     quality: input.quality,
     fps: input.fps,
     container: input.container,
+    codec: input.codec,
   } as QualityOptions);
   const durationSec = Math.max(0.25, input.durationSec);
   const [w, h] = resolveQualityDims(input.aspectRatio ?? "9:16", q.resolution);
-  const crf = crfForQuality(q.quality);
+  const pro = isProCodec(q.codec);
+  // Pro codecs are fixed-bitrate: no CRF, and no VBV cap — the final upload
+  // rides R2 (no per-file ceiling), so the estimate is the codec's real rate.
+  const crf = pro ? 0 : crfForQuality(q.quality);
   // bits per pixel per frame: 0.10 at CRF 18, halves every +6 CRF.
-  const bpp = 0.10 * Math.pow(2, (18 - crf) / 6);
-  let videoKbps = (w * h * q.fps * bpp) / 1000;
+  const bpp = 0.10 * Math.pow(2, (18 - crfForQuality(q.quality)) / 6);
+  let videoKbps = pro
+    ? proCodecBitrateMbps(q.codec, w, h, q.fps) * 1000
+    : (w * h * q.fps * bpp) / 1000;
   // Same VBV ceiling the render applies (keeps uploads under Supabase's
   // per-file ceiling): 45 MB video+audio budget minus overhead.
   const AUDIO_BPS = 192000;
@@ -326,7 +375,7 @@ export function estimateExportQuality(input: QualityEstimateInput): QualityEstim
   const budgetKbps = Math.floor(
     ((((maxBytes - (AUDIO_BPS / 8) * durationSec - overheadBytes) * 8) / Math.max(1, durationSec)) / 1000),
   );
-  const capped = videoKbps > budgetKbps && budgetKbps > 0;
+  const capped = !pro && videoKbps > budgetKbps && budgetKbps > 0;
   if (capped) videoKbps = budgetKbps;
   const audioKbps = input.hasAudio === false ? 0 : AUDIO_BPS / 1000;
   const bytes = Math.round((((videoKbps * 1000) / 8) + (audioKbps * 1000) / 8) * durationSec);
@@ -350,7 +399,7 @@ export function estimateExportQuality(input: QualityEstimateInput): QualityEstim
     renderSec,
     renderLabel,
     capped,
-    settings: { width: w, height: h, fps: q.fps, crf, container: q.container, resolution: q.resolution, quality: q.quality },
+    settings: { width: w, height: h, fps: q.fps, crf, container: q.container, resolution: q.resolution, quality: q.quality, codec: q.codec },
   };
 }
 
@@ -893,6 +942,10 @@ const qualityOptionsSchema = z.object({
   quality: z.number().min(0).max(100).default(80),
   fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(30),
   container: z.enum(["mp4", "mov"]).default("mp4"),
+  /** Pro finishing codecs (Pro Finishing Door): "prores" = ProRes 422 HQ,
+   *  "dnxhr" = DNxHR HQ. Both force a MOV container in normalize. Rides the
+   *  route's existing flat charge — no separate price. */
+  codec: z.enum(["h264", "prores", "dnxhr"]).default("h264"),
 });
 
 /* Request-body schema for POST /export-final-video.
@@ -1108,6 +1161,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
   const [TARGET_W, TARGET_H] = resolveQualityDims(aspectRatio, quality.resolution);
   const TARGET_FPS = quality.fps; // shadows the module default within this scope
   const deliveryCrf = crfForQuality(quality.quality);
+  const proCodec = isProCodec(quality.codec);
   const outExt = quality.container === "mov" ? "mov" : "mp4";
   const outContentType = quality.container === "mov" ? "video/quicktime" : "video/mp4";
 
@@ -1137,6 +1191,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         crf: deliveryCrf,
         fps: quality.fps,
         container: quality.container,
+        codec: quality.codec,
       } : "legacy-defaults",
       audioSource,
       hasAudio: !!audioUrl,
@@ -2516,7 +2571,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
      * intermediate on success. */
     exportStatus.ffmpegStage = "combining";
     const isWaveformPath = !!audioOutputFcLabel;
-    const passAPath = path.join(tmpDir, `bdv-export-${exportId}-passA.mp4`);
+    // Pro finishing codecs live in a QuickTime intermediate so Pass B's
+    // stream-copy lands them in the final MOV untouched; h264 keeps the
+    // legacy MP4 intermediate.
+    const passAPath = path.join(tmpDir, `bdv-export-${exportId}-passA.${proCodec ? "mov" : "mp4"}`);
     tmpFiles.push(passAPath);
 
     // Shared per-pass failure diagnostics (mirrors the old single-pass behavior).
@@ -2615,23 +2673,34 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       ...passABase, // inputs + "-filter_complex" + graph (indices preserved)
       "-map", `[${voutLabel}]`,
       ...(isWaveformPath ? ["-map", `[${audioOutputFcLabel}]`] : []),
-      "-c:v", "libx264",
-      // OUTPUT-position -threads: this is what actually bounds the ENCODER.
-      // (The "-threads 1" patched into passABase above sits before -i, so it
-      // only throttles the decoder — libx264 was still spawning 1.5x host
-      // cores and OOM-killing the 512MB instance within a minute of pass A.)
-      "-threads", "1",
-      "-preset", "ultrafast",
-      // Quality dialog (Feature Wave 6): CRF is parameterized; 18 is the
-      // legacy default. Normalize intermediates sit one generation above this.
-      "-crf", String(deliveryCrf),
-      // Bitrate budget (computed above): Pass A is the real x264 encode, so the
-      // VBV cap must live here — not on the legacy single-pass ffmpegArgs,
-      // which Pass A/B replaced. Pass B stream-copies this video, so the cap
-      // carries through to the final MP4.
-      "-maxrate", `${exportMaxVideoKbps}k`,
-      "-bufsize", `${exportMaxVideoKbps * 2}k`,
-      "-pix_fmt", "yuv420p",
+      ...(proCodec
+        ? [
+            // Pro Finishing Door: ProRes 422 HQ / DNxHR HQ. Fixed-bitrate
+            // finishing codecs — no CRF, no preset, and no VBV budget (that
+            // budget exists to keep x264 under the old upload ceiling; the
+            // final file rides R2, which has none). Pass B stream-copies
+            // this encode into the final MOV, so the codec carries through.
+            ...proVideoCodecArgs(quality.codec),
+          ]
+        : [
+            "-c:v", "libx264",
+            // OUTPUT-position -threads: this is what actually bounds the ENCODER.
+            // (The "-threads 1" patched into passABase above sits before -i, so it
+            // only throttles the decoder — libx264 was still spawning 1.5x host
+            // cores and OOM-killing the 512MB instance within a minute of pass A.)
+            "-threads", "1",
+            "-preset", "ultrafast",
+            // Quality dialog (Feature Wave 6): CRF is parameterized; 18 is the
+            // legacy default. Normalize intermediates sit one generation above this.
+            "-crf", String(deliveryCrf),
+            // Bitrate budget (computed above): Pass A is the real x264 encode, so the
+            // VBV cap must live here — not on the legacy single-pass ffmpegArgs,
+            // which Pass A/B replaced. Pass B stream-copies this video, so the cap
+            // carries through to the final MP4.
+            "-maxrate", `${exportMaxVideoKbps}k`,
+            "-bufsize", `${exportMaxVideoKbps * 2}k`,
+            "-pix_fmt", "yuv420p",
+          ]),
       "-video_track_timescale", "90000",
       ...(isWaveformPath
         ? ["-c:a", "aac", "-b:a", "192k"] // waveform audio already filtered inside filter_complex
@@ -2641,7 +2710,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       "-y", passAPath,
     ];
     ctx.log.info(
-      { crf: deliveryCrf, quality: quality.quality, resolution: quality.resolution, maxrateKbps: exportMaxVideoKbps, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
+      { codec: quality.codec, crf: proCodec ? null : deliveryCrf, quality: quality.quality, resolution: quality.resolution, maxrateKbps: proCodec ? null : exportMaxVideoKbps, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
       "[export] pass A (video) starting",
     );
     // Pass A is single-threaded 1080x1920 x264: on a throttled instance it can
@@ -2831,6 +2900,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         fps: TARGET_FPS,
         crf: deliveryCrf,
         container: quality.container,
+        codec: quality.codec,
       },
       debug: {
         identicalClipsDetected,
@@ -3166,6 +3236,7 @@ router.post("/export-quality", requireAuth, async (req, res) => {
     quality: nq.quality,
     fps: nq.fps as 24 | 30 | 60,
     container: nq.container as "mp4" | "mov",
+    codec: nq.codec as "h264" | "prores" | "dnxhr",
   };
 
   await startExportJob(req, res, body);
@@ -3199,6 +3270,7 @@ router.post("/export-quality/estimate", requireAuth, async (req, res) => {
     quality: d.quality?.quality,
     fps: d.quality?.fps,
     container: d.quality?.container,
+    codec: d.quality?.codec,
   }));
 });
 
