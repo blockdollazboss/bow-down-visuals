@@ -3,14 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
 
-/* Live social-proof cache + visibility prefs (migration 0198, competitor
+/* Live social-proof cache + visibility prefs (migration 0202, competitor
    C5). One row per creator profile. `figures` is a cache of numbers a
    connected social rail ACTUALLY returned (via the analytics fetchers —
    honest nulls upstream mean absent figures here, never estimates),
    each stamped with its own fetchedAt so the public profile can label
    "Updated <when>" and retire figures that go stale. `hiddenKeys` is
    the creator's per-figure off switch; a live figure shows by default,
-   a hidden one shows nowhere. Mirrors migrations/0198_social_proof.sql. */
+   a hidden one shows nowhere. Mirrors migrations/0202_social_proof.sql. */
 
 export interface SocialProofFigure {
   /** Stable figure id, e.g. "instagram.followers" — the visibility key. */
