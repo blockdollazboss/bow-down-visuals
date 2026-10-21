@@ -201,10 +201,39 @@ export async function dispatchCampaign(campaignId: string): Promise<DispatchResu
     .limit(1);
   if (!list) return failCampaign(campaignId, "list_missing");
 
-  await db
+  /* Claim the send atomically (joined tree): the poller-drained
+     sender (lib/email-campaign-sender.ts) also watches the queued
+     pool. Whoever flips queued → sending first owns the send; if the
+     row was claimed under us (or is already owned), this dispatch
+     stands down instead of double-emailing the audience. A campaign
+     left in "sending" by a crashed dispatch keeps its delivery-level
+     resumability: re-queue it through the /send door (failed
+     campaigns return to queued there) and the per-recipient
+     already-sent skips below still prevent any duplicate email. */
+  const claimed = await db
     .update(emailCampaignsTable)
     .set({ status: "sending" })
-    .where(eq(emailCampaignsTable.id, campaignId));
+    .where(
+      and(
+        eq(emailCampaignsTable.id, campaignId),
+        eq(emailCampaignsTable.status, "queued"),
+      ),
+    )
+    .returning({ id: emailCampaignsTable.id });
+  if (claimed.length === 0) {
+    const [now] = await db
+      .select({ status: emailCampaignsTable.status })
+      .from(emailCampaignsTable)
+      .where(eq(emailCampaignsTable.id, campaignId))
+      .limit(1);
+    return {
+      ok: false,
+      reason: `not_dispatchable:${now?.status ?? campaign.status}`,
+      audience: 0,
+      sent: 0,
+      failed: 0,
+    };
+  }
 
   /* ── Audience ──────────────────────────────────────────────────── */
   let audience;

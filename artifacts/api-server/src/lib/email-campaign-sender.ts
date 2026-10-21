@@ -25,9 +25,16 @@
  *    Resend is not configured, claimed work is stamped `failed` with
  *    reason "no-provider" — a campaign must never report "sent" for
  *    mail that never left the building.
- *  - Open tracking stays HONEST: nothing here records opens, and the
- *    dashboard's opensTracked: false is untouched. Opens need Resend
- *    webhooks + a pixel — a separate build, not a fabricated stat.
+ *  - Open tracking stays HONEST: this sender records no opens — the
+ *    tracked dispatch rail (lib/email-campaign-send.ts) owns the
+ *    pixel/webhook engagement signals, and the dashboard reads only
+ *    recorded signals (a list with no tracked sends still reports
+ *    opensTracked: false — never a fabricated stat).
+ *  - Claim scope (joined tree): the drain claims only plain
+ *    whole-list campaigns. Segment campaigns are sent exclusively by
+ *    the tracked dispatch (the audience a creator previewed is the
+ *    audience that sends), and automation carriers are sent only by
+ *    the automation runner — neither is ever claimed here.
  *
  * Trigger: the job poller (lib/job-poller.ts) calls drainEmailQueue()
  * on its existing tick — no new infrastructure, restart-safe because
@@ -214,7 +221,16 @@ function defaultDeps(): Required<EmailSenderDeps> {
       const queued = await db
         .select({ id: emailCampaignsTable.id })
         .from(emailCampaignsTable)
-        .where(eq(emailCampaignsTable.status, "queued"))
+        .where(
+          and(
+            eq(emailCampaignsTable.status, "queued"),
+            /* Segment campaigns belong to the tracked dispatch and
+               automation carriers to the automation runner — the
+               drain never claims either (see header). */
+            isNull(emailCampaignsTable.segmentId),
+            isNull(emailCampaignsTable.automationId),
+          ),
+        )
         .orderBy(asc(emailCampaignsTable.createdAt))
         .limit(limit);
       const claimed: EmailCampaign[] = [];

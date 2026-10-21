@@ -1041,9 +1041,14 @@ router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requir
   res.json({ automation: await automationDto(fresh ?? automation) });
 });
 
-/* Queue (or re-queue a failed) campaign for the sender. The ONLY client
-   path into the send pipeline: draft|failed → queued. The sender owns
-   every transition after this one. */
+/* Queue (or re-queue a failed) campaign for sending: draft|failed →
+   queued. Plain campaigns hand off to the poller-drained sender,
+   which owns every transition after this one. Segment campaigns
+   instead go through the tracked dispatch right away (same as the
+   /send door) — the drain never claims them, and the audience a
+   creator previewed is the audience that sends. Automation carriers
+   are refused here exactly like the /send door refuses them: they
+   are sent only by the automation runner. */
 router.post("/email-list/lists/:id/campaigns/:campaignId/queue", publicApiLimiter, requireAuth, async (req, res) => {
   const id = String(req.params.id ?? "");
   const campaignId = String(req.params.campaignId ?? "");
@@ -1065,12 +1070,40 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/queue", publicApiLimite
     res.status(404).json({ error: "Campaign not found." });
     return;
   }
-  if (campaign.status === "queued" || campaign.status === "sending") {
-    res.json({ campaign });
+  /* Automation carriers send only through the automation runner. */
+  if (campaign.automationId) {
+    res.status(409).json({
+      error: "That campaign belongs to an automation — it sends on its own schedule and can't be sent from here.",
+      code: "automation_carrier",
+    });
     return;
   }
   if (campaign.status === "sent") {
     res.status(409).json({ error: "That campaign already sent.", code: "already_sent" });
+    return;
+  }
+  if (campaign.segmentId) {
+    if (campaign.status === "sending") {
+      res.json({ campaign });
+      return;
+    }
+    if (campaign.status === "draft" || campaign.status === "failed") {
+      await db
+        .update(emailCampaignsTable)
+        .set({ status: "queued" })
+        .where(eq(emailCampaignsTable.id, campaignId));
+    }
+    const dispatch = await dispatchCampaign(campaignId);
+    const [fresh] = await db
+      .select()
+      .from(emailCampaignsTable)
+      .where(eq(emailCampaignsTable.id, campaignId))
+      .limit(1);
+    res.json({ campaign: fresh ?? campaign, dispatch });
+    return;
+  }
+  if (campaign.status === "queued" || campaign.status === "sending") {
+    res.json({ campaign });
     return;
   }
   const [updated] = await db
