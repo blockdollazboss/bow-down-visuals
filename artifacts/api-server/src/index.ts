@@ -13,6 +13,7 @@ import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
+import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog } from "./lib/memory-watchdog";
 
@@ -58,6 +59,14 @@ const server = app.listen(port, (err) => {
   // completed instead. Runs once shortly after boot, then on
   // CLIP_CHARGE_SWEEP_INTERVAL_MS.
   startClipChargeSweeper();
+
+  // Release-day presave notifications (wave 3 #15): a packaged
+  // release's release_date arriving is the release moment (there is
+  // no "released" status flip) — fans who pre-saved get their one
+  // promised email, claimed through the delivery ledger so nobody is
+  // ever emailed twice. Runs once shortly after boot, then on
+  // PRESAVE_NOTIFY_SWEEP_INTERVAL_MS.
+  startPresaveReleaseSweeper();
 
   // Server-owned background poller: drives lip-sync jobs through Sync.so's
   // long runs and raises exactly-once completion notifications — no tab needed.

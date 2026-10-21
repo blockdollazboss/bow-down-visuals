@@ -8888,6 +8888,7 @@
     "followed": "You're on the list! {{artist}} will email you on release day.",
     "alreadyFollowing": "You're already on {{artist}}'s list — see you on release day!",
     "notifyNote": "You'll get one email when the music drops. No spam, ever.",
+    "tracklistTitle": "Tracklist",
     "invalidEmail": "Enter a valid email address.",
     "followFailed": "Couldn't save your pre-save — try again.",
     "platformsCta": "Follow it on release day",

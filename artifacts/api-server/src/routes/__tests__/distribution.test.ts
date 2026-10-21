@@ -125,6 +125,7 @@ import router, {
   metadataSchema,
   strategySchema,
   createReleaseSchema,
+  buildPresaveTracklist,
   isValidUpc,
   generateInternalBarcode,
   upcACheckDigit,
@@ -1080,6 +1081,64 @@ describe("pre-save links", () => {
     const pubNull = await req("GET", `/distribution/presave/${minted.json.slug}`);
     expect(pubNull.status).toBe(200);
     expect(pubNull.json.presave.artworkUrl).toBeNull();
+  });
+
+  /* ── Wave 3 #15: tracklist preview on the public payload ── */
+  it("serves the tracklist preview: owner titles in order, durations where stored, nothing else", async () => {
+    const { id } = await seedRelease(USER_A);
+    const minted = await req("POST", `/distribution/releases/${id}/presave`);
+    expect(minted.status).toBe(200);
+    /* A stored track record may carry fields the public preview must
+       never surface (ISRC, an audio reference). Seed them on purpose. */
+    await testState.db.execute(sql`
+      UPDATE distribution_releases SET tracks = ${JSON.stringify([
+        { title: "Intro", isrc: "USRC10000001", audioUrl: "https://secret.example.com/intro-master.wav" },
+        { title: "Gold Season", durationSeconds: 187 },
+        { title: "   " },
+        { title: "Outro", duration: 65 },
+      ])}::jsonb WHERE id = ${id}
+    `);
+    const pub = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.tracklist).toEqual([
+      { position: 1, title: "Intro", durationSeconds: null },
+      { position: 2, title: "Gold Season", durationSeconds: 187 },
+      { position: 3, title: "Outro", durationSeconds: 65 },
+    ]);
+    const serialized = JSON.stringify(pub.json.presave.tracklist);
+    expect(serialized).not.toContain("secret.example.com");
+    expect(serialized).not.toContain("audioUrl");
+    expect(serialized).not.toContain("USRC10000001");
+    expect(serialized).not.toContain("isrc");
+  });
+
+  it("serves an empty tracklist when the release carries no tracks", async () => {
+    const { id } = await seedRelease(USER_A);
+    const minted = await req("POST", `/distribution/releases/${id}/presave`);
+    const pub = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.tracklist).toEqual([]);
+  });
+});
+
+describe("buildPresaveTracklist (wave 3 #15)", () => {
+  it("keeps owner order, drops blank/foreign entries, and strips every non-preview field", () => {
+    expect(
+      buildPresaveTracklist([
+        { title: "One", audioUrl: "https://x.test/a.wav", streamUrl: "https://x.test/s" },
+        { title: "" },
+        { notATitle: true } as Record<string, unknown>,
+        { title: "Two", duration_seconds: 9.6 },
+        { title: "Three", durationSeconds: -4 },
+      ]),
+    ).toEqual([
+      { position: 1, title: "One", durationSeconds: null },
+      { position: 2, title: "Two", durationSeconds: 10 },
+      { position: 3, title: "Three", durationSeconds: null },
+    ]);
+    expect(buildPresaveTracklist(null)).toEqual([]);
+    expect(buildPresaveTracklist(undefined)).toEqual([]);
+    expect(buildPresaveTracklist([])).toEqual([]);
   });
 });
 
