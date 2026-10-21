@@ -128,6 +128,23 @@ export default function EmailListBuilder() {
  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
  const [deletingId, setDeletingId] = useState<string | null>(null);
 
+ /* list-details settings (name + description) for the selected list.
+  Until now an existing list's name/description could not be edited
+  anywhere — fixing a typo meant delete + recreate, which torched the
+  list's subscribers. The PATCH endpoint already accepted both fields;
+  this is the missing affordance. */
+ const [editName, setEditName] = useState("");
+ const [editDesc, setEditDesc] = useState("");
+ const [savingDetails, setSavingDetails] = useState(false);
+ const [detailsSaved, setDetailsSaved] = useState(false);
+
+ useEffect(() => {
+   const l = lists.find((x) => x.id === activeListId);
+   setEditName(l?.name ?? "");
+   setEditDesc(l?.description ?? "");
+   setDetailsSaved(false);
+ }, [activeListId, lists]);
+
  /* welcome-sequence settings (steps 1–3) for the selected list */
  const [w1Subject, setW1Subject] = useState("");
  const [w1Body, setW1Body] = useState("");
@@ -279,6 +296,35 @@ export default function EmailListBuilder() {
  setError(e instanceof Error ? e.message : "Couldn't delete the list.");
  } finally {
  setDeletingId(null);
+ }
+ }
+
+ async function saveListDetails() {
+ if (!activeListId) return;
+ if (!editName.trim()) {
+ setError("Give your list a name first.");
+ return;
+ }
+ setSavingDetails(true);
+ setError(null);
+ setDetailsSaved(false);
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${activeListId}`, {
+ method: "PATCH",
+ body: JSON.stringify({
+ name: editName.trim(),
+ description: editDesc.trim(),
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save the list details.");
+ setLists((prev) => prev.map((l) => (l.id === activeListId ? { ...l, ...data.list } : l)));
+ setDetailsSaved(true);
+ setTimeout(() => setDetailsSaved(false), 3000);
+ } catch (e) {
+ setError(e instanceof Error ? e.message : "Couldn't save the list details.");
+ } finally {
+ setSavingDetails(false);
  }
  }
 
@@ -608,6 +654,39 @@ export default function EmailListBuilder() {
  </div>
  {lists.length === 0 && !showNewList && !loadError && (
  <p className="mt-6 text-center text-sm text-white/45">{t("email-list.no_lists_yet_hit_new_list_to_cre")}</p>
+ )}
+
+ {/* list-details settings for the selected list — name + the offer
+  copy on its join page, editable in place (no more delete +
+  recreate to fix wording). The handle is the list's address and
+  stays fixed. */}
+ {activeList && (
+ <div className={`${cardClass} mt-6`}>
+ <div className="flex flex-wrap items-center justify-between gap-3">
+ <h3 className="flex items-center gap-2 font-semibold"><PenLine className="h-4 w-4 text-primary" />List details — {activeList.name}</h3>
+ <select
+ value={activeListId}
+ onChange={(e) => setActiveListId(e.target.value)}
+ className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {lists.map((l) => (
+ <option key={l.id} value={l.id}>{l.name} (@{l.handle})</option>
+ ))}
+ </select>
+ </div>
+ <p className="mt-1 text-sm text-white/50">
+ The name and offer copy for this list. The description is what visitors read on the join page — line breaks are kept.
+ </p>
+ <p className="mt-2 text-xs text-white/35">Join page: bowdownvisuals.com/join/{activeList.handle} — the handle is the list's address and can't be changed.</p>
+ <input className={inputClass + " mt-3"} placeholder="List name" value={editName} maxLength={120} onChange={(e) => setEditName(e.target.value)} />
+ <textarea className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder="What do subscribers get?" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+ <p className="mt-1 text-xs text-white/35">Up to 2,000 characters. Leave empty to show no offer copy on the join page.</p>
+ <button className={tabBtn(true) + " mt-4"} onClick={saveListDetails} disabled={savingDetails}>
+ {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+ Save list details
+ </button>
+ {detailsSaved && <span className="ml-3 text-sm font-semibold text-emerald-400">Saved ✓</span>}
+ </div>
  )}
 
  {/* welcome-sequence settings for the selected list */}
