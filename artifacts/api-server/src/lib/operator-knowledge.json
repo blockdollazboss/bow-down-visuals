@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "ff8adff089eae6e00f85eb9aca819675fec91456",
+  "baseCommit": "73b349b21e49569792f63ce152c262706c70d7c5",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-20",
+  "generatedAt": "2026-10-21",
   "counts": {
     "routesInApp": 223,
     "pageFiles": 175,
@@ -17,7 +17,9 @@
     "pricedActions": 200,
     "guides": 11,
     "desks": 5,
-    "takeoverOffers": 2
+    "takeoverOffers": 2,
+    "withDescriptions": 209,
+    "withoutDescriptions": 9
   },
   "packs": [
     {
@@ -135,7 +137,9 @@
         "/api/dev/add-credits"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"academy.pageDescription\""
     },
     {
       "id": "admin",
@@ -187,7 +191,9 @@
       "component": "PublicAlbumPage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Listen to albums and EPs made with Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/albums/public.tsx usePageTitle meta description"
     },
     {
       "id": "analytics-hub",
@@ -397,7 +403,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Track TikTok, Instagram, YouTube, and X in one dashboard, then get an AI growth plan built on your real numbers.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"analyticsHub.pageDescription\""
     },
     {
       "id": "tab-analytics",
@@ -501,7 +509,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your live stats from every connected platform — free. Then the AI reads the tea leaves: what's working, what to post next, and when.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"analytics.heroSubtitle\""
     },
     {
       "id": "tab-virality-check",
@@ -605,7 +615,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Score your post's viral readiness before you ship it — hook strength, caption, hashtags, and best posting time.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"viralityCheck.pageDescription\""
     },
     {
       "id": "arcade",
@@ -627,7 +639,9 @@
         "/api/retention/shark-drop/claim"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Play Shark King Endless Runner and Royal Skeet. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/arcade.tsx usePageTitle meta description"
     },
     {
       "id": "artist-setup",
@@ -685,7 +699,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Build your creator profile: AI page designer, themes, sections, and publishing.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/artist-setup.tsx usePageTitle meta description"
     },
     {
       "id": "artist-vault",
@@ -767,7 +783,9 @@
         "/api/stories/highlights"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator profile on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/artist-public.tsx usePageTitle meta description"
     },
     {
       "id": "audio-studio",
@@ -1416,7 +1434,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Describe the vibe and let AI cook a full instrumental — or flip on Advanced mode to program drums yourself on the step sequencer. Either way, your beat flows straight into stems, songs, and the marketplace.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"beatMaker.subtitle\""
     },
     {
       "id": "tab-samples",
@@ -1629,7 +1649,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Clean up, split, and master your audio — every tool in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"audioStudio.subtitle\""
     },
     {
       "id": "tab-sfx",
@@ -1842,7 +1864,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Describe any sound effect in words — AI generates it. Impacts, whooshes, risers, UI sounds, ambient beds, foley.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sfx.heroDescription\""
     },
     {
       "id": "desk-cleanup",
@@ -2493,7 +2517,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Clean up, split, and master your audio — every tool in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"audioStudio.subtitle\""
     },
     {
       "id": "tab-podcast",
@@ -2706,7 +2732,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Clean up, split, and master your audio — every tool in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"audioStudio.subtitle\""
     },
     {
       "id": "desk-sounds",
@@ -3119,7 +3147,9 @@
           "path": "/video-editor?tab=lyric-video",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Clean up, split, and master your audio — every tool in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"audioStudio.subtitle\""
     },
     {
       "id": "desk-stems",
@@ -3587,7 +3617,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/beats.tsx usePageTitle meta description"
     },
     {
       "id": "beta-access",
@@ -3602,7 +3634,9 @@
         "/api/waitlist"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Get early access to Bow Down Visuals — the AI content creation studio for content creators.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"betaAccess.pageSubtitle\""
     },
     {
       "id": "bio--slug",
@@ -3659,7 +3693,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Write, design, and publish books with AI assistance.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/books.tsx usePageTitle meta description"
     },
     {
       "id": "brand-calculator",
@@ -3852,7 +3888,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse live sponsorship deals, apply with a pitch, and close real money. Escrow protects both sides — brands fund up front, creators get paid on delivery.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sponsors.pageSubtitle\""
     },
     {
       "id": "tab-sponsorship-outreach",
@@ -3935,7 +3973,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Brands pay creators who fit. Describe your lane — the scout hunts down sponsorship, affiliate, and ambassador opportunities matched to your niche and audience, with a pitch draft for every brand.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandDeals.subtitle\""
     },
     {
       "id": "branding-kit",
@@ -4131,7 +4171,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Everything your channel needs to look premium — logos, video stings, and a full stream bundle, all generated in one matching identity.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandingKit.subtitle\""
     },
     {
       "id": "tab-jewelry",
@@ -4228,7 +4270,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Everything your channel needs to look premium — logos, video stings, and a full stream bundle, all generated in one matching identity.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandingKit.subtitle\""
     },
     {
       "id": "tab-logo-maker",
@@ -4325,7 +4369,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "AI logo designer for creators — professional brand marks in seconds.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"logoMaker.pageDescription\""
     },
     {
       "id": "tab-branding-shop",
@@ -4422,7 +4468,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "AI designs your logo and product mockups, you sell the merch, our dropship partners ship it straight to your fans. You never touch inventory.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandingShop.subtitle\""
     },
     {
       "id": "tab-merch",
@@ -4519,7 +4567,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Everything your channel needs to look premium — logos, video stings, and a full stream bundle, all generated in one matching identity.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandingKit.subtitle\""
     },
     {
       "id": "tab-stream-pack",
@@ -4616,7 +4666,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Custom overlays, alerts, and panels for your live streams.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"streamPack.pageDescription\""
     },
     {
       "id": "browse",
@@ -4635,7 +4687,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse what creators are making on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/browse.tsx usePageTitle meta description"
     },
     {
       "id": "c--slug",
@@ -4648,7 +4702,9 @@
       "component": "NfcCardProfile",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Creator profile — tap in to connect.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/nfc-card-profile.tsx usePageTitle meta description"
     },
     {
       "id": "desk-caption-styler",
@@ -4736,7 +4792,9 @@
         "/api/credits/claim-trial"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator challenge on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/challenge.tsx usePageTitle meta description"
     },
     {
       "id": "challenge--slug-winners",
@@ -4796,7 +4854,9 @@
         "/api/ugc-briefs/:param/:param"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/charts.tsx usePageTitle meta description"
     },
     {
       "id": "spotlight-takeover",
@@ -4982,7 +5042,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Import your distributor CSVs and watch your catalog earn. The dashboard is free — only the AI earnings insights cost Visual Bucs.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"royalties.subtitle\""
     },
     {
       "id": "collabs",
@@ -5029,7 +5091,9 @@
         "/api/creator-profiles/me/theme-settings"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Music and merch a fan collected on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/fan-collection.tsx usePageTitle meta description"
     },
     {
       "id": "community",
@@ -5058,7 +5122,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your AI community manager — moderation queue, smart reply drafts, sentiment dashboard, and superfan radar.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/community.tsx usePageTitle meta description"
     },
     {
       "id": "tab-comment-replies",
@@ -5087,7 +5153,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Paste your fan comments — get on-brand replies in your voice, engineered to keep the conversation (and the algorithm) going.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"commentReplies.subtitle\""
     },
     {
       "id": "contact",
@@ -5102,7 +5170,9 @@
         "/api/contact"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Get in touch with the Bow Down Visuals team.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"contact.metaDescription\""
     },
     {
       "id": "contests",
@@ -5132,7 +5202,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Run fan contests and giveaways with entry tracking and a provably fair winner draw.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/contests.tsx usePageTitle meta description"
     },
     {
       "id": "contracts",
@@ -5151,7 +5223,9 @@
         "/api/dev/add-credits"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Creator contracts on Bow Down Visuals — generate and manage agreements for brand deals, features and collaborations.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/contracts.tsx usePageTitle meta description"
     },
     {
       "id": "copyright",
@@ -5172,7 +5246,9 @@
         "/api/dmca/report"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Protect your music — guided copyright registration help for creators.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"copyright.metaDescription\""
     },
     {
       "id": "create",
@@ -5591,7 +5667,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Start anything: a song + video, a song, a video, or the guided Creation Hub.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"create.pageDescription\""
     },
     {
       "id": "desk-song",
@@ -5988,7 +6066,9 @@
         "/api/public/stats"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Creator plans for every level: compare ranks, Visual Buc rates, automation and control — go pro and keep more of your money.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/creator-pricing.tsx usePageTitle meta description"
     },
     {
       "id": "creator-domains",
@@ -6007,7 +6087,9 @@
         "/api/domains/mine"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Connect a custom domain to your Bow Down Visuals creator site and storefront.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/creator-domains.tsx usePageTitle meta description"
     },
     {
       "id": "credit-history",
@@ -6026,7 +6108,9 @@
         "/api/payments/history"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "View your Visual Bucs balance and transaction history.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"credit-history.metaDescription\""
     },
     {
       "id": "cursor-lab",
@@ -6039,7 +6123,9 @@
       "component": "CursorLab",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Cursor Lab — preview and tune the site's custom cursor styles.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/cursor-lab.tsx usePageTitle meta description"
     },
     {
       "id": "dashboard",
@@ -6085,7 +6171,9 @@
         "pageName": "Dashboard",
         "route": "/dashboard"
       },
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your creator command center — every AI tool in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"dashboard.metaDescription\""
     },
     {
       "id": "detector",
@@ -6170,7 +6258,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Distribute your music to streaming platforms — plan releases, build your catalog, and manage every release in one dashboard.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/distribute.tsx usePageTitle meta description"
     },
     {
       "id": "tab-release-checklist",
@@ -6234,7 +6324,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"release.hero\""
     },
     {
       "id": "download",
@@ -6249,7 +6341,9 @@
         "/api/public/stats"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Download Bow Down Visuals for Android and the Thy Cheat Code Chrome extension.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/download.tsx usePageTitle meta description"
     },
     {
       "id": "earnings",
@@ -6312,7 +6406,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Own your audience: hosted signup pages, embeddable forms, AI newsletter drafts, and subscriber tools.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/email-list.tsx usePageTitle meta description"
     },
     {
       "id": "events",
@@ -6331,7 +6427,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Streams, drops, and premieres — RSVP free.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/events.tsx usePageTitle meta description"
     },
     {
       "id": "events--id",
@@ -6353,7 +6451,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "An event on Bow Down Visuals — streams, drops, and premieres.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/event-detail.tsx usePageTitle meta description"
     },
     {
       "id": "explore",
@@ -6370,7 +6470,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/explore.tsx usePageTitle meta description"
     },
     {
       "id": "extension",
@@ -6385,7 +6487,9 @@
         "/api/waitlist"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Thy Cheat Code for Chrome — the whole Bow Down Visuals studio in one popup.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/extension.tsx usePageTitle meta description"
     },
     {
       "id": "features",
@@ -6398,7 +6502,9 @@
       "component": "Features",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Every AI studio and tool in Bow Down Visuals, in one searchable list.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/features.tsx usePageTitle meta description"
     },
     {
       "id": "for",
@@ -6411,7 +6517,9 @@
       "component": "ForIndex",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "AI toolkits tuned for your kind of creator: YouTubers, podcasters, streamers, musicians, TikTokers, and educators. Tools, templates, and workflows per lane.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/seo/for-index.tsx DESCRIPTION constant"
     },
     {
       "id": "for-educators",
@@ -6539,7 +6647,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Explore every genre hub — facts, sounds, and the AI pipeline for each.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/genres.tsx usePageTitle meta description"
     },
     {
       "id": "genres-country",
@@ -6783,7 +6893,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Wire up the Live Companion Bot: auto-announcements, watch parties, LIVE badge.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"discord-bot.metaDescription\""
     },
     {
       "id": "tab-gamers",
@@ -6844,7 +6956,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Stream dashboard — announce your Discord streams and hype your community.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"goLive.pageDescription\""
     },
     {
       "id": "tab-shows",
@@ -6947,7 +7061,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Crews and communities on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/groups.tsx usePageTitle meta description"
     },
     {
       "id": "groups--slug",
@@ -6978,7 +7094,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator community on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/group-detail.tsx usePageTitle meta description"
     },
     {
       "id": "hashtag--tag",
@@ -6991,7 +7109,9 @@
       "component": "HashtagPage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Posts and videos under this hashtag on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/hashtag.tsx usePageTitle meta description"
     },
     {
       "id": "home",
@@ -7109,7 +7229,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Your money is made in the first 3 seconds. Generate scroll-stopping openers — then run your post through the pre-flight before you ship it.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"hooks.heroSub\""
     },
     {
       "id": "tab-randomizer",
@@ -7192,7 +7314,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Your money is made in the first 3 seconds. Generate scroll-stopping openers — then run your post through the pre-flight before you ship it.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"hooks.heroSub\""
     },
     {
       "id": "tab-script-writer",
@@ -7275,7 +7399,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "High-retention scripts with scroll-stopping hooks, timestamped beats, visual cues, B-roll ideas, and retention triggers every 30 seconds. Pick your platform, set the vibe, get a shoot-ready script.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"scriptWriter.pageDescription\""
     },
     {
       "id": "tab-caption-styler",
@@ -7358,7 +7484,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Hormozi-style animated captions, burned into your video.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"captionStyler.subtitle\""
     },
     {
       "id": "tab-titles",
@@ -7441,7 +7569,9 @@
           "path": "/branding-kit",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Stop guessing what to name the video. Thy Cheat Code writes 10 click-ranked titles, a full description with timestamps and CTA, and 15 tags — tuned for the platform you're posting on.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"titles.pageSubtitle\""
     },
     {
       "id": "desk-hub-home",
@@ -7484,7 +7614,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Import your existing media into Bow Down Visuals and turn it into new content.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/import.tsx usePageTitle meta description"
     },
     {
       "id": "interview-prep",
@@ -7504,7 +7636,9 @@
         "/api/interview-prep/session"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Prep for interviews and press with AI-coached answers.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/interview-prep.tsx usePageTitle meta description"
     },
     {
       "id": "invite--code",
@@ -7517,7 +7651,9 @@
       "component": "InvitePage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator invited you to Bow Down Visuals. Join the waitlist through their link and you both move up — they jump 100 spots, you lock your place in line.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/invite.tsx usePageTitle meta description"
     },
     {
       "id": "jewelry-shop",
@@ -7536,7 +7672,9 @@
         "/api/jewelry/orders"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The Bow Down Visuals jewelry line — signature pieces for creators.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/jewelry-shop.tsx usePageTitle meta description"
     },
     {
       "id": "join--handle",
@@ -7551,7 +7689,9 @@
         "/api/email-list/subscribe"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Join Bow Down Visuals — the content creator's cheat code.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/join.tsx usePageTitle meta description"
     },
     {
       "id": "label-pitch",
@@ -7593,7 +7733,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "AI analyzes your song, then builds a professional demo submission package — the email, your one-sheet, and the follow-up. Labels rarely sign from cold demos, but the right package opens doors that talent alone can't.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"labelPitch.heroSubtitle\""
     },
     {
       "id": "library",
@@ -7650,7 +7792,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Sell products during live streams — pin products, fire purchase alerts, and track revenue per stream.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/live-shopping.tsx usePageTitle meta description"
     },
     {
       "id": "live--id",
@@ -7669,7 +7813,9 @@
         "/api/live/:param/summary"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Live on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/live-watch.tsx usePageTitle meta description"
     },
     {
       "id": "llc-guide",
@@ -7768,7 +7914,9 @@
         "/api/referrals/me"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your Bow Down Visuals messages — chat with creators, collaborators and brands.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/messages.tsx usePageTitle meta description"
     },
     {
       "id": "movies",
@@ -7813,7 +7961,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "My Music — every song you've made or saved on Bow Down Visuals, in one library.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/my-music.tsx usePageTitle meta description"
     },
     {
       "id": "my-projects",
@@ -7975,7 +8125,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "All your songs, videos, and creative projects in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myProjects.pageDescription\""
     },
     {
       "id": "tab-my-clips",
@@ -8055,7 +8207,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your generated promo clips library.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myClips.pageDescription\""
     },
     {
       "id": "tab-songs",
@@ -8135,7 +8289,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your AI-generated song library.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"songs.pageDescription\""
     },
     {
       "id": "my-shop",
@@ -8222,7 +8378,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "A premium physical card with an NFC chip inside. Tap it on any phone and your digital card opens instantly — links, booking, socials, everything. Update it anytime without reprinting.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
     },
     {
       "id": "party",
@@ -8242,7 +8400,9 @@
         "/api/party/rooms"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Play Party Trivia and Court Battle duels live with other creators. Server-run rooms, speed scoring, one crown.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/party.tsx usePageTitle meta description"
     },
     {
       "id": "photo-preset--slug",
@@ -8268,7 +8428,9 @@
       "component": "PlanPublic",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator's content plan — validated idea, winning hook, niche analysis, and launch calendar.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/plan-public.tsx usePageTitle meta description"
     },
     {
       "id": "playlist--id",
@@ -8289,7 +8451,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Creator playlists on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/playlist.tsx usePageTitle meta description"
     },
     {
       "id": "post--id",
@@ -8315,7 +8479,9 @@
         "/api/saves/post/:param"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "One post on Bow Down Visuals — replies, quotes and all.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/post.tsx usePageTitle meta description"
     },
     {
       "id": "premiere--id",
@@ -8357,7 +8523,9 @@
         "/api/reach/streams/:param/watch-progress"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A scheduled first showing on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/premiere.tsx usePageTitle meta description"
     },
     {
       "id": "presave--slug",
@@ -8374,7 +8542,9 @@
         "/api/credits/claim-trial"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Pre-save the upcoming release on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/presave.tsx usePageTitle meta description"
     },
     {
       "id": "press-kit",
@@ -8467,7 +8637,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Official press kit — bio, photos, music, and booking info.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/press-public.tsx usePageTitle meta description"
     },
     {
       "id": "pricing",
@@ -8567,7 +8739,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Promote your content — campaigns, shoutouts, and spotlight placements.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/promote.tsx usePageTitle meta description"
     },
     {
       "id": "publish",
@@ -8602,7 +8776,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Publish your content to your connected platforms from Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/publish.tsx usePageTitle meta description"
     },
     {
       "id": "qr-login",
@@ -8620,7 +8796,9 @@
         "/api/credits/claim-trial"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Sign in to Bow Down Visuals by scanning a QR code from a signed-in device.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/qr-login.tsx usePageTitle meta description"
     },
     {
       "id": "referrals",
@@ -8676,7 +8854,9 @@
       "component": "Remix",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Remix trending motions and styles with your character.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/remix.tsx usePageTitle meta description"
     },
     {
       "id": "reset-password",
@@ -8691,7 +8871,9 @@
         "/api/bow"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Set a new password for your Bow Down Visuals account.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/reset-password.tsx usePageTitle meta description"
     },
     {
       "id": "review--token",
@@ -8740,7 +8922,9 @@
         "/api/saves/post/:param"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your bookmarks — posts, creators, sounds, and videos.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/saved.tsx usePageTitle meta description"
     },
     {
       "id": "scheduler",
@@ -8821,7 +9005,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Schedule video posts across Instagram Reels, TikTok, and Facebook. Server-side and restart-safe — your queue fires even with the tab closed.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"scheduler.hero\""
     },
     {
       "id": "tab-content-calendar",
@@ -8902,7 +9088,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Schedule video posts across Instagram Reels, TikTok, and Facebook. Server-side and restart-safe — your queue fires even with the tab closed.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"scheduler.hero\""
     },
     {
       "id": "tab-trends",
@@ -8983,7 +9171,9 @@
           "path": "/coach",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Stop chasing trends — get ahead of them. AI analyzes your niche and predicts 5 trends about to spike, with confidence scores, reasoning, and the early signals to watch.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"trends.heroDescription\""
     },
     {
       "id": "search",
@@ -9099,7 +9289,9 @@
         "/api/storefronts/checkout/verify"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A creator storefront on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/shop.tsx usePageTitle meta description"
     },
     {
       "id": "shorts",
@@ -9124,7 +9316,9 @@
         "/api/videos/:param/:params"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Watch creator shorts on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/shorts.tsx usePageTitle meta description"
     },
     {
       "id": "shoutouts",
@@ -9173,7 +9367,9 @@
       "component": "Showcase",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse thumbnails, videos, and songs made by the Bow Down Visuals creator community. Get inspired and make your own.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/showcase/index.tsx usePageTitle meta description"
     },
     {
       "id": "showcase--slug",
@@ -9193,7 +9389,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse community creations made with Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/showcase/item.tsx usePageTitle meta description"
     },
     {
       "id": "signup",
@@ -9231,7 +9429,9 @@
         "/api/shorts"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Listen and use this sound in your next video.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/sound.tsx usePageTitle meta description"
     },
     {
       "id": "splits--slug",
@@ -9244,7 +9444,9 @@
       "component": "SplitsAgreement",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A royalty splits agreement on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/splits-agreement.tsx usePageTitle meta description"
     },
     {
       "id": "sponsors--id",
@@ -9285,7 +9487,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Review this sponsorship deal on Bow Down Visuals — the offer, deliverables and terms, all in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/sponsor-deal-detail.tsx usePageTitle meta description"
     },
     {
       "id": "sponsors-dashboard",
@@ -9303,7 +9507,9 @@
         "/api/sponsors/dashboard"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your sponsorship dashboard — track deals, deliverables and earnings on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/sponsor-dashboard.tsx usePageTitle meta description"
     },
     {
       "id": "sponsors-post",
@@ -9329,7 +9535,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your deal goes live in the marketplace instantly. Creators apply with pitches — you accept the best one, fund the escrow, and release payment on delivery.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sponsorsPost.pageSubtitle\""
     },
     {
       "id": "store-buy--kind--id",
@@ -9348,7 +9556,9 @@
         "/api/store/item/:param/:param"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Complete your purchase securely on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/store-buy.tsx usePageTitle meta description"
     },
     {
       "id": "store-dashboard",
@@ -9379,7 +9589,9 @@
         "/api/storefront"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your store earnings, orders, products, and discount codes. The Get Paid finale.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx usePageTitle meta description"
     },
     {
       "id": "store-success",
@@ -9397,7 +9609,9 @@
         "/api/store/verify"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Order confirmed — your purchase details and next steps on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/store-success.tsx usePageTitle meta description"
     },
     {
       "id": "storefront-product--id",
@@ -9416,7 +9630,9 @@
         "/api/storefront/product/:param"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Buy directly from the creator on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-product.tsx usePageTitle meta description"
     },
     {
       "id": "storefronts",
@@ -9435,7 +9651,9 @@
           "path": "/promote",
           "source": "CREATE → BRAND → PROMOTE → MONEY journey"
         }
-      ]
+      ],
+      "description": "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"storefronts.heroSubtitle\""
     },
     {
       "id": "storefronts-builder",
@@ -9478,7 +9696,9 @@
       "component": "SyncOneSheetPublic",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A sync licensing one-sheet for an independent song.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/sync-one-sheet-public.tsx usePageTitle meta description"
     },
     {
       "id": "team",
@@ -9504,7 +9724,9 @@
         "/api/teams/:param/spending"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Shared credit pool, shared vaults, one crew.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"team.pageSubtitle\""
     },
     {
       "id": "templates",
@@ -9517,7 +9739,9 @@
       "component": "TemplatesHub",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Free templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Click any template to generate it with AI.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/index.tsx usePageTitle meta description"
     },
     {
       "id": "templates-captions",
@@ -9530,7 +9754,9 @@
       "component": "CaptionPacks",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse free caption packs for launches, promos, and everyday posts. Click any pack to generate captions with AI.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/captions.tsx usePageTitle meta description"
     },
     {
       "id": "templates-hooks",
@@ -9543,7 +9769,9 @@
       "component": "HookTemplates",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse free video hook templates for Shorts, TikTok, and Reels. Click any template to generate scroll-stopping hooks with AI.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/hooks.tsx usePageTitle meta description"
     },
     {
       "id": "templates-thumbnails",
@@ -9578,7 +9806,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/videos.tsx usePageTitle meta description"
     },
     {
       "id": "terms",
@@ -10323,7 +10553,9 @@
         "/api/tips/checkout/verify"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Tip your favorite creator on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/tip-page.tsx usePageTitle meta description"
     },
     {
       "id": "tools",
@@ -10336,7 +10568,9 @@
       "component": "ToolsIndex",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Free to browse.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/seo/tools-index.tsx DESCRIPTION constant"
     },
     {
       "id": "tools-ai-caption-generator",
@@ -10447,7 +10681,9 @@
         "/api/tour/optimize"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Map your dates, let AI find the smartest route, and budget the run — then promote every city like a headliner.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"tour.heroSubtitle\""
     },
     {
       "id": "track--id",
@@ -10468,7 +10704,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Stream creator audio on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/track.tsx usePageTitle meta description"
     },
     {
       "id": "trending",
@@ -10486,7 +10724,9 @@
         "/api/trending/topics"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The hashtags moving right now across posts and videos.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/trending.tsx usePageTitle meta description"
     },
     {
       "id": "unlock--slug",
@@ -10503,7 +10743,9 @@
         "/api/credits/claim-trial"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Unlock exclusive content on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/unlock.tsx usePageTitle meta description"
     },
     {
       "id": "vertical--vertical",
@@ -11269,7 +11511,9 @@
           "path": "/video-editor?tab=repurpose",
           "source": "lib/desks.ts handoff (produces/accepts)"
         }
-      ]
+      ],
+      "description": "Manage your video shoot locations.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"locations.pageDescription\""
     },
     {
       "id": "desk-lyric-video",
@@ -13187,7 +13431,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Watch creator video on Bow Down Visuals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/watch.tsx usePageTitle meta description"
     },
     {
       "id": "website-builder",
@@ -13207,7 +13453,9 @@
         "/api/website-builder/generate"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Describe the site you want and the AI builds it — preview it privately, then export your website package.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/website-builder.tsx usePageTitle meta description"
     },
     {
       "id": "winners",
@@ -13274,7 +13522,9 @@
         "/api/world/tutorial/claim"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/world.tsx usePageTitle meta description"
     }
   ],
   "excluded": [
