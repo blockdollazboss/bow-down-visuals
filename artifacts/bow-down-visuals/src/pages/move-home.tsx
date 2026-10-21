@@ -73,7 +73,10 @@ const BLOCKED_COPY: Record<string, string> = {
 };
 
 export default function MoveHome() {
-  usePageTitle("Move Home");
+  usePageTitle(
+    "Move Home",
+    "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
+  );
   const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
   const [data, setData] = useState<MoveHomeData | null>(null);

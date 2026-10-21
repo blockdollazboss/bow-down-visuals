@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "26aa76a210fe392c3ae8ba879c093a5cdcc19a57",
+  "baseCommit": "f0c323d815873cc1ba8da9afa1a418b2152abf38",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -18,8 +18,8 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 209,
-    "withoutDescriptions": 10
+    "withDescriptions": 210,
+    "withoutDescriptions": 9
   },
   "packs": [
     {
@@ -8000,7 +8000,9 @@
         "/api/move-home/steps/:param/skip"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/move-home.tsx usePageTitle meta description"
     },
     {
       "id": "movies",
@@ -14112,7 +14114,7 @@
     {
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/songs/dj-set-prep.tsx",
-      "reason": "UNREVIEWED — not routed from App.tsx; review and record the reason in the generator."
+      "reason": "Tab panel component (the DJ Sets tab) imported by the songs library page (pages/songs.tsx); not a route of its own."
     },
     {
       "kind": "pageFile",

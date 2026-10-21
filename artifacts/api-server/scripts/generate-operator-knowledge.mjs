@@ -204,6 +204,8 @@ const EXCLUDED_PAGE_FILES = {
     "The 404 page — rendered by the catch-all route (component={NotFound}); not a feature.",
   "artifacts/bow-down-visuals/src/pages/songs/albums-section.tsx":
     "Section component imported by the legacy songs page (pages/songs.tsx); not a route of its own.",
+  "artifacts/bow-down-visuals/src/pages/songs/dj-set-prep.tsx":
+    "Tab panel component (the DJ Sets tab) imported by the songs library page (pages/songs.tsx); not a route of its own.",
   // Every other unrouted page file is expected to be a legacy standalone
   // page whose same-name route now redirects into a tabbed host — the
   // generator derives that reason from the redirect itself (see assembly).
