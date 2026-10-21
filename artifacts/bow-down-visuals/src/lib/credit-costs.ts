@@ -244,6 +244,35 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/wave9c/direct/edit": { cost: 150, feature: "Voice-Directed Edits" },
   "/api/wave9d/director/plan": { cost: 150, feature: "Character Director" },
   "/api/wave9d/camera/prompt": { cost: 100, feature: "Camera Move Planner" },
+
+  // ── Waves 3/4 + stack surfaces ──────────────────────────────────
+  // Server charges that landed without a registry row (the operator
+  // knowledge base prices from this registry, so an unregistered
+  // charge is a price the operator cannot quote). Every figure below
+  // is the server constant's own default, cross-checked at knowledge
+  // generation time (SERVER_PRICE_LINKS in the generator):
+  // WEBSITE_BUILD_CREDITS / WEBSITE_EDIT_CREDITS (routes/generate/
+  // website-builder.ts) and PLAYLIST_PITCH_CREDIT_COST (routes/
+  // generate/playlist-pitch.ts). Saving a builder project, its
+  // versions, and restores charge nothing — only generate/edit do.
+  "/api/website-builder/generate": { cost: 3000, feature: "Website Build" },
+  "/api/website-builder/edit": { cost: 200, feature: "Website Edit" },
+  "/api/website-builder/projects": { cost: 0, feature: "Save Website Project (free)" },
+  "/api/playlist-pitch/kit": { cost: 200, feature: "Playlist Pitch Kit" },
+  // Free actions (cost 0, same pattern as Inspo Vibe Analysis and
+  // Stock Media Search above): the surface's route handlers charge
+  // nothing, and the registry records that so the operator can say
+  // "free" from a source instead of guessing.
+  "/api/playlist-pitch/tracker": { cost: 0, feature: "Pitch Tracker & Deadlines (free)" },
+  "/api/tutorials": { cost: 0, feature: "How-To Tutorials (free)" },
+  "/api/dj/analyze": { cost: 0, feature: "DJ Set Prep (free)" },
+  "/api/live-streams/:id/guest-invites": { cost: 0, feature: "Live Guest Invites (free)" },
+  "/api/live-streams/ingest-key": { cost: 0, feature: "Stream Key (free)" },
+  "/api/catalog-import/scan": { cost: 0, feature: "Catalog Import (free)" },
+  "/api/move-home/draft": { cost: 0, feature: "Move Home (free)" },
+  "/api/social-proof/refresh": { cost: 0, feature: "Social Proof (free)" },
+  "/api/storefront/claim": { cost: 0, feature: "Lead Magnet Claim (free)" },
+  "/api/artist-vaults/:id/identity-photos": { cost: 0, feature: "Identity Set Photos (free)" },
 };
 
 /**
