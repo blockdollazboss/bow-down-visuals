@@ -22,8 +22,12 @@ import { z } from "zod";
    rule the generate/edit handlers enforce on AI output (a build must
    carry index.html and styles.css), codified so template data is
    validated against it in tests. */
+/* Integration note (stack5): values are plain strings, not min(1) — the
+   pre-extraction sanity check only required index.html/styles.css to be
+   present, and a generated build may legitimately ship an empty file
+   (e.g. script.js). The refine below carries the actual requirement. */
 export const siteFilesSchema = z
-  .record(z.string().min(1), z.string().min(1))
+  .record(z.string().min(1), z.string())
   .refine((files) => Boolean(files["index.html"] && files["styles.css"]), {
     message: "A site build must include index.html and styles.css",
   });
