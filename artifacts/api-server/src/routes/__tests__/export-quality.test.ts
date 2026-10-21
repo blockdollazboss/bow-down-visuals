@@ -1,14 +1,23 @@
 import { describe, it, expect } from "vitest";
 import type { Router } from "express";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 
 import exportVideoRouter, {
   resolveQualityDims,
   crfForQuality,
   normalizeQualityOptions,
   estimateExportQuality,
+  proVideoCodecArgs,
+  isProCodec,
   QUALITY_EXPORT_COST,
   EXPORT_CREDIT_COST,
 } from "../generate/export-video";
+
+const execFileAsync = promisify(execFile);
 
 /* Recursively collect METHOD + path from an Express router's layer stack. */
 function collectRoutes(router: Router, prefix = ""): Array<{ method: string; path: string }> {
@@ -81,21 +90,21 @@ describe("export quality controls (Feature Wave 6)", () => {
 
   it("normalizes quality options with legacy-matching defaults", () => {
     expect(normalizeQualityOptions(null)).toEqual({
-      enabled: false, resolution: "1080p", quality: 80, fps: 30, container: "mp4",
+      enabled: false, resolution: "1080p", quality: 80, fps: 30, container: "mp4", codec: "h264",
     });
     expect(normalizeQualityOptions(undefined)).toEqual({
-      enabled: false, resolution: "1080p", quality: 80, fps: 30, container: "mp4",
+      enabled: false, resolution: "1080p", quality: 80, fps: 30, container: "mp4", codec: "h264",
     });
     // Garbage is sanitized, never passed through to ffmpeg.
     expect(normalizeQualityOptions({
       enabled: true, resolution: "8k", quality: 999, fps: 120, container: "avi",
     } as never)).toEqual({
-      enabled: true, resolution: "1080p", quality: 100, fps: 30, container: "mp4",
+      enabled: true, resolution: "1080p", quality: 100, fps: 30, container: "mp4", codec: "h264",
     });
     expect(normalizeQualityOptions({
       enabled: true, resolution: "4k", quality: 90, fps: 60, container: "mov",
     } as never)).toEqual({
-      enabled: true, resolution: "4k", quality: 90, fps: 60, container: "mov",
+      enabled: true, resolution: "4k", quality: 90, fps: 60, container: "mov", codec: "h264",
     });
   });
 
@@ -142,4 +151,91 @@ describe("export quality controls (Feature Wave 6)", () => {
     expect(slow.bytes).toBeGreaterThan(cine.bytes);
     expect(slow.renderSec).toBeGreaterThan(cine.renderSec);
   });
+});
+
+describe("pro finishing codecs (Pro Finishing Door)", () => {
+  it("normalizes pro codecs and forces the MOV container", () => {
+    expect(normalizeQualityOptions({
+      enabled: true, resolution: "1080p", quality: 80, fps: 30, container: "mp4", codec: "prores",
+    } as never)).toEqual({
+      enabled: true, resolution: "1080p", quality: 80, fps: 30, container: "mov", codec: "prores",
+    });
+    expect(normalizeQualityOptions({
+      enabled: true, resolution: "1080p", quality: 80, fps: 30, container: "mp4", codec: "dnxhr",
+    } as never).container).toBe("mov");
+    // An unknown codec never reaches ffmpeg — it sanitizes to h264.
+    expect(normalizeQualityOptions({ codec: "vp9" } as never).codec).toBe("h264");
+    expect(isProCodec("prores")).toBe(true);
+    expect(isProCodec("dnxhr")).toBe(true);
+    expect(isProCodec("h264")).toBe(false);
+  });
+
+  it("builds the encoder args for the render (prores_ks pattern reused)", () => {
+    // ProRes 422 HQ via the same prores_ks encoder the background-removal
+    // rail uses (profile 4444 there for alpha; 3 = 422 HQ here).
+    expect(proVideoCodecArgs("prores")).toEqual([
+      "-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le",
+    ]);
+    expect(proVideoCodecArgs("dnxhr")).toEqual([
+      "-c:v", "dnxhd", "-profile:v", "dnxhr_hq", "-pix_fmt", "yuv422p",
+    ]);
+    // h264 keeps the caller's x264 block — no pro args.
+    expect(proVideoCodecArgs("h264")).toEqual([]);
+    expect(proVideoCodecArgs(undefined)).toEqual([]);
+  });
+
+  it("estimates pro renders at the codec's real fixed rate, uncapped", () => {
+    const est = estimateExportQuality({
+      aspectRatio: "16:9", resolution: "1080p", quality: 80, fps: 30,
+      container: "mp4", codec: "prores", durationSec: 60, hasAudio: true,
+    });
+    expect(est.settings.codec).toBe("prores");
+    expect(est.settings.container).toBe("mov");
+    expect(est.settings.crf).toBe(0); // CRF does not exist for ProRes
+    expect(est.capped).toBe(false); // R2 delivery has no per-file ceiling
+    // 220 Mbps video + 192 kbps audio for 60s ≈ 1.65 GB.
+    expect(est.bytes).toBeGreaterThan(1.5 * 1024 * 1024 * 1024);
+    expect(est.bytes).toBeLessThan(1.8 * 1024 * 1024 * 1024);
+
+    const dnx = estimateExportQuality({
+      aspectRatio: "16:9", resolution: "1080p", quality: 80, fps: 30,
+      codec: "dnxhr", durationSec: 60, hasAudio: false,
+    });
+    expect(dnx.settings.codec).toBe("dnxhr");
+    // DNxHR HQ (175 Mbps) is lighter than ProRes 422 HQ (220 Mbps).
+    expect(dnx.bytes).toBeLessThan(est.bytes);
+  });
+
+  it("encodes real ProRes and DNxHR files with those args (ffmpeg)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "pro-codec-test-"));
+    try {
+      const srcPath = join(dir, "src.mp4");
+      await execFileAsync("ffmpeg", [
+        "-y", "-f", "lavfi", "-i", "testsrc=duration=0.5:size=320x568:rate=30",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", srcPath,
+      ], { timeout: 60_000 });
+
+      const probeCodec = async (file: string): Promise<string> => {
+        const { stdout } = await execFileAsync("ffprobe", [
+          "-v", "quiet", "-print_format", "json", "-show_streams", file,
+        ], { timeout: 30_000 });
+        const info = JSON.parse(stdout) as { streams?: Array<{ codec_name?: string }> };
+        return info.streams?.[0]?.codec_name ?? "";
+      };
+
+      const proresPath = join(dir, "out-prores.mov");
+      await execFileAsync("ffmpeg", [
+        "-y", "-i", srcPath, ...proVideoCodecArgs("prores"), proresPath,
+      ], { timeout: 120_000 });
+      expect(await probeCodec(proresPath)).toBe("prores");
+
+      const dnxPath = join(dir, "out-dnxhr.mov");
+      await execFileAsync("ffmpeg", [
+        "-y", "-i", srcPath, ...proVideoCodecArgs("dnxhr"), dnxPath,
+      ], { timeout: 120_000 });
+      expect(await probeCodec(dnxPath)).toBe("dnxhd");
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  }, 180_000);
 });
