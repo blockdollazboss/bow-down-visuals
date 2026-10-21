@@ -4,7 +4,7 @@ import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
-import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
+import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
@@ -525,6 +525,11 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
     return;
   }
 
+  /* Set once the charge below actually lands. The save after the charge
+     can still fail (DB write), and that failure must give the money back
+     — the pending-task entry is already deleted by then, so the member
+     cannot retry the poll (D5 sweep G1). */
+  let chargedCredits = 0;
   try {
     const client = new RunwayML({ apiKey });
     const task = await client.tasks.retrieve(taskId);
@@ -551,8 +556,11 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
           action: "Character Reference Video",
           projectId: null,
         });
+        chargedCredits = pending.credits;
       } catch (e) {
         if (e instanceof LedgerWriteError) {
+          /* chargeCredits rolled the deduction itself back when the
+             ledger write failed — no standing charge to refund. */
           req.log.error({ taskId, err: e.message }, "[ref-video] ledger write failed after charge");
         } else {
           throw e;
@@ -587,6 +595,21 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     req.log.error({ taskId, err: msg }, "[ref-video] poll failed");
+    if (chargedCredits > 0) {
+      /* The charge landed but the save after it failed — refund the
+         exact charged amount. The task record is gone, so this refund
+         is the member's only path back to whole. */
+      try {
+        await refundCredits(req.userId!, chargedCredits, {
+          action: "Character Reference Video — Refund (save failed)",
+          projectId: null,
+        });
+      } catch (refundErr) {
+        req.log.error({ taskId, err: refundErr }, "[ref-video] CRITICAL: refund failed after save failure — manual reconciliation required");
+      }
+      res.status(502).json({ error: "The video finished but saving it failed — your Visual Bucs were refunded." });
+      return;
+    }
     res.status(502).json({ error: "Could not check video status" });
   }
 });
@@ -817,11 +840,13 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
     res.json({ status: "failed", error: "This character isn't yours to change — nothing was charged." });
     return;
   }
+  let charged = false;
   try {
     const newBalance = await chargeCreditsAtomic(req.userId!, task.credits, {
       action: "Artist Vault Video Loop",
       projectId: null,
     });
+    charged = true;
     await db
       .update(artistVaultsTable)
       .set({
@@ -833,7 +858,25 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
     res.json({ status: "succeeded", url: task.url, newBalance });
   } catch (err) {
     if (err instanceof LedgerWriteError) {
+      /* chargeCredits rolled the deduction itself back — no standing
+         charge to refund. */
       res.json({ status: "failed", error: "Credit ledger write failed — no video was changed." });
+      return;
+    }
+    if (charged) {
+      /* The charge landed but the save after it failed — refund the
+         exact charged amount (D5 sweep G4). */
+      try {
+        await refundCredits(req.userId!, task.credits, {
+          action: "Artist Vault Video Loop — Refund (save failed)",
+          projectId: null,
+        });
+      } catch (refundErr) {
+        req.log.error({ taskId, err: refundErr }, "[ref-video-loop] CRITICAL: refund failed after save failure — manual reconciliation required");
+        res.json({ status: "failed", error: "Saving the looped video failed." });
+        return;
+      }
+      res.json({ status: "failed", error: "Saving the looped video failed — your Visual Bucs were refunded." });
       return;
     }
     res.json({ status: "failed", error: err instanceof Error ? err.message : "Loop failed." });

@@ -284,4 +284,20 @@ describe("PATCH /api/scheduler/posts/:id — reschedule (the drag's write path)"
     expect(r.json.post.scheduledAt).toBe(target);
     expect(h.userCredits).toBeLessThan(before);
   });
+
+  it("G7: a draft→scheduled charge whose update throws is refunded in the same request", async () => {
+    const row = seedScheduled({ status: "draft", scheduled_at: null, credits_charged: 0 });
+    const target = new Date(Date.now() + 2 * DAY).toISOString();
+    const before = h.userCredits;
+    h.failUpdate = true;
+    const r = await req("PATCH", `/scheduler/posts/${row.id}`, { scheduledAt: target });
+    expect(r.status).toBe(500);
+    expect(r.json.error).toBe("update_failed");
+    // Charged 100 on the way in, refunded 100 on the way out — net zero,
+    // and the row still reads draft / credits_charged 0 (nothing for a
+    // later refund path to double-pay).
+    expect(h.userCredits).toBe(before);
+    expect(row.status).toBe("draft");
+    expect(row.credits_charged).toBe(0);
+  });
 });

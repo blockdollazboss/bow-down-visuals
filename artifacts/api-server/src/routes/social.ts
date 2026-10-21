@@ -29,7 +29,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
@@ -1156,7 +1156,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
                     retires it)
              DELETE /api/posts/:id            (auth, own)
              GET    /api/posts/:id/analytics  (auth, own) engagement + earning hint
-             POST   /api/posts/assist         (auth, 1 credit) AI "write it for me"
+             POST   /api/posts/assist         (auth, 100 Visual Bucs) AI "write it for me"
              POST   /api/posts/:id/poll/vote  (auth)
    React:    POST   /api/react  DELETE /api/react  (auth)
              emoji ∈ {like, love, fire, clap, mindblown}; like is the default.
@@ -2399,21 +2399,36 @@ router.get("/posts/:id/analytics", requireAuth, async (req: Request, res: Respon
   }
 });
 
-/* AI "write it for me" (1 star): 1 credit, returns a draft. Never auto-posts. */
+/* AI "write it for me" (1 star): returns a draft. Never auto-posts.
+   Price: 100 Visual Bucs (owner ruling, Oct 20, 2026 — supersedes the
+   old 1 VB literal). */
+export const POST_ASSIST_CREDITS = 100;
 const assistSchema = z.object({
   prompt: z.string().trim().min(3).max(300),
   tone: z.enum(["hype", "chill", "professional", "funny"]).optional().default("hype"),
 });
 
 router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  /* Set once the charge lands; a provider failure after it refunds the
+     exact charged amount (D5 sweep G15). */
+  let assistCharged = false;
+  let assistIdempotencyKey: string | null = null;
   try {
     const parsed = assistSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    /* Server-derived idempotency key — a double-submit of the same
+       draft request can't charge twice for one delivery. */
+    const idempotencyKey = buildChargeIdempotencyKey("post_assist", req.userId!, null, {
+      prompt: parsed.data.prompt,
+      tone: parsed.data.tone,
+    });
+    assistIdempotencyKey = idempotencyKey;
     try {
-      await chargeCredits(req.userId!, 1, { action: "post_assist" });
+      await chargeCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist" }, { idempotencyKey });
+      assistCharged = true;
     } catch (e) {
       if (e instanceof OutOfCreditsError) {
-        return res.status(402).json({ error: "out_of_credits", message: "That draft costs 1 Visual Buc — top up to keep the cheat code writing." });
+        return res.status(402).json({ error: "out_of_credits", message: "That draft costs 100 Visual Bucs — top up to keep the cheat code writing." });
       }
       throw e;
     }
@@ -2432,6 +2447,16 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
     const draft = completion.choices[0]?.message?.content?.trim().slice(0, 500) ?? "";
     return res.json({ draft });
   } catch (err) {
+    if (assistCharged) {
+      try {
+        await refundCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist — Refund (assist failed)" });
+        /* Void the charge's key so a retry charges again instead of
+           being suppressed as a replay and running free. */
+        if (assistIdempotencyKey) await voidChargeIdempotencyKey(assistIdempotencyKey);
+      } catch (refundErr) {
+        logger.error({ err: refundErr, userId: req.userId }, "[social] CRITICAL: post_assist refund failed — manual reconciliation required");
+      }
+    }
     return res.status(500).json({ error: "assist_failed", message: "The cheat code's pen ran dry — try again." });
   }
 });

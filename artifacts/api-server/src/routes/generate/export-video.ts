@@ -13,7 +13,7 @@ import { recordCreditUsageStrict } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { OutOfCreditsError } from "../../lib/credits";
+import { OutOfCreditsError, refundCredits } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { buildAdjustmentGraph, type AdjustmentExportItem } from "./lane-export";
 import { buildDuckingMixFilter, duckingParamsFromSimple } from "./ducking-filter";
@@ -30,6 +30,7 @@ import {
   completeJob,
   failJob,
   chargeCreditsForJob,
+  clearJobChargeFlag,
   recoverInterruptedJobs,
   enqueueExport,
   describeJobProgress,
@@ -2929,6 +2930,11 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
   if (typeof (ticker as unknown as { unref?: unknown }).unref === "function") {
     (ticker as unknown as { unref: () => void }).unref();
   }
+  /* Set when THIS run's charge lands. If the completion save after it
+     throws, the job is marked failed with the charge standing — refund
+     it in that exact case (D5 sweep G2). */
+  let exportChargedCost = 0;
+  let exportChargedAction = "";
   try {
     const result = await executeExport(ctx);
 
@@ -2944,6 +2950,8 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
       try {
         const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, exportCost);
         if (charged) {
+          exportChargedCost = exportCost;
+          exportChargedAction = exportAction;
           // Strict ledger write: the export was delivered, so on failure the
           // deduction stands and the gap is logged CRITICAL for manual
           // reconciliation — never silently swallowed.
@@ -2968,7 +2976,26 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
       }
     }
 
-    await completeJob(jobId, result);
+    try {
+      await completeJob(jobId, result);
+    } catch (completeErr) {
+      if (exportChargedCost > 0) {
+        /* Charged, but the result never persisted — the job fails below
+           with nothing delivered. Refund the exact charged amount and
+           clear the charge flag so a recovery re-run can charge again
+           exactly once. */
+        try {
+          await refundCredits(ctx.userId, exportChargedCost, {
+            action: `${exportChargedAction} — Refund (save failed)`,
+            projectId: ctx.body.projectId ?? null,
+          });
+          await clearJobChargeFlag(jobId);
+        } catch (refundErr) {
+          ctx.log.error({ err: refundErr, jobId }, "[export] CRITICAL: refund failed after completion-save failure — manual reconciliation required");
+        }
+      }
+      throw completeErr;
+    }
     // Retention hook: a finished export counts as a creation day + feeds the export quest.
     void recordCreation(ctx.userId, "export");
   } catch (err) {

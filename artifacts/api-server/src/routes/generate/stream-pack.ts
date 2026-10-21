@@ -6,7 +6,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { getOpenAI } from "../../lib/ai-clients";
 import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, LedgerWriteError } from "../../lib/credits";
 import { saveGeneration } from "../../lib/save-generation";
 import {
   uploadMediaToSupabaseStorage,
@@ -550,6 +550,7 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     }
 
     /* ── Charge AFTER success (mirrors artist-image sunburst path) ── */
+    let chargedAmount = 0;
     try {
       const creditsAfter = await chargeCredits(
         req.userId!,
@@ -557,26 +558,52 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
         { action: `Stream Pack: ${plan.asset.label}` },
         { rollbackOnLedgerFailure: false },
       );
+      chargedAmount = plan.creditCost;
       req.log.info(
         { userId: req.userId, creditsAfter, deducted: plan.creditCost },
         "[stream-pack] credits deducted",
       );
     } catch (err) {
       if (err instanceof LedgerWriteError) {
+        /* rollbackOnLedgerFailure:false — the deduction STANDS (only the
+           ledger trace is missing), so the member has paid. */
+        chargedAmount = plan.creditCost;
         req.log.error({ err }, "[stream-pack] CRITICAL: ledger write failed after deduction — asset delivered, charge has no ledger trace");
       } else {
         req.log.error({ err }, "[stream-pack] credit deduction FAILED — asset delivered without charge");
       }
     }
 
-    /* ── Store in generated-clips/stream-packs (self-healing bucket) ── */
+    /* ── Store in generated-clips/stream-packs (self-healing bucket) ──
+       If the store/refresh throws, the member paid but no asset can be
+       delivered — refund the charge (D5 sweep G8). */
     const objectName = `stream-packs/${req.userId}/${randomUUID()}.png`;
-    const storageRef = await uploadMediaToSupabaseStorage(
-      objectName,
-      Buffer.from(b64, "base64"),
-      "image/png",
-    );
-    const url = await refreshSupabaseStorageUrl(storageRef);
+    let storageRef: string;
+    let url: string;
+    try {
+      storageRef = await uploadMediaToSupabaseStorage(
+        objectName,
+        Buffer.from(b64, "base64"),
+        "image/png",
+      );
+      url = await refreshSupabaseStorageUrl(storageRef);
+    } catch (uploadErr) {
+      if (chargedAmount > 0) {
+        try {
+          await refundCredits(req.userId!, chargedAmount, {
+            action: `Stream Pack: ${plan.asset.label} — Refund (delivery failed)`,
+          });
+        } catch (refundErr) {
+          req.log.error({ err: refundErr }, "[stream-pack] CRITICAL: refund failed after delivery failure — manual reconciliation required");
+        }
+        req.log.error({ err: uploadErr }, "[stream-pack] delivery failed after charge — credits refunded");
+        res.status(500).json({ error: "Stream pack delivery failed — your Visual Bucs were refunded." });
+        return;
+      }
+      req.log.error({ err: uploadErr }, "[stream-pack] delivery failed — no credits charged");
+      res.status(500).json({ error: "Stream pack delivery failed. No Visual Bucs were charged." });
+      return;
+    }
 
     /* ── Record the graphic in the maker's library (generations rail).
        This record is what "your stream pack" reads everywhere — the

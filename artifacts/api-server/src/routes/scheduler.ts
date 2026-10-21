@@ -307,6 +307,12 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
   }
   if (data.mediaType !== undefined) patch.media_type = data.mediaType;
 
+  /* Set when the draft→scheduled charge below lands in THIS request.
+     If the shared update after it throws, the row still reads
+     credits_charged = 0, so no later refund path (unschedule / cancel /
+     poller) could ever see the charge — refund it here (D5 sweep G7). */
+  let chargedThisRequest = 0;
+  let updateLanded = false;
   if (data.scheduledAt !== undefined) {
     if (data.scheduledAt === null) {
       /* Unscheduling a scheduled post refunds the whole reservation. */
@@ -340,6 +346,7 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
         }
         try {
           await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" });
+          chargedThisRequest = cost;
         } catch (err) {
           if (err instanceof OutOfCreditsError) {
             res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs to schedule this post." });
@@ -360,10 +367,20 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
       .set({ ...patch, updated_at: new Date() })
       .where(eq(scheduledPostsTable.id, post.id))
       .returning();
+    updateLanded = true;
     if (updated.status === "scheduled") requestPollerTick();
     res.json({ post: await presentPost(updated) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[scheduler] update failed");
+    if (chargedThisRequest > 0 && !updateLanded) {
+      /* The charge landed but the row never did — refund it now, while
+         this request still knows about it. */
+      try {
+        await refundCredits(req.userId!, chargedThisRequest, { action: "Content Scheduler — Refund (update failed)" });
+      } catch (refundErr) {
+        logger.error({ err: refundErr, userId: req.userId }, "[scheduler] FAILED to refund after update failure");
+      }
+    }
     res.status(500).json({ error: "update_failed", message: "Couldn't update the post." });
   }
 });

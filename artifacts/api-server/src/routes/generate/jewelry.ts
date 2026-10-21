@@ -418,6 +418,16 @@ router.post("/jewelry/consult", requireAuth, async (req, res) => {
       "My fins slipped — could you ask that again? 🦈";
     res.json({ reply, creditCost: CONSULT_CREDITS });
   } catch (err) {
+    /* The charge landed before the provider call — refund it on any
+       failure, same fail-closure shape as the preview/STL handlers
+       above (D5 sweep G13). */
+    try {
+      await refundCredits(req.userId!, CONSULT_CREDITS, {
+        action: "Jewelry Studio — AI Consultant Refund (consult failed)",
+      });
+    } catch (refundErr) {
+      req.log.error({ err: refundErr }, "[jewelry] REFUND FAILED after consult failure");
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       res.status(503).json({ error: "I'm catching my breath — try again in a moment. 🦈" });
       return;
