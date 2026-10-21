@@ -131,6 +131,11 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
     ["genre--genre", "/genre/:genre"],
     ["go-live-controller", "/go-live/controller"],
     ["photo-preset--slug", "/photo-preset/:slug"],
+    // playlist--id joined the set at the Stack-20 integration: the
+    // surface-wiring lane made the page's meta per-playlist dynamic
+    // (pageDescWith / pageDescDefault), and the generator's ambiguity
+    // rule refuses a two-candidate usePageTitle argument by design.
+    ["playlist--id", "/playlist/:id"],
     ["search", "/search"],
     ["storefronts-builder", "/storefronts/builder"],
     ["vertical--vertical", "/vertical/:vertical"],

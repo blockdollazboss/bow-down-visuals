@@ -1390,6 +1390,8 @@ describe("abandoned checkout — the runner fires the recorded expiry once", () 
     expect(totals.sent).toBe(0);
     expect(await sendRows()).toEqual([]);
     expect(mail.sends).toEqual([]);
+  });
+});
 
 /* ── Locale path ─────────────────────────────────────────────────────
    The server keeps no stored language preference (the web app keeps
