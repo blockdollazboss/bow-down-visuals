@@ -34,6 +34,11 @@ export interface SceneData {
   /** Image URL of the location picked from the user's Locations library
    *  (visual reference for the scene's setting; label goes in `location`). */
   locationImageUrl?: string | null;
+  /** Optional end-frame (last-frame) keyframe image for this scene — the
+   *  visual the generated clip should land on. Picked from the same media
+   *  library as the location image. Only sent to models whose API accepts
+   *  a last frame (seedance2_5 / veo3_1); see lib/scene-end-frame. */
+  endFrameImageUrl?: string | null;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */

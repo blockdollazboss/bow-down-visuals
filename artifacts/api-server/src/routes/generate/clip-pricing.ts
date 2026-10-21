@@ -55,6 +55,28 @@ export const VEO_CLIP_DURATION_SEC = 8;
 export const VEO_PRICING_APPROVED = false;
 export const VEO_PRICING_VERSION = "2026-10-11-veo3_1";
 
+/* ── End-frame (last-frame) keyframe support, per model ────────────────────
+   Grounded in the provider request builders vendored in this tree:
+   - gen4.5 (@runwayml/sdk ImageToVideoCreateParams.Gen4_5): PromptImage
+     `position` is 'first' ONLY — the model takes no last frame.
+   - seedance2_5 (same SDK, Seedance2_5.PromptImage): `position` is
+     'first' | 'last' — keyframe mode (positioned entries cannot be mixed
+     with unpositioned reference images).
+   - veo3_1 (lib/veo-client, Gemini predictLongRunning): the instance
+     accepts a `lastFrame` next to the first-frame `image` — Veo 3.1's
+     first/last-frame interpolation. A lone last frame is never accepted.
+   The Scene Studio UI hides the end-frame control for unsupported models
+   and the server never sends them the parameter. */
+export const CLIP_END_FRAME_SUPPORT: Record<ClipModel, boolean> = {
+  "gen4.5": false,
+  seedance2_5: true,
+  veo3_1: true,
+};
+
+export function modelSupportsEndFrame(model: ClipModel): boolean {
+  return CLIP_END_FRAME_SUPPORT[model] === true;
+}
+
 export interface ClipPlan {
   model: ClipModel;
   useSeedance: boolean;

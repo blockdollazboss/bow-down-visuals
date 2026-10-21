@@ -4,7 +4,7 @@ import {
   Sparkles, Video, CheckCircle2, AlertCircle, AlertTriangle, X,
   ChevronDown, ChevronUp, RotateCcw,
   ArrowUp, ArrowDown, Trash2, Plus, Save, Eye,
-  ShieldCheck,
+  ShieldCheck, Flag, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
+import { modelSupportsEndFrame, endFrameForPayload } from "@/lib/scene-end-frame";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -515,6 +516,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           ratio: "720:1280",
           referenceImageUrl,
           previousClipUrl: chaining ? previousClipUrl : null,
+          /* End frame: undefined (field omitted) for models whose API has
+             no last frame — gen4.5 never receives the parameter. */
+          endFrameImageUrl: endFrameForPayload(clipModel, scene.endFrameImageUrl),
           model: clipModel,
           durationSec: clipModel === "veo3_1" ? 8 : clipModel === "seedance2_5" ? clipDuration : 5,
           resolution: isEnhance ? "1080p" : clipRes,
@@ -932,6 +936,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         )}
       </div>
 
+      {/* End frame (last-frame keyframe) — only models whose API accepts a
+          last frame (Premium / Cinematic). For Standard the control is
+          absent entirely, never shown disabled. */}
+      {modelSupportsEndFrame(clipModel) && (
+        <EndFramePicker scene={scene} onPick={onUpdate} />
+      )}
+
       {/* Generate controls — credit confirmation handled by the universal popup */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-white/50">Generate costs {clipCost.toLocaleString("en-US")} Visual Bucs.</span>
@@ -958,6 +969,160 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── End-frame picker ──────────────────────────────────────────
+   Optional last-frame keyframe for the scene: the image the generated
+   clip must land on. Picked from — or uploaded into — the same Locations
+   library the scene's start/location image comes from. Only rendered
+   for models whose API accepts a last frame (lib/scene-end-frame). */
+function EndFramePicker({ scene, onPick }: {
+  scene: SceneData;
+  onPick: (patch: Partial<SceneData>) => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [locations, setLocations] = useState<LibraryLocation[] | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open && locations === null) {
+      void fetchLocationsLibrary(getAccessToken).then(setLocations);
+    }
+  }, [open, locations, getAccessToken]);
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.append("image", file);
+      form.append("label", `End frame — Scene ${scene.sceneNumber}`);
+      const res = await fetch("/api/locations/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const data = (await res.json()) as { location?: { image_url?: string }; error?: string };
+      const url = data.location?.image_url;
+      if (!res.ok || !url) throw new Error(data.error ?? "Upload failed");
+      /* The upload joined the Locations library — drop the shared cache so
+         the next open lists it alongside the other library images. */
+      locationsCache = null;
+      locationsFetch = null;
+      setLocations(null);
+      onPick({ endFrameImageUrl: url });
+      setOpen(false);
+      toast({ title: "End frame set", description: "The clip will land on this image." });
+    } catch (e) {
+      toast({
+        title: "Upload failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+          <Flag className="h-2.5 w-2.5" /> End frame
+        </span>
+        {scene.endFrameImageUrl ? (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.07] pl-1 pr-2 py-1">
+            <img
+              src={scene.endFrameImageUrl}
+              alt="Scene end frame"
+              className="h-8 w-12 rounded-lg object-cover"
+            />
+            <span className="text-xs font-semibold text-white/80 max-w-[160px] truncate">
+              Clip lands here
+            </span>
+            <button
+              onClick={() => onPick({ endFrameImageUrl: null })}
+              className="text-white/40 hover:text-white/80 transition-colors"
+              title="Clear end frame"
+              aria-label="Clear end frame"
+              data-testid="end-frame-clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
+            data-testid="end-frame-open"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Set end frame
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
+
+      {open && !scene.endFrameImageUrl && (
+        <div className="absolute z-30 mt-2 w-[320px] max-w-[80vw] rounded-xl border border-white/10 bg-zinc-950 p-3 shadow-2xl shadow-black/60">
+          <p className="text-[11px] text-white/50 leading-relaxed mb-2">
+            Pick the image this clip should <span className="text-white/80 font-semibold">end on</span> —
+            line it up with the next scene's start for a smooth cut.
+          </p>
+          {locations === null ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
+              {locations.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => {
+                    onPick({ endFrameImageUrl: l.image_url });
+                    setOpen(false);
+                  }}
+                  className="group rounded-lg overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-left"
+                  title={`End this scene on “${l.label}”`}
+                >
+                  <img src={l.image_url} alt={l.label} className="h-16 w-full object-cover" loading="lazy" />
+                  <p className="px-2 py-1.5 text-[11px] font-semibold text-white/70 group-hover:text-white truncate">
+                    {l.label}
+                  </p>
+                </button>
+              ))}
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="rounded-lg border border-dashed border-white/15 hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1 min-h-[92px] text-white/50 hover:text-white/80 disabled:opacity-50"
+                data-testid="end-frame-upload"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                <span className="text-[11px] font-semibold">{uploading ? "Uploading…" : "Upload image"}</span>
+              </button>
+            </div>
+          )}
+          {locations !== null && locations.length === 0 && (
+            <p className="text-[11px] text-white/40 mt-2">Uploads join your Locations library, ready to reuse on any scene.</p>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void handleUpload(f);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

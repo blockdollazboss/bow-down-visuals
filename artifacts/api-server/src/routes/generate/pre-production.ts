@@ -502,6 +502,10 @@ Return: { "props": [...], "ingredients": [...] }` }],
       prompt: String(g.prompt ?? ""),
       negativePrompt: String(g.negativePrompt ?? ""),
       referenceAssetUrls: [],
+      endFrameImageUrl:
+        typeof g.endFrameImageUrl === "string" && /^https:\/\//i.test(g.endFrameImageUrl)
+          ? g.endFrameImageUrl
+          : null,
       continuityNotes: String(g.continuityNotes ?? ""),
       model: g.model === "gen4.5" ? "gen4.5" : "seedance2_5",
       durationSec: Math.min(Math.max(Number(g.durationSec ?? 5) || 5, 3), 30),

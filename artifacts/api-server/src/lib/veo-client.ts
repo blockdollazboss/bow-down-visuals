@@ -25,6 +25,11 @@ export interface VeoSubmitOpts {
   /** Base64-encoded first-frame image for image-to-video (optional). */
   imageBase64?: string;
   imageMimeType?: string;
+  /** Base64-encoded LAST-frame image — Veo 3.1 first/last-frame
+   *  interpolation. Only forwarded when a first frame is also present:
+   *  Veo does not accept a lone last frame. */
+  lastFrameBase64?: string;
+  lastFrameMimeType?: string;
   /** 720p keeps cost at $0.40/s; 1080p/4K cost more and are 8s-only. */
   resolution?: "720p" | "1080p";
 }
@@ -36,6 +41,12 @@ export async function submitVeoVideo(opts: VeoSubmitOpts): Promise<string> {
     instance["image"] = {
       inlineData: { mimeType: opts.imageMimeType || "image/jpeg", data: opts.imageBase64 },
     };
+    /* Last frame rides only alongside a first frame — never alone. */
+    if (opts.lastFrameBase64) {
+      instance["lastFrame"] = {
+        inlineData: { mimeType: opts.lastFrameMimeType || "image/jpeg", data: opts.lastFrameBase64 },
+      };
+    }
   }
   const res = await fetch(`${VEO_BASE}:predictLongRunning`, {
     method: "POST",

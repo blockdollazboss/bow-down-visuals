@@ -30,6 +30,7 @@ import {
   VEO_CREDITS_PER_SEC_DEFAULT,
   VEO_PRICING_APPROVED,
   VEO_PRICING_VERSION,
+  modelSupportsEndFrame,
   resolveClipPlan,
 } from "./clip-pricing";
 import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
@@ -206,8 +207,16 @@ const runwayClipSchema = z.object({
    *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
    *  (vault photo) when absent or unusable. */
   previousClipUrl: z.string().max(2048).optional().nullable(),
-  /** Video model: "gen4.5" (default, 5s) or "seedance2_5" (premium, up to 30s). */
-  model: z.enum(["gen4.5", "seedance2_5"]).optional(),
+  /** Optional end-frame (last-frame) keyframe image: the visual the clip
+   *  must land on. Only forwarded to models whose API accepts a last frame
+   *  (seedance2_5, veo3_1 — see CLIP_END_FRAME_SUPPORT in clip-pricing.ts);
+   *  gen4.5's PromptImage type allows position 'first' only, so the field
+   *  is dropped for it. Part of the existing generation charge — no
+   *  separate price. A locked pack's ingredient wins over this field. */
+  endFrameImageUrl: z.string().max(2048).optional().nullable(),
+  /** Video model: "gen4.5" (default, 5s), "seedance2_5" (premium, up to
+   *  30s), or "veo3_1" (cinematic; refused until VEO_PRICING_APPROVED). */
+  model: z.enum(["gen4.5", "seedance2_5", "veo3_1"]).optional(),
   /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
   durationSec: z.number().finite().min(1).max(60).optional(),
   /** Output resolution tier for seedance2_5. */
@@ -235,7 +244,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, draft, seed, packId, shotNumber } = parsed.data;
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -256,6 +265,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
 
   const effectivePrompt = lockedIngredients?.prompt ?? promptText;
   const effectiveNegative = lockedIngredients?.negativePrompt ?? negativePrompt;
+  /* The end frame rides the locked pack like every other ingredient: a
+     locked shot's end frame wins over the per-request field. */
+  const effectiveEndFrame = lockedIngredients?.endFrameImageUrl ?? endFrameImageUrl;
   const effectiveModel = lockedIngredients?.model ?? model;
   const effectiveDuration = lockedIngredients?.durationSec ?? durationSec;
   const effectiveRatio = (lockedIngredients?.ratio === "1280:720" ? "1280:720" : "720:1280") as "1280:720" | "720:1280";
@@ -360,6 +372,26 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
 
   const useImageRef = !!refImage;
 
+  /* ── End-frame resolution ────────────────────────────────────────────────
+     Only models whose provider API accepts a last frame ever see the end
+     frame (seedance2_5 / veo3_1). For gen4.5 it is dropped here — the SDK's
+     Gen4_5.PromptImage position is 'first' only — so the parameter is
+     absent from the provider request, never sent-and-ignored. A stable
+     storage ref is minted to HTTPS exactly like the chaining clip URL. */
+  let endFrameUrl: string | undefined;
+  if (modelSupportsEndFrame(plan.model)) {
+    let ef = effectiveEndFrame?.trim();
+    if (ef && !/^https:\/\//i.test(ef) && parseSupabaseStorageRef(ef)) {
+      const resolved = await refreshSupabaseStorageUrl(ef);
+      ef = resolved.startsWith("http") ? resolved : undefined;
+    }
+    if (ef && /^https:\/\//i.test(ef)) {
+      endFrameUrl = ef;
+    } else if (ef) {
+      req.log.warn("[runway-clip] end frame supplied but not a usable HTTPS URL — generating without it");
+    }
+  }
+
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   // Veo 3.1 runs on Gemini, never touches Runway — don't block it on the
   // Runway key.
@@ -462,6 +494,25 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
           req.log.warn("[runway-clip] Veo reference image fetch failed — text-to-video fallback");
         }
       }
+      /* End frame (Veo 3.1 first/last-frame interpolation): fetched with
+         the same discipline as the first frame. Veo never accepts a lone
+         last frame, so it is only forwarded when a first frame landed. */
+      let lastFrameBase64: string | undefined;
+      let lastFrameMimeType: string | undefined;
+      if (endFrameUrl && imageBase64) {
+        try {
+          const efRes = await fetch(endFrameUrl, { signal: AbortSignal.timeout(60_000) });
+          if (efRes.ok) {
+            const buf = Buffer.from(await efRes.arrayBuffer());
+            if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
+              lastFrameBase64 = buf.toString("base64");
+              lastFrameMimeType = efRes.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+            }
+          }
+        } catch {
+          req.log.warn("[runway-clip] Veo end-frame fetch failed — generating without an end frame");
+        }
+      }
       /* Veo generates its own audio natively (dialogue/SFX/ambience) — that
          is its signature strength, so unlike Seedance we leave it on. */
       const veoPrompt = `${content} ${PERFORMANCE_DIRECTIVE}`.slice(0, 4000);
@@ -470,6 +521,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         aspectRatio: effectiveRatio === "720:1280" ? "9:16" : "16:9",
         imageBase64,
         imageMimeType,
+        lastFrameBase64,
+        lastFrameMimeType,
         resolution: "720p",
       });
       const veoTaskId = `veo-${randomUUID()}`;
@@ -486,6 +539,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         creditCost,
         model: "veo3_1",
         durationSec: resolvedDurationSec,
+        endFrameUsed: !!lastFrameBase64,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
@@ -523,11 +577,24 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     /* Image-to-video: anchor the artist's face/look to their vault photo so every
        generated scene keeps the same visual identity. Falls back to text-to-video
        when no usable reference photo is provided. */
+    /* Seedance end-frame keyframes: when an end frame is set, promptImage
+       becomes the positioned keyframe array — the first frame (when one
+       resolved) at 'first', the end frame at 'last'. Seedance's keyframe
+       mode cannot mix positioned and unpositioned images, so the first
+       frame is positioned too. With no end frame the request keeps its
+       exact pre-end-frame shape (plain string / text-to-video). gen4.5
+       never reaches this branch's keyframes — endFrameUrl is only
+       resolved for models that support it. */
     const task = useSeedance
-      ? useImageRef
+      ? useImageRef || endFrameUrl
         ? await client.imageToVideo.create({
             model: "seedance2_5",
-            promptImage: refImage!,
+            promptImage: endFrameUrl
+              ? [
+                  ...(refImage ? [{ uri: refImage, position: "first" as const }] : []),
+                  { uri: endFrameUrl, position: "last" as const },
+                ]
+              : refImage!,
             promptText: seedancePrompt,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
@@ -567,6 +634,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       creditCost,
       model: useSeedance ? "seedance2_5" : "gen4.5",
       durationSec: resolvedDurationSec,
+      endFrameUsed: useSeedance && !!endFrameUrl,
       ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
     });
   } catch (err: unknown) {

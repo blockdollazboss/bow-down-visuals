@@ -48,6 +48,11 @@ export interface PackIngredients {
   negativePrompt: string;
   /** Locked reference asset URLs (prop/location/wardrobe plates). */
   referenceAssetUrls: string[];
+  /** Optional locked end-frame (last-frame) keyframe image for this shot —
+   *  the visual the generated clip must land on. Rides the pack like every
+   *  other ingredient; the clip route only forwards it to models whose API
+   *  accepts a last frame (see CLIP_END_FRAME_SUPPORT in clip-pricing.ts). */
+  endFrameImageUrl?: string | null;
   /** Locked continuity reminders injected into every generation. */
   continuityNotes: string;
   /** Suggested model settings, locked in. */
