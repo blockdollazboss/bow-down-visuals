@@ -162,6 +162,80 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
     // Fall through to the standard flow rather than 500ing Stripe's retry.
   }
 
+  /* ── Refunds + chargebacks: claw back what the payment granted (D1) ────
+     charge.refunded (a refund, possibly partial, possibly one of
+     several) and charge.dispute.closed with status 'lost' (the bank
+     took the full amount back) both reverse the original grant via
+     lib/payment-reversals, keyed off the payment/grant records.
+     Idempotency lives in the engine's insert-first claim on
+     payment_reversals — a replayed event is a duplicate, never a
+     double clawback. Outcomes: reversed/duplicate/manual-review →
+     200 (a manual-review charge cannot be fixed by a retry);
+     in-flight or a thrown failure → 500 so Stripe retries into the
+     engine's reclaim path. Disputes closed any other way (won,
+     warning_closed) reverse nothing. */
+  if (event.type === "charge.refunded" || event.type === "charge.dispute.closed") {
+    try {
+      const { processStripeChargeReversal } = await import("./payment-reversals");
+      let result;
+      if (event.type === "charge.refunded") {
+        const charge = event.data.object as Stripe.Charge;
+        result = await processStripeChargeReversal({
+          stripe,
+          eventId: event.id,
+          trigger: "charge.refunded",
+          charge,
+        });
+      } else {
+        const dispute = event.data.object as Stripe.Dispute;
+        if (dispute.status !== "lost") {
+          res.status(200).json({ received: true, dispute: dispute.status });
+          return;
+        }
+        const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+        if (!chargeId) {
+          logger.error({ disputeId: dispute.id }, "Stripe webhook: lost dispute carries no charge id — cannot reverse");
+          res.status(200).json({ received: true, warning: "Lost dispute without a charge id" });
+          return;
+        }
+        const charge = await stripe.charges.retrieve(chargeId);
+        result = await processStripeChargeReversal({
+          stripe,
+          eventId: event.id,
+          trigger: "charge.dispute.closed",
+          charge,
+          disputeLost: true,
+        });
+      }
+      if (result.outcome === "inflight") {
+        // Another worker owns this reversal — 500 so Stripe retries after it settles.
+        res.status(500).json({ error: "Reversal in flight, retry later" });
+        return;
+      }
+      if (result.outcome === "duplicate") {
+        res.status(200).json({ received: true, duplicate: true });
+        return;
+      }
+      if (result.outcome === "manual_review") {
+        res.status(200).json({ received: true, warning: "Reversal needs manual review", rail: result.rail });
+        return;
+      }
+      res.status(200).json({
+        received: true,
+        reversed: true,
+        rail: result.rail,
+        creditsClawed: result.creditsClawed,
+        shortfallCredits: result.shortfallCredits,
+      });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, type: event.type }, "Stripe webhook: charge reversal failed");
+      // 500 so Stripe retries (P0-7) — the engine marked its claim failed.
+      res.status(500).json({ error: `Charge reversal failed: ${msg}` });
+    }
+    return;
+  }
+
   if (event.type === "payment_intent.succeeded") {
     /* ── Express Pay (Apple Pay / Google Pay) ─────────────────────────────
        P0-8: previously fulfillment depended solely on the client calling

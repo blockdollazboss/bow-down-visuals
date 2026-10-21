@@ -29,6 +29,7 @@ import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, d
 import { eq, isNull, isNotNull, inArray, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { listOperatorActions, OPERATOR_DAILY_CHARGED_CAP, operatorHandsEnabled } from "../lib/operator-executor";
+import { listPaymentReversals } from "../lib/payment-reversals";
 
 const router = Router();
 
@@ -1040,6 +1041,51 @@ router.get("/admin/operator-actions", requireAuth, requireAdmin, async (req, res
   } catch (err) {
     req.log.error({ err }, "admin: list operator actions failed");
     res.status(500).json({ error: "Could not load operator actions." });
+  }
+});
+
+/**
+ * GET /api/admin/payment-reversals?limit=
+ * The refund / chargeback clawback trail (0182, defect D1): one row
+ * per reversed charge — the rail, what was granted, what was clawed
+ * back, any shortfall the balance couldn't cover, and the rows parked
+ * at 'needs_manual_review' (identified charges a human must reverse,
+ * and charges no grant record identifies). Read-only: the rows are
+ * written by the webhook's reversal engine from rail results.
+ */
+router.get("/admin/payment-reversals", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limitRaw = Number(req.query["limit"]);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : 50;
+    const reversals = await listPaymentReversals(limit);
+    res.json({
+      reversals: reversals.map((r) => ({
+        id: r["id"],
+        stripeEventId: r["stripe_event_id"],
+        stripeChargeId: r["stripe_charge_id"],
+        stripePaymentIntentId: r["stripe_payment_intent_id"],
+        trigger: r["trigger"],
+        rail: r["rail"],
+        userId: r["user_id"],
+        sessionId: r["session_id"],
+        grantedCredits: r["granted_credits"],
+        creditsClawed: r["credits_clawed"],
+        referralCreditsClawed: r["referral_credits_clawed"],
+        refundedCentsSeen: r["refunded_cents_seen"],
+        chargeAmountCents: r["charge_amount_cents"],
+        disputeLost: r["dispute_lost"],
+        entitlementRevoked: r["entitlement_revoked"],
+        sellerReversed: r["seller_reversed"],
+        shortfallCredits: r["shortfall_credits"],
+        status: r["status"],
+        details: r["details"],
+        createdAt: r["created_at"],
+        updatedAt: r["updated_at"],
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin: list payment reversals failed");
+    res.status(500).json({ error: "Could not load payment reversals." });
   }
 });
 

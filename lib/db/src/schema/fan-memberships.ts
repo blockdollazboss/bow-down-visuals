@@ -37,7 +37,11 @@ export const fanTiersTable = pgTable(
 
 export type FanTier = typeof fanTiersTable.$inferSelect;
 
-export type FanMemberStatus = "trialing" | "active" | "past_due" | "canceled" | "expired";
+/* "refunded" (migration 0182, defect D1): the payment behind the join
+   was refunded or lost to a chargeback — the clawback engine sets it
+   and the entitlement is dead (access checks admit only trialing /
+   active; payout sums exclude refunded rows explicitly). */
+export type FanMemberStatus = "trialing" | "active" | "past_due" | "canceled" | "expired" | "refunded";
 
 /* Members join two ways: paid/trial joins through checkout (fan_user_id set,
    real period + expiry) and legacy manual tracking by the creator

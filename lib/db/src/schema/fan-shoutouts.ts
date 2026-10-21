@@ -45,7 +45,11 @@ export type ShoutoutRequestStatus =
   | "accepted"
   | "in_progress"
   | "delivered"
-  | "declined";
+  | "declined"
+  /* The paying charge was refunded / lost to a chargeback — set by
+     the clawback engine (migration 0182, defect D1); the request is
+     no longer owed. */
+  | "refunded";
 
 export const shoutoutRequestsTable = pgTable(
   "shoutout_requests",

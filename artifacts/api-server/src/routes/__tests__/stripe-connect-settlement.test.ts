@@ -63,8 +63,8 @@ let baseUrl: string;
 
 const DDL = `
   CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL);
-  CREATE TABLE digital_sales (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0);
-  CREATE TABLE store_orders (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0);
+  CREATE TABLE digital_sales (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed');
+  CREATE TABLE store_orders (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed');
   CREATE TABLE creator_payouts (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id uuid NOT NULL, amount_cents integer NOT NULL CHECK (amount_cents > 0),
@@ -80,6 +80,7 @@ const DDL = `
   CREATE TABLE fan_members (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, stripe_session_id text,
+    status text NOT NULL DEFAULT 'active',
     settled_payout_id uuid, settled_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now()
   );

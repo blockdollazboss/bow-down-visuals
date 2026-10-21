@@ -786,6 +786,7 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
       SELECT ds.id, ds.item_kind, ds.item_id
       FROM digital_sales ds
       WHERE ds.id = ${parsed.data.saleId} AND ds.buyer_user_id = ${req.userId!}
+        AND ds.status <> 'refunded'
       LIMIT 1
     `);
     const srow = sale.rows[0] as Record<string, unknown> | undefined;
