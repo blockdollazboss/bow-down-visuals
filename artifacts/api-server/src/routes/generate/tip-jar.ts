@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
+import { createGuardedStripeClient } from "../../lib/stripe-client";
 
 /* ─── Tip Jar ──────────────────────────────────────────────────────────────
    Creators accept tips/donations from fans at /tips/:handle.
@@ -287,9 +288,7 @@ router.post("/tips/:handle/tip", publicApiLimiter, async (req, res) => {
 
 /* ── Real checkout (0142) — same session shape as the storefront's ── */
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 function getBaseUrl(req: import("express").Request): string {

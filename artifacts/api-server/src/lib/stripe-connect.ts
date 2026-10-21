@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { createGuardedStripeClient, isStripeTestModeKey } from "./stripe-client";
 
 /* ── Stripe Connect (Express) money-out — shared helper ──────────────────
  * TEST MODE: every call below runs against Stripe's test API when the
@@ -12,20 +13,13 @@ import { getSupabaseAdmin } from "./supabase-admin";
  * All functions fail closed when STRIPE_SECRET_KEY is missing. */
 
 export function getConnectStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  /* Fail closed on live keys (Lane V3 F7): the same test-mode guard
-     lib/stripe-checkout.ts enforces — money-out must never ride a
-     live key because an environment was misconfigured. */
-  if (!key.startsWith("sk_test_")) {
-    throw new Error("Live payment keys are not enabled — test mode only.");
-  }
-  return new Stripe(key);
+  /* Fail closed on live keys (Lane V3 F7): money-out rides the shared
+     guard in lib/stripe-client.ts, never a local key check. */
+  return createGuardedStripeClient();
 }
 
 export function isTestMode(): boolean {
-  const key = process.env["STRIPE_SECRET_KEY"] ?? "";
-  return key.startsWith("sk_test_");
+  return isStripeTestModeKey();
 }
 
 function getBaseUrl(req?: Request): string {

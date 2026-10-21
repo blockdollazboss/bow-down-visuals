@@ -5,6 +5,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { fulfillCreditPurchase } from "../lib/payment-record";
+import { createGuardedStripeClient } from "../lib/stripe-client";
 
 const router = Router();
 
@@ -22,9 +23,7 @@ const PACK_MAP: Record<string, { envKey: string; credits: number; label: string 
 };
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 const expressPaySchema = z.object({

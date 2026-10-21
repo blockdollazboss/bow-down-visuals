@@ -193,6 +193,30 @@ export async function getPaymentHistory(userId: string) {
 }
 
 /**
+ * Count a member's COMPLETED purchases of one credit pack. This is the
+ * purchase sequence the pack checkout's Stripe idempotency key carries:
+ * retries before a grant is recorded still see the old count and reuse
+ * the original session, while a purchase started after that grant sees
+ * the incremented count and gets a fresh session.
+ */
+export async function countCompletedCreditPurchases(
+  userId: string,
+  creditPack: string,
+): Promise<number> {
+  const rows = await db
+    .select({ id: stripePaymentsTable.id })
+    .from(stripePaymentsTable)
+    .where(
+      and(
+        eq(stripePaymentsTable.userId, userId),
+        eq(stripePaymentsTable.creditPack, creditPack),
+        eq(stripePaymentsTable.status, "completed"),
+      ),
+    );
+  return rows.length;
+}
+
+/**
  * Record a credit spend event. Fire-and-forget safe — never throws.
  */
 export async function recordCreditUsage(record: CreditUsageRecord): Promise<void> {

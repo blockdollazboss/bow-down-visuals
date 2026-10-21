@@ -10,6 +10,7 @@ import {
   type PaymentClaimOutcome,
 } from "./payment-record";
 import { awardReferralPayout } from "../routes/referrals";
+import { createGuardedStripeClient } from "./stripe-client";
 
 export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
@@ -44,7 +45,17 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
 
   const sigStr = Array.isArray(sig) ? sig[0] : sig;
-  const stripe = new Stripe(secretKey);
+  let stripe: Stripe;
+  try {
+    stripe = createGuardedStripeClient(secretKey);
+  } catch (err: unknown) {
+    /* Fail closed without a 500 loop: a non-test key is a configuration
+       refusal in this stack, so acknowledge and process nothing. */
+    const msg = (err as { message?: string })?.message ?? "Stripe is not configured";
+    logger.warn({ msg }, "Stripe webhook: Stripe client refused");
+    res.status(200).json({ received: true, warning: msg });
+    return;
+  }
 
   let event: Stripe.Event;
   try {

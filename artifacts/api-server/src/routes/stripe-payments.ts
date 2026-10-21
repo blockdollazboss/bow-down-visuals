@@ -4,7 +4,11 @@ import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { fulfillCreditPurchase } from "../lib/payment-record";
-import { getPaymentHistory } from "../lib/payment-record";
+import { countCompletedCreditPurchases, getPaymentHistory } from "../lib/payment-record";
+import {
+  buildCheckoutSessionIdempotencyKey,
+  createGuardedStripeClient,
+} from "../lib/stripe-client";
 
 const router = Router();
 
@@ -16,9 +20,7 @@ const PACK_MAP: Record<string, { envKey: string; credits: number; label: string 
 };
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 function getBaseUrl(req?: import("express").Request): string {
@@ -63,7 +65,7 @@ router.get("/stripe-status", requireAuth, publicApiLimiter, async (_req, res) =>
 
   if (secretKey) {
     try {
-      const stripe = new Stripe(secretKey);
+      const stripe = createGuardedStripeClient(secretKey);
       await stripe.paymentMethods.list({ limit: 1 });
       status.stripeReachable = true;
     } catch (err: unknown) {
@@ -101,6 +103,30 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Purchase sequence for the session idempotency key. Before the
+     grant is recorded, a double-submit still sees this same count and
+     Stripe reuses the original session; after the grant lands, the
+     count advances and a genuinely new purchase gets a fresh key. If
+     the sequence can't be read, fail closed rather than mint a session
+     whose duplicate cannot be recognized. */
+  let completedPurchaseCount: number;
+  try {
+    completedPurchaseCount = await countCompletedCreditPurchases(req.userId!, packInfo.label);
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "create-checkout-session: purchase sequence read failed");
+    res.status(500).json({ error: "Could not start checkout safely. Please try again." });
+    return;
+  }
+  const idempotencyKey = buildCheckoutSessionIdempotencyKey({
+    memberId: req.userId!,
+    rail: "credit-pack",
+    purchaseIntent: {
+      priceId,
+      credits: packInfo.credits,
+      completedPurchaseCount,
+    },
+  });
+
   try {
     const baseUrl = getBaseUrl(req);
     logger.info({ userId: req.userId, pack: packInfo.label, priceId, baseUrl }, "Creating checkout session");
@@ -115,7 +141,7 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
         credit_pack: packInfo.label,
         credits_amount: String(packInfo.credits),
       },
-    });
+    }, { idempotencyKey });
 
     logger.info({ userId: req.userId, pack: packInfo.label }, "Checkout session created");
     res.json({ url: session.url });

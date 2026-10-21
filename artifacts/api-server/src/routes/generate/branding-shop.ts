@@ -5,7 +5,6 @@ import { randomUUID } from "crypto";
 import multer from "multer";
 import OpenAI from "openai";
 import RunwayML from "@runwayml/sdk";
-import Stripe from "stripe";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
 
@@ -24,6 +23,7 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { createGuardedStripeClient } from "../../lib/stripe-client";
 import { r2Upload } from "../../lib/r2-client";
 import {
   fulfillmentMode,
@@ -502,7 +502,7 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
     return;
   }
 
-  const stripe = new Stripe(stripeKey);
+  const stripe = createGuardedStripeClient(stripeKey);
   const baseUrl = getBaseUrl(req);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

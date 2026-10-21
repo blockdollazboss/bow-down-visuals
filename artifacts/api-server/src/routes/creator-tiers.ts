@@ -9,6 +9,7 @@ import { resolveCreatorTier } from "../middlewares/require-tier";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { createGuardedStripeClient } from "../lib/stripe-client";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -53,16 +54,9 @@ function getBaseUrl(req?: Request): string {
   return "http://localhost";
 }
 
-/** TEST MODE ONLY: refuse live keys outright — real cards stay out until launch. */
+/** TEST MODE ONLY: the shared guard refuses live keys outright. */
 function getTestStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  if (!key.startsWith("sk_test_")) {
-    throw new Error(
-      "Creator tier checkout runs in Stripe TEST mode only (sk_test_*). Refusing to touch live mode.",
-    );
-  }
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 const returnToSchema = z

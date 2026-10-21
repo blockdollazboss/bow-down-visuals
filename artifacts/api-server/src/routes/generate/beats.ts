@@ -596,6 +596,13 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
           buyer_user_id: req.userId!,
           tier: licenseTier,
         },
+        /* The pending license row is the durable purchase intent:
+           session creation for this license always carries its key. */
+        idempotency: {
+          memberId: req.userId!,
+          rail: "beat-license",
+          purchaseIntent: license.id,
+        },
       });
     } catch (err) {
       /* No checkout → no dangling payable license; remove the intent row. */

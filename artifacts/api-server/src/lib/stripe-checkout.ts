@@ -12,18 +12,19 @@
  */
 import type { Request } from "express";
 import Stripe from "stripe";
+import {
+  buildCheckoutSessionIdempotencyKey,
+  createGuardedStripeClient,
+  isStripeTestModeKey,
+  type CheckoutSessionIdempotencyScope,
+} from "./stripe-client";
 
 export function getCheckoutStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  if (!key.startsWith("sk_test_")) {
-    throw new Error("Live payment keys are not enabled — test mode only.");
-  }
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 export function isCheckoutTestMode(): boolean {
-  return (process.env["STRIPE_SECRET_KEY"] ?? "").startsWith("sk_test_");
+  return isStripeTestModeKey();
 }
 
 /** Base URL for checkout success/cancel redirects (same logic as store.ts). */
@@ -47,6 +48,8 @@ export interface PaymentCheckoutInput {
   successUrl: string;
   cancelUrl: string;
   metadata: Record<string, string>;
+  /** Member + rail + purchase-intent scope for the Stripe create key. */
+  idempotency: CheckoutSessionIdempotencyScope;
 }
 
 /** Create a one-time payment Checkout Session for an exact amount. */
@@ -57,6 +60,7 @@ export async function createPaymentCheckout(
     throw new Error("Checkout amount must be a positive integer of cents");
   }
   const stripe = getCheckoutStripe();
+  const idempotencyKey = buildCheckoutSessionIdempotencyKey(input.idempotency);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -75,7 +79,7 @@ export async function createPaymentCheckout(
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
     metadata: input.metadata,
-  });
+  }, { idempotencyKey });
   if (!session.url) throw new Error("Checkout session did not return a URL");
   return { sessionId: session.id, url: session.url };
 }

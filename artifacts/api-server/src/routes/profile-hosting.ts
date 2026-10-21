@@ -8,6 +8,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { HOSTING_PLAN, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
+import { createGuardedStripeClient } from "../lib/stripe-client";
 
 /* ── Hosting plan (Stack 3, item 8) ──────────────────────────────────────
    ONE plan packaged on the creator-tiers chassis: custom domain + clean
@@ -40,16 +41,9 @@ function getBaseUrl(req?: Request): string {
   return "http://localhost";
 }
 
-/** TEST MODE ONLY: refuse live keys outright — same law as creator tiers. */
+/** TEST MODE ONLY: the shared guard refuses live keys outright. */
 function getTestStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  if (!key.startsWith("sk_test_")) {
-    throw new Error(
-      "Hosting checkout runs in Stripe TEST mode only (sk_test_*). Refusing to touch live mode.",
-    );
-  }
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 export interface HostingPlanDto {

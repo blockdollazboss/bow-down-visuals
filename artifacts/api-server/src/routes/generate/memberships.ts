@@ -565,6 +565,32 @@ router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, 
         amount_cents: String(amountCents),
         is_gift: isGift ? "true" : "false",
       },
+      /* The intent carries the recipient member row's current state.
+         A retry before verify changes nothing and reuses the session;
+         once verify activates/renews the row, its period + updated_at
+         advance, so the next legitimate purchase gets a fresh key. */
+      idempotency: {
+        memberId: req.userId!,
+        rail: "membership",
+        purchaseIntent: {
+          tierId,
+          creatorUserId: tier.user_id,
+          recipientUserId,
+          billingPeriod,
+          amountCents,
+          isGift,
+          existingMember: existing
+            ? {
+                id: existing.id,
+                status: existing.status,
+                billingPeriod: existing.billing_period,
+                currentPeriodStart: existing.current_period_start,
+                currentPeriodEnd: existing.current_period_end,
+                updatedAt: existing.updated_at,
+              }
+            : null,
+        },
+      },
     });
     if (isGift) {
       await db.insert(fanMembershipGiftsTable).values({

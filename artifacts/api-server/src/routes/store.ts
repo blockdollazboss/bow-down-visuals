@@ -46,6 +46,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
+import { createGuardedStripeClient } from "../lib/stripe-client";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 
@@ -65,16 +66,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ItemKindSchema = z.enum(DIGITAL_ITEM_KINDS);
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  /* Fail closed on live keys (Lane V3 F7): the same test-mode guard
-     lib/stripe-checkout.ts enforces — this client previously checked
-     only that a key exists, so test-mode safety rested entirely on
-     the configured environment. */
-  if (!key.startsWith("sk_test_")) {
-    throw new Error("Live payment keys are not enabled — test mode only.");
-  }
-  return new Stripe(key);
+  /* Fail closed on live keys (Lane V3 F7) via the shared guard. */
+  return createGuardedStripeClient();
 }
 
 function getTokenSecret(): string {
