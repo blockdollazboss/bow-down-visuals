@@ -12,20 +12,34 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { centreCropFilter, planTrackedCrop } from "../../lib/reframe-tracking";
+import { detectSubjectsInVideo } from "../../lib/subject-detector";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ─── Auto-reframe (CapCut parity) ───
-   Smartly crops video to a target aspect ratio, keeping the action centered.
-   Uses ffmpeg's crop with scene detection for v1.
-   200 Visual Bucs per reframe. */
+   Crops video to a target aspect ratio. v2: subject tracking — a
+   person-matte pass (lib/subject-detector.ts, RVM on the vendored
+   ONNX runtime) samples the video and lib/reframe-tracking.ts turns
+   the matte boxes into a smoothed crop path that keeps the subject
+   in frame, the way Opus/Descript/CapCut speaker framing does.
+
+   Honest fallback: when tracking is off, unavailable, or the samples
+   show no trackable subject, the render uses the EXACT v1 centre
+   crop and the response says so — `reframe.mode` is
+   "subject-tracked" only when a tracked path actually rendered,
+   otherwise "centre-crop" with the reason. The 200-Visual-Buc
+   charge/refund discipline is unchanged from v1. */
 
 const REFRAME_COST = Number(process.env["REFRAME_CREDITS"]) || 200;
 
 const reframeSchema = z.object({
   videoUrl: z.string().trim().min(1).max(2048),
   aspect: z.enum(["16:9", "9:16", "1:1", "4:5"]),
+  /* Subject tracking defaults ON (v2); false reproduces the v1
+     centre crop byte-for-byte. */
+  trackSubject: z.boolean().optional().default(true),
 });
 
 const ASPECT_RATIOS: Record<string, number> = {
@@ -87,15 +101,60 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
 
     const targetRatio = ASPECT_RATIOS[parsed.data.aspect]!;
     const [outW, outH] = OUTPUT_SIZE[parsed.data.aspect]!;
-    // Smart crop: keep center, crop to target aspect.
-    // For 9:16 from 16:9, crop width; for 16:9 from 9:16, crop height.
-    const cropFilter =
-      `crop='if(gt(iw/ih,${targetRatio.toFixed(6)}),ih*${targetRatio.toFixed(6)},iw)':` +
-      `'if(gt(iw/ih,${targetRatio.toFixed(6)}),ih,iw/${targetRatio.toFixed(6)})'`;
+
+    /* Pick the crop: tracked path when the detector finds a
+       trustworthy subject track, else the v1 centre crop — labeled
+       either way in the response's `reframe` block. */
+    let videoFilter = centreCropFilter(targetRatio, outW, outH);
+    let reframe: {
+      mode: "subject-tracked" | "centre-crop";
+      reason: string | null;
+      samples: number;
+      trackedSamples: number;
+    } = { mode: "centre-crop", reason: "tracking-off", samples: 0, trackedSamples: 0 };
+
+    if (parsed.data.trackSubject) {
+      const detection = await detectSubjectsInVideo(inputPath).catch(() => null);
+      if (!detection) {
+        reframe = {
+          mode: "centre-crop",
+          reason: "tracker-unavailable",
+          samples: 0,
+          trackedSamples: 0,
+        };
+      } else {
+        const plan = planTrackedCrop({
+          samples: detection.samples,
+          srcW: detection.width,
+          srcH: detection.height,
+          targetRatio,
+          outW,
+          outH,
+          durationSec: detection.durationSec,
+        });
+        const trackedCount = detection.samples.filter((s) => s.box !== null).length;
+        if (plan.ok) {
+          videoFilter = plan.filter;
+          reframe = {
+            mode: "subject-tracked",
+            reason: null,
+            samples: detection.samples.length,
+            trackedSamples: plan.trackedSamples,
+          };
+        } else {
+          reframe = {
+            mode: "centre-crop",
+            reason: plan.reason,
+            samples: detection.samples.length,
+            trackedSamples: trackedCount,
+          };
+        }
+      }
+    }
 
     await execFileAsync("ffmpeg", [
       "-y", "-i", inputPath,
-      "-vf", `${cropFilter},scale=${outW}:${outH}:force_original_aspect_ratio=increase,crop=${outW}:${outH}`,
+      "-vf", videoFilter,
       "-c:v", "libx264", "-preset", "fast", "-crf", "18",
       "-pix_fmt", "yuv420p",
       "-c:a", "aac",
@@ -112,6 +171,7 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
       storageRef,
       aspect: parsed.data.aspect,
       creditsRemaining: creditsAfter,
+      reframe,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auto-reframe failed.";
