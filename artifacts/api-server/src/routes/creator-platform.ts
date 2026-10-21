@@ -40,6 +40,8 @@ const optionalAuth: RequestHandler = async (req, _res, next) => {
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { pricePointFor } from "./store";
 import { getRecruiterBadgeForUser } from "./referrals";
+import { getPublicSocialProof } from "../lib/social-proof";
+import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
 import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
@@ -1200,6 +1202,18 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
        embed/share surfaces carry ?ref= for the creator (null when the
        creator has no code yet — consumers already read it that way). */
     const referralCode = await referralCodeForUser(profile.userId);
+    /* C5: live social proof — verified figures from the creator's
+       connected accounts, shaped for public display by the lib (hidden,
+       disconnected, and >7-day-old figures never reach the payload;
+       every survivor carries the time its rail actually returned it).
+       Cache-only on this read; a stale cache kicks a background
+       refresh so the next view is fresh. A proof failure must never
+       take the profile down with it. */
+    const socialProof = await getPublicSocialProof(
+      profile.id,
+      profile.userId,
+      socialProofFetcher(profile.userId),
+    ).catch(() => []);
 
     res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
@@ -1243,6 +1257,8 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
         recruiter_badge: recruiterBadge,
         // The creator's referral code (null when none minted yet).
         referral_code: referralCode,
+        // C5: verified social-proof figures ([] when none are live).
+        social_proof: socialProof,
         // Presence flags + monetization checklist — neighbors link off these
         // without extra round-trips; UI renders "N of 5 money moves done".
         ...extras,

@@ -253,6 +253,7 @@ import tourPlannerRouter from "./generate/tour-planner";
 import setlistRouter from "./generate/setlist";
 import promoGeneratorRouter from "./generate/promo-generator";
 import socialRouter from "./social";
+import socialProofRouter from "./social-proof";
 import analyticsRouter from "./analytics";
 import discordRouter from "./discord";
 import discordBotRouter from "./discord-bot";
@@ -596,6 +597,7 @@ router.use(tourPlannerRouter);
 router.use(setlistRouter);
 router.use(promoGeneratorRouter);
 router.use(socialRouter);
+router.use(socialProofRouter);              // /api/social-proof/* (C5 live social-proof sync)
 router.use(analyticsRouter);
 router.use(discordRouter);
 router.use(discordBotRouter);
