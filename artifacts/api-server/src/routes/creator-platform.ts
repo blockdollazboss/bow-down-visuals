@@ -18,10 +18,27 @@ import {
   shopsTable,
   liveStreamsTable,
   referralCodesTable,
+  digitalSalesTable,
 } from "@workspace/db";
 import { liveChatHub } from "./live-chat";
-import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray, gt } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { resolveOptionalSession } from "../lib/optional-auth";
+import type { RequestHandler } from "express";
+
+/**
+ * Soft auth for the public read routes below (the community.ts / social.ts
+ * pattern): when a valid Bearer token rides along, the caller's identity
+ * is stamped on the request; otherwise the request stays anonymous. It
+ * never rejects — Paid Series reads use the identity to unlock a buyer's
+ * own season while anonymous readers see the locked shelf.
+ */
+const optionalAuth: RequestHandler = async (req, _res, next) => {
+  await resolveOptionalSession(req);
+  next();
+};
+import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { pricePointFor } from "./store";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
@@ -655,6 +672,156 @@ async function soundMapFor(
 
 type PlaylistRow = typeof playlistsTable.$inferSelect;
 
+/* ── Paid Series (migration 0191) ──────────────────────────────────────────
+   A kind='series' playlist with price_cents > 0 sells as a one-time unlock
+   on the digital store rail (routes/store.ts): the completed digital_sales
+   row (item_kind 'series', item_id = playlist id) IS the buyer's
+   entitlement — no second entitlement store. The helpers below are the
+   read side, consulted by every surface that resolves episodes, so:
+     · a non-buyer never receives a playable URL for a locked episode;
+     · the ONE creator-marked preview episode stays free for everyone;
+     · the owner always has full access;
+     · a sale the 0182 clawback flipped to 'refunded' stops counting the
+       moment its status flips — the episodes lock again automatically.
+   The buyer relationship stays the creator's: purchasers are ordinary
+   digital-store buyers (sales dashboard, earnings, /playlists/:id/buyers),
+   never a platform-owned list. */
+
+export interface SeriesViewer {
+  userId: string | null;
+  profileId: string | null;
+}
+
+const ANON_SERIES_VIEWER: SeriesViewer = { userId: null, profileId: null };
+
+/** Viewer identity for series access: the soft-authed user (optionalAuth)
+    plus their creator profile id when they have one. */
+async function seriesViewerFor(req: { userId?: string }): Promise<SeriesViewer> {
+  const userId = req.userId ?? null;
+  if (!userId) return ANON_SERIES_VIEWER;
+  const [profile] = await db.select().from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, userId)).limit(1);
+  return { userId, profileId: profile?.id ?? null };
+}
+
+export function isPaidSeriesRow(p: PlaylistRow): boolean {
+  return p.kind === "series" && (p.priceCents ?? 0) > 0;
+}
+
+export type SeriesAccess = "free" | "owner" | "purchased" | "locked";
+
+/** Completed (never refunded) series purchases for one viewer, batched. */
+async function purchasedSeriesIds(userId: string | null, seriesIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (!userId || seriesIds.length === 0) return out;
+  const rows = await db.select({ itemId: digitalSalesTable.itemId }).from(digitalSalesTable)
+    .where(and(
+      eq(digitalSalesTable.buyerUserId, userId),
+      eq(digitalSalesTable.itemKind, "series"),
+      eq(digitalSalesTable.status, "completed"),
+      inArray(digitalSalesTable.itemId, seriesIds),
+    ));
+  for (const r of rows) out.add(r.itemId);
+  return out;
+}
+
+export function seriesAccessFor(
+  p: PlaylistRow, viewer: SeriesViewer, purchased: Set<string>,
+): SeriesAccess {
+  if (!isPaidSeriesRow(p)) return "free";
+  if (viewer.profileId && viewer.profileId === p.ownerProfileId) return "owner";
+  if (purchased.has(p.id)) return "purchased";
+  return "locked";
+}
+
+function seriesItemKey(kind: string, id: string): string {
+  return `${kind}:${id}`;
+}
+
+export function isSeriesPreviewItem(
+  p: PlaylistRow, kind: string, id: string,
+): boolean {
+  return !!p.previewItem && p.previewItem.kind === kind && p.previewItem.id === id;
+}
+
+/* Series price discipline: the price is the CREATOR's own, typed by them
+   (never platform-invented, never AI-set). null/0 clears it (free series).
+   A positive price requires kind='series' and clears the card networks'
+   $0.50 floor; the ceiling mirrors the store rail's SetPriceSchema cap. */
+const SERIES_PRICE_MIN_CENTS = 50;
+const SERIES_PRICE_MAX_CENTS = 100_000_00;
+
+export function normalizeSeriesPrice(
+  raw: number | null | undefined, kind: string,
+): { ok: true; priceCents: number | null } | { ok: false; error: string } {
+  if (raw === undefined || raw === null || raw === 0) return { ok: true, priceCents: null };
+  if (!Number.isInteger(raw) || raw < 0 || raw > SERIES_PRICE_MAX_CENTS) {
+    return { ok: false, error: "Series price must be a whole number of cents." };
+  }
+  if (kind !== "series") {
+    return { ok: false, error: "Only a series can carry a price — playlists stay free." };
+  }
+  if (raw < SERIES_PRICE_MIN_CENTS) {
+    return { ok: false, error: "The minimum series price is $0.50 — that's the card floor, not ours." };
+  }
+  return { ok: true, priceCents: raw };
+}
+
+/**
+ * Which of the given media items are LOCKED series episodes for this
+ * viewer, mapped to the series that locks them. An item is open when no
+ * paid series contains it, when any containing series marks it as the
+ * free preview, when the viewer owns a containing series, or when the
+ * viewer holds a completed purchase of one. Anything else is locked —
+ * the first locking series is returned for the buy pointer.
+ */
+export async function lockedSeriesByItem(
+  refs: Array<{ kind: MediaKind; id: string }>,
+  viewer: SeriesViewer,
+): Promise<Map<string, PlaylistRow>> {
+  const out = new Map<string, PlaylistRow>();
+  if (refs.length === 0) return out;
+  const paid = await db.select().from(playlistsTable)
+    .where(and(eq(playlistsTable.kind, "series"), gt(playlistsTable.priceCents, 0)));
+  if (paid.length === 0) return out;
+  const wanted = new Set(refs.map((r) => seriesItemKey(r.kind, r.id)));
+  const containing = paid.filter((p) =>
+    (p.items ?? []).some((i) => i && wanted.has(seriesItemKey(i.kind, i.id))),
+  );
+  if (containing.length === 0) return out;
+  const purchased = await purchasedSeriesIds(viewer.userId, containing.map((p) => p.id));
+  for (const ref of refs) {
+    const key = seriesItemKey(ref.kind, ref.id);
+    const homes = containing.filter((p) =>
+      (p.items ?? []).some((i) => i?.kind === ref.kind && i?.id === ref.id),
+    );
+    if (homes.length === 0) continue;
+    const open = homes.some((p) =>
+      isSeriesPreviewItem(p, ref.kind, ref.id)
+      || (viewer.profileId !== null && viewer.profileId === p.ownerProfileId)
+      || purchased.has(p.id),
+    );
+    if (!open) out.set(key, homes[0]!);
+  }
+  return out;
+}
+
+/** The 403 body for a locked episode: honest about WHY and carrying the
+    way in (the series shelf + its buy page) — a wall with a door. */
+function seriesLockPayload(lock: PlaylistRow) {
+  return {
+    error: "This episode lives in a paid series — unlock the series to play it here.",
+    locked: true,
+    series: {
+      id: lock.id,
+      title: lock.title,
+      price_cents: lock.priceCents ?? null,
+      buy_url: `/store/buy/series/${lock.id}`,
+      playlist_url: `/playlist/${lock.id}`,
+    },
+  };
+}
+
 /* The client types resolved items WRAPPED — { kind, item: StreamTrack |
    StreamVideo } — and playlist.tsx dereferences r.item.title; the previous
    FLAT {kind,id,title,...} emission threw a TypeError on any playlist with
@@ -665,11 +832,17 @@ type PlaylistRow = typeof playlistsTable.$inferSelect;
 interface ResolvedPlaylistItem {
   kind: "track" | "video";
   item: TrackDto | VideoDto;
+  /* Paid Series: locked episodes keep their shelf presence (title, art,
+     duration) but the playable URL is withheld; the preview episode is
+     flagged so clients can badge it as the free watch. */
+  locked: boolean;
+  is_preview: boolean;
 }
 
 /** Snake_case playlist DTO (client StreamPlaylist) + wrapped resolved items. */
 function toPlaylistDto(
   p: PlaylistRow, ownerProfileSlug: string, resolvedItems: ResolvedPlaylistItem[],
+  access: SeriesAccess = "free", isOwner = false,
 ) {
   return {
     id: p.id,
@@ -684,12 +857,26 @@ function toPlaylistDto(
     created_at: p.createdAt,
     owner_profile_slug: ownerProfileSlug,
     resolved_items: resolvedItems,
+    /* Paid Series commerce state (0191): the creator's price (null =
+       free), the marked free-preview episode, and THIS viewer's access —
+       'free' | 'owner' | 'purchased' | 'locked'. */
+    price_cents: p.priceCents ?? null,
+    preview_item: p.previewItem ?? null,
+    is_paid_series: isPaidSeriesRow(p),
+    series_access: access,
+    /* True when the viewer owns this playlist (any access state) — the
+       client hangs the Series Studio controls off this. */
+    is_owner: isOwner,
   };
 }
 
-/** Resolve playlist items (stored as {kind,id}) into wrapped DTO objects. */
+/** Resolve playlist items (stored as {kind,id}) into wrapped DTO objects.
+    Viewer-aware for Paid Series: locked episodes (paid series the viewer
+    neither owns nor bought, minus the marked preview) resolve with their
+    playable URL withheld. No viewer = anonymous = locked shelf. */
 async function resolvePlaylistItems(
   playlists: PlaylistRow[], profileSlug: string,
+  viewer: SeriesViewer = ANON_SERIES_VIEWER,
 ): Promise<Array<ReturnType<typeof toPlaylistDto>>> {
   const trackIds = new Set<string>();
   const videoIds = new Set<string>();
@@ -719,32 +906,66 @@ async function resolvePlaylistItems(
   const sounds = await soundMapFor(videos, profileSlug);
   const trackById = new Map(tracks.map((t) => [t.id, t]));
   const videoById = new Map(videos.map((v) => [v.id, v]));
+  /* Paid Series: one batched entitlement read for every priced series in
+     the batch (completed digital_sales rows only — refunds lock again). */
+  const purchased = await purchasedSeriesIds(
+    viewer.userId, playlists.filter(isPaidSeriesRow).map((p) => p.id),
+  );
   /* Stored media values may be storage refs (mirrored at save) — mint
      fresh URLs for covers + resolved artwork on every read. */
   return await refreshSupabaseStorageUrlsDeep(
     playlists.map((p) => {
+      const access = seriesAccessFor(p, viewer, purchased);
+      const lockedKeys = new Set<string>();
+      if (access === "locked") {
+        for (const i of p.items ?? []) {
+          if (i?.id && !isSeriesPreviewItem(p, i.kind, i.id)) {
+            lockedKeys.add(seriesItemKey(i.kind, i.id));
+          }
+        }
+      }
       const resolved_items: ResolvedPlaylistItem[] = [];
       for (const item of p.items ?? []) {
         if (!item?.id) continue;
+        const itemLocked = lockedKeys.has(seriesItemKey(item.kind, item.id));
+        const preview = isSeriesPreviewItem(p, item.kind, item.id);
         if (item.kind === "track") {
           const t = trackById.get(item.id);
           if (!t) continue;
           const meta = metaByProfile.get(t.profileId);
+          const dto = enrichTrack(t, meta?.slug ?? profileSlug, meta?.userId ?? null);
           resolved_items.push({
             kind: "track",
-            item: enrichTrack(t, meta?.slug ?? profileSlug, meta?.userId ?? null),
+            item: itemLocked ? { ...dto, audio_url: "" } : dto,
+            locked: itemLocked,
+            is_preview: preview,
           });
         } else if (item.kind === "video") {
           const v = videoById.get(item.id);
           if (!v) continue;
           const meta = metaByProfile.get(v.profileId);
+          const dto = enrichVideo(v, meta?.slug ?? profileSlug, sounds, meta?.userId ?? null);
+          let out = dto;
+          if (itemLocked) {
+            out = { ...dto, video_url: "" };
+            /* A locked episode's linked sound can itself be a locked
+               episode of this series — never leak its URL either. */
+            if (out.sound && lockedKeys.has(seriesItemKey("track", out.sound.id))) {
+              out = { ...out, sound: { ...out.sound, audio_url: "" } };
+            }
+          }
           resolved_items.push({
             kind: "video",
-            item: enrichVideo(v, meta?.slug ?? profileSlug, sounds, meta?.userId ?? null),
+            item: out,
+            locked: itemLocked,
+            is_preview: preview,
           });
         }
       }
-      return toPlaylistDto(p, profileSlug, resolved_items);
+      return toPlaylistDto(
+        p, profileSlug, resolved_items, access,
+        viewer.profileId !== null && viewer.profileId === p.ownerProfileId,
+      );
     }),
   );
 }
@@ -920,7 +1141,7 @@ router.get("/creator-profiles/me", requireAuth, async (req, res) => {
 });
 
 /** Public profile page payload. 404 when the profile is private. */
-router.get("/creator-profiles/:slug", async (req, res) => {
+router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
   try {
     const [profile] = await db
       .select()
@@ -1029,7 +1250,10 @@ router.get("/creator-profiles/:slug", async (req, res) => {
       counts,
       top_tracks: ledTracks.map((t) => enrichTrack(t, profile.slug, profile.userId, isProfilePin(profile, "track", t.id))),
       top_videos: ledVideos.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id))),
-      playlists: await resolvePlaylistItems(profilePlaylists, profile.slug),
+      /* Embedded playlists resolve viewer-aware (Paid Series): a buyer
+         sees their series unlocked right on the Grand Stage; everyone
+         else sees the locked shelf with the preview open. */
+      playlists: await resolvePlaylistItems(profilePlaylists, profile.slug, await seriesViewerFor(req)),
     }));
   } catch (err) {
     req.log.error({ err }, "creator-profiles/:slug error");
@@ -1656,8 +1880,10 @@ function artistRef(profile: typeof creatorProfilesTable.$inferSelect) {
   };
 }
 
-/** GET /api/media/track/:id — public audio detail + artist. */
-router.get("/media/track/:id", async (req, res) => {
+/** GET /api/media/track/:id — public audio detail + artist. Paid Series:
+    an episode of a priced series answers 403 for anyone but its owner, a
+    completed buyer, or callers asking for the marked preview episode. */
+router.get("/media/track/:id", optionalAuth, async (req, res) => {
   try {
     const track = await getMedia("track", String(req.params["id"]));
     if (!track || !("audioUrl" in track) || !track.isPublished) {
@@ -1669,6 +1895,11 @@ router.get("/media/track/:id", async (req, res) => {
       res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
       return;
     }
+    const lockMap = await lockedSeriesByItem(
+      [{ kind: "track", id: track.id }], await seriesViewerFor(req),
+    );
+    const lock = lockMap.get(seriesItemKey("track", track.id));
+    if (lock) { res.status(403).json(seriesLockPayload(lock)); return; }
     res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId, isProfilePin(profile, "track", track.id)), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/track detail error");
@@ -1676,8 +1907,9 @@ router.get("/media/track/:id", async (req, res) => {
   }
 });
 
-/** GET /api/media/video/:id — public video detail + artist + sound linkage. */
-router.get("/media/video/:id", async (req, res) => {
+/** GET /api/media/video/:id — public video detail + artist + sound linkage.
+    Paid Series gate: same rule as the track detail above. */
+router.get("/media/video/:id", optionalAuth, async (req, res) => {
   try {
     const video = await getMedia("video", String(req.params["id"]));
     if (!video || !("videoUrl" in video) || !video.isPublished) {
@@ -1689,6 +1921,11 @@ router.get("/media/video/:id", async (req, res) => {
       res.status(404).json({ error: "That video isn't here. Dead link, chief." });
       return;
     }
+    const lockMap = await lockedSeriesByItem(
+      [{ kind: "video", id: video.id }], await seriesViewerFor(req),
+    );
+    const lock = lockMap.get(seriesItemKey("video", video.id));
+    if (lock) { res.status(403).json(seriesLockPayload(lock)); return; }
     const sounds = await soundMapFor([video], profile.slug);
     res.json(await refreshSupabaseStorageUrlsDeep({ video: enrichVideo(video, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", video.id)), artist: artistRef(profile) }));
   } catch (err) {
@@ -1697,8 +1934,11 @@ router.get("/media/video/:id", async (req, res) => {
   }
 });
 
-/** GET /api/creator-profiles/:slug/media?kind=track|video&limit= — public media listing. */
-router.get("/creator-profiles/:slug/media", async (req, res) => {
+/** GET /api/creator-profiles/:slug/media?kind=track|video&limit= — public media listing.
+    Paid Series: episodes of a priced series keep their shelf card here but
+    their playable URL is withheld from anyone without access (same lock
+    map as the media detail gate). */
+router.get("/creator-profiles/:slug/media", optionalAuth, async (req, res) => {
   try {
     const profile = await getProfileBySlugOrId(String(req.params["slug"]));
     if (!profile || !profile.isPublic) {
@@ -1707,6 +1947,7 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
     }
     const kind = req.query["kind"] === "video" ? "video" : "track";
     const limit = Math.min(Math.max(parseInt(String(req.query["limit"] ?? "20"), 10) || 20, 1), 50);
+    const viewer = await seriesViewerFor(req);
     if (kind === "video") {
       const rows = await db.select().from(profileVideosTable).where(and(
         eq(profileVideosTable.profileId, profile.id),
@@ -1715,7 +1956,13 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
       /* The pinned video leads the listing (same pin as The Stage). */
       const led = leadWithPinned(rows, await loadPinnedMediaRow(profile, "video")).slice(0, limit);
       const sounds = await soundMapFor(led, profile.slug);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: led.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id))) }));
+      const lockMap = await lockedSeriesByItem(led.map((v) => ({ kind: "video" as const, id: v.id })), viewer);
+      const items = led.map((v) => {
+        const dto = enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id));
+        const lock = lockMap.get(seriesItemKey("video", v.id));
+        return lock ? { ...dto, video_url: "", locked: true, locked_series_id: lock.id } : dto;
+      });
+      res.json(await refreshSupabaseStorageUrlsDeep({ items }));
     } else {
       const rows = await db.select().from(profileTracksTable).where(and(
         eq(profileTracksTable.profileId, profile.id),
@@ -1723,7 +1970,13 @@ router.get("/creator-profiles/:slug/media", async (req, res) => {
       )).orderBy(desc(profileTracksTable.createdAt)).limit(limit);
       /* The pinned track leads the listing (same pin as The Stage). */
       const led = leadWithPinned(rows, await loadPinnedMediaRow(profile, "track")).slice(0, limit);
-      res.json(await refreshSupabaseStorageUrlsDeep({ items: led.map((t) => enrichTrack(t, profile.slug, profile.userId, isProfilePin(profile, "track", t.id))) }));
+      const lockMap = await lockedSeriesByItem(led.map((t) => ({ kind: "track" as const, id: t.id })), viewer);
+      const items = led.map((t) => {
+        const dto = enrichTrack(t, profile.slug, profile.userId, isProfilePin(profile, "track", t.id));
+        const lock = lockMap.get(seriesItemKey("track", t.id));
+        return lock ? { ...dto, audio_url: "", locked: true, locked_series_id: lock.id } : dto;
+      });
+      res.json(await refreshSupabaseStorageUrlsDeep({ items }));
     }
   } catch (err) {
     req.log.error({ err }, "profile media listing error");
@@ -1743,7 +1996,10 @@ router.get("/playlists/mine", requireAuth, async (req, res) => {
     const rows = await db.select().from(playlistsTable)
       .where(eq(playlistsTable.ownerProfileId, profile.id))
       .orderBy(desc(playlistsTable.createdAt));
-    const resolved = await resolvePlaylistItems(rows, profile.slug);
+    /* The owner's own shelf: full access, commerce fields included. */
+    const resolved = await resolvePlaylistItems(rows, profile.slug, {
+      userId: req.userId!, profileId: profile.id,
+    });
     res.json({ playlists: resolved });
   } catch (err) {
     req.log.error({ err }, "playlists/mine error");
@@ -1751,8 +2007,10 @@ router.get("/playlists/mine", requireAuth, async (req, res) => {
   }
 });
 
-/** GET /api/playlists/:id — public playlist + resolved items + owner. */
-router.get("/playlists/:id", async (req, res) => {
+/** GET /api/playlists/:id — public playlist + resolved items + owner.
+    Soft-authed (optionalAuth): a signed-in buyer/owner sees their series
+    unlocked; anonymous readers see the locked shelf + free preview. */
+router.get("/playlists/:id", optionalAuth, async (req, res) => {
   try {
     const [pl] = await db.select().from(playlistsTable)
       .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
@@ -1765,7 +2023,7 @@ router.get("/playlists/:id", async (req, res) => {
       res.status(404).json({ error: "That playlist isn't here. Dead link, chief." });
       return;
     }
-    const [resolved] = await resolvePlaylistItems([pl], owner.slug);
+    const [resolved] = await resolvePlaylistItems([pl], owner.slug, await seriesViewerFor(req));
     res.json({ playlist: resolved, owner: artistRef(owner) });
   } catch (err) {
     req.log.error({ err }, "playlist detail error");
@@ -1779,12 +2037,16 @@ const playlistBody = z.object({
   cover_url: z.string().max(500).nullable().optional(),
   is_public: z.boolean().default(true),
   kind: z.enum(["playlist", "series"]).default("playlist"),
+  /* Paid Series: the creator's own unlock price in cents (series only). */
+  price_cents: z.number().int().min(0).max(SERIES_PRICE_MAX_CENTS).nullable().optional(),
 });
 
 /** POST /api/playlists — create (auth, needs own profile). */
 router.post("/playlists", requireAuth, async (req, res) => {
   try {
     const body = playlistBody.parse(req.body);
+    const price = normalizeSeriesPrice(body.price_cents, body.kind);
+    if (!price.ok) { res.status(400).json({ error: price.error }); return; }
     const [profile] = await db.select().from(creatorProfilesTable)
       .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
     if (!profile) {
@@ -1798,9 +2060,12 @@ router.post("/playlists", requireAuth, async (req, res) => {
       coverUrl: (await mirrorExternalMediaUrl(body.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
       isPublic: body.is_public,
       kind: body.kind,
+      priceCents: price.priceCents,
       items: [],
     }).returning();
-    const [resolved] = await resolvePlaylistItems([row], profile.slug);
+    const [resolved] = await resolvePlaylistItems([row], profile.slug, {
+      userId: req.userId!, profileId: profile.id,
+    });
     res.status(201).json({ playlist: resolved });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Playlist needs a title, chief." }); return; }
@@ -1880,6 +2145,392 @@ router.post("/playlists/:id/follow", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "playlist follow error");
     res.status(500).json({ error: "The follow didn't stick. Try again." });
+  }
+});
+
+const playlistPatchBody = z.object({
+  title: z.string().min(1).max(120).optional(),
+  description: z.string().max(500).optional(),
+  cover_url: z.string().max(500).nullable().optional(),
+  is_public: z.boolean().optional(),
+  /* Paid Series settings (owner only): the creator's own price (null/0 =
+     free), the ONE free-preview episode (must already be an episode), and
+     episode order (a pure reorder of the current items — adding/removing
+     stays with the item endpoints). */
+  price_cents: z.number().int().min(0).max(SERIES_PRICE_MAX_CENTS).nullable().optional(),
+  preview_item: z.object({
+    kind: z.enum(["track", "video"]),
+    id: z.string().uuid(),
+  }).nullable().optional(),
+  items: z.array(z.object({
+    kind: z.enum(["track", "video"]),
+    id: z.string().uuid(),
+  })).max(200).optional(),
+});
+
+/** PATCH /api/playlists/:id — update (auth, owner only). Series settings
+    (price, free preview, episode order) ride this same surface. */
+router.patch("/playlists/:id", requireAuth, async (req, res) => {
+  try {
+    const body = playlistPatchBody.parse(req.body ?? {});
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile || profile.id !== pl.ownerProfileId) {
+      res.status(403).json({ error: "That's not your playlist to edit." });
+      return;
+    }
+
+    const updates: Partial<typeof playlistsTable.$inferInsert> = {};
+    if (body.title !== undefined) updates.title = body.title;
+    if (body.description !== undefined) updates.description = body.description;
+    if (body.is_public !== undefined) updates.isPublic = body.is_public;
+    if (body.cover_url !== undefined) {
+      updates.coverUrl = (await mirrorExternalMediaUrl(body.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null;
+    }
+
+    /* Episode order: a permutation of the current items, nothing more —
+       this is how a creator APPLIES a Series Builder order draft. */
+    let effectiveItems = pl.items ?? [];
+    if (body.items !== undefined) {
+      const current = new Map<string, number>();
+      for (const i of pl.items ?? []) {
+        if (i?.id) current.set(seriesItemKey(i.kind, i.id), (current.get(seriesItemKey(i.kind, i.id)) ?? 0) + 1);
+      }
+      const next = new Map<string, number>();
+      for (const i of body.items) {
+        next.set(seriesItemKey(i.kind, i.id), (next.get(seriesItemKey(i.kind, i.id)) ?? 0) + 1);
+      }
+      const sameSet = current.size === next.size
+        && [...current.entries()].every(([k, n]) => next.get(k) === n);
+      if (!sameSet) {
+        res.status(400).json({
+          error: "Episode order can only rearrange the current episodes — add or remove episodes with the item tools.",
+        });
+        return;
+      }
+      updates.items = body.items;
+      effectiveItems = body.items;
+    }
+
+    if (body.price_cents !== undefined) {
+      const price = normalizeSeriesPrice(body.price_cents, pl.kind);
+      if (!price.ok) { res.status(400).json({ error: price.error }); return; }
+      updates.priceCents = price.priceCents;
+    }
+
+    if (body.preview_item !== undefined) {
+      if (body.preview_item !== null) {
+        const { kind, id } = body.preview_item;
+        if (!effectiveItems.some((i) => i?.kind === kind && i?.id === id)) {
+          res.status(400).json({
+            error: "The free preview must be one of this series' episodes.",
+          });
+          return;
+        }
+      }
+      updates.previewItem = body.preview_item;
+    }
+
+    const [row] = await db.update(playlistsTable).set(updates)
+      .where(eq(playlistsTable.id, pl.id)).returning();
+    const [resolved] = await resolvePlaylistItems([row ?? pl], profile.slug, {
+      userId: req.userId!, profileId: profile.id,
+    });
+    res.json({ playlist: resolved });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "That update doesn't parse, chief." }); return; }
+    req.log.error({ err }, "playlist update error");
+    res.status(500).json({ error: "Couldn't save that. Try again." });
+  }
+});
+
+/** GET /api/playlists/:id/buyers — the creator's OWN buyer list for a
+    series (auth, owner only). The anti-TikTok clause made concrete:
+    Series buyers belong to the creator — names from their platform
+    profiles, amounts, and refund state, straight off the sales rail.
+    Nobody else can read this list. */
+router.get("/playlists/:id/buyers", requireAuth, async (req, res) => {
+  try {
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile || profile.id !== pl.ownerProfileId) {
+      res.status(403).json({ error: "That's not your series — its buyer list is the owner's alone." });
+      return;
+    }
+    const sales = await db.select().from(digitalSalesTable)
+      .where(and(
+        eq(digitalSalesTable.profileId, profile.id),
+        eq(digitalSalesTable.itemKind, "series"),
+        eq(digitalSalesTable.itemId, pl.id),
+      ))
+      .orderBy(desc(digitalSalesTable.createdAt)).limit(500);
+    const buyerIds = [...new Set(sales.map((s) => s.buyerUserId))];
+    const buyerProfiles = buyerIds.length
+      ? await db.select().from(creatorProfilesTable)
+        .where(inArray(creatorProfilesTable.userId, buyerIds))
+      : [];
+    const byUser = new Map(buyerProfiles.map((bp) => [bp.userId, bp]));
+    let buyerCount = 0;
+    let grossCents = 0;
+    const buyers = sales.map((s) => {
+      const bp = byUser.get(s.buyerUserId);
+      if (s.status === "completed") { buyerCount += 1; grossCents += s.amountCents; }
+      return {
+        buyer_user_id: s.buyerUserId,
+        display_name: bp?.displayName ?? "Fan",
+        slug: bp?.slug ?? null,
+        avatar_url: bp?.avatarUrl ?? null,
+        amount_cents: s.amountCents,
+        status: s.status,
+        purchased_at: s.createdAt,
+      };
+    });
+    res.json({
+      buyers,
+      totals: {
+        buyers: buyerCount,
+        gross_cents: grossCents,
+        gross: `$${(grossCents / 100).toFixed(2)}`,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "series buyers error");
+    res.status(500).json({ error: "Couldn't load the buyer list. Try again." });
+  }
+});
+
+/* ── Turbo Series Builder (AI assist) ──────────────────────────────────────
+   The AI drafts; the creator decides. From the episodes it proposes an
+   order, writes sales copy, and cuts a trailer shot-list — returned as a
+   DRAFT ONLY. This handler performs NO writes: it cannot reorder, publish,
+   or price the series. A price band may ride along as labeled ADVICE
+   (the store rail's own benchmarks); the only price ever charged is the
+   one the creator types into the settings themselves. */
+
+export interface SeriesEpisodeDigest {
+  key: string;
+  kind: "track" | "video";
+  title: string;
+  season: number | null;
+  episode: number | null;
+  durationSec: number;
+  description: string;
+}
+
+export function buildSeriesAssistPrompt(
+  series: { title: string; description: string },
+  episodes: SeriesEpisodeDigest[],
+): string {
+  const lines = episodes.map((e, i) => {
+    const label = e.season != null || e.episode != null
+      ? `S${e.season ?? "?"} E${e.episode ?? "?"}`
+      : `Episode ${i + 1}`;
+    const desc = e.description ? ` — ${e.description.slice(0, 200)}` : "";
+    return `${i + 1}. [${e.key}] "${e.title}" (${label}, ${Math.max(0, Math.round(e.durationSec / 60))} min)${desc}`;
+  });
+  return (
+    `You are staging a paid video/audio series for an independent creator.\n\n` +
+    `Series: "${series.title}"\nCurrent description: "${series.description || "(none)"}"\n\n` +
+    `Episodes, in the creator's current order:\n${lines.join("\n")}\n\n` +
+    `Return ONLY JSON with this shape:\n` +
+    `{\n` +
+    `  "suggested_order": ["<episode keys like track:<uuid> or video:<uuid>, every episode exactly once, in the order that makes the strongest season arc — hook first, finale last>"],\n` +
+    `  "sales_copy": {\n` +
+    `    "headline": "<one line, under 100 chars, that sells the season — specific, never hype slang>",\n` +
+    `    "description": "<2-4 sentences of sales copy: what the fan gets, why this creator, why the whole season beats episode-hopping>"\n` +
+    `  },\n` +
+    `  "trailer_shot_list": [ { "item": "<episode key>", "moment": "<the exact beat to pull, e.g. 'the cold-open confession, first 20 seconds'>", "caption": "<on-screen text for that beat, under 80 chars>" } ]\n` +
+    `}\n\n` +
+    `Rules: 5-8 trailer shots. Use ONLY the episode keys listed. Never invent episodes, prices, or claims about content you were not given.`
+  );
+}
+
+export interface SeriesAssistDraft {
+  suggestedOrder: string[];
+  salesCopy: { headline: string; description: string };
+  trailerShotList: Array<{ item: string; moment: string; caption: string }>;
+}
+
+export function parseSeriesAssistResponse(
+  raw: string, episodes: SeriesEpisodeDigest[],
+): SeriesAssistDraft {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Model returned invalid JSON");
+  }
+  const p = (parsed ?? {}) as Record<string, unknown>;
+  const validKeys = episodes.map((e) => e.key);
+  const valid = new Set(validKeys);
+
+  /* Suggested order: keep the model's valid keys in its order, then
+     append anything it dropped in the creator's current order — the
+     result is always a full permutation the creator can apply or ignore. */
+  const seen = new Set<string>();
+  const suggestedOrder: string[] = [];
+  if (Array.isArray(p["suggested_order"])) {
+    for (const k of p["suggested_order"]) {
+      if (typeof k === "string" && valid.has(k) && !seen.has(k)) {
+        seen.add(k);
+        suggestedOrder.push(k);
+      }
+    }
+  }
+  for (const k of validKeys) {
+    if (!seen.has(k)) suggestedOrder.push(k);
+  }
+
+  const copy = (p["sales_copy"] ?? {}) as Record<string, unknown>;
+  const headline = typeof copy["headline"] === "string" ? copy["headline"].trim().slice(0, 140) : "";
+  const description = typeof copy["description"] === "string" ? copy["description"].trim().slice(0, 800) : "";
+  if (!headline || !description) throw new Error("Model returned incomplete sales copy");
+
+  const trailerShotList: SeriesAssistDraft["trailerShotList"] = [];
+  if (Array.isArray(p["trailer_shot_list"])) {
+    for (const s of p["trailer_shot_list"]) {
+      const shot = (s ?? {}) as Record<string, unknown>;
+      const item = typeof shot["item"] === "string" ? shot["item"] : "";
+      if (!valid.has(item)) continue;
+      trailerShotList.push({
+        item,
+        moment: typeof shot["moment"] === "string" ? shot["moment"].trim().slice(0, 160) : "",
+        caption: typeof shot["caption"] === "string" ? shot["caption"].trim().slice(0, 120) : "",
+      });
+      if (trailerShotList.length >= 12) break;
+    }
+  }
+
+  return { suggestedOrder, salesCopy: { headline, description }, trailerShotList };
+}
+
+/** POST /api/playlists/:id/series-assist — Turbo Series Builder draft
+    (auth, owner only, series only). READ-ONLY by design: no charge, no
+    write, no publish, no price — the draft comes back for the creator to
+    approve, edit, or throw away. */
+router.post("/playlists/:id/series-assist", requireAuth, async (req, res) => {
+  try {
+    const [pl] = await db.select().from(playlistsTable)
+      .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
+    if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
+    const [profile] = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, req.userId!)).limit(1);
+    if (!profile || profile.id !== pl.ownerProfileId) {
+      res.status(403).json({ error: "That's not your series to stage." });
+      return;
+    }
+    if (pl.kind !== "series") {
+      res.status(400).json({ error: "The Series Builder stages series — this is a playlist." });
+      return;
+    }
+    const refs = (pl.items ?? []).filter((i) => i?.id);
+    if (refs.length === 0) {
+      res.status(400).json({ error: "Add episodes first — the Builder stages what's already shot." });
+      return;
+    }
+    const trackIds = refs.filter((i) => i.kind === "track").map((i) => i.id);
+    const videoIds = refs.filter((i) => i.kind === "video").map((i) => i.id);
+    const [tracks, videos] = await Promise.all([
+      trackIds.length
+        ? db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, trackIds))
+        : Promise.resolve([] as TrackRow[]),
+      videoIds.length
+        ? db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, videoIds))
+        : Promise.resolve([] as VideoRow[]),
+    ]);
+    const trackById = new Map(tracks.map((t) => [t.id, t]));
+    const videoById = new Map(videos.map((v) => [v.id, v]));
+    const episodes: SeriesEpisodeDigest[] = [];
+    for (const ref of refs) {
+      if (ref.kind === "track") {
+        const t = trackById.get(ref.id);
+        if (!t) continue;
+        episodes.push({
+          key: seriesItemKey("track", t.id), kind: "track", title: t.title,
+          season: null, episode: null,
+          durationSec: t.durationSec ?? 0, description: "",
+        });
+      } else {
+        const v = videoById.get(ref.id);
+        if (!v) continue;
+        episodes.push({
+          key: seriesItemKey("video", v.id), kind: "video", title: v.title,
+          season: v.season ?? null, episode: v.episode ?? null,
+          durationSec: v.durationSec ?? 0, description: v.description ?? "",
+        });
+      }
+    }
+    if (episodes.length === 0) {
+      res.status(400).json({ error: "Those episodes aren't readable yet — check they're published." });
+      return;
+    }
+
+    let raw: string;
+    try {
+      const completion = await getOpenAI().chat.completions.create({
+        model: getTextModel(),
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a series producer and sales copywriter for independent creators. " +
+              "You stage seasons that sell: a hook up front, a finale that lands, copy that " +
+              "respects the fan's intelligence. You never use hype slang and never invent " +
+              "facts about episodes you were not given.",
+          },
+          { role: "user", content: buildSeriesAssistPrompt(pl, episodes) },
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 1800,
+        temperature: 0.7,
+      });
+      raw = completion.choices[0]?.message?.content ?? "{}";
+    } catch (err) {
+      req.log.error({ err }, "series assist generation failed");
+      res.status(503).json({
+        error: "ai_unavailable",
+        message: "The Series Builder is catching its breath — try again in a moment.",
+      });
+      return;
+    }
+    let draft: SeriesAssistDraft;
+    try {
+      draft = parseSeriesAssistResponse(raw, episodes);
+    } catch {
+      res.status(502).json({
+        error: "series_assist_failed",
+        message: "The draft didn't come together — nothing was changed. Try again.",
+      });
+      return;
+    }
+
+    /* Price guidance rides the store rail's own benchmark table — advice
+       text only, labeled as such. The Builder cannot set a price; the
+       creator's typed price is the only one ever charged. */
+    const { point } = pricePointFor(profile.vertical ?? "other", "series");
+    res.json({
+      draft: true,
+      applied: false,
+      suggested_order: draft.suggestedOrder,
+      sales_copy: draft.salesCopy,
+      trailer_shot_list: draft.trailerShotList,
+      price_advice: {
+        low_cents: point.low,
+        high_cents: point.high,
+        smart_cents: point.smart,
+        label: "Advice only — benchmarks from what creators charge. You set the price; the price you type is the only one ever charged.",
+      },
+      note: "Draft only — nothing was reordered, published, or priced. Apply what you like from your series settings.",
+    });
+  } catch (err) {
+    req.log.error({ err }, "series assist error");
+    res.status(500).json({ error: "The Series Builder hit a wall. Try again." });
   }
 });
 

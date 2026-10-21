@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink } from "lucide-react";
+import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink, Play } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
 import { shareDrop } from "@/lib/share-drop";
@@ -27,6 +27,8 @@ interface Purchase {
   receiptId: string;
   buyUrl: string;
   artistUrl: string | null;
+  /** Series purchases unlock streaming instead of a download. */
+  watchUrl?: string | null;
 }
 
 export default function MyMusic() {
@@ -173,14 +175,23 @@ export default function MyMusic() {
                     </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => freshDownload(p)}
-                  disabled={minting === p.id}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 disabled:opacity-60"
-                >
-                  {minting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Download
-                </button>
+                {p.itemKind === "series" && p.watchUrl ? (
+                  <Link
+                    href={p.watchUrl}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2.5 text-sm font-bold text-black hover:brightness-110"
+                  >
+                    <Play className="h-4 w-4" /> Watch
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => freshDownload(p)}
+                    disabled={minting === p.id}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 disabled:opacity-60"
+                  >
+                    {minting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Download
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -19,6 +19,7 @@ export const KIND_LABELS: Record<string, string> = {
   album: "Album / Series",
   pack: "Pack / Bundle",
   digital: "Digital product",
+  series: "Series / Season Pass",
 };
 
 interface ItemData {
@@ -125,7 +126,13 @@ export default function StoreBuy() {
         },
         body: JSON.stringify({ kind: params.kind, id: params.id, ...(amountCents !== undefined ? { amountCents } : {}) }),
       });
-      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string; watchUrl?: string };
+      /* A series unlock can't be bought twice — the rail refuses the
+         second checkout; send the fan straight to their series. */
+      if (body.error === "ALREADY_OWNED" && body.watchUrl) {
+        navigate(body.watchUrl);
+        return;
+      }
       if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
       window.location.href = body.url;
     } catch (err) {
@@ -172,7 +179,7 @@ export default function StoreBuy() {
             )}
             <div className="p-8">
               <div className="text-xs uppercase tracking-[0.25em] text-amber-400/80">
-                {KIND_LABELS[data.item.kind] ?? data.item.kind} · Digital download
+                {KIND_LABELS[data.item.kind] ?? data.item.kind} · {data.item.kind === "series" ? "Series unlock" : "Digital download"}
               </div>
               <h1 className="mt-2 text-3xl font-bold text-amber-200">{data.item.title}</h1>
               <p className="mt-1 text-amber-100/70">
@@ -232,12 +239,16 @@ export default function StoreBuy() {
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
               >
                 {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                {buying ? "Opening secure checkout…" : user ? "Buy it now — instant delivery" : "Sign in to buy"}
+                {buying ? "Opening secure checkout…" : user
+                  ? data.item.kind === "series" ? "Unlock it now — watch instantly" : "Buy it now — instant delivery"
+                  : "Sign in to buy"}
               </button>
 
               <div className="mt-5 flex items-center justify-center gap-2 text-xs text-amber-100/50">
                 <ShieldCheck className="h-4 w-4 text-amber-400" />
-                Instant download link after payment · 48 hours · yours to keep
+                {data.item.kind === "series"
+                  ? "Unlocks on your account the second you pay · every episode · watch anytime"
+                  : "Instant download link after payment · 48 hours · yours to keep"}
               </div>
             </div>
           </div>

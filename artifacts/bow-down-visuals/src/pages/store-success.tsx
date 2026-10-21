@@ -26,7 +26,10 @@ interface VerifyResult {
     buyUrl: string;
     artistUrl: string | null;
   };
-  download: { token: string; url: string; expiresAt: string; maxUses: number };
+  /* Downloads carry a link; series purchases carry an unlock instead —
+     exactly one of the two is non-null per sale. */
+  download: { token: string; url: string; expiresAt: string; maxUses: number } | null;
+  access?: { unlocked: boolean; watchUrl: string } | null;
 }
 
 export default function StoreSuccess() {
@@ -115,20 +118,40 @@ export default function StoreSuccess() {
             <>
               <PartyPopper className="mx-auto h-12 w-12 text-amber-300" />
               <h1 className="mt-4 text-3xl font-bold text-amber-200">It's yours. 👑</h1>
-              <p className="mt-2 text-amber-100/70">
-                Payment confirmed{result.sale.amount ? ` (${result.sale.amount})` : ""} — your download
-                is ready right now. No waiting rooms. That's the cheat code.
-              </p>
-              <a
-                href={result.download.url}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black hover:brightness-110"
-              >
-                <Download className="h-5 w-5" /> Download now
-              </a>
-              <p className="mt-3 text-xs text-amber-100/50">
-                Link works {result.download.maxUses} times · expires{" "}
-                {new Date(result.download.expiresAt).toLocaleString()} · re-download anytime from My Music
-              </p>
+              {result.access?.unlocked ? (
+                <>
+                  <p className="mt-2 text-amber-100/70">
+                    Payment confirmed{result.sale.amount ? ` (${result.sale.amount})` : ""} — the full series
+                    is unlocked on your account right now. Every episode, anytime. That's the cheat code.
+                  </p>
+                  <Link
+                    href={result.access.watchUrl}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black hover:brightness-110"
+                  >
+                    <PartyPopper className="h-5 w-5" /> Watch the series
+                  </Link>
+                  <p className="mt-3 text-xs text-amber-100/50">
+                    Your unlock lives on the series page and in My Music — no link to lose, no expiry to beat.
+                  </p>
+                </>
+              ) : result.download ? (
+                <>
+                  <p className="mt-2 text-amber-100/70">
+                    Payment confirmed{result.sale.amount ? ` (${result.sale.amount})` : ""} — your download
+                    is ready right now. No waiting rooms. That's the cheat code.
+                  </p>
+                  <a
+                    href={result.download.url}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black hover:brightness-110"
+                  >
+                    <Download className="h-5 w-5" /> Download now
+                  </a>
+                  <p className="mt-3 text-xs text-amber-100/50">
+                    Link works {result.download.maxUses} times · expires{" "}
+                    {new Date(result.download.expiresAt).toLocaleString()} · re-download anytime from My Music
+                  </p>
+                </>
+              ) : null}
               {/* Link graph: library · creator profile · drop page · share */}
               <div className="mt-6 grid grid-cols-2 gap-2 text-sm">
                 <Link
