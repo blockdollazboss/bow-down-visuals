@@ -125,6 +125,7 @@ export * from "./world-locks";
 export * from "./world-tutorial";
 export * from "./move-home";
 export * from "./catalog-imports";
+export * from "./tutorials";
 export * from "./ugc-ads";
 export * from "./coach-tracker";
 export * from "./content-reports";

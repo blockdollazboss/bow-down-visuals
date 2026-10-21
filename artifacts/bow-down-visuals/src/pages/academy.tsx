@@ -18,8 +18,9 @@ import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Guides from "@/pages/guides";
+import TutorialsPanel from "@/components/TutorialsPanel";
 
-type AcademyTab = "academy" | "guides";
+type AcademyTab = "academy" | "tutorials" | "guides";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
  The education hub for creators: a free-to-browse course catalog with
@@ -879,13 +880,14 @@ export default function CreatorAcademy() {
   const [tab, setTab] = useState<AcademyTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "guides") return q;
+      if (q === "guides" || q === "tutorials") return q;
     } catch { /* non-browser — ignore */ }
     return "academy";
   });
 
   const TABS: Array<{ key: AcademyTab; label: string }> = [
     { key: "academy", label: t("academy.tabAcademy", { defaultValue: "Academy" }) },
+    { key: "tutorials", label: t("academy.tabTutorials", { defaultValue: "How-To Videos" }) },
     { key: "guides", label: t("academy.tabGuides", { defaultValue: "Guides" }) },
   ];
 
@@ -909,7 +911,7 @@ export default function CreatorAcademy() {
           ))}
         </div>
       </div>
-      {tab === "academy" ? <AcademyMain /> : <Guides />}
+      {tab === "academy" ? <AcademyMain /> : tab === "tutorials" ? <TutorialsPanel /> : <Guides />}
     </div>
   );
 }
