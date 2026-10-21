@@ -154,9 +154,21 @@ function simulateRow(sqlText: string): Record<string, unknown> {
   // UNION branches are parenthesized, so fall back to the first SELECT
   // (Postgres names UNION output columns from the first branch).
   const depth0 = selects.filter((t) => t.depth === 0);
-  const sel = depth0.length ? depth0[depth0.length - 1]! : selects[0]!;
-  const from = tokens.find((t) => t.word === "FROM" && t.depth === sel.depth && t.end > sel.end);
+  let sel = depth0.length ? depth0[depth0.length - 1]! : selects[0]!;
+  let from = tokens.find((t) => t.word === "FROM" && t.depth === sel.depth && t.end > sel.end);
   let list = text.slice(sel.end, from ? textIndexOfKeyword(text, from) : undefined).trim();
+  /* Wrapped-union form (GET /feed since For-You v1): the outer
+     SELECT is `*` over a subquery. Postgres names the union's
+     output from its first branch, so descend one level and
+     simulate that branch's select list instead. */
+  if (list === "*") {
+    const inner = selects.find((t) => t.depth === sel.depth + 1);
+    if (inner) {
+      sel = inner;
+      from = tokens.find((t) => t.word === "FROM" && t.depth === sel.depth && t.end > sel.end);
+      list = text.slice(sel.end, from ? textIndexOfKeyword(text, from) : undefined).trim();
+    }
+  }
   if (/^DISTINCT\b/i.test(list)) list = list.replace(/^DISTINCT\b/i, "").trim();
   // The list slice ends where FROM begins; find that offset precisely.
   const row: Record<string, unknown> = {};
@@ -231,6 +243,33 @@ vi.mock("@workspace/db", async (importOriginal) => {
     }),
     execute: async (q: unknown) => {
       const { sql: text } = dialect.sqlToQuery(q as never);
+      /* For-You v1 (Wave 3 #19) added three auxiliary reads to the
+         /feed handler. This fixture world has no preference row
+         (→ default ON) and a viewer with zero recorded engagement
+         (→ cold start), so /feed falls through to the legacy wire
+         whose row the simulator below builds as before. */
+      if (/from\s+feed_preferences/i.test(text)) {
+        return { rows: [], rowCount: 0, command: "SELECT", fields: [], oid: 0 };
+      }
+      if (
+        /* The /feed handler's follows read specifically — /rising's
+           CTE also reads follows and must NOT be caught by this. */
+        /select\s+profile_id\s+from\s+follows\s+where\s+follower_user_id/i.test(text)
+      ) {
+        return { rows: [{ profile_id: PROFILE_ID }], rowCount: 1, command: "SELECT", fields: [], oid: 0 };
+      }
+      if (
+        /* The affinity signal reads, matched by their exact select
+           lists so charts aggregations over play_events (a different
+           shape entirely) still reach the simulator. */
+        /select\s+kind,\s+target_id\s+from\s+likes\b/i.test(text) ||
+        /select\s+kind,\s+target_id\s+from\s+saves\b/i.test(text) ||
+        /select\s+target_kind\s+as\s+kind,\s+target_id\s+from\s+reactions\b/i.test(text) ||
+        /select\s+kind,\s+media_id\s+as\s+target_id\s+from\s+play_events\b/i.test(text) ||
+        /select\s+'track'\s+as\s+kind,\s+track_id\s+as\s+target_id\s+from\s+reposts\b/i.test(text)
+      ) {
+        return { rows: [], rowCount: 0, command: "SELECT", fields: [], oid: 0 };
+      }
       const row = simulateRow(text);
       // A pg QueryResult: rows + the bookkeeping fields the buggy
       // handlers used to ship verbatim.

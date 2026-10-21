@@ -7,7 +7,6 @@ import {
   profileTracksTable,
   profileVideosTable,
   playlistsTable,
-  followsTable,
   playEventsTable,
   notificationsTable,
 } from "@workspace/db";
@@ -15,6 +14,22 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { fanOutToFollowers } from "../lib/notify-fanout";
+import {
+  discoveryAffinityScore,
+  discoveryEventTotal,
+  discoveryFeedScore,
+  discoveryQualifies,
+  discoveryCap,
+  discoveryWhy,
+  dominantSignal,
+  DISCOVERY_CREATOR_THRESHOLD,
+  DISCOVERY_GENRE_THRESHOLD,
+  CREATOR_AFFINITY_CAP,
+  GENRE_AFFINITY_CAP,
+  GENRE_WEIGHT,
+  EMPTY_AFFINITY_COUNTS,
+  type DiscoveryAffinityCounts,
+} from "../lib/for-you-discovery";
 import rateLimit from "express-rate-limit";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
@@ -817,35 +832,343 @@ router.post("/play", playLimiter, asyncHandler(async (req, res) => {
 /* ─── Activity feed (auth) ────────────────────────────────────────────────
    GET /feed — new releases from followed creators (last 30 days),
    newest first. The client tracks "last visit" in localStorage to badge
-   "new since your last visit". */
+   "new since your last visit".
+
+   For-You v1 (Wave 3 #19) layers on top — ONLY when the member's
+   feed_preferences say so (GET/PATCH /feed/prefs below; default ON)
+   AND the member has recorded engagement to rank with. OFF, or a
+   cold-start member with zero plays/likes/saves/reactions/reposts,
+   gets the legacy wire below byte-for-byte: same query, same order,
+   same payload shape. The ranking law lives in lib/for-you-discovery
+   (factors named there; no paid boosting, no crowd term in v1). */
+
+/* The legacy wire: followed creators only, last 30 days, created_at
+   DESC. Also reused as the For-You backbone fetch (with a wider
+   limit) so both modes read the same candidate truth. One shape
+   note: the union sits in a subquery with ORDER BY outside it —
+   pg-mem (the $0 execution harness) rejects parenthesized union
+   branches and re-sorts bare unions, ignoring ORDER BY; the wrapped
+   form executes identically there and on Postgres, where the
+   subquery changes nothing about rows, order or payload. */
+async function legacyFeedItems(ids: string[], limit: number) {
+  return (await db.execute(sql`
+    SELECT * FROM (
+      SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
+              t.play_count AS window_plays, t.like_count, t.created_at, ${PROFILE_COLS}
+       FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
+       WHERE t.is_published AND p.is_public
+         AND t.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
+         AND t.created_at >= NOW() - INTERVAL '30 days'
+      UNION ALL
+      SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.genre, v.thumbnail_url AS thumb,
+              v.view_count AS window_plays, v.like_count, v.created_at, ${PROFILE_COLS}
+       FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
+       WHERE v.is_published AND p.is_public
+         AND v.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
+         AND v.created_at >= NOW() - INTERVAL '30 days'
+    ) feed
+    ORDER BY created_at DESC LIMIT ${limit}`)).rows as Array<Record<string, unknown>>;
+}
+
+/* The member's For-You choice. No row = default ON (the cold-start
+   rule below is what protects members with nothing to rank with).
+   Raw SQL via db.execute, the house pattern for routes the pg-mem
+   harness must drive (the drizzle builder's rowMode is rejected
+   there — see routes/cheat-code.ts, routes/hub-projects.ts). */
+async function readForYouEnabled(userId: string): Promise<boolean> {
+  const { rows } = await db.execute(sql`
+    SELECT for_you_enabled FROM feed_preferences WHERE user_id = ${userId}::uuid LIMIT 1`);
+  return (rows[0] as { for_you_enabled: boolean } | undefined)?.for_you_enabled ?? true;
+}
+
+router.get("/feed/prefs", requireAuth, asyncHandler(async (req, res) => {
+  res.json({ forYouEnabled: await readForYouEnabled(req.userId!) });
+}));
+
+const FeedPrefsBody = z.object({ forYouEnabled: z.boolean() });
+
+router.patch("/feed/prefs", requireAuth, asyncHandler(async (req, res) => {
+  const parsed = FeedPrefsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "forYouEnabled (boolean) required." });
+    return;
+  }
+  const userId = req.userId!;
+  await db.execute(sql`
+    INSERT INTO feed_preferences (user_id, for_you_enabled, updated_at)
+    VALUES (${userId}::uuid, ${parsed.data.forYouEnabled}, NOW())
+    ON CONFLICT (user_id) DO UPDATE
+      SET for_you_enabled = EXCLUDED.for_you_enabled, updated_at = NOW()`);
+  res.json({ forYouEnabled: parsed.data.forYouEnabled });
+}));
+
+/* ─── For-You affinity (Wave 3 #19) ───────────────────────────────────────
+   Per-creator + per-genre affinity for ONE viewer, built only from
+   engagement the platform already records about that viewer: plays
+   (play_events), likes (likes), saves (saves), reactions (reactions),
+   reposts (reposts) on tracks/videos. Bounded reads (latest 500 per
+   signal, the social feed's computeAffinity discipline). Signals are
+   the viewer's own activity only; nothing leaves the platform. */
+
+interface DiscoveryAffinity {
+  byCreator: Map<string, DiscoveryAffinityCounts>;
+  creatorScore: Map<string, number>;
+  genreScore: Map<string, number>;
+  totalEvents: number;
+}
+
+const normGenre = (g: unknown): string | null => {
+  if (typeof g !== "string") return null;
+  const n = g.trim().toLowerCase();
+  return n ? n : null;
+};
+
+async function computeDiscoveryAffinity(userId: string): Promise<DiscoveryAffinity> {
+  type SignalRow = { kind: string; target_id: string };
+  const signalRows = async (q: ReturnType<typeof sql>) =>
+    (await db.execute(q)).rows as SignalRow[];
+  const [likes, saves, reactions, plays, reposts] = await Promise.all([
+    signalRows(sql`SELECT kind, target_id FROM likes
+      WHERE user_id = ${userId}::uuid AND kind IN ('track', 'video') LIMIT 500`),
+    signalRows(sql`SELECT kind, target_id FROM saves
+      WHERE user_id = ${userId}::uuid AND kind IN ('track', 'video') LIMIT 500`),
+    signalRows(sql`SELECT target_kind AS kind, target_id FROM reactions
+      WHERE user_id = ${userId}::uuid AND target_kind IN ('track', 'video') LIMIT 500`),
+    signalRows(sql`SELECT kind, media_id AS target_id FROM play_events
+      WHERE user_id = ${userId}::uuid LIMIT 500`),
+    signalRows(sql`SELECT 'track' AS kind, track_id AS target_id FROM reposts
+      WHERE user_id = ${userId}::uuid LIMIT 500`),
+  ]);
+
+  type Event = { signal: keyof DiscoveryAffinityCounts; kind: "track" | "video"; mediaId: string };
+  const events: Event[] = [];
+  for (const l of likes) events.push({ signal: "like", kind: l.kind as "track" | "video", mediaId: l.target_id });
+  for (const s of saves) events.push({ signal: "save", kind: s.kind as "track" | "video", mediaId: s.target_id });
+  for (const r of reactions) events.push({ signal: "reaction", kind: r.kind as "track" | "video", mediaId: r.target_id });
+  for (const p of plays) events.push({ signal: "play", kind: p.kind as "track" | "video", mediaId: p.target_id });
+  for (const r of reposts) events.push({ signal: "repost", kind: "track", mediaId: r.target_id });
+
+  const trackIds = [...new Set(events.filter((e) => e.kind === "track").map((e) => e.mediaId))];
+  const videoIds = [...new Set(events.filter((e) => e.kind === "video").map((e) => e.mediaId))];
+  const mediaOwner = new Map<string, { profileId: string; genre: string | null }>();
+  type OwnerRow = { id: string; profile_id: string; genre: string | null };
+  /* IN-list, not ANY(ARRAY[...]): pg-mem's ANY path against a PK
+     column silently matches nothing (real Postgres is fine with
+     both; IN is equivalent here and executes in both worlds). */
+  const uuidInList = (ids: string[]) => sql.raw(`(${ids.map((id) => `'${id}'::uuid`).join(",")})`);
+  if (trackIds.length) {
+    const rows = (await db.execute(sql`
+      SELECT id, profile_id, genre FROM profile_tracks
+      WHERE id IN ${uuidInList(trackIds)}`)).rows as OwnerRow[];
+    for (const r of rows) mediaOwner.set(`track:${r.id}`, { profileId: r.profile_id, genre: normGenre(r.genre) });
+  }
+  if (videoIds.length) {
+    const rows = (await db.execute(sql`
+      SELECT id, profile_id, genre FROM profile_videos
+      WHERE id IN ${uuidInList(videoIds)}`)).rows as OwnerRow[];
+    for (const r of rows) mediaOwner.set(`video:${r.id}`, { profileId: r.profile_id, genre: normGenre(r.genre) });
+  }
+
+  const byCreator = new Map<string, DiscoveryAffinityCounts>();
+  const genreCounts = new Map<string, DiscoveryAffinityCounts>();
+  const bump = (map: Map<string, DiscoveryAffinityCounts>, key: string, signal: keyof DiscoveryAffinityCounts) => {
+    const c = map.get(key) ?? { ...EMPTY_AFFINITY_COUNTS };
+    c[signal] += 1;
+    map.set(key, c);
+  };
+  for (const e of events) {
+    const owner = mediaOwner.get(`${e.kind}:${e.mediaId}`);
+    if (!owner) continue; // media deleted/unpublished since — the signal honestly dies with it
+    bump(byCreator, owner.profileId, e.signal);
+    if (owner.genre) bump(genreCounts, owner.genre, e.signal);
+  }
+
+  const creatorScore = new Map<string, number>();
+  let totalEvents = 0;
+  for (const [pid, counts] of byCreator) {
+    creatorScore.set(pid, discoveryAffinityScore(counts));
+    totalEvents += discoveryEventTotal(counts);
+  }
+  const genreScore = new Map<string, number>();
+  for (const [g, counts] of genreCounts) genreScore.set(g, discoveryAffinityScore(counts));
+  return { byCreator, creatorScore, genreScore, totalEvents };
+}
+
+/* Discovery candidates: recent releases from creators the viewer does
+   NOT follow, restricted to the qualifying legs (creator affinity or
+   genre affinity). The exact per-item qualification is re-checked in
+   JS after the fetch — SQL is the superset, the lib is the law. */
+async function fetchDiscoveryItems(
+  excludeIds: string[],
+  creatorIds: string[],
+  genres: string[],
+  cap: number,
+): Promise<Array<Record<string, unknown>>> {
+  const anyUuidArray = (ids: string[]) => sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`);
+  const condFor = (alias: "t" | "v") => {
+    const parts: Array<ReturnType<typeof sql>> = [];
+    if (excludeIds.length) {
+      parts.push(sql`NOT (${sql.raw(`${alias}.profile_id`)} = ANY(${anyUuidArray(excludeIds)}))`);
+    }
+    const ors: Array<ReturnType<typeof sql>> = [];
+    if (creatorIds.length) ors.push(sql`${sql.raw(`${alias}.profile_id`)} = ANY(${anyUuidArray(creatorIds)})`);
+    if (genres.length) {
+      ors.push(sql`lower(${sql.raw(`${alias}.genre`)}) IN (${sql.join(genres.map((g) => sql`${g}`), sql`, `)})`);
+    }
+    if (ors.length) parts.push(sql`(${sql.join(ors, sql` OR `)})`);
+    return parts.length ? sql` AND ${sql.join(parts, sql` AND `)}` : sql``;
+  };
+  return (await db.execute(sql`
+    SELECT * FROM (
+      SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
+              t.play_count AS window_plays, t.like_count, t.created_at, ${PROFILE_COLS}
+       FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
+       WHERE t.is_published AND p.is_public ${condFor("t")}
+         AND t.created_at >= NOW() - INTERVAL '30 days'
+      UNION ALL
+      SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.genre, v.thumbnail_url AS thumb,
+              v.view_count AS window_plays, v.like_count, v.created_at, ${PROFILE_COLS}
+       FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
+       WHERE v.is_published AND p.is_public ${condFor("v")}
+         AND v.created_at >= NOW() - INTERVAL '30 days'
+    ) feed
+    ORDER BY created_at DESC LIMIT ${cap}`)).rows as Array<Record<string, unknown>>;
+}
+
+/* The personalized wire. Returns null on cold start (zero recorded
+   engagement) so the caller falls through to the untouched legacy
+   response — a member with no signals gets today's feed unchanged. */
+async function buildForYouFeed(
+  userId: string,
+  followedIds: string[],
+  limit: number,
+): Promise<{ items: Array<Record<string, unknown>>; following: number; forYou: true } | null> {
+  const affinity = await computeDiscoveryAffinity(userId);
+  if (affinity.totalEvents === 0) return null;
+
+  const candidateCap = Math.min(limit * 3, 150);
+  const now = Date.now();
+  const followedSet = new Set(followedIds);
+  const ownRows = (await db.execute(sql`
+    SELECT id FROM creator_profiles WHERE user_id = ${userId}::uuid LIMIT 1`)).rows as Array<{ id: string }>;
+  const ownId = ownRows[0]?.id ?? null;
+
+  const backbone = followedIds.length ? await legacyFeedItems(followedIds, candidateCap) : [];
+  const legacyRank = new Map(backbone.map((r, i) => [`${String(r.kind)}:${String(r.id)}`, i]));
+
+  const qualifyingCreators = [...affinity.creatorScore.entries()]
+    .filter(([pid, score]) => !followedSet.has(pid) && pid !== ownId && score >= DISCOVERY_CREATOR_THRESHOLD)
+    .map(([pid]) => pid);
+  const qualifyingGenres = [...affinity.genreScore.entries()]
+    .filter(([, score]) => score >= DISCOVERY_GENRE_THRESHOLD)
+    .map(([g]) => g);
+
+  let discovery: Array<Record<string, unknown>> = [];
+  if (qualifyingCreators.length || qualifyingGenres.length) {
+    const fetched = await fetchDiscoveryItems(
+      [...followedIds, ...(ownId ? [ownId] : [])],
+      qualifyingCreators,
+      qualifyingGenres,
+      candidateCap,
+    );
+    discovery = fetched.filter((r) => {
+      const pid = String(r.profile_id);
+      if (followedSet.has(pid) || pid === ownId) return false;
+      const g = normGenre(r.genre);
+      return discoveryQualifies({
+        creatorAffinity: affinity.creatorScore.get(pid) ?? 0,
+        genreAffinity: g ? (affinity.genreScore.get(g) ?? 0) : 0,
+      }) !== null;
+    });
+  }
+
+  const createdMs = (r: Record<string, unknown>) => new Date(r.created_at as string).getTime();
+  const scored = [
+    ...backbone.map((row) => ({ row, isFollowed: true })),
+    ...discovery.map((row) => ({ row, isFollowed: false })),
+  ].map((x) => ({
+    ...x,
+    score: discoveryFeedScore(
+      {
+        isFollowed: x.isFollowed,
+        creatorAffinity: affinity.creatorScore.get(String(x.row.profile_id)) ?? 0,
+        genreAffinity: normGenre(x.row.genre) ? (affinity.genreScore.get(normGenre(x.row.genre)!) ?? 0) : 0,
+        createdAtMs: createdMs(x.row),
+      },
+      now,
+    ),
+  }));
+  scored.sort(
+    (a, b) =>
+      b.score - a.score ||
+      createdMs(b.row) - createdMs(a.row) ||
+      String(a.row.id).localeCompare(String(b.row.id)),
+  );
+
+  const cap = discoveryCap(limit);
+  const kept: typeof scored = [];
+  let discoveryKept = 0;
+  for (const x of scored) {
+    if (kept.length >= limit) break;
+    if (!x.isFollowed) {
+      if (discoveryKept >= cap) continue;
+      discoveryKept += 1;
+    }
+    kept.push(x);
+  }
+
+  const items = kept.map((x, newRank) => {
+    const pid = String(x.row.profile_id);
+    const counts = affinity.byCreator.get(pid);
+    const creatorAff = affinity.creatorScore.get(pid) ?? 0;
+    const genreKey = normGenre(x.row.genre);
+    const genreAff = genreKey ? (affinity.genreScore.get(genreKey) ?? 0) : 0;
+    const why = discoveryWhy({
+      isDiscovery: !x.isFollowed,
+      movedUp: x.isFollowed && (legacyRank.get(`${String(x.row.kind)}:${String(x.row.id)}`) ?? -1) > newRank,
+      dominant: counts ? dominantSignal(counts) : null,
+      creatorName: String(x.row.display_name ?? ""),
+      genre: typeof x.row.genre === "string" ? x.row.genre : null,
+      /* The why names the bigger actual contribution: capped creator
+         points vs capped, half-weighted genre points. */
+      viaGenre:
+        Math.min(genreAff, GENRE_AFFINITY_CAP) * GENRE_WEIGHT >
+        Math.min(creatorAff, CREATOR_AFFINITY_CAP),
+    });
+    return {
+      ...x.row,
+      source: x.isFollowed ? "following" : "discovery",
+      ...(why ? { why } : {}),
+    };
+  });
+
+  return { items, following: followedIds.length, forYou: true };
+}
 
 router.get("/feed", requireAuth, asyncHandler(async (req, res) => {
   const userId = req.userId!;
   const limit = clampLimit(req.query.limit, 20, 50);
-  const followed = await db
-    .select({ profileId: followsTable.profileId })
-    .from(followsTable)
-    .where(sql`${followsTable.followerUserId} = ${userId}::uuid`);
-  const ids = followed.map((f) => f.profileId);
+  /* Raw SQL (not the builder) — same house reason as the prefs read
+     above: pg-mem can't drive builder rowMode, and this handler is
+     covered by pg-mem route tests. Semantics unchanged. */
+  const followedRows = (await db.execute(sql`
+    SELECT profile_id FROM follows WHERE follower_user_id = ${userId}::uuid`)).rows as Array<{ profile_id: string }>;
+  const ids = followedRows.map((f) => f.profile_id);
+
+  if (await readForYouEnabled(userId)) {
+    const personalized = await buildForYouFeed(userId, ids, limit);
+    if (personalized) {
+      res.json(await refreshSupabaseStorageUrlsDeep(personalized));
+      return;
+    }
+    /* Cold start — fall through to the legacy wire, untouched. */
+  }
+
   if (!ids.length) {
     res.json({ items: [], following: 0 });
     return;
   }
-  const items = (await db.execute(sql`
-    (SELECT 'track' AS kind, t.id, t.profile_id, t.title, t.genre, t.artwork_url AS thumb,
-            t.play_count AS window_plays, t.like_count, t.created_at, ${PROFILE_COLS}
-     FROM profile_tracks t JOIN creator_profiles p ON p.id = t.profile_id
-     WHERE t.is_published AND p.is_public
-       AND t.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
-       AND t.created_at >= NOW() - INTERVAL '30 days')
-    UNION ALL
-    (SELECT 'video' AS kind, v.id, v.profile_id, v.title, v.genre, v.thumbnail_url AS thumb,
-            v.view_count AS window_plays, v.like_count, v.created_at, ${PROFILE_COLS}
-     FROM profile_videos v JOIN creator_profiles p ON p.id = v.profile_id
-     WHERE v.is_published AND p.is_public
-       AND v.profile_id = ANY(${sql.raw(`ARRAY[${ids.map((id) => `'${id}'::uuid`).join(",")}]`)})
-       AND v.created_at >= NOW() - INTERVAL '30 days')
-    ORDER BY created_at DESC LIMIT ${limit}`)).rows;
+  const items = await legacyFeedItems(ids, limit);
   res.json(await refreshSupabaseStorageUrlsDeep({ items, following: ids.length }));
 }));
 
