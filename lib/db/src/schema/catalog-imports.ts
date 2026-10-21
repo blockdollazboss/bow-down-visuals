@@ -1,7 +1,7 @@
 import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
-/* ── Back-catalog migration assistant (migration 0198) ───────────────────
+/* ── Back-catalog migration assistant (migration 0199) ───────────────────
    One row per piece of a creator's existing body of work that is on its
    way home: either LISTED from one of their already-connected social
    accounts (sourceKind 'connected' — Instagram/Facebook today; TikTok's

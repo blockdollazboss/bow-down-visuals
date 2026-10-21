@@ -1,5 +1,5 @@
 /**
- * catalog-import.ts — Back-Catalog Migration Assistant over REST (0198):
+ * catalog-import.ts — Back-Catalog Migration Assistant over REST (0199):
  *
  *   GET  /api/catalog-import                  state: connected accounts
  *                                             with honest capability

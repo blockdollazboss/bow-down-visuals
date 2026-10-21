@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /**
- * Bring Your Catalog Home (0198) — the page's honesty contract, pinned
+ * Bring Your Catalog Home (0199) — the page's honesty contract, pinned
  * at the source:
  *   - the moves/followers line renders from the API's honesty block —
  *     the page never claims an audience transfers, in any wording;
