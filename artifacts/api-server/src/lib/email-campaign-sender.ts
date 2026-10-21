@@ -188,6 +188,23 @@ export function ensureUnsubscribeToken(sub: EmailSubscriber): string {
   return sub.unsubscribeToken ?? randomUUID().replace(/-/g, "");
 }
 
+/**
+ * The welcome path prepends a "Hi," greeting to the stored template —
+ * but templates that open with their own greeting ("Yo — welcome to
+ * the cheat code.") must not be double-greeted (the owner's first
+ * welcome email arrived with a stray template "Hi," sitting directly
+ * above the body's own opening line). If the body already starts with
+ * a greeting, it is sent exactly as written.
+ */
+const OPENS_WITH_GREETING = /^(hi|hello|hey|yo|welcome|greetings)\b/i;
+export function withWelcomeGreeting(
+  name: string | null | undefined,
+  body: string,
+): string {
+  if (OPENS_WITH_GREETING.test(body.trim())) return body;
+  return `Hi${name ? ` ${name}` : ""},\n\n${body}`;
+}
+
 /* ─── Default (real DB) deps ───────────────────────────────────────────── */
 
 function defaultDeps(): Required<EmailSenderDeps> {
@@ -428,7 +445,7 @@ async function sendOneDelivery(
     await d.updateDelivery(delivery.id, { status: "failed", error: "no-provider" });
     return;
   }
-  const body = `Hi${subscriber.name ? ` ${subscriber.name}` : ""},\n\n${tpl.body}`;
+  const body = withWelcomeGreeting(subscriber.name, tpl.body);
   const ok = await sendToRecipient(d, {
     deliveryId: delivery.id,
     subscriber,
