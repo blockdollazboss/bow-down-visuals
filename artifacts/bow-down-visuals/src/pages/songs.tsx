@@ -62,6 +62,7 @@ export default function SongsPage() {
   const [remixTarget, setRemixTarget] = useState<string | null>(null);
   const [remixVault, setRemixVault] = useState("");
   const [remixing, setRemixing] = useState(false);
+  const [midiBusyId, setMidiBusyId] = useState<string | null>(null);
 
   /* Cover Song (Suno Cover parity) — "Make a cover" per card, covers listed
      under their original via parent_song_id, A/B compare overlay. */
@@ -242,6 +243,37 @@ export default function SongsPage() {
       setError(e instanceof Error ? e.message : t("songs.errorRemixFailed"));
     } finally {
       setRemixing(false);
+    }
+  }
+
+  /* Melody MIDI export — the server analyzes the song's own audio and
+     returns a real .mid. Free (the song is the creator's own data);
+     a song with no hearable melody answers honestly via `error`. */
+  async function exportMidi(song: SongRecord) {
+    if (midiBusyId) return;
+    setMidiBusyId(song.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/songs/${song.id}/midi`, { headers: await authHeaders() });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || "Couldn't export that song's melody as MIDI.");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "melody.mid";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't export that song's melody as MIDI.");
+    } finally {
+      setMidiBusyId(null);
     }
   }
 
@@ -474,6 +506,17 @@ export default function SongsPage() {
                     >
                       <Disc3 className="h-4 w-4 mr-1" />
                       Add to album
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { void exportMidi(s); }}
+                      disabled={midiBusyId === s.id}
+                      className="rounded-xl border-white/15 text-white/80"
+                      title="Export this song's melody as a MIDI file (first 60 seconds) — free, yours to keep"
+                    >
+                      {midiBusyId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Music2 className="h-4 w-4 mr-1" />}
+                      Export MIDI
                     </Button>
                     <Button
                       size="sm"

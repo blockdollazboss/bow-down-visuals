@@ -1322,6 +1322,8 @@ function StemsPanel() {
   const [remixing, setRemixing] = useState(false);
   const [remixUrl, setRemixUrl] = useState<string | null>(null);
   const [remixError, setRemixError] = useState<string | null>(null);
+  const [midiBusyStem, setMidiBusyStem] = useState<string | null>(null);
+  const [midiError, setMidiError] = useState<string | null>(null);
   const [polishOpen, setPolishOpen] = useState(false);
 
   const pollRef = useRef<number | null>(null);
@@ -1522,6 +1524,37 @@ function StemsPanel() {
       setRemixError(t("stems.errorNetwork"));
     } finally {
       setRemixing(false);
+    }
+  }
+
+  /* Melody MIDI export for one stem — the server analyzes the stem's
+     own audio and returns a real .mid. Free (the split was paid for);
+     a stem with no hearable melody answers honestly via the error. */
+  async function exportStemMidi(stemKey: string) {
+    if (!jobId || midiBusyStem) return;
+    setMidiBusyStem(stemKey);
+    setMidiError(null);
+    try {
+      const res = await fetch(`/api/stems/${jobId}/midi/${stemKey}`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || t("stems.errorMidi"));
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `${stemKey}-melody.mid`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMidiError(e instanceof Error ? e.message : t("stems.errorMidi"));
+    } finally {
+      setMidiBusyStem(null);
     }
   }
 
@@ -1806,6 +1839,15 @@ function StemsPanel() {
                     >
                       <Download className="h-3.5 w-3.5" /> {t("stems.wav")}
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => { void exportStemMidi(s.key); }}
+                      disabled={midiBusyStem === s.key}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition disabled:opacity-50"
+                      title={t("stems.midiTitle", { label: s.label })}
+                    >
+                      {midiBusyStem === s.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />} {t("stems.midi")}
+                    </button>
                   </div>
                   <audio
                     ref={(el) => { audioRefs.current[s.key] = el; }}
@@ -1856,6 +1898,9 @@ function StemsPanel() {
                 </div>
               ))}
             </div>
+            {midiError && (
+              <p className="text-sm text-red-300/80">{midiError}</p>
+            )}
 
             {/* Remix mode */}
             <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">

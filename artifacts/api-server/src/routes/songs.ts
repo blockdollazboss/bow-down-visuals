@@ -25,6 +25,7 @@ import {
   downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 import { swapSongVocalsToVoice } from "../lib/voice-swap";
+import { buildMelodyMidi, midiFilenameBase, NoMelodyError } from "../lib/midi-file";
 
 const router = Router();
 
@@ -106,6 +107,63 @@ router.get("/songs", requireAuth, async (req, res) => {
     }),
   );
   res.json({ songs: withUrls });
+});
+
+/* ── GET /api/songs/:id/midi ──────────────────────────────────────────────
+   Export the song's melody as a real Standard MIDI File, built by the
+   house melody analysis (lib/melody-analysis — the same extraction the
+   hum-to-song flow exports) over the song's own audio. FREE: the song
+   file itself downloads free from this library and the hum flow's MIDI
+   export is free ("yours to keep") — this is the creator's own data,
+   not generation work. No melody heard → an honest 422, never an
+   empty file. Analysis window is the analysis module's first-60s cap,
+   stated in the UI copy. */
+router.get("/songs/:id/midi", requireAuth, async (req, res) => {
+  const [song] = await db
+    .select()
+    .from(songsTable)
+    .where(and(eq(songsTable.id, String(req.params["id"])), eq(songsTable.user_id, req.userId!)))
+    .limit(1);
+  if (!song) {
+    res.status(404).json({ error: "Song not found." });
+    return;
+  }
+
+  let audio: Buffer;
+  try {
+    audio = await downloadSongAudio(song);
+  } catch (err) {
+    req.log.error({ err, songId: song.id }, "songs: midi export could not load audio");
+    res.status(502).json({
+      error: "Couldn't load that song's audio — please try again.",
+      code: "audio_unavailable",
+    });
+    return;
+  }
+
+  try {
+    const { midi } = await buildMelodyMidi(audio, song.title);
+    res.setHeader("Content-Type", "audio/midi");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${midiFilenameBase(song.title)}-melody.mid"`,
+    );
+    res.send(midi);
+  } catch (err) {
+    if (err instanceof NoMelodyError) {
+      res.status(422).json({ error: err.message, code: err.code });
+      return;
+    }
+    if (err instanceof Error && /too short/i.test(err.message)) {
+      res.status(400).json({ error: err.message, code: "too_short" });
+      return;
+    }
+    req.log.error({ err, songId: song.id }, "songs: midi export analysis failed");
+    res.status(422).json({
+      error: "We couldn't read a melody in that song's audio.",
+      code: "analysis_failed",
+    });
+  }
 });
 
 async function downloadSongAudio(song: typeof songsTable.$inferSelect): Promise<Buffer> {
