@@ -975,7 +975,16 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
    public stream DTOs, the watch page — sees only that a key exists
    and its last-4 hint. Revoke/regenerate kill the old key in the
    table AND drop a live encoder connection using it, so a
-   compromised key stops working the moment the owner acts. */
+   compromised key stops working the moment the owner acts.
+   ─────────────────────────────────────────────────────────────────────
+   THE HONESTY GATE: encoder ingest rides a raw-TCP port that the
+   current hosting does not route publicly, so the feature is opt-in
+   per deployment (LIVE_RTMP_INGEST=on) and SHUT by default. While
+   shut: status reports enabled:false (the panel shows its plain
+   not-open-yet state and offers no minting), and the two mint doors
+   (reveal / regenerate) answer an honest 503 and create nothing.
+   Revoke and the standing title keep working while shut — a key
+   minted in an open window stays manageable and killable. */
 
 export interface IngestKeyDto {
   enabled: boolean;
@@ -986,12 +995,24 @@ export interface IngestKeyDto {
   revoked: boolean;
 }
 
+/* The one predicate behind the panel's `enabled` flag AND the mint
+ *  doors: the deployment has opted in AND the own-server transport —
+ *  the one encoder publishes land on — is the selected, ready one. */
+function ingestOpen(): boolean {
+  return (
+    rtmpIngestConfig().enabled &&
+    selectedLiveTransport() === "own" &&
+    isLiveTransportReady("own")
+  );
+}
+
+const INGEST_NOT_OPEN_ERROR =
+  "Streaming from other software isn't open yet — it arrives with the launch setup. Your built-in studio works today.";
+
 function toIngestKeyDto(row: LiveIngestKey | null): IngestKeyDto {
-  const cfg = rtmpIngestConfig();
   const active = !!row && !row.revoked_at;
   return {
-    enabled:
-      cfg.enabled && selectedLiveTransport() === "own" && isLiveTransportReady("own"),
+    enabled: ingestOpen(),
     ingest_url: ingestUrlFor(),
     has_key: active,
     key_hint: active ? row!.key_hint : null,
@@ -1012,6 +1033,12 @@ router.get("/live-streams/ingest-key", requireAuth, async (req: Request, res: Re
 
 router.post("/live-streams/ingest-key/reveal", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!ingestOpen()) {
+      // The door isn't open on this deployment — refuse honestly and
+      // mint NOTHING (a key handed out here would stream into the void).
+      res.status(503).json({ error: INGEST_NOT_OPEN_ERROR, code: "INGEST_NOT_OPEN" });
+      return;
+    }
     const profile = await getProfileByUserId(req.userId!);
     if (!profile) {
       res.status(400).json({
@@ -1039,6 +1066,12 @@ router.post("/live-streams/ingest-key/reveal", requireAuth, async (req: Request,
 
 router.post("/live-streams/ingest-key/regenerate", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!ingestOpen()) {
+      // Same honesty gate as reveal: no new key while the door is
+      // shut — and the existing key is left exactly as it was.
+      res.status(503).json({ error: INGEST_NOT_OPEN_ERROR, code: "INGEST_NOT_OPEN" });
+      return;
+    }
     const profile = await getProfileByUserId(req.userId!);
     if (!profile) {
       res.status(400).json({

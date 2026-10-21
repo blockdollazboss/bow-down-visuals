@@ -19,7 +19,7 @@
  * Harness: same fake-db-over-real-tables style as
  * live-streams-own.test.ts, extended with live_ingest_keys.
  */
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
 import type { AddressInfo } from "node:net";
 import { PgDialect } from "drizzle-orm/pg-core";
@@ -30,9 +30,14 @@ const NO_PROFILE_USER = "00000000-0000-4000-8000-0000000000cc";
 const PROFILE_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_PROFILE_ID = "22222222-2222-4222-8222-222222222222";
 
-/* Pin the transport under test before the router module loads. */
+/* Pin the transport under test before the router module loads.
+ * LIVE_RTMP_INGEST=on: the pre-existing suite pins the gate-OPEN
+ * behavior exactly as built (the honesty gate lane) — the gate-shut
+ * default has its own describe at the bottom of this file, which
+ * flips the flag per test (config is read at call time). */
 vi.hoisted(() => {
   process.env.LIVE_TRANSPORT = "own";
+  process.env.LIVE_RTMP_INGEST = "on";
   delete process.env.LIVE_OWN_SERVER;
   process.env.PUBLIC_SITE_URL = "https://bowdownvisuals.example";
 });
@@ -381,5 +386,85 @@ describe("ingest-key endpoints", () => {
 
     const tooLong = await call("PATCH", "/live-streams/ingest-key", AUTH_USER, { stream_title: "x".repeat(121) });
     expect(tooLong.status).toBe(400);
+  });
+});
+
+/* ── The honesty gate SHUT (the shipped default) ─────────────────────
+   Until a deployment opts in with LIVE_RTMP_INGEST=on, the RTMP door
+   is not publicly reachable on the hosting — so status must say
+   enabled:false, and the mint doors must refuse honestly and create
+   NOTHING. A key minted in an open window stays untouched by a shut
+   regenerate, still publishes while its window lasts, and can still
+   be revoked while shut. */
+describe("ingest-key endpoints — gate shut", () => {
+  afterEach(() => {
+    process.env.LIVE_RTMP_INGEST = "on";
+  });
+
+  function shutGate() {
+    delete process.env.LIVE_RTMP_INGEST;
+  }
+
+  it("status reports the door shut — enabled:false — even with the transport ready and a URL derivable", async () => {
+    shutGate();
+    const { status, json } = await call("GET", "/live-streams/ingest-key", AUTH_USER);
+    expect(status).toBe(200);
+    expect(json.ingest).toMatchObject({ enabled: false, has_key: false });
+    expect(JSON.stringify(json)).not.toContain("stream_key");
+  });
+
+  it("reveal refuses honestly and mints NOTHING while shut", async () => {
+    shutGate();
+    const { status, json } = await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER);
+    expect(status).toBe(503);
+    expect(json.code).toBe("INGEST_NOT_OPEN");
+    expect(json.error).toContain("isn't open yet");
+    expect(json.error).toContain("built-in studio works today");
+    expect(json.stream_key).toBeUndefined();
+    // No row was created behind the refusal.
+    expect(h.state.keys).toHaveLength(0);
+    const after = await call("GET", "/live-streams/ingest-key", AUTH_USER);
+    expect(after.json.ingest).toMatchObject({ enabled: false, has_key: false });
+  });
+
+  it("regenerate refuses while shut and leaves an existing key exactly as it was", async () => {
+    // Mint in an open window first.
+    const key = (await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER)).json.stream_key as string;
+    expect(await resolveIngestKey(key)).toMatchObject({ userId: AUTH_USER });
+
+    shutGate();
+    const { status, json } = await call("POST", "/live-streams/ingest-key/regenerate", AUTH_USER);
+    expect(status).toBe(503);
+    expect(json.code).toBe("INGEST_NOT_OPEN");
+    expect(json.stream_key).toBeUndefined();
+
+    // Nothing rotated, nothing revoked: the same single row, and the
+    // original key still resolves for publish auth.
+    expect(h.state.keys).toHaveLength(1);
+    expect(await resolveIngestKey(key)).toMatchObject({ userId: AUTH_USER, profileId: PROFILE_ID });
+
+    // Reveal while shut refuses too — it never re-shows or re-mints.
+    const reveal = await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER);
+    expect(reveal.status).toBe(503);
+    expect(reveal.json.stream_key).toBeUndefined();
+    expect(h.state.keys).toHaveLength(1);
+  });
+
+  it("revoke still works while shut — an existing key stays killable", async () => {
+    const key = (await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER)).json.stream_key as string;
+    expect(await resolveIngestKey(key)).toMatchObject({ userId: AUTH_USER });
+
+    shutGate();
+    const { status, json } = await call("POST", "/live-streams/ingest-key/revoke", AUTH_USER);
+    expect(status).toBe(200);
+    expect(json.ingest).toMatchObject({ enabled: false, revoked: true, has_key: false });
+    expect(await resolveIngestKey(key)).toBeNull();
+  });
+
+  it("minting is still free: the shut refusal and the open mint involve no credits anywhere", async () => {
+    shutGate();
+    const refused = await call("POST", "/live-streams/ingest-key/reveal", AUTH_USER);
+    expect(refused.status).toBe(503);
+    expect(JSON.stringify(refused.json)).not.toMatch(/credit|charge|price/i);
   });
 });

@@ -151,9 +151,12 @@ describe("stream key primitives", () => {
     expect(keyHintOf(a)).toBe(a.slice(-4));
   });
 
-  it("config defaults: enabled, port 1935, app 'live'; off switch works", () => {
-    expect(rtmpIngestConfig({})).toEqual({ enabled: true, port: 1935, app: "live", publicUrl: null });
+  it("config defaults: SHUT until ops opt in, port 1935, app 'live'; only 'on' opens the door", () => {
+    expect(rtmpIngestConfig({})).toEqual({ enabled: false, port: 1935, app: "live", publicUrl: null });
+    expect(rtmpIngestConfig({ LIVE_RTMP_INGEST: "on" }).enabled).toBe(true);
+    expect(rtmpIngestConfig({ LIVE_RTMP_INGEST: " ON " }).enabled).toBe(true);
     expect(rtmpIngestConfig({ LIVE_RTMP_INGEST: "off" }).enabled).toBe(false);
+    expect(rtmpIngestConfig({ LIVE_RTMP_INGEST: "yes" }).enabled).toBe(false);
     expect(rtmpIngestConfig({ LIVE_RTMP_PORT: "19350", LIVE_RTMP_APP: "stage" })).toMatchObject({ port: 19350, app: "stage" });
   });
 

@@ -144,24 +144,28 @@ export default function IngestKeyPanel() {
         <h2 className="flex items-center gap-2 text-lg font-black">
           <KeyRound className="h-5 w-5 text-[#e8c86a]" /> Stream from your own software
         </h2>
-        <p className="mt-1 text-sm text-white/50">
-          Prefer OBS, VirtualDJ, Serato or djay? Point your program at the server below with your personal
-          stream key and it becomes your Go Live source — same stage, same chat, same replay. Your key is
-          yours alone: anyone holding it can stream as you, so treat it like a password.
-        </p>
-        <p className="mt-2 text-sm text-white/50">
-          One honest limit: your program's feed goes out exactly as it arrives. This stage passes it through —
-          it doesn't re-encode or build a quality ladder — so the picture your viewers get is the one rendition
-          you send. Set your encoder's bitrate with your viewers' connections in mind, and only one program
-          can stream on your key at a time.
-        </p>
+        {(!ingest || ingest.enabled) && (
+          <>
+            <p className="mt-1 text-sm text-white/50">
+              Prefer OBS, VirtualDJ, Serato or djay? Point your program at the server below with your personal
+              stream key and it becomes your Go Live source — same stage, same chat, same replay. Your key is
+              yours alone: anyone holding it can stream as you, so treat it like a password.
+            </p>
+            <p className="mt-2 text-sm text-white/50">
+              One honest limit: your program's feed goes out exactly as it arrives. This stage passes it through —
+              it doesn't re-encode or build a quality ladder — so the picture your viewers get is the one rendition
+              you send. Set your encoder's bitrate with your viewers' connections in mind, and only one program
+              can stream on your key at a time.
+            </p>
+          </>
+        )}
 
         {loadError && <p className="mt-3 text-sm text-red-300">{loadError}</p>}
         {note && <p className="mt-3 text-sm text-[#e8c86a]">{note}</p>}
 
         {ingest && !ingest.enabled && (
           <p className="mt-4 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/60">
-            Encoder streaming isn't switched on for this stage right now — the browser studio above still works as always.
+            Streaming from other software isn't open yet — it arrives with the launch setup. Your built-in studio works today.
           </p>
         )}
 

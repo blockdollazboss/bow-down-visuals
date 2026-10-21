@@ -41,7 +41,8 @@ const server = app.listen(port, (err) => {
 
   // RTMP ingest listener (Go Live stream keys): a raw-TCP door on its
   // own port (LIVE_RTMP_PORT, default 1935) beside the single HTTP
-  // port. Inert when LIVE_RTMP_INGEST=off. Publishes land on the
+  // port. Inert unless LIVE_RTMP_INGEST=on (opt-in per deployment —
+  // the host has to actually route the port). Publishes land on the
   // own-server live engine via the hooks routes/live-streams wired.
   startRtmpIngestServer();
 
