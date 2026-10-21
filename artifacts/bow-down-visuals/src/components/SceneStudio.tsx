@@ -188,6 +188,52 @@ async function buildCastReference(
 /* Wardrobe outfit as returned by GET /api/artist-vaults/:vaultId/outfits */
 interface WardrobeOutfit { id: string; label: string; image_url: string; is_default: boolean; }
 
+/* ─── Identity Set pick (Higgsfield G4) ───────────────────────────────
+   When the artist's vault holds a labeled identity set, the server
+   picks the best-matching photo per shot and returns the pick + why.
+   The pick is shown in the generator and can be overridden — never
+   silent. Label maps mirror the API server's lib/identity-set.ts. */
+interface IdentityPoolEntry {
+  id: string;
+  imageUrl: string;
+  angle: string;
+  expression: string;
+  wardrobe: string | null;
+  source: string;
+  isMain: boolean;
+  score: number;
+}
+interface IdentityPick {
+  id: string;
+  imageUrl: string;
+  angle: string;
+  expression: string;
+  source: string;
+  isMain: boolean;
+  reason: string;
+  overridden: boolean;
+}
+const IDENTITY_ANGLE_LABELS: Record<string, string> = {
+  front: "front",
+  three_quarter_left: "three-quarter (left)",
+  three_quarter_right: "three-quarter (right)",
+  left_profile: "left profile",
+  right_profile: "right profile",
+  back: "back",
+  full_body: "full-body",
+  close_up: "close-up",
+};
+const IDENTITY_EXPRESSION_LABELS: Record<string, string> = {
+  neutral: "neutral",
+  smile: "smiling",
+  laughing: "laughing",
+  serious: "serious",
+  intense: "intense",
+  singing: "singing",
+  sad: "sad",
+  surprised: "surprised",
+};
+
 /* ─── Inline Runway clip generator ─────────────────────────── */export interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
@@ -269,6 +315,71 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const outfitRefUrl = pickedOutfit && /^https:\/\//i.test(pickedOutfit.image_url)
     ? pickedOutfit.image_url
     : null;
+
+  /* ── Identity Set: the per-shot reference pick from the character's
+        labeled photo set. Empty for single-photo characters — their
+        generation path below is byte-identical to before. Selection
+        failures clear the pick and generation falls back to the main
+        photo; the pick can never break a generation. ── */
+  const [identityPick, setIdentityPick] = useState<IdentityPick | null>(null);
+  const [identityPool, setIdentityPool] = useState<IdentityPoolEntry[]>([]);
+  const [identitySetCount, setIdentitySetCount] = useState(0);
+  const [identityOverrideId, setIdentityOverrideId] = useState<string | null>(null);
+
+  useEffect(() => { setIdentityOverrideId(null); }, [artistVault?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const vaultId = artistVault?.id;
+    if (!vaultId) {
+      setIdentityPick(null);
+      setIdentityPool([]);
+      setIdentitySetCount(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const token = await getAccessToken();
+          const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/select`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+            body: JSON.stringify({
+              cameraMovement: scene.cameraMovement ?? null,
+              promptText: scene.aiVideoPrompt ?? scene.action ?? null,
+              actionText: scene.action ?? null,
+              mood: scene.mood ?? null,
+              wardrobeHint: pickedOutfit?.label ?? null,
+              overridePhotoId: identityOverrideId,
+            }),
+          });
+          if (!res.ok || cancelled) return;
+          const data = await res.json() as {
+            chosen: Omit<IdentityPick, "reason" | "overridden"> | null;
+            reason: string;
+            overridden: boolean;
+            setCount: number;
+            pool: IdentityPoolEntry[];
+          };
+          if (cancelled) return;
+          setIdentitySetCount(data.setCount ?? 0);
+          setIdentityPool(data.pool ?? []);
+          setIdentityPick(
+            data.chosen ? { ...data.chosen, reason: data.reason, overridden: data.overridden } : null,
+          );
+        } catch {
+          /* identity selection is an enhancement — generation works without it */
+          if (!cancelled) {
+            setIdentityPick(null);
+            setIdentityPool([]);
+            setIdentitySetCount(0);
+          }
+        }
+      })();
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id, scene.cameraMovement, scene.aiVideoPrompt, scene.action, scene.mood, pickedOutfit?.label, identityOverrideId]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -487,15 +598,24 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       const token = await getAccessToken();
 
       /* Build the visual reference: composite cast photo when co-stars are in the scene. */
+      /* Identity Set: when the character has a labeled photo set, the
+         per-shot pick (shown + overridable in the picker) replaces the
+         single main photo as the vault reference. With no set,
+         vaultPhotoUrl is exactly the main photo — unchanged behavior. */
+      const identityRefUrl =
+        identitySetCount >= 1 && identityPick && /^https:\/\//i.test(identityPick.imageUrl)
+          ? identityPick.imageUrl
+          : null;
+      const vaultPhotoUrl: string | null =
+        identityRefUrl ??
+        (artistVault && hasReferencePhoto(artistVault) ? artistVault.reference_image_url : null);
       let referenceImageUrl: string | null =
         outfitRefUrl ??
         scene.locationImageUrl ??
-        (artistVault && hasReferencePhoto(artistVault)
-          ? artistVault.reference_image_url
-          : null);
+        vaultPhotoUrl;
       const castMembers = [
-        ...(artistVault && hasReferencePhoto(artistVault)
-          ? [{ name: artistVault.artist_name, imageUrl: artistVault.reference_image_url! }]
+        ...(artistVault && vaultPhotoUrl
+          ? [{ name: artistVault.artist_name, imageUrl: vaultPhotoUrl }]
           : []),
         ...allVaults
           .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
@@ -741,6 +861,46 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           </div>
           <p className="text-[10px] text-white/40 mt-1.5">
             {pickedOutfit ? <>Wearing: <span className="text-white/70 font-semibold">{pickedOutfit.label}</span></> : "Base vault look"}
+          </p>
+        </div>
+      )}
+
+      {/* Identity Set picker — the server picks the best-matching identity
+          photo for this shot and says why; tap any photo to override.
+          Rendered only when the character actually has a set. */}
+      {hasArtist && identitySetCount >= 1 && identityPool.length >= 2 && identityPick && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="identity-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            📸 Identity photo for this shot
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {identityPool.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setIdentityOverrideId(p.id)}
+                title={`${IDENTITY_ANGLE_LABELS[p.angle] ?? p.angle} · ${IDENTITY_EXPRESSION_LABELS[p.expression] ?? p.expression}${p.isMain ? " · main photo" : ""}${p.source === "generated" ? " · AI-generated" : ""}`}
+                className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                  identityPick.id === p.id ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img src={p.imageUrl} alt={IDENTITY_ANGLE_LABELS[p.angle] ?? p.angle} className="h-full w-full object-cover object-top" loading="lazy" />
+                {p.source === "generated" && (
+                  <span className="absolute bottom-0 right-0 px-1 py-px text-[8px] font-black uppercase bg-amber-400 text-black rounded-tl-md">AI</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/40 mt-1.5" data-testid="text-identity-pick-reason">
+            <span className="text-white/70 font-semibold">
+              {IDENTITY_ANGLE_LABELS[identityPick.angle] ?? identityPick.angle}
+              {" · "}
+              {IDENTITY_EXPRESSION_LABELS[identityPick.expression] ?? identityPick.expression}
+              {identityPick.isMain ? " · main photo" : ""}
+              {identityPick.source === "generated" ? " · AI-generated" : ""}
+            </span>
+            {" — "}
+            {identityPick.reason}
           </p>
         </div>
       )}
