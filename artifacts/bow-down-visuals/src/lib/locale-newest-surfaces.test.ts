@@ -48,8 +48,15 @@ const EN = CATALOGS.en!;
 
 /* Whole namespaces that are wave-3/4 surfaces end to end. The last six were
    added by the surface-wiring lane: those pages were wired to t() and their
-   strings now live in these namespaces. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing"] as const;
+   strings now live in these namespaces. "videoEditor" was added by the
+   editor-i18n backfill lane (Oct 21 2026): whole editor sub-blocks
+   (multiRatio, extractAudio, screenRecorder, stockLibrary, mask,
+   motionTrack, myLibrary, the vibes/freeze/share clusters) existed only in
+   en.json, and 130 component-referenced keys existed in no catalog at all
+   (code defaultValue only) — all are now in en and translated ×9, and the
+   whole namespace is pinned here so no editor block can ship en-only
+   again. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoEditor"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -108,8 +115,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the parity lane audited (899 keys)", () => {
-    expect(REQUIRED.length).toBe(899);
+  it("the required set is the size the parity lane audited (1,535 keys)", () => {
+    expect(REQUIRED.length).toBe(1535);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
