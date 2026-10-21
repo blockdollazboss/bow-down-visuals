@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Home, Loader2, CheckCircle2, CircleDashed, Sparkles, Store, Newspaper,
@@ -50,9 +51,9 @@ interface MoveHomeData {
 }
 
 const VERTICALS = [
-  ["music", "Music"], ["video", "Video"], ["gaming", "Gaming / Streaming"],
-  ["podcast", "Podcast"], ["film", "Film"], ["tv", "TV / Series"],
-  ["influencer", "Influencer"], ["education", "Education"], ["other", "Other"],
+  ["music", "moveHome.verticalMusic"], ["video", "moveHome.verticalVideo"], ["gaming", "moveHome.verticalGaming"],
+  ["podcast", "moveHome.verticalPodcast"], ["film", "moveHome.verticalFilm"], ["tv", "moveHome.verticalTv"],
+  ["influencer", "moveHome.verticalInfluencer"], ["education", "moveHome.verticalEducation"], ["other", "moveHome.verticalOther"],
 ] as const;
 
 const STEP_ICON: Record<StepKey, React.ReactNode> = {
@@ -64,18 +65,16 @@ const STEP_ICON: Record<StepKey, React.ReactNode> = {
 };
 
 const BLOCKED_COPY: Record<string, string> = {
-  no_connected_accounts:
-    "Connect Instagram, TikTok, or Facebook first (your profile's connected accounts), then re-draft — launch posts only ever go to accounts you've actually connected.",
-  needs_media:
-    "A launch post needs one of your own images or videos. Add a media link from your uploads below — nothing is ever fabricated.",
-  needs_profile:
-    "Approve your profile step first — your store hangs on your profile.",
+  no_connected_accounts: "moveHome.blockedNoAccounts",
+  needs_media: "moveHome.blockedNeedsMedia",
+  needs_profile: "moveHome.blockedNeedsProfile",
 };
 
 export default function MoveHome() {
+  const { t } = useTranslation();
   usePageTitle(
-    "Move Home",
-    "Move Home drafts your whole creator home in one pass — Grand Stage profile, starter store, press kit, email list and launch posts — from your answers, your existing content, and the social accounts you've already connected. Everything lands as a draft and goes live only when you approve it.",
+    t("moveHome.title"),
+    t("moveHome.pageDescription"),
   );
   const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
@@ -137,10 +136,10 @@ export default function MoveHome() {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const json = (await res.json().catch(() => ({}))) as { moveHome?: MoveHomeData; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Something went wrong. Try again.");
+      if (!res.ok) throw new Error(json.error ?? t("moveHome.genericError"));
       return json.moveHome ?? null;
     },
-    [getAccessToken],
+    [getAccessToken, t],
   );
 
   useEffect(() => {
@@ -151,7 +150,7 @@ export default function MoveHome() {
         const d = await call("GET", "/api/move-home");
         if (!cancelled && d) syncFrom(d);
       } catch {
-        if (!cancelled) setLoadError("Your move wouldn't load. Refresh to try again.");
+        if (!cancelled) setLoadError(t("moveHome.loadError"));
       }
     })();
     return () => { cancelled = true; };
@@ -166,7 +165,7 @@ export default function MoveHome() {
       if (d) syncFrom(d);
       setNotice(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
+      setError(e instanceof Error ? e.message : t("moveHome.genericError"));
     } finally {
       setBusy("");
     }
@@ -187,10 +186,10 @@ export default function MoveHome() {
     return (
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <Home className="mx-auto h-10 w-10 text-primary" />
-        <h1 className={`mt-4 text-2xl font-black ${head}`}>Move Home</h1>
-        <p className={`mt-2 text-sm ${sub}`}>Sign in to start your move — your business lives here.</p>
+        <h1 className={`mt-4 text-2xl font-black ${head}`}>{t("moveHome.title")}</h1>
+        <p className={`mt-2 text-sm ${sub}`}>{t("moveHome.signInPrompt")}</p>
         <Link href="/login?next=/move-home" className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black">
-          Sign in <ArrowRight className="h-4 w-4" />
+          {t("moveHome.signIn")} <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     );
@@ -223,12 +222,11 @@ export default function MoveHome() {
           <Home className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className={`text-2xl font-black md:text-3xl ${head}`}>Move Home</h1>
+          <h1 className={`text-2xl font-black md:text-3xl ${head}`}>{t("moveHome.title")}</h1>
           <p className={`mt-1 max-w-xl text-sm ${sub}`}>
-            The socials gave you an audience. This is the home it lives in. Thy Cheat Code drafts your
-            profile, store, press kit, email list, and launch posts in one pass —{" "}
-            <span className="font-semibold text-primary">nothing goes live until you approve each piece.</span>{" "}
-            Free, and it remembers where you left off.
+            {t("moveHome.introBefore")}{" "}
+            <span className="font-semibold text-primary">{t("moveHome.introEmphasis")}</span>{" "}
+            {t("moveHome.introAfter")}
           </p>
         </div>
       </div>
@@ -236,20 +234,20 @@ export default function MoveHome() {
       {/* ── Context strip ── */}
       <div className={`mt-5 flex flex-wrap items-center gap-2 text-xs font-semibold ${sub}`}>
         <span className={`rounded-full border px-3 py-1 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-          {data.context.hasProfile ? `Profile live: /artist/${data.context.profileSlug}` : "No profile yet — step 1 builds it"}
+          {data.context.hasProfile ? t("moveHome.profileLive", { slug: data.context.profileSlug }) : t("moveHome.noProfileYet")}
         </span>
         {data.context.connectedPlatforms.map((p) => (
           <span key={p.platform} className="rounded-full border border-primary/30 bg-primary/[0.07] px-3 py-1 text-primary">
-            Connected: {p.label}
+            {t("moveHome.connected", { label: p.label })}
           </span>
         ))}
         {data.context.connectedPlatforms.length === 0 && (
           <span className={`rounded-full border px-3 py-1 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-            No socials connected yet — launch posts unlock when you connect one
+            {t("moveHome.noSocials")}
           </span>
         )}
         <span className={`rounded-full border px-3 py-1 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-          {data.context.trackCount} tracks · {data.context.videoCount} videos already home
+          {t("moveHome.countsLine", { tracks: data.context.trackCount, videos: data.context.videoCount })}
         </span>
       </div>
 
@@ -257,11 +255,10 @@ export default function MoveHome() {
       <Link href="/catalog-import" className={`mt-5 flex items-start gap-3 p-5 ${card} transition-colors hover:border-primary/50`}>
         <Library className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <span className="text-sm">
-          <span className={`font-black ${head}`}>Your body of work is still on the socials?</span>
+          <span className={`font-black ${head}`}>{t("moveHome.siblingTitle")}</span>
           <span className={`mt-1 block ${sub}`}>
-            Bring your catalog home — pick from your connected accounts or bulk-upload your files, and
-            Thy Cheat Code rebuilds the titles, captions and chapters re-uploading would cost you.{" "}
-            <span className="font-semibold text-primary">Open the catalog move →</span>
+            {t("moveHome.siblingBody")}{" "}
+            <span className="font-semibold text-primary">{t("moveHome.siblingCta")}</span>
           </span>
         </span>
       </Link>
@@ -270,15 +267,15 @@ export default function MoveHome() {
         <div className={`mt-6 flex items-start gap-3 p-5 ${card}`}>
           <PartyPopper className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div className="text-sm">
-            <p className={`font-black ${head}`}>Your home is live. 🏠</p>
+            <p className={`font-black ${head}`}>{t("moveHome.homeLive")}</p>
             <p className={`mt-1 ${sub}`}>
-              Every piece you approved is in its real home now — keep building from there:
+              {t("moveHome.completedBody")}
               {data.context.profileSlug && (
-                <> <Link className="font-semibold text-primary underline underline-offset-2" href={`/artist/${data.context.profileSlug}`}>your profile</Link> ·</>
+                <> <Link className="font-semibold text-primary underline underline-offset-2" href={`/artist/${data.context.profileSlug}`}>{t("moveHome.yourProfile")}</Link> ·</>
               )}{" "}
-              <Link className="font-semibold text-primary underline underline-offset-2" href="/storefronts">your store</Link> ·{" "}
-              <Link className="font-semibold text-primary underline underline-offset-2" href="/email-list">your email list</Link> ·{" "}
-              <Link className="font-semibold text-primary underline underline-offset-2" href="/scheduler">post scheduler</Link>
+              <Link className="font-semibold text-primary underline underline-offset-2" href="/storefronts">{t("moveHome.yourStore")}</Link> ·{" "}
+              <Link className="font-semibold text-primary underline underline-offset-2" href="/email-list">{t("moveHome.yourEmailList")}</Link> ·{" "}
+              <Link className="font-semibold text-primary underline underline-offset-2" href="/scheduler">{t("moveHome.postScheduler")}</Link>
             </p>
           </div>
         </div>
@@ -298,56 +295,55 @@ export default function MoveHome() {
       {/* ── Intake ── */}
       <section className={`mt-6 p-5 ${card}`}>
         <h2 className={`flex items-center gap-2 text-base font-black ${head}`}>
-          <Sparkles className="h-4 w-4 text-primary" /> Tell Thy Cheat Code about you
+          <Sparkles className="h-4 w-4 text-primary" /> {t("moveHome.intakeTitle")}
         </h2>
         <p className={`mt-1 text-xs ${sub}`}>
-          Your words are the source — drafts are built from these answers, your existing work, and your
-          connected accounts only. Nothing is imported from a platform you haven't connected.
+          {t("moveHome.intakeNote")}
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>Creator / stage name</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.displayNameLabel")}</span>
             <input data-testid="mh-display-name" className={input} value={form.displayName}
-              onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Nova Reign" />
+              onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder={t("moveHome.displayNamePh")} />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>Your handle (your home's address)</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.handleLabel")}</span>
             <input data-testid="mh-handle" className={input} value={form.handle}
-              onChange={(e) => setForm({ ...form, handle: e.target.value })} placeholder="nova-reign" />
+              onChange={(e) => setForm({ ...form, handle: e.target.value })} placeholder={t("moveHome.handlePh")} />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>What you create</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.verticalLabel")}</span>
             <select data-testid="mh-vertical" className={input} value={form.vertical}
               onChange={(e) => setForm({ ...form, vertical: e.target.value })}>
-              {VERTICALS.map(([v, label]) => (<option key={v} value={v}>{label}</option>))}
+              {VERTICALS.map(([v, label]) => (<option key={v} value={v}>{t(label)}</option>))}
             </select>
           </label>
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>Genre / niche</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.genreLabel")}</span>
             <input className={input} value={form.genre}
-              onChange={(e) => setForm({ ...form, genre: e.target.value })} placeholder="soul trap" />
+              onChange={(e) => setForm({ ...form, genre: e.target.value })} placeholder={t("moveHome.genrePh")} />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>Based in</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.locationLabel")}</span>
             <input className={input} value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Atlanta" />
+              onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder={t("moveHome.locationPh")} />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-xs font-bold ${sub}`}>Tagline</span>
+            <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.taglineLabel")}</span>
             <input className={input} value={form.tagline}
-              onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder="Late-night soul for heavy hearts" />
+              onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder={t("moveHome.taglinePh")} />
           </label>
         </div>
         <label className="mt-3 block">
-          <span className={`mb-1 block text-xs font-bold ${sub}`}>Describe yourself in a sentence or two (your bio seed)</span>
+          <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.bioSeedLabel")}</span>
           <textarea data-testid="mh-bio-seed" className={input} rows={2} value={form.bioSeed}
             onChange={(e) => setForm({ ...form, bioSeed: e.target.value })}
-            placeholder="I make soul trap for late-night drivers." />
+            placeholder={t("moveHome.bioSeedPh")} />
         </label>
         <label className="mt-3 block">
-          <span className={`mb-1 block text-xs font-bold ${sub}`}>Starter product name (only if your catalog has nothing priced yet)</span>
+          <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.starterProductLabel")}</span>
           <input className={input} value={form.starterProductTitle}
-            onChange={(e) => setForm({ ...form, starterProductTitle: e.target.value })} placeholder="Supporter Pack" />
+            onChange={(e) => setForm({ ...form, starterProductTitle: e.target.value })} placeholder={t("moveHome.starterProductPh")} />
         </label>
         <div className="mt-4 flex flex-wrap gap-3">
           <button
@@ -363,26 +359,26 @@ export default function MoveHome() {
               tagline: form.tagline || undefined,
               bioSeed: form.bioSeed || undefined,
               starterProductTitle: form.starterProductTitle || undefined,
-            }), "Answers saved — they'll shape your drafts.")}
+            }), t("moveHome.answersSaved"))}
             className="rounded-xl border border-primary/40 px-4 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
           >
-            {busy === "answers" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save answers"}
+            {busy === "answers" ? <Loader2 className="h-4 w-4 animate-spin" /> : t("moveHome.saveAnswers")}
           </button>
           <button
             type="button"
             data-testid="mh-draft"
             disabled={busy !== ""}
-            onClick={() => run("draft", () => call("POST", "/api/move-home/draft"), drafted ? "Drafts refreshed — review each piece below." : "Your home is drafted — review each piece below. Nothing is live yet.")}
+            onClick={() => run("draft", () => call("POST", "/api/move-home/draft"), drafted ? t("moveHome.draftsRefreshed") : t("moveHome.homeDrafted"))}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {drafted ? "Re-draft my home" : "Draft my home"}
+            {drafted ? t("moveHome.redraftHome") : t("moveHome.draftHome")}
           </button>
           {data.drafts.copySource && (
             <span className={`self-center text-xs ${sub}`}>
               {data.drafts.copySource === "ai"
-                ? "Copy polished by Thy Cheat Code."
-                : "Copy assembled from your answers."}
+                ? t("moveHome.copyAi")
+                : t("moveHome.copyAssembled")}
             </span>
           )}
         </div>
@@ -412,13 +408,13 @@ export default function MoveHome() {
                 }`}
               >
                 {step.status === "approved" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-                {step.status === "approved" ? "Live" : step.status === "drafted" ? "Draft ready" : step.status === "skipped" ? "Skipped" : "Waiting"}
+                {step.status === "approved" ? t("moveHome.statusLive") : step.status === "drafted" ? t("moveHome.statusDraftReady") : step.status === "skipped" ? t("moveHome.statusSkipped") : t("moveHome.statusWaiting")}
               </span>
             </div>
 
             {step.blockedReason && step.status !== "approved" && (
               <p className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs font-medium text-amber-300">
-                {BLOCKED_COPY[step.blockedReason]}
+                {t(BLOCKED_COPY[step.blockedReason])}
               </p>
             )}
 
@@ -427,32 +423,32 @@ export default function MoveHome() {
               <div className="mt-4 space-y-3">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <label className="block">
-                    <span className={`mb-1 block text-xs font-bold ${sub}`}>Name</span>
+                    <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.nameLabel")}</span>
                     <input className={input} value={profileEdit.displayName}
                       onChange={(e) => setProfileEdit({ ...profileEdit, displayName: e.target.value })} />
                   </label>
                   <div>
-                    <span className={`mb-1 block text-xs font-bold ${sub}`}>Home address</span>
+                    <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.homeAddressLabel")}</span>
                     <p className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 text-zinc-700" : "border-white/10 text-zinc-300"}`}>
                       /artist/{data.drafts.profile.slug}
-                      {data.drafts.profile.updatesExisting ? " (your existing profile — approval updates it)" : ""}
+                      {data.drafts.profile.updatesExisting ? ` ${t("moveHome.updatesExistingNote")}` : ""}
                     </p>
                   </div>
                 </div>
                 <label className="block">
-                  <span className={`mb-1 block text-xs font-bold ${sub}`}>Bio</span>
+                  <span className={`mb-1 block text-xs font-bold ${sub}`}>{t("moveHome.bioLabel")}</span>
                   <textarea className={input} rows={3} value={profileEdit.bio}
                     onChange={(e) => setProfileEdit({ ...profileEdit, bio: e.target.value })} />
                 </label>
                 {Object.keys(data.drafts.profile.socialLinks).length > 0 && (
                   <p className={`text-xs ${sub}`}>
-                    Links going on the profile: {Object.entries(data.drafts.profile.socialLinks).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    {t("moveHome.linksGoing", { links: Object.entries(data.drafts.profile.socialLinks).map(([k, v]) => `${k}: ${v}`).join(" · ") })}
                   </p>
                 )}
                 <button type="button" disabled={busy !== ""}
-                  onClick={() => run("edit-profile", () => call("PATCH", "/api/move-home/drafts/profile", profileEdit), "Profile draft updated.")}
+                  onClick={() => run("edit-profile", () => call("PATCH", "/api/move-home/drafts/profile", profileEdit), t("moveHome.profileDraftUpdated"))}
                   className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50">
-                  Save draft edits
+                  {t("moveHome.saveDraftEdits")}
                 </button>
               </div>
             )}
@@ -462,18 +458,18 @@ export default function MoveHome() {
                 {data.drafts.store.products.map((p, i) => (
                   <div key={i} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30" : "border-white/[0.07]"}`}>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px]">
-                      <input aria-label="Product title" className={input} value={storeEdit[i]?.title ?? p.title}
+                      <input aria-label={t("moveHome.productTitleAria")} className={input} value={storeEdit[i]?.title ?? p.title}
                         onChange={(e) => setStoreEdit(storeEdit.map((s, j) => (j === i ? { ...s, title: e.target.value } : s)))} />
-                      <input aria-label="Price in dollars" className={input} inputMode="decimal" value={storeEdit[i]?.priceDollars ?? ""}
+                      <input aria-label={t("moveHome.priceAria")} className={input} inputMode="decimal" value={storeEdit[i]?.priceDollars ?? ""}
                         onChange={(e) => setStoreEdit(storeEdit.map((s, j) => (j === i ? { ...s, priceDollars: e.target.value } : s)))} />
                     </div>
                     <p className={`mt-2 text-xs ${sub}`}>{p.description}</p>
                     {p.suggestedPrice && (
                       <p className="mt-1 text-xs font-semibold text-amber-400">
-                        Suggested price — set your real price above before approving.
+                        {t("moveHome.suggestedPriceNote")}
                       </p>
                     )}
-                    {p.sourceTrackId && <p className={`mt-1 text-xs ${sub}`}>From your catalog — price carried over from the track itself.</p>}
+                    {p.sourceTrackId && <p className={`mt-1 text-xs ${sub}`}>{t("moveHome.fromCatalogNote")}</p>}
                   </div>
                 ))}
                 <button type="button" disabled={busy !== ""}
@@ -483,9 +479,9 @@ export default function MoveHome() {
                       title: storeEdit[i]?.title ?? p.title,
                       priceCents: Math.max(1, Math.round(parseFloat(storeEdit[i]?.priceDollars || "0") * 100)),
                     })),
-                  }), "Store draft updated.")}
+                  }), t("moveHome.storeDraftUpdated"))}
                   className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50">
-                  Save draft edits
+                  {t("moveHome.saveDraftEdits")}
                 </button>
               </div>
             )}
@@ -496,7 +492,7 @@ export default function MoveHome() {
                 <p className={`text-xs italic ${sub}`}>{data.drafts.press_kit.tagline}</p>
                 <p className={`mt-2 text-xs ${sub}`}>{data.drafts.press_kit.bio}</p>
                 <p className={`mt-2 text-xs ${sub}`}>
-                  Publishes at /press/{data.drafts.press_kit.handle} · {data.drafts.press_kit.topTracks.length} top tracks from your catalog
+                  {t("moveHome.publishesAt", { handle: data.drafts.press_kit.handle, count: data.drafts.press_kit.topTracks.length })}
                 </p>
               </div>
             )}
@@ -504,8 +500,8 @@ export default function MoveHome() {
             {step.key === "email_list" && data.drafts.email_list && step.status !== "approved" && (
               <div className={`mt-4 rounded-xl border p-3 text-sm ${isLight ? "border-[#C9A84C]/30" : "border-white/[0.07]"}`}>
                 <p className={`font-bold ${head}`}>{data.drafts.email_list.name}</p>
-                <p className={`text-xs ${sub}`}>Fans join at /join/{data.drafts.email_list.handle}{data.drafts.email_list.updatesExisting ? " — you already have this list; approval sets the welcome email on it" : ""}</p>
-                <p className={`mt-2 text-xs ${sub}`}>Welcome subject: <span className="font-semibold">{data.drafts.email_list.welcomeSubject}</span></p>
+                <p className={`text-xs ${sub}`}>{t("moveHome.fansJoinAt", { handle: data.drafts.email_list.handle })}{data.drafts.email_list.updatesExisting ? ` ${t("moveHome.fansJoinUpdates")}` : ""}</p>
+                <p className={`mt-2 text-xs ${sub}`}>{t("moveHome.welcomeSubject")} <span className="font-semibold">{data.drafts.email_list.welcomeSubject}</span></p>
                 <p className={`mt-1 whitespace-pre-line text-xs ${sub}`}>{data.drafts.email_list.welcomeBody}</p>
               </div>
             )}
@@ -513,7 +509,7 @@ export default function MoveHome() {
             {step.key === "launch_posts" && data.drafts.launch_posts && step.status !== "approved" && (
               <div className="mt-4 space-y-3">
                 {data.drafts.launch_posts.posts.length === 0 && (
-                  <p className={`text-xs ${sub}`}>No launch drafts yet — they appear for each social account you connect.</p>
+                  <p className={`text-xs ${sub}`}>{t("moveHome.noLaunchDrafts")}</p>
                 )}
                 {data.drafts.launch_posts.posts.map((p, i) => (
                   <div key={i} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30" : "border-white/[0.07]"}`}>
@@ -521,16 +517,16 @@ export default function MoveHome() {
                     <p className={`mt-1 text-sm ${head}`}>{p.caption}</p>
                     <p className={`mt-1 text-xs ${sub}`}>{p.hashtags}</p>
                     <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_130px]">
-                      <input aria-label="Launch media URL" className={input} placeholder="Your image or video link"
+                      <input aria-label={t("moveHome.mediaUrlAria")} className={input} placeholder={t("moveHome.mediaUrlPh")}
                         value={launchMedia[i]?.mediaUrl ?? ""}
                         onChange={(e) => setLaunchMedia(launchMedia.map((m, j) => (j === i ? { ...m, mediaUrl: e.target.value } : m)))} />
-                      <select aria-label="Media type" className={input} value={launchMedia[i]?.mediaType ?? "image"}
+                      <select aria-label={t("moveHome.mediaTypeAria")} className={input} value={launchMedia[i]?.mediaType ?? "image"}
                         onChange={(e) => setLaunchMedia(launchMedia.map((m, j) => (j === i ? { ...m, mediaType: e.target.value as "video" | "image" } : m)))}>
-                        <option value="image">Image</option>
-                        <option value="video">Video</option>
+                        <option value="image">{t("moveHome.mediaImage")}</option>
+                        <option value="video">{t("moveHome.mediaVideo")}</option>
                       </select>
                     </div>
-                    <p className={`mt-1 text-xs ${sub}`}>Approval saves this to your Post Scheduler as a draft — it does not post. You choose when it fires.</p>
+                    <p className={`mt-1 text-xs ${sub}`}>{t("moveHome.schedulerNote")}</p>
                   </div>
                 ))}
                 {data.drafts.launch_posts.posts.length > 0 && (
@@ -541,9 +537,9 @@ export default function MoveHome() {
                         mediaUrl: launchMedia[i]?.mediaUrl ? launchMedia[i].mediaUrl : null,
                         mediaType: launchMedia[i]?.mediaType ?? p.mediaType,
                       })),
-                    }), "Launch drafts updated.")}
+                    }), t("moveHome.launchDraftsUpdated"))}
                     className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50">
-                    Save draft edits
+                    {t("moveHome.saveDraftEdits")}
                   </button>
                 )}
               </div>
@@ -556,30 +552,30 @@ export default function MoveHome() {
                   type="button"
                   data-testid={`mh-approve-${step.key}`}
                   disabled={busy !== ""}
-                  onClick={() => run(`approve-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/approve`), `${step.title} is live. ${doneCount + 1} of ${data.steps.length} steps done.`)}
+                  onClick={() => run(`approve-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/approve`), t("moveHome.approveSuccess", { title: step.title, done: doneCount + 1, total: data.steps.length }))}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {busy === `approve-${step.key}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Approve — take it live
+                  {t("moveHome.approveLive")}
                 </button>
               )}
               {step.status === "approved" && (
                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" /> Live — approved by you
+                  <CheckCircle2 className="h-4 w-4" /> {t("moveHome.liveApprovedByYou")}
                 </span>
               )}
               {(step.status === "drafted" || step.status === "pending") && (
                 <button type="button" disabled={busy !== ""}
-                  onClick={() => run(`skip-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/skip`), "Skipped — you can reopen it anytime.")}
+                  onClick={() => run(`skip-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/skip`), t("moveHome.skippedMsg"))}
                   className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${isLight ? "border-zinc-300 text-zinc-600 hover:bg-zinc-100" : "border-white/10 text-zinc-300 hover:bg-white/[0.05]"}`}>
-                  <Ban className="h-3.5 w-3.5" /> Skip for now
+                  <Ban className="h-3.5 w-3.5" /> {t("moveHome.skipForNow")}
                 </button>
               )}
               {step.status === "skipped" && (
                 <button type="button" disabled={busy !== ""}
-                  onClick={() => run(`reopen-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/reopen`), "Reopened.")}
+                  onClick={() => run(`reopen-${step.key}`, () => call("POST", `/api/move-home/steps/${step.key}/reopen`), t("moveHome.reopenedMsg"))}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50">
-                  <RotateCcw className="h-3.5 w-3.5" /> Reopen
+                  <RotateCcw className="h-3.5 w-3.5" /> {t("moveHome.reopen")}
                 </button>
               )}
             </div>
@@ -588,8 +584,7 @@ export default function MoveHome() {
       </div>
 
       <p className={`mt-6 text-center text-xs ${sub}`}>
-        {doneCount} of {data.steps.length} steps done · Move Home is free — anything that costs Visual Bucs
-        later (like scheduling a post) asks you on its own rail first, never bundled in here.
+        {t("moveHome.stepsDoneFooter", { done: doneCount, total: data.steps.length })}
       </p>
     </div>
   );
