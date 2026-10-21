@@ -13,11 +13,14 @@ import {
   type LipSyncStrength,
   type ClipEdit,
 } from "@/lib/editor-settings";
+import { requestAudioExport } from "@/lib/audio-export";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ── Provider status (fetched from backend — no secrets in frontend) ── */
 interface ProviderStatus {
@@ -227,7 +230,7 @@ function Toggle({
         {sub && <p className="text-[10px] text-white/35 mt-0.5 leading-snug">{sub}</p>}
       </div>
       <div className={`relative shrink-0 h-5 w-9 rounded-full transition-colors duration-150 ${
-        value ? "bg-primary" : "bg-white/15"
+        value ? "bg-primary" : "bg-white/10"
       }`}>
         <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-150 ${
           value ? "translate-x-4" : "translate-x-0.5"
@@ -270,8 +273,12 @@ export function LipSyncSection({
   const ls = settings.lipSync;
   const ms = settings.musicStudio;
   const { getAccessToken } = useAuth();
+  /* The character in front of the camera — lip-sync jobs record who
+     they were made as (0142, G8). */
+  const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
   const { confirmSpend } = useCreditConfirm();
+  const isLight = useIsLightTheme();
 
   /* ── Provider status (fetched from backend on mount) ── */
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
@@ -595,6 +602,10 @@ export function LipSyncSection({
 
   /* ── Upload vocal stem ── */
   async function uploadVocalStem(file: File) {
+    if (file.size > 100 * 1024 * 1024) {
+      setStemUploadError("That stem is over 100 MB — pick a smaller file.");
+      return;
+    }
     setStemUploading(true);
     setStemUploadError(null);
     try {
@@ -637,17 +648,33 @@ export function LipSyncSection({
     setAcapellaError(null);
     try {
       const token = await getAccessToken();
-      const res = await confirmedFetch("/api/music/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ exportType: "acapella-mp3", stems: ms.stems, masterVolume: 100 }),
-      });
-      if (!res) { setAcapellaExporting(false); return; } // user cancelled the credit confirmation
-      const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        throw new Error(data.error ?? `Export failed: HTTP ${res.status}`);
-      }
-      updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
+      if (!token) throw new Error("You need to be signed in to export audio.");
+      /* /api/music/export is async: it answers 202 { jobId, status: "queued" }
+         and the file URL only exists in the polled job result, so the old
+         direct read of data.url always failed. requestAudioExport owns that
+         POST + poll contract; passing confirmedFetch keeps the credit-confirm
+         gate in front of the spend, exactly like the other export consumers. */
+      const resp = await requestAudioExport(token, {
+        exportType: "acapella-mp3",
+        masterVolume: 100,
+        stems: ms.stems.map((s) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          url: s.url,
+          volume: s.volume,
+          muted: s.muted,
+          solo: s.solo,
+          pan: s.pan,
+          trimStart: s.trimStart,
+          trimEnd: s.trimEnd,
+          effects: s.effects,
+          ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
+          ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
+        })),
+      }, confirmedFetch);
+      if (!resp) return; // user cancelled the credit confirmation
+      updateLipSync({ uploadedVocalStemUrl: resp.url, audioSource: "vocals" });
     } catch (err) {
       setAcapellaError(err instanceof Error ? err.message : "Export failed");
     } finally {
@@ -839,6 +866,7 @@ export function LipSyncSection({
         preserveArtistLook:   ls.preserveArtistLook,
         projectId:          projectId ?? null,
         sceneId,
+        artistVaultId:      activeArtist?.id ?? null,
         getAccessToken,
         onSyncLabsJobAccepted: (syncLabsJobId) => {
           /* Save provider job ID immediately — persists even if local polling times out */
@@ -962,6 +990,7 @@ export function LipSyncSection({
           preserveArtistLook:   ls.preserveArtistLook,
           projectId:          projectId ?? null,
           sceneId:            sid,
+          artistVaultId:      activeArtist?.id ?? null,
           getAccessToken,
           onSyncLabsJobAccepted: (syncLabsJobId) => {
             updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
@@ -1048,7 +1077,7 @@ export function LipSyncSection({
     /* Auto-fix timing if mismatch detected */
     if (timingBlock) {
       rebuildFromRealClipDuration();
-      setAutoAiMessage("Timing mismatch auto-detected — audio segment rebuilt from real clip duration. Click Auto AI Lip Sync again once the clip duration reloads.");
+      setAutoAiMessage("Timing mismatch auto-detected — audio segment rebuilt from real clip duration. Click Auto Lip Sync again once the clip duration reloads.");
       setAutoAiOk(false);
       return;
     }
@@ -1213,7 +1242,7 @@ export function LipSyncSection({
     });
 
     if (!selectedScene || !ce) return blank("No clip selected", "Select a clip in the Scene Selector above.");
-    if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto AI Lip Sync first, then re-analyze.");
+    if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto Lip Sync first, then re-analyze.");
 
     /* ── Offsets ── */
     const previewOffset     = ce.lipSyncAudioOffset  ?? 0;   // shifts audio window sent to Sync.so
@@ -1503,7 +1532,7 @@ export function LipSyncSection({
           value={ls.enabled}
           onChange={v => updateLipSync({ enabled: v })}
           label="Enable Lip Sync"
-          sub="Applies AI lip sync to video clips using project vocals"
+          sub="Applies lip sync to video clips using project vocals"
         />
       </EditorCard>
 
@@ -1552,7 +1581,7 @@ export function LipSyncSection({
                     <span>
                       {providerStatus?.missingKeyMessage ?? "Lip Sync is not connected yet."}
                       <br />
-                      <span className="font-normal text-amber-400/70">
+                      <span className="font-normal text-amber-400">
                         To use real lip sync, connect a lip sync provider API key in Replit Secrets.
                       </span>
                     </span>
@@ -1561,7 +1590,7 @@ export function LipSyncSection({
                   {!showKeyInstructions && (
                     <>
                       {/* Setup steps */}
-                      <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-3 space-y-2">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3 space-y-2">
                         <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Lip Sync Setup</p>
                         {[
                           "Choose a lip sync provider (e.g. HeyGen, Sync.so, Hedra)",
@@ -1588,7 +1617,7 @@ export function LipSyncSection({
                         <button
                           type="button"
                           onClick={() => setDemoMode(true)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/[0.06] transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/5 transition-colors"
                         >
                           <FlaskConical className="h-3.5 w-3.5" />
                           Use Demo Mode For Now
@@ -1638,7 +1667,7 @@ export function LipSyncSection({
               )}
 
               {/* Status rows */}
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                 <StatusRow label="provider"            value={providerStatus?.providerName ?? "none"}              ok={providerConnected} />
                 <StatusRow label="connected"           value={providerConnected ? "yes" : "no"}                    ok={providerConnected} />
                 <StatusRow label="server key found"    value={providerStatus?.serverKeyFound ? "yes" : "no"}       ok={providerStatus?.serverKeyFound} />
@@ -1670,7 +1699,7 @@ export function LipSyncSection({
 
               {/* Route test result */}
               {routeTest && !routeTestLoading && (
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">
                     Submit Route Test · {routeTest.checkedAt}
                   </p>
@@ -1720,7 +1749,7 @@ export function LipSyncSection({
                       Ready — now click Apply to Scene
                     </div>
                   ) : (
-                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold">
                       <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                       {!routeTest.reachable
                         ? "Route unreachable — check API server is running"
@@ -1741,7 +1770,7 @@ export function LipSyncSection({
                 type="button"
                 onClick={() => void fetchAccountCheck()}
                 disabled={accountCheckLoading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-bold hover:bg-white/[0.08] transition-colors disabled:opacity-40"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-bold hover:bg-white/10 transition-colors disabled:opacity-40"
               >
                 {accountCheckLoading
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking Sync Labs account…</>
@@ -1777,7 +1806,7 @@ export function LipSyncSection({
                     </>
                   )}
                   {accountCheck.multipleKeysFound && (
-                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold">
                       <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                       Multiple Sync Labs keys found. Using: {accountCheck.activeKeyVar} ending in {accountCheck.activeKeyLast4}
                     </div>
@@ -1825,7 +1854,7 @@ export function LipSyncSection({
                     </div>
                   )}
                   {!accountCheck.keyPresent && (
-                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold">
                       <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                       Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets
                     </div>
@@ -1833,7 +1862,7 @@ export function LipSyncSection({
 
                   {/* Last error / info message */}
                   {accountCheck.lastError && (
-                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.12] bg-white/[0.02] text-[9px] text-white/40 font-mono break-all">
+                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-white/10 bg-white/[0.02] text-[9px] text-white/40 font-mono break-all">
                       {accountCheck.lastError}
                     </div>
                   )}
@@ -1845,19 +1874,19 @@ export function LipSyncSection({
               )}
 
               {/* ── Route health check ── */}
-              <div className="pt-1 border-t border-white/[0.12]">
+              <div className="pt-1 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => void fetchHealth()}
                   disabled={healthLoading}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/5 disabled:opacity-40 transition-colors"
                 >
                   {healthLoading
                     ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
                     : <><ShieldCheck className="h-3.5 w-3.5" /> Test Lip Sync Health</>}
                 </button>
                 {healthCheck && (
-                  <div className="mt-2 rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                     <StatusRow label="health route reachable" value={healthCheck.reachable ? "yes ✓" : "no ✗"} ok={healthCheck.reachable} />
                     <StatusRow label="status"                 value={String(healthCheck.status)}             ok={healthCheck.reachable ? true : false} />
                     <StatusRow label="content-type"           value={healthCheck.contentType}                ok={null} />
@@ -1879,7 +1908,7 @@ export function LipSyncSection({
                   { value: "full"   as const, label: "Full Mix" },
                 ]}
               />
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                 <StatusRow label="project audio found"  value={projectAudioFound ? "yes" : "no"}                              ok={projectAudioFound} />
                 <StatusRow label="vocal stem found"     value={vocalStemFound ? "yes" : "no"}                                 ok={vocalStemFound} />
                 <StatusRow label="uploaded stem"        value={ls.uploadedVocalStemUrl ? "yes ✓" : "none"}                    ok={!!ls.uploadedVocalStemUrl} />
@@ -1892,7 +1921,7 @@ export function LipSyncSection({
                 type="button"
                 disabled={!effectiveAudioUrl || inputCheckLoading}
                 onClick={() => void checkInputs()}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {inputCheckLoading
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
@@ -1901,7 +1930,7 @@ export function LipSyncSection({
 
               {/* Check result inline */}
               {inputCheck && !inputCheckLoading && (
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">
                     Last check · {inputCheck.checkedAt}
                   </p>
@@ -1926,7 +1955,7 @@ export function LipSyncSection({
 
               {/* Full mix fallback warning */}
               {ls.audioSource === "vocals" && !vocalStemFound && (
-                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px]">
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px]">
                   <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                   No vocal stem found. Using full mix may reduce lip sync accuracy.
                   Upload or export a vocal stem below for better results.
@@ -1951,7 +1980,7 @@ export function LipSyncSection({
                   type="button"
                   disabled={stemUploading}
                   onClick={() => stemInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {stemUploading
                     ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</>
@@ -1983,7 +2012,7 @@ export function LipSyncSection({
                   type="button"
                   disabled={acapellaExporting || ms.stems.length === 0}
                   onClick={() => void exportAcapellaStem()}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title={ms.stems.length === 0 ? "Add stems in the Music Mixer first" : undefined}
                 >
                   {acapellaExporting
@@ -2023,7 +2052,7 @@ export function LipSyncSection({
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-colors text-[11px] ${
                           isSel
                             ? "border-primary/50 bg-primary/[0.08] text-white"
-                            : "border-white/[0.12] bg-white/[0.02] text-white/60 hover:bg-white/[0.04]"
+                            : "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.04]"
                         }`}
                       >
                         <span className={`inline-flex items-center justify-center h-5 min-w-[20px] rounded px-1 text-[9px] font-black shrink-0 ${
@@ -2045,7 +2074,7 @@ export function LipSyncSection({
           {selectedScene && (
             <EditorCard title="Face Detection" icon={<User className="h-4 w-4" />}>
               <div className="space-y-2">
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <StatusRow label="scene selected"    value={`Scene ${selectedScene.sceneNumber}`} ok={null} />
                   <StatusRow label="face found"        value={faceDetected ? "yes" : "no"}          ok={faceDetected} />
                   <StatusRow label="face confidence"   value={faceConfidence}                        ok={faceDetected ? true : false} />
@@ -2076,7 +2105,7 @@ export function LipSyncSection({
                   ]}
                 />
               </div>
-              <div className="space-y-1 divide-y divide-white/[0.04]">
+              <div className="space-y-1 divide-y divide-white/5">
                 <Toggle
                   value={ls.preserveFaceIdentity}
                   onChange={v => updateLipSync({ preserveFaceIdentity: v })}
@@ -2101,7 +2130,7 @@ export function LipSyncSection({
               <div className="space-y-3">
 
                 {/* URL + provider checks */}
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest pb-0.5">URLs &amp; Provider</p>
                   <StatusRow
                     label="audio ready"
@@ -2141,7 +2170,7 @@ export function LipSyncSection({
                 </div>
 
                 {/* Payload validation */}
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest pb-0.5">Sync Labs Payload</p>
                   <StatusRow
                     label="invalid fields in payload"
@@ -2185,7 +2214,7 @@ export function LipSyncSection({
                 </div>
 
                 {/* Overall ready */}
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
                   <StatusRow
                     label="ready to submit"
                     value={
@@ -2227,7 +2256,7 @@ export function LipSyncSection({
                   type="button"
                   disabled={!effectiveAudioUrl || inputCheckLoading}
                   onClick={() => void checkInputs()}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {inputCheckLoading
                     ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Validating…</>
@@ -2238,7 +2267,7 @@ export function LipSyncSection({
           )}
 
           {/* ── Auto AI Lip Sync ── */}
-          <EditorCard title="Auto AI Lip Sync" icon={<Radio className="h-4 w-4" />}>
+          <EditorCard title="Auto Lip Sync" icon={<Radio className="h-4 w-4" />}>
             {(() => {
               const ce = selectedClipEdit;
               const hasCompletedResult = ce?.lipSyncStatus === "done" && !!ce.lipSyncUrl;
@@ -2257,7 +2286,7 @@ export function LipSyncSection({
                   {/* Status table */}
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">
-                      Auto AI Lip Sync Status
+                      Auto Lip Sync Status
                     </p>
                     <StatusRow label="selected scene"         value={selectedScene ? `Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}` : "none selected"}                                    ok={!!selectedScene} />
                     <StatusRow label="detected clip duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s ✓` : selectedScene?.demoClipUrl ? "loading…" : "—"}                  ok={clipVideoDuration != null ? true : null} />
@@ -2337,7 +2366,7 @@ export function LipSyncSection({
                               type="button"
                               disabled={!canPreview}
                               onClick={() => resultUrl && setPreviewModalUrl(resultUrl)}
-                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
                             >
                               <Play className="h-3 w-3" /> Preview Result
                             </button>
@@ -2363,7 +2392,7 @@ export function LipSyncSection({
                               type="button"
                               disabled={!canSave}
                               onClick={() => attachResult(false)}
-                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
                             >
                               <Save className="h-3 w-3" /> Save to Scene
                             </button>
@@ -2375,7 +2404,7 @@ export function LipSyncSection({
                             <button
                               type="button"
                               onClick={() => fineTuneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors"
                             >
                               <Sliders className="h-3 w-3" /> Adjust Timing ↓
                             </button>
@@ -2397,7 +2426,7 @@ export function LipSyncSection({
                         )}
 
                         {/* Debug panel */}
-                        <div className="rounded-lg border border-white/[0.12] bg-white/[0.02] px-3 py-2 space-y-1">
+                        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 space-y-1">
                           <p className="text-[9px] font-bold text-white/45 uppercase tracking-widest pb-0.5">
                             Completed Result Button Debug
                           </p>
@@ -2419,7 +2448,7 @@ export function LipSyncSection({
                         <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
                         <p className="text-[12px] font-bold text-amber-300">Existing Sync.so job processing.</p>
                       </div>
-                      <p className="text-[10px] text-amber-400/70 leading-snug">
+                      <p className="text-[10px] text-amber-400 leading-snug">
                         Checking status instead of submitting again.
                       </p>
                       <button
@@ -2444,7 +2473,7 @@ export function LipSyncSection({
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-black text-[12px] font-bold hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Radio className="h-4 w-4" />
-                      Auto AI Lip Sync Selected Scene
+                      Auto Lip Sync Selected Scene
                     </button>
                   )}
 
@@ -2462,7 +2491,7 @@ export function LipSyncSection({
                         <button
                           type="button"
                           onClick={() => selectedScene && updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: Math.max(-2, +(clipOffset - 0.05).toFixed(2)) })}
-                          className="flex-1 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                          className="flex-1 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-semibold hover:bg-white/5 transition-colors"
                         >
                           Earlier −0.05s
                         </button>
@@ -2499,7 +2528,7 @@ export function LipSyncSection({
                     type="button"
                     disabled
                     title="Apply to All Clips will be enabled once the selected-scene automation is fully reliable"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/[0.12] text-white/20 text-[11px] font-semibold cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-white/20 text-[11px] font-semibold cursor-not-allowed"
                   >
                     <SkipForward className="h-3.5 w-3.5" />
                     Apply to All Clips (confirm selected scene first)
@@ -2543,7 +2572,7 @@ export function LipSyncSection({
                           <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
                           <p className="text-[12px] font-bold text-amber-300">Paid job confirmation</p>
                         </div>
-                        <p className="text-[11px] text-amber-400/80 leading-snug">
+                        <p className="text-[11px] text-amber-400 leading-snug">
                           This will submit a new paid Sync.so lip sync job and may use Visual Bucs.
                         </p>
                       </div>
@@ -2573,7 +2602,7 @@ export function LipSyncSection({
                         <StatusRow label="audio source"        value={ls.audioSource === "vocals" ? "vocals only" : "full mix"} ok={null} />
                         <StatusRow label="provider"            value="Sync.so"                                          ok={null} />
                         <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                         ok={null} />
-                        <div className="border-t border-white/[0.12] my-1" />
+                        <div className="border-t border-white/10 my-1" />
                         <StatusRow label="existing saved job"  value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 12)}…` : "none"} ok={selectedClipEdit?.lipSyncJobId ? false : null} />
                         <StatusRow label="last submitted"      value={fmtDate(selectedClipEdit?.lipSyncSubmittedAt ?? null)} ok={null} />
                       </div>
@@ -2600,14 +2629,14 @@ export function LipSyncSection({
 
                     {/* Corrected-job note when an existing result exists */}
                     {!demoMode && selectedClipEdit?.lipSyncUrl && confirmOpen === "single" && (
-                      <div className="text-[10px] text-amber-400/80 font-semibold leading-snug">
+                      <div className="text-[10px] text-amber-400 font-semibold leading-snug">
                         ⚠ This will submit a new Sync.so job using the corrected scene audio segment.
                         The existing result is kept until the corrected job succeeds.
                       </div>
                     )}
 
                     {!demoMode && usingFullMix && ls.audioSource === "vocals" && (
-                      <p className="text-[10px] text-amber-400/70">
+                      <p className="text-[10px] text-amber-400">
                         ⚠ No vocal stem found — using full mix. Accuracy may be lower.
                       </p>
                     )}
@@ -2635,7 +2664,7 @@ export function LipSyncSection({
 
               {/* ── Job safety controls — always visible above Apply ── */}
               {!confirmOpen && selectedScene && (
-                <div className="space-y-2 pt-1 border-t border-white/[0.12]">
+                <div className="space-y-2 pt-1 border-t border-white/10">
                   {/* Banner */}
                   {selectedClipEdit?.lipSyncJobId ? (
                     <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-amber-400 text-[11px] font-semibold">
@@ -2643,7 +2672,7 @@ export function LipSyncSection({
                       <span>Existing Sync.so job found — check status instead of submitting again.</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.12] bg-white/[0.02] text-white/50 text-[10px] font-semibold">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold">
                       <CheckCircle2 className="h-3 w-3 shrink-0" />
                       No existing job — safe to submit.
                     </div>
@@ -2730,7 +2759,7 @@ export function LipSyncSection({
                               type="button"
                               onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!)}
                               disabled={isSaved}
-                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <Save className="h-3.5 w-3.5" />
                               {isSaved ? "Result Saved to Scene ✓" : "Save Result to Scene"}
@@ -2763,14 +2792,14 @@ export function LipSyncSection({
                           <button
                             type="button"
                             onClick={() => { void navigator.clipboard.writeText(cjr.jobId); }}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/5 transition-colors"
                           >
                             <Copy className="h-3 w-3" /> Copy Sync.so Job ID
                           </button>
                           <button
                             type="button"
                             onClick={() => window.open("https://sync.so", "_blank")}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/5 transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" /> Open Sync.so Dashboard
                           </button>
@@ -2781,7 +2810,7 @@ export function LipSyncSection({
 
                   {/* ── Lip Sync Audio Segment status ── */}
                   {selectedTiming && (
-                    <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                       <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">Lip Sync Audio Segment</p>
                       <StatusRow label="timeline scene start"   value={rawTiming ? fmtSec(rawTiming.startSec) : "—"} ok={null} />
                       <StatusRow label="target duration source" value={durationSource} ok={clipVideoDuration != null ? true : null} />
@@ -2809,7 +2838,7 @@ export function LipSyncSection({
                             className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
                               audioOffset === v
                                 ? "bg-primary/20 border border-primary/50 text-primary"
-                                : "border border-white/10 text-white/40 hover:bg-white/[0.05]"
+                                : "border border-white/10 text-white/40 hover:bg-white/5"
                             }`}
                           >
                             {v > 0 ? `+${v}s` : `${v}s`}
@@ -2820,7 +2849,7 @@ export function LipSyncSection({
                         <button
                           type="button"
                           onClick={() => setAudioOffset(audioOffset - 0.1)}
-                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/[0.05] transition-colors"
+                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/5 transition-colors"
                         >
                           −0.1s
                         </button>
@@ -2828,7 +2857,7 @@ export function LipSyncSection({
                         <button
                           type="button"
                           onClick={() => setAudioOffset(audioOffset + 0.1)}
-                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/[0.05] transition-colors"
+                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/5 transition-colors"
                         >
                           +0.1s
                         </button>
@@ -2856,7 +2885,7 @@ export function LipSyncSection({
                       <button
                         type="button"
                         onClick={() => setShowTimingValidation(v => !v)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/[0.05] transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/5 transition-colors"
                       >
                         <ScanSearch className="h-3.5 w-3.5" /> Validate Timing
                       </button>
@@ -2865,7 +2894,7 @@ export function LipSyncSection({
 
                   {/* ── Timing validation panel ── */}
                   {showTimingValidation && selectedTiming && (
-                    <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                       <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">Timing Validation</p>
                       <StatusRow label="timeline scene start"  value={rawTiming ? fmtSec(rawTiming.startSec) : "—"} ok={null} />
                       <StatusRow label="audio offset"          value={audioOffset !== 0 ? `${audioOffset >= 0 ? "+" : ""}${audioOffset.toFixed(1)}s` : "none"} ok={null} />
@@ -2883,7 +2912,7 @@ export function LipSyncSection({
                     <button
                       type="button"
                       onClick={rebuildFromRealClipDuration}
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/5 transition-colors"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${clipVideoDuration === null && selectedScene?.demoClipUrl ? "animate-spin" : ""}`} />
                       {clipVideoDuration !== null
@@ -2904,7 +2933,7 @@ export function LipSyncSection({
                   )}
 
                   {/* ── Lip Sync Job Safety status ── */}
-                  <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">Lip Sync Job Safety</p>
                     <StatusRow label="selected scene"          value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}                                               ok={null} />
                     <StatusRow label="clip duration"           value={selectedTiming ? `${selectedTiming.durationSec.toFixed(1)}s` : "—"}                                         ok={null} />
@@ -2963,7 +2992,7 @@ export function LipSyncSection({
                   type="button"
                   disabled={clipsWithFaces.length === 0 || (!demoMode && !audioReady)}
                   onClick={() => { setApplyError(null); setConfirmOpen("all"); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   data-testid="btn-lip-sync-apply-all"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
@@ -2988,7 +3017,7 @@ export function LipSyncSection({
                       <X className="h-3 w-3" /> Cancel
                     </button>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full transition-all duration-300"
                       style={{ width: `${(processState.current / processState.total) * 100}%` }}
@@ -3030,7 +3059,7 @@ export function LipSyncSection({
               <div className="space-y-3">
 
                 {/* ── Lip Sync Save Status table ── */}
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest pb-0.5">Lip Sync Save Status</p>
                   <StatusRow label="selected scene"           value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}          ok={null} />
                   <StatusRow label="completed result URL"     value={selectedClipEdit.lipSyncUrl ? "yes ✓" : "none"}                        ok={!!selectedClipEdit.lipSyncUrl} />
@@ -3071,7 +3100,7 @@ export function LipSyncSection({
                     <button
                       type="button"
                       onClick={() => selectedClipEdit.useLipSync ? detachFromPlayer() : attachStoredResult()}
-                      className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${selectedClipEdit.useLipSync ? "bg-green-500" : "bg-white/15"}`}
+                      className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${selectedClipEdit.useLipSync ? "bg-green-500" : "bg-white/10"}`}
                     >
                       <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${selectedClipEdit.useLipSync ? "translate-x-5" : "translate-x-0.5"}`} />
                     </button>
@@ -3109,7 +3138,7 @@ export function LipSyncSection({
                             const next = Math.round((cur + delta) * 100) / 100;
                             updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
                           }}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[10px] font-semibold hover:bg-white/[0.08] hover:text-white/80 transition-colors"
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[10px] font-semibold hover:bg-white/10 hover:text-white/80 transition-colors"
                         >
                           {label}
                         </button>
@@ -3119,7 +3148,7 @@ export function LipSyncSection({
                       type="button"
                       onClick={() => updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 })}
                       disabled={(selectedClipEdit.lipSyncOffsetSeconds ?? 0) === 0}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.02] text-white/35 text-[10px] font-semibold hover:bg-white/[0.06] hover:text-white/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.02] text-white/35 text-[10px] font-semibold hover:bg-white/5 hover:text-white/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       Reset 0.00s
                     </button>
@@ -3170,7 +3199,7 @@ export function LipSyncSection({
                         <div className="flex items-center gap-2">
                           <Sliders className="h-3.5 w-3.5 text-violet-400" />
                           <p className="text-[11px] font-black text-white/85 uppercase tracking-widest">
-                            Auto AI Lip Sync Timing
+                            Auto Lip Sync Timing
                           </p>
                         </div>
                         {timingLocked && (
@@ -3181,7 +3210,7 @@ export function LipSyncSection({
                       </div>
 
                       {/* ── Safety note ── */}
-                      <p className="text-[9px] text-violet-300/60 leading-relaxed rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5">
+                      <p className={`text-[9px] ${isLight ? "text-violet-800" : "text-violet-300/60"} leading-relaxed rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5`}>
                         Fixes playback timing only · No new Sync.so Visual Bucs will be used
                       </p>
 
@@ -3196,7 +3225,7 @@ export function LipSyncSection({
                       )}
 
                       {/* ── Status / debug table ── */}
-                      <div className="rounded-xl border border-white/[0.12] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                         <p className="text-[9px] font-bold text-white/45 uppercase tracking-widest pb-0.5">
                           Auto Lip Sync Timing
                         </p>
@@ -3222,10 +3251,10 @@ export function LipSyncSection({
                       {/* ── Active guided-mode indicator (Auto Fix is running) ── */}
                       {autoFixActive && (
                         <div className="rounded-lg bg-violet-500/[0.10] border border-violet-500/25 px-3 py-2 text-center">
-                          <p className="text-[10px] font-bold text-violet-300">
+                          <p className={`text-[10px] font-bold ${isLight ? "text-violet-800" : "text-violet-300"}`}>
                             Auto Fix active — current offset {fmtOff(curOffset)}
                           </p>
-                          <p className="text-[9px] text-violet-300/60 mt-0.5">
+                          <p className={`text-[9px] ${isLight ? "text-violet-800" : "text-violet-300/60"} mt-0.5`}>
                             Play the master player, then click Mouth Early, Mouth Late, or Looks Correct
                           </p>
                         </div>
@@ -3266,7 +3295,7 @@ export function LipSyncSection({
                             `Mouth early detected — moving lip sync later to ${fmtOff(Math.round((curOffset + 0.05) * 100) / 100)}`,
                             curOffset + 0.05,
                           )}
-                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           Mouth Early
                         </button>
@@ -3280,7 +3309,7 @@ export function LipSyncSection({
                             `Mouth late detected — moving lip sync earlier to ${fmtOff(Math.round((curOffset - 0.05) * 100) / 100)}`,
                             curOffset - 0.05,
                           )}
-                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           Mouth Late
                         </button>
@@ -3340,7 +3369,7 @@ export function LipSyncSection({
                               updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 });
                             }
                           }}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-bold hover:bg-white/[0.08] hover:text-white/70 transition-colors"
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-colors"
                         >
                           <RefreshCw className="h-3 w-3" /> Reset Timing
                         </button>
@@ -3380,7 +3409,7 @@ export function LipSyncSection({
                         }
                       }}
                       disabled={selectedClipEdit.lipSyncStatus === "done"}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Save className="h-3.5 w-3.5" />
                       {selectedClipEdit.lipSyncStatus === "done" ? "Result Saved to Scene ✓" : "Save Result to Scene"}
@@ -3398,7 +3427,7 @@ export function LipSyncSection({
                 {/* ── Processing: check/stop controls ── */}
                 {selectedClipEdit.lipSyncStatus === "processing" && selectedClipEdit.lipSyncJobId && (
                   <div className="space-y-2">
-                    <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold">
+                    <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400 text-[10px] font-semibold">
                       <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
                       <span>Job is processing on Sync.so — do not resubmit. Use Check Job Status above.</span>
                     </div>
@@ -3486,7 +3515,7 @@ export function LipSyncSection({
                   )}
 
                   {/* Live offset summary */}
-                  <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest pb-0.5">Current Offset Snapshot</p>
                     <StatusRow label="preview audio offset"   value={prevOff  !== 0 ? fmtOff2(prevOff)  : "none"} ok={null} />
                     <StatusRow label="export fine-tune offset" value={expOff   !== 0 ? fmtOff2(expOff)   : "none"} ok={null} />
@@ -3519,7 +3548,7 @@ export function LipSyncSection({
                     </button>
                   </div>
                   {!hasResult && (
-                    <p className="text-[10px] text-white/50 text-center">Run Auto AI Lip Sync first to enable analysis.</p>
+                    <p className="text-[10px] text-white/50 text-center">Run Auto Lip Sync first to enable analysis.</p>
                   )}
 
                   {/* Detection result */}
@@ -3542,7 +3571,7 @@ export function LipSyncSection({
                       </div>
 
                       {/* Confidence bar */}
-                      <div className="w-full h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="w-full h-1 rounded-full bg-white/5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             confBar >= 85 ? "bg-green-500" : confBar >= 70 ? "bg-amber-500" : "bg-red-500"
@@ -3558,7 +3587,7 @@ export function LipSyncSection({
                       </div>
 
                       {/* Detail rows */}
-                      <div className="space-y-1 pt-1 border-t border-white/[0.04]">
+                      <div className="space-y-1 pt-1 border-t border-white/5">
                         <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest pt-0.5">Offset streams</p>
                         <StatusRow label="offset applied to video"     value={doctorResult.offsetAppliedToVideo ? "yes ✓" : "no"} ok={doctorResult.offsetAppliedToVideo ? true : null} />
                         <StatusRow label="offset applied to audio"     value={doctorResult.offsetAppliedToAudio ? "yes ⚠" : "no — correct"} ok={doctorResult.offsetAppliedToAudio ? false : true} />
@@ -3618,7 +3647,7 @@ export function LipSyncSection({
                           updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
                           setAutoFixApplied(false);
                         }}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mouth moves before audio — delay export offset +0.10s"
                       >
                         Mouth Too Early +0.10s
@@ -3632,7 +3661,7 @@ export function LipSyncSection({
                           updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
                           setAutoFixApplied(false);
                         }}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mouth moves after audio — advance export offset -0.10s"
                       >
                         Mouth Too Late −0.10s
@@ -3647,7 +3676,7 @@ export function LipSyncSection({
                           updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 });
                           setAutoFixApplied(false);
                         }}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         <RefreshCw className="h-3 w-3" /> Reset
                       </button>
@@ -3658,7 +3687,7 @@ export function LipSyncSection({
                           if (selectedScene) updateClipEdit(selectedScene.id, {});
                           setDoctorResult(prev => prev ? runDoctorAnalysis(prev.mode) : prev);
                         }}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
                         Save Offset
                       </button>
@@ -3687,7 +3716,7 @@ export function LipSyncSection({
                       type="button"
                       disabled={!canAdjust || sceneTestRunning}
                       onClick={() => void handleSceneOnlyTest()}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-[10px] font-bold hover:bg-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 ${isLight ? "text-indigo-800" : "text-indigo-300"} text-[10px] font-bold hover:bg-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
                     >
                       {sceneTestRunning
                         ? <><Loader2 className="h-3 w-3 animate-spin" />{sceneTestStep ?? "running…"}</>
@@ -3706,7 +3735,7 @@ export function LipSyncSection({
                       ];
                       const cur = STEPS.indexOf(sceneTestStep);
                       return (
-                        <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2 space-y-1">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 space-y-1">
                           {STEPS.slice(0, -1).map((s, i) => (
                             <div key={s} className="flex items-center gap-1.5">
                               {i < cur
@@ -3737,7 +3766,7 @@ export function LipSyncSection({
                           <a
                             href={sceneTestResult.resultUrl}
                             download="scene-test.mp4"
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-white/50 text-[9px] font-bold hover:bg-white/[0.08] transition-colors"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[9px] font-bold hover:bg-white/10 transition-colors"
                           >
                             Download
                           </a>
@@ -3791,7 +3820,7 @@ export function LipSyncSection({
           {/* ── Apply debug card (shown only when non-JSON / network error occurred) ── */}
           {applyDebug && (
             <EditorCard title="Lip Sync Apply Debug" icon={<AlertTriangle className="h-4 w-4 text-amber-400" />}>
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                 <StatusRow label="endpoint called" value={applyDebug.endpoint}    ok={null} />
                 <StatusRow label="status"          value={applyDebug.status}      ok={false} />
                 <StatusRow label="content-type"    value={applyDebug.contentType} ok={null} />
@@ -3816,7 +3845,7 @@ export function LipSyncSection({
                 const ce     = getClipEdit(settings, scene.id);
                 const hasClip = sceneHasClip(scene);
                 return (
-                  <div key={scene.id} className="flex items-center justify-between gap-2 py-1 border-b border-white/[0.04] last:border-0">
+                  <div key={scene.id} className="flex items-center justify-between gap-2 py-1 border-b border-white/5 last:border-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[9px] font-black text-white/50 shrink-0 w-5 text-right">{scene.sceneNumber}</span>
                       <span className="text-[10px] text-white/50 truncate">{scene.section || scene.lyricLine || `Scene ${scene.sceneNumber}`}</span>
@@ -3826,7 +3855,7 @@ export function LipSyncSection({
                       {hasClip && (
                         <>
                           {ce.lipSyncStatus === "done"       && <><CheckCircle2 className="h-3 w-3 text-green-400" /><span className="text-[9px] text-green-400/80 font-bold">done</span></>}
-                          {ce.lipSyncStatus === "processing" && <><Loader2 className="h-3 w-3 text-primary animate-spin" /><span className="text-[9px] text-primary/80 font-bold">running</span></>}
+                          {ce.lipSyncStatus === "processing" && <><Loader2 className="h-3 w-3 text-primary animate-spin" /><span className="text-[9px] text-primary/70 font-bold">running</span></>}
                           {ce.lipSyncStatus === "failed"     && <><XCircle className="h-3 w-3 text-red-400" /><span className="text-[9px] text-red-400/80 font-bold">failed</span></>}
                           {!ce.lipSyncStatus                 && <span className="text-[9px] text-white/45">idle</span>}
                         </>
@@ -3907,7 +3936,7 @@ export function LipSyncSection({
                       type="button"
                       onClick={() => { saveResultToScene(jobId, url); }}
                       disabled={isSaved}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Save className="h-3.5 w-3.5" />
                       {isSaved ? "Result Saved to Scene ✓" : "Save Result to Scene"}
@@ -3915,7 +3944,7 @@ export function LipSyncSection({
                     <button
                       type="button"
                       onClick={() => setPreviewModalUrl(null)}
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/40 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/40 text-[11px] font-semibold hover:bg-white/5 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" /> Close Preview
                     </button>
@@ -3946,6 +3975,8 @@ interface LipSyncBackendRequest {
   /** Passed through so the server can record this clip in generation history. */
   projectId?:           string | null;
   sceneId?:             string | null;
+  /** The character this lip-sync is made as (0142, G8). */
+  artistVaultId?:       string | null;
   getAccessToken:       () => Promise<string | null>;
   /** Called the first time the backend records the Sync.so provider job ID.
    *  The client should immediately persist this to the clip so it survives
@@ -3994,6 +4025,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       preserveArtistLook:   req.preserveArtistLook,
       projectId:            req.projectId ?? undefined,
       sceneId:              req.sceneId ?? undefined,
+      artistVaultId:        req.artistVaultId ?? undefined,
     }),
     signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
   });

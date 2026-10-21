@@ -1,52 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { WaitlistSuccess, type WaitlistPosition } from "@/components/WaitlistInvite";
 import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
-  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones,
+  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones, Gift, Mail,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
-const CREATOR_TYPES = ["Rapper", "Singer", "Producer", "AI Artist", "Content Creator", "Label", "Kids Music Creator", "Other"];
-
-const WANT_TO_MAKE = [
-  "Songs",
-  "Music Videos",
-  "Promo Clips",
-  "Full Song + Video Packages",
-  "Artist Content",
-  "Music Mixing",
-  "Thumbnails",
-  "Other",
+const CREATOR_TYPES: Array<{ value: string; labelKey: string }> = [
+  { value: "Rapper", labelKey: "betaAccess.creatorRapper" },
+  { value: "Singer", labelKey: "betaAccess.creatorSinger" },
+  { value: "Producer", labelKey: "betaAccess.creatorProducer" },
+  { value: "AI Artist", labelKey: "betaAccess.creatorAiArtist" },
+  { value: "Content Creator", labelKey: "betaAccess.creatorContentCreator" },
+  { value: "Label", labelKey: "betaAccess.creatorLabel" },
+  { value: "Kids Music Creator", labelKey: "betaAccess.creatorKidsMusic" },
+  { value: "Other", labelKey: "betaAccess.creatorOther" },
 ];
 
-const TOOLS = [
-  { label: "Make a Song",        icon: Music,      badge: null },
-  { label: "Video for My Song", icon: Video,      badge: null },
-  { label: "Start from Scratch",  icon: Mic2,       badge: "Most Popular" },
-  { label: "Promo Clip Maker",   icon: Film,       badge: null },
-  { label: "Thumbnail Maker",    icon: ImageIcon,  badge: null },
-  { label: "Music Mixing",       icon: Headphones, badge: "Beta" },
-  { label: "Artist Profiles",       icon: Archive,    badge: "Free" },
+const WANT_TO_MAKE: Array<{ value: string; labelKey: string }> = [
+  { value: "Songs", labelKey: "betaAccess.wantSongs" },
+  { value: "Music Videos", labelKey: "betaAccess.wantMusicVideos" },
+  { value: "Promo Clips", labelKey: "betaAccess.wantPromoClips" },
+  { value: "Full Song + Video Packages", labelKey: "betaAccess.wantPackages" },
+  { value: "Artist Content", labelKey: "betaAccess.wantArtistContent" },
+  { value: "Music Mixing", labelKey: "betaAccess.wantMixing" },
+  { value: "Thumbnails", labelKey: "betaAccess.wantThumbnails" },
+  { value: "Other", labelKey: "betaAccess.wantOther" },
 ];
 
-const PERKS = [
-  { icon: Zap,   title: "Early Access",      body: "Get into the platform before the public launch. Be among the first artists using every tool." },
-  { icon: Star,  title: "Founding Rate",     body: "Beta members lock in a discounted founding rate — never pay full price." },
-  { icon: Lock,  title: "Bonus Visual Bucs",     body: "Join the beta and receive 100 bonus Visual Bucs on launch day." },
-  { icon: Users, title: "Creator Community", body: "Connect with other independent artists building with AI from day one." },
-  { icon: Globe, title: "Priority Support",  body: "Beta members get priority responses and direct access to the team." },
-  { icon: Music, title: "Feature Voting",    body: "Your feedback shapes what we build. Beta members vote on upcoming tools." },
+const TOOLS: Array<{ labelKey: string; icon: typeof Music; badgeKey: string | null }> = [
+  { labelKey: "betaAccess.toolMakeSong",        icon: Music,      badgeKey: null },
+  { labelKey: "betaAccess.toolVideoForSong", icon: Video,      badgeKey: null },
+  { labelKey: "betaAccess.toolFromScratch",  icon: Mic2,       badgeKey: "betaAccess.badgeMostPopular" },
+  { labelKey: "betaAccess.toolPromoClips",   icon: Film,       badgeKey: null },
+  { labelKey: "betaAccess.toolThumbnails",    icon: ImageIcon,  badgeKey: null },
+  { labelKey: "betaAccess.toolMixing",       icon: Headphones, badgeKey: "betaAccess.badgeBeta" },
+  { labelKey: "betaAccess.toolArtistProfiles",       icon: Archive,    badgeKey: "betaAccess.badgeFree" },
 ];
 
-const inputClass = "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm";
-const selectClass = "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors";
+const PERKS: Array<{ icon: typeof Zap; titleKey: string; bodyKey: string }> = [
+  { icon: Zap,   titleKey: "betaAccess.perkEarlyAccessTitle",  bodyKey: "betaAccess.perkEarlyAccessBody" },
+  { icon: Star,  titleKey: "betaAccess.perkFoundingRateTitle", bodyKey: "betaAccess.perkFoundingRateBody" },
+  { icon: Lock,  titleKey: "betaAccess.perkBonusBucsTitle",     bodyKey: "betaAccess.perkBonusBucsBody" },
+  { icon: Users, titleKey: "betaAccess.perkCommunityTitle",    bodyKey: "betaAccess.perkCommunityBody" },
+  { icon: Globe, titleKey: "betaAccess.perkSupportTitle",      bodyKey: "betaAccess.perkSupportBody" },
+  { icon: Music, titleKey: "betaAccess.perkVotingTitle",       bodyKey: "betaAccess.perkVotingBody" },
+];
+
 
 /* ─── types ─── */
 
@@ -63,13 +73,34 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function BetaAccess() {
-  usePageTitle("Beta Access", "Get early access to Bow Down Visuals — the AI content creation studio for content creators.");
+  const isLight = useIsLightTheme();
+  const inputClass = isLight
+    ? "h-11 bg-white/70 border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#8A7A56]/60 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm"
+    : "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm";
+  const selectClass = isLight
+    ? "h-11 w-full bg-white/70 border border-[#C9A84C]/40 text-[#2A1E07] rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors"
+    : "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors";
+  const { t } = useTranslation();
+  usePageTitle(t("betaAccess.pageTitle"), t("betaAccess.pageSubtitle"));
   const [form, setForm] = useState<FormValues>({
     name: "", email: "", creatorName: "", artistType: "", wantToMake: "", socialHandle: "", message: "",
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [inviterCode, setInviterCode] = useState("");
+  const [positionData, setPositionData] = useState<WaitlistPosition | null>(null);
+
+  /* Capture an invite code from ?invite= (shared invite links) */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("invite");
+      if (code && /^[A-Za-z0-9]{4,16}$/.test(code)) {
+        setInviterCode(code.toUpperCase());
+      }
+    } catch { /* noop */ }
+  }, []);
 
   function update(field: keyof FormValues, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -78,8 +109,8 @@ export default function BetaAccess() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { setError("Please enter your name."); return; }
-    if (!form.email.trim() || !form.email.includes("@")) { setError("Please enter a valid email address."); return; }
+    if (!form.name.trim()) { setError(t("betaAccess.errorName")); return; }
+    if (!form.email.trim() || !form.email.includes("@")) { setError(t("betaAccess.errorEmail")); return; }
     setError("");
     setLoading(true);
     try {
@@ -94,17 +125,31 @@ export default function BetaAccess() {
           wantToCreate: form.wantToMake,
           socialHandle: form.socialHandle,
           message: form.message,
+          inviteCode: inviterCode || undefined,
         }),
       });
-      const data = await res.json() as { error?: string; message?: string };
+      const data = await res.json() as {
+        error?: string; message?: string; success?: boolean;
+        inviteCode?: string; position?: number; total?: number;
+        invitesCount?: number; milestones?: WaitlistPosition["milestones"];
+      };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setError(data.message ?? data.error ?? t("betaAccess.errorSubmitFailed"));
         setLoading(false);
         return;
       }
+      if (data.inviteCode && typeof data.position === "number") {
+        setPositionData({
+          inviteCode: data.inviteCode,
+          position: data.position,
+          total: data.total ?? data.position,
+          invitesCount: data.invitesCount ?? 0,
+          milestones: data.milestones ?? [],
+        });
+      }
       setSubmitted(true);
     } catch {
-      setError("Connection error. Please try again.");
+      setError(t("betaAccess.errorConnection"));
     } finally {
       setLoading(false);
     }
@@ -124,76 +169,93 @@ export default function BetaAccess() {
         {/* ── HERO ── */}
         <section className="max-w-4xl mx-auto px-5 md:px-8 pt-20 pb-10 text-center">
           <MarketingBadge variant="kicker" className="mb-6 px-4 py-1.5">
-            ✦ Beta Access Open — Limited Spots
+            {t("betaAccess.heroBadge")}
           </MarketingBadge>
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight mb-6 leading-[0.92]">
-            Join the Bow Down<br />
-            <span className="text-primary">Visuals Beta</span>
+            {t("betaAccess.heroTitle1")}<br />
+            <span className="text-primary">{t("betaAccess.heroTitle2")}</span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            Get early access to AI song creation, music video tools, promo clips, artist profiles, music mixing, and video editing.
+            {t("betaAccess.heroSubtitle")}
           </p>
 
           {/* social proof */}
-          <div className="flex items-center justify-center gap-2 mt-8">
-            <div className="flex -space-x-2">
-              {["LN", "YB", "SK", "MK", "DV"].map((initials) => (
-                <div key={initials} className="h-7 w-7 rounded-full bg-primary border-2 border-black flex items-center justify-center text-[9px] font-black text-white">
-                  {initials}
-                </div>
-              ))}
-            </div>
-            <span className="text-sm text-white/40">Join the beta list for early access</span>
+          <div className="flex items-center justify-center mt-8">
+            <span className="text-sm text-white/40">{t("betaAccess.socialProof")}</span>
           </div>
         </section>
 
         {/* ── FORM ── */}
         <section className="max-w-2xl mx-auto px-5 md:px-8 pb-20">
           {submitted ? (
-            <div className="rounded-2xl border border-primary/25 bg-primary/5 p-10 text-center">
+            positionData ? (
+              <>
+                <WaitlistSuccess data={positionData} />
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                  <Link href="/">
+                    <Button variant="outline" className="border-white/10 text-white/60 hover:text-white hover:bg-white/5">
+                      {t("betaAccess.backHome")}
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button className="gold-glow font-semibold gap-2">
+                      <Zap className="h-4 w-4" /> {t("betaAccess.tryTools")}
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
+            <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-primary/5" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
-              <h3 className="text-2xl font-semibold text-white mb-3">You're in.</h3>
+              <h3 className="text-2xl font-semibold text-white mb-3">{t("betaAccess.successTitle")}</h3>
               <p className="text-white/55 text-base mb-6 max-w-sm mx-auto leading-relaxed">
-                You're on the Bow Down Visuals beta list. We'll contact you when early access opens.
+                {t("betaAccess.successBody")}
               </p>
               <div className="flex flex-col gap-2 text-sm text-white/40 mb-8">
-                <p>🎁 100 bonus Visual Bucs reserved for you</p>
-                <p>⚡ Early access before public launch</p>
-                <p>🔒 Founding member rate locked in</p>
+                <p>{t("betaAccess.successPerk1")}</p>
+                <p>{t("betaAccess.successPerk2")}</p>
+                <p>{t("betaAccess.successPerk3")}</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href="/">
                   <Button variant="outline" className="border-white/10 text-white/60 hover:text-white hover:bg-white/5">
-                    Back to Home
+                    {t("betaAccess.backHome")}
                   </Button>
                 </Link>
                 <Link href="/dashboard">
                   <Button className="gold-glow font-semibold gap-2">
-                    <Zap className="h-4 w-4" /> Try the Tools Now
+                    <Zap className="h-4 w-4" /> {t("betaAccess.tryTools")}
                   </Button>
                 </Link>
               </div>
             </div>
+            )
           ) : (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 md:p-9">
-              <h2 className="text-xl font-semibold text-white mb-1">Tell us about yourself</h2>
-              <p className="text-sm text-white/35 mb-6">We use this to shape early access and build what creators actually need.</p>
+            <div className={`rounded-2xl border p-7 md:p-9 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              {inviterCode && (
+                <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+                  <Gift className="h-5 w-5 text-primary shrink-0" />
+                  <p className="text-sm text-white/70">{t("invite.invitedBanner")}</p>
+                </div>
+              )}
+              <h2 className="text-xl font-semibold text-white mb-1">{t("betaAccess.formTitle")}</h2>
+              <p className="text-sm text-white/35 mb-6">{t("betaAccess.formSubtitle")}</p>
 
               <form onSubmit={handleSubmit} className="space-y-5">
 
                 {/* Name + Email */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Name *</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.nameLabel")}</Label>
                     <Input
                       value={form.name}
                       onChange={(e) => update("name", e.target.value)}
-                      placeholder="Your name"
+                      placeholder={t("betaAccess.namePlaceholder")}
                       className={inputClass}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Email *</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.emailLabel")}</Label>
                     <Input
                       type="email"
                       value={form.email}
@@ -206,11 +268,11 @@ export default function BetaAccess() {
 
                 {/* Artist / Creator Name */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Artist / Creator Name</Label>
+                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.creatorNameLabel")}</Label>
                   <Input
                     value={form.creatorName}
                     onChange={(e) => update("creatorName", e.target.value)}
-                    placeholder="e.g. Lil Fire, DJ Smooth, BeatsByNova"
+                    placeholder={t("betaAccess.creatorNamePlaceholder")}
                     className={inputClass}
                   />
                 </div>
@@ -218,28 +280,28 @@ export default function BetaAccess() {
                 {/* Creator Type + What to Make */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Creator Type</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.creatorTypeLabel")}</Label>
                     <select
                       value={form.artistType}
                       onChange={(e) => update("artistType", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="" disabled className="bg-zinc-900">Select creator type...</option>
-                      {CREATOR_TYPES.map((t) => (
-                        <option key={t} value={t} className="bg-zinc-900">{t}</option>
+                      <option value="" disabled className="bg-zinc-900">{t("betaAccess.selectCreatorType")}</option>
+                      {CREATOR_TYPES.map((ct) => (
+                        <option key={ct.value} value={ct.value} className="bg-zinc-900">{t(ct.labelKey)}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">What do you want to make?</Label>
+                    <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.wantToMakeLabel")}</Label>
                     <select
                       value={form.wantToMake}
                       onChange={(e) => update("wantToMake", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="" disabled className="bg-zinc-900">Select what you want to make...</option>
-                      {WANT_TO_MAKE.map((t) => (
-                        <option key={t} value={t} className="bg-zinc-900">{t}</option>
+                      <option value="" disabled className="bg-zinc-900">{t("betaAccess.selectWantToMake")}</option>
+                      {WANT_TO_MAKE.map((wt) => (
+                        <option key={wt.value} value={wt.value} className="bg-zinc-900">{t(wt.labelKey)}</option>
                       ))}
                     </select>
                   </div>
@@ -247,11 +309,11 @@ export default function BetaAccess() {
 
                 {/* Social Link */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">Instagram / TikTok / YouTube Link</Label>
+                  <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.socialLabel")}</Label>
                   <Input
                     value={form.socialHandle}
                     onChange={(e) => update("socialHandle", e.target.value)}
-                    placeholder="@yourhandle or a link to your profile"
+                    placeholder={t("betaAccess.socialPlaceholder")}
                     className={inputClass}
                   />
                 </div>
@@ -259,12 +321,12 @@ export default function BetaAccess() {
                 {/* Message */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                    Message <span className="text-white/30 font-normal normal-case tracking-normal">(optional)</span>
+                    {t("betaAccess.messageLabel")} <span className="text-white/30 font-normal normal-case tracking-normal">{t("betaAccess.optional")}</span>
                   </Label>
                   <Textarea
                     value={form.message}
                     onChange={(e) => update("message", e.target.value)}
-                    placeholder="Tell us what you're working on, or what you want us to build first..."
+                    placeholder={t("betaAccess.messagePlaceholder")}
                     rows={3}
                     className="bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 rounded-xl text-sm resize-none"
                   />
@@ -284,11 +346,11 @@ export default function BetaAccess() {
                   style={{ height: "52px" }}
                 >
                   {loading
-                    ? "Submitting..."
-                    : <><Zap className="h-5 w-5" /> Request Beta Access <ArrowRight className="h-4 w-4" /></>}
+                    ? t("betaAccess.submitting")
+                    : <><Zap className="h-5 w-5" /> {t("betaAccess.requestAccess")} <ArrowRight className="h-4 w-4" /></>}
                 </Button>
 
-                <p className="text-white/25 text-xs text-center">No spam. No Visual Buc card required. Early access when we launch.</p>
+                <p className="text-white/25 text-xs text-center">{t("betaAccess.noSpam")}</p>
               </form>
             </div>
           )}
@@ -297,23 +359,23 @@ export default function BetaAccess() {
         {/* ── TOOLS PREVIEW ── */}
         <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Everything you need to create and promote</h2>
-            <p className="text-white/40 text-lg">Professional tools built specifically for independent artists and creators.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("betaAccess.toolsTitle")}</h2>
+            <p className="text-white/40 text-lg">{t("betaAccess.toolsSubtitle")}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {TOOLS.map((tool) => (
-              <div key={tool.label} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex items-start gap-3">
+              <div key={tool.labelKey} className={`rounded-2xl border p-5 flex items-start gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
                   <tool.icon className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white leading-snug">{tool.label}</p>
-                  {tool.badge === "Most Popular" ? (
-                    <MarketingBadge variant="popular" className="mt-1.5 text-[10px]">Most Popular</MarketingBadge>
-                  ) : tool.badge === "Beta" ? (
-                    <MarketingBadge variant="soon" className="mt-1.5 text-[10px]">Beta</MarketingBadge>
-                  ) : tool.badge === "Free" ? (
-                    <MarketingBadge variant="free" className="mt-1.5 text-[10px]">Free</MarketingBadge>
+                  <p className="text-sm font-semibold text-white leading-snug">{t(tool.labelKey)}</p>
+                  {tool.badgeKey === "betaAccess.badgeMostPopular" ? (
+                    <MarketingBadge variant="popular" className="mt-1.5 text-[10px]">{t("betaAccess.badgeMostPopular")}</MarketingBadge>
+                  ) : tool.badgeKey === "betaAccess.badgeBeta" ? (
+                    <MarketingBadge variant="soon" className="mt-1.5 text-[10px]">{t("betaAccess.badgeBeta")}</MarketingBadge>
+                  ) : tool.badgeKey === "betaAccess.badgeFree" ? (
+                    <MarketingBadge variant="free" className="mt-1.5 text-[10px]">{t("betaAccess.badgeFree")}</MarketingBadge>
                   ) : null}
                 </div>
               </div>
@@ -324,19 +386,38 @@ export default function BetaAccess() {
         {/* ── PERKS ── */}
         <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Why join the beta?</h2>
-            <p className="text-white/40 text-lg">Beta members get exclusive perks not available after public launch.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("betaAccess.perksTitle")}</h2>
+            <p className="text-white/40 text-lg">{t("betaAccess.perksSubtitle")}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {PERKS.map((p) => (
-              <div key={p.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 hover:border-primary/20 transition-colors">
+              <div key={p.titleKey} className={`rounded-2xl border p-6 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/20"}`}>
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
                   <p.icon className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-base font-semibold text-white mb-2">{p.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{p.body}</p>
+                <h3 className="text-base font-semibold text-white mb-2">{t(p.titleKey)}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{t(p.bodyKey)}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ── CONTACT ── (merged from /waitlist in Phase 3 — that URL now
+            redirects here; the waitlist.contact* strings came with it) */}
+        <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
+          <div className={`rounded-2xl border p-8 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-bold tracking-widest text-primary/70 uppercase mb-0.5">{t("waitlist.contactKicker")}</p>
+                <h2 className="text-xl font-semibold text-white">{t("waitlist.contactTitle")}</h2>
+              </div>
+            </div>
+            <p className="text-white/50 text-base leading-relaxed mb-5">
+              {t("waitlist.contactDesc")}
+            </p>
           </div>
         </section>
 

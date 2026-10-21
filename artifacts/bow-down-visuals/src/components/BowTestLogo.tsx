@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SecretChallengePopup } from "./SecretChallengePopup";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Click-to-bow shark: reuses the hero bow sprite sheets (102 frames).
    Click → smooth timed bow (down, hold, up). */
@@ -29,6 +30,11 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     }
   });
   const { user, getAccessToken } = useAuth();
+  const isLight = useIsLightTheme();
+  // Light theme has no bow sprite sheets (yet) — the canvas stays clear and
+  // the cream-robed poster shows instead. The bow counter + secret popup
+  // keep working; the poster dips via CSS while bowing for feedback.
+  const posterSrc = `${import.meta.env.BASE_URL}${isLight ? "hero-bow-poster-light.webp" : "hero-bow-poster.webp"}`;
   const [rewardCredits, setRewardCredits] = useState<number | null>(null);
   const bowState = useRef({
     current: 0,
@@ -42,6 +48,13 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     if (!canvas || typeof window === "undefined") return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    if (isLight) {
+      // Light theme has no bow sprite sheets: clear any stale dark frame left
+      // on the canvas by the previous theme run and show the light poster.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (posterRef.current) posterRef.current.style.display = "";
+    }
 
     const base = import.meta.env.BASE_URL;
     const sheets: (HTMLImageElement | null)[] = new Array(SHEETS).fill(null);
@@ -68,6 +81,7 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       Math.min(FRAMES - 1, Math.max(0, Math.round((t / BOW_END) * (FRAMES - 1))));
 
     for (let s = 0; s < SHEETS; s++) {
+      if (isLight) break; // light theme: no sheets — poster shows instead
       const img = new Image();
       img.decoding = "async";
       img.onload = () => {
@@ -140,7 +154,7 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [isLight]);
 
   const doBow = () => {
     const st = bowState.current;
@@ -150,8 +164,6 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     st.phase = "down";
     st.phaseStart = performance.now();
   };
-
-  const base = import.meta.env.BASE_URL;
 
   if (compact) {
     return (
@@ -164,10 +176,10 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       >
         <img
           ref={posterRef}
-          src={`${base}hero-bow-poster.webp`}
+          src={posterSrc}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover rounded-full"
+          className={`absolute inset-0 h-full w-full object-cover rounded-full transition-transform duration-1000 ${bowing ? "translate-y-1 scale-[0.94]" : ""}`}
           draggable={false}
         />
         <canvas
@@ -193,10 +205,10 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       >
         <img
           ref={posterRef}
-          src={`${base}hero-bow-poster.webp`}
+          src={posterSrc}
           alt="Thy Cheat Code"
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover rounded-full"
+          className={`absolute inset-0 h-full w-full object-cover rounded-full transition-transform duration-1000 ${bowing ? "translate-y-2 scale-[0.94]" : ""}`}
           draggable={false}
         />
         <canvas

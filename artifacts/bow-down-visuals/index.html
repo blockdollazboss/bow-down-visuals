@@ -3,14 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <meta name="theme-color" content="#d4af37" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0a04" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F0" />
     <link rel="manifest" href="/manifest.json" />
     <title>Bow Down Visuals — The Content Creator's Cheat Code</title>
-    <meta name="description" content="The AI studio for music creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create." />
+    <meta name="description" content="The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create." />
     <meta name="robots" content="index, follow" />
     <meta property="og:site_name" content="Bow Down Visuals" />
     <meta property="og:title" content="Bow Down Visuals — The Content Creator's Cheat Code" />
-    <meta property="og:description" content="The AI studio for music creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create." />
+    <meta property="og:description" content="The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://bowdownvisuals.com/" />
     <meta property="og:image" content="https://bowdownvisuals.com/opengraph.jpg" />
@@ -19,7 +20,7 @@
     <meta property="og:image:alt" content="Bow Down Visuals — the content creator's cheat code" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bow Down Visuals — The Content Creator's Cheat Code" />
-    <meta name="twitter:description" content="The AI studio for music creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create." />
+    <meta name="twitter:description" content="The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create." />
     <meta name="twitter:image" content="https://bowdownvisuals.com/opengraph.jpg" />
     <link rel="canonical" href="https://bowdownvisuals.com/" />
     <link rel="icon" type="image/gif" href="/favicon.gif" />
@@ -28,10 +29,37 @@
     <link rel="preload" as="image" type="image/webp" href="/hero-bow-sheet-0.webp" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..800;1,400..700&family=Press+Start+2P&family=Silkscreen:wght@400;700&family=VT323&family=DotGothic16&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..800;1,400..700&display=swap" rel="stylesheet">
+    <!-- NOTE: the 8-bit pixel fonts (Press Start 2P, Silkscreen, VT323,
+         DotGothic16, Pixelify Sans) are self-hosted via @font-face in
+         index.css (public/fonts) — no CDN dependency. -->
     <!-- Caption font library: the same families are bundled as TTFs in the
          Docker image so export burn-in matches the preview exactly. -->
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Alfa+Slab+One&family=Archivo+Black&family=Barlow+Condensed:wght@700&family=Bebas+Neue&family=Bungee&family=Cinzel:wght@700&family=Luckiest+Guy&family=Permanent+Marker&family=Poppins:wght@700&family=Righteous&family=Titan+One&display=swap" rel="stylesheet">
+    <!-- Thy Library font catalog: curated creator fonts (Google Fonts, free) -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Marcellus&family=Bodoni+Moda:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@400;700&family=Shadows+Into+Light&family=Gochi+Hand&family=Rock+Salt&family=Satisfy&family=Rubik+Mono+One&family=Monoton&family=Fascinate+Inline&family=Wallpoet&family=Black+Ops+One&family=Creepster&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://bowdownvisuals.com/#organization",
+            "name": "Bow Down Visuals",
+            "url": "https://bowdownvisuals.com/",
+            "logo": "https://bowdownvisuals.com/logo-static.webp",
+            "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://bowdownvisuals.com/#website",
+            "url": "https://bowdownvisuals.com/",
+            "name": "Bow Down Visuals",
+            "publisher": { "@id": "https://bowdownvisuals.com/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

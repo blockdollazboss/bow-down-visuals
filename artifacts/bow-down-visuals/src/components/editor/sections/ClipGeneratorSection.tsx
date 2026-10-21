@@ -62,7 +62,7 @@ const ENHANCE_CAMERAS = [
 
 interface EnhanceStatus { type: "success" | "error" | "warning"; message: string }
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "error" | "unsaved";
 type InsertMode = "end" | "before" | "after" | "playhead";
 type UploadStatus = "idle" | "uploading" | "done" | "error";
 
@@ -387,6 +387,11 @@ export function ClipGeneratorSection({
     const file = e.target.files?.[0];
     if (!file) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (file.size > 80 * 1024 * 1024) {
+      setUploadError("That clip is over 80 MB — trim it or pick a smaller file.");
+      setUploadStatus("error");
+      return;
+    }
 
     /* The clip attaches to the selected scene in place — it never creates a
        new scene, so timing, captions and effects are untouched. */
@@ -626,7 +631,7 @@ export function ClipGeneratorSection({
     return (
       <div className="space-y-4">
         <div className="text-center py-8">
-          <Film className="h-10 w-10 text-white/15 mx-auto mb-3" />
+          <Film className="h-10 w-10 text-white/10 mx-auto mb-3" />
           <p className="text-sm font-bold text-white/40">No scenes loaded yet</p>
           <p className="text-[11px] text-white/45 mt-1">Rebuild scenes from your saved video plan above, or add a blank clip.</p>
           <button
@@ -678,7 +683,7 @@ export function ClipGeneratorSection({
           ) : reorderStatus === "failed" ? (
             <><AlertCircle className="h-4 w-4 shrink-0" /> Order save failed — click Undo to restore</>
           ) : (
-            <><span className="h-4 w-4 shrink-0 inline-flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" /></span> Saving…</>
+            <><span className="h-4 w-4 shrink-0 inline-flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /></span> Saving…</>
           )}
           {undoSnapshot && (
             <button type="button" onClick={undoReorder}
@@ -709,7 +714,7 @@ export function ClipGeneratorSection({
             ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
             : uploadStatus === "error"
             ? "border-red-500/30 bg-red-500/[0.06] text-red-400"
-            : "border-primary/25 bg-primary/[0.05] text-primary/80"
+            : "border-primary/25 bg-primary/[0.05] text-primary/70"
         }`}>
           {uploadStatus === "uploading" && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
           {uploadStatus === "done" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
@@ -751,7 +756,7 @@ export function ClipGeneratorSection({
           </Button>
         </div>
         {enhancing && enhanceProgress && (
-          <div className="h-1 w-full rounded-full bg-white/[0.07] overflow-hidden">
+          <div className="h-1 w-full rounded-full bg-white/5 overflow-hidden">
             <div className="h-full bg-primary/70 transition-all duration-300 rounded-full"
               style={{ width: `${(enhanceProgress.done / enhanceProgress.total) * 100}%` }} />
           </div>
@@ -791,7 +796,7 @@ export function ClipGeneratorSection({
               <button
                 type="button"
                 onClick={() => addClipAt(insertMode)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
                 title={INSERT_MODE_LABELS[insertMode]}
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -800,7 +805,7 @@ export function ClipGeneratorSection({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setShowInsertMenu((v) => !v); }}
-                className="flex items-center px-2 border-l border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] transition-colors"
+                className="flex items-center px-2 border-l border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/10 transition-colors"
                 title="Choose insert position"
               >
                 <ChevronDown className="h-3 w-3" />
@@ -820,7 +825,7 @@ export function ClipGeneratorSection({
                       setShowInsertMenu(false);
                       addClipAt(mode);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.06] transition-colors text-left ${
+                    className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors text-left ${
                       insertMode === mode ? "text-primary" : "text-white/60"
                     }`}
                   >
@@ -838,7 +843,7 @@ export function ClipGeneratorSection({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadStatus === "uploading"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold disabled:opacity-50"
             title="Upload your own video file"
           >
             {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
@@ -880,14 +885,14 @@ export function ClipGeneratorSection({
         </div>
 
         {showMoreClipControls && (
-          <div className="space-y-3 pt-1 border-t border-white/[0.12]">
+          <div className="space-y-3 pt-1 border-t border-white/10">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Upload Clip */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadStatus === "uploading"}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold disabled:opacity-50"
                 title="Upload a local video file"
               >
                 {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
@@ -899,7 +904,7 @@ export function ClipGeneratorSection({
                 type="button"
                 onClick={splitAtPlayhead}
                 disabled={!canSplit}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 title={canSplit ? `Split scene ${activeSceneIdx + 1} at playhead (${playheadTimeSec.toFixed(1)}s)` : "Load audio first to enable split"}
               >
                 <Scissors className="h-3.5 w-3.5" />
@@ -917,7 +922,7 @@ export function ClipGeneratorSection({
                   <div className="h-1 w-1 rounded-full bg-primary/60" />
                   <span>
                     Selected: <span className="text-white/60 font-semibold">Scene {selIdx + 1} — {selScene.section || "New Clip"}</span>
-                    {" "}— inserts will go <span className="text-primary/80 font-semibold">{INSERT_MODE_LABELS[insertMode]}</span>
+                    {" "}— inserts will go <span className="text-primary/70 font-semibold">{INSERT_MODE_LABELS[insertMode]}</span>
                   </span>
                   <button
                     type="button"
@@ -1177,13 +1182,13 @@ function SceneClipCard({
           ? "border-primary/70 bg-primary/[0.06] shadow-[0_0_18px_rgba(234,179,8,0.1)] ring-1 ring-primary/30"
           : isPreviewing
           ? "border-primary/50 bg-primary/[0.04] shadow-[0_0_18px_rgba(234,179,8,0.07)]"
-          : "border-white/[0.08] bg-white/[0.025]"
+          : "border-white/[0.08] bg-white/[0.02]"
       }`}
       data-testid={`clip-gen-card-${index}`}
     >
       {/* ── Header — click to select ── */}
       <div
-        className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.12] cursor-pointer hover:bg-white/[0.02] transition-colors"
+        className="flex items-center gap-2 px-3 py-2 border-b border-white/10 cursor-pointer hover:bg-white/[0.02] transition-colors"
         onClick={onSelect}
         title={isSelected ? "Click to deselect" : "Click to select for insert positioning"}
       >
@@ -1329,7 +1334,7 @@ function SceneClipCard({
 
       {/* ── Expandable detail / edit panel ── */}
       {detailOpen && (
-        <div className="border-t border-white/[0.12] px-3 py-3 space-y-3">
+        <div className="border-t border-white/10 px-3 py-3 space-y-3">
           {/* Lyric / action line */}
           {(scene.lyricLine || scene.action) && (
             <p className="text-[10px] text-white/40 italic leading-snug">
@@ -1339,7 +1344,7 @@ function SceneClipCard({
 
           {/* ── Timing — precise scene placement on the song timeline ── */}
           {timing && onSetDuration && (
-            <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
               <p className="text-[10px] font-bold text-white/50 mb-2 flex items-center gap-1.5">
                 <Clock className="h-3 w-3" /> Timing
               </p>
@@ -1374,9 +1379,9 @@ function SceneClipCard({
           {scene.aiVideoPrompt && (
             <details className="group">
               <summary className="text-[10px] text-white/35 hover:text-white/60 cursor-pointer font-bold list-none flex items-center gap-1.5">
-                <Eye className="h-3 w-3" /> AI Video Prompt
+                <Eye className="h-3 w-3" /> Video Prompt
               </summary>
-              <pre className="mt-1.5 text-[10px] text-white/50 leading-relaxed whitespace-pre-wrap bg-white/[0.025] border border-white/[0.12] rounded-lg px-3 py-2 font-mono max-h-28 overflow-y-auto">
+              <pre className="mt-1.5 text-[10px] text-white/50 leading-relaxed whitespace-pre-wrap bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 font-mono max-h-28 overflow-y-auto">
                 {scene.aiVideoPrompt}
               </pre>
             </details>
@@ -1386,13 +1391,13 @@ function SceneClipCard({
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/[0.06] border border-primary/20">
               <ShieldCheck className="h-3 w-3 text-primary shrink-0" />
               <p className="text-[9px] text-primary/70 leading-snug">
-                {artistVault!.artist_name} consistency auto-injected into Runway prompt.
+                {artistVault!.artist_name} consistency auto-injected into the scene prompt.
               </p>
             </div>
           )}
 
           {/* Generate / Regenerate */}
-          <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
             <InlineRunwayGenerator
               scene={scene}
               onUpdate={(patch) => onUpdateScene(scene.id, patch)}
@@ -1405,7 +1410,7 @@ function SceneClipCard({
 
           {/* Reuse an existing clip — free, no regeneration, no re-upload */}
           {!hasClip && (
-            <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
               <p className="text-[10px] font-bold text-white/50 mb-1.5 flex items-center gap-1.5">
                 <Link2 className="h-3 w-3" /> Use existing clip
               </p>

@@ -1,13 +1,15 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "crypto";
-import { promises as fs } from "fs";
+import { promises as fs, createWriteStream } from "fs";
+import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import multer from "multer";
 import { z } from "zod";
-import OpenAI, { toFile } from "openai";
+import OpenAI from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -22,17 +24,26 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
+import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Pricing ─────────────────────────────────────────────────────────────
-   5 credits for the full repurpose pack: Whisper transcription + GPT-6
-   master analysis (3 clip moments, 5 caption+hashtag sets, 4 platform
-   descriptions, 3 thumbnail prompts) + server-side ffmpeg auto-cutting of
-   3 vertical clips + 3 AI thumbnail images. 1 credit per individual
-   re-roll (text block or thumbnail image). Both env-overridable. */
+   500 Visual Bucs for the full repurpose pack: Timed transcription +
+   GPT-6 master analysis (3 clip moments, 5 caption+hashtag sets, 4
+   platform descriptions, 3 thumbnail prompts) + server-side ffmpeg
+   auto-cutting of 3 vertical clips + 3 AI thumbnail images. 100 Visual
+   Bucs per individual re-roll (text block or thumbnail image). Both
+   env-overridable. */
 export const REPURPOSE_PACK_CREDITS =
   Number(process.env["REPURPOSE_PACK_CREDITS"]) || 500;
 export const REPURPOSE_REROLL_CREDITS =
@@ -85,6 +96,7 @@ type RerollKind = (typeof REROLL_KINDS)[number];
 
 const analyzeBodySchema = z.object({
   videoUrl: z.string().url().max(2000).optional(),
+  attribution: attributionOptIn(),
 });
 
 const rerollBodySchema = z.object({
@@ -97,7 +109,7 @@ const rerollThumbnailSchema = z.object({
 });
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -117,19 +129,33 @@ export function formatTimestamp(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 
+/** Options for the optional attribution tag burn. */
+export interface ClipCutAttributionOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+}
+
 /** Build ffmpeg args that cut [startSec, endSec) and reframe to 720x1280 vertical. */
 export function buildClipCutArgs(
   inputPath: string,
   outputPath: string,
   startSec: number,
   endSec: number,
+  opts: ClipCutAttributionOpts = {},
 ): string[] {
   const dur = Math.max(1, endSec - startSec);
+  let vf = "crop=ih*9/16:ih,scale=720:1280:flags=lanczos";
+  // Virality: optional gold "Made with Bow Down Visuals" tag, bottom-center.
+  if (opts.attribution && opts.attributionFontfile) {
+    vf += `,${attributionDrawtext(opts.attributionFontfile, 720)}`;
+  }
   return [
     "-ss", String(startSec),
     "-t", String(dur),
     "-i", inputPath,
-    "-vf", "crop=ih*9/16:ih,scale=720:1280:flags=lanczos",
+    "-vf", vf,
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "23",
@@ -349,8 +375,25 @@ async function probeDurationSec(inputPath: string): Promise<number | null> {
   }
 }
 
-export async function transcribeVideoBuffer(
-  buffer: Buffer,
+
+/** 2026-10-12 OOM fix: stream a remote video to a temp file instead of
+ *  buffering it in RAM. Caller owns the file and must unlink it. */
+async function downloadUrlToTempFile(url: string, prefix: string): Promise<string> {
+  const resp = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+  if (!resp.body) throw new Error("fetch returned no body");
+  const dest = join(tmpdir(), `${prefix}-${randomUUID()}.mp4`);
+  try {
+    await pipeline(resp.body as Parameters<typeof pipeline>[0], createWriteStream(dest));
+  } catch (err) {
+    await fs.unlink(dest).catch(() => {});
+    throw err;
+  }
+  return dest;
+}
+
+export async function transcribeVideoFile(
+  videoPath: string,
   originalName: string,
   transcribeFn?: (audio: { buffer: Buffer; name: string }) => Promise<{ segments: TranscriptSegment[] }>,
 ): Promise<{ segments: TranscriptSegment[]; durationSec: number }> {
@@ -358,7 +401,7 @@ export async function transcribeVideoBuffer(
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
   try {
-    await fs.writeFile(inputPath, buffer);
+    await fs.copyFile(videoPath, inputPath); // 2026-10-12 OOM fix: disk-to-disk, never a RAM Buffer
     const durationSec = (await probeDurationSec(inputPath)) ?? 0;
 
     const audioPath = join(workDir, "audio.mp3");
@@ -391,12 +434,13 @@ export async function transcribeVideoBuffer(
     }
 
     const transcribe = transcribeFn ?? (async ({ buffer: b, name }) => {
-      const file = await toFile(b, name, { type: "audio/mpeg" });
-      const out = await getOpenAI().audio.transcriptions.create(
-        { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-        { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-      );
-      const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+      const out = await transcribeAudioTimed({
+        buffer: b,
+        filename: name,
+        mimeType: "audio/mpeg",
+        signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+      });
+      const segs = (out.segments ?? [])
         .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
         .filter((s) => s.text.length > 0);
       return { segments: segs };
@@ -442,9 +486,12 @@ export interface RepurposeJob {
   thumbnails: JobThumb[];
   error: string | null;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the cut clips (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const repurposeJobs = new Map<string, RepurposeJob>();
+attachJobMapTtl(repurposeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 export function __clearRepurposeJobs(): void {
   repurposeJobs.clear();
 }
@@ -456,6 +503,8 @@ export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<v
   const workDir = await fs.mkdtemp(join(tmpdir(), "repcut-"));
   try {
     job.status = "processing";
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
     const signedUrl = await refreshSupabaseStorageUrl(videoRef);
     const resp = await fetch(signedUrl, { signal: AbortSignal.timeout(300_000) });
     if (!resp.ok) throw new Error(`Could not download source video (${resp.status})`);
@@ -466,7 +515,10 @@ export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<v
       const outputPath = join(workDir, `clip-${i}.mp4`);
       await execFileAsync(
         "ffmpeg",
-        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec),
+        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec, {
+          attribution: job.attribution,
+          attributionFontfile,
+        }),
         { timeout: 600_000 },
       );
       const outBuffer = await fs.readFile(outputPath);
@@ -499,13 +551,7 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
       const b64 = imageResp.data?.[0]?.b64_json;
       if (!b64) throw new Error("Image generation returned no image data");
       const filePath = `${job.userId}/repurpose/${job.id}-thumb-${i}.png`;
-      const { error: upErr } = await getSupabaseAdmin()
-        .storage.from(REPURPOSE_BUCKET)
-        .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = getSupabaseAdmin()
-        .storage.from(REPURPOSE_BUCKET)
-        .getPublicUrl(filePath);
+      const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
       thumb.imageRef = filePath;
       thumb.imageUrl = publicUrl;
     }
@@ -517,13 +563,14 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
   }
 }
 
-/* ── POST /api/repurpose/analyze — the full 5-credit pack ────────────────
-   Upload a video (or pass a Supabase storage videoUrl). Charges 5 credits
-   up front, then: transcribes with Whisper, runs the GPT-6 master analysis
-   (moments, captions, descriptions, thumbnail prompts), and kicks off two
-   server-owned background jobs (clip cutting + thumbnail generation) that
-   are INCLUDED in the 5 credits. Refunds on no-speech, bad AI output, or
-   any provider failure — the user never pays for a pack they didn't get. */
+/* ── POST /api/repurpose/analyze — the full 500-Bucs pack ────────────────
+   Upload a video (or pass a Supabase storage videoUrl). Charges 500
+   Visual Bucs up front, then: transcribes with Whisper, runs the GPT-6
+   master analysis (moments, captions, descriptions, thumbnail prompts),
+   and kicks off two server-owned background jobs (clip cutting +
+   thumbnail generation) that are INCLUDED in the 500. Refunds on
+   no-speech, bad AI output, or any provider failure — the user never
+   pays for a pack they didn't get. */
 router.post(
   "/repurpose/analyze",
   publicApiLimiter,
@@ -538,38 +585,40 @@ router.post(
       });
       return;
     }
-    const { videoUrl } = parsed.data;
+    const { videoUrl, attribution } = parsed.data;
 
-    let videoBuffer: Buffer | null = null;
+    let videoPath: string | null = null;
     let originalName = "video.mp4";
     if (req.file) {
-      videoBuffer = req.file.buffer;
+      videoPath = req.file.path;
       originalName = req.file.originalname || originalName;
     } else if (videoUrl) {
-      // SSRF guard — only our own Supabase storage.
+      // SSRF guard — only our own storage (Supabase or R2).
       const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
+      const r2PublicUrl = process.env["R2_PUBLIC_URL"] ?? "";
       try {
         const parsedUrl = new URL(videoUrl);
-        if (supabaseUrl) {
-          const allowed = new URL(supabaseUrl).hostname;
-          if (parsedUrl.hostname !== allowed) {
-            res.status(400).json({ error: "videoUrl must be from your project storage." });
-            return;
-          }
+        const allowedHostnames = new Set<string>();
+        if (supabaseUrl) allowedHostnames.add(new URL(supabaseUrl).hostname);
+        if (r2PublicUrl) allowedHostnames.add(new URL(r2PublicUrl).hostname);
+        // R2 public dev URL host is stable; also allow it when configured via bucket name
+        if (parsedUrl.hostname.endsWith(".r2.dev")) allowedHostnames.add(parsedUrl.hostname);
+        if (allowedHostnames.size > 0 && !allowedHostnames.has(parsedUrl.hostname)) {
+          res.status(400).json({ error: "videoUrl must be from your project storage." });
+          return;
         }
       } catch {
         res.status(400).json({ error: "Invalid videoUrl." });
         return;
       }
       try {
-        const resp = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
-        if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
-        const ab = await resp.arrayBuffer();
-        if (ab.byteLength > VIDEO_MAX_BYTES) {
+        videoPath = await downloadUrlToTempFile(videoUrl, "repurpose-dl");
+        const { size } = await fs.stat(videoPath);
+        if (size > VIDEO_MAX_BYTES) {
+          await fs.unlink(videoPath).catch(() => {});
           res.status(413).json({ error: "FILE_TOO_LARGE", message: "This video exceeds the 80 MB limit." });
           return;
         }
-        videoBuffer = Buffer.from(ab);
       } catch (err) {
         logger.error({ err }, "[repurpose] failed to fetch videoUrl");
         res.status(502).json({ error: "Could not download the video URL." });
@@ -578,6 +627,13 @@ router.post(
     } else {
       res.status(400).json({ error: "Upload a video file or provide videoUrl." });
       return;
+    }
+
+    // 2026-10-12 OOM fix: remove the temp/upload file when the response
+    // closes — covers every exit this handler can take from here on.
+    if (videoPath) {
+      const p = videoPath;
+      res.once("close", () => { void fs.unlink(p).catch(() => {}); });
     }
 
     const balance = req.userCredits ?? 0;
@@ -623,9 +679,9 @@ router.post(
       // Store the source video so the background jobs can fetch it later.
       const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
       const objectName = `repurpose/${req.userId}/${Date.now()}-${randomUUID()}.${ext}`;
-      const videoRef = await uploadMediaToSupabaseStorage(objectName, videoBuffer, "video/mp4");
+      const videoRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, videoPath, "video/mp4");
 
-      const { segments, durationSec } = await transcribeVideoBuffer(videoBuffer, originalName);
+      const { segments, durationSec } = await transcribeVideoFile(videoPath, originalName);
       if (segments.length === 0) {
         await refundAndFail(422, "NO_SPEECH", "No speech detected in this video — repurposing needs audio with talking.");
         return;
@@ -661,6 +717,7 @@ router.post(
         thumbnails: [],
         error: null,
         createdAt: Date.now(),
+        attribution,
       };
       const thumbJob: RepurposeJob = {
         id: randomUUID(),
@@ -706,6 +763,168 @@ router.post(
     }
   },
 );
+
+/* ── POST /api/repurpose — 200-credit text repurposer ───────────────────
+   Takes a videoUrl (auto-transcribed with Whisper) OR a raw transcript and
+   returns copy for 5 platforms in one shot: a 5-tweet X thread, a LinkedIn
+   post, an Instagram caption, a 30s TikTok script, and a blog post outline.
+   Refunds when transcription finds no speech or the model output is unusable. */
+
+export const REPURPOSE_TEXT_CREDITS =
+  Number(process.env["REPURPOSE_TEXT_CREDITS"]) || 200;
+
+const repurposeTextSchema = z
+  .object({
+    videoUrl: z.string().trim().min(1).max(2048).optional(),
+    transcript: z.string().trim().min(20).max(30000).optional(),
+    /** Optional tone hint, e.g. "witty", "professional" */
+    tone: z.string().trim().max(60).optional().default(""),
+  })
+  .refine((v) => !!v.videoUrl || !!v.transcript, {
+    message: "Provide either videoUrl or transcript.",
+  });
+
+const repurposeTextOutputSchema = z.object({
+  twitterThread: z.array(z.string()).min(5).max(5),
+  linkedinPost: z.string().min(1).max(5000),
+  instagramCaption: z.string().min(1).max(2200),
+  tiktokScript: z.string().min(1).max(3000),
+  blogOutline: z.array(z.string()).min(5).max(12),
+});
+
+const REPURPOSE_TEXT_SYSTEM_PROMPT = `You are a social-media repurposing expert. Repurpose the given source content into native copy for 5 platforms. Keep the core message and key facts faithful to the source.
+
+Rules:
+- twitterThread: EXACTLY 5 tweets, each <= 280 chars, prefixed "1/ ", "2/ ", etc. Hook in tweet 1, payoff spread across 2-4, CTA in tweet 5.
+- linkedinPost: professional post with a strong hook line, short paragraphs, and a question/CTA at the end.
+- instagramCaption: casual caption with 2-4 emojis and 8-12 hashtags (WITHOUT the # symbol) at the end.
+- tiktokScript: a 30-second TikTok/Reels script — spoken lines plus on-screen text cues in [brackets], with a hook in the first 3 seconds.
+- blogOutline: 5-8 H2-style section headlines forming a complete post outline.
+
+Return ONLY JSON:
+{"twitterThread": ["...", "...", "...", "...", "..."],
+ "linkedinPost": "...",
+ "instagramCaption": "...",
+ "tiktokScript": "...",
+ "blogOutline": ["...", "...", "..."]}`;
+
+router.post("/repurpose", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+  const parsed = repurposeTextSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid repurpose request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const balance = req.userCredits ?? 0;
+  if (balance < REPURPOSE_TEXT_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to repurpose content.",
+    });
+    return;
+  }
+  let creditsRemaining = balance;
+  try {
+    creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
+      action: "Content Repurposer — 5-platform text pack",
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs — top up to repurpose content.",
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
+      return;
+    }
+    throw err;
+  }
+
+  const refundAndFail = async (status: number, error: string, message?: string) => {
+    try {
+      await refundCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
+        action: "Content Repurposer — Refund (text pack failed)",
+      });
+    } catch { /* refund logged inside refundCredits */ }
+    res.status(status).json({ error, ...(message ? { message } : {}) });
+  };
+
+  try {
+    let transcriptText: string;
+    if (parsed.data.transcript) {
+      transcriptText = parsed.data.transcript;
+    } else {
+      const videoUrl = parsed.data.videoUrl!;
+      let videoPath: string;
+      try {
+        videoPath = await downloadUrlToTempFile(videoUrl, "repurpose-text-dl");
+        const { size } = await fs.stat(videoPath);
+        if (size > VIDEO_MAX_BYTES) {
+          await fs.unlink(videoPath).catch(() => {});
+          await refundAndFail(413, "FILE_TOO_LARGE", "This video exceeds the 80 MB limit.");
+          return;
+        }
+      } catch (err) {
+        logger.error({ err }, "[repurpose] text pack — failed to fetch videoUrl");
+        await refundAndFail(502, "VIDEO_FETCH_FAILED", "Could not download the video URL.");
+        return;
+      }
+      res.once("close", () => { void fs.unlink(videoPath).catch(() => {}); });
+      const { segments } = await transcribeVideoFile(videoPath, "video.mp4");
+      if (segments.length === 0) {
+        await refundAndFail(422, "NO_SPEECH", "No speech detected in this video — repurposing needs audio with talking.");
+        return;
+      }
+      transcriptText = buildTimestampedTranscript(segments);
+    }
+
+    const tone = parsed.data.tone ? `\n\nWrite everything in a ${parsed.data.tone} tone.` : "";
+    const raw = await callTextModel(
+      [
+        { role: "system", content: REPURPOSE_TEXT_SYSTEM_PROMPT },
+        { role: "user", content: `Repurpose this content:${tone}\n\n${transcriptText}` },
+      ],
+      4000,
+    );
+
+    let out: Record<string, unknown>;
+    try {
+      out = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      await refundAndFail(502, "REPURPOSE_FAILED", "The AI couldn't repurpose this content — you were not charged.");
+      return;
+    }
+    const validated = repurposeTextOutputSchema.safeParse(out);
+    if (!validated.success) {
+      await refundAndFail(502, "REPURPOSE_FAILED", "The AI couldn't repurpose this content — you were not charged.");
+      return;
+    }
+
+    res.json({
+      twitterThread: validated.data.twitterThread,
+      linkedinPost: validated.data.linkedinPost,
+      instagramCaption: validated.data.instagramCaption,
+      tiktokScript: validated.data.tiktokScript,
+      blogOutline: validated.data.blogOutline,
+      creditsUsed: REPURPOSE_TEXT_CREDITS,
+      creditsRemaining,
+    });
+  } catch (err) {
+    if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
+      logger.warn({ err }, "[repurpose] text pack — provider rate limit");
+      await refundAndFail(503, "PROVIDER_BUSY", "The AI is catching its breath — try again in a moment.");
+      return;
+    }
+    logger.error({ err }, "[repurpose] text pack failed");
+    await refundAndFail(502, "REPURPOSE_FAILED", "Repurposing failed — you were not charged.");
+  }
+});
 
 /* ── GET /api/repurpose/jobs/:jobId — poll a clip or thumbnail job ─────── */
 router.get("/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Response) => {
@@ -851,13 +1070,7 @@ router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async 
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) throw new Error("Image generation returned no image data");
     const filePath = `${req.userId}/repurpose/reroll-${randomUUID()}.png`;
-    const { error: upErr } = await getSupabaseAdmin()
-      .storage.from(REPURPOSE_BUCKET)
-      .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-    if (upErr) throw upErr;
-    const { data: { publicUrl } } = getSupabaseAdmin()
-      .storage.from(REPURPOSE_BUCKET)
-      .getPublicUrl(filePath);
+    const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
     res.json({
       imageUrl: publicUrl,
       imageRef: filePath,

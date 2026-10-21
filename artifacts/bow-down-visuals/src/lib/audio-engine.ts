@@ -33,6 +33,39 @@ export interface EngineStemEffects {
   autotune?: string;
 }
 
+/* ── Stack 6: parametric FX + automation shapes (mirror lib/arrangement.ts
+ *    and the server render in api-server lib/audioExport.ts). ─────────── */
+export interface EngineFxBand {
+  freq: number;
+  gain: number;
+  q: number;
+}
+
+export interface EngineFxStep {
+  type: "eq" | "compressor" | "saturation" | "reverb" | "delay";
+  enabled: boolean;
+  bands?: EngineFxBand[];
+  thresholdDb?: number;
+  ratio?: number;
+  attackMs?: number;
+  releaseMs?: number;
+  drive?: number;
+  mix?: number;
+  timeMs?: number;
+  feedback?: number;
+}
+
+export interface EngineAutomationPoint {
+  time: number;
+  value: number;
+}
+
+export interface EngineAutomation {
+  volume?: EngineAutomationPoint[];
+  pan?: EngineAutomationPoint[];
+  reverbMix?: EngineAutomationPoint[];
+}
+
 export interface EngineStem {
   id: string;
   url: string;
@@ -49,6 +82,11 @@ export interface EngineStem {
   /** Seconds trimmed off the end. */
   trimEnd: number;
   effects?: EngineStemEffects;
+  /** Parametric chain (Stack 6) — when present it replaces `effects`,
+   *  exactly like the server render. */
+  fxChain?: EngineFxStep[];
+  /** Breakpoint automation in ARRANGEMENT timeline seconds (Stack 6). */
+  automation?: EngineAutomation;
 }
 
 export interface EngineMaster {
@@ -259,6 +297,145 @@ function buildStemEffectChain(ctx: AudioContext, fx: EngineStemEffects | undefin
   }
 
   return { input: entry, output: current, nodes };
+}
+
+/** Lane value at time t (hold ends, lerp between) — mirrors
+ *  lib/arrangement.ts automationValueAt and the server expression builder. */
+function laneValueAt(points: EngineAutomationPoint[] | undefined, t: number, fallback: number): number {
+  if (!points || points.length === 0) return fallback;
+  const pts = [...points].sort((a, b) => a.time - b.time);
+  if (t <= pts[0]!.time) return pts[0]!.value;
+  const last = pts[pts.length - 1]!;
+  if (t >= last.time) return last.value;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    if (t <= b.time) {
+      const span = b.time - a.time;
+      return span <= 0 ? b.value : a.value + ((b.value - a.value) * (t - a.time)) / span;
+    }
+  }
+  return last.value;
+}
+
+/** Schedule a breakpoint lane onto an AudioParam starting at ctx time
+ *  `now` for arrangement position `from`. Ramps land exactly on the
+ *  breakpoints, so the preview curve matches the render expression. */
+function scheduleLane(
+  param: AudioParam,
+  points: EngineAutomationPoint[] | undefined,
+  map: (v: number) => number,
+  fallback: number,
+  from: number,
+  now: number,
+): void {
+  if (!points || points.length === 0) return;
+  const pts = [...points].sort((a, b) => a.time - b.time);
+  param.setValueAtTime(map(laneValueAt(pts, from, fallback)), now);
+  for (const p of pts) {
+    if (p.time > from) param.linearRampToValueAtTime(map(p.value), now + (p.time - from));
+  }
+}
+
+/**
+ * Parametric FX chain (Stack 6) — the preview counterpart of the server's
+ * buildParametricFxGraph: same step order, same parameter meanings. The
+ * reverb is a wet/dry echo stage whose wet gain node is returned so
+ * reverb-mix automation can ride it (the render drives the wet branch of
+ * its aecho split with the same lane).
+ */
+function buildParametricEffectChain(
+  ctx: AudioContext,
+  chain: EngineFxStep[],
+): { input: AudioNode; output: AudioNode; nodes: AudioNode[]; reverbWetGain: GainNode | null } {
+  const entry = ctx.createGain();
+  entry.gain.value = 1;
+  const nodes: AudioNode[] = [entry];
+  let current: AudioNode = entry;
+  let reverbWetGain: GainNode | null = null;
+
+  const append = (node: AudioNode) => {
+    current.connect(node);
+    current = node;
+    nodes.push(node);
+  };
+
+  for (const step of chain) {
+    if (!step || step.enabled === false) continue;
+    switch (step.type) {
+      case "eq": {
+        for (const band of step.bands ?? []) {
+          if (Math.abs(band.gain) < 0.01) continue;
+          const f = ctx.createBiquadFilter();
+          f.type = "peaking";
+          f.frequency.value = Math.min(20000, Math.max(20, band.freq));
+          f.Q.value = Math.min(12, Math.max(0.3, band.q));
+          f.gain.value = Math.min(24, Math.max(-24, band.gain));
+          append(f);
+        }
+        break;
+      }
+      case "compressor": {
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = Math.min(0, Math.max(-60, step.thresholdDb ?? -18));
+        comp.ratio.value = Math.min(20, Math.max(1, step.ratio ?? 3));
+        comp.attack.value = Math.min(0.5, Math.max(0.0001, (step.attackMs ?? 10) / 1000));
+        comp.release.value = Math.min(1, Math.max(0.01, (step.releaseMs ?? 150) / 1000));
+        comp.knee.value = 3;
+        append(comp);
+        break;
+      }
+      case "saturation": {
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = buildSoftClipCurve(Math.min(3, Math.max(1, step.drive ?? 1.5)));
+        shaper.oversample = "2x";
+        append(shaper);
+        break;
+      }
+      case "delay": {
+        /* addEchoStage scales its decay arg by 0.6 into feedback gain and
+         * uses its mix arg as the wet gain — pre-divide to land on the
+         * same numbers the server graph uses. */
+        const stage = addEchoStage(
+          ctx,
+          current,
+          Math.min(2000, Math.max(10, step.timeMs ?? 250)),
+          Math.min(0.85, 0.25 + (step.feedback ?? 30) / 100) / 0.6,
+          Math.min(0.6, ((step.mix ?? 20) / 100) * 0.7),
+        );
+        current = stage;
+        nodes.push(stage);
+        break;
+      }
+      case "reverb": {
+        /* Wet/dry: dry passes at unity, the echo tail rides a wet gain —
+         * the node reverb-mix automation schedules onto. */
+        const output = ctx.createGain();
+        output.gain.value = 1;
+        const dry = ctx.createGain();
+        dry.gain.value = 1;
+        current.connect(dry);
+        dry.connect(output);
+        const delay = ctx.createDelay(1.5);
+        delay.delayTime.value = 0.06;
+        const feedback = ctx.createGain();
+        feedback.gain.value = 0.54; // ≈ server aecho decay 0.9 × 0.6 cap
+        const wet = ctx.createGain();
+        wet.gain.value = Math.min(1, Math.max(0, (step.mix ?? 25) / 100));
+        current.connect(delay);
+        delay.connect(feedback);
+        feedback.connect(delay);
+        delay.connect(wet);
+        wet.connect(output);
+        nodes.push(output, dry, delay, feedback, wet);
+        if (!reverbWetGain) reverbWetGain = wet;
+        current = output;
+        break;
+      }
+    }
+  }
+
+  return { input: entry, output: current, nodes, reverbWetGain };
 }
 
 function buildSoftClipCurve(drive: number): Float32Array<ArrayBuffer> {
@@ -503,6 +680,20 @@ export class AudioMixEngine {
     this.emit();
   }
 
+  /** Move the playhead (used by the arrangement ruler). While playing this
+   *  restarts sources at the new position; while paused/stopped it arms
+   *  the position the next play() starts from. */
+  seek(position: number): void {
+    const pos = Math.max(0, position);
+    if (this.playState === "playing") {
+      void this.restartAt(pos);
+    } else {
+      this.pausedPosition = pos;
+      if (this.playState === "stopped") this.playState = "paused";
+      this.emit();
+    }
+  }
+
   dispose(): void {
     this.stopTick();
     this.teardownSources();
@@ -588,7 +779,7 @@ export class AudioMixEngine {
    *  alter it (those are applied live without a restart). */
   private computeTopologySig(stems: EngineStem[]): string {
     return stems
-      .map((s) => `${s.id}:${s.url}:${s.startTime}:${s.trimStart}:${s.trimEnd}:${JSON.stringify(s.effects ?? null)}`)
+      .map((s) => `${s.id}:${s.url}:${s.startTime}:${s.trimStart}:${s.trimEnd}:${JSON.stringify(s.effects ?? null)}:${JSON.stringify(s.fxChain ?? null)}:${JSON.stringify(s.automation ?? null)}`)
       .join("|");
   }
 
@@ -639,19 +830,58 @@ export class AudioMixEngine {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
 
-      const { input: fxInput, output: fxOutput, nodes: fxNodes } = buildStemEffectChain(ctx, s.effects);
+      /* Parametric chain replaces the preset chain when present — the
+       * same precedence as the server render. */
+      let fxInput: AudioNode;
+      let fxOutput: AudioNode;
+      let fxNodes: AudioNode[];
+      let reverbWetGain: GainNode | null = null;
+      if (s.fxChain && s.fxChain.length > 0) {
+        const built = buildParametricEffectChain(ctx, s.fxChain);
+        fxInput = built.input;
+        fxOutput = built.output;
+        fxNodes = built.nodes;
+        reverbWetGain = built.reverbWetGain;
+      } else {
+        const built = buildStemEffectChain(ctx, s.effects);
+        fxInput = built.input;
+        fxOutput = built.output;
+        fxNodes = built.nodes;
+      }
 
       const gain = ctx.createGain();
       gain.gain.value = stemGain(s, anySolo);
 
+      /* Automation rides its own nodes in series so live fader/pan tweaks
+       * never fight the scheduled lanes. */
+      const autoGain = ctx.createGain();
+      autoGain.gain.value = 1;
+      fxNodes.push(autoGain);
+      scheduleLane(autoGain.gain, s.automation?.volume, (v) => clamp(v, 0, 150) / 100, 100, from, now);
+      if (reverbWetGain) {
+        const reverbStep = s.fxChain?.find((st) => st.type === "reverb" && st.enabled !== false);
+        scheduleLane(reverbWetGain.gain, s.automation?.reverbMix, (v) => clamp(v, 0, 100) / 100, reverbStep?.mix ?? 25, from, now);
+      }
+
       let panner: StereoPannerNode | null = null;
+      let autoPan: StereoPannerNode | null = null;
       source.connect(fxInput);
       if (this.panSupported) {
         panner = ctx.createStereoPanner();
         panner.pan.value = clamp(s.pan, -100, 100) / 100;
-        fxOutput.connect(gain).connect(panner).connect(sumBus);
+        if (s.automation?.pan && s.automation.pan.length > 0) {
+          autoPan = ctx.createStereoPanner();
+          autoPan.pan.value = 0;
+          fxNodes.push(autoPan);
+          scheduleLane(autoPan.pan, s.automation.pan, (v) => clamp(v, -100, 100) / 100, s.pan, from, now);
+          /* The lane IS the pan when it exists (render precedence) — the
+           * static panner stays centered so the two don't stack. */
+          panner.pan.value = 0;
+        }
+        if (autoPan) fxOutput.connect(gain).connect(panner).connect(autoPan).connect(autoGain).connect(sumBus);
+        else fxOutput.connect(gain).connect(panner).connect(autoGain).connect(sumBus);
       } else {
-        fxOutput.connect(gain).connect(sumBus);
+        fxOutput.connect(gain).connect(autoGain).connect(sumBus);
       }
 
       try {

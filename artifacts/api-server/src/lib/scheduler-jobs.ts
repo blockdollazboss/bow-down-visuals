@@ -16,7 +16,9 @@ import {
 } from "./social-idempotency";
 import {
   publishReelToInstagram,
+  publishImageToInstagram,
   publishVideoToPage,
+  publishPhotoToPage,
   MetaApiError,
 } from "./social-meta";
 import {
@@ -26,7 +28,7 @@ import {
   TikTokApiError,
   type TikTokOAuthConfig,
 } from "./social-tiktok";
-import { refreshSupabaseStorageUrl } from "./objectStorage";
+import { refreshSupabaseStorageUrl, isStorageRef } from "./objectStorage";
 import { refundCredits } from "./credits";
 
 /**
@@ -36,7 +38,13 @@ import { refundCredits } from "./credits";
  * publishDueScheduledPosts(), which atomically claims due rows
  * (status='scheduled' AND scheduled_at <= now) with a single
  * UPDATE … WHERE — never in-memory state, so a deploy or restart can
- * neither lose nor double-fire a scheduled post.
+ * neither lose nor double-fire a scheduled post. Image posts
+ * (media_type='image', e.g. a release announcement with its cover art)
+ * fire through the image helpers (publishImageToInstagram /
+ * publishPhotoToPage); TikTok stays video-only and fails image posts
+ * with a clear per-platform reason — a permanent failure that settles
+ * that platform on the first attempt rather than riding the retry
+ * path (Stack-30 C4).
  *
  * Money: scheduling reserves 1 credit per scheduled post up front
  * (regardless of platform count). The worker publishes through the EXISTING
@@ -55,6 +63,15 @@ import { refundCredits } from "./credits";
 export const SCHEDULER_CLAIM_LIMIT = 10;
 export const SCHEDULER_MAX_ATTEMPTS = 3;
 const TIKTOK_MAX_BYTES = 256 * 1024 * 1024;
+
+/** A platform failure that can never succeed on retry: the platform
+ *  cannot accept this post's media type at all. Classified at the
+ *  throw site (today: TikTok × image — the TikTok posting API used
+ *  here is video-only) so the settle logic finalizes that platform on
+ *  the first attempt instead of riding the generic retry path until
+ *  attempts exhaust. Transient provider failures are never classified
+ *  this way and keep the existing retry behavior. */
+export class PermanentPlatformError extends Error {}
 
 function tiktokConfig(): TikTokOAuthConfig {
   const clientKey = (process.env.TIKTOK_CLIENT_KEY || "").trim();
@@ -78,6 +95,12 @@ export interface SchedulerPublishers {
     videoUrl: string;
     caption: string;
   }) => Promise<{ mediaId: string; permalink: string | null }>;
+  instagramImage: (input: {
+    igUserId: string;
+    accessToken: string;
+    imageUrl: string;
+    caption: string;
+  }) => Promise<{ mediaId: string; permalink: string | null }>;
   tiktok: (input: {
     accessToken: string;
     videoBytes: Buffer;
@@ -88,6 +111,12 @@ export interface SchedulerPublishers {
     videoUrl: string;
     description: string;
   }) => Promise<{ videoId: string; permalink: string }>;
+  facebookPhoto: (input: {
+    pageId: string;
+    accessToken: string;
+    imageUrl: string;
+    caption: string;
+  }) => Promise<{ photoId: string; permalink: string }>;
 }
 
 export interface LoadedAccount {
@@ -112,8 +141,10 @@ export interface LoadedAccount {
 
 const defaultPublishers: SchedulerPublishers = {
   instagram: (input) => publishReelToInstagram(input),
+  instagramImage: (input) => publishImageToInstagram(input),
   tiktok: async (input) => uploadDraftToTikTok(input),
   facebook: (input) => publishVideoToPage(input),
+  facebookPhoto: (input) => publishPhotoToPage(input),
 };
 
 function resolveDeps(deps: SchedulerDeps = {}): Required<
@@ -191,7 +222,7 @@ function fullCaption(post: ScheduledPost): string {
 
 async function resolveMediaUrl(mediaUrl: string): Promise<string> {
   let url = mediaUrl;
-  if (url.startsWith("supabase://")) {
+  if (isStorageRef(url)) {
     url = await refreshSupabaseStorageUrl(url);
   }
   if (!/^https:\/\//.test(url)) {
@@ -309,15 +340,31 @@ async function firePlatform(
   try {
     const account = await r.loadAccount(post.user_id, platform, accountId);
     const caption = fullCaption(post);
+    /* media_type="image" posts (a release announcement carrying its
+       cover art) fire through the image publishers — never through
+       the video ones. TikTok's posting API here is video-only, so an
+       image post fails that one platform with a clear reason while
+       Instagram/Facebook still deliver. That failure is PERMANENT
+       (the platform can never accept the media type), classified via
+       PermanentPlatformError below so the settle logic finalizes the
+       platform on this attempt — see fireScheduledPost. */
+    const isImage = post.media_type === "image";
 
     if (platform === "instagram") {
       if (!account.igUserId) throw new Error("The Instagram account is missing its IG user id.");
-      const { mediaId, permalink } = await r.publishers.instagram({
-        igUserId: account.igUserId,
-        accessToken: account.accessToken,
-        videoUrl: mediaUrl,
-        caption,
-      });
+      const { mediaId, permalink } = isImage
+        ? await r.publishers.instagramImage({
+            igUserId: account.igUserId,
+            accessToken: account.accessToken,
+            imageUrl: mediaUrl,
+            caption,
+          })
+        : await r.publishers.instagram({
+            igUserId: account.igUserId,
+            accessToken: account.accessToken,
+            videoUrl: mediaUrl,
+            caption,
+          });
       await r.attemptStore.completeAttempt(attemptId, {
         mediaId,
         permalink,
@@ -328,6 +375,9 @@ async function firePlatform(
     }
 
     if (platform === "tiktok") {
+      if (isImage) {
+        throw new PermanentPlatformError("TikTok posts need a video — this image post can still go to Instagram and Facebook.");
+      }
       const videoBytes = await r.downloadVideo(mediaUrl);
       const { publishId } = await r.publishers.tiktok({
         accessToken: account.accessToken,
@@ -344,6 +394,21 @@ async function firePlatform(
 
     /* facebook */
     if (!account.pageId) throw new Error("The Facebook connection is missing its Page id.");
+    if (isImage) {
+      const { photoId, permalink } = await r.publishers.facebookPhoto({
+        pageId: account.pageId,
+        accessToken: account.accessToken,
+        imageUrl: mediaUrl,
+        caption,
+      });
+      await r.attemptStore.completeAttempt(attemptId, {
+        mediaId: photoId,
+        permalink,
+        creditsUsed: 1,
+        creditsRemaining: 0,
+      });
+      return { platform, status: "posted", mediaId: photoId, permalink };
+    }
     const { videoId, permalink } = await r.publishers.facebook({
       pageId: account.pageId,
       accessToken: account.accessToken,
@@ -366,7 +431,12 @@ async function firePlatform(
           : "Couldn't publish to this platform.";
     await failAttempt(message);
     logger.warn({ postId: post.id, platform, err: message }, "[scheduler] platform publish failed");
-    return { platform, status: "failed", error: message };
+    /* A permanent failure (platform × media-type incompatibility) is
+       marked on the result so the settle logic can finalize the
+       platform immediately instead of retrying it. */
+    return err instanceof PermanentPlatformError
+      ? { platform, status: "failed", error: message, permanent: true }
+      : { platform, status: "failed", error: message };
   }
 }
 
@@ -389,15 +459,30 @@ export async function fireScheduledPost(
     return { ...post, status: "failed", last_error: message, results };
   }
 
+  /* Platforms that already failed PERMANENTLY on an earlier pass
+     (their stored result rides the claimed row) stay settled: they
+     are never re-fired — the failure would be identical — and their
+     stored result carries into this pass's settle. */
+  const priorByPlatform = new Map((post.results ?? []).map((x) => [x.platform, x]));
   for (const platform of post.platforms) {
+    const prior = priorByPlatform.get(platform);
+    if (prior?.status === "failed" && prior.permanent) {
+      results.push(prior);
+      continue;
+    }
     results.push(await firePlatform(post, platform, mediaUrl, r));
   }
 
   const posted = results.filter((x) => x.status === "posted");
   const failed = results.filter((x) => x.status === "failed");
   const failedCount = failed.length;
+  /* Only TRANSIENT failures hold the post open for a retry. A
+     permanent failure (platform × media-type incompatibility) is
+     final on the attempt that produced it: the post settles now,
+     under the same terminal rules as an attempts-exhausted pass. */
+  const transientFailed = failed.filter((f) => !f.permanent);
 
-  if (failedCount > 0 && post.attempts < SCHEDULER_MAX_ATTEMPTS) {
+  if (transientFailed.length > 0 && post.attempts < SCHEDULER_MAX_ATTEMPTS) {
     /* Transient failure — back to `scheduled` so the next tick retries the
        failed platforms (posted ones replay safely via idempotency). */
     const retryAt = new Date(r.now().getTime() + 5 * 60 * 1000);

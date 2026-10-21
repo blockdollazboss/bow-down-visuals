@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Crown } from "lucide-react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─────────────────── Shark King banner ─────────────────── */
 /* Slim full-width strip (toolbar-sized) starring the Shark King — the
@@ -9,14 +10,19 @@ import { Crown } from "lucide-react";
    vertical edge fades, and gradient scrims dissolve the top/bottom seams
    into the surrounding page so there are no harsh edges.
 
+   Owner directive (2026-10-11): the drone video is gone — the strip now
+   shows a theme-aware still image instead (golden palace on light,
+   torchlit dark palace on dark).
+
    Pointer-reactive like the old banner: horizontal pointer position eases
    a subtle "prowl" pan of the artwork toward the cursor (±28px, artwork
-   scaled 1.14 so the pan never exposes edges), plus a soft gold radial
-   glow that follows the cursor. A slow ambient ken-burns drift runs on a
+   scaled 1.14 so the pan never exposes edges). A slow ambient ken-burns drift runs on a
    wrapper layer (CSS animation, transform-only). Cheap by design: rAF
    loop + transform/opacity only, no layout thrash.
 
-   Under prefers-reduced-motion the drift, shimmer and pan snap off. */
+   Under prefers-reduced-motion the drift and pan snap off.
+   Owner directive (2026-10-13): NO glow on this banner — no halo, no
+   shine sweep, no shimmer, no cursor glow. Flat and clean. */
 
 interface VideoBannerProps {
   /** Reports the strip's rendered height (px) — e.g. so the video editor's
@@ -31,21 +37,18 @@ const PAGE_BG = "#0b0603";
 export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mediaRef = useRef<HTMLDivElement | null>(null);
-  const glowRef = useRef<HTMLDivElement | null>(null);
+  // Theme-aware artwork: golden palace on light, torchlit dark palace on dark.
+  const isLight = useIsLightTheme();
+  const MELT = isLight ? "#FAF7F0" : PAGE_BG;
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const media = mediaRef.current;
-    const glow = glowRef.current;
     if (!wrap || !media || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let targetX = 0; // -1 … 1 across the banner
     let currentX = 0;
-    let glowTX = 0;
-    let glowTY = 0;
-    let glowCX = 0;
-    let glowCY = 0;
     let raf = 0;
     let cancelled = false;
 
@@ -54,8 +57,6 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       // Ignore movement far above/below the strip (e.g. scrolled away).
       if (e.clientY < r.top - 120 || e.clientY > r.bottom + 120) return;
       targetX = ((e.clientX - r.left) / Math.max(1, r.width)) * 2 - 1;
-      glowTX = e.clientX - r.left;
-      glowTY = e.clientY - r.top;
     };
     // Ease back to center when the pointer leaves the page.
     const onLeave = () => {
@@ -70,15 +71,9 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       if (cancelled) return;
       const k = reduce ? 1 : 0.12;
       currentX += (targetX - currentX) * k;
-      glowCX += (glowTX - glowCX) * k;
-      glowCY += (glowTY - glowCY) * k;
       if (Math.abs(targetX - currentX) < 0.002) currentX = targetX;
       // Prowl pan toward the cursor; 1.14 scale hides the pan edges.
       media.style.transform = `translate3d(${(currentX * 28).toFixed(2)}px, 0, 0) scale(1.14)`;
-      if (glow) {
-        glow.style.transform = `translate3d(${glowCX.toFixed(1)}px, ${glowCY.toFixed(1)}px, 0) translate(-50%, -50%)`;
-        glow.style.opacity = reduce ? "0" : "1";
-      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -102,33 +97,35 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     return () => ro.disconnect();
   }, [onHeightChange]);
 
-  const base = import.meta.env.BASE_URL;
-
   return (
     <div className={`relative w-full ${className ?? ""}`}>
     <div
       ref={wrapRef}
       className="bdv-banner relative w-full overflow-hidden h-[72px] md:h-[88px]"
-      style={{ backgroundColor: PAGE_BG }}
+      style={{ backgroundColor: MELT }}
       aria-label="Bow Down Visuals banner"
     >
       {/* Ambient drift wrapper (CSS ken-burns) */}
       <div className="bdv-banner-drift absolute inset-0 will-change-transform">
         {/* Prowl-pan artwork layer — edge-faded so it melts into the base */}
         <div ref={mediaRef} className="absolute inset-0 will-change-transform">
-          <video
-            src={`${base}top-banner-drone.mp4`}
-            autoPlay
-            muted
-            loop
-            playsInline
+          <img
+            src={
+              isLight
+                ? "/images/shark-king-final-banner-light-v1.webp"
+                : "/images/shark-king-final-banner-dark-v1.webp"
+            }
+            alt=""
             aria-hidden
+            draggable={false}
             className="h-full w-full object-cover object-[center_52%]"
             style={{
-              maskImage:
-                "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+              maskImage: isLight
+                ? "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)"
+                : "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+              WebkitMaskImage: isLight
+                ? "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)"
+                : "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
             }}
           />
         </div>
@@ -137,36 +134,33 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       {/* Blend scrims — dissolve the seams into the page background */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-2/5"
+        className={`pointer-events-none absolute inset-x-0 top-0 ${isLight ? "h-[10%]" : "h-2/5"}`}
         style={{
-          background: `linear-gradient(to bottom, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to bottom, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+        className={`pointer-events-none absolute inset-x-0 bottom-0 ${isLight ? "h-[12%]" : "h-1/2"}`}
         style={{
-          background: `linear-gradient(to top, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to top, ${MELT} 0%, transparent 100%)`,
         }}
       />
       {/* Side vignettes — boundless edges */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-1/4"
+        className={`pointer-events-none absolute inset-y-0 left-0 ${isLight ? "w-[6%]" : "w-1/4"}`}
         style={{
-          background: `linear-gradient(to right, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to right, ${MELT} 0%, transparent 100%)`,
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 w-1/4"
+        className={`pointer-events-none absolute inset-y-0 right-0 ${isLight ? "w-[6%]" : "w-1/4"}`}
         style={{
-          background: `linear-gradient(to left, ${PAGE_BG} 0%, transparent 100%)`,
+          background: `linear-gradient(to left, ${MELT} 0%, transparent 100%)`,
         }}
       />
-
-      {/* Gold shimmer sweep across the strip */}
-      <div aria-hidden className="shimmer pointer-events-none absolute inset-0" />
 
       {/* Brand wordmark — centered, readable over the artwork */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -191,11 +185,8 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
                 backgroundImage:
-                  "linear-gradient(100deg, #b98a2e 0%, #f5d576 25%, #fffbe8 50%, #f5d576 75%, #b98a2e 100%)",
-                backgroundSize: "200% auto",
-                animation: "gold-shine 4.5s linear infinite",
-                filter:
-                  "drop-shadow(0 2px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 16px rgba(255,215,100,0.5))",
+                  "linear-gradient(100deg, #b98a2e 0%, #f5d576 25%, #ffedb0 50%, #f5d576 75%, #b98a2e 100%)",
+                filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.6))",
               }}
             >
               BOW&nbsp;DOWN&nbsp;VISUALS
@@ -212,7 +203,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
               fontFamily: "'Cinzel', serif",
               fontWeight: 700,
               textShadow:
-                "0 2px 6px rgba(0,0,0,0.95), 0 0 18px rgba(246,221,143,0.55)",
+                "0 1px 4px rgba(0,0,0,0.8)",
             }}
           >
             The Content Creator&rsquo;s Cheat Code
@@ -220,16 +211,6 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         </div>
       </div>
 
-      {/* Cursor-following gold glow */}
-      <div
-        ref={glowRef}
-        aria-hidden
-        className="pointer-events-none absolute left-0 top-0 h-44 w-44 rounded-full opacity-0"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(218,165,32,0.30) 0%, rgba(218,165,32,0.08) 45%, transparent 70%)",
-        }}
-      />
 
       {/* Soft gold hairline along the bottom edge */}
       <div

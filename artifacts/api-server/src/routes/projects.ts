@@ -6,10 +6,8 @@ import { refundCredits } from "../lib/credits";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl, mirrorProjectScenes } from "../lib/mirrorMedia";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
-/* TEMPORARY (2026-09-22): clip recovery via Replit backend — REMOVE AFTER USE */
-import { recoverExpiredClipsViaReplit } from "../lib/clipRecovery";
-
 const router = Router();
 
 const SaveProjectSchema = z.object({
@@ -23,7 +21,24 @@ const SaveProjectSchema = z.object({
   outputData:   z.record(z.string(), z.unknown()).optional().default({}),
   creditsUsed:  z.number().int().min(0).optional().default(0),
   genHistoryId: z.string().uuid().optional().nullable(),
+  /* The hub project this editor project belongs to (0142) — links the
+     two project universes. The column is added by migration 0142 where
+     the table lives in the app DB and by supabase/setup.sql where it
+     lives in Supabase; writes/reads degrade gracefully until it exists
+     (see the hub_project_id fallbacks below). */
+  hubProjectId: z.string().uuid().optional().nullable(),
 });
+
+/** True when a PostgREST error is the "column not in schema cache" one
+    for hub_project_id — the signal to retry without the link field. */
+function isMissingHubColumn(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  return (error.message ?? "").includes("hub_project_id");
+}
+
+const PROJECT_COLUMNS_BASE =
+  "id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at";
+const PROJECT_COLUMNS_WITH_HUB = `${PROJECT_COLUMNS_BASE}, hub_project_id`;
 
 router.post("/projects", requireAuth, async (req, res) => {
   const parsed = SaveProjectSchema.safeParse(req.body);
@@ -33,22 +48,39 @@ router.post("/projects", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
-  const { data: project, error } = await req.userSupabase!
+  const insertPayload = {
+    user_id:      req.userId,
+    project_type: d.projectType,
+    title:        d.title,
+    artist_name:  d.artistName ?? null,
+    song_title:   d.songTitle  ?? null,
+    genre:        d.genre      ?? null,
+    mood:         d.mood       ?? null,
+    input_data:   d.inputData,
+    output_data:  await mirrorProjectScenes(d.outputData, req.userId!),
+    credits_used: d.creditsUsed,
+  };
+
+  let { data: project, error } = await req.userSupabase!
     .from("projects")
-    .insert({
-      user_id:      req.userId,
-      project_type: d.projectType,
-      title:        d.title,
-      artist_name:  d.artistName ?? null,
-      song_title:   d.songTitle  ?? null,
-      genre:        d.genre      ?? null,
-      mood:         d.mood       ?? null,
-      input_data:   d.inputData,
-      output_data:  d.outputData,
-      credits_used: d.creditsUsed,
-    })
+    .insert(
+      (d.hubProjectId !== undefined
+        ? { ...insertPayload, hub_project_id: d.hubProjectId }
+        : insertPayload) as never,
+    )
     .select("id")
     .single();
+
+  if (error && d.hubProjectId !== undefined && isMissingHubColumn(error)) {
+    /* The projects table doesn't carry the link column yet (0142 not
+       run against this database) — save without the link rather than
+       failing the save. */
+    ({ data: project, error } = await req.userSupabase!
+      .from("projects")
+      .insert(insertPayload)
+      .select("id")
+      .single());
+  }
 
   if (error) {
     // Attempt to refund credits. Read fresh profile credits — req.userCredits is stale
@@ -80,11 +112,21 @@ router.post("/projects", requireAuth, async (req, res) => {
 });
 
 router.get("/projects", requireAuth, async (req, res) => {
-  const { data: projects, error } = await req.userSupabase!
+  let { data: projects, error } = await req.userSupabase!
     .from("projects")
-    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
+    .select(PROJECT_COLUMNS_WITH_HUB)
     .eq("user_id", req.userId)
     .order("created_at", { ascending: false });
+
+  if (error && isMissingHubColumn(error)) {
+    const fallback = await req.userSupabase!
+      .from("projects")
+      .select(PROJECT_COLUMNS_BASE)
+      .eq("user_id", req.userId)
+      .order("created_at", { ascending: false });
+    error = fallback.error;
+    projects = (fallback.data ?? []).map((row) => ({ ...row, hub_project_id: null })) as typeof projects;
+  }
 
   if (error) {
     res.status(500).json({ error: error.message });
@@ -93,10 +135,10 @@ router.get("/projects", requireAuth, async (req, res) => {
 
   /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
   const refreshedProjects = await Promise.all(
-    (projects ?? []).map(async (project) => ({
-      ...project,
-      output_data: await refreshSupabaseStorageUrlsDeep(project.output_data),
-    })),
+    (projects ?? []).map(async (project) => {
+      const refreshed = await refreshSupabaseStorageUrlsDeep(project.output_data);
+      return { ...project, output_data: refreshed };
+    }),
   );
 
   res.json({ projects: refreshedProjects });
@@ -105,12 +147,23 @@ router.get("/projects", requireAuth, async (req, res) => {
 router.get("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
 
-  const { data: project, error } = await req.userSupabase!
+  let { data: project, error } = await req.userSupabase!
     .from("projects")
-    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
+    .select(PROJECT_COLUMNS_WITH_HUB)
     .eq("id", id)
     .eq("user_id", req.userId)
     .single();
+
+  if (error && isMissingHubColumn(error)) {
+    const fallback = await req.userSupabase!
+      .from("projects")
+      .select(PROJECT_COLUMNS_BASE)
+      .eq("id", id)
+      .eq("user_id", req.userId)
+      .single();
+    error = fallback.error;
+    project = fallback.data ? { ...fallback.data, hub_project_id: null } : fallback.data;
+  }
 
   if (error || !project) {
     res.status(404).json({ error: "Project not found" });
@@ -140,11 +193,14 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
   }
 
   const current = (existing.output_data as Record<string, unknown>) ?? {};
-  const updatedOutputData: Record<string, unknown> = {
-    ...current,
-    ...(body.outputData ?? {}),
-    ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
-  };
+  const updatedOutputData: Record<string, unknown> = await mirrorProjectScenes(
+    {
+      ...current,
+      ...(body.outputData ?? {}),
+      ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
+    },
+    req.userId!,
+  );
 
   /* Update output_data in place. Previously this did a delete-then-insert, which could
    * permanently lose the project if the insert failed (or if two saves raced) between the
@@ -219,6 +275,11 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
      bucket (e.g. the 1-day preview URL from the generate poll) — readers
      re-sign fresh URLs from it on every read. */
   resolvedClipUrl = normalizeToStorageRef(resolvedClipUrl) ?? resolvedClipUrl;
+  /* Mirror-on-save: an external provider clip URL is re-hosted into
+     permanent storage so the scene's clip can never expire (2026-10-13). */
+  resolvedClipUrl =
+    (await mirrorExternalMediaUrl(resolvedClipUrl, { kind: "video", ownerKey: req.userId! })) ??
+    resolvedClipUrl;
 
   /* ── Fetch project ── */
   const { data: existing, error: fetchErr } = await req.userSupabase!
@@ -373,27 +434,12 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   const outputData = (existing.output_data as Record<string, unknown>) ?? {};
-  let scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
+  const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
 
   if (scenes.length === 0) {
     res.status(422).json({ error: "No scenes found in this project. Open the Video Editor and load scenes first." });
     return;
   }
-
-  /* ── TEMPORARY RECOVERY (2026-09-22, REMOVE AFTER USE) ──
-     Recover clips whose Replit-GCS signed URLs expired (2026-07-14): pull
-     fresh URLs from the still-running Replit backend, download the videos,
-     and re-host them in Supabase Storage so playback works permanently.
-     Runs FIRST, on the raw stored scenes, before the generated_clips check. */
-  const preRecoveryScenes = scenes;
-  scenes = await recoverExpiredClipsViaReplit(
-    req.accessToken!,
-    projectId,
-    scenes,
-  );
-  const recoveredCount = scenes.filter(
-    (s, i) => s["demoClipUrl"] !== preRecoveryScenes[i]?.["demoClipUrl"],
-  ).length;
 
   /* ── Fetch completed clips for this project from generated_clips ── */
   const clips = await db
@@ -410,46 +456,11 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   const completedClips = clips.filter((c) => c.video_url && c.status !== "failed");
 
   if (completedClips.length === 0) {
-    /* TEMPORARY (2026-09-22): persist recovered scenes even when sync finds
-       nothing — REMOVE AFTER USE */
-    if (recoveredCount > 0) {
-      const recoveredOutputData: Record<string, unknown> = { ...outputData, scenes };
-      const { error: recDelErr } = await req.userSupabase!
-        .from("projects")
-        .delete()
-        .eq("id", projectId)
-        .eq("user_id", req.userId);
-      if (!recDelErr) {
-        const { error: recInsErr } = await req.userSupabase!.from("projects").insert({
-          id:           existing.id,
-          user_id:      existing.user_id,
-          project_type: existing.project_type,
-          title:        existing.title,
-          artist_name:  existing.artist_name,
-          song_title:   existing.song_title,
-          genre:        existing.genre,
-          mood:         existing.mood,
-          style:        (existing as Record<string, unknown>)["style"] ?? null,
-          platform:     (existing as Record<string, unknown>)["platform"] ?? null,
-          input_data:   existing.input_data,
-          output_data:  recoveredOutputData,
-          credits_used: existing.credits_used,
-          created_at:   existing.created_at,
-        });
-        if (recInsErr) {
-          res.status(500).json({ error: `Recovery persist failed: ${recInsErr.message}` });
-          return;
-        }
-      }
-    }
     res.json({
       synced: 0,
       skipped: scenes.length,
-      recovered: recoveredCount,
       scenes,
-      message: recoveredCount > 0
-        ? `Recovered ${recoveredCount} clip${recoveredCount !== 1 ? "s" : ""}.`
-        : "No completed clips found for this project.",
+      message: "No completed clips found for this project.",
     });
     return;
   }
@@ -545,15 +556,13 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   req.log.info(
-    { projectId, userId: req.userId, synced, total: scenes.length, recoveredCount },
+    { projectId, userId: req.userId, synced, total: scenes.length },
     "[projects] sync-clips completed",
   );
 
   res.json({
     synced,
     skipped: scenes.length - synced,
-    /* TEMPORARY (2026-09-22): recovery count — REMOVE AFTER USE */
-    recovered: recoveredCount,
     scenes: updatedScenes,
   });
 });

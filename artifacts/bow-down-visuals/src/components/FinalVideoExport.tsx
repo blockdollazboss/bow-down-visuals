@@ -1,27 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
   Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle,
+  SlidersHorizontal, Share2, CalendarClock, FileCode2,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHubProject } from "@/lib/hub-project";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ConfettiBurst from "@/components/artist/confetti-burst";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
+import ShareMenu from "@/components/ShareMenu";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
 import { proToolsActive } from "@/lib/editor-settings";
-import { computeManualTimings } from "@/lib/scene-timing";
+import { computeManualTimings, computeSceneTimings } from "@/lib/scene-timing";
+import { buildFcpxml, fcpxmlFileName, type FcpxmlClipInput, type FcpxmlTimelineInput } from "@/lib/fcpxml-export";
 import { pollExportJob } from "@/lib/export-job-poll";
 
 interface ExportRecord {
@@ -144,6 +151,10 @@ interface FinalVideoExportProps {
   clipProTools?: (ProToolsSettings | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
+  /** Adjustment-lane clips (Stack 5 #6) — windowed grade over the cut. */
+  adjustmentItems?: { startSec: number; endSec: number; colorCorrection: Record<string, number>; effects: string[] }[] | null;
+  /** Music-lane ducking (Stack 5 #5) — applied inside the export render. */
+  ducking?: { enabled: boolean; amount: number; sensitivity: number; voiceUrl: string | null } | null;
   /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
    *  gaps (including a leading gap before the first clip) are held as freeze-frame padding
    *  in the export, mirroring the editor preview. */
@@ -166,6 +177,9 @@ interface FinalVideoExportProps {
   /** How source clips fill the target canvas: "fill" (crop), "fit" (letterbox), "blur" (blurred bg).
    *  Defaults to "fill" when omitted. Forwarded to the server for FFmpeg normalization. */
   fitMode?: string | null;
+  /** True when the viewer is a monthly subscriber (may remove the watermark).
+   *  Drives the Quality panel's watermark toggle; defaults to locked-on. */
+  isSubscriber?: boolean;
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
@@ -233,6 +247,8 @@ export function FinalVideoExport({
   clipTransitions,
   clipProTools,
   overlayItems,
+  adjustmentItems,
+  ducking,
   timelineLayout = "auto",
   clipEdits,
   audioDurationSec = null,
@@ -241,8 +257,10 @@ export function FinalVideoExport({
   overlays,
   overlayIntensity,
   fitMode,
+  isSubscriber = false,
 }: FinalVideoExportProps) {
-  const { addAsset } = useHubProject();
+  const isLight = useIsLightTheme();
+  const { addAsset, referralCode } = useHubProject();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
@@ -352,6 +370,30 @@ export function FinalVideoExport({
   const [checkTableExpanded, setCheckTableExpanded] = useState(true);
   const [isAutoRecovering, setIsAutoRecovering] = useState(false);
 
+  /* ── Quality controls (Feature Wave 6): docked in the Export tab.
+     Simple mode keeps the one-click export above; opening this disclosure
+     switches to POST /api/export-quality (flat 150 Visual Bucs). ── */
+  const [qualityOpen, setQualityOpen]               = useState(false);
+  const [qResolution, setQResolution]               = useState<"720p" | "1080p" | "4k">("1080p");
+  const [qSlider, setQSlider]                       = useState(80);
+  const [qFps, setQFps]                             = useState<24 | 30 | 60>(30);
+  const [qContainer, setQContainer]                 = useState<"mp4" | "mov">("mp4");
+  const [qCodec, setQCodec]                         = useState<"h264" | "prores" | "dnxhr">("h264");
+  const [qWatermark, setQWatermark]                 = useState(true); // default ON (free/bonus exports)
+  const [estimate, setEstimate]                     = useState<{
+    sizeLabel: string; renderLabel: string; capped: boolean;
+    settings: { width: number; height: number; fps: number; crf: number; container: string; codec?: string };
+  } | null>(null);
+  const [estimateLoading, setEstimateLoading]       = useState(false);
+  const [estimateError, setEstimateError]           = useState<string | null>(null);
+  const [exportQualityMeta, setExportQualityMeta]   = useState<{
+    resolution: string; width: number; height: number; fps: number; crf: number; container: string; codec?: string;
+  } | null>(null);
+
+  /* The live estimate effect lives below (after estimateDurationSec) — the
+     deps array is evaluated during render, so it must come after every
+     value it reads. */
+
   /* ── Live "expires in" ticker for the prepared session ── */
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
@@ -435,6 +477,90 @@ export function FinalVideoExport({
   }
 
   const hasAudio = !!effectiveAudioUrl && audioSource !== "none";
+
+  /* ── FCPXML timeline (Pro Finishing Door) ──────────────────────────────
+   * The timeline handed to Final Cut Pro is built from the SAME model the
+   * render consumes: selected scenes in playback order, the editor's own
+   * scene timings (or manual placements), ClipEdit trims, and flat Pro
+   * Tools speed. No media is embedded — assets reference the clip URLs,
+   * the standard XML-only handoff (relink in Final Cut). Free: it is the
+   * creator's own edit data, not a render. */
+  function buildFcpxmlTimeline(): FcpxmlTimelineInput {
+    const dimsByAspect: Record<string, [number, number]> = {
+      "9:16": [1080, 1920],
+      "16:9": [1920, 1080],
+      "1:1": [1080, 1080],
+      "4:5": [1080, 1350],
+    };
+    const [width, height] = dimsByAspect[aspectRatio] ?? [1080, 1920];
+    const autoTimings = !isManualLayout
+      ? computeSceneTimings(scenes, audioDurationSec ?? null)
+      : null;
+
+    let cursor = 0;
+    const clips: FcpxmlClipInput[] = selectedScenes.map((scene, k) => {
+      const sceneIdx = scenes.indexOf(scene);
+      const edit = clipEdits?.[scene.id];
+      const pt = orderedClipProTools?.[k] ?? null;
+      const hasSpeedRamp = !!((pt?.speedSegments?.length ?? 0) > 0 || (pt?.speedCurve?.length ?? 0) > 0);
+      const speed = !hasSpeedRamp && pt?.speed && pt.speed > 0 ? pt.speed : 1;
+      const trimStart = Math.max(0, edit?.trimStart ?? 0);
+      const trimEnd = Math.max(0, edit?.trimEnd ?? 0);
+
+      let startSec: number;
+      let durationSec: number;
+      if (isManualLayout && manualResult && sceneIdx >= 0) {
+        const timing = manualResult.timings[sceneIdx]!;
+        startSec = timing.startSec;
+        durationSec = timing.durationSec;
+      } else {
+        durationSec = (sceneIdx >= 0 ? autoTimings?.[sceneIdx]?.durationSec : undefined) ?? 5;
+        startSec = cursor;
+      }
+      cursor = Math.max(cursor, startSec + durationSec);
+
+      return {
+        name: sceneLabel(scene, k),
+        // The clip the preview/export actually plays for this scene.
+        src: edit?.useLipSync && edit?.lipSyncUrl ? edit.lipSyncUrl : scene.demoClipUrl!,
+        startSec,
+        durationSec,
+        sourceStartSec: trimStart,
+        sourceDurationSec: durationSec + trimStart + trimEnd,
+        speed,
+        hasSpeedRamp,
+      };
+    });
+
+    return {
+      projectName: "Bow Down Visuals — Timeline Export",
+      fps: 30,
+      width,
+      height,
+      clips,
+      audio: hasAudio && effectiveAudioUrl
+        ? {
+            name: audioSourceLabel ?? "Song",
+            src: effectiveAudioUrl,
+            durationSec: audioDurationSec ?? null,
+          }
+        : null,
+    };
+  }
+
+  function handleDownloadFcpxml() {
+    const xml = buildFcpxml(buildFcpxmlTimeline());
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fcpxmlFileName("bow-down-visuals-timeline");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   /** Master player has audio but export couldn't resolve any audio URL */
   const audioSourceMismatch = !!masterAudioUrl?.trim() && !effectiveAudioUrl;
   const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
@@ -458,13 +584,80 @@ export function FinalVideoExport({
     ? (rangeInvalidReason ?? "The selected custom export range is invalid.")
     : "The selected export range resolves to less than a quarter-second of video. Adjust the range or switch to Full Video.";
 
-  /** Fires the export request against a specific prepareId. Throws on failure,
-   *  with `.code` set to "PREPARE_STALE" when the failure is recoverable by re-preparing. */
-  async function runExportRequest(prepareIdToUse: string | null) {
+  /** Approximate timeline length for the size/render estimate: sum of the
+   *  selected scenes' timestamp durations (fall back to the audio length,
+   *  then 30s). Range exports use the range window. */
+  const estimateDurationSec = useMemo(() => {
+    if (isRangeExport && typeof effectiveExportRangeStart === "number" && typeof effectiveExportRangeEnd === "number") {
+      return Math.max(0.25, effectiveExportRangeEnd - effectiveExportRangeStart);
+    }
+    const clipSum = selectedScenes.reduce((acc, s) => acc + (parseDuration(s.timestamp ?? "") ?? 0), 0);
+    if (clipSum > 0) return clipSum;
+    if (audioDurationSec && audioDurationSec > 0) return audioDurationSec;
+    return 30;
+  }, [isRangeExport, effectiveExportRangeStart, effectiveExportRangeEnd, selectedScenes, audioDurationSec]);
+
+  /* Live estimate whenever the Quality panel is open and settings change
+     (debounced). Placed here — after every value it reads — because the
+     deps array is evaluated during render. */
+  useEffect(() => {
+    if (!qualityOpen) return;
+    setEstimateLoading(true);
+    setEstimateError(null);
+    const timer = setTimeout(async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/export-quality/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+          body: JSON.stringify({
+            aspectRatio,
+            durationSec: estimateDurationSec,
+            hasAudio,
+            quality: {
+              enabled: true,
+              resolution: qResolution,
+              quality: qSlider,
+              fps: qFps,
+              container: qContainer,
+              codec: qCodec,
+            },
+          }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data as { error?: string }).error ?? `Estimate failed (${res.status})`);
+        setEstimate(data as typeof estimate);
+      } catch (err) {
+        setEstimate(null);
+        setEstimateError(err instanceof Error ? err.message : "Estimate failed");
+      } finally {
+        setEstimateLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qualityOpen, qResolution, qSlider, qFps, qContainer, qCodec, hasAudio, aspectRatio, estimateDurationSec]);
+
+  /** Fires the export request against a specific prepareId. When qualityOpts is
+   *  given, the request goes to POST /api/export-quality (flat 150 Visual
+   *  Bucs) with the quality controls attached; otherwise the plain one-click
+   *  /api/export-final-video. Throws on failure, with `.code` set to
+   *  "PREPARE_STALE" when the failure is recoverable by re-preparing. */
+  interface QualityExportOpts {
+    resolution: "720p" | "1080p" | "4k";
+    quality: number;
+    fps: 24 | 30 | 60;
+    container: "mp4" | "mov";
+    codec: "h264" | "prores" | "dnxhr";
+    watermark: boolean;
+  }
+  async function runExportRequest(prepareIdToUse: string | null, qualityOpts?: QualityExportOpts) {
     const token = await getAccessToken();
     const timelineOrder = scenes.map((s) => s.id);
+    const endpoint = qualityOpts ? "/api/export-quality" : "/api/export-final-video";
 
-    const res = await confirmedFetch("/api/export-final-video", {
+    const res = await confirmedFetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -482,8 +675,9 @@ export function FinalVideoExport({
         loopAudio: hasAudio ? loopAudio : false,
         audioStartSec: hasAudio ? audioStartSec : 0,
         matchVideoLength: hasAudio ? matchVideoLength : false,
-        addWatermark,
+        addWatermark: qualityOpts ? qualityOpts.watermark : addWatermark,
         customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
+        watermarkTheme: isLight ? "light" : "dark",
         watermarkPosition,
         watermarkSize,
         watermarkMargin,
@@ -494,14 +688,24 @@ export function FinalVideoExport({
         exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
         exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
         clipTransitions:  orderedClipTransitions ?? null,
-        clipProTools:    orderedClipProTools?.some((p) => p && proToolsActive(p)) ? orderedClipProTools : null,
+        clipProTools:    orderedClipProTools?.some((p) => p && (proToolsActive(p) || ((p as { keyframes?: unknown[] }).keyframes?.length ?? 0) > 0)) ? orderedClipProTools : null,
         manualGapsBeforeSec: manualGapsBeforeSec ?? null,
         effects:               effects?.length ? effects : null,
         overlayItems:          overlayItems?.length ? overlayItems : null,
+        adjustmentItems:       adjustmentItems?.length ? adjustmentItems : null,
+        ducking:               ducking?.enabled ? ducking : null,
         overlayEffects:        overlays?.length ? overlays : null,
         overlayEffectIntensity: overlayIntensity ?? null,
         fitMode:               fitMode ?? "fill",
         prepareId:             prepareIdToUse ?? undefined,
+        quality: qualityOpts ? {
+          enabled: true,
+          resolution: qualityOpts.resolution,
+          quality: qualityOpts.quality,
+          fps: qualityOpts.fps,
+          container: qualityOpts.container,
+          codec: qualityOpts.codec,
+        } : undefined,
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
@@ -515,7 +719,7 @@ export function FinalVideoExport({
         ffmpegStderr?: string;
         stderrTail?: string[];
         ffmpegExitCode?: number;
-      }>(res, "POST /api/generate/export-video");
+      }>(res, `POST ${endpoint}`);
       const err = Object.assign(
         new Error(body.error ?? `Export failed (HTTP ${res.status})`),
         {
@@ -541,9 +745,13 @@ export function FinalVideoExport({
       duration?: number;
       testMode?: boolean;
       exportStatus?: Record<string, unknown>;
+      quality?: {
+        enabled: boolean; resolution: string; width: number; height: number;
+        fps: number; crf: number; container: string; codec?: string;
+      } | null;
       debug?: { identicalClipsDetected?: boolean };
     }
-    const accepted = await parseJsonResponse<ExportPayload>(res, "POST /api/generate/export-video");
+    const accepted = await parseJsonResponse<ExportPayload>(res, `POST ${endpoint}`);
 
     const finishExport = (data: ExportPayload) => {
       if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
@@ -551,6 +759,19 @@ export function FinalVideoExport({
           "Server detected two or more downloaded clips with identical content. " +
           "Re-generate the affected AI clips and try again.",
         );
+      }
+      if (data.quality?.enabled) {
+        setExportQualityMeta({
+          resolution: data.quality.resolution,
+          width: data.quality.width,
+          height: data.quality.height,
+          fps: data.quality.fps,
+          crf: data.quality.crf,
+          container: data.quality.container,
+          codec: data.quality.codec,
+        });
+      } else {
+        setExportQualityMeta(null);
       }
       return { data, timelineOrder };
     };
@@ -571,7 +792,7 @@ export function FinalVideoExport({
     return finishExport(data as unknown as ExportPayload);
   }
 
-  async function handleExport() {
+  async function handleExport(qualityOpts?: QualityExportOpts) {
     if (!projectId) {
       toast({ title: "Save project first", description: "Save your project before exporting.", variant: "destructive" });
       return;
@@ -597,16 +818,20 @@ export function FinalVideoExport({
     setErrorMsg(null);
     setProgressStep("Verifying clips…");
 
+    const renderLabel = qualityOpts
+      ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps · ${qualityOpts.container.toUpperCase()}`
+      : ` · ${aspectRatio} · ${resolution}`;
+
     try {
       setProgressStep(
         `Stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
-        ` · ${aspectRatio} · ${resolution}` +
+        renderLabel +
         (hasAudio ? ` · mixing audio…` : " · no audio…"),
       );
 
       let result;
       try {
-        result = await runExportRequest(prepareId);
+        result = await runExportRequest(prepareId, qualityOpts);
       } catch (err: unknown) {
         const code = (err as { code?: string }).code;
         if (code === "PREPARE_STALE") {
@@ -625,10 +850,10 @@ export function FinalVideoExport({
           }
           setProgressStep(
             `Re-prepared — stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
-            ` · ${aspectRatio} · ${resolution}` +
+            renderLabel +
             (hasAudio ? ` · mixing audio…` : " · no audio…"),
           );
-          result = await runExportRequest(freshPrepareId);
+          result = await runExportRequest(freshPrepareId, qualityOpts);
           setIsAutoRecovering(false);
         } else {
           throw err;
@@ -656,12 +881,12 @@ export function FinalVideoExport({
       addAsset({
         kind: "video",
         url: record.final_video_url,
-        label: "Final export",
-        detail: `${record.clips_used} clips · ${record.aspect_ratio ?? ""}${record.audio_used ? " · with audio" : ""}`,
+        label: qualityOpts ? "Quality export" : "Final export",
+        detail: `${record.clips_used} clips · ${qualityOpts ? `${qualityOpts.resolution} ${qualityOpts.fps}fps ${qualityOpts.container.toUpperCase()}` : (record.aspect_ratio ?? "")}${record.audio_used ? " · with audio" : ""}`,
       });
       toast({
         title: "Export complete!",
-        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} · ${aspectRatio}${data.audioIncluded ? " · with audio" : " · video only"}.`,
+        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""}${qualityOpts ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps` : ` · ${aspectRatio}`}${data.audioIncluded ? " · with audio" : " · video only"}.`,
       });
     } catch (err: unknown) {
       setIsAutoRecovering(false);
@@ -684,7 +909,7 @@ export function FinalVideoExport({
 
   return (
     <div
-      className="rounded-2xl border border-primary/20 bg-black/40 overflow-hidden"
+      className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
       data-testid="final-video-export"
     >
       {/* ── Header ── */}
@@ -711,6 +936,15 @@ export function FinalVideoExport({
         {/* ── Completed ── */}
         {!outOfCredits && status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
+            <ConfettiBurst />
+            <div className="text-center space-y-1 pb-1">
+              <p className="text-xl font-black text-white">
+                Your masterpiece is ready 👑
+              </p>
+              <p className="text-sm text-white/50">
+                Fresh out the vault. Go make the internet bow down.
+              </p>
+            </div>
             <video
               src={exportUrl}
               controls
@@ -721,7 +955,7 @@ export function FinalVideoExport({
             />
             <a
               href={exportUrl}
-              download="music-video-export.mp4"
+              download={`music-video-export.${exportQualityMeta?.container ?? "mp4"}`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -730,8 +964,50 @@ export function FinalVideoExport({
                 Download Final Video ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}{hasAudio ? " + audio" : ""})
               </Button>
             </a>
+            {/* ── Quality summary (quality-controlled exports) ── */}
+            {exportQualityMeta && (
+              <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-quality-summary">
+                {exportQualityMeta.width}×{exportQualityMeta.height} · {exportQualityMeta.codec === "prores" ? "ProRes 422 HQ" : exportQualityMeta.codec === "dnxhr" ? "DNxHR HQ" : `CRF ${exportQualityMeta.crf}`} · {exportQualityMeta.fps}fps · {exportQualityMeta.container.toUpperCase()} · 150 Visual Bucs
+              </p>
+            )}
+
+            {/* ── Next steps: export handoff chains ── */}
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3 space-y-2" data-testid="export-handoffs">
+              <p className="text-xs font-bold text-white/70">Next steps — keep the momentum</p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={buildSchedulerHref({ caption: "Made with @bowdownvisuals 🔥", media: exportUrl })}
+                  className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                  data-testid="btn-handoff-schedule"
+                >
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  Schedule Post
+                </a>
+                {/* Share-to-earn viral loop: tracked shares, ?ref= on links, quest credit. */}
+                <div className="flex-1 min-w-[120px]" data-testid="btn-handoff-share">
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={exportUrl}
+                    text="My new video just dropped — fresh out the vault 🔥"
+                    contentType="video"
+                    referralCode={referralCode ?? null}
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px] flex" data-testid="btn-handoff-showcase">
+                  <PublishToShowcase
+                    mediaType="video"
+                    mediaUrl={exportUrl}
+                    defaultTitle={scenes[0]?.lyricLine ? `${scenes[0].lyricLine.slice(0, 60)}` : "My Bow Down Visuals video"}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-white/30 leading-relaxed">
+                Tip: use <span className="text-white/50 font-bold">Export for all platforms</span> below to re-render this video for every feed.
+              </p>
+            </div>
+
             <button
-              onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); }}
+              onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); setExportQualityMeta(null); }}
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
               data-testid="btn-export-again"
             >
@@ -1169,6 +1445,67 @@ export function FinalVideoExport({
                   </div>
                 )}
 
+                {/* ── Quality controls (Feature Wave 6) — docked in the Export tab.
+                     Simple mode keeps the one-click export buttons below; this
+                     disclosure reveals resolution / quality / fps / container,
+                     the size+render estimate, and the watermark toggle. ── */}
+                {prepareAllReady && !exportRangeBlocked && (
+                  <QualityPanel
+                    open={qualityOpen}
+                    onToggle={() => setQualityOpen((x) => !x)}
+                    qResolution={qResolution}
+                    setQResolution={setQResolution}
+                    qSlider={qSlider}
+                    setQSlider={setQSlider}
+                    qFps={qFps}
+                    setQFps={setQFps}
+                    qContainer={qContainer}
+                    setQContainer={setQContainer}
+                    qCodec={qCodec}
+                    setQCodec={setQCodec}
+                    qWatermark={qWatermark}
+                    setQWatermark={setQWatermark}
+                    isSubscriber={isSubscriber}
+                    estimate={estimate}
+                    estimateLoading={estimateLoading}
+                    estimateError={estimateError}
+                    disabled={isAutoRecovering}
+                    onExport={() => handleExport({
+                      resolution: qResolution,
+                      quality: qSlider,
+                      fps: qFps,
+                      container: qContainer,
+                      codec: qCodec,
+                      watermark: qWatermark,
+                    })}
+                  />
+                )}
+
+                {/* ── Pro Finishing Door: FCPXML timeline for Final Cut Pro.
+                     Free — the creator's own edit data, not a render. ── */}
+                {prepareAllReady && !exportRangeBlocked && (
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-white/75">Finish in Final Cut Pro</p>
+                        <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
+                          Download this exact timeline as FCPXML — clips, order, trims, and timing. Media stays linked by reference; relink to your clip files in Final Cut.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDownloadFcpxml}
+                        className="shrink-0 gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                        data-testid="btn-download-fcpxml"
+                      >
+                        <FileCode2 className="h-4 w-4" />
+                        FCPXML
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Export buttons — only shown when all clips are ready and the range is valid */}
                 {prepareAllReady && !exportRangeBlocked && (
                   <>
@@ -1186,7 +1523,7 @@ export function FinalVideoExport({
                       </Button>
                     ) : (
                       <Button
-                        onClick={handleExport}
+                        onClick={() => handleExport()}
                         disabled={isAutoRecovering}
                         className="gold-glow w-full gap-2"
                         data-testid="btn-start-export"
@@ -1233,6 +1570,283 @@ export function FinalVideoExport({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Quality controls panel (Feature Wave 6) ──────────────────────────
+ * Docks inside the Export tab: resolution / quality slider / fps /
+ * container, a live size+render estimate, and the "Made with Bow Down
+ * Visuals" watermark toggle. The estimate comes from the server so it
+ * always matches the renderer's real caps. */
+function qualitySliderLabel(q: number): string {
+  if (q <= 30) return "Draft";
+  if (q <= 60) return "Standard";
+  if (q <= 85) return "High";
+  return "Max";
+}
+
+/** Mirrors the server's crfForQuality so the slider shows the real CRF. */
+function crfForSlider(q: number): number {
+  const clamped = Math.min(100, Math.max(0, q));
+  return Math.min(26, Math.max(16, Math.round(26 - (clamped / 100) * 10)));
+}
+
+/** Display label for an export codec (Pro Finishing Door). */
+function codecDisplayLabel(codec: string): string {
+  if (codec === "prores") return "ProRes 422 HQ";
+  if (codec === "dnxhr") return "DNxHR HQ";
+  return "H.264";
+}
+
+function QualityPanel({
+  open, onToggle,
+  qResolution, setQResolution,
+  qSlider, setQSlider,
+  qFps, setQFps,
+  qContainer, setQContainer,
+  qCodec, setQCodec,
+  qWatermark, setQWatermark,
+  isSubscriber,
+  estimate, estimateLoading, estimateError,
+  disabled, onExport,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  qResolution: "720p" | "1080p" | "4k";
+  setQResolution: (v: "720p" | "1080p" | "4k") => void;
+  qSlider: number;
+  setQSlider: (v: number) => void;
+  qFps: 24 | 30 | 60;
+  setQFps: (v: 24 | 30 | 60) => void;
+  qContainer: "mp4" | "mov";
+  setQContainer: (v: "mp4" | "mov") => void;
+  qCodec: "h264" | "prores" | "dnxhr";
+  setQCodec: (v: "h264" | "prores" | "dnxhr") => void;
+  qWatermark: boolean;
+  setQWatermark: (v: boolean) => void;
+  isSubscriber: boolean;
+  estimate: { sizeLabel: string; renderLabel: string; capped: boolean;
+    settings: { width: number; height: number; fps: number; crf: number; container: string; codec?: string } } | null;
+  estimateLoading: boolean;
+  estimateError: string | null;
+  disabled: boolean;
+  onExport: () => void;
+}) {
+  const segBtn = (active: boolean) =>
+    `px-2 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+      active
+        ? "bg-primary text-black shadow-[0_0_12px_rgba(232,200,106,0.35)]"
+        : "bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/[0.08] border border-white/10"
+    }`;
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/[0.03] overflow-hidden" data-testid="export-quality-panel">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-primary/[0.05] transition-colors"
+        data-testid="btn-quality-toggle"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span className="text-[11px] font-black text-white/85 uppercase tracking-widest">Quality</span>
+          <span className="text-[10px] text-white/30 truncate hidden sm:inline">4K · ProRes / DNxHR · frame rate · MP4/MOV</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold text-primary">150 Visual Bucs flat</span>
+          {open ? <ChevronUp className="h-3.5 w-3.5 text-white/40" /> : <ChevronDown className="h-3.5 w-3.5 text-white/40" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 pt-1 space-y-3.5 border-t border-primary/10">
+          {/* Resolution */}
+          <div>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Resolution</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["720p", "1080p", "4k"] as const).map((r) => (
+                <button key={r} type="button" onClick={() => setQResolution(r)} className={segBtn(qResolution === r)} data-testid={`quality-res-${r}`}>
+                  {r === "4k" ? "4K" : r}
+                </button>
+              ))}
+            </div>
+            {qResolution === "4k" && (
+              <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
+                4K renders every pixel — expect a longer render. Same 150 Visual Bucs.
+              </p>
+            )}
+          </div>
+
+          {/* Codec — H.264 for the web, ProRes / DNxHR for finishing */}
+          <div>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Codec</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["h264", "prores", "dnxhr"] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setQCodec(c);
+                    if (c !== "h264") setQContainer("mov");
+                  }}
+                  className={segBtn(qCodec === c)}
+                  data-testid={`quality-codec-${c}`}
+                >
+                  {codecDisplayLabel(c)}
+                </button>
+              ))}
+            </div>
+            {qCodec !== "h264" && (
+              <p className="text-[10px] text-amber-400/70 mt-1.5 leading-relaxed">
+                {codecDisplayLabel(qCodec)} is a pro finishing codec — big, pristine MOV files made for Final Cut Pro, Premiere, and Resolve. Same 150 Visual Bucs.
+              </p>
+            )}
+          </div>
+
+          {/* Quality slider → CRF (H.264 only — pro codecs are fixed-rate) */}
+          {qCodec === "h264" ? (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quality</p>
+                <p className="text-[11px] font-bold text-white/70">
+                  {qualitySliderLabel(qSlider)} <span className="text-white/30 font-mono">· CRF {crfForSlider(qSlider)}</span>
+                </p>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={qSlider}
+                onChange={(e) => setQSlider(Number(e.target.value))}
+                className="w-full accent-[#e8c86a]"
+                data-testid="quality-slider"
+                aria-label="Export quality"
+              />
+              <div className="flex justify-between text-[9px] text-white/25 mt-0.5">
+                <span>Draft · smaller</span>
+                <span>Max · pristine</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[10px] text-white/35 leading-relaxed">
+              {codecDisplayLabel(qCodec)} renders at its fixed finishing rate — the quality slider only applies to H.264.
+            </p>
+          )}
+
+          {/* Frame rate + container */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Frame rate</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([24, 30, 60] as const).map((f) => (
+                  <button key={f} type="button" onClick={() => setQFps(f)} className={segBtn(qFps === f)} data-testid={`quality-fps-${f}`}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Container</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(["mp4", "mov"] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    disabled={qCodec !== "h264" && c === "mp4"}
+                    onClick={() => setQContainer(c)}
+                    className={`${segBtn(qContainer === c)} ${qCodec !== "h264" && c === "mp4" ? "opacity-40 cursor-not-allowed" : ""}`}
+                    data-testid={`quality-container-${c}`}
+                  >
+                    {c.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              {qCodec !== "h264" && (
+                <p className="text-[10px] text-white/30 mt-1.5">Pro codecs deliver as MOV.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Watermark toggle */}
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-white/75">"Made with Bow Down Visuals" watermark</p>
+                <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
+                  {isSubscriber
+                    ? "Subscribers can export clean — toggle it off anytime."
+                    : "Free exports carry the watermark. Subscribers can remove it."}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={qWatermark}
+                disabled={!isSubscriber}
+                onClick={() => isSubscriber && setQWatermark(!qWatermark)}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                  qWatermark ? "bg-primary" : "bg-white/15"
+                } ${isSubscriber ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                data-testid="quality-watermark-toggle"
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${qWatermark ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+            {!isSubscriber && (
+              <p className="text-[10px] text-white/40 mt-1.5">
+                Want it gone?{" "}
+                <a href="/video-editor?tab=upscale&sub=enhance" className="text-primary font-bold hover:underline">
+                  Remove the watermark →
+                </a>
+              </p>
+            )}
+          </div>
+
+          {/* Estimate */}
+          <div className="rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2.5 min-h-[44px] flex items-center justify-center">
+            {estimateLoading ? (
+              <span className="inline-flex items-center gap-2 text-[11px] text-white/40" data-testid="quality-estimate-loading">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Estimating size &amp; render time…
+              </span>
+            ) : estimate ? (
+              <div className="text-center" data-testid="quality-estimate">
+                <p className="text-[13px] font-black text-primary">
+                  {estimate.sizeLabel} <span className="text-white/30 font-normal">·</span> {estimate.renderLabel}
+                </p>
+                <p className="text-[10px] text-white/30 mt-0.5 font-mono">
+                  {estimate.settings.width}×{estimate.settings.height} · {estimate.settings.codec && estimate.settings.codec !== "h264" ? codecDisplayLabel(estimate.settings.codec) : `CRF ${estimate.settings.crf}`} · {estimate.settings.fps}fps · {estimate.settings.container.toUpperCase()}
+                  {estimate.capped ? " · capped to upload limit" : ""}
+                </p>
+              </div>
+            ) : estimateError ? (
+              <p className="text-[11px] text-red-400/70" data-testid="quality-estimate-error">
+                Couldn't estimate — {estimateError}
+              </p>
+            ) : (
+              <p className="text-[11px] text-white/25">Pick your settings for a size &amp; render estimate.</p>
+            )}
+          </div>
+
+          {/* Export button */}
+          <Button
+            onClick={onExport}
+            disabled={disabled}
+            className="gold-glow w-full gap-2"
+            data-testid="btn-start-quality-export"
+          >
+            {disabled ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <SlidersHorizontal className="h-4 w-4" />
+            )}
+            {disabled ? "Re-preparing…" : "Export with Quality Settings — 150 Visual Bucs"}
+          </Button>
+          <p className="text-center text-[10px] text-white/25 -mt-2">
+            4K costs the same. Watermark {qWatermark ? "on" : "off"} · {qResolution === "4k" ? "4K" : qResolution} · {qFps}fps · {codecDisplayLabel(qCodec)} · {qContainer.toUpperCase()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1313,7 +1927,7 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                 {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>}
               </div>
               <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-purple-400" : "text-white/25"}`}>
-                {scene.provider || "—"}
+                {scene.provider === "Runway" ? "Scene Clip" : scene.provider || "—"}
               </span>
               <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
                 {statusLabel(scene)}

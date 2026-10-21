@@ -1,6 +1,8 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -69,13 +71,36 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
   return lines.join("\n");
 }
 
+/* ── Request validation ── */
+const songGenerateSchema = z.object({
+  artistName: z.string().max(200).optional(),
+  songTitle: z.string().max(300).optional(),
+  genre: z.string().max(100).optional(),
+  mood: z.string().max(100).optional(),
+  songTopic: z.string().max(5000).optional(),
+  explicit: z.string().max(20).optional(),
+  voiceStyle: z.string().max(200).optional(),
+  beatStyle: z.string().max(200).optional(),
+  songLength: z.string().max(50).optional(),
+  instructions: z.string().max(5000).optional(),
+  artistVault: z.record(z.string(), z.string().nullable().optional()).nullable().optional(),
+});
+
 router.post("/generate-song", requireAuth, async (req, res) => {
+  const parsed = songGenerateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid song request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const {
     artistName, songTitle, genre, mood, songTopic,
     explicit, voiceStyle, beatStyle, songLength, instructions,
-  } = req.body as Record<string, string>;
+  } = parsed.data;
 
-  const artistVault = req.body.artistVault as VaultData | null | undefined;
+  const artistVault = parsed.data.artistVault as VaultData | null | undefined;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -207,6 +232,8 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
+    // Retention hook: counts as a creation day + feeds the song quest.
+    void recordCreation(req.userId!, "song");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

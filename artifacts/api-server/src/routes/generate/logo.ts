@@ -1,20 +1,30 @@
 import { Router } from "express";
 import { randomUUID } from "crypto";
 import RunwayML from "@runwayml/sdk";
+import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
+import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   resolveLogoPlan,
-  isLogoStyleKey,
   buildLogoPrompt,
   LOGO_PREMIUM_CREDIT_COST,
   LOGO_STANDARD_CREDIT_COST,
-  type LogoStyleKey,
 } from "./logo-pricing";
 
 const router = Router();
+
+/* Attribution policy (confirmed intentional, 2026-10-07): logos are brand
+   assets — "Made with Bow Down Visuals" is deliberately NOT stamped on
+   generated logos. A creator's logo must be clean for their own branding. */
+
+const logoSchema = z.object({
+  brandName: z.string().trim().min(1),
+  style: z.enum(["luxury-gold", "gaming", "minimal", "mascot"]),
+  tagline: z.string().optional(),
+  model: z.enum(["premium", "standard"]).default("premium"),
+});
 
 const PREMIUM_CREDITS = Number(process.env["LOGO_PREMIUM_CREDITS"]) || LOGO_PREMIUM_CREDIT_COST;
 const STANDARD_CREDITS = Number(process.env["LOGO_STANDARD_CREDITS"]) || LOGO_STANDARD_CREDIT_COST;
@@ -37,14 +47,9 @@ export function __clearPendingLogoTasks() {
 
 async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Promise<{ url: string; path: string }> {
   const filePath = `logos/${userId}/${randomUUID()}.${ext}`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(LOGO_BUCKET)
-    .upload(filePath, buffer, { contentType: ext === "png" ? "image/png" : "image/jpeg", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(LOGO_BUCKET)
-    .getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(LOGO_BUCKET, filePath, buffer, ext === "png" ? "image/png" : "image/jpeg");
+  return { url, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -54,25 +59,19 @@ async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Pro
    3b. Standard (Runway gen4_image, async): submit → track task → return taskId.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-logo", requireAuth, async (req, res) => {
-  const { brandName, style, tagline, model } = req.body as {
-    brandName?: string;
-    style?: string;
-    tagline?: string;
-    model?: string;
-  };
-
-  if (!brandName?.trim()) {
-    res.status(400).json({ error: "brandName is required" });
+  const parsed = logoSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
-  if (!isLogoStyleKey(style)) {
-    res.status(400).json({ error: "style must be one of: luxury-gold, gaming, minimal, mascot" });
-    return;
-  }
+  const { brandName, style, tagline, model } = parsed.data;
 
   const plan = resolveLogoPlan({ model });
   const creditCost = plan.model === "premium" ? PREMIUM_CREDITS : STANDARD_CREDITS;
-  const prompt = buildLogoPrompt(brandName, style as LogoStyleKey, tagline);
+  const prompt = buildLogoPrompt(brandName, style, tagline);
 
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
@@ -101,6 +100,7 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
         return;
       }
       /* Charge only after the image exists — failure above means no charge. */
+      let charged = false;
       try {
         const creditsAfter = await chargeCreditsAtomic(
           req.userId!,
@@ -108,18 +108,41 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
           { action: "Logo (Premium)" },
           { rollbackOnLedgerFailure: false },
         );
+        charged = true;
         req.log.info({ userId: req.userId, creditsAfter, deducted: creditCost }, "[logo] credits deducted (Premium)");
         const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
         res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium", creditsRemaining: creditsAfter });
       } catch (chargeErr) {
         if (chargeErr instanceof LedgerWriteError) {
+          /* rollbackOnLedgerFailure:false — the deduction STANDS (only the
+             ledger trace is missing), so the member has paid. */
+          charged = true;
           req.log.error({ err: chargeErr }, "[logo] CRITICAL: ledger write failed after deduction");
-        } else {
+        } else if (!charged) {
           req.log.error({ err: chargeErr }, "[logo] credit deduction FAILED — logo delivered without charge");
         }
         /* Image was generated; still return it so the user isn't left empty-handed. */
-        const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
-        res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium" });
+        try {
+          const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
+          res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium" });
+        } catch (uploadErr) {
+          /* Both upload attempts failed. If the charge landed, give the
+             money back — never answer "no credits charged" over a charge
+             that stands (D5 sweep G5). */
+          if (charged) {
+            try {
+              await refundCredits(req.userId!, creditCost, { action: "Logo (Premium) — Refund (delivery failed)" });
+            } catch (refundErr) {
+              req.log.error({ err: refundErr }, "[logo] CRITICAL: refund failed after delivery failure — manual reconciliation required");
+            }
+            req.log.error({ err: uploadErr }, "[logo] delivery failed after charge — credits refunded");
+            res.status(500).json({ error: "Logo delivery failed — your Visual Bucs were refunded." });
+            return;
+          }
+          req.log.error({ err: uploadErr }, "[logo] delivery failed — no credits charged");
+          res.status(500).json({ error: "Logo delivery failed. No Visual Bucs were charged." });
+          return;
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Logo generation failed";

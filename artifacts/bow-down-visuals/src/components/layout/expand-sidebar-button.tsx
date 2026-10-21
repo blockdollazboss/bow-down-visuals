@@ -1,5 +1,6 @@
 import { ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 interface ExpandSidebarButtonProps {
   /** Whether the sidebar is currently collapsed (controls visibility). */
@@ -18,6 +19,7 @@ export function ExpandSidebarButton({
   collapsed,
   onExpand,
 }: ExpandSidebarButtonProps) {
+  const isLight = useIsLightTheme();
   return (
     <button
       type="button"
@@ -27,7 +29,8 @@ export function ExpandSidebarButton({
       data-testid="btn-expand-sidebar"
       className={cn(
         "fixed left-3 top-24 z-[9999] hidden h-9 w-9 items-center justify-center rounded-full",
-        "border border-primary/30 bg-black/85 text-primary backdrop-blur",
+        "border border-primary/30 text-primary backdrop-blur",
+        isLight ? "bg-[#FBF6E9]/95" : "bg-[#171208]/85",
         "shadow-[0_0_16px_rgba(218,165,32,0.25)]",
         "transition-all duration-200 hover:bg-primary hover:text-black",
         "md:flex",

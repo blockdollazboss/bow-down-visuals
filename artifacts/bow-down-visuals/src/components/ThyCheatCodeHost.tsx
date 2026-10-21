@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { X, MessageCircle, Sparkles, Footprints } from "lucide-react";
 import { getGuideForRoute } from "@/guides";
 import { openThyChat } from "@/components/ThyCheatCodeChat";
+import { mediaUrl } from "@/lib/media-cdn";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Thy Cheat Code — the in-page coach ──────────────────────────────────
    He doesn't float outside the page anymore. He IS the page's coach: rendered
@@ -10,7 +12,7 @@ import { openThyChat } from "@/components/ThyCheatCodeChat";
    what to do here step by step. Dismiss him and he collapses to a slim
    in-flow chip (per route, remembered in localStorage).
 
-   Never rendered on auth pages, the full-viewport video editor studio, or
+   Never rendered on auth pages, the full-viewport video editor studio (it has its own Ask Thy button in the top bar), or
    legal/fan-facing pages where he'd clutter. He IS on the home screen too. Full 8-bit pixel styling —
    he communicates in 8-bit everywhere. */
 
@@ -35,6 +37,7 @@ function readDismissed(route: string): boolean {
 
 export function ThyCheatCodeHost() {
   const [location] = useLocation();
+  const isLight = useIsLightTheme();
   const route = normalizePath(location);
   const [dismissed, setDismissed] = useState<boolean>(true);
 
@@ -72,15 +75,19 @@ export function ThyCheatCodeHost() {
   /* ── Collapsed: slim floating chip (overlays hero, no flow space) ── */
   if (dismissed) {
     return (
-      <div className="absolute top-2 left-4 sm:left-6 lg:left-8 z-[30]">
+      <div className="absolute top-6 left-8 md:top-8 md:left-10 z-[30]">
         <button
           onClick={expand}
-          className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
+          className={`inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 py-1.5 pl-2 pr-4 text-sm transition hover:border-[#C9A84C]/70 ${
+            isLight
+              ? "bg-[#FBF6E9]/90 text-[#6B5B36] shadow-[0_4px_18px_rgba(122,90,18,0.25)] hover:text-[#2A1E07]"
+              : "bg-black/60 text-neutral-300 hover:text-white"
+          }`}
           style={{ imageRendering: "pixelated" }}
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
             <video
-              src="/thy-cheat-code-idle.mp4"
+              src={mediaUrl(isLight ? "thy-cheat-code-idle-8bit-light.mp4" : "thy-cheat-code-idle-8bit.mp4")}
               autoPlay
               muted
               loop
@@ -90,8 +97,8 @@ export function ThyCheatCodeHost() {
             />
           </span>
           <span>
-            <span className="tcc-display text-sm text-[#E8C96A]">THY CHEAT CODE</span>
-            <span className="tcc-accent text-xs text-neutral-400"> · TIPS FOR THIS PAGE</span>
+            <span className={`tcc-display text-sm ${isLight ? "text-[#7A5A12]" : "text-[#E8C96A]"}`}>THY CHEAT CODE</span>
+            <span className={`tcc-accent text-xs ${isLight ? "text-[#8A7A56]" : "text-neutral-400"}`}> · TIPS FOR THIS PAGE</span>
           </span>
         </button>
       </div>
@@ -110,7 +117,7 @@ export function ThyCheatCodeHost() {
         <div className="flex items-start gap-4 p-5 sm:p-6">
           <div className="h-20 w-20 shrink-0 overflow-hidden border-4 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
             <video
-              src="/thy-cheat-code-making.mp4"
+              src={mediaUrl(isLight ? "thy-cheat-code-making-8bit-light-v2.mp4" : "thy-cheat-code-making-8bit.mp4")}
               autoPlay
               muted
               loop

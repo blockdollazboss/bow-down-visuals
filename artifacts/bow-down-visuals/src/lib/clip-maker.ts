@@ -25,7 +25,7 @@ export function buildTimestampExport(highlights: ClipHighlightLike[]): string {
 
 /** Credit math for the cut step: 2 credits per rendered clip. */
 export const CUT_CREDITS_PER_CLIP = 2;
-export const ANALYZE_CREDITS = 3;
+/* Removed 2026-10-10: ANALYZE_CREDITS was dead (zero non-test imports). */
 
 export function cutCostFor(clipCount: number): number {
   return Math.max(0, Math.floor(clipCount)) * CUT_CREDITS_PER_CLIP;

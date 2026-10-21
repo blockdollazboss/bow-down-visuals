@@ -1,22 +1,105 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star, Aperture, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { fetchMyProfile } from "@/lib/artist-profiles";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { SUBJECT_TYPE_META, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
+import { sortSpotlightVaults, splitSpotlightVaults } from "@/lib/spotlight";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useTranslation } from "react-i18next";
 
 export default function ChooseArtist() {
-  usePageTitle("Choose Artist", "Pick the artist profile you're creating for.");
+  const { t } = useTranslation();
+  usePageTitle(t("chooseArtist.pageTitle"), t("chooseArtist.pageDescription"));
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
+  // Reactive: MutationObserver on <html> class flips this the instant the
+  // theme toggle fires — placeholder + treatments swap with no reload.
+  // Owner directive 2026-10-11: character placeholder must follow the theme automatically.
+  const isLight = useIsLightTheme();
+  const placeholderShark = `${import.meta.env.BASE_URL}images/${isLight ? "shark-king-light-authority.png" : "shark-king-clean-authority.png"}`;
 
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(activeArtist?.id ?? null);
+
+  /* ── Drag-and-drop spotlight slots ───────────────────────────────────
+     Pointer-based so it works with mouse AND touch. A press becomes a drag
+     after moving 10px; otherwise it's a tap (select). Dropping a card on a
+     spotlight slot moves it there; the order persists to the account. */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropSlot, setDropSlot] = useState<number | null>(null);
+  const dragRef = useRef<{ id: string; sx: number; sy: number; dragging: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  function onCardPointerDown(vaultId: string, e: React.PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragRef.current = { id: vaultId, sx: e.clientX, sy: e.clientY, dragging: false };
+  }
+
+  function onCardPointerMove(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.dragging) {
+      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 10) return;
+      d.dragging = true;
+      suppressClick.current = true;
+      setDragId(d.id);
+    }
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-spot-slot]");
+    setDropSlot(el ? Number((el as HTMLElement).dataset.spotSlot) : null);
+  }
+
+  function onCardPointerUp(e: React.PointerEvent) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d?.dragging) {
+      setDragId(null);
+      setDropSlot(null);
+      return;
+    }
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-spot-slot]");
+    const target = el ? Number((el as HTMLElement).dataset.spotSlot) : null;
+    const draggedId = d.id;
+    setDragId(null);
+    setDropSlot(null);
+    if (target != null && !Number.isNaN(target)) moveToSlot(draggedId, target);
+    setTimeout(() => { suppressClick.current = false; }, 50);
+  }
+
+  function handleCardClick(vaultId: string) {
+    if (suppressClick.current) return;
+    setSelectedId((prev) => (prev === vaultId ? null : vaultId));
+  }
+
+  async function moveToSlot(draggedId: string, targetSlot: number) {
+    const ordered = [...sortedVaults];
+    const from = ordered.findIndex((v) => v.id === draggedId);
+    if (from === -1 || from === targetSlot) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(Math.min(targetSlot, ordered.length), 0, moved);
+    const reordered = ordered.map((v, i) => ({ ...v, spotlight_order: i }));
+    const orderMap = new Map(reordered.map((v) => [v.id, v.spotlight_order as number]));
+    setVaults((prev) =>
+      prev.map((v) => (orderMap.has(v.id) ? { ...v, spotlight_order: orderMap.get(v.id)! } : v)),
+    );
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/artist-vaults/spotlight-order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ order: reordered.map((v) => v.id) }),
+      });
+    } catch {
+      /* order still applies locally; syncs next load */
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -46,20 +129,23 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
-  function handleContinueWithout() {
+  async function handleContinueWithout() {
     setActiveArtist(null);
-    setLocation("/dashboard");
+    /* Lightning onboarding: users with no public profile go straight to the
+       60-second setup instead of landing on the dashboard with no next step. */
+    try {
+      const p = await fetchMyProfile();
+      setLocation(p ? "/dashboard" : "/artist-setup");
+    } catch {
+      setLocation("/dashboard");
+    }
   }
 
-  /* Top 3 featured (active artist first, then most recent), max 10 total. */
-  const sortedVaults = [...vaults].sort((a, b) => {
-    if (a.id === activeArtist?.id) return -1;
-    if (b.id === activeArtist?.id) return 1;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-  const featuredVaults = sortedVaults.slice(0, 3);
-  const remainingVaults = sortedVaults.slice(3, 10);
-  const hiddenCount = sortedVaults.length - 10;
+  /* Spotlight slots: user's drag-and-drop order wins (spotlight_order asc),
+     then most recent. Top 3 featured; every other character stands in
+     the grid below — the full roster, no cap. */
+  const sortedVaults = sortSpotlightVaults(vaults);
+  const { featured: featuredVaults, remaining: remainingVaults } = splitSpotlightVaults(sortedVaults);
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -78,19 +164,19 @@ export default function ChooseArtist() {
           {/* ON SET indicator */}
           <div className="inline-flex items-center gap-2 mb-5 rounded-full border border-red-500/40 bg-red-500/10 px-4 py-1.5">
             <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">On set</span>
+            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">{t("chooseArtist.onSet")}</span>
           </div>
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 border border-[#C9A84C]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(201,168,76,0.25)]">
             <Aperture className="h-7 w-7 text-[#C9A84C]" />
           </div>
           <p className="text-[#C9A84C] text-xs font-bold uppercase tracking-[0.3em] mb-3">
-            Bow Down Visuals Studio
+            {t("chooseArtist.eyebrow")}
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Who's In Front of the Camera?
+            {t("chooseArtist.title")}
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.
+            {t("chooseArtist.subtitle")}
           </p>
         </div>
 
@@ -99,25 +185,38 @@ export default function ChooseArtist() {
             <Loader2 className="h-8 w-8 animate-spin text-zinc-300/50" />
           </div>
         ) : vaults.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center space-y-5 mb-6">
+          <div className={`rounded-2xl border p-10 text-center space-y-5 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="h-12 w-12 rounded-xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center mx-auto">
               <User className="h-6 w-6 text-white/20" />
             </div>
             <div>
-              <p className="text-white/60 font-semibold mb-1">No artist profiles yet</p>
-              <p className="text-sm text-white/35">Set up an artist profile to keep your music and visuals consistent. Takes about 2 minutes — or skip for now and add one later.</p>
+              <p className="text-white/60 font-semibold mb-1">{t("chooseArtist.emptyTitle")}</p>
+              <p className="text-sm text-white/35">{t("chooseArtist.emptyDescription")}</p>
             </div>
+            <Link href="/artist-setup">
+              <Button
+                className="h-12 px-8 font-bold gap-2 rounded-2xl"
+                style={{ background: "linear-gradient(135deg, #9B7515, #DAA520)" }}
+                data-testid="btn-claim-page"
+              >
+                <Sparkles className="h-4 w-4" />
+                Claim my public page — live in 60 seconds
+              </Button>
+            </Link>
           </div>
         ) : (
           <>
             {/* Featured top 3 — studio spotlight */}
-            <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="flex items-center justify-center gap-2 mb-2">
               <Camera className="h-4 w-4 text-[#C9A84C]" />
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
-                In the spotlight
+                {t("chooseArtist.inSpotlight")}
               </p>
               <Camera className="h-4 w-4 text-[#C9A84C]" />
             </div>
+            <p className="text-center text-xs text-white/35 mb-4">
+              {t("chooseArtist.dragHint")}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
@@ -130,26 +229,37 @@ export default function ChooseArtist() {
                 <button
                   key={vault.id}
                   type="button"
-                  onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                  onClick={() => handleCardClick(vault.id)}
+                  onPointerDown={(e) => onCardPointerDown(vault.id, e)}
+                  onPointerMove={onCardPointerMove}
+                  onPointerUp={onCardPointerUp}
+                  onPointerCancel={() => { dragRef.current = null; setDragId(null); setDropSlot(null); }}
                   data-testid={`artist-card-${vault.id}`}
+                  data-spot-slot={index}
                   style={{
                     textAlign: "left",
                     borderRadius: 20,
-                    border: isSelected ? `2px solid ${T(0.6)}` : "1px solid rgba(255,255,255,0.07)",
-                    boxShadow: isSelected ? `0 0 40px ${T(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+                    border: isSelected ? `2px solid ${T(0.6)}` : dropSlot === index ? `2px dashed ${T(0.9)}` : "1px solid rgba(255,255,255,0.07)",
+                    boxShadow: isSelected ? `0 0 40px ${T(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : dropSlot === index ? `0 0 24px ${T(0.35)}` : "none",
                     padding: 0,
-                    cursor: "pointer",
+                    cursor: dragId ? "grabbing" : "grab",
                     position: "relative",
                     overflow: "hidden",
                     transition: "all 0.2s ease",
                     display: "block",
                     width: "100%",
                     height: 240,
+                    opacity: dragId === vault.id ? 0.45 : 1,
+                    touchAction: "none",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
-                        ? `linear-gradient(135deg, ${T(0.22)} 0%, ${T(0.08)} 60%, #000 100%)`
-                        : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+                        ? `linear-gradient(135deg, ${T(0.22)} 0%, ${T(0.08)} 60%, ${isLight ? "#EFE6D0" : "#000"} 100%)`
+                        : isLight
+                          ? "linear-gradient(135deg, #F7F1E3 0%, #EFE6D0 100%)"
+                          : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
                   }}
                 >
                   {/* Theme color wash — the character's identity glows through */}
@@ -177,20 +287,43 @@ export default function ChooseArtist() {
                       }}
                     />
                   )}
+                  {/* Dark-theme scrim — tones down bright reference images so they
+                      don't glow white against dark theme. Image stays visible. */}
+                  {!isLight && vault.reference_image_url && (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                      background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.28) 50%, rgba(0,0,0,0.5) 100%)",
+                    }} />
+                  )}
+                  {/* Light-theme warm treatment — a whisper of warm cream so the
+                      reference image feels intentional on light theme, never a
+                      white washout or ghost. Image stays fully visible. */}
+                  {isLight && vault.reference_image_url && (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                      background: "linear-gradient(180deg, rgba(247,241,227,0.18) 0%, rgba(247,241,227,0.06) 50%, rgba(201,168,76,0.12) 100%)",
+                    }} />
+                  )}
                   {/* Initials avatar (no photo) */}
                   {!vault.reference_image_url && (
                     <div style={{
                       position: "absolute", inset: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
+                      background: `url(${placeholderShark}) center/cover no-repeat`,
+                      opacity: 0.3,
                     }}>
                       <div style={{
                         width: 72, height: 72, borderRadius: "50%",
-                        background: isSelected ? `linear-gradient(135deg, ${T(0.25)}, ${T(0.06)})` : "rgba(255,255,255,0.06)",
-                        border: isSelected ? `2px solid ${T(0.5)}` : "1px solid rgba(255,255,255,0.1)",
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${T(0.25)}, ${T(0.06)})`
+                          : isLight ? "rgba(138,109,47,0.10)" : "rgba(255,255,255,0.06)",
+                        border: isSelected
+                          ? `2px solid ${T(0.5)}`
+                          : isLight ? "1px solid rgba(138,109,47,0.35)" : "1px solid rgba(255,255,255,0.1)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: isSelected ? `0 0 28px ${T(0.35)}` : "none",
                       }}>
-                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? THEME : "rgba(255,255,255,0.35)" }}>{initials}</span>
+                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? THEME : isLight ? "rgba(138,109,47,0.65)" : "rgba(255,255,255,0.35)" }}>{initials}</span>
                       </div>
                     </div>
                   )}
@@ -207,7 +340,7 @@ export default function ChooseArtist() {
                   }}>
                     <Crown className="h-3 w-3" style={{ color: THEME }} />
                     <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em" }}>
-                      #{index + 1} SPOTLIGHT
+                      {t("chooseArtist.spotlightBadge", { n: index + 1 })}
                     </span>
                   </div>
 
@@ -221,42 +354,26 @@ export default function ChooseArtist() {
                     <div key={ci} style={{ position: "absolute", width: 22, height: 22, zIndex: 2, pointerEvents: "none", ...corner }} />
                   ))}
 
-                  {/* SELECTED badge */}
-                  {isSelected && (
-                    <div style={{
-                      position: "absolute", top: 10, right: 10, zIndex: 3,
-                      display: "flex", alignItems: "center", gap: 4,
-                      background: "rgba(0,0,0,0.55)", border: `1px solid ${T(0.5)}`,
-                      borderRadius: 7, padding: "3px 8px",
-                      backdropFilter: "blur(8px)",
-                    }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: THEME, boxShadow: `0 0 5px ${THEME}` }} />
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>SELECTED</span>
-                    </div>
-                  )}
+                  {/* No SELECTED text badge — the theme-colored border identifies the selection. */}
 
                   {/* Bottom name strip — only covers bottom 20% */}
                   <div style={{
-                    position: "absolute", left: 0, right: 0, bottom: 0,
+                    position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2,
                     background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.82) 100%)",
                     padding: "32px 14px 12px",
                   }}>
                     <p style={{
                       fontFamily: "Georgia, serif",
-                      fontSize: 15, fontWeight: 900, color: "#fff",
+                      fontSize: 15, fontWeight: 900, color: THEME,
                       letterSpacing: "0.03em",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       textShadow: "0 1px 6px rgba(0,0,0,0.8)",
                     }}>{vault.artist_name}</p>
                     {vault.artist_type && (
-                      <p style={{ fontSize: 9.5, color: isSelected ? T(0.85) : "rgba(255,255,255,0.55)", marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                        {vault.artist_type}
+                      <p style={{ fontSize: 9.5, color: SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].color, marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase", fontWeight: 800 }}>
+                        {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
                       </p>
                     )}
-                    {/* Theme name tag — who they are, in their colors */}
-                    <p style={{ fontSize: 9, color: T(0.9), marginTop: 3, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>
-                      {theme.name}
-                    </p>
                   </div>
 
                   {/* Theme border glow on selected */}
@@ -272,11 +389,11 @@ export default function ChooseArtist() {
             })}
             </div>
 
-            {/* Remaining artists (up to 7 more, max 10 total) */}
+            {/* Remaining artists — the full roster past the spotlight three */}
             {remainingVaults.length > 0 && (
               <>
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  More artists
+                  {t("chooseArtist.moreArtists")}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                   {remainingVaults.map((vault) => {
@@ -287,13 +404,24 @@ export default function ChooseArtist() {
                       <button
                         key={vault.id}
                         type="button"
-                        onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                        onClick={() => handleCardClick(vault.id)}
+                        onPointerDown={(e) => onCardPointerDown(vault.id, e)}
+                        onPointerMove={onCardPointerMove}
+                        onPointerUp={onCardPointerUp}
+                        onPointerCancel={() => { dragRef.current = null; setDragId(null); setDropSlot(null); }}
                         className="rounded-xl border p-3 text-left transition"
-                        style={isSelected ? {
-                          borderColor: themeAlpha(rTheme.primary, 0.6),
-                          background: rTheme.cardTint,
-                          boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
-                        } : undefined}
+                        style={{
+                          ...(isSelected ? {
+                            borderColor: themeAlpha(rTheme.primary, 0.6),
+                            background: rTheme.cardTint,
+                            boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
+                          } : undefined),
+                          opacity: dragId === vault.id ? 0.45 : 1,
+                          cursor: dragId ? "grabbing" : "grab",
+                          touchAction: "none",
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
+                        }}
                       >
                         <div className="flex items-center gap-2.5">
                           {vault.reference_video_url ? (
@@ -334,26 +462,34 @@ export default function ChooseArtist() {
                 </div>
               </>
             )}
-            {hiddenCount > 0 && (
-              <p className="mb-6 text-center text-sm text-white/35">
-                +{hiddenCount} more artist{hiddenCount === 1 ? "" : "s"} — showing your top 10
-              </p>
-            )}
           </>
         )}
 
         {/* Action buttons */}
         <div className="space-y-3">
-          {/* Use Selected Artist */}
+          {/* Use Selected Artist — button glows in the selected character's theme color */}
           <Button
             onClick={handleUseArtist}
             disabled={!selectedId}
             className="w-full h-14 text-base font-bold gap-3 rounded-2xl disabled:opacity-40"
-            style={{ background: selectedId ? "linear-gradient(135deg, #9B7515, #DAA520)" : undefined }}
+            style={(() => {
+              const sv = vaults.find((v) => v.id === selectedId);
+              if (!sv) return undefined;
+              const st = getCharacterTheme(sv.theme_id).primary;
+              return {
+                background: `linear-gradient(135deg, ${themeAlpha(st, 0.7)}, ${st})`,
+                boxShadow: `0 0 32px ${themeAlpha(st, 0.35)}`,
+                color: "#0a0a0a",
+              };
+            })()}
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />
-            Start Creating with This Artist
+            {selectedId
+              ? t("chooseArtist.startCreatingWith", {
+                  name: vaults.find((v) => v.id === selectedId)?.artist_name ?? "",
+                })
+              : t("chooseArtist.startCreating")}
             <ArrowRight className="h-5 w-5 ml-auto" />
           </Button>
 
@@ -365,7 +501,7 @@ export default function ChooseArtist() {
               data-testid="btn-create-artist"
             >
               <Plus className="h-4 w-4" />
-              Create Artist Profile
+              {t("chooseArtist.createProfile")}
             </Button>
           </Link>
 
@@ -376,7 +512,7 @@ export default function ChooseArtist() {
             className="w-full py-3 text-sm text-white/35 hover:text-white/60 transition-colors"
             data-testid="btn-continue-without"
           >
-            Skip for now — I'll choose an artist later
+            {t("chooseArtist.skipForNow")}
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
+import { refreshSupabaseStorageUrl } from "./objectStorage";
 
 /**
  * Exactly-once job completion/failure notifications.
@@ -27,7 +28,7 @@ import { logger } from "./logger";
  * - `none`    — stored but never delivered.
  */
 
-export type JobType = "lip_sync" | "export";
+export type JobType = "lip_sync" | "export" | "sale";
 export type JobCompletionStatus = "completed" | "failed";
 export type NotifyChannel = "relay" | "discord" | "log" | "none";
 
@@ -157,7 +158,14 @@ export async function listPendingNotifications(limit = 20): Promise<JobNotificat
     ORDER BY created_at ASC
     LIMIT ${Math.max(1, Math.min(limit, 50))}
   `);
-  return (res.rows as Record<string, unknown>[]).map(toNotification);
+  const notifications = (res.rows as Record<string, unknown>[]).map(toNotification);
+  /* Stored video values may be storage refs (mirrored at save) or signed
+     URLs copied from a job result — mint a fresh playable URL per read so
+     the relay never pings a dead link. */
+  for (const n of notifications) {
+    if (n.videoUrl) n.videoUrl = await refreshSupabaseStorageUrl(n.videoUrl);
+  }
+  return notifications;
 }
 
 /**

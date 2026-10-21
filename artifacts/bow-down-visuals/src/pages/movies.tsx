@@ -1,12 +1,18 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Clapperboard, Loader2, Sparkles, AlertTriangle, Film, Tv,
   Users, ListVideo, Quote, Target, TrendingUp, Scissors, Clock,
-  Zap, MessageSquareText, CalendarClock,
+  Zap, MessageSquareText, CalendarClock, PenLine,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for creators going long-form:
@@ -22,9 +28,9 @@ const CLIP_DETECT_CREDITS = 3;
 type Tab = "concept" | "clips";
 
 const FORMATS = [
-  { key: "movie", label: "Movie", icon: Film },
-  { key: "web-series", label: "Web Series", icon: Tv },
-  { key: "limited-series", label: "Limited Series", icon: ListVideo },
+  { key: "movie", icon: Film },
+  { key: "web-series", icon: Tv },
+  { key: "limited-series", icon: ListVideo },
 ] as const;
 type FormatKey = (typeof FORMATS)[number]["key"];
 
@@ -86,8 +92,12 @@ function viralityColor(s: number): string {
 }
 
 export default function Movies() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Movies & Web Series", "Create, publish and promote AI-assisted movies and web series with the Bow Down Visuals creator studio.");
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
   const [tab, setTab] = useState<Tab>("concept");
 
   /* concept state */
@@ -129,11 +139,23 @@ export default function Movies() {
       const data = await res!.json();
       if (data.concept) {
         setConcept(data.concept as Concept);
+        /* The concept flows into the hub project as a script asset — the script
+           writer and video tools pick it up. */
+        const c = data.concept as Concept;
+        try {
+          addAsset({
+            kind: "script",
+            url: `data:text/plain;charset=utf-8,${encodeURIComponent(`${c.title}\n\n${c.logline}\n\n${c.synopsis}`)}`,
+            label: c.title || "Movie concept",
+            detail: c.tagline || c.genre || undefined,
+            meta: { text: `${c.title}\n\n${c.logline}\n\n${c.synopsis}`, logline: c.logline },
+          });
+        } catch { /* hub unavailable — non-fatal */ }
       } else {
-        setError(data.message || "Generation failed. Try again.");
+        setError(data.message || t("movies.errorGeneration"));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed.");
+      setError(e instanceof Error ? e.message : t("movies.errorGenerationShort"));
     } finally {
       setConceptLoading(false);
     }
@@ -160,10 +182,10 @@ export default function Movies() {
         setDetection(data.detection as Detection);
         setDetectNote(data.note ?? "");
       } else {
-        setError(data.message || "Detection failed. Try again.");
+        setError(data.message || t("movies.errorDetection"));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Detection failed.");
+      setError(e instanceof Error ? e.message : t("movies.errorDetectionShort"));
     } finally {
       setClipLoading(false);
     }
@@ -175,14 +197,13 @@ export default function Movies() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300 text-xs font-bold uppercase tracking-widest mb-4">
-            <Clapperboard className="h-3.5 w-3.5" /> Movies & Web Series
+            <Clapperboard className="h-3.5 w-3.5" /> {t("movies.badge")}
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-3">
-            Your next <span className="text-amber-400">binge-worthy</span> hit starts here.
+            {t("movies.titleStart")} <span className="text-amber-400">{t("movies.titleAccent")}</span> {t("movies.titleEnd")}
           </h1>
           <p className="text-white/50 max-w-2xl mx-auto">
-            Develop a movie or series concept with AI — or turn your streams into
-            viral clips. Fully automated: describe it, AI does the rest.
+            {t("movies.subtitle")}
           </p>
         </div>
 
@@ -190,21 +211,21 @@ export default function Movies() {
         <div className="flex justify-center gap-2 mb-8">
           {(
             [
-              { key: "concept", label: "Concept Generator", icon: Sparkles },
-              { key: "clips", label: "Stream Clip Detector", icon: Scissors },
-            ] as { key: Tab; label: string; icon: typeof Sparkles }[]
-          ).map((t) => (
+              { key: "concept", icon: Sparkles },
+              { key: "clips", icon: Scissors },
+            ] as { key: Tab; icon: typeof Sparkles }[]
+          ).map((tabItem) => (
             <button
-              key={t.key}
+              key={tabItem.key}
               type="button"
-              onClick={() => { setTab(t.key); setError(""); }}
+              onClick={() => { setTab(tabItem.key); setError(""); }}
               className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-colors flex items-center gap-2 ${
-                tab === t.key
+                tab === tabItem.key
                   ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
                   : "border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
               }`}
             >
-              <t.icon className="h-4 w-4" /> {t.label}
+              <tabItem.icon className="h-4 w-4" /> {t(`movies.tabs.${tabItem.key}`)}
             </button>
           ))}
         </div>
@@ -217,9 +238,9 @@ export default function Movies() {
 
         {tab === "concept" ? (
           !concept ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8 max-w-3xl mx-auto">
+            <div className={`rounded-2xl border p-6 md:p-8 max-w-3xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
-                What are you making?
+                {t("movies.whatMaking")}
               </label>
               <div data-min-stars="2" className="flex flex-wrap gap-2 mb-6">
                 {FORMATS.map((f) => (
@@ -233,34 +254,34 @@ export default function Movies() {
                         : "border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
                     }`}
                   >
-                    <f.icon className="h-4 w-4" /> {f.label}
+                    <f.icon className="h-4 w-4" /> {t(`movies.formats.${f.key}`)}
                   </button>
                 ))}
               </div>
 
               <label data-min-stars="3" className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
-                Genre <span className="text-white/25 normal-case">(optional)</span>
+                {t("movies.genreLabel")} <span className="text-white/25 normal-case">{t("movies.optional")}</span>
               </label>
               <input
                 value={genre}
                 data-min-stars="3"
                 onChange={(e) => setGenre(e.target.value)}
-                placeholder="e.g. sci-fi thriller, street drama, dark comedy…"
+                placeholder={t("movies.genrePlaceholder")}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50 mb-6"
               />
 
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
-                Describe your concept
+                {t("movies.describeConcept")}
               </label>
               <textarea
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
-                placeholder="Give me the raw idea — characters, world, the vibe. The messier the better, AI turns it into a development package."
+                placeholder={t("movies.ideaPlaceholder")}
                 rows={8}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
               />
               <div className="text-xs mt-2 mb-6 text-white/30">
-                {idea.trim().length} characters {idea.trim().length < 50 ? "(need 50+)" : "✓"}
+                {t("movies.charCount", { count: idea.trim().length })} {idea.trim().length < 50 ? t("movies.need50") : "✓"}
               </div>
 
               <button
@@ -270,13 +291,13 @@ export default function Movies() {
                 className="w-full py-4 rounded-xl font-black text-black bg-gradient-to-r from-amber-300 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {conceptLoading ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Developing your concept…</>
+                  <><Loader2 className="h-5 w-5 animate-spin" /> {t("movies.developing")}</>
                 ) : (
-                  <><Sparkles className="h-5 w-5" /> Generate Concept — {CONCEPT_CREDITS} Visual Bucs</>
+                  <><Sparkles className="h-5 w-5" /> {t("movies.generateConcept", { cost: CONCEPT_CREDITS })}</>
                 )}
               </button>
               {!user && (
-                <p className="text-center text-xs text-white/30 mt-3">Sign in to generate concepts.</p>
+                <p className="text-center text-xs text-white/30 mt-3">{t("movies.signInConcept")}</p>
               )}
             </div>
           ) : (
@@ -284,14 +305,14 @@ export default function Movies() {
               {/* Title hero */}
               <div className="rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/[0.08] to-transparent p-6 md:p-8 text-center">
                 <div className="text-xs uppercase tracking-widest text-amber-400/70 mb-2">
-                  {FORMATS.find((f) => f.key === format)?.label}
+                  {t(`movies.formats.${format}`)}
                 </div>
                 <h2 className="text-3xl md:text-4xl font-black mb-2">{concept.title}</h2>
                 <p className="text-amber-200/80 italic">"{concept.tagline}"</p>
               </div>
 
               {/* Logline */}
-              <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h3 className="text-lg font-black mb-3 flex items-center gap-2">
                   <Quote className="h-5 w-5 text-amber-400" /> Logline
                 </h3>
@@ -307,16 +328,16 @@ export default function Movies() {
 
               {/* Episodes */}
               {concept.episodes?.length > 0 && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-lg font-black mb-4 flex items-center gap-2">
                     <ListVideo className="h-5 w-5 text-amber-400" />
-                    {format === "movie" ? "Three-Act Structure" : `Episode Breakdown (${concept.episodes.length})`}
+                    {format === "movie" ? t("movies.threeAct") : t("movies.episodeBreakdown", { count: concept.episodes.length })}
                   </h3>
                   <div className="space-y-3">
                     {concept.episodes.map((ep) => (
                       <div key={ep.number} className="rounded-xl border border-white/10 bg-black/30 p-4">
                         <div className="font-bold text-amber-200 mb-1">
-                          {format === "movie" ? "" : `Ep ${ep.number} — `}{ep.title}
+                          {format === "movie" ? "" : t("movies.epLabel", { num: ep.number })}{ep.title}
                         </div>
                         <p className="text-sm text-white/60">{ep.summary}</p>
                       </div>
@@ -327,7 +348,7 @@ export default function Movies() {
 
               {/* Characters */}
               {concept.characters?.length > 0 && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-lg font-black mb-4 flex items-center gap-2">
                     <Users className="h-5 w-5 text-amber-400" /> Character Bible
                   </h3>
@@ -341,7 +362,7 @@ export default function Movies() {
                           </span>
                         </div>
                         <p className="text-sm text-white/60 mb-2">{c.description}</p>
-                        <p className="text-xs text-white/40 italic">Arc: {c.arc}</p>
+                        <p className="text-xs text-white/40 italic">{t("movies.arcLabel")}: {c.arc}</p>
                       </div>
                     ))}
                   </div>
@@ -357,8 +378,8 @@ export default function Movies() {
                   <p className="text-sm text-white/70">{concept.pilotHook}</p>
                 </section>
                 {concept.comparables?.length > 0 && (
-                  <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                    <h3 className="text-base font-black mb-2 text-white/80">Comparables</h3>
+                  <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                    <h3 className="text-base font-black mb-2 text-white/80">{t("movies.comparables")}</h3>
                     <ul className="space-y-1">
                       {concept.comparables.map((c, i) => (
                         <li key={i} className="text-sm text-white/55">• {c}</li>
@@ -368,41 +389,55 @@ export default function Movies() {
                 )}
               </div>
 
+              <Link
+                href={`/hooks?tab=scripts&topic=${encodeURIComponent(concept.title)}&hook=${encodeURIComponent(concept.pilotHook || "")}`}
+                className="w-full py-3 rounded-xl font-bold bg-primary text-black hover:brightness-110 transition-all flex items-center justify-center gap-2"
+              >
+                <PenLine className="h-4 w-4" /> {t("movies.writeScript", { defaultValue: "Write the script" })}
+              </Link>
               <button
                 type="button"
                 onClick={() => { setConcept(null); setIdea(""); setGenre(""); }}
                 className="w-full py-3 rounded-xl font-bold border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
               >
-                Develop Another Concept
+                {t("movies.developAnother")}
               </button>
+              {/* Filmmakers: finished film → publish to profile (film vertical prefilled) */}
+              <PublishToProfileButton
+                type="video"
+                category="film"
+                title={concept.title}
+                from="/movies"
+                fromLabel="Movies"
+              />
             </div>
           )
         ) : (
           /* ── Clip detector tab ── */
           !detection ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8 max-w-3xl mx-auto">
+            <div className={`rounded-2xl border p-6 md:p-8 max-w-3xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
-                Stream / VOD URL <span className="text-white/25 normal-case">(optional)</span>
+                {t("movies.streamUrlLabel")} <span className="text-white/25 normal-case">{t("movies.optional")}</span>
               </label>
               <input
                 value={streamUrl}
                 onChange={(e) => setStreamUrl(e.target.value)}
-                placeholder="https://twitch.tv/videos/… or youtube.com/watch?v=…"
+                placeholder={t("movies.streamUrlPlaceholder")}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50 mb-6"
               />
 
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
-                Describe the stream
+                {t("movies.describeStream")}
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What happened? Big plays, funny fails, rage moments, wholesome bits — walk me through the stream like you're telling a friend. Include roughly when things happened if you remember."
+                placeholder={t("movies.streamPlaceholder")}
                 rows={8}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
               />
               <div className="text-xs mt-2 mb-6 text-white/30">
-                {description.trim().length} characters {description.trim().length < 50 ? "(need 50+)" : "✓"}
+                {t("movies.charCount", { count: description.trim().length })} {description.trim().length < 50 ? t("movies.need50") : "✓"}
               </div>
 
               <button
@@ -412,13 +447,13 @@ export default function Movies() {
                 className="w-full py-4 rounded-xl font-black text-black bg-gradient-to-r from-amber-300 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {clipLoading ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Finding your highlights…</>
+                  <><Loader2 className="h-5 w-5 animate-spin" /> {t("movies.finding")}</>
                 ) : (
-                  <><Scissors className="h-5 w-5" /> Detect Highlights — {CLIP_DETECT_CREDITS} Visual Bucs</>
+                  <><Scissors className="h-5 w-5" /> {t("movies.detectButton", { cost: CLIP_DETECT_CREDITS })}</>
                 )}
               </button>
               {!user && (
-                <p className="text-center text-xs text-white/30 mt-3">Sign in to detect highlights.</p>
+                <p className="text-center text-xs text-white/30 mt-3">{t("movies.signInClips")}</p>
               )}
             </div>
           ) : (
@@ -434,11 +469,11 @@ export default function Movies() {
               {/* Clips */}
               <section>
                 <h3 className="text-lg font-black mb-4 flex items-center gap-2">
-                  <Scissors className="h-5 w-5 text-amber-400" /> Clip-Worthy Moments ({detection.clips?.length ?? 0})
+                  <Scissors className="h-5 w-5 text-amber-400" /> {t("movies.clipMoments", { count: detection.clips?.length ?? 0 })}
                 </h3>
                 <div className="space-y-3">
                   {(detection.clips ?? []).map((clip, i) => (
-                    <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <div key={i} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
                         <div className="font-bold text-white/90">{clip.title}</div>
                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${categoryBadge(clip.category)}`}>
@@ -447,13 +482,13 @@ export default function Movies() {
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs text-white/50 mb-2">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-amber-400/70" /> ~{clip.timestamp} ({clip.durationSec}s clip)
+                          <Clock className="h-3.5 w-3.5 text-amber-400/70" /> {t("movies.clipMeta", { timestamp: clip.timestamp, duration: clip.durationSec })}
                         </span>
                         <span className={`flex items-center gap-1 font-bold ${viralityColor(clip.viralityScore)}`}>
-                          <TrendingUp className="h-3.5 w-3.5" /> {clip.viralityScore}/10 virality
+                          <TrendingUp className="h-3.5 w-3.5" /> {t("movies.virality", { score: clip.viralityScore })}
                         </span>
                       </div>
-                      <p className="text-sm text-amber-200/70 italic mb-2">Hook: "{clip.hook}"</p>
+                      <p className="text-sm text-amber-200/70 italic mb-2">{t("movies.hookLabel")}: "{clip.hook}"</p>
                       <p className="text-xs text-white/40 leading-relaxed">{clip.caption}</p>
                     </div>
                   ))}
@@ -462,7 +497,7 @@ export default function Movies() {
 
               {/* Posting strategy */}
               {detection.postingStrategy && (
-                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <section className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="text-base font-black mb-2 flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-amber-400" /> Posting Strategy
                   </h3>
@@ -479,7 +514,7 @@ export default function Movies() {
                 onClick={() => { setDetection(null); setDescription(""); setStreamUrl(""); }}
                 className="w-full py-3 rounded-xl font-bold border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
               >
-                Analyze Another Stream
+                {t("movies.analyzeAnother")}
               </button>
             </div>
           )

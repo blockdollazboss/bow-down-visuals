@@ -22,7 +22,7 @@ import {
 
 describe("PODCAST_CREDITS_PER_10MIN", () => {
   it("charges 3 credits per 10 minutes of audio", () => {
-    expect(PODCAST_CREDITS_PER_10MIN).toBe(3);
+    expect(PODCAST_CREDITS_PER_10MIN).toBe(300);
     expect(SECONDS_PER_BLOCK).toBe(600);
   });
 });
@@ -34,14 +34,14 @@ describe("estimatePodcastCost", () => {
     expect(est.wordCount).toBe(1500);
     expect(est.estimatedSeconds).toBe(600);
     expect(est.billableBlocks).toBe(1);
-    expect(est.credits).toBe(3);
+    expect(est.credits).toBe(300);
   });
 
   it("rounds partial blocks up (1501 words = 2 blocks = 6 credits)", () => {
     const words = new Array(1501).fill("word").join(" ");
     const est = estimatePodcastCost(words);
     expect(est.billableBlocks).toBe(2);
-    expect(est.credits).toBe(6);
+    expect(est.credits).toBe(600);
   });
 
   it("enforces a 1-block minimum charge for tiny scripts", () => {
@@ -54,7 +54,7 @@ describe("estimatePodcastCost", () => {
     const words = new Array(4500).fill("word").join(" ");
     const est = estimatePodcastCost(words);
     expect(est.billableBlocks).toBe(3);
-    expect(est.credits).toBe(9);
+    expect(est.credits).toBe(900);
   });
 
   it("handles empty scripts", () => {
@@ -68,13 +68,13 @@ describe("estimatePodcastCostFromSeconds", () => {
   it("bills a 5-minute video as 1 block", () => {
     const est = estimatePodcastCostFromSeconds(300);
     expect(est.billableBlocks).toBe(1);
-    expect(est.credits).toBe(3);
+    expect(est.credits).toBe(300);
   });
 
   it("bills a 25-minute video as 3 blocks", () => {
     const est = estimatePodcastCostFromSeconds(1500);
     expect(est.billableBlocks).toBe(3);
-    expect(est.credits).toBe(9);
+    expect(est.credits).toBe(900);
   });
 });
 

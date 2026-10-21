@@ -1,11 +1,24 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useRef } from "react";
 import {
   Globe, Loader2, Sparkles, Download, Eye, FileCode2, Wand2,
   Mic2, Newspaper, Link2, MapPin, CheckCircle2, AlertTriangle,
+  FolderOpen, History, RotateCcw, Trash2, Save, Plus,
+  LayoutTemplate, Shuffle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
+import {
+  parseGalleryTemplates,
+  cloneTemplateFiles,
+  starterBrief,
+  isGalleryTemplateKey,
+  type GalleryTemplate,
+  type GalleryTemplateKey,
+} from "@/lib/website-builder-gallery";
 
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: describe a site → AI builds a complete static site package
@@ -14,7 +27,14 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    domain. NOTHING is ever published or hosted on bowdownvisuals.com.
 
    Creator-niche templates: artist site, press kit, link-in-bio-plus,
-   tour page. Conversational edits at 2 credits each. */
+   tour page. Conversational edits at 2 credits each.
+
+   Persistence (migration 0196): every build is saved to the member's
+   account server-side as a project; re-generations and edits append
+   versions. Saved sites re-open here (or from My Projects → Websites)
+   with the exact files restored — a refresh no longer loses the site.
+   No preview image is stored: cards say the preview renders live on
+   open, because it does (the same iframe the builder already uses). */
 
 const BUILD_COST = 30;
 const EDIT_COST = 2;
@@ -22,40 +42,95 @@ const EDIT_COST = 2;
 const TEMPLATES = [
   {
     key: "artist-site",
-    label: "Artist Site",
+    labelKey: "websiteBuilder.templateArtistSite",
     icon: Mic2,
-    blurb: "Full homepage: hero, music, about, shows, gallery, mailing list.",
+    blurbKey: "websiteBuilder.templateArtistSiteBlurb",
   },
   {
     key: "press-kit",
-    label: "Press Kit",
+    labelKey: "websiteBuilder.templatePressKit",
     icon: Newspaper,
-    blurb: "EPK: bio, photos, music, press quotes, tour dates, booking contact.",
+    blurbKey: "websiteBuilder.templatePressKitBlurb",
   },
   {
     key: "link-in-bio",
-    label: "Link-in-Bio Plus",
+    labelKey: "websiteBuilder.templateLinkInBio",
     icon: Link2,
-    blurb: "Smart links, release spotlight, socials, newsletter capture.",
+    blurbKey: "websiteBuilder.templateLinkInBioBlurb",
   },
   {
     key: "tour-page",
-    label: "Tour Page",
+    labelKey: "websiteBuilder.templateTourPage",
     icon: MapPin,
-    blurb: "Date list, ticket links, VIP packages, presale signup.",
+    blurbKey: "websiteBuilder.templateTourPageBlurb",
   },
 ] as const;
-type TemplateKey = (typeof TEMPLATES)[number]["key"];
+/* The active template can also be a gallery template (remix seeds a real
+   starting build; generate/edit accept the same keys server-side). */
+type TemplateKey = (typeof TEMPLATES)[number]["key"] | GalleryTemplateKey;
 
 type FilesMap = Record<string, string>;
+
+interface SeededFrom {
+  profile: boolean;
+  brandKit: boolean;
+  songs: number;
+  videos: number;
+  products: number;
+  shows: number;
+}
 
 interface GenerateResponse {
   files?: FilesMap;
   templateLabel?: string;
   businessName?: string;
   fileCount?: number;
+  seededFrom?: SeededFrom;
   ownership?: string;
   error?: string;
+  /* Persistence (0196): the saved project + head version, and whether
+     the server-side save landed. saved:false keeps the files — the
+     page offers an explicit retry save. */
+  projectId?: string | null;
+  version?: number | null;
+  saved?: boolean;
+}
+
+interface ProjectSummary {
+  id: string;
+  name: string;
+  template: string;
+  templateLabel: string;
+  versionCount: number;
+  latestVersion: number;
+  fileCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProjectBrief {
+  description: string;
+  style: string;
+  colorScheme: string;
+}
+
+interface VersionMeta {
+  id: string;
+  version: number;
+  source: string;
+  note: string | null;
+  fileCount: number;
+  createdAt: string;
+}
+
+interface VersionPayload {
+  projectId: string;
+  version: number;
+  source: string;
+  note: string | null;
+  brief: ProjectBrief;
+  files: FilesMap;
+  fileCount: number;
 }
 
 /* Inline styles.css + script.js into index.html for iframe preview. */
@@ -94,7 +169,10 @@ function loadJsZip(): Promise<any> {
 }
 
 export default function WebsiteBuilder() {
-  const { user } = useAuth();
+  const isLight = useIsLightTheme();
+  usePageTitle("Website Builder", "Describe the site you want and the AI builds it — preview it privately, then export your website package.");
+  const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [template, setTemplate] = useState<TemplateKey>("artist-site");
   const [businessName, setBusinessName] = useState("");
@@ -105,10 +183,73 @@ export default function WebsiteBuilder() {
   const [editing, setEditing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [files, setFiles] = useState<FilesMap | null>(null);
+  const [seededFrom, setSeededFrom] = useState<SeededFrom | null>(null);
   const [editRequest, setEditRequest] = useState("");
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [gallery, setGallery] = useState<GalleryTemplate[]>([]);
+  const [remixedFrom, setRemixedFrom] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  /* Template gallery — real starter builds served by the API. If the
+     fetch fails, the gallery simply does not render; the brief flow is
+     untouched. */
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/website-builder/templates")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setGallery(parseGalleryTemplates(data));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Remix: start a build from the template's real files — preview,
+     edits, and download all work on it exactly like a generated build —
+     and prefill the brief from the template's starter brief. */
+  function remix(tpl: GalleryTemplate) {
+    if (!isGalleryTemplateKey(tpl.id)) return;
+    setTemplate(tpl.id);
+    const brief = starterBrief(tpl);
+    setDescription(brief.description);
+    setStyle(brief.style);
+    setColorScheme(brief.colorScheme);
+    setFiles(cloneTemplateFiles(tpl));
+    setShowPreview(true);
+    setRemixedFrom(tpl.name);
+    setError("");
+    requestAnimationFrame(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  /* ── Persistence state (0196) ── */
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<number | null>(null);
+  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
+  const [versions, setVersions] = useState<VersionMeta[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [savedBuilds, setSavedBuilds] = useState<ProjectSummary[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedError, setSavedError] = useState("");
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [savingRetry, setSavingRetry] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /* The per-build client id: sent with generate + retry saves so a
+     retried save lands on the same server project (server upserts by
+     (user, clientRef)). Minted lazily; reset when starting fresh. */
+  const clientRefRef = useRef<string | null>(null);
+  const deepLinkOpenedRef = useRef(false);
+
+  function buildClientRef(): string {
+    if (!clientRefRef.current) clientRefRef.current = crypto.randomUUID();
+    return clientRefRef.current;
+  }
 
   const canGenerate =
     businessName.trim().length >= 1 && description.trim().length >= 20 && !loading;
@@ -119,33 +260,280 @@ export default function WebsiteBuilder() {
     }
   }, [files, showPreview]);
 
+  /* ── Persistence helpers (0196) ── */
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken();
+    return { Authorization: `Bearer ${token ?? ""}` };
+  }
+
+  async function loadSavedBuilds() {
+    setSavedLoading(true);
+    setSavedError("");
+    try {
+      const res = await fetch("/api/website-builder/projects", {
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error(t("websiteBuilder.loadSavedFailed"));
+      const data = (await res.json()) as { projects: ProjectSummary[] };
+      setSavedBuilds(data.projects ?? []);
+    } catch {
+      setSavedError(t("websiteBuilder.loadSavedFailed"));
+    } finally {
+      setSavedLoading(false);
+    }
+  }
+
+  async function loadVersions(id: string) {
+    const res = await fetch(`/api/website-builder/projects/${id}`, {
+      headers: await authHeaders(),
+    });
+    if (!res.ok) throw new Error(t("websiteBuilder.openFailed"));
+    const data = (await res.json()) as {
+      project: ProjectSummary & { brief: ProjectBrief };
+      versions: VersionMeta[];
+    };
+    setVersions(data.versions ?? []);
+    return data;
+  }
+
+  /* Re-open: restore the EXACT saved build — files, template, and the
+     brief that produced the version — into the builder. */
+  async function openProject(id: string, version?: number) {
+    setOpening(true);
+    setError("");
+    try {
+      const detail = await loadVersions(id);
+      const target = version ?? detail.project.latestVersion;
+      const res = await fetch(
+        `/api/website-builder/projects/${id}/versions/${target}`,
+        { headers: await authHeaders() },
+      );
+      if (!res.ok) throw new Error(t("websiteBuilder.openFailed"));
+      const payload = (await res.json()) as VersionPayload;
+      setFiles(payload.files);
+      const known = TEMPLATES.find((tpl) => tpl.key === detail.project.template);
+      if (known) setTemplate(known.key);
+      setBusinessName(detail.project.name);
+      setDescription(payload.brief.description);
+      setStyle(payload.brief.style);
+      setColorScheme(payload.brief.colorScheme);
+      setProjectId(id);
+      setCurrentVersion(detail.project.latestVersion);
+      setViewingVersion(target);
+      setSaveFailed(false);
+      setShowPreview(true);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("project", id);
+        window.history.replaceState(null, "", url);
+      } catch { /* non-browser — the project still opened */ }
+    } catch (e: any) {
+      setError(e.message || t("websiteBuilder.openFailed"));
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  /* The explicit save behind the retry button (and the only write
+     path that runs without an AI call): posts the working files to
+     the projects endpoint — appending to the open project, or
+     creating under this build's clientRef. */
+  async function retrySave() {
+    if (!files || savingRetry) return;
+    setSavingRetry(true);
+    setError("");
+    try {
+      const res = await fetch("/api/website-builder/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({
+          projectId: projectId ?? undefined,
+          clientRef: buildClientRef(),
+          template,
+          businessName: businessName.trim(),
+          brief: {
+            description: description.trim(),
+            style: style.trim(),
+            colorScheme: colorScheme.trim(),
+          },
+          files,
+        }),
+      });
+      const data = (await res.json()) as {
+        project?: ProjectSummary;
+        version?: number;
+        error?: string;
+      };
+      if (!res.ok || !data.project) {
+        throw new Error(data.error || t("websiteBuilder.saveFailed"));
+      }
+      setProjectId(data.project.id);
+      setCurrentVersion(data.version ?? null);
+      setViewingVersion(data.version ?? null);
+      setSaveFailed(false);
+      void loadSavedBuilds();
+      void loadVersions(data.project.id).catch(() => {});
+    } catch (e: any) {
+      setError(e.message || t("websiteBuilder.saveFailed"));
+    } finally {
+      setSavingRetry(false);
+    }
+  }
+
+  /* Restore = the old version becomes a NEW head version server-side;
+     the response payload is the restored build, loaded here. */
+  async function restoreVersion(version: number) {
+    if (!projectId || opening) return;
+    setOpening(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/website-builder/projects/${projectId}/versions/${version}/restore`,
+        { method: "POST", headers: await authHeaders() },
+      );
+      const data = (await res.json()) as VersionPayload & {
+        version: number;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || t("websiteBuilder.restoreFailed"));
+      setFiles(data.files);
+      setDescription(data.brief.description);
+      setStyle(data.brief.style);
+      setColorScheme(data.brief.colorScheme);
+      setCurrentVersion(data.version);
+      setViewingVersion(data.version);
+      setShowPreview(true);
+      void loadVersions(projectId).catch(() => {});
+      void loadSavedBuilds();
+    } catch (e: any) {
+      setError(e.message || t("websiteBuilder.restoreFailed"));
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  async function deleteBuild(id: string) {
+    setError("");
+    try {
+      const res = await fetch(`/api/website-builder/projects/${id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error(t("websiteBuilder.deleteFailed"));
+      setSavedBuilds((prev) => prev.filter((p) => p.id !== id));
+      setConfirmDeleteId(null);
+      if (id === projectId) startNewSite();
+    } catch (e: any) {
+      setError(e.message || t("websiteBuilder.deleteFailed"));
+    }
+  }
+
+  function startNewSite() {
+    setFiles(null);
+    setProjectId(null);
+    setCurrentVersion(null);
+    setViewingVersion(null);
+    setVersions([]);
+    setShowVersions(false);
+    setSaveFailed(false);
+    setEditRequest("");
+    setBusinessName("");
+    setDescription("");
+    setStyle("");
+    setColorScheme("");
+    clientRefRef.current = null;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("project");
+      window.history.replaceState(null, "", url);
+    } catch { /* non-browser — state still reset */ }
+  }
+
+  function sourceLabel(source: string): string {
+    switch (source) {
+      case "generate": return t("websiteBuilder.sourceGenerate");
+      case "regenerate": return t("websiteBuilder.sourceRegenerate");
+      case "edit": return t("websiteBuilder.sourceEdit");
+      case "restore": return t("websiteBuilder.sourceRestore");
+      case "save": return t("websiteBuilder.sourceSave");
+      default: return source;
+    }
+  }
+
+  function formatDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleDateString();
+    } catch {
+      return "";
+    }
+  }
+
+  /* Saved list loads with the signed-in member; a ?project= deep link
+     (e.g. from My Projects → Websites) opens that build directly. */
+  useEffect(() => {
+    if (!user) return;
+    void loadSavedBuilds();
+    if (!deepLinkOpenedRef.current) {
+      deepLinkOpenedRef.current = true;
+      try {
+        const q = new URLSearchParams(window.location.search).get("project");
+        if (q) void openProject(q);
+      } catch { /* unparseable query — the builder still loads */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   async function generate() {
     if (!canGenerate) return;
     setLoading(true);
     setError("");
     setFiles(null);
+    setSeededFrom(null);
+    setRemixedFrom(null);
     try {
       const res = await confirmedFetch("/api/website-builder/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         overrideCost: BUILD_COST,
-        overrideFeature: "Website Build",
+        overrideFeature: t("websiteBuilder.confirmBuild"),
         body: JSON.stringify({
           template,
           businessName: businessName.trim(),
           description: description.trim(),
           style: style.trim(),
           colorScheme: colorScheme.trim(),
+          /* Persistence targeting: re-generating with a project open
+             appends a version to it; the clientRef keeps a first-time
+             build retry-safe. */
+          projectId: projectId ?? undefined,
+          clientRef: buildClientRef(),
         }),
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Generation failed — Visual Bucs were refunded.");
+        throw new Error(data.error || t("websiteBuilder.generationFailedError"));
       }
       setFiles(data.files);
+      setSeededFrom(data.seededFrom ?? null);
       setShowPreview(true);
+      if (data.projectId) {
+        setProjectId(data.projectId);
+        setCurrentVersion(data.version ?? null);
+        setViewingVersion(data.version ?? null);
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("project", data.projectId);
+          window.history.replaceState(null, "", url);
+        } catch { /* non-browser — the build still saved */ }
+        void loadSavedBuilds();
+        void loadVersions(data.projectId).catch(() => {});
+      }
+      setSaveFailed(data.saved === false);
     } catch (e: any) {
-      setError(e.message || "Something went wrong.");
+      setError(e.message || t("websiteBuilder.genericError"));
     } finally {
       setLoading(false);
     }
@@ -160,22 +548,32 @@ export default function WebsiteBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         overrideCost: EDIT_COST,
-        overrideFeature: "Website Edit",
+        overrideFeature: t("websiteBuilder.confirmEdit"),
         body: JSON.stringify({
           template,
           businessName: businessName.trim(),
           currentFiles: files,
           editRequest: editRequest.trim(),
+          /* With a project open, the edit result is appended server-
+             side as that project's new head version. */
+          projectId: projectId ?? undefined,
         }),
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Edit failed — Visual Bucs were refunded.");
+        throw new Error(data.error || t("websiteBuilder.editFailedError"));
       }
       setFiles(data.files);
       setEditRequest("");
+      if (data.projectId) {
+        setCurrentVersion(data.version ?? null);
+        setViewingVersion(data.version ?? null);
+        setSaveFailed(data.saved === false);
+        void loadVersions(data.projectId).catch(() => {});
+        void loadSavedBuilds();
+      }
     } catch (e: any) {
-      setError(e.message || "Something went wrong.");
+      setError(e.message || t("websiteBuilder.genericError"));
     } finally {
       setEditing(false);
     }
@@ -204,7 +602,7 @@ export default function WebsiteBuilder() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setError("Could not create the zip. Try again.");
+      setError(t("websiteBuilder.zipError"));
     } finally {
       setDownloading(false);
     }
@@ -219,17 +617,15 @@ export default function WebsiteBuilder() {
         <div className="mb-10 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm text-primary">
             <Globe className="h-4 w-4" />
-            AI Website Builder
+            {t("websiteBuilder.pageTitle")}
           </div>
           <h1 className="mb-3 text-4xl font-black tracking-tight md:text-5xl">
-            Your site, built by AI. <span className="text-primary">Yours to keep.</span>
+            {t("websiteBuilder.heading")} <span className="text-primary">{t("websiteBuilder.headingAccent")}</span>
           </h1>
           <p className="mx-auto max-w-2xl text-white/60">
-            Describe your site, AI builds the complete package — pages, styles, and a
-            deploy guide. Preview it privately, pay a one-time{" "}
-            <span className="text-primary font-semibold">{BUILD_COST}-credit</span> build
-            fee, download the zip, and host it on your own domain. Nothing is ever
-            published on bowdownvisuals.com.
+            {t("websiteBuilder.heroDesc1")}{" "}
+            <span className="text-primary font-semibold">{t("websiteBuilder.buildFee", { cost: BUILD_COST })}</span>{" "}
+            {t("websiteBuilder.heroDesc2")}
           </p>
         </div>
 
@@ -242,16 +638,164 @@ export default function WebsiteBuilder() {
           </div>
         )}
 
+        {/* Save-failed banner: the build exists, the save didn't land */}
+        {saveFailed && files && (
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+            <p className="flex-1">{t("websiteBuilder.saveFailed")}</p>
+            <button
+              onClick={() => void retrySave()}
+              disabled={savingRetry}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40"
+            >
+              {savingRetry ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {t("websiteBuilder.retrySaveButton")}
+            </button>
+          </div>
+        )}
+
+        {/* Saved sites (0196) — the member's builder projects. No
+            preview thumbnails are stored, so each card says plainly
+            that the preview renders live when the site is opened. */}
+        {user && (
+          <div className="mb-10">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold">
+              <FolderOpen className="h-5 w-5 text-primary" /> {t("websiteBuilder.savedSitesTitle")}
+            </h2>
+            {savedLoading ? (
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("websiteBuilder.building")}
+              </div>
+            ) : savedError ? (
+              <p className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-300">
+                {savedError}
+              </p>
+            ) : savedBuilds.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
+                {t("websiteBuilder.savedSitesEmpty")}
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {savedBuilds.map((p) => (
+                  <div
+                    key={p.id}
+                    className={`rounded-2xl border p-5 ${
+                      p.id === projectId
+                        ? "border-primary bg-primary/10 shadow-[0_0_24px_rgba(212,175,55,0.25)]"
+                        : "border-white/10 bg-white/5"
+                    }`}
+                  >
+                    <p className="font-bold">{p.name}</p>
+                    <p className="text-sm font-semibold text-primary">
+                      {t(TEMPLATES.find((tpl) => tpl.key === p.template)?.labelKey ?? "websiteBuilder.pageTitle")}
+                    </p>
+                    <p className="mt-1 text-xs text-white/40">
+                      {t("websiteBuilder.cardMeta", { version: p.latestVersion, count: p.fileCount })}
+                      {" · "}
+                      {t("websiteBuilder.updatedLabel", { date: formatDate(p.updatedAt) })}
+                    </p>
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-white/40">
+                      <Eye className="h-3.5 w-3.5" /> {t("websiteBuilder.previewOpensNote")}
+                    </p>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() => void openProject(p.id)}
+                        disabled={opening}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-40"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" /> {t("websiteBuilder.openButton")}
+                      </button>
+                      {confirmDeleteId === p.id ? (
+                        <button
+                          onClick={() => void deleteBuild(p.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/60 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/25"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {t("websiteBuilder.confirmDeleteButton")}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(p.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-red-500/40 hover:text-red-300"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {t("websiteBuilder.deleteButton")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {/* Template gallery — real starter builds, one per creator niche.
+            Remix seeds a build with the template's actual files. */}
+        {gallery.length > 0 && (
+          <div className="mb-12">
+            <h2 className="mb-2 flex items-center gap-2 text-xl font-bold">
+              <LayoutTemplate className="h-5 w-5 text-primary" />
+              {t("websiteBuilder.galleryTitle")}
+            </h2>
+            <p className="mb-5 max-w-3xl text-white/55">
+              {t("websiteBuilder.galleryDesc")}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {gallery.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40"
+                >
+                  <span className="mb-3 inline-flex w-fit rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {tpl.verticalLabel}
+                  </span>
+                  <p className="mb-1 font-bold">{tpl.name}</p>
+                  <p className="mb-3 text-sm text-white/55">{tpl.bestFor}</p>
+                  <div className="mb-4 flex flex-wrap gap-1.5">
+                    {tpl.sections.slice(0, 4).map((section) => (
+                      <span
+                        key={section}
+                        className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50"
+                      >
+                        {section}
+                      </span>
+                    ))}
+                    {tpl.sections.length > 4 && (
+                      <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50">
+                        +{tpl.sections.length - 4}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mb-4 text-xs text-white/40">
+                    {t("websiteBuilder.galleryFiles", {
+                      count: Object.keys(tpl.files).length,
+                    })}
+                  </p>
+                  <button
+                    onClick={() => remix(tpl)}
+                    className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+                  >
+                    <Shuffle className="h-4 w-4" />
+                    {t("websiteBuilder.remixButton")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Template picker */}
-        <h2 className="mb-4 text-xl font-bold">1. Pick a template</h2>
+        <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepPickTemplate")}</h2>
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map((t) => {
-            const Icon = t.icon;
-            const active = template === t.key;
+          {TEMPLATES.map((tpl) => {
+            const Icon = tpl.icon;
+            const active = template === tpl.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTemplate(t.key)}
+                key={tpl.key}
+                onClick={() => setTemplate(tpl.key)}
                 className={`rounded-2xl border p-5 text-left transition ${
                   active
                     ? "border-primary bg-primary/10 shadow-[0_0_24px_rgba(212,175,55,0.25)]"
@@ -259,11 +803,11 @@ export default function WebsiteBuilder() {
                 }`}
               >
                 <Icon className={`mb-3 h-7 w-7 ${active ? "text-primary" : "text-white/60"}`} />
-                <p className="mb-1 font-bold">{t.label}</p>
-                <p className="text-sm text-white/50">{t.blurb}</p>
+                <p className="mb-1 font-bold">{t(tpl.labelKey)}</p>
+                <p className="text-sm text-white/50">{t(tpl.blurbKey)}</p>
                 {active && (
                   <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-primary">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Selected
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {t("websiteBuilder.selected")}
                   </p>
                 )}
               </button>
@@ -272,11 +816,11 @@ export default function WebsiteBuilder() {
         </div>
 
         {/* Brief */}
-        <h2 className="mb-4 text-xl font-bold">2. Describe your site</h2>
-        <div className="mb-10 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepDescribe")}</h2>
+        <div className={`mb-10 grid gap-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
-              Site / artist name
+              {t("websiteBuilder.siteNameLabel")}
             </label>
             <input
               value={businessName}
@@ -288,12 +832,12 @@ export default function WebsiteBuilder() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
-              What should the site say and do? <span className="text-white/40">(min 20 characters)</span>
+              {t("websiteBuilder.descriptionLabel")} <span className="text-white/40">({t("websiteBuilder.minCharsHint")})</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="I'm a hip-hop artist from Atlanta. I need a homepage with my latest single front and center, an about page with my story, upcoming show dates, a gallery, and a way for fans to join my mailing list. Dark and luxurious vibe."
+              placeholder={t("websiteBuilder.descriptionPlaceholder")}
               rows={5}
               maxLength={3000}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
@@ -302,24 +846,24 @@ export default function WebsiteBuilder() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
-                Style preferences <span className="text-white/40">(optional)</span>
+                {t("websiteBuilder.styleLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
               <input
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
-                placeholder="e.g. bold typography, lots of imagery"
+                placeholder={t("websiteBuilder.stylePlaceholder")}
                 maxLength={500}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
-                Colors <span className="text-white/40">(optional)</span>
+                {t("websiteBuilder.colorsLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
               <input
                 value={colorScheme}
                 onChange={(e) => setColorScheme(e.target.value)}
-                placeholder="e.g. black and gold"
+                placeholder={t("websiteBuilder.colorsPlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
               />
@@ -335,19 +879,40 @@ export default function WebsiteBuilder() {
             ) : (
               <Sparkles className="h-5 w-5" />
             )}
-            {loading ? "Building your site…" : `Build my site — ${BUILD_COST} credits`}
+            {loading ? t("websiteBuilder.building") : t("websiteBuilder.buildButton", { cost: BUILD_COST })}
           </button>
           <p className="text-xs text-white/40">
-            One-time fee. You preview before anything is final, and you own the files outright.
+            {t("websiteBuilder.feeNote")}
           </p>
         </div>
 
         {/* Result */}
         {files && (
-          <div>
+          <div ref={resultRef}>
+            {seededFrom && (
+              <p className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
+                <span className="font-semibold text-primary">
+                  {t("websiteBuilder.seededFromTitle")}
+                </span>{" "}
+                {seededFrom.songs + seededFrom.videos + seededFrom.products + seededFrom.shows > 0
+                  ? t("websiteBuilder.seededFrom", {
+                      songs: seededFrom.songs,
+                      videos: seededFrom.videos,
+                      products: seededFrom.products,
+                      shows: seededFrom.shows,
+                    })
+                  : t("websiteBuilder.seededNone")}
+                {seededFrom.brandKit && <> {t("websiteBuilder.seededBrandKit")}</>}
+              </p>
+            )}
+            {remixedFrom && (
+              <p className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/70">
+                {t("websiteBuilder.remixedFrom", { name: remixedFrom })}
+              </p>
+            )}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-xl font-bold">
-                <Eye className="h-5 w-5 text-primary" /> 3. Preview & take it with you
+                <Eye className="h-5 w-5 text-primary" /> {t("websiteBuilder.stepPreview")}
               </h2>
               <div className="flex gap-2">
                 <button
@@ -355,7 +920,7 @@ export default function WebsiteBuilder() {
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold hover:border-primary/50"
                 >
                   <FileCode2 className="h-4 w-4" />
-                  {showPreview ? "View files" : "View preview"}
+                  {showPreview ? t("websiteBuilder.viewFiles") : t("websiteBuilder.viewPreview")}
                 </button>
                 <button
                   onClick={downloadZip}
@@ -367,10 +932,92 @@ export default function WebsiteBuilder() {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  {downloading ? "Zipping…" : "Download site (.zip)"}
+                  {downloading ? t("websiteBuilder.zipping") : t("websiteBuilder.downloadZip")}
                 </button>
               </div>
             </div>
+
+            {/* Saved-project status + version controls (0196) */}
+            {projectId && (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {t("websiteBuilder.savedBadge", { version: currentVersion ?? "" })}
+                </span>
+                <button
+                  onClick={() => setShowVersions((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
+                >
+                  <History className="h-3.5 w-3.5" /> {t("websiteBuilder.versionsTitle")}
+                </button>
+                <button
+                  onClick={startNewSite}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
+                >
+                  <Plus className="h-3.5 w-3.5" /> {t("websiteBuilder.startNewSite")}
+                </button>
+              </div>
+            )}
+            {projectId &&
+              viewingVersion !== null &&
+              currentVersion !== null &&
+              viewingVersion !== currentVersion && (
+                <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200/80">
+                  {t("websiteBuilder.viewingOldVersion", { version: viewingVersion })}
+                </p>
+              )}
+            {projectId && showVersions && (
+              <div className="mb-6 grid gap-2">
+                {versions.map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                  >
+                    <div className="text-sm">
+                      <span className="font-semibold">
+                        {t("websiteBuilder.versionLabel", { version: v.version })}
+                      </span>
+                      <span className="text-white/40">
+                        {" · "}
+                        {sourceLabel(v.source)}
+                        {" · "}
+                        {t("websiteBuilder.fileCountLabel", { count: v.fileCount })}
+                        {" · "}
+                        {formatDate(v.createdAt)}
+                      </span>
+                      {v.version === currentVersion && (
+                        <span className="ml-2 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                          {t("websiteBuilder.currentBadge")}
+                        </span>
+                      )}
+                      {v.note && (
+                        <p className="mt-0.5 text-xs italic text-white/40">
+                          &ldquo;{v.note}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => void openProject(projectId, v.version)}
+                        disabled={opening || v.version === viewingVersion}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> {t("websiteBuilder.viewButton")}
+                      </button>
+                      {v.version !== currentVersion && (
+                        <button
+                          onClick={() => void restoreVersion(v.version)}
+                          disabled={opening}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-40"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> {t("websiteBuilder.restoreButton")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {showPreview ? (
               <div className="overflow-hidden rounded-2xl border border-white/10">
@@ -378,11 +1025,11 @@ export default function WebsiteBuilder() {
                   <span className="h-3 w-3 rounded-full bg-red-500/70" />
                   <span className="h-3 w-3 rounded-full bg-amber-500/70" />
                   <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
-                  <span className="ml-3 text-xs text-white/40">Private preview — only you can see this</span>
+                  <span className="ml-3 text-xs text-white/40">{t("websiteBuilder.privatePreview")}</span>
                 </div>
                 <iframe
                   ref={iframeRef}
-                  title="Site preview"
+                  title={t("websiteBuilder.sitePreviewTitle")}
                   sandbox="allow-scripts"
                   className="h-[600px] w-full bg-white"
                 />
@@ -406,20 +1053,18 @@ export default function WebsiteBuilder() {
             )}
 
             {/* Conversational edits */}
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+            <div className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h3 className="mb-2 flex items-center gap-2 font-bold">
-                <Wand2 className="h-5 w-5 text-primary" /> Want changes? Just say so.
+                <Wand2 className="h-5 w-5 text-primary" /> {t("websiteBuilder.editsTitle")}
               </h3>
               <p className="mb-4 text-sm text-white/50">
-                "Make the hero section darker", "change the headline to…", "use warmer
-                colors" — each edit regenerates the site at{" "}
-                <span className="text-primary font-semibold">{EDIT_COST} Visual Bucs</span>.
+                {t("websiteBuilder.editsDesc", { cost: EDIT_COST })}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
                   value={editRequest}
                   onChange={(e) => setEditRequest(e.target.value)}
-                  placeholder="Describe the change…"
+                  placeholder={t("websiteBuilder.editPlaceholder")}
                   maxLength={1000}
                   className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
                 />
@@ -433,16 +1078,14 @@ export default function WebsiteBuilder() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  {editing ? "Applying…" : `Apply edit — ${EDIT_COST} credits`}
+                  {editing ? t("websiteBuilder.applying") : t("websiteBuilder.applyEditButton", { cost: EDIT_COST })}
                 </button>
               </div>
             </div>
 
             <p className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
-              <span className="font-semibold text-primary">You own this outright.</span>{" "}
-              The zip includes every file plus a README with step-by-step deploy guides
-              for Netlify, Vercel, Cloudflare Pages, and cPanel. Put it on your own
-              hosting, your own domain — your responsibility, your asset.
+              <span className="font-semibold text-primary">{t("websiteBuilder.ownershipStrong")}</span>{" "}
+              {t("websiteBuilder.ownershipDesc")}
             </p>
           </div>
         )}

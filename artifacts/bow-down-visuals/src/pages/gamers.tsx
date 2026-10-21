@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -9,6 +10,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Home of Gamers ──────────────────────────────────────────────────────
    The gaming wing of Bow Down Visuals: dark arena background, neon/RGB
@@ -17,7 +19,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    pre-filled with a game and shows a labeled sample output on first load,
    the ticker/setup/playbook are curated editorial — zero empty states. */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 type ContentTypeKey = "stream" | "video" | "shorts";
 
@@ -166,6 +168,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40";
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -185,7 +188,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={copy}
-      title="Copy"
+      title={t("gamers.copy")}
       className="shrink-0 rounded-lg border border-white/10 p-1.5 text-white/40 transition hover:border-cyan-400/50 hover:text-cyan-300"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-lime-300" /> : <Copy className="h-3.5 w-3.5" />}
@@ -194,6 +197,8 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function GamersHub() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -224,7 +229,7 @@ export default function GamersHub() {
   async function generate() {
     if (loading || !user) return;
     if (!game.trim()) {
-      setError("Tell us which game first — the AI needs a target.");
+      setError(t("gamers.tell_us_which_game_first_the_ai"));
       return;
     }
     setLoading(true);
@@ -265,28 +270,19 @@ export default function GamersHub() {
         </div>
         <div className="relative mx-auto max-w-5xl px-5 pb-16 pt-16 text-center md:pt-24">
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.25em] text-cyan-300">
-            <Gamepad2 className="h-3.5 w-3.5" aria-hidden="true" /> Player One Ready
-          </p>
-          <h1 className="gamers-rgb-text text-5xl font-black uppercase leading-none tracking-tight md:text-8xl">
-            Home of Gamers
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg">
-            The content creator cheat code for the gaming universe. AI stream titles,
-            viral clip tools, thumbnails, overlays — everything a gaming creator
-            needs, one arena.
-          </p>
+            <Gamepad2 className="h-3.5 w-3.5" aria-hidden="true" />{t("gamers.player_one_ready")}</p>
+          <h1 className="gamers-rgb-text text-5xl font-black uppercase leading-none tracking-tight md:text-8xl">{t("gamers.home_of_gamers")}</h1>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg">{t("gamers.the_content_creator_cheat_code_f")}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#idea-generator"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-fuchsia-600 px-6 py-3 text-sm font-bold text-white shadow-[0_0_28px_-6px_rgba(0,240,255,0.6)] transition hover:brightness-110"
             >
-              <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate stream ideas
-            </a>
+              <Sparkles className="h-4 w-4" aria-hidden="true" />{t("gamers.generate_stream_ideas")}</a>
             <a
               href="#toolkit"
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white/80 transition hover:border-cyan-400/50 hover:text-white"
-            >
-              Browse gamer tools <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            >{t("gamers.browse_gamer_tools")}<ChevronRight className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
           <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">
@@ -295,7 +291,7 @@ export default function GamersHub() {
               { n: "3", l: "Content types" },
               { n: "1", l: "Visual Buc per idea pack" },
             ].map((s) => (
-              <div key={s.l} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-4">
+              <div key={s.l} className={`rounded-2xl border px-3 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="gamers-rgb-text text-3xl font-black">{s.n}</p>
                 <p className="mt-1 text-[11px] uppercase tracking-widest text-white/40">{s.l}</p>
               </div>
@@ -308,8 +304,7 @@ export default function GamersHub() {
       <div className="relative border-y border-white/10 bg-black/60 py-3">
         <div className="flex items-center gap-3 overflow-hidden">
           <span className="z-10 flex shrink-0 items-center gap-1.5 bg-black px-4 py-1 text-[11px] font-bold uppercase tracking-widest text-lime-300">
-            <Flame className="h-3.5 w-3.5" aria-hidden="true" /> Trending in the arena
-          </span>
+            <Flame className="h-3.5 w-3.5" aria-hidden="true" />{t("gamers.trending_in_the_arena")}</span>
           <div className="gamers-ticker-track flex shrink-0 items-center gap-8 whitespace-nowrap">
             {[...TRENDING_GAMES, ...TRENDING_GAMES].map((g, i) => (
               <span key={i} className="flex items-center gap-2 text-sm text-white/70">
@@ -325,54 +320,45 @@ export default function GamersHub() {
       <main className="relative mx-auto max-w-5xl px-5 pb-24">
         {/* ── AI IDEA GENERATOR ── */}
         <section id="idea-generator" className="scroll-mt-24 pt-14">
-          <div className="overflow-hidden rounded-3xl border border-fuchsia-500/25 bg-gradient-to-b from-[#0d0716] to-[#050510] p-6 md:p-10">
+          <div className={`overflow-hidden rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
                   <Wand2 className="h-3 w-3" aria-hidden="true" /> AI powered · {CREDIT_COST} Visual Buc
                 </p>
-                <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">
-                  Stream Title <span className="gamers-rgb-text">&amp; Idea Generator</span>
+                <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">{t("gamers.stream_title")}<span className="gamers-rgb-text">&amp; Idea Generator</span>
                 </h2>
-                <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
-                  Drop in your game — the AI writes clickable stream titles, video
-                  concepts, and tags tuned for Twitch, YouTube, and Kick.
-                </p>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">{t("gamers.drop_in_your_game_the_ai_writes")}</p>
               </div>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="gamers-game" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Your game
-                </label>
+                <label htmlFor="gamers-game" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("gamers.your_game")}</label>
                 <input
                   id="gamers-game"
                   value={game}
                   onChange={(e) => setGame(e.target.value)}
-                  placeholder="e.g. Valorant"
+                  placeholder={t("gamers.e_g_valorant")}
                   maxLength={120}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="gamers-niche" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Niche / angle <span className="text-white/25">(optional)</span>
+                <label htmlFor="gamers-niche" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">{t("gamers.niche_angle")}<span className="text-white/25">{t("gamers.optional")}</span>
                 </label>
                 <input
                   id="gamers-niche"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  placeholder="e.g. clutch plays, ranked grind, funny moments"
+                  placeholder={t("gamers.e_g_clutch_plays_ranked_grind_fu")}
                   maxLength={120}
                   className={inputClass}
                 />
               </div>
             </div>
 
-            <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              Content type
-            </p>
+            <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("gamers.content_type")}</p>
             <div className="flex flex-wrap gap-2">
               {CONTENT_TYPES.map((t) => (
                 <button
@@ -383,7 +369,7 @@ export default function GamersHub() {
                   className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
                     contentType === t.key
                       ? "border-cyan-400/70 bg-cyan-400/15 text-cyan-200 shadow-[0_0_20px_-6px_rgba(0,240,255,0.6)]"
-                      : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white"
+                      : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                   }`}
                 >
                   {t.label}
@@ -399,8 +385,7 @@ export default function GamersHub() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating…
-                </>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("gamers.generating")}</>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate ideas · {CREDIT_COST} Visual Buc
@@ -409,8 +394,7 @@ export default function GamersHub() {
             </button>
             {!user && (
               <p className="mt-3 text-xs text-white/40">
-                <Link href="/login" className="text-cyan-300 underline">Sign in</Link> to generate — browsing is free.
-              </p>
+                <Link href="/login" className="text-cyan-300 underline">{t("gamers.sign_in")}</Link>{t("gamers.to_generate_browsing_is_free")}</p>
             )}
             {outOfCredits && (
               <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>
@@ -421,40 +405,34 @@ export default function GamersHub() {
 
             {/* results */}
             <div className="mt-8 grid gap-5 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-cyan-300">
-                    <Radio className="h-4 w-4" aria-hidden="true" /> Stream titles
-                  </h3>
+                    <Radio className="h-4 w-4" aria-hidden="true" />{t("gamers.stream_titles")}</h3>
                   {isSample && (
-                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">
-                      Sample
-                    </span>
+                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">{t("gamers.sample")}</span>
                   )}
                 </div>
                 <ul className="space-y-2.5">
                   {titles.map((t, i) => (
-                    <li key={i} className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-sm text-white/85">
+                    <li key={i} className={`flex items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <span>{t}</span>
                       <CopyButton text={t} />
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-fuchsia-300">
-                    <Clapperboard className="h-4 w-4" aria-hidden="true" /> Video ideas
-                  </h3>
+                    <Clapperboard className="h-4 w-4" aria-hidden="true" />{t("gamers.video_ideas")}</h3>
                   {isSample && (
-                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">
-                      Sample
-                    </span>
+                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">{t("gamers.sample")}</span>
                   )}
                 </div>
                 <ul className="space-y-2.5">
                   {videoIdeas.map((t, i) => (
-                    <li key={i} className="flex items-start justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-sm text-white/85">
+                    <li key={i} className={`flex items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <span>{t}</span>
                       <CopyButton text={t} />
                     </li>
@@ -462,15 +440,12 @@ export default function GamersHub() {
                 </ul>
               </div>
             </div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-5">
+            <div className={`mt-5 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-lime-300">
-                  <Tag className="h-4 w-4" aria-hidden="true" /> Tags
-                </h3>
+                  <Tag className="h-4 w-4" aria-hidden="true" />{t("gamers.tags")}</h3>
                 {isSample && (
-                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">
-                    Sample
-                  </span>
+                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/40">{t("gamers.sample")}</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -488,23 +463,18 @@ export default function GamersHub() {
         <section id="toolkit" className="scroll-mt-24 pt-14">
           <div className="mb-6 text-center">
             <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-cyan-300">
-              <Trophy className="h-3 w-3" aria-hidden="true" /> Loadout
-            </p>
-            <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">
-              The Gamer <span className="gamers-rgb-text">Toolkit</span>
+              <Trophy className="h-3 w-3" aria-hidden="true" />{t("gamers.loadout")}</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">{t("gamers.the_gamer")}<span className="gamers-rgb-text">{t("gamers.toolkit")}</span>
             </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-white/55">
-              Every tool reframed for the grind — click a card to load it up.
-            </p>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-white/55">{t("gamers.every_tool_reframed_for_the_grin")}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {TOOL_CARDS.map((card) => (
-              <Link key={card.href} href={card.href} className={`group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition ${card.glow}`}>
+              <Link key={card.href} href={card.href} className={`group rounded-2xl border p-6 transition ${card.glow} ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <card.icon className={`h-8 w-8 ${card.accent}`} aria-hidden="true" />
                 <h3 className="mt-4 text-base font-black uppercase tracking-wide">{card.label}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">{card.blurb}</p>
-                <span className={`mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest ${card.accent}`}>
-                  Open tool <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" aria-hidden="true" />
+                <span className={`mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest ${card.accent}`}>{t("gamers.open_tool")}<ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" aria-hidden="true" />
                 </span>
               </Link>
             ))}
@@ -513,11 +483,10 @@ export default function GamersHub() {
 
         {/* ── SETUP OF THE DAY ── */}
         <section className="pt-14">
-          <div className="overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-b from-[#071018] to-[#050510] p-6 md:p-10">
+          <div className={`overflow-hidden rounded-3xl border p-6 md:p-10 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="mb-6 text-center">
               <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-lime-300/40 bg-lime-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-lime-300">
-                <Zap className="h-3 w-3" aria-hidden="true" /> Free · Setup of the day
-              </p>
+                <Zap className="h-3 w-3" aria-hidden="true" />{t("gamers.free_setup_of_the_day")}</p>
               <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">
                 {SETUP_OF_THE_DAY.name}
               </h2>
@@ -525,7 +494,7 @@ export default function GamersHub() {
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {SETUP_OF_THE_DAY.parts.map((p) => (
-                <div key={p.item} className="flex items-start gap-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div key={p.item} className={`flex items-start gap-4 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                   <span className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-2.5">
                     <p.icon className="h-5 w-5 text-cyan-300" aria-hidden="true" />
                   </span>
@@ -543,15 +512,13 @@ export default function GamersHub() {
         <section className="pt-14">
           <div className="mb-6 text-center">
             <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
-              <Flame className="h-3 w-3" aria-hidden="true" /> Free · Streamer playbook
-            </p>
-            <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">
-              Plays that <span className="gamers-rgb-text">win viewers</span>
+              <Flame className="h-3 w-3" aria-hidden="true" />{t("gamers.free_streamer_playbook")}</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">{t("gamers.plays_that")}<span className="gamers-rgb-text">{t("gamers.win_viewers")}</span>
             </h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {PLAYBOOK_TIPS.map((tip, i) => (
-              <div key={tip.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <div key={tip.title} className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="gamers-rgb-text text-3xl font-black">0{i + 1}</p>
                 <h3 className="mt-2 text-base font-black">{tip.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">{tip.body}</p>

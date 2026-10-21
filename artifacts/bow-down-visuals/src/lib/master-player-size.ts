@@ -25,8 +25,9 @@ import {
 /** Width of the minimized player chip (matches video-editor.tsx). */
 export const MASTER_PLAYER_MINIMIZED_CHIP_WIDTH = 96;
 
-/** Margin (px) kept above/below the player inside the toolbar↔dock band. */
-export const MASTER_PLAYER_FIT_MARGIN = 16;
+/** Margin (px) kept above/below the player inside the toolbar↔dock band.
+ *  Kept small — just enough to see the player's hover glow, nothing more. */
+export const MASTER_PLAYER_FIT_MARGIN = 8;
 
 export interface MasterPlayerFitInput {
   /** window.innerHeight at render time. */
@@ -76,20 +77,14 @@ export function computeMasterPlayerFit(input: MasterPlayerFitInput): MasterPlaye
     input.columnWidth > 0 ? input.columnWidth : Infinity
   );
 
-  /* Hard fit: video height must fit the band → width ≤ bandH * aspect.
-   * This is the constraint the old code broke with its MIN_WIDTH floor. */
+  /* Simple division: player fills the available space.
+   * Width = min(column width, vertical band * aspect ratio).
+   * This keeps the player in frame for any aspect ratio, centered. */
   const fitW = Math.min(maxW, bandH * aspect);
 
-  /* Grow landscape-ish formats so 16:9 never renders as a thin strip —
-   * but never beyond what actually fits. */
-  const desired = Math.max(input.savedWidth, MASTER_PLAYER_MIN_HEIGHT * aspect);
-
-  /* The min-width floor must never bust the fit: clamp the floor itself.
-   * When the band is tiny the video shrinks (chrome stays visible); when
-   * the band is gone entirely the canvas collapses to 0 but the transport
-   * rows — separate flex children — still render. */
-  const floor = Math.min(MASTER_PLAYER_MIN_WIDTH, fitW);
-  const width = Math.max(floor, Math.min(desired, fitW));
+  /* Player always fills the available space — no drag-to-resize.
+   * Width is the full fit: min(column width, vertical band * aspect). */
+  const width = fitW;
 
   return { width: Math.round(width), height: Math.round(width / aspect) };
 }

@@ -185,7 +185,7 @@ export function buildPromoChecklist(city: string, showDate: string): PromoCheckl
       id: "teaser",
       label: "Drop a teaser clip",
       detail: "Cut a 15-30s performance teaser for Reels/TikTok/Shorts.",
-      link: { label: "Open Promo Clips", href: "/promo-clips" },
+      link: { label: "Open Promo Clips", href: "/promo-clip" },
     },
     {
       id: "local",

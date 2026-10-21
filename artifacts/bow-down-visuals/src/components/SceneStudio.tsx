@@ -4,7 +4,7 @@ import {
   Sparkles, Video, CheckCircle2, AlertCircle, AlertTriangle, X,
   ChevronDown, ChevronUp, RotateCcw,
   ArrowUp, ArrowDown, Trash2, Plus, Save, Eye,
-  ShieldCheck,
+  ShieldCheck, Flag, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,10 +13,17 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
+import { modelSupportsEndFrame, endFrameForPayload } from "@/lib/scene-end-frame";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
+import { composeScenePrompt } from "@/lib/scene-look";
+import { LookRailsPanel } from "@/components/SceneStudio/LookRailsPanel";
+import { EffectsRail } from "@/components/SceneStudio/EffectsRail";
+import { Link } from "wouter";
+import { buildProposedReferenceSet, normalizeReferenceSet, planSceneReferences, sortReferenceSet, REFERENCE_ROLE_LABEL, type SceneReference } from "@/lib/scene-references";
+import { fetchBrandKit } from "@/lib/brand-kit";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 /* ─── Section color badges ──────────────────────────────────── */
@@ -125,6 +132,7 @@ function hasUsableClip(url: string | null | undefined): boolean {
 async function buildCastReference(
   characters: { name: string; imageUrl: string }[],
   userId: string,
+  token: string | null,
 ): Promise<string | null> {
   const withPhotos = characters.filter((c) => /^https:\/\//i.test(c.imageUrl));
   if (withPhotos.length < 2) return withPhotos[0]?.imageUrl ?? null;
@@ -175,13 +183,8 @@ async function buildCastReference(
     );
     if (!blob) return withPhotos[0]?.imageUrl ?? null;
 
-    const sb = getSupabase();
     const filePath = `${userId}/cast/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-    const { error: uploadError } = await sb.storage
-      .from("artist-references")
-      .upload(filePath, blob, { upsert: true, contentType: "image/jpeg" });
-    if (uploadError) throw uploadError;
-    const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
+    const publicUrl = await r2UploadFile(filePath, blob, "image/jpeg", token);
     return publicUrl;
   } catch {
     /* fall back to the main character's photo */
@@ -191,6 +194,52 @@ async function buildCastReference(
 
 /* Wardrobe outfit as returned by GET /api/artist-vaults/:vaultId/outfits */
 interface WardrobeOutfit { id: string; label: string; image_url: string; is_default: boolean; }
+
+/* ─── Identity Set pick (Higgsfield G4) ───────────────────────────────
+   When the artist's vault holds a labeled identity set, the server
+   picks the best-matching photo per shot and returns the pick + why.
+   The pick is shown in the generator and can be overridden — never
+   silent. Label maps mirror the API server's lib/identity-set.ts. */
+interface IdentityPoolEntry {
+  id: string;
+  imageUrl: string;
+  angle: string;
+  expression: string;
+  wardrobe: string | null;
+  source: string;
+  isMain: boolean;
+  score: number;
+}
+interface IdentityPick {
+  id: string;
+  imageUrl: string;
+  angle: string;
+  expression: string;
+  source: string;
+  isMain: boolean;
+  reason: string;
+  overridden: boolean;
+}
+const IDENTITY_ANGLE_LABELS: Record<string, string> = {
+  front: "front",
+  three_quarter_left: "three-quarter (left)",
+  three_quarter_right: "three-quarter (right)",
+  left_profile: "left profile",
+  right_profile: "right profile",
+  back: "back",
+  full_body: "full-body",
+  close_up: "close-up",
+};
+const IDENTITY_EXPRESSION_LABELS: Record<string, string> = {
+  neutral: "neutral",
+  smile: "smiling",
+  laughing: "laughing",
+  serious: "serious",
+  intense: "intense",
+  singing: "singing",
+  sad: "sad",
+  surprised: "surprised",
+};
 
 /* ─── Inline Runway clip generator ─────────────────────────── */export interface RunwayGeneratorProps {
   scene: SceneData;
@@ -221,12 +270,28 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
   /* Video model selection — Seedance 2.5 is the premium option with longer
      scenes and higher resolution, priced per second. */
-  const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5">("gen4.5");
+  const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5" | "veo3_1">("gen4.5");
   const [clipDuration, setClipDuration] = useState(5);
   const [clipRes, setClipRes]         = useState<"720p" | "1080p">("720p");
+  /* Draft mode (Seedance only): cheap 480p preview for iterating on the shot.
+     The server returns the seed; "Enhance" re-submits the same seed at 1080p. */
+  const [draftMode, setDraftMode] = useState(false);
+  const [draftSeed, setDraftSeed] = useState<number | null>(null);
   const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
     scene.referenceSource ?? null,
   );
+  /* Viral Effects picks for this scene — persisted on the scene record so
+     they survive re-renders and ride the next generation. */
+  const [pickedEffectIds, setPickedEffectIds] = useState<string[]>(scene.effectIds ?? []);
+  function handleEffectChange(ids: string[]) {
+    setPickedEffectIds(ids);
+    onUpdate({ effectIds: ids });
+  }
+  /* Plain-language note from the server's submit response when the picked
+     model did not receive the whole reference set (never silent). */
+  const [referenceNote, setReferenceNote] = useState<string | null>(null);
+  /* The creator's brand-kit logo — the style entry of the reference set. */
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ── Wardrobe: the artist's outfits, picked per scene. The picked outfit's
@@ -269,6 +334,71 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const outfitRefUrl = pickedOutfit && /^https:\/\//i.test(pickedOutfit.image_url)
     ? pickedOutfit.image_url
     : null;
+
+  /* ── Identity Set: the per-shot reference pick from the character's
+        labeled photo set. Empty for single-photo characters — their
+        generation path below is byte-identical to before. Selection
+        failures clear the pick and generation falls back to the main
+        photo; the pick can never break a generation. ── */
+  const [identityPick, setIdentityPick] = useState<IdentityPick | null>(null);
+  const [identityPool, setIdentityPool] = useState<IdentityPoolEntry[]>([]);
+  const [identitySetCount, setIdentitySetCount] = useState(0);
+  const [identityOverrideId, setIdentityOverrideId] = useState<string | null>(null);
+
+  useEffect(() => { setIdentityOverrideId(null); }, [artistVault?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const vaultId = artistVault?.id;
+    if (!vaultId) {
+      setIdentityPick(null);
+      setIdentityPool([]);
+      setIdentitySetCount(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const token = await getAccessToken();
+          const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/select`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+            body: JSON.stringify({
+              cameraMovement: scene.cameraMovement ?? null,
+              promptText: scene.aiVideoPrompt ?? scene.action ?? null,
+              actionText: scene.action ?? null,
+              mood: scene.mood ?? null,
+              wardrobeHint: pickedOutfit?.label ?? null,
+              overridePhotoId: identityOverrideId,
+            }),
+          });
+          if (!res.ok || cancelled) return;
+          const data = await res.json() as {
+            chosen: Omit<IdentityPick, "reason" | "overridden"> | null;
+            reason: string;
+            overridden: boolean;
+            setCount: number;
+            pool: IdentityPoolEntry[];
+          };
+          if (cancelled) return;
+          setIdentitySetCount(data.setCount ?? 0);
+          setIdentityPool(data.pool ?? []);
+          setIdentityPick(
+            data.chosen ? { ...data.chosen, reason: data.reason, overridden: data.overridden } : null,
+          );
+        } catch {
+          /* identity selection is an enhancement — generation works without it */
+          if (!cancelled) {
+            setIdentityPick(null);
+            setIdentityPool([]);
+            setIdentitySetCount(0);
+          }
+        }
+      })();
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id, scene.cameraMovement, scene.aiVideoPrompt, scene.action, scene.mood, pickedOutfit?.label, identityOverrideId]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -288,6 +418,73 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Reference set (multi-reference generation) ──────────────────────
+     Proposed from the creator's OWN seed sources — Artist Vault photo,
+     picked co-stars, brand-kit logo — plus the scene's location plate,
+     reconciled at render. Visible in the picker below with role labels;
+     nothing is attached silently. Once the creator edits the set (a
+     removal, a cast change) the approved set persists on the scene and
+     wins over the live proposal. */
+  const proposedReferenceSet: SceneReference[] = buildProposedReferenceSet({
+    characterPhotoUrl: artistVault && hasReferencePhoto(artistVault) ? artistVault.reference_image_url : null,
+    characterName: artistVault?.artist_name ?? null,
+    coStars: allVaults
+      .filter((v) => pickedCoStarIds.has(v.id) && v.id !== artistVault?.id && hasReferencePhoto(v))
+      .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
+    brandLogoUrl,
+  });
+  const baseReferenceSet: SceneReference[] = scene.referenceSet
+    ? normalizeReferenceSet(scene.referenceSet)
+    : proposedReferenceSet;
+  const effectiveReferenceSet: SceneReference[] = (() => {
+    const plate = scene.locationImageUrl;
+    if (!plate || !/^https:\/\//i.test(plate)) {
+      return baseReferenceSet.filter((r) => r.role !== "location");
+    }
+    if (baseReferenceSet.some((r) => r.role === "location" && r.url === plate)) {
+      return baseReferenceSet;
+    }
+    return sortReferenceSet([
+      ...baseReferenceSet.filter((r) => r.role !== "location"),
+      {
+        role: "location" as const,
+        url: plate,
+        label: scene.location?.trim() || "Scene location",
+        source: "location_library",
+      },
+    ]);
+  })();
+  const referencePlan = planSceneReferences(clipModel, effectiveReferenceSet);
+
+  /* Remove one entry — the approved set persists on the scene. Removing
+     the location plate also clears the scene's location image, since the
+     plate IS that reference (one source of truth). */
+  function removeReference(url: string) {
+    const removed = effectiveReferenceSet.find((r) => r.url === url);
+    const patch: Partial<SceneData> = {
+      referenceSet: effectiveReferenceSet.filter((r) => r.url !== url),
+    };
+    if (removed?.role === "location" && scene.locationImageUrl === url) {
+      patch.locationImageUrl = null;
+    }
+    onUpdate(patch);
+  }
+
+  /* Brand kit (style reference source) — optional; the set works without it. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const kit = await fetchBrandKit(getAccessToken);
+        if (!cancelled) setBrandLogoUrl(kit?.logoUrl ?? null);
+      } catch {
+        /* brand kit is optional — the reference set works without it */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toggleCoStar(id: string) {
     setPickedCoStarIds((prev) => {
       const next = new Set(prev);
@@ -295,6 +492,24 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       else next.add(id);
       return next;
     });
+    /* Keep a materialized reference set in sync with the cast: a picked
+       co-star's photo joins the set, an unpicked one leaves it. */
+    if (scene.referenceSet) {
+      const vault = allVaults.find((v) => v.id === id);
+      if (vault && hasReferencePhoto(vault)) {
+        const url = vault.reference_image_url!;
+        if (pickedCoStarIds.has(id)) {
+          onUpdate({ referenceSet: effectiveReferenceSet.filter((r) => r.url !== url) });
+        } else if (!effectiveReferenceSet.some((r) => r.url === url)) {
+          onUpdate({
+            referenceSet: sortReferenceSet([
+              ...effectiveReferenceSet,
+              { role: "character", url, label: vault.artist_name, source: "artist_vault" },
+            ]),
+          });
+        }
+      }
+    }
   }
 
   /* Manually picked co-stars + vault-linked co-stars, deduped by vault id. */
@@ -379,12 +594,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createAllTrigger]);
 
-  /* Build the final prompt that will actually be sent to Runway */
+  /* Build the final prompt that will actually be sent to Runway.
+     The base + Director's Look Rails weave live in the ONE shared composer
+     (lib/scene-look.ts) — byte-identical to the old inline build when no
+     look pick applies. */
   function buildFinalPrompt(): string {
-    const basePrompt = (scene.aiVideoPrompt ?? "").trim() ||
-      [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
-        .filter(Boolean).join(", ") ||
-      "cinematic music video scene, dramatic lighting, luxury aesthetic";
+    const basePrompt = composeScenePrompt(scene);
 
     if (artistVault) {
       const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null, sceneCoStarsWithLinks);
@@ -406,6 +621,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           prompt:      scene.aiVideoPrompt || null,
           finalPrompt,
           runwayJobId: jobId,
+          /* The character this clip was made as (0142, G8). */
+          artistVaultId: artistVault?.id ?? null,
           videoUrl:    clipUrl,
           status:      "completed",
         }),
@@ -448,11 +665,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             generatedAt: new Date().toISOString(),
             referenceSource: usedReferenceSource,
           });
-          toast({ title: "Runway clip ready!", description: "Your clip has been generated and saved." });
+          toast({ title: "Scene clip ready!", description: "Your clip has been generated and saved." });
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setIsGenerating(false);
-          setError(data.error ?? "Runway generation failed");
+          setError(data.error ?? "Scene clip generation failed");
           onUpdateRef.current({ generationStatus: "failed" });
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
@@ -460,19 +677,22 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       } catch {
         stopPolling();
         setIsGenerating(false);
-        setError("Network error while polling Runway");
+        setError("Network error while polling the scene clip");
         onUpdateRef.current({ generationStatus: "failed" });
       }
     }, 5000);
   }
 
-  async function startGeneration(opts?: { skipConfirm?: boolean }) {
+  async function startGeneration(opts?: { skipConfirm?: boolean; enhance?: boolean }) {
     const finalPrompt = buildFinalPrompt();
     const chaining = hasUsableClip(previousClipUrl);
+    /* Enhance = re-render the draft's keeper at 1080p with the same seed. */
+    const isEnhance = opts?.enhance === true && draftSeed !== null;
 
     setIsGenerating(true);
     setError(null);
     setProgress(null);
+    setReferenceNote(null);
     /* Optimistic guess for the "generating…" badge — server confirms/corrects
        via the response's referenceSource once the extraction actually runs. */
     setReferenceSource(
@@ -483,22 +703,31 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       const token = await getAccessToken();
 
       /* Build the visual reference: composite cast photo when co-stars are in the scene. */
+      /* Identity Set: when the character has a labeled photo set, the
+         per-shot pick (shown + overridable in the picker) replaces the
+         single main photo as the vault reference. With no set,
+         vaultPhotoUrl is exactly the main photo — unchanged behavior. */
+      const identityRefUrl =
+        identitySetCount >= 1 && identityPick && /^https:\/\//i.test(identityPick.imageUrl)
+          ? identityPick.imageUrl
+          : null;
+      const vaultPhotoUrl: string | null =
+        identityRefUrl ??
+        (artistVault && hasReferencePhoto(artistVault) ? artistVault.reference_image_url : null);
       let referenceImageUrl: string | null =
         outfitRefUrl ??
         scene.locationImageUrl ??
-        (artistVault && hasReferencePhoto(artistVault)
-          ? artistVault.reference_image_url
-          : null);
+        vaultPhotoUrl;
       const castMembers = [
-        ...(artistVault && hasReferencePhoto(artistVault)
-          ? [{ name: artistVault.artist_name, imageUrl: artistVault.reference_image_url! }]
+        ...(artistVault && vaultPhotoUrl
+          ? [{ name: artistVault.artist_name, imageUrl: vaultPhotoUrl }]
           : []),
         ...allVaults
           .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
           .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
       ];
       if (castMembers.length >= 2 && !chaining && !outfitRefUrl && !scene.locationImageUrl) {
-        const composite = await buildCastReference(castMembers, user?.id ?? "anon");
+        const composite = await buildCastReference(castMembers, user?.id ?? "anon", token);
         if (composite) referenceImageUrl = composite;
       }
 
@@ -510,24 +739,41 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
           referenceImageUrl,
+          /* The scene's approved reference set — the server maps it onto
+             what the picked model actually accepts and reports back any
+             reduction in `references.note` (never a silent drop). */
+          referenceSet: effectiveReferenceSet.length > 0 ? effectiveReferenceSet : undefined,
           previousClipUrl: chaining ? previousClipUrl : null,
+          /* End frame: undefined (field omitted) for models whose API has
+             no last frame — gen4.5 never receives the parameter. */
+          endFrameImageUrl: endFrameForPayload(clipModel, scene.endFrameImageUrl),
           model: clipModel,
-          durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
-          resolution: clipRes,
+          durationSec: clipModel === "veo3_1" ? 8 : clipModel === "seedance2_5" ? clipDuration : 5,
+          resolution: isEnhance ? "1080p" : clipRes,
+          draft: clipModel === "seedance2_5" && draftMode && !isEnhance,
+          seed: isEnhance ? draftSeed : undefined,
+          /* Viral Effects: woven server-side into the prompt. Enhance
+             re-renders keep the scene's effects too. */
+          effectIds: pickedEffectIds.length > 0 ? pickedEffectIds : undefined,
         }),
-        overrideCost: clipCost,
-        overrideFeature: "Generate Video Clip",
+        overrideCost: isEnhance ? enhanceCost : clipCost,
+        overrideFeature: isEnhance ? "Enhance Draft to 1080p" : "Generate Video Clip",
         skipConfirm: opts?.skipConfirm,
       });
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
-      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean; references?: { mode: string; submitted: number; inSet: number; reduced: boolean; note: string | null } };
+      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
+      /* Surface the server's reference accounting (e.g. a single-image
+         model using 1 of N set references) right where the creator looks. */
+      setReferenceNote(data.references?.note ?? null);
+      /* Keep the draft's seed so "Enhance to 1080p" can re-render it. */
+      if (typeof data.seed === "number") setDraftSeed(data.seed);
       setTaskId(data.taskId);
       startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
+      const msg = e instanceof Error ? e.message : "Failed to start scene clip generation";
       setIsGenerating(false);
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
@@ -545,6 +791,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setTaskId(null);
     setError(null);
     setProgress(null);
+    setReferenceNote(null);
     setShowRemoveConfirm(false);
     onUpdateRef.current({
       demoClipUrl: null,
@@ -563,13 +810,23 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const willChain = hasUsableClip(previousClipUrl);
 
   /* Site-credit cost for the current picker selection. The per-second rates
-     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p). */
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 3;
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 6;
-  const clipCost = clipModel === "seedance2_5"
-    ? clipDuration * (clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
-    : 5;
-  const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
+     must match the server's SEEDANCE per-tier defaults (300 at 720p, 600 at 1080p,
+     200 for drafts). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 300;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 600;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 200;
+  /* Veo 3.1: fixed 8s clips at 400/sec (must match server VEO_CREDITS_PER_SEC_DEFAULT). */
+  const VEO_CREDITS_PER_SEC_CLIENT = 400;
+  const VEO_CLIP_DURATION_CLIENT = 8;
+  const isDraftRequest = clipModel === "seedance2_5" && draftMode;
+  const clipCost = clipModel === "veo3_1"
+    ? VEO_CLIP_DURATION_CLIENT * VEO_CREDITS_PER_SEC_CLIENT
+    : clipModel === "seedance2_5"
+      ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
+      : 5;
+  /* Enhance cost: re-render the draft's keeper at 1080p. */
+  const enhanceCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : 0;
+  const genTimeHint = clipModel === "veo3_1" ? "Usually takes 1–2 minutes" : clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 
   /* Human-readable label for whichever reference the last/next generation used or will use. */
   function referenceLabel(source: "previous_scene" | "vault_photo" | "none" | null): string | null {
@@ -585,10 +842,15 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/5">
         <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-primary/90">Generating Runway clip…</p>
+          <p className="text-xs font-bold text-primary/90">Generating scene clip…</p>
           {label && (
             <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1" data-testid="text-reference-source">
               <ShieldCheck className="h-3 w-3" /> {label}
+            </p>
+          )}
+          {referenceNote && (
+            <p className="text-[10px] text-primary/60 mt-0.5" data-testid="text-reference-note">
+              {referenceNote}
             </p>
           )}
           <p className="text-[11px] text-white/30 mt-0.5">{genTimeHint}</p>
@@ -638,7 +900,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-400 uppercase tracking-widest">
-            <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider ?? "Runway"}
+            <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider === "Runway" ? "Scene Clip" : scene.provider ?? "Scene Clip"}
           </span>
           {referenceLabel(scene.referenceSource ?? referenceSource) && (
             <span
@@ -675,6 +937,19 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           playsInline
           className="w-full rounded-xl bg-black border border-white/10 max-h-64"
         />
+        {/* CREATE → PROMOTE handoff: a finished clip (effected or not) goes
+            straight into the Promo Clips desk; the clip is already saved
+            to the creator's library by autoSaveClip. */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/promo-clip"
+            data-testid="link-make-promo-clip"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Film className="h-3 w-3" /> Make a Promo Clip
+          </Link>
+          <span className="text-[10px] text-white/35">Cut this clip into a promo in the Promote desk.</span>
+        </div>
       </div>
     );
   }
@@ -723,6 +998,46 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           </div>
           <p className="text-[10px] text-white/40 mt-1.5">
             {pickedOutfit ? <>Wearing: <span className="text-white/70 font-semibold">{pickedOutfit.label}</span></> : "Base vault look"}
+          </p>
+        </div>
+      )}
+
+      {/* Identity Set picker — the server picks the best-matching identity
+          photo for this shot and says why; tap any photo to override.
+          Rendered only when the character actually has a set. */}
+      {hasArtist && identitySetCount >= 1 && identityPool.length >= 2 && identityPick && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="identity-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            📸 Identity photo for this shot
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {identityPool.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setIdentityOverrideId(p.id)}
+                title={`${IDENTITY_ANGLE_LABELS[p.angle] ?? p.angle} · ${IDENTITY_EXPRESSION_LABELS[p.expression] ?? p.expression}${p.isMain ? " · main photo" : ""}${p.source === "generated" ? " · AI-generated" : ""}`}
+                className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                  identityPick.id === p.id ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img src={p.imageUrl} alt={IDENTITY_ANGLE_LABELS[p.angle] ?? p.angle} className="h-full w-full object-cover object-top" loading="lazy" />
+                {p.source === "generated" && (
+                  <span className="absolute bottom-0 right-0 px-1 py-px text-[8px] font-black uppercase bg-amber-400 text-black rounded-tl-md">AI</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/40 mt-1.5" data-testid="text-identity-pick-reason">
+            <span className="text-white/70 font-semibold">
+              {IDENTITY_ANGLE_LABELS[identityPick.angle] ?? identityPick.angle}
+              {" · "}
+              {IDENTITY_EXPRESSION_LABELS[identityPick.expression] ?? identityPick.expression}
+              {identityPick.isMain ? " · main photo" : ""}
+              {identityPick.source === "generated" ? " · AI-generated" : ""}
+            </span>
+            {" — "}
+            {identityPick.reason}
           </p>
         </div>
       )}
@@ -810,7 +1125,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           className="flex items-center gap-1.5 text-[10px] font-bold text-white/30 hover:text-white/60 transition-colors mb-1.5"
         >
           <Eye className="h-3 w-3" />
-          {showFinalPrompt ? "Hide" : "Preview"} Final Prompt Sent To Runway
+          {showFinalPrompt ? "Hide" : "Preview"} Final Prompt
           {showFinalPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
         {showFinalPrompt && (
@@ -827,6 +1142,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           {([
             { id: "gen4.5", label: "Standard" },
             { id: "seedance2_5", label: "Premium" },
+            { id: "veo3_1", label: "Cinematic" },
           ] as const).map((m) => (
             <button
               key={m.id}
@@ -847,6 +1163,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           ))}
         </div>
         {clipModel === "seedance2_5" && (
+          <>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Length</span>
             {[5, 10, 15, 30].map((d) => (
@@ -865,24 +1182,105 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               </button>
             ))}
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider ml-2">Quality</span>
-            {(["720p", "1080p"] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setClipRes(r)}
-                data-testid={`res-pick-${r}`}
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
-                  clipRes === r
-                    ? "border-primary/60 bg-primary/15 text-primary"
-                    : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+            {draftMode ? (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full border border-primary/60 bg-primary/15 text-primary">
+                480p draft
+              </span>
+            ) : (
+              (["720p", "1080p"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setClipRes(r)}
+                  data-testid={`res-pick-${r}`}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                    clipRes === r
+                      ? "border-primary/60 bg-primary/15 text-primary"
+                      : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))
+            )}
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={draftMode}
+              onClick={() => setDraftMode(!draftMode)}
+              data-testid="draft-mode-toggle"
+              className="flex items-center gap-2 text-[11px] font-bold text-white/60 hover:text-white transition"
+            >
+              <span className={`relative h-5 w-9 rounded-full transition ${draftMode ? "bg-primary" : "bg-white/15"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${draftMode ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+              Draft mode
+              <span className="text-[9px] font-black uppercase tracking-wide text-emerald-400/80">save ~67%</span>
+            </button>
+            {draftMode && (
+              <span className="text-[10px] text-white/40">
+                Cheap 480p previews — re-roll freely, then enhance the keeper to 1080p.
+              </span>
+            )}
+          </div>
+          </>
         )}
       </div>
+
+      {/* End frame (last-frame keyframe) — only models whose API accepts a
+          last frame (Premium / Cinematic). For Standard the control is
+          absent entirely, never shown disabled. */}
+      {modelSupportsEndFrame(clipModel) && (
+        <EndFramePicker scene={scene} onPick={onUpdate} />
+      )}
+      {/* Viral Effects rail — generation-time effect recipes + Turbo Effect Match */}
+      <EffectsRail
+        scene={scene}
+        pickedIds={pickedEffectIds}
+        onChange={handleEffectChange}
+        getAccessToken={getAccessToken}
+      />
+      {/* Reference set — the images this scene shows the model, assembled
+          from the creator's own vault / locations / brand kit. Every entry
+          is labeled with its role and can be removed (removals persist on
+          the scene); the picked model's real capacity is stated plainly. */}
+      {effectiveReferenceSet.length > 0 && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="reference-set-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            🖼️ Reference set for this scene
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {effectiveReferenceSet.map((r) => (
+              <div
+                key={r.url}
+                className="relative h-11 w-11 rounded-lg overflow-hidden border border-white/10 shrink-0"
+                title={`${REFERENCE_ROLE_LABEL[r.role]} — ${r.label}`}
+              >
+                <img src={r.url} alt={r.label} className="h-full w-full object-cover object-top" loading="lazy" />
+                <button
+                  type="button"
+                  onClick={() => removeReference(r.url)}
+                  title={`Remove ${r.label}`}
+                  data-testid={`reference-remove-${r.role}`}
+                  className="absolute top-0 right-0 bg-black/70 text-white/80 hover:text-white rounded-bl-md p-0.5"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+                <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] font-bold uppercase tracking-wide text-white/80 text-center leading-tight py-px pointer-events-none">
+                  {REFERENCE_ROLE_LABEL[r.role]}
+                </span>
+              </div>
+            ))}
+          </div>
+          {referencePlan.summary && (
+            <p className="text-[10px] text-white/40 mt-1.5" data-testid="reference-plan-note">
+              {referencePlan.summary}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Generate controls — credit confirmation handled by the universal popup */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -895,9 +1293,175 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           data-testid={`btn-generate-runway`}
         >
           <Video className="h-3.5 w-3.5" />
-          Generate Runway Clip
+          {isDraftRequest ? "Generate Draft" : "Generate Scene Clip"}
         </Button>
+        {/* Enhance: re-render the draft keeper at 1080p with the same seed */}
+        {hasClip && draftSeed !== null && draftMode && (
+          <Button
+            size="sm"
+            onClick={() => startGeneration({ enhance: true })}
+            className="gap-2 bg-primary text-black hover:bg-primary/90 font-bold text-xs h-8"
+            data-testid="btn-enhance-draft"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Enhance to 1080p ({enhanceCost.toLocaleString("en-US")} Bucs)
+          </Button>
+        )}
       </div>
+    </div>
+  );
+}
+
+/* ─── End-frame picker ──────────────────────────────────────────
+   Optional last-frame keyframe for the scene: the image the generated
+   clip must land on. Picked from — or uploaded into — the same Locations
+   library the scene's start/location image comes from. Only rendered
+   for models whose API accepts a last frame (lib/scene-end-frame). */
+function EndFramePicker({ scene, onPick }: {
+  scene: SceneData;
+  onPick: (patch: Partial<SceneData>) => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [locations, setLocations] = useState<LibraryLocation[] | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open && locations === null) {
+      void fetchLocationsLibrary(getAccessToken).then(setLocations);
+    }
+  }, [open, locations, getAccessToken]);
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.append("image", file);
+      form.append("label", `End frame — Scene ${scene.sceneNumber}`);
+      const res = await fetch("/api/locations/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const data = (await res.json()) as { location?: { image_url?: string }; error?: string };
+      const url = data.location?.image_url;
+      if (!res.ok || !url) throw new Error(data.error ?? "Upload failed");
+      /* The upload joined the Locations library — drop the shared cache so
+         the next open lists it alongside the other library images. */
+      locationsCache = null;
+      locationsFetch = null;
+      setLocations(null);
+      onPick({ endFrameImageUrl: url });
+      setOpen(false);
+      toast({ title: "End frame set", description: "The clip will land on this image." });
+    } catch (e) {
+      toast({
+        title: "Upload failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+          <Flag className="h-2.5 w-2.5" /> End frame
+        </span>
+        {scene.endFrameImageUrl ? (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.07] pl-1 pr-2 py-1">
+            <img
+              src={scene.endFrameImageUrl}
+              alt="Scene end frame"
+              className="h-8 w-12 rounded-lg object-cover"
+            />
+            <span className="text-xs font-semibold text-white/80 max-w-[160px] truncate">
+              Clip lands here
+            </span>
+            <button
+              onClick={() => onPick({ endFrameImageUrl: null })}
+              className="text-white/40 hover:text-white/80 transition-colors"
+              title="Clear end frame"
+              aria-label="Clear end frame"
+              data-testid="end-frame-clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
+            data-testid="end-frame-open"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Set end frame
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
+
+      {open && !scene.endFrameImageUrl && (
+        <div className="absolute z-30 mt-2 w-[320px] max-w-[80vw] rounded-xl border border-white/10 bg-zinc-950 p-3 shadow-2xl shadow-black/60">
+          <p className="text-[11px] text-white/50 leading-relaxed mb-2">
+            Pick the image this clip should <span className="text-white/80 font-semibold">end on</span> —
+            line it up with the next scene's start for a smooth cut.
+          </p>
+          {locations === null ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
+              {locations.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => {
+                    onPick({ endFrameImageUrl: l.image_url });
+                    setOpen(false);
+                  }}
+                  className="group rounded-lg overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-left"
+                  title={`End this scene on “${l.label}”`}
+                >
+                  <img src={l.image_url} alt={l.label} className="h-16 w-full object-cover" loading="lazy" />
+                  <p className="px-2 py-1.5 text-[11px] font-semibold text-white/70 group-hover:text-white truncate">
+                    {l.label}
+                  </p>
+                </button>
+              ))}
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="rounded-lg border border-dashed border-white/15 hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1 min-h-[92px] text-white/50 hover:text-white/80 disabled:opacity-50"
+                data-testid="end-frame-upload"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                <span className="text-[11px] font-semibold">{uploading ? "Uploading…" : "Upload image"}</span>
+              </button>
+            </div>
+          )}
+          {locations !== null && locations.length === 0 && (
+            <p className="text-[11px] text-white/40 mt-2">Uploads join your Locations library, ready to reuse on any scene.</p>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void handleUpload(f);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1083,7 +1647,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
     setShowPrompt(true);
     const seed = aiPrompt.trim() || sceneSeedPrompt(scene);
     if (!seed) {
-      toast({ title: "Enter a prompt first", description: "Type an AI Video Prompt before improving it.", variant: "destructive" });
+      toast({ title: "Enter a prompt first", description: "Type a Video Prompt before improving it.", variant: "destructive" });
       return;
     }
     setImproving(true);
@@ -1098,7 +1662,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
       if (!improvedPrompt) return; // user cancelled the credit confirmation
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
-      toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
+      toast({ title: "Prompt improved!", description: "Your Video Prompt has been enhanced." });
     } catch (err) {
       const message = err instanceof ImprovePromptError ? err.message : "Something went wrong. Please try again.";
       toast({ title: "Could not improve prompt", description: message, variant: "destructive" });
@@ -1178,7 +1742,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             <button
               onClick={handleImprovePrompt}
               className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors"
-              title="This scene's AI Video Prompt is short or generic — click to improve it"
+              title="This scene's Video Prompt is short or generic — click to improve it"
               data-testid={`badge-weak-prompt-${index}`}
             >
               <AlertTriangle className="h-3 w-3" /> Weak Prompt
@@ -1225,7 +1789,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               data-testid={`btn-toggle-prompt-${index}`}
             >
               <Zap className="h-3.5 w-3.5" />
-              {showPrompt ? "Hide AI Prompt" : "AI Prompt & Details"}
+              {showPrompt ? "Hide Prompt" : "Prompt & Details"}
               {showPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
 
@@ -1306,10 +1870,14 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 )}
               </div>
 
+              {/* Director's Look Rails — structured genre/era/lens/lighting/
+                  emotion picks beside the free-text fields above */}
+              <LookRailsPanel scene={scene} onPick={handleUpdate} />
+
               {/* AI Video Prompt */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
-                  <Zap className="h-2.5 w-2.5" /> AI Video Prompt
+                  <Zap className="h-2.5 w-2.5" /> Video Prompt
                 </label>
                 <textarea
                   value={aiPrompt}
@@ -1354,7 +1922,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
           {/* Silent preview note */}
           <p className="text-[11px] text-white/30 flex items-start gap-1.5">
             <Film className="h-3 w-3 text-primary/40 shrink-0 mt-0.5" />
-            Runway clips are silent previews. Your uploaded song will be added during final export.
+            Scene clips are silent previews. Your uploaded song will be added during final export.
           </p>
 
         </div>
@@ -1497,7 +2065,7 @@ export function SceneStudio({
           title: fail === 0 ? "All prompts improved!" : `Improved ${ok} of ${targets.length} scenes`,
           description:
             fail === 0
-              ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} for Runway.`
+              ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} .`
               : `${fail} scene${fail !== 1 ? "s" : ""} could not be improved — hover a scene's badge for details, or use "Retry Failed".`,
           variant: fail === 0 ? undefined : "destructive",
         });
@@ -1619,6 +2187,9 @@ export function SceneStudio({
           </div>
         )}
       </div>
+
+      {/* Wave 9 directing tools now live in the make-video flow (step 5),
+          above the storyboard-approval gate — see pages/make-video.tsx. */}
 
       {/* Cards */}
       <div className="space-y-4">

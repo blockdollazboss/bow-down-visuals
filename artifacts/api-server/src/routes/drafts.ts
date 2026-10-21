@@ -3,9 +3,105 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, projectDraftsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
-import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
+import { isExternalHttpUrl, isPermanentMediaValue, mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 
 const router = Router();
+
+/* Only plain objects may be walked (mirrors lib/objectStorage.ts): a
+   non-plain object (Date, Buffer, class instance) is a leaf and passes
+   through untouched — Object.entries on a Date yields nothing, so
+   walking one would rebuild it as {} and destroy the value. Today's
+   payloads are JSON-parsed req.body values (all plain), but the guard
+   keeps server-built values safe if a caller ever changes. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/* Mirror-on-save, write-time half (2026-10-13 law): draft_data is an
+   untyped client-assembled blob, so arbitrary links inside it can't be
+   told apart from media — but any value pointing at OUR OWN storage is
+   normalized to its permanent ref before persisting (normalizeToStorageRef
+   is documented "use at WRITE time"), so a stored signed URL can never
+   expire. External provider URLs are handled by the typed-key convention
+   below (mirrorDraftMediaDeep). */
+export function normalizeDraftRefsDeep<T>(value: T): T {
+  if (typeof value === "string") {
+    return (normalizeToStorageRef(value) ?? value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => normalizeDraftRefsDeep(v)) as T;
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, normalizeDraftRefsDeep(v)]),
+    ) as T;
+  }
+  return value;
+}
+
+/* ─── Typed-key media mirroring ─────────────────────────────────────────
+   External media URLs inside draft_data are mirrored into permanent
+   storage ONLY under the media-key conventions the draft producers
+   actually save. Deep-mirroring every http(s) string in the blob would
+   download arbitrary web links users paste into text fields, so this
+   key set is evidence-driven — collected from the four producers that
+   POST /api/drafts:
+
+   • pages/make-video.tsx + pages/song-and-video.tsx save
+     { scenes, formValues, audioUrl, step, … }: the top-level `audioUrl`
+     is the user's song (audio), and each SceneData entry
+     (lib/scene-parser.ts) carries `demoClipUrl` (video), `thumbnailUrl`
+     (image) and `locationImageUrl` (image, a Locations-library pick).
+   • lib/music-lane.ts saves a LaneSession whose `pickedVersion`
+     ({ url, storagePath, name, durationSec }) and `variants[]`
+     ({ url, storagePath, label }) hold generated song files. A bare
+     `url` therefore counts as media ONLY inside an object that also
+     carries a `storagePath` sibling — the marker that the entry is a
+     stored-media asset — and those are audio.
+   • components/outreach/SponsorReadPanel.tsx saves text only (script,
+     key points, brand copy) — no media keys; nothing in that shape is
+     ever mirrored.
+
+   Values under ANY other key (lyrics, prompts, specialInstructions —
+   users paste ordinary links there) are never sent to the mirror and
+   stay byte-identical. Media values that are already permanent or
+   point at our own storage pass through via the guards (same pattern
+   as mirrorProjectScenes): the helper normalizes own-storage URLs to
+   their ref without a download. */
+const DRAFT_MEDIA_KEYS: Record<string, "image" | "video" | "audio"> = {
+  audioUrl: "audio",
+  demoClipUrl: "video",
+  thumbnailUrl: "image",
+  locationImageUrl: "image",
+};
+
+export async function mirrorDraftMediaDeep<T>(value: T, ownerKey: string): Promise<T> {
+  if (Array.isArray(value)) {
+    return (await Promise.all(
+      value.map((v) => mirrorDraftMediaDeep(v, ownerKey)),
+    )) as T;
+  }
+  if (isPlainObject(value)) {
+    const obj = value;
+    const hasStoragePathSibling = typeof obj["storagePath"] === "string";
+    const entries = await Promise.all(
+      Object.entries(obj).map(async ([key, v]) => {
+        const kind =
+          DRAFT_MEDIA_KEYS[key] ??
+          (key === "url" && hasStoragePathSibling ? ("audio" as const) : undefined);
+        if (kind && typeof v === "string" && isExternalHttpUrl(v) && !isPermanentMediaValue(v)) {
+          return [key, await mirrorExternalMediaUrl(v, { kind, ownerKey })] as const;
+        }
+        return [key, await mirrorDraftMediaDeep(v, ownerKey)] as const;
+      }),
+    );
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
 
 const UpsertDraftSchema = z.object({
   workflowType: z.string().min(1).max(64),
@@ -21,6 +117,11 @@ router.post("/drafts", requireAuth, async (req, res) => {
     return;
   }
   const { workflowType, title, draftData } = parsed.data;
+  /* Mirror external media under the typed-key convention first (it
+     downloads), then normalize any of our own storage URLs to refs. */
+  const storedDraftData = normalizeDraftRefsDeep(
+    await mirrorDraftMediaDeep(draftData, req.userId!),
+  );
 
   try {
     const [row] = await db
@@ -29,14 +130,14 @@ router.post("/drafts", requireAuth, async (req, res) => {
         user_id: req.userId!,
         workflow_type: workflowType,
         title: title ?? null,
-        draft_data: draftData,
+        draft_data: storedDraftData,
         updated_at: new Date(),
       })
       .onConflictDoUpdate({
         target: [projectDraftsTable.user_id, projectDraftsTable.workflow_type],
         set: {
           title: title ?? null,
-          draft_data: draftData,
+          draft_data: storedDraftData,
           updated_at: new Date(),
         },
       })

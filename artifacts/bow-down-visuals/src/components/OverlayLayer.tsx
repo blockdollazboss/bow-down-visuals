@@ -3,11 +3,12 @@
  * Overlays are shown/hidden based on `currentTime` relative to each item's
  * startTime / endTime.  Captions are rendered above this layer (higher z-index).
  */
+import type { CSSProperties } from "react";
 import type { OverlayItem, OverlayPosition } from "@/lib/editor-settings";
 
 /* ── Position helper ── */
-function posStyle(p: OverlayPosition): React.CSSProperties {
-  const S: Record<OverlayPosition, React.CSSProperties> = {
+function posStyle(p: OverlayPosition): CSSProperties {
+  const S: Record<OverlayPosition, CSSProperties> = {
     "top-left":      { top: "8%",  left: "8%",  transform: "none" },
     "top-center":    { top: "8%",  left: "50%", transform: "translateX(-50%)" },
     "top-right":     { top: "8%",  right: "8%", transform: "none" },
@@ -85,6 +86,8 @@ function renderItem(item: OverlayItem) {
   const opacity = Math.max(0, Math.min(1, item.opacity / 100));
   const z = item.zIndex || 15;
   const ps = posStyle(item.position);
+  /* Motion graphics CSS animation (mg-* keyframes from index.css). */
+  const motionStyle: CSSProperties = item.motionCss ? { animation: item.motionCss } : {};
 
   switch (item.type) {
     case "text":
@@ -94,6 +97,7 @@ function renderItem(item: OverlayItem) {
           className="absolute"
           style={{
             ...ps,
+            ...motionStyle,
             zIndex: z,
             opacity,
             color: item.textColor || "#ffffff",
@@ -114,6 +118,7 @@ function renderItem(item: OverlayItem) {
           key={item.id}
           className="absolute left-0 right-0"
           style={{
+            ...motionStyle,
             bottom: "14%",
             zIndex: z,
             opacity,
@@ -136,6 +141,7 @@ function renderItem(item: OverlayItem) {
           key={item.id}
           className="absolute inset-0"
           style={{
+            ...motionStyle,
             zIndex: z,
             background: item.color || "rgba(255,0,0,0.3)",
             opacity,

@@ -834,7 +834,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         });
         setAiSyncStatus({
           type: "error",
-          message: `AI sync failed validation — ${Math.round(bad * 100)}% of rows had invalid timings. Existing captions were not overwritten.`,
+          message: `Sync failed validation — ${Math.round(bad * 100)}% of rows had invalid timings. Existing captions were not overwritten.`,
         });
         return;
       }
@@ -1178,7 +1178,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
           {/* Lyrics-sent badge */}
           {lyricsAutoFilled && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/[0.06] text-xs text-primary/80">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/[0.06] text-xs text-primary/70">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               Lyrics sent to captions.
             </div>
@@ -1277,7 +1277,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           </div>
 
           {!audioUrl && (
-            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+            <p className="text-[11px] text-amber-400 flex items-start gap-1.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
               No audio attached. Go to the Music tab and upload or select your song first.
             </p>
@@ -1355,7 +1355,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           AI SYNC CAPTIONS TO VOCALS  (Advanced)
       ══════════════════════════════════════════════════ */}
       <EditorCard
-        title="AI Sync Captions To Vocals (Advanced)"
+        title="Sync Captions To Vocals (Advanced)"
         subtitle="Matches your existing caption text to vocal timestamps — use Rebuild above if sync fails"
         icon={<Wand2 className="h-4 w-4" />}
       >
@@ -1379,13 +1379,13 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
           {/* Guidance when prerequisites not met */}
           {!audioUrl && (
-            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+            <p className="text-[11px] text-amber-400 flex items-start gap-1.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
               No audio attached. Go to the Music tab and upload or select your song first.
             </p>
           )}
           {c.lines.length === 0 && (
-            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+            <p className="text-[11px] text-amber-400 flex items-start gap-1.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
               No captions yet. Generate captions from your lyrics above first.
             </p>
@@ -1399,7 +1399,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 AI Caption Sync uses Visual Bucs
               </p>
               <p className="text-xs text-white/55 leading-relaxed">
-                This calls Whisper AI to transcribe your song and timestamp every word. It may use Visual Bucs from your account. Continue?
+                This calls Thy Cheat Code AI to transcribe your song and timestamp every word. It may use Visual Bucs from your account. Continue?
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => void runAiSync()} className="gold-glow font-bold gap-1.5">
@@ -1417,7 +1417,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {aiSyncing && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.05]">
               <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
-              <span className="text-sm text-primary/80 font-semibold">{aiSyncPhase ?? "AI syncing captions…"}</span>
+              <span className="text-sm text-primary/70 font-semibold">{aiSyncPhase ?? "Syncing captions…"}</span>
             </div>
           )}
 
@@ -1431,7 +1431,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             >
               {aiSyncing
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Syncing…</>
-                : <><Sparkles className="h-4 w-4" /> AI Sync Captions To Vocals</>
+                : <><Sparkles className="h-4 w-4" /> Sync Captions To Vocals</>
               }
             </Button>
           )}
@@ -1439,7 +1439,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {/* AI Sync Status panel */}
           {aiSyncDetails && (
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">AI Sync Status</p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Sync Status</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] text-white/40">Audio found</span>
@@ -1769,7 +1769,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             <button
               type="button"
               onClick={() => setShowAllCaptionPresets((v) => !v)}
-              className="mt-2.5 text-[11px] font-bold text-[#C9A84C]/80 hover:text-[#C9A84C]"
+              className="mt-2.5 text-[11px] font-bold text-[#C9A84C] hover:text-[#C9A84C]"
               data-testid="caption-presets-show-all"
             >
               {showAllCaptionPresets ? "← Back to template picks" : `Show all ${CAPTION_STYLE_PRESET_DEFS.length} styles`}
@@ -2009,7 +2009,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                   ["export uses same layout",     "yes — ASS margins match"],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between gap-2">
-                    <span className="text-[9px] font-mono text-white/28">{label}</span>
+                    <span className="text-[9px] font-mono text-white/30">{label}</span>
                     <span className={`text-[9px] font-mono font-bold ${
                       value === "yes" || value.startsWith("yes")
                         ? "text-green-400"

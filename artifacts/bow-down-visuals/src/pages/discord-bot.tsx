@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
 
 /* Admin setup for the Discord Live Companion Bot.
  * Walks the owner through: Discord portal app creation → bot install →
@@ -56,7 +57,8 @@ const PORTAL_STEPS = [
 ];
 
 export default function DiscordBotSetup() {
-  usePageTitle("Discord Bot", "Wire up the Live Companion Bot: auto-announcements, watch parties, LIVE badge.");
+  const { t } = useTranslation();
+  usePageTitle(t("discord-bot.metaTitle"), t("discord-bot.metaDescription"));
   const { getAccessToken } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [data, setData] = useState<ConfigResponse | null>(null);
@@ -104,13 +106,13 @@ export default function DiscordBotSetup() {
       const res = await fetch("/api/discord-bot/install-url", { headers: await authHeaders() });
       const body = (await res.json()) as { install_url?: string; error?: string };
       if (!res.ok || !body.install_url) {
-        setInstallError(body.error ?? "Could not build the install URL — is DISCORD_CLIENT_ID set on the server?");
+        setInstallError(body.error ?? t("discord-bot.installUrlError"));
         return;
       }
       setInstallUrl(body.install_url);
       window.open(body.install_url, "_blank", "noopener");
     } catch {
-      setInstallError("Could not build the install URL. Try again.");
+      setInstallError(t("discord-bot.installUrlErrorRetry"));
     }
   }
 
@@ -146,8 +148,8 @@ export default function DiscordBotSetup() {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <ShieldAlert className="mx-auto mb-4 h-10 w-10 text-[#d4af37]" />
-        <h1 className="text-2xl font-bold">Admins only</h1>
-        <p className="mt-2 text-muted-foreground">The Discord bot setup is only available to the site owner.</p>
+        <h1 className="text-2xl font-bold">{t("discord-bot.admins_only")}</h1>
+        <p className="mt-2 text-muted-foreground">{t("discord-bot.the_discord_bot_setup_is_only_av")}</p>
       </div>
     );
   }
@@ -161,36 +163,34 @@ export default function DiscordBotSetup() {
           <Bot className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Discord <span className="text-[#d4af37]">Live Companion Bot</span>
+          <h1 className="text-3xl font-bold tracking-tight">{t("discord-bot.discord")}<span className="text-[#d4af37]">{t("discord-bot.live_companion_bot")}</span>
           </h1>
-          <p className="text-muted-foreground">Go live on Discord — the bot handles announcements, watch parties, and the site LIVE badge.</p>
+          <p className="text-muted-foreground">{t("discord-bot.go_live_on_discord_the_bot_handl")}</p>
         </div>
       </div>
 
       {/* Environment status */}
       <Card className="lux-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><PlugZap className="h-5 w-5 text-[#d4af37]" /> Server status</CardTitle>
-          <CardDescription>What the api-server can see right now.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><PlugZap className="h-5 w-5 text-[#d4af37]" />{t("discord-bot.server_status")}</CardTitle>
+          <CardDescription>{t("discord-bot.what_the_api_server_can_see_righ")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <EnvBadge ok={env?.client_id_set} label="DISCORD_CLIENT_ID" />
-          <EnvBadge ok={env?.bot_token_set} label="DISCORD_BOT_TOKEN" />
-          <EnvBadge ok={env?.shared_secret_set} label="DISCORD_BOT_SHARED_SECRET" />
+          <EnvBadge ok={env?.client_id_set} label={t("discord-bot.discord_client_id")} />
+          <EnvBadge ok={env?.bot_token_set} label={t("discord-bot.discord_bot_token")} />
+          <EnvBadge ok={env?.shared_secret_set} label={t("discord-bot.discord_bot_shared_secret")} />
         </CardContent>
       </Card>
 
       {/* Install */}
       <Card className="lux-card">
         <CardHeader>
-          <CardTitle>1 · Install the bot on your server</CardTitle>
-          <CardDescription>Opens Discord's OAuth2 authorize page with the bot + slash-command scopes pre-selected.</CardDescription>
+          <CardTitle>{t("discord-bot.1_install_the_bot_on_your_server")}</CardTitle>
+          <CardDescription>{t("discord-bot.opens_discord_s_oauth2_authorize")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button onClick={onInstall} className="bg-[#5865F2] text-white hover:bg-[#4752C4]">
-            <ExternalLink className="mr-2 h-4 w-4" /> Install bot on your server
-          </Button>
+            <ExternalLink className="mr-2 h-4 w-4" />{t("discord-bot.install_bot_on_your_server")}</Button>
           {installUrl && (
             <button
               type="button"
@@ -202,7 +202,7 @@ export default function DiscordBotSetup() {
               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied!" : "Copy install link"}
+              {copied ? t("discord-bot.copied") : t("discord-bot.copyInstallLink")}
             </button>
           )}
           {installError && <p className="text-sm text-red-500">{installError}</p>}
@@ -212,26 +212,26 @@ export default function DiscordBotSetup() {
       {/* Wiring form */}
       <Card className="lux-card">
         <CardHeader>
-          <CardTitle>2 · Wire up the announcements</CardTitle>
-          <CardDescription>Tell the bot where to announce and who to watch. Right-click in Discord with Developer Mode on to copy IDs.</CardDescription>
+          <CardTitle>{t("discord-bot.2_wire_up_the_announcements")}</CardTitle>
+          <CardDescription>{t("discord-bot.tell_the_bot_where_to_announce_a")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSave} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">Server (guild) ID</span>
+              <span className="text-sm font-medium">{t("discord-bot.server_guild_id")}</span>
               <Input value={form.guild_id ?? env?.guild_id_env ?? ""} onChange={(e) => set("guild_id", e.target.value)} placeholder="123456789012345678" />
             </label>
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">Announcements channel ID</span>
+              <span className="text-sm font-medium">{t("discord-bot.announcements_channel_id")}</span>
               <Input value={form.announce_channel_id ?? env?.announce_channel_env ?? ""} onChange={(e) => set("announce_channel_id", e.target.value)} placeholder="123456789012345678" />
             </label>
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">Role ID to ping <span className="text-muted-foreground">(optional)</span></span>
-              <Input value={form.announce_role_id ?? ""} onChange={(e) => set("announce_role_id", e.target.value)} placeholder="Role for live notifications" />
+              <span className="text-sm font-medium">{t("discord-bot.role_id_to_ping")}<span className="text-muted-foreground">{t("discord-bot.optional")}</span></span>
+              <Input value={form.announce_role_id ?? ""} onChange={(e) => set("announce_role_id", e.target.value)} placeholder={t("discord-bot.role_for_live_notifications")} />
             </label>
             <label className="space-y-1.5">
-              <span className="text-sm font-medium">Your Discord user ID <span className="text-muted-foreground">(the streamer)</span></span>
-              <Input value={form.streamer_discord_user_id ?? ""} onChange={(e) => set("streamer_discord_user_id", e.target.value)} placeholder="Your user ID" />
+              <span className="text-sm font-medium">{t("discord-bot.your_discord_user_id")}<span className="text-muted-foreground">{t("discord-bot.the_streamer")}</span></span>
+              <Input value={form.streamer_discord_user_id ?? ""} onChange={(e) => set("streamer_discord_user_id", e.target.value)} placeholder={t("discord-bot.your_user_id")} />
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -239,24 +239,20 @@ export default function DiscordBotSetup() {
                 checked={form.mention_everyone ?? false}
                 onChange={(e) => set("mention_everyone", e.target.checked)}
                 className="h-4 w-4 accent-[#d4af37]"
-              />
-              Ping @everyone on go-live (instead of a role)
-            </label>
+              />{t("discord-bot.ping_everyone_on_go_live_instead")}</label>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={form.enabled ?? true}
                 onChange={(e) => set("enabled", e.target.checked)}
                 className="h-4 w-4 accent-[#d4af37]"
-              />
-              Bot announcements enabled
-            </label>
+              />{t("discord-bot.bot_announcements_enabled")}</label>
             <div className="sm:col-span-2">
               <Button type="submit" disabled={saving} className="gold-glow">
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Save configuration
+                {t("discord-bot.saveConfiguration")}
               </Button>
-              {saved && <span className="ml-3 text-sm text-green-500">Saved ✓</span>}
+              {saved && <span className="ml-3 text-sm text-green-500">{t("discord-bot.saved")}</span>}
             </div>
           </form>
         </CardContent>
@@ -265,29 +261,29 @@ export default function DiscordBotSetup() {
       {/* Setup steps */}
       <Card className="lux-card">
         <CardHeader>
-          <CardTitle>3 · One-time setup checklist</CardTitle>
-          <CardDescription>Everything the bot needs to run in production.</CardDescription>
+          <CardTitle>{t("discord-bot.3_one_time_setup_checklist")}</CardTitle>
+          <CardDescription>{t("discord-bot.everything_the_bot_needs_to_run")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ol className="space-y-4">
-            {PORTAL_STEPS.map((step, i) => (
+            {PORTAL_STEPS.map((_, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-sm font-bold text-[#d4af37]">
                   {i + 1}
                 </span>
                 <div>
-                  <p className="font-medium">{step.title}</p>
-                  <p className="text-sm text-muted-foreground">{step.body}</p>
+                  <p className="font-medium">{t(`discord-bot.portalSteps.${i}.title`)}</p>
+                  <p className="text-sm text-muted-foreground">{t(`discord-bot.portalSteps.${i}.body`)}</p>
                 </div>
               </li>
             ))}
           </ol>
           <div className="mt-6 rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/5 p-4 text-sm">
-            <p className="font-medium text-[#d4af37]">Slash commands your community gets</p>
+            <p className="font-medium text-[#d4af37]">{t("discord-bot.slash_commands_your_community_ge")}</p>
             <ul className="mt-2 space-y-1 text-muted-foreground">
-              <li><code className="text-foreground">/live</code> — is Thy Cheat Code live right now?</li>
-              <li><code className="text-foreground">/next</code> — next scheduled stream</li>
-              <li><code className="text-foreground">/socials</code> — all the links</li>
+              <li><code className="text-foreground">/live</code>{t("discord-bot.is_thy_cheat_code_live_right_now")}</li>
+              <li><code className="text-foreground">/next</code>{t("discord-bot.next_scheduled_stream")}</li>
+              <li><code className="text-foreground">/socials</code>{t("discord-bot.all_the_links")}</li>
             </ul>
           </div>
         </CardContent>
@@ -297,10 +293,11 @@ export default function DiscordBotSetup() {
 }
 
 function EnvBadge({ ok, label }: { ok?: boolean; label: string }) {
+  const { t } = useTranslation();
   return (
     <Badge variant={ok ? "default" : "destructive"} className={ok ? "bg-green-600/15 text-green-500 border-green-600/30" : ""}>
       {ok ? <Check className="mr-1 h-3 w-3" /> : null}
-      {label}: {ok ? "set" : "missing"}
+      {label}: {ok ? t("discord-bot.set") : t("discord-bot.missing")}
     </Badge>
   );
 }

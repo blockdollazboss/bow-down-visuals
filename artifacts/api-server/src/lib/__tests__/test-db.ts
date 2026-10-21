@@ -15,6 +15,7 @@ CREATE TABLE lip_sync_jobs (
   user_id uuid NOT NULL,
   project_id uuid,
   scene_id text,
+  artist_vault_id uuid,
   state text NOT NULL DEFAULT 'queued',
   params jsonb NOT NULL,
   provider_job_id text,

@@ -1,11 +1,13 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   AudioWaveform, Sparkles, Loader2, Heart, Search, ArrowRight,
-  Music2, Clock3, Lightbulb, Timer, Clapperboard,
+  Music2, Clock3, Lightbulb, Timer, Clapperboard, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 /* ─── Viral Sound Finder ────────────────────────────────────────────────
    /sounds — find trending sounds for TikTok/Reels/Shorts.
@@ -14,35 +16,35 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    generate, auto-refund on failure). Favorites live in localStorage —
    pure UI state, no charge. */
 
-const NICHES = [
-  { key: "all", label: "All niches" },
-  { key: "music-promo", label: "Music Promo" },
-  { key: "fitness", label: "Fitness" },
-  { key: "comedy", label: "Comedy" },
-  { key: "lifestyle", label: "Lifestyle" },
-  { key: "gaming", label: "Gaming" },
-  { key: "beauty", label: "Beauty" },
-  { key: "business", label: "Business" },
-  { key: "food", label: "Food" },
+const NICHE_DEFS = [
+  { key: "all", labelKey: "nicheAll" },
+  { key: "music-promo", labelKey: "nicheMusicPromo" },
+  { key: "fitness", labelKey: "nicheFitness" },
+  { key: "comedy", labelKey: "nicheComedy" },
+  { key: "lifestyle", labelKey: "nicheLifestyle" },
+  { key: "gaming", labelKey: "nicheGaming" },
+  { key: "beauty", labelKey: "nicheBeauty" },
+  { key: "business", labelKey: "nicheBusiness" },
+  { key: "food", labelKey: "nicheFood" },
 ] as const;
 
-const MOODS = [
-  { key: "all", label: "Any mood" },
-  { key: "hype", label: "Hype" },
-  { key: "chill", label: "Chill" },
-  { key: "emotional", label: "Emotional" },
-  { key: "funny", label: "Funny" },
-  { key: "luxury", label: "Luxury" },
-  { key: "nostalgic", label: "Nostalgic" },
+const MOOD_DEFS = [
+  { key: "all", labelKey: "moodAll" },
+  { key: "hype", labelKey: "moodHype" },
+  { key: "chill", labelKey: "moodChill" },
+  { key: "emotional", labelKey: "moodEmotional" },
+  { key: "funny", labelKey: "moodFunny" },
+  { key: "luxury", labelKey: "moodLuxury" },
+  { key: "nostalgic", labelKey: "moodNostalgic" },
 ] as const;
 
-const PLATFORMS = [
-  { key: "tiktok", label: "TikTok" },
-  { key: "instagram", label: "Reels" },
-  { key: "youtube", label: "Shorts" },
+const PLATFORM_DEFS = [
+  { key: "tiktok", labelKey: "platformTiktok" },
+  { key: "instagram", labelKey: "platformReels" },
+  { key: "youtube", labelKey: "platformShorts" },
 ] as const;
 
-const MATCH_CREDIT_COST = 1;
+const MATCH_CREDIT_COST = 100;
 const FAVORITES_KEY = "bdv-sound-favorites";
 
 interface TrendingSound {
@@ -97,13 +99,21 @@ function moodColor(mood: string): string {
 }
 
 export default function ViralSoundFinder() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+
+  /* Option labels are translated via t(); keys stay stable. */
+  const niches = NICHE_DEFS.map((n) => ({ key: n.key, label: t(`sounds.${n.labelKey}`) }));
+  const moods = MOOD_DEFS.map((m) => ({ key: m.key, label: t(`sounds.${m.labelKey}`) }));
+  const platforms = PLATFORM_DEFS.map((p) => ({ key: p.key, label: t(`sounds.${p.labelKey}`) }));
 
   /* browse state */
   const [sounds, setSounds] = useState<TrendingSound[]>([]);
   const [disclaimer, setDisclaimer] = useState("");
   const [browseLoading, setBrowseLoading] = useState(true);
   const [browseError, setBrowseError] = useState<string | null>(null);
+  const [browseRetryNonce, setBrowseRetryNonce] = useState(0);
   const [niche, setNiche] = useState<string>("all");
   const [mood, setMood] = useState<string>("all");
   const [query, setQuery] = useState("");
@@ -139,21 +149,21 @@ export default function ViralSoundFinder() {
         const params = new URLSearchParams();
         if (niche !== "all") params.set("niche", niche);
         if (mood !== "all") params.set("mood", mood);
-        const res = await fetch(`/api/sounds/trending?${params.toString()}`);
+        const res = await fetch(`/api/sound-finder/trending?${params.toString()}`);
         const data = (await res.json().catch(() => ({}))) as TrendingResponse;
-        if (!res.ok) throw new Error(data.error || "Couldn't load trending sounds.");
+        if (!res.ok) throw new Error(data.error || t("sounds.errorLoadTrending"));
         if (cancelled) return;
         setSounds(Array.isArray(data.sounds) ? data.sounds : []);
         setDisclaimer(data.disclaimer ?? "");
       } catch (err) {
-        if (!cancelled) setBrowseError(err instanceof Error ? err.message : "Couldn't load trending sounds.");
+        if (!cancelled) setBrowseError(err instanceof Error ? err.message : t("sounds.errorLoadTrending"));
       } finally {
         if (!cancelled) setBrowseLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [niche, mood]);
+  }, [niche, mood, browseRetryNonce]);
 
   function toggleFavorite(id: string) {
     setFavorites((prev) => {
@@ -182,7 +192,7 @@ export default function ViralSoundFinder() {
   async function runMatch() {
     if (matchLoading || !user) return;
     if (!videoIdea.trim()) {
-      setMatchError("Describe your video idea first — that's what the matcher works with.");
+      setMatchError(t("sounds.errorDescribeIdea"));
       return;
     }
     setMatchLoading(true);
@@ -209,7 +219,7 @@ export default function ViralSoundFinder() {
         return;
       }
       if (!res.ok || !Array.isArray(data.matches) || data.matches.length === 0) {
-        throw new Error(data.message || data.error || "Sound matching failed — try again.");
+        throw new Error(data.message || data.error || t("sounds.errorMatchFailed"));
       }
       setMatches(data.matches);
       setMatchDisclaimer(data.disclaimer ?? "");
@@ -218,14 +228,14 @@ export default function ViralSoundFinder() {
         document.getElementById("match-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setMatchError(err instanceof Error ? err.message : "Sound matching failed — try again.");
+      setMatchError(err instanceof Error ? err.message : t("sounds.errorMatchFailed"));
     } finally {
       setMatchLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
@@ -236,16 +246,26 @@ export default function ViralSoundFinder() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <AudioWaveform className="h-3 w-3" aria-hidden="true" /> Ride the wave, don't chase it
+            <AudioWaveform className="h-3 w-3" aria-hidden="true" /> {t("sounds.heroTagline")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Viral Sound <span className="text-primary">Finder</span>
+            {t("sounds.heroTitle")} <span className="text-primary">{t("sounds.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Browse what's moving on TikTok, Reels &amp; Shorts — then let AI match
-            the perfect sound type to your exact video idea.
+            {t("sounds.heroSubtitle")}
           </p>
-          <p className="mt-2 text-xs text-white/35">Browsing is free · AI sound match is {MATCH_CREDIT_COST} Visual Buc</p>
+          <p className="mt-2 text-xs text-white/35">{t("sounds.browsingCostNote", { count: MATCH_CREDIT_COST })}</p>
+        </div>
+
+        {/* cross-link: make a custom sound in the AI Audio hub */}
+        <div className="relative mt-6 flex justify-center">
+          <Link
+            href="/ai-audio?tab=sfx"
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/[0.12]"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("sounds.aiAudioCta", { defaultValue: "Need a custom sound? Generate SFX with AI" })}
+          </Link>
         </div>
 
         {/* ── BROWSE ─────────────────────────────────────────────────── */}
@@ -253,7 +273,7 @@ export default function ViralSoundFinder() {
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold">
               <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
-              Trending sounds
+              {t("sounds.trendingTitle")}
             </h2>
             <button
               onClick={() => setShowFavoritesOnly((v) => !v)}
@@ -264,7 +284,7 @@ export default function ViralSoundFinder() {
               }`}
             >
               <Heart className={`h-4 w-4 ${showFavoritesOnly ? "fill-black" : ""}`} aria-hidden="true" />
-              Saved ({favorites.length})
+              {t("sounds.savedButton", { count: favorites.length })}
             </button>
           </div>
 
@@ -275,12 +295,12 @@ export default function ViralSoundFinder() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search sounds…"
+                placeholder={t("sounds.searchPlaceholder")}
                 className="w-full rounded-xl border border-white/10 bg-black/60 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60"
               />
             </div>
             <div data-min-stars="2" className="flex flex-wrap gap-2">
-              {NICHES.map((n) => (
+              {niches.map((n) => (
                 <button
                   key={n.key}
                   onClick={() => setNiche(n.key)}
@@ -296,7 +316,7 @@ export default function ViralSoundFinder() {
             </div>
           </div>
           <div data-min-stars="2" className="mt-3 flex flex-wrap gap-2">
-            {MOODS.map((m) => (
+            {moods.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setMood(m.key)}
@@ -317,16 +337,24 @@ export default function ViralSoundFinder() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
             </div>
           ) : browseError ? (
-            <p className="mx-auto mt-8 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+            <div className="mx-auto mt-8 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
               {browseError}
-            </p>
+              <div>
+                <button
+                  onClick={() => setBrowseRetryNonce((n) => n + 1)}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
+            </div>
           ) : visibleSounds.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
+            <div className={`mt-8 rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <AudioWaveform className="mx-auto mb-3 h-8 w-8 text-white/25" aria-hidden="true" />
               <p className="text-white/50">
                 {showFavoritesOnly
-                  ? "No saved sounds yet — tap the heart on any sound to save it."
-                  : "No sounds match those filters — try widening them."}
+                  ? t("sounds.emptySaved")
+                  : t("sounds.emptyNoMatch")}
               </p>
             </div>
           ) : (
@@ -336,7 +364,7 @@ export default function ViralSoundFinder() {
                 return (
                   <article
                     key={s.id}
-                    className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black p-5 transition hover:border-primary/40"
+                    className={`${isLight ? "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5 transition hover:border-primary/40" : "group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5 transition hover:border-primary/40"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -350,7 +378,7 @@ export default function ViralSoundFinder() {
                       </div>
                       <button
                         onClick={() => toggleFavorite(s.id)}
-                        aria-label={fav ? `Remove ${s.title} from saved` : `Save ${s.title}`}
+                        aria-label={fav ? t("sounds.removeFromSaved", { title: s.title }) : t("sounds.saveSound", { title: s.title })}
                         className={`rounded-full p-2 transition ${
                           fav ? "text-primary" : "text-white/30 hover:text-primary"
                         }`}
@@ -368,7 +396,7 @@ export default function ViralSoundFinder() {
                       {s.platforms.map((p) => (
                         <span key={p} className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-white/50">
                           <span className={`h-1.5 w-1.5 rounded-full ${platformDot[p] ?? "bg-white/40"}`} aria-hidden="true" />
-                          {p === "youtube" ? "Shorts" : p === "instagram" ? "Reels" : "TikTok"}
+                          {p === "youtube" ? t("sounds.platformShorts") : p === "instagram" ? t("sounds.platformReels") : t("sounds.platformTiktok")}
                         </span>
                       ))}
                     </div>
@@ -378,21 +406,21 @@ export default function ViralSoundFinder() {
                     <div className="mt-3 space-y-1.5 text-[13px]">
                       <p className="flex items-start gap-1.5 text-white/70">
                         <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                        <span><span className="font-semibold text-white/85">Best for: </span>{s.bestFor}</span>
+                        <span><span className="font-semibold text-white/85">{t("sounds.bestForLabel")} </span>{s.bestFor}</span>
                       </p>
                       <p className="flex items-start gap-1.5 text-white/70">
                         <Timer className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                        <span><span className="font-semibold text-white/85">Use: </span>{s.hookWindow}</span>
+                        <span><span className="font-semibold text-white/85">{t("sounds.hookWindowLabel")} </span>{s.hookWindow}</span>
                       </p>
                     </div>
 
                     <div className="mt-4 flex gap-2">
                       <Link
-                        href="/make-video"
+                        href={`/make-video?sound=${encodeURIComponent(`${s.title} — ${s.artist}`)}`}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                       >
                         <Clapperboard className="h-4 w-4" aria-hidden="true" />
-                        Use this sound
+                        {t("sounds.useThisSound")}
                       </Link>
                     </div>
                   </article>
@@ -402,31 +430,31 @@ export default function ViralSoundFinder() {
           )}
 
           {disclaimer && !browseLoading && (
-            <p className="mt-6 text-center text-xs italic text-white/30">{disclaimer}</p>
+            <p className="mt-6 text-center text-xs italic text-white/50">{disclaimer}</p>
           )}
         </section>
 
         {/* ── AI SOUND MATCH ─────────────────────────────────────────────── */}
-        <section className="relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <section className={`${isLight ? "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-bold">AI Sound Match</h2>
-              <p className="text-sm text-white/45">Describe your video — AI picks 3 sound types that fit it perfectly.</p>
+              <h2 className="text-xl font-bold">{t("sounds.aiMatchTitle")}</h2>
+              <p className="text-sm text-white/45">{t("sounds.aiMatchSubtitle")}</p>
             </div>
           </div>
 
           <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            What's your video about?
+            {t("sounds.videoIdeaLabel")}
           </p>
           <textarea
             value={videoIdea}
             onChange={(e) => setVideoIdea(e.target.value)}
             maxLength={600}
             rows={3}
-            placeholder="e.g. Me walking into my new studio for the first time, big reveal moment, luxury vibes"
+            placeholder={t("sounds.videoIdeaPlaceholder")}
             className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
           />
 
@@ -434,7 +462,7 @@ export default function ViralSoundFinder() {
             <div data-min-stars="2">
               <p className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/40">Niche</p>
               <div className="flex flex-wrap gap-2">
-                {NICHES.filter((n) => n.key !== "all").map((n) => (
+                {niches.filter((n) => n.key !== "all").map((n) => (
                   <button
                     key={n.key}
                     onClick={() => setMatchNiche(n.key)}
@@ -450,9 +478,9 @@ export default function ViralSoundFinder() {
               </div>
             </div>
             <div data-min-stars="2">
-              <p className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
+              <p className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("sounds.platformLabel")}</p>
               <div className="flex flex-wrap gap-2">
-                {PLATFORMS.map((p) => (
+                {platforms.map((p) => (
                   <button
                     key={p.key}
                     onClick={() => setMatchPlatform(p.key)}
@@ -481,7 +509,7 @@ export default function ViralSoundFinder() {
                 ) : (
                   <Sparkles className="h-6 w-6" aria-hidden="true" />
                 )}
-                {matchLoading ? "Matching sounds…" : "Match my sound"}
+                {matchLoading ? t("sounds.matchingSounds") : t("sounds.matchMySound")}
               </button>
             ) : (
               <Link
@@ -489,12 +517,12 @@ export default function ViralSoundFinder() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
                 <Sparkles className="h-6 w-6" aria-hidden="true" />
-                Sign in to match sounds
+                {t("sounds.signInToMatch")}
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {MATCH_CREDIT_COST} Visual Buc per match · powered by Thy Cheat Code · refunded if it fails
+              {t("sounds.matchCostNote", { count: MATCH_CREDIT_COST })}
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {matchError && !outOfCredits && (
@@ -507,11 +535,11 @@ export default function ViralSoundFinder() {
           {matches.length > 0 && (
             <div id="match-results" className="mt-8">
               <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Your 3 sound matches
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("sounds.yourMatches")}
               </p>
               <div className="grid gap-4 md:grid-cols-3">
                 {matches.map((m, i) => (
-                  <div key={`match-${i}`} className="rounded-2xl border border-primary/25 bg-black/60 p-5">
+                  <div key={`match-${i}`} className={`rounded-2xl border border-primary/25 p-5 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/60"}`}>
                     <div className="flex items-center gap-2.5">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
                         {i + 1}
@@ -522,12 +550,12 @@ export default function ViralSoundFinder() {
                     {m.searchTerms.length > 0 && (
                       <div className="mt-3">
                         <p className="mb-1.5 flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                          <Search className="h-3 w-3" aria-hidden="true" /> Search these
+                          <Search className="h-3 w-3" aria-hidden="true" /> {t("sounds.searchThese")}
                         </p>
                         <div className="flex flex-wrap gap-1.5">
-                          {m.searchTerms.map((t, j) => (
+                          {m.searchTerms.map((term, j) => (
                             <span key={j} className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary">
-                              “{t}”
+                              “{term}”
                             </span>
                           ))}
                         </div>
@@ -554,7 +582,7 @@ export default function ViralSoundFinder() {
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    Re-roll ({MATCH_CREDIT_COST} Visual Buc)
+                    {t("sounds.rerollButton", { count: MATCH_CREDIT_COST })}
                   </button>
                 </div>
               )}

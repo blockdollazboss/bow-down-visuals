@@ -21,7 +21,7 @@ const VARIANT_CLASSES: Record<MarketingBadgeVariant, string> = {
   free: "bg-white/[0.05] text-white/50 border-white/10",
   muted: "bg-primary/10 text-primary/90 border-primary/20",
   kicker:
-    "lux-kicker bg-transparent text-primary/90 border-transparent uppercase tracking-[0.28em] text-[10px] font-bold px-1",
+    "lux-kicker bg-transparent text-primary/90 border-transparent uppercase tracking-[0.28em] text-[10px] font-bold px-1 max-sm:whitespace-normal max-sm:text-center max-sm:leading-relaxed max-sm:tracking-[0.18em]",
   exclusive:
     "bg-gradient-to-r from-purple-500 via-primary to-amber-400 text-black border-transparent shadow-[0_0_24px_rgba(192,132,252,0.45)]",
 };

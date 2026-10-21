@@ -31,9 +31,11 @@ describe("sound finder pricing contract", () => {
   });
 
   it("browsing trending sounds is free (GET route has no auth / charge)", () => {
-    // The GET /sounds/trending handler must not require auth (browsing is
-    // pure UI). Pin that requireAuth only guards the POST match route.
-    const getLine = ROUTE_SRC.match(/router\.get\("\/sounds\/trending"[^)]*\)/);
+    // The GET /sound-finder/trending handler must not require auth (browsing
+    // is pure UI). Pin that requireAuth only guards the POST match route.
+    // (Namespaced /sound-finder/* — /sounds/trending is the platform usage
+    // chart in shorts.ts; the two must not share a path.)
+    const getLine = ROUTE_SRC.match(/router\.get\("\/sound-finder\/trending"[^)]*\)/);
     expect(getLine).toBeTruthy();
     expect(getLine![0]).not.toContain("requireAuth");
     const postLine = ROUTE_SRC.match(/router\.post\("\/sound-finder\/match"[^)]*\)/);

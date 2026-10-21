@@ -1,11 +1,18 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Disc3, Sparkles, Loader2, Copy, Check, Mail, FileText,
   Building2, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
-  AlertTriangle, Music2,
+  AlertTriangle, Music2, ListMusic, Clapperboard, Users, MessageCircle, ChevronDown,
+  Rocket, CalendarClock, Link2,
 } from "lucide-react";
+import { useLocation } from "wouter";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import SyncTab from "@/components/sync-pitch/SyncTab";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Label Pitch ─────────────────────────────────────────────────────────
    AI helps artists pitch demos to record labels:
@@ -19,7 +26,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    Honesty: labels rarely sign from cold demos. The disclaimer is shown
    with every kit — relationships, buzz, and timing matter most. */
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 
 type Tab = "kit" | "labels" | "tracker";
 
@@ -72,23 +79,13 @@ interface Submission {
   createdAt?: string | null;
 }
 
-const STATUS_META: Record<string, { label: string; icon: typeof Send; cls: string }> = {
-  sent: { label: "Sent", icon: Send, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
-  pending: { label: "Pending", icon: Clock, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
-  signed: { label: "Signed", icon: Trophy, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
-  passed: { label: "Passed", icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
-};
 
-const TYPE_META: Record<string, { label: string; cls: string }> = {
-  major: { label: "Major Label", cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" },
-  imprint: { label: "Imprint", cls: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
-  indie: { label: "Independent", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
-};
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -100,10 +97,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         } catch { /* clipboard unavailable */ }
       }}
       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
-      aria-label={`Copy ${label}`}
+      aria-label={t("labelPitch.copyTemplate", { label })}
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : `Copy ${label}`}
+      {copied ? t("labelPitch.copied") : t("labelPitch.copyTemplate", { label })}
     </button>
   );
 }
@@ -127,8 +124,50 @@ async function authedFetch(
 }
 
 export default function LabelPitch() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Label Pitch", "Build a label pitch package — one-sheet, top tracks and stats, ready to send to labels and partners.");
+  const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>("kit");
+
+  /* ── merged surface: Labels (original) · Playlists (absorbed from
+     /playlist-pitch). The /playlist-pitch route renders this same component
+     (alias) — deep links from songs/release land on the Playlists mode. */
+  type Mode = "labels" | "playlists";
+  const [mode, setMode] = useState<Mode>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (window.location.pathname === "/playlist-pitch") return "playlists";
+      if (q.get("mode") === "playlists" || q.get("tab") === "sync") return "playlists";
+      if (q.get("song")) return "playlists";
+    } catch { /* non-browser — ignore */ }
+    return "labels";
+  });
+
+  /* press-kit feed: ?bio= pre-fills the artist bio for the label kit. */
+  useEffect(() => {
+    try {
+      const bio = new URLSearchParams(window.location.search).get("bio")?.trim().slice(0, 2000);
+      if (bio) {
+        setArtistBio((b) => b || bio);
+        setShowAdvanced(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const STATUS_META: Record<string, { label: string; icon: typeof Send; cls: string }> = {
+    sent: { label: t("labelPitch.statusSent"), icon: Send, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+    pending: { label: t("labelPitch.statusPending"), icon: Clock, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+    signed: { label: t("labelPitch.statusSigned"), icon: Trophy, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+    passed: { label: t("labelPitch.statusPassed"), icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+  };
+
+  const TYPE_META: Record<string, { label: string; cls: string }> = {
+    major: { label: t("labelPitch.typeMajor"), cls: "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#E3C566]" },
+    imprint: { label: t("labelPitch.typeImprint"), cls: "border-purple-500/40 bg-purple-500/10 text-purple-300" },
+    indie: { label: t("labelPitch.typeIndependent"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  };
 
   /* ── demo kit state ── */
   const [library, setLibrary] = useState<LibrarySong[]>([]);
@@ -212,8 +251,8 @@ export default function LabelPitch() {
       : songTitle.trim();
     if (!finalTitle) {
       setError(songSource === "auto"
-        ? "Auto couldn't find a song — pick one from your library or enter it manually."
-        : "Give your song a title first — the demo package is built around it.");
+        ? t("labelPitch.errAutoNoSong")
+        : t("labelPitch.errNoTitle"));
       return;
     }
     // Auto mode: AI fills in bio, stats, and label targeting from your profile
@@ -248,7 +287,7 @@ export default function LabelPitch() {
         return;
       }
       if (!res.ok || !(data as { kit?: DemoKit }).kit) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || "Demo kit failed — try again.");
+        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("labelPitch.errKitFailed"));
       }
       setKit((data as { kit: DemoKit }).kit);
       refreshProfile();
@@ -256,7 +295,7 @@ export default function LabelPitch() {
         document.getElementById("demo-kit-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Demo kit failed — try again.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errKitFailed"));
     } finally {
       setGenerating(false);
     }
@@ -264,7 +303,7 @@ export default function LabelPitch() {
 
   async function addSubmission() {
     if (!newSubmission.songTitle.trim() || !newSubmission.labelName.trim()) {
-      setError("Song title and label name are required for a tracker entry.");
+      setError(t("labelPitch.errTrackerRequired"));
       return;
     }
     setError(null);
@@ -278,13 +317,13 @@ export default function LabelPitch() {
           notes: newSubmission.notes.trim(),
         }),
       });
-      if (!res.ok) throw new Error("Couldn't save that submission — try again.");
+      if (!res.ok) throw new Error(t("labelPitch.errSaveSubmission"));
       const pitch = (data as { pitch: Submission }).pitch;
       setSubmissions((prev) => [pitch, ...prev]);
       setNewSubmission({ songTitle: "", artistName: "", labelName: "", notes: "" });
       setShowAddForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save that submission — try again.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errSaveSubmission"));
     }
   }
 
@@ -294,24 +333,24 @@ export default function LabelPitch() {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error("Couldn't update that submission.");
+      if (!res.ok) throw new Error(t("labelPitch.errUpdateSubmission"));
       const updated = (data as { pitch: Submission }).pitch;
       setSubmissions((prev) => prev.map((p) => (p.id === id ? updated : p)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't update that submission.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errUpdateSubmission"));
     }
   }
 
   async function deleteSubmission(id: string) {
-    if (!window.confirm("Delete this submission from your tracker?")) return;
+    if (!window.confirm(t("labelPitch.confirmDeleteSubmission"))) return;
     try {
       const { res } = await authedFetch(getAccessToken, `/api/label-pitch/tracker/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Couldn't delete that submission.");
+      if (!res.ok) throw new Error(t("labelPitch.errDeleteSubmission"));
       setSubmissions((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete that submission.");
+      setError(err instanceof Error ? err.message : t("labelPitch.errDeleteSubmission"));
     }
   }
 
@@ -325,35 +364,63 @@ export default function LabelPitch() {
           <div className="h-[280px] w-[560px] rounded-full bg-yellow-600/10 blur-[110px]" />
         </div>
 
-        {/* hero */}
+        {/* hero (labels mode — the Playlists mode renders its own hero below) */}
+        {mode === "labels" && (
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Disc3 className="h-3 w-3" aria-hidden="true" /> Label Pitch
+            <Disc3 className="h-3 w-3" aria-hidden="true" /> {t("labelPitch.heroBadge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Pitch Your Demo <span className="text-primary">Like a Pro</span>
+            {t("labelPitch.heroTitleStart")}<span className="text-primary">{t("labelPitch.heroTitleHighlight")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            AI analyzes your song, then builds a professional demo submission
-            package — the email, your one-sheet, and the follow-up. Labels
-            rarely sign from cold demos, but the right package opens doors
-            that talent alone can&rsquo;t.
+            {t("labelPitch.heroSubtitle")}
           </p>
         </div>
+        )}
 
+        {/* ── mode switch: Labels · Playlists (absorbed from /playlist-pitch) ── */}
+        <div className="relative mt-8 flex justify-center gap-2">
+          {(
+            [
+              { key: "labels", label: t("labelPitch.tabLabels"), icon: Building2 },
+              { key: "playlists", label: t("playlistPitch.tabPlaylists", { defaultValue: "Playlists" }), icon: ListMusic },
+            ] as { key: Mode; label: string; icon: typeof Building2 }[]
+          ).map((m) => {
+            const Icon = m.icon;
+            const active = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                  active
+                    ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {mode === "labels" && (
+        <>
         {/* tabs */}
         <div className="relative mt-8 flex justify-center gap-2">
           {([
-            { key: "kit", label: "Demo Kit", icon: Sparkles },
-            { key: "labels", label: "Labels", icon: Building2 },
-            { key: "tracker", label: `Tracker${submissions.length ? ` (${submissions.length})` : ""}`, icon: ClipboardList },
-          ] as { key: Tab; label: string; icon: typeof Sparkles }[]).map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
+            { key: "kit", label: t("labelPitch.tabDemoKit"), icon: Sparkles },
+            { key: "labels", label: t("labelPitch.tabLabels"), icon: Building2 },
+            { key: "tracker", label: submissions.length ? t("labelPitch.tabTrackerCount", { count: submissions.length }) : t("labelPitch.tabTracker"), icon: ClipboardList },
+          ] as { key: Tab; label: string; icon: typeof Sparkles }[]).map((tb) => {
+            const Icon = tb.icon;
+            const active = tab === tb.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={tb.key}
+                onClick={() => setTab(tb.key)}
                 className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
                   active
                     ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
@@ -361,7 +428,7 @@ export default function LabelPitch() {
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
-                {t.label}
+                {tb.label}
               </button>
             );
           })}
@@ -383,16 +450,16 @@ export default function LabelPitch() {
         {/* ═══ DEMO KIT TAB ═══ */}
         {tab === "kit" && (
           <div className="relative mt-8">
-            <div className="overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+            <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
               {/* song source */}
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Your song
+                {t("labelPitch.yourSong")}
               </p>
               <div className="flex gap-2 flex-wrap">
                 {([
-                  { key: "auto", label: "✨ Auto (AI picks)" },
-                  { key: "manual", label: "Enter manually" },
-                  { key: "library", label: `From my library${library.length ? ` (${library.length})` : ""}` },
+                  { key: "auto", label: t("labelPitch.sourceAuto") },
+                  { key: "manual", label: t("labelPitch.sourceManual") },
+                  { key: "library", label: library.length ? t("labelPitch.sourceLibraryCount", { count: library.length }) : t("labelPitch.sourceLibrary") },
                 ] as const).map((s) => (
                   <button
                     key={s.key}
@@ -411,10 +478,10 @@ export default function LabelPitch() {
               {songSource === "auto" ? (
                 <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
                   <p className="text-sm text-white/70">
-                    <span className="font-semibold text-primary">AI handles everything:</span>{" "}
+                    <span className="font-semibold text-primary">{t("labelPitch.autoInfoTitle")}</span>{" "}
                     {library.length > 0
-                      ? <>picks your latest song (<span className="text-white font-medium">{library[0].title || "Untitled"}</span>), writes your bio from your artist profile, and targets the best-fit labels for your sound.</>
-                      : <>once you add songs to your library, AI will pick your latest. For now, enter your song manually below and AI handles the rest.</>}
+                      ? <>{t("labelPitch.autoPicksStart")}<span className="text-white font-medium">{library[0].title || t("labelPitch.autoUntitled")}</span>{t("labelPitch.autoPicksEnd")}</>
+                      : <>{t("labelPitch.autoNoLibrary")}</>}
                   </p>
                 </div>
               ) : songSource === "library" ? (
@@ -423,10 +490,10 @@ export default function LabelPitch() {
                   onChange={(e) => setLibrarySongId(e.target.value)}
                   className={`${inputClass} mt-4`}
                 >
-                  <option value="">Pick a song…</option>
+                  <option value="">{t("labelPitch.pickSong")}</option>
                   {library.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.title || "Untitled song"}
+                      {s.title || t("labelPitch.untitledSong")}
                     </option>
                   ))}
                 </select>
@@ -435,7 +502,7 @@ export default function LabelPitch() {
                   value={songTitle}
                   onChange={(e) => setSongTitle(e.target.value)}
                   maxLength={200}
-                  placeholder="Song title *"
+                  placeholder={t("labelPitch.songTitlePlaceholder")}
                   className={`${inputClass} mt-4`}
                 />
               )}
@@ -445,41 +512,41 @@ export default function LabelPitch() {
                   value={artistName}
                   onChange={(e) => setArtistName(e.target.value)}
                   maxLength={200}
-                  placeholder="Artist name"
+                  placeholder={t("labelPitch.artistNamePlaceholder")}
                   className={inputClass}
                 />
                 <input
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   maxLength={100}
-                  placeholder="Genre (e.g. Melodic Rap)"
+                  placeholder={t("labelPitch.genrePlaceholder")}
                   className={inputClass}
                   list="label-genres"
                 />
                 <datalist id="label-genres">
                   {GENRES.map((g) => (
-                    <option key={g} value={g} />
+                    <option key={g} value={g}>{t(`labelPitch.genres.${g}`)}</option>
                   ))}
                 </datalist>
                 <input
                   value={mood}
                   onChange={(e) => setMood(e.target.value)}
                   maxLength={200}
-                  placeholder="Mood (e.g. dark, triumphant)"
+                  placeholder={t("labelPitch.moodPlaceholder")}
                   className={inputClass}
                 />
                 <input
                   value={tempo}
                   onChange={(e) => setTempo(e.target.value)}
                   maxLength={50}
-                  placeholder="Tempo (e.g. 140 BPM)"
+                  placeholder={t("labelPitch.tempoPlaceholder")}
                   className={inputClass}
                 />
               </div>
 
               <div className="mt-4">
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Energy — {energy}/100
+                  {t("labelPitch.energyLabel", { energy })}
                 </label>
                 <input
                   type="range"
@@ -496,7 +563,7 @@ export default function LabelPitch() {
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={1000}
                 rows={3}
-                placeholder="Describe the song — what it's about, what makes it special…"
+                placeholder={t("labelPitch.descriptionPlaceholder")}
                 className={`${inputClass} mt-4 resize-y`}
               />
 
@@ -504,7 +571,7 @@ export default function LabelPitch() {
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="mt-4 text-sm font-semibold text-white/50 transition hover:text-white"
               >
-                {showAdvanced ? "− Hide" : "+ Add"} bio, stats &amp; lyrics (better package)
+                {showAdvanced ? t("labelPitch.hideAdvanced") : t("labelPitch.showAdvanced")}{t("labelPitch.advancedSuffix")}
               </button>
 
               {showAdvanced && (
@@ -514,14 +581,14 @@ export default function LabelPitch() {
                     onChange={(e) => setArtistBio(e.target.value)}
                     maxLength={2000}
                     rows={3}
-                    placeholder="Artist bio — where you're from, your story, career highlights…"
+                    placeholder={t("labelPitch.artistBioPlaceholder")}
                     className={`${inputClass} resize-y`}
                   />
                   <input
                     value={socialStats}
                     onChange={(e) => setSocialStats(e.target.value)}
                     maxLength={500}
-                    placeholder="Social/streaming stats (e.g. 50K monthly listeners, 120K TikTok followers)"
+                    placeholder={t("labelPitch.socialStatsPlaceholder")}
                     className={inputClass}
                   />
                   <textarea
@@ -529,7 +596,7 @@ export default function LabelPitch() {
                     onChange={(e) => setLyrics(e.target.value)}
                     maxLength={5000}
                     rows={4}
-                    placeholder="Lyrics (optional — helps the AI nail the themes)"
+                    placeholder={t("labelPitch.lyricsPlaceholder")}
                     className={`${inputClass} resize-y`}
                   />
                 </div>
@@ -537,13 +604,13 @@ export default function LabelPitch() {
 
               <div className="mt-6 border-t border-white/10 pt-6">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Target label <span className="text-white/25 normal-case tracking-normal">(optional — personalizes the email)</span>
+                  {t("labelPitch.targetLabel")}<span className="text-white/25 normal-case tracking-normal">{t("labelPitch.targetLabelHint")}</span>
                 </p>
                 <input
                   value={labelName}
                   onChange={(e) => setLabelName(e.target.value)}
                   maxLength={200}
-                  placeholder="e.g. Def Jam, Atlantic, EMPIRE…"
+                  placeholder={t("labelPitch.labelNamePlaceholder")}
                   className={inputClass}
                   list="label-names"
                 />
@@ -562,17 +629,17 @@ export default function LabelPitch() {
                 {generating ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                    Building your demo package…
+                    {t("labelPitch.buildingPackage")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-5 w-5" aria-hidden="true" />
-                    Generate Demo Package — {CREDIT_COST} credits
+                    {t("labelPitch.generatePackage", { credits: CREDIT_COST })}
                   </>
                 )}
               </button>
               <p className="mt-3 text-center text-xs text-white/35">
-                Includes song analysis, submission email, artist one-sheet &amp; follow-up template.
+                {t("labelPitch.includesNote")}
               </p>
             </div>
 
@@ -580,35 +647,35 @@ export default function LabelPitch() {
             {kit && (
               <div id="demo-kit-results" className="mt-8 space-y-6">
                 {/* analysis */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
-                    Song Analysis
+                    {t("labelPitch.songAnalysis")}
                   </h3>
                   <p className="mb-4 border-l-2 border-primary/60 pl-4 text-[15px] italic leading-relaxed text-white/80">
                     &ldquo;{kit.analysis.oneLiner}&rdquo;
                   </p>
                   <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                    <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Genre</dt>
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisGenre")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.genre}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Mood</dt>
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisMood")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.mood}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Energy</dt>
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisEnergy")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.energy}/100 · {kit.analysis.tempoFeel}</dd>
                     </div>
-                    <div className="rounded-xl bg-black/40 p-3">
-                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">Sounds like</dt>
+                    <div className={`rounded-xl p-3 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/40"}`}>
+                      <dt className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.analysisSoundsLike")}</dt>
                       <dd className="mt-1 text-white/85">{kit.analysis.comparableArtists.join(" · ") || "—"}</dd>
                     </div>
                   </dl>
                   {kit.analysis.labelFit.length > 0 && (
                     <div className="mt-4">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/35">Best label fit</p>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.bestLabelFit")}</p>
                       <div className="flex flex-wrap gap-2">
                         {kit.analysis.labelFit.map((f) => (
                           <span key={f} className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -621,16 +688,16 @@ export default function LabelPitch() {
                 </div>
 
                 {/* submission email */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Submission Email
+                      {t("labelPitch.submissionEmailTitle")}
                     </h3>
-                    <CopyButton text={`Subject: ${kit.submissionEmail.subject}\n\n${kit.submissionEmail.body}`} label="email" />
+                    <CopyButton text={`Subject: ${kit.submissionEmail.subject}\n\n${kit.submissionEmail.body}`} label={t("labelPitch.labelEmail")} />
                   </div>
-                  <p className="mb-3 rounded-xl bg-black/40 p-3 text-sm font-semibold text-white/90">
-                    <span className="text-white/40">Subject: </span>{kit.submissionEmail.subject}
+                  <p className={`mb-3 rounded-xl p-3 text-sm font-semibold ${isLight ? "bg-[#F7ECD2]/70 text-[#2A1E07]" : "bg-black/40 text-white/90"}`}>
+                    <span className="text-white/40">{t("labelPitch.subjectLabel")}</span>{kit.submissionEmail.subject}
                   </p>
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">
                     {kit.submissionEmail.body}
@@ -638,13 +705,13 @@ export default function LabelPitch() {
                 </div>
 
                 {/* one-sheet */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Artist One-Sheet
+                      {t("labelPitch.oneSheetTitle")}
                     </h3>
-                    <CopyButton text={kit.oneSheet} label="one-sheet" />
+                    <CopyButton text={kit.oneSheet} label={t("labelPitch.labelOneSheet")} />
                   </div>
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">
                     {kit.oneSheet}
@@ -652,13 +719,13 @@ export default function LabelPitch() {
                 </div>
 
                 {/* follow-up */}
-                <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+                <div className={`rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-bold">
                       <Send className="h-5 w-5 text-primary" aria-hidden="true" />
-                      Follow-Up Template
+                      {t("labelPitch.followUpTitle")}
                     </h3>
-                    <CopyButton text={kit.followUp} label="follow-up" />
+                    <CopyButton text={kit.followUp} label={t("labelPitch.labelFollowUp")} />
                   </div>
                   <p className="text-[15px] leading-relaxed text-white/75">{kit.followUp}</p>
                 </div>
@@ -667,6 +734,24 @@ export default function LabelPitch() {
                 <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5 text-sm leading-relaxed text-amber-200/90">
                   <AlertTriangle className="mb-2 h-4 w-4" aria-hidden="true" />
                   {kit.disclaimer}
+                </div>
+
+                {/* next steps — hand the finished kit into distribute + scheduler */}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setLocation(`/distribute?title=${encodeURIComponent(songTitle || kit.analysis.oneLiner || "")}`)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-black transition hover:brightness-110"
+                  >
+                    <Rocket className="h-4 w-4" aria-hidden="true" />
+                    {t("labelPitch.distributeThisSong")}
+                  </button>
+                  <button
+                    onClick={() => setLocation(buildSchedulerHref({ caption: `New music: ${songTitle || kit.analysis.oneLiner || ""}` }))}
+                    className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+                  >
+                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                    {t("labelPitch.scheduleAnnouncement")}
+                  </button>
                 </div>
               </div>
             )}
@@ -678,10 +763,7 @@ export default function LabelPitch() {
           <div className="relative mt-8">
             <div className="mb-6 rounded-2xl border border-sky-500/25 bg-sky-500/[0.06] p-4 text-sm leading-relaxed text-sky-200/90">
               <Building2 className="mb-2 h-4 w-4" aria-hidden="true" />
-              Starter list — verify each label&rsquo;s current submission policy before
-              sending anything. Major labels almost never accept unsolicited demos;
-              relationships and referrals matter most. We never list private emails —
-              only real submission channels.
+              {t("labelPitch.labelsDisclaimer")}
             </div>
 
             <div className="mb-6 flex flex-wrap gap-2">
@@ -695,7 +777,7 @@ export default function LabelPitch() {
                       : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-primary/40 hover:text-white"
                   }`}
                 >
-                  {g}
+                  {t(`labelPitch.genres.${g}`)}
                 </button>
               ))}
               <button
@@ -706,27 +788,27 @@ export default function LabelPitch() {
                     : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-primary/40 hover:text-white"
                 }`}
               >
-                all genres
+                {t("labelPitch.allGenres")}
               </button>
             </div>
 
             <div className="mb-6 flex flex-wrap gap-2">
               {([
-                { key: "all", label: "All types" },
-                { key: "major", label: "Majors" },
-                { key: "imprint", label: "Imprints" },
-                { key: "indie", label: "Independents" },
-              ] as const).map((t) => (
+                { key: "all", label: t("labelPitch.typeAll") },
+                { key: "major", label: t("labelPitch.typeMajors") },
+                { key: "imprint", label: t("labelPitch.typeImprints") },
+                { key: "indie", label: t("labelPitch.typeIndependents") },
+              ] as const).map((tf) => (
                 <button
-                  key={t.key}
-                  onClick={() => { setTypeFilter(t.key); loadLabels(genreFilter, t.key); }}
+                  key={tf.key}
+                  onClick={() => { setTypeFilter(tf.key); loadLabels(genreFilter, tf.key); }}
                   className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    typeFilter === t.key
+                    typeFilter === tf.key
                       ? "bg-white text-black"
                       : "border border-white/10 bg-white/[0.03] text-white/55 hover:border-white/40 hover:text-white"
                   }`}
                 >
-                  {t.label}
+                  {tf.label}
                 </button>
               ))}
             </div>
@@ -735,7 +817,7 @@ export default function LabelPitch() {
               {labels.map((label) => {
                 const tm = TYPE_META[label.type] ?? TYPE_META["indie"]!;
                 return (
-                  <div key={label.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+                  <div key={label.id} className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-bold text-white">{label.name}</h3>
@@ -753,8 +835,8 @@ export default function LabelPitch() {
                         </span>
                       ))}
                     </div>
-                    <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/40 p-3.5">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">How to submit</p>
+                    <div className={`mt-4 rounded-xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.07] bg-black/40"}`}>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">{t("labelPitch.howToSubmit")}</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-white/75">{label.submitVia}</p>
                     </div>
                   </div>
@@ -762,13 +844,13 @@ export default function LabelPitch() {
               })}
               {labels.length === 0 && (
                 <p className="py-10 text-center text-sm text-white/40">
-                  No labels match that filter — try widening it.
+                  {t("labelPitch.noLabelsMatch")}
                 </p>
               )}
             </div>
 
             {labelNotice && (
-              <p className="mt-6 text-center text-xs text-white/30">{labelNotice}</p>
+              <p className="mt-6 text-center text-xs text-white/50">{labelNotice}</p>
             )}
           </div>
         )}
@@ -778,11 +860,13 @@ export default function LabelPitch() {
           <div className="relative mt-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold">Submission Tracker</h3>
+                <h3 className="text-lg font-bold">{t("labelPitch.trackerTitle")}</h3>
                 <p className="mt-1 text-sm text-white/45">
-                  {submissions.length} submission{submissions.length === 1 ? "" : "s"}
+                  {submissions.length === 1
+                    ? t("labelPitch.trackerOne", { count: submissions.length })
+                    : t("labelPitch.trackerMany", { count: submissions.length })}
                   {signedCount > 0 && (
-                    <span className="text-emerald-300"> · {signedCount} signed</span>
+                    <span className="text-emerald-300">{t("labelPitch.signedSuffix", { count: signedCount })}</span>
                   )}
                 </p>
               </div>
@@ -791,25 +875,25 @@ export default function LabelPitch() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Log submission
+                {t("labelPitch.logSubmission")}
               </button>
             </div>
 
             {showAddForm && (
-              <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+              <div className={`mb-6 rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <input
                     value={newSubmission.songTitle}
                     onChange={(e) => setNewSubmission({ ...newSubmission, songTitle: e.target.value })}
                     maxLength={200}
-                    placeholder="Song title *"
+                    placeholder={t("labelPitch.songTitlePlaceholder")}
                     className={inputClass}
                   />
                   <input
                     value={newSubmission.labelName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, labelName: e.target.value })}
                     maxLength={200}
-                    placeholder="Label name *"
+                    placeholder={t("labelPitch.trackerLabelNamePlaceholder")}
                     className={inputClass}
                     list="tracker-label-names"
                   />
@@ -822,7 +906,7 @@ export default function LabelPitch() {
                     value={newSubmission.artistName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, artistName: e.target.value })}
                     maxLength={200}
-                    placeholder="Artist name"
+                    placeholder={t("labelPitch.artistNamePlaceholder")}
                     className={`${inputClass} sm:col-span-2`}
                   />
                   <textarea
@@ -830,7 +914,7 @@ export default function LabelPitch() {
                     onChange={(e) => setNewSubmission({ ...newSubmission, notes: e.target.value })}
                     maxLength={1000}
                     rows={2}
-                    placeholder="Notes (contact name, how you sent it…)"
+                    placeholder={t("labelPitch.notesPlaceholder")}
                     className={`${inputClass} resize-y sm:col-span-2`}
                   />
                 </div>
@@ -839,13 +923,13 @@ export default function LabelPitch() {
                     onClick={addSubmission}
                     className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                   >
-                    Save
+                    {t("labelPitch.save")}
                   </button>
                   <button
                     onClick={() => setShowAddForm(false)}
                     className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:text-white"
                   >
-                    Cancel
+                    {t("labelPitch.cancel")}
                   </button>
                 </div>
               </div>
@@ -856,11 +940,11 @@ export default function LabelPitch() {
                 <Loader2 className="h-6 w-6 animate-spin text-white/30" aria-hidden="true" />
               </div>
             ) : submissions.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ClipboardList className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
-                <p className="font-semibold text-white/60">No submissions logged yet</p>
+                <p className="font-semibold text-white/60">{t("labelPitch.noSubmissions")}</p>
                 <p className="mt-1 text-sm text-white/35">
-                  Generate a demo kit, send it out, then log it here to track your pipeline.
+                  {t("labelPitch.noSubmissionsHint")}
                 </p>
               </div>
             ) : (
@@ -869,7 +953,7 @@ export default function LabelPitch() {
                   const meta = STATUS_META[s.status] ?? STATUS_META["sent"]!;
                   const Icon = meta.icon;
                   return (
-                    <div key={s.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+                    <div key={s.id} className={`rounded-2xl border p-4 md:p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-bold text-white">{s.songTitle}</p>
@@ -882,7 +966,7 @@ export default function LabelPitch() {
                           )}
                           {s.contactedAt && (
                             <p className="mt-1 text-xs text-white/30">
-                              Sent {new Date(s.contactedAt).toLocaleDateString()}
+                              {t("labelPitch.sentOn", { date: new Date(s.contactedAt).toLocaleDateString() })}
                             </p>
                           )}
                         </div>
@@ -894,7 +978,7 @@ export default function LabelPitch() {
                           <button
                             onClick={() => deleteSubmission(s.id)}
                             className="rounded-lg p-2 text-white/30 transition hover:bg-red-500/10 hover:text-red-300"
-                            aria-label="Delete submission"
+                            aria-label={t("labelPitch.deleteSubmissionAria")}
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                           </button>
@@ -922,7 +1006,1404 @@ export default function LabelPitch() {
             )}
           </div>
         )}
+        </>
+        )}
+
+        {/* ═══ PLAYLISTS MODE — absorbed from /playlist-pitch ═══ */}
+        {mode === "playlists" && (
+          <PlaylistsPitchTab />
+        )}
       </main>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PLAYLISTS MODE — the full /playlist-pitch page, absorbed into label-pitch.
+   AI helps musicians pitch songs to Spotify/editorial playlists:
+   pick a song (library or manual) → AI analyzes it (genre, mood, energy,
+   comparable artists) → generates a professional pitch email + DM version.
+   Curator directory (free, starter list) + pitch tracker (free) included.
+
+   Pricing: 2 credits per pitch kit. Tracker + curators are free.
+
+   Deep links (kept from /playlist-pitch): ?song=TITLE pre-fills the song
+   title; ?tab=sync opens the Sync Pitch Kit. Song-result pages still link
+   to /playlist-pitch — the alias lands here and the parent flips mode. */
+
+const PLAYLIST_KIT_COST = 2;
+
+type PlaylistInnerTab = "kit" | "curators" | "tracker" | "sync";
+
+const PLAYLIST_GENRES = [
+  "hip-hop", "r&b", "pop", "edm", "rock", "indie", "country", "latin", "afrobeats",
+];
+
+interface PlaylistSongAnalysis {
+  genre: string;
+  mood: string;
+  energy: number;
+  tempoFeel: string;
+  comparableArtists: string[];
+  playlistFit: string[];
+  oneLiner: string;
+}
+
+interface PlaylistPitchKit {
+  analysis: PlaylistSongAnalysis;
+  pitchEmail: { subject: string; body: string };
+  dmPitch: string;
+  followUp: string;
+  disclaimer: string;
+}
+
+interface PlaylistLibrarySong {
+  id: string;
+  title?: string;
+  audio_url?: string;
+}
+
+interface PlaylistCurator {
+  id: string;
+  name: string;
+  platform: string;
+  genres: string[];
+  focus: string;
+  submitVia: string;
+}
+
+interface PlaylistPitch {
+  id: string;
+  songTitle: string;
+  artistName?: string | null;
+  curatorName?: string | null;
+  playlistName: string;
+  status: string;
+  notes?: string | null;
+  contactedAt?: string | null;
+  createdAt?: string | null;
+}
+
+const PLAYLIST_STATUS_META: Record<string, { labelKey: string; icon: typeof Send; cls: string }> = {
+  sent: { labelKey: "playlistPitch.statusSent", icon: Send, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+  pending: { labelKey: "playlistPitch.statusPending", icon: Clock, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  accepted: { labelKey: "playlistPitch.statusAccepted", icon: Trophy, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  rejected: { labelKey: "playlistPitch.statusRejected", icon: XCircle, cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+};
+
+/* ── Pitch packet (from the release record) + submission deadlines ─────
+   The packet is assembled server-side from the creator's REAL release
+   record + profile + stats; `missing` names what the record doesn't
+   hold — the UI lists it verbatim, never fills it in. Deadlines are the
+   pitch-window workflow (drafted → sent → followed_up → answered),
+   a separate vocabulary from the tracker outcomes above. */
+
+interface PlaylistRelease {
+  id: string;
+  title: string;
+  artistName: string;
+  releaseDate?: string | null;
+  status: string;
+}
+
+interface PlaylistPacket {
+  releaseId: string;
+  artist: {
+    name: string;
+    profileUrl?: string | null;
+    bio?: string | null;
+    followerCount?: number | null;
+    totalPlays?: number | null;
+    socialLinks: Record<string, string>;
+  };
+  release: { title: string; releaseDate?: string | null; status: string; platforms: string[] };
+  track: { title: string; audioUrl?: string | null };
+  genre: string[];
+  description?: string | null;
+  links: { streaming: Record<string, string>; audioUrl?: string | null; profileUrl?: string | null };
+  stats: { presaves: number; shares: number; linkViews: number; linkClicks: number };
+  pressAssets: {
+    artworkUrl?: string | null;
+    headline?: string | null;
+    bonusUrl?: string | null;
+    bannerUrl?: string | null;
+    avatarUrl?: string | null;
+  };
+  missing: string[];
+}
+
+interface PlaylistDeadline {
+  id: string;
+  pitchId?: string | null;
+  releaseId?: string | null;
+  curatorName?: string | null;
+  playlistName: string;
+  deadlineAt: string;
+  status: string;
+  notes?: string | null;
+  overdue: boolean;
+}
+
+const PLAYLIST_DEADLINE_STATUS_META: Record<string, { labelKey: string; cls: string }> = {
+  drafted: { labelKey: "playlistPitch.deadlineStatusDrafted", cls: "border-white/25 bg-white/[0.06] text-white/70" },
+  sent: { labelKey: "playlistPitch.statusSent", cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+  followed_up: { labelKey: "playlistPitch.deadlineStatusFollowedUp", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  answered: { labelKey: "playlistPitch.deadlineStatusAnswered", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+};
+
+const PACKET_MISSING_LABEL_KEYS: Record<string, string> = {
+  genre: "playlistPitch.missingGenre",
+  description: "playlistPitch.missingDescription",
+  releaseDate: "playlistPitch.missingReleaseDate",
+  trackAudio: "playlistPitch.missingTrackAudio",
+  streamingLinks: "playlistPitch.missingStreamingLinks",
+  artwork: "playlistPitch.missingArtwork",
+  headline: "playlistPitch.missingHeadline",
+  artistProfile: "playlistPitch.missingArtistProfile",
+  artistBio: "playlistPitch.missingArtistBio",
+};
+
+function PlaylistCopyButton({ text, labelKey }: { text: string; labelKey: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        } catch { /* clipboard unavailable */ }
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
+      aria-label={t("playlistPitch.copyAria", { label: t(labelKey) })}
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? t("playlistPitch.copied") : t("playlistPitch.copyLabel", { label: t(labelKey) })}
+    </button>
+  );
+}
+
+async function playlistAuthedFetch(
+  getAccessToken: () => Promise<string | null>,
+  url: string,
+  init?: RequestInit,
+) {
+  const token = await getAccessToken();
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+  return { res, data };
+}
+
+function PlaylistsPitchTab() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const [tab, setTab] = useState<PlaylistInnerTab>("kit");
+
+  /* ── pitch kit state ── */
+  const [library, setLibrary] = useState<PlaylistLibrarySong[]>([]);
+  const [songSource, setSongSource] = useState<"library" | "manual">("manual");
+  const [librarySongId, setLibrarySongId] = useState("");
+  const [songTitle, setSongTitle] = useState("");
+
+  /* Deep-link protocol: /playlist-pitch?song=… pre-fills the song title
+     (e.g. coming from a release plan); ?tab=sync opens the Sync Pitch Kit
+     (e.g. "Pitch for sync" from song results). */
+  const [syncInitialSong, setSyncInitialSong] = useState("");
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab")?.trim();
+      if (tabParam === "sync") setTab("sync");
+      const song = params.get("song")?.trim().slice(0, 200);
+      if (song) {
+        if (tabParam === "sync") setSyncInitialSong(song);
+        else setSongTitle(song);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [artistName, setArtistName] = useState("");
+  const [genre, setGenre] = useState("");
+  const [mood, setMood] = useState("");
+  const [energy, setEnergy] = useState(60);
+  const [tempo, setTempo] = useState("");
+  const [description, setDescription] = useState("");
+  const [lyrics, setLyrics] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [curatorName, setCuratorName] = useState("");
+  const [playlistName, setPlaylistName] = useState("");
+  const [kit, setKit] = useState<PlaylistPitchKit | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* ── curators state ── */
+  const [genreFilter, setGenreFilter] = useState("all");
+  const [curators, setCurators] = useState<PlaylistCurator[]>([]);
+  const [curatorNotice, setCuratorNotice] = useState("");
+
+  /* ── tracker state ── */
+  const [pitches, setPitches] = useState<PlaylistPitch[]>([]);
+  const [trackerLoading, setTrackerLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newPitch, setNewPitch] = useState({
+    songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "",
+  });
+
+  /* ── packet + deadlines state ── */
+  const [releases, setReleases] = useState<PlaylistRelease[]>([]);
+  const [packetReleaseId, setPacketReleaseId] = useState("");
+  const [packet, setPacket] = useState<PlaylistPacket | null>(null);
+  const [packetLoading, setPacketLoading] = useState(false);
+  const [deadlines, setDeadlines] = useState<PlaylistDeadline[]>([]);
+  const [dueNext, setDueNext] = useState<PlaylistDeadline | null>(null);
+  const [deadlinesLoading, setDeadlinesLoading] = useState(false);
+  const [showDeadlineForm, setShowDeadlineForm] = useState(false);
+  const [newDeadline, setNewDeadline] = useState({
+    playlistName: "", curatorName: "", deadlineDate: "", releaseId: "",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/songs");
+        if (res.ok && Array.isArray((data as { songs?: unknown }).songs)) {
+          setLibrary((data as { songs: PlaylistLibrarySong[] }).songs.slice(0, 100));
+        }
+      } catch { /* library is optional */ }
+    })();
+    loadCurators("all");
+    loadTracker();
+    loadReleases();
+    loadDeadlines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  async function loadCurators(g: string) {
+    try {
+      const { res, data } = await playlistAuthedFetch(
+        getAccessToken, `/api/playlist-pitch/curators?genre=${encodeURIComponent(g)}`,
+      );
+      if (res.ok) {
+        setCurators((data as { curators: PlaylistCurator[] }).curators ?? []);
+        setCuratorNotice((data as { notice: string }).notice ?? "");
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  async function loadTracker() {
+    setTrackerLoading(true);
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/tracker");
+      if (res.ok) setPitches((data as { pitches: PlaylistPitch[] }).pitches ?? []);
+    } catch { /* non-fatal */ }
+    finally { setTrackerLoading(false); }
+  }
+
+  async function loadReleases() {
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/releases");
+      if (res.ok) setReleases((data as { releases: PlaylistRelease[] }).releases ?? []);
+    } catch { /* non-fatal */ }
+  }
+
+  async function loadPacket(releaseId: string) {
+    if (!releaseId) {
+      setPacket(null);
+      return;
+    }
+    setPacketLoading(true);
+    try {
+      const { res, data } = await playlistAuthedFetch(
+        getAccessToken, `/api/playlist-pitch/packet/${releaseId}`,
+      );
+      setPacket(res.ok ? ((data as { packet: PlaylistPacket }).packet ?? null) : null);
+    } catch { setPacket(null); }
+    finally { setPacketLoading(false); }
+  }
+
+  async function loadDeadlines() {
+    setDeadlinesLoading(true);
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/deadlines");
+      if (res.ok) {
+        const d = data as { deadlines: PlaylistDeadline[]; dueNext: PlaylistDeadline | null };
+        setDeadlines(d.deadlines ?? []);
+        setDueNext(d.dueNext ?? null);
+      }
+    } catch { /* non-fatal */ }
+    finally { setDeadlinesLoading(false); }
+  }
+
+  async function addDeadline() {
+    if (!newDeadline.playlistName.trim() || !newDeadline.deadlineDate) {
+      setError(t("playlistPitch.deadlineRequired"));
+      return;
+    }
+    setError(null);
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/deadlines", {
+        method: "POST",
+        body: JSON.stringify({
+          playlistName: newDeadline.playlistName.trim(),
+          curatorName: newDeadline.curatorName.trim(),
+          /* A deadline named by date is due at the END of that day. */
+          deadlineAt: `${newDeadline.deadlineDate}T23:59:59.999Z`,
+          ...(newDeadline.releaseId ? { releaseId: newDeadline.releaseId } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error(t("playlistPitch.deadlineSaveFailed"));
+      setNewDeadline({ playlistName: "", curatorName: "", deadlineDate: "", releaseId: "" });
+      setShowDeadlineForm(false);
+      loadDeadlines();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("playlistPitch.deadlineSaveFailed"));
+    }
+  }
+
+  async function updateDeadlineStatus(id: string, status: string) {
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) loadDeadlines();
+    } catch { /* non-fatal */ }
+  }
+
+  async function deleteDeadline(id: string) {
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) loadDeadlines();
+    } catch { /* non-fatal */ }
+  }
+
+  function packetAsText(p: PlaylistPacket): string {
+    const lines: string[] = [`${p.release.title} — ${p.artist.name}`];
+    if (p.genre.length) lines.push(`${t("playlistPitch.packetGenre")}: ${p.genre.join(", ")}`);
+    if (p.description) lines.push(p.description);
+    if (p.release.releaseDate) {
+      lines.push(`${t("playlistPitch.packetReleaseDate")}: ${p.release.releaseDate}`);
+    }
+    for (const [platform, url] of Object.entries(p.links.streaming)) {
+      lines.push(`${platform}: ${url}`);
+    }
+    if (p.links.profileUrl) lines.push(`${t("playlistPitch.packetLinks")}: ${p.links.profileUrl}`);
+    lines.push(
+      `${t("playlistPitch.packetStatPresaves")}: ${p.stats.presaves} · ` +
+      `${t("playlistPitch.packetStatShares")}: ${p.stats.shares} · ` +
+      `${t("playlistPitch.packetStatViews")}: ${p.stats.linkViews} · ` +
+      `${t("playlistPitch.packetStatClicks")}: ${p.stats.linkClicks}`,
+    );
+    return lines.join("\n");
+  }
+
+  async function generateKit() {
+    if (generating || !user) return;
+    const finalTitle = songSource === "library"
+      ? (library.find((s) => s.id === librarySongId)?.title ?? "").trim()
+      : songTitle.trim();
+    if (!finalTitle) {
+      setError(t("playlistPitch.titleRequired"));
+      return;
+    }
+    setGenerating(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/kit", {
+        method: "POST",
+        body: JSON.stringify({
+          songTitle: finalTitle,
+          artistName: artistName.trim(),
+          songDescription: description.trim(),
+          genre: genre.trim(),
+          mood: mood.trim(),
+          energy,
+          tempo: tempo.trim(),
+          lyrics: lyrics.trim(),
+          curatorName: curatorName.trim(),
+          playlistName: playlistName.trim(),
+        }),
+      });
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !(data as { kit?: PlaylistPitchKit }).kit) {
+        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("playlistPitch.kitFailed"));
+      }
+      setKit((data as { kit: PlaylistPitchKit }).kit);
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("pitch-kit-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("playlistPitch.kitFailed"));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function addPitch() {
+    if (!newPitch.songTitle.trim() || !newPitch.playlistName.trim()) {
+      setError(t("playlistPitch.trackerRequired"));
+      return;
+    }
+    setError(null);
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/tracker", {
+        method: "POST",
+        body: JSON.stringify({
+          songTitle: newPitch.songTitle.trim(),
+          artistName: newPitch.artistName.trim(),
+          curatorName: newPitch.curatorName.trim(),
+          playlistName: newPitch.playlistName.trim(),
+          notes: newPitch.notes.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error(t("playlistPitch.saveFailed"));
+      const pitch = (data as { pitch: PlaylistPitch }).pitch;
+      setPitches((prev) => [pitch, ...prev]);
+      setNewPitch({ songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "" });
+      setShowAddForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("playlistPitch.saveFailed"));
+    }
+  }
+
+  async function updatePitchStatus(id: string, status: string) {
+    try {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(t("playlistPitch.updateFailed"));
+      const updated = (data as { pitch: PlaylistPitch }).pitch;
+      setPitches((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    } catch { /* non-fatal */ }
+  }
+
+  async function deletePitch(id: string) {
+    try {
+      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) setPitches((prev) => prev.filter((p) => p.id !== id));
+    } catch { /* non-fatal */ }
+  }
+
+  function addCuratorToTracker(c: PlaylistCurator) {
+    setNewPitch((prev) => ({
+      ...prev,
+      curatorName: c.name,
+      playlistName: prev.playlistName || c.focus.split("(")[0]!.trim().slice(0, 80),
+    }));
+    setTab("tracker");
+    setShowAddForm(true);
+    setTimeout(() => {
+      document.getElementById("pitch-tracker")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }
+
+  const acceptedCount = pitches.filter((p) => p.status === "accepted").length;
+
+  return (
+    <div className="relative">
+      {/* hero */}
+      <div className="relative text-center">
+        <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+          <ListMusic className="h-3 w-3" aria-hidden="true" /> {t("playlistPitch.heroBadge")}
+        </p>
+        <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
+          {t("playlistPitch.heroTitle")} <span className="text-primary">{t("playlistPitch.heroTitleAccent")}</span>
+        </h1>
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
+          {t("playlistPitch.heroDescription")}
+        </p>
+      </div>
+
+      {/* tabs */}
+      <div className="relative mt-8 flex justify-center gap-2">
+        {([
+          { key: "kit", labelKey: "playlistPitch.tabKit", icon: Sparkles },
+          { key: "sync", labelKey: "syncPitch.tabSync", icon: Clapperboard },
+          { key: "curators", labelKey: "playlistPitch.tabCurators", icon: Users },
+          { key: "tracker", labelKey: "playlistPitch.tabTracker", icon: ClipboardList },
+        ] as { key: PlaylistInnerTab; labelKey: string; icon: typeof Sparkles }[]).map((tabItem) => {
+          const Icon = tabItem.icon;
+          const active = tab === tabItem.key;
+          const label = tabItem.key === "tracker" && pitches.length
+            ? t("playlistPitch.tabTrackerCount", { count: pitches.length })
+            : t(tabItem.labelKey);
+          return (
+            <button
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                active
+                  ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
+                  : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+              }`}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {error && (
+        <div className="relative mt-6 flex items-start gap-2.5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {error}
+        </div>
+      )}
+
+      {outOfCredits && (
+        <div className="relative mt-6">
+          <OutOfCredits />
+        </div>
+      )}
+
+      {/* ═══ PITCH KIT TAB ═══ */}
+      {tab === "kit" && (
+        <div className="relative mt-8">
+          <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+            {/* song source */}
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+              {t("playlistPitch.yourSong")}
+            </p>
+            <div className="flex gap-2">
+              {(["manual", "library"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSongSource(s)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    songSource === s
+                      ? "bg-primary text-black"
+                      : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                  }`}
+                >
+                  {s === "manual" ? t("playlistPitch.enterManually") : t("playlistPitch.fromLibrary", { count: library.length })}
+                </button>
+              ))}
+            </div>
+
+            {songSource === "library" ? (
+              <select
+                value={librarySongId}
+                onChange={(e) => setLibrarySongId(e.target.value)}
+                className={`${inputClass} mt-4`}
+              >
+                <option value="">{t("playlistPitch.pickSong")}</option>
+                {library.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title || t("playlistPitch.untitledSong")}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={songTitle}
+                onChange={(e) => setSongTitle(e.target.value)}
+                maxLength={200}
+                placeholder={t("playlistPitch.songTitlePlaceholder")}
+                className={`${inputClass} mt-4`}
+              />
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <input
+                value={artistName}
+                onChange={(e) => setArtistName(e.target.value)}
+                maxLength={200}
+                placeholder={t("playlistPitch.artistNamePlaceholder")}
+                className={inputClass}
+              />
+              <input
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                maxLength={100}
+                placeholder={t("playlistPitch.genrePlaceholder")}
+                className={inputClass}
+                list="playlists-pitch-genres"
+              />
+              <datalist id="playlists-pitch-genres">
+                {PLAYLIST_GENRES.map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  {t("playlistPitch.energyLabel", { energy })}
+                </label>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={energy}
+                onChange={(e) => setEnergy(parseInt(e.target.value, 10))}
+                className="mt-2 w-full accent-[#d4af37]"
+                aria-label={t("playlistPitch.energyAria")}
+              />
+              <div className="flex justify-between text-[11px] text-white/35">
+                <span>{t("playlistPitch.energyChill")}</span>
+                <span>{t("playlistPitch.energyBalanced")}</span>
+                <span>{t("playlistPitch.energyTurnt")}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            >
+              {t("playlistPitch.advancedDetails")}
+              <ChevronDown className={`h-4 w-4 transition ${showAdvanced ? "rotate-180" : ""}`} aria-hidden="true" />
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <input
+                    value={mood}
+                    onChange={(e) => setMood(e.target.value)}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.moodPlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    value={tempo}
+                    onChange={(e) => setTempo(e.target.value)}
+                    maxLength={50}
+                    placeholder={t("playlistPitch.tempoPlaceholder")}
+                    className={inputClass}
+                  />
+                </div>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={1000}
+                  rows={3}
+                  placeholder={t("playlistPitch.descriptionPlaceholder")}
+                  className={`${inputClass} resize-y`}
+                />
+                <textarea
+                  value={lyrics}
+                  onChange={(e) => setLyrics(e.target.value)}
+                  maxLength={5000}
+                  rows={4}
+                  placeholder={t("playlistPitch.lyricsPlaceholder")}
+                  className={`${inputClass} resize-y`}
+                />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <input
+                    value={curatorName}
+                    onChange={(e) => setCuratorName(e.target.value)}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.curatorNamePlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    value={playlistName}
+                    onChange={(e) => setPlaylistName(e.target.value)}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.playlistNamePlaceholder")}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={generateKit}
+              disabled={generating || !user}
+              className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-4 text-base font-black text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+              )}
+              {generating ? t("playlistPitch.writingKit") : t("playlistPitch.generateKit", { cost: PLAYLIST_KIT_COST })}
+            </button>
+            {!user && (
+              <p className="mt-3 text-center text-sm text-white/40">
+                {t("playlistPitch.signInPrompt")}
+              </p>
+            )}
+          </div>
+
+          {/* results */}
+          {kit && (
+            <div id="pitch-kit-results" className="mt-8 space-y-6">
+              {/* analysis */}
+              <div className={`overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <h2 className="flex items-center gap-2 text-lg font-black">
+                  <Music2 className="h-5 w-5 text-primary" aria-hidden="true" />
+                  {t("playlistPitch.songAnalysis")}
+                </h2>
+                <p className="mt-3 border-l-2 border-primary/60 pl-4 text-[15px] italic leading-relaxed text-white/85">
+                  “{kit.analysis.oneLiner}”
+                </p>
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { label: t("playlistPitch.statGenre"), value: kit.analysis.genre },
+                    { label: t("playlistPitch.statMood"), value: kit.analysis.mood },
+                    { label: t("playlistPitch.statEnergy"), value: `${kit.analysis.energy}/100` },
+                    { label: t("playlistPitch.statTempo"), value: kit.analysis.tempoFeel },
+                  ].map((s) => (
+                    <div key={s.label} className={`rounded-2xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/35">{s.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+                {kit.analysis.comparableArtists.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.soundsLike")}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {kit.analysis.comparableArtists.map((a) => (
+                        <span key={a} className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {kit.analysis.playlistFit.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.playlistFit")}</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {kit.analysis.playlistFit.map((p, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* pitch email */}
+              <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-lg font-black">
+                    <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
+                    {t("playlistPitch.pitchEmail")}
+                  </h2>
+                  <PlaylistCopyButton text={`${t("playlistPitch.subjectPrefix")}${kit.pitchEmail.subject}\n\n${kit.pitchEmail.body}`} labelKey="playlistPitch.copyEmailLabel" />
+                </div>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.subjectLabel")}</p>
+                <p className={`mt-1 rounded-xl border px-4 py-3 text-sm font-semibold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#2A1E07]" : "border-white/10 bg-black/50 text-white"}`}>
+                  {kit.pitchEmail.subject}
+                </p>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("playlistPitch.bodyLabel")}</p>
+                <p className={`mt-1 whitespace-pre-wrap rounded-xl border px-4 py-3 text-sm leading-relaxed ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#2A1E07]" : "border-white/10 bg-black/50 text-white/80"}`}>
+                  {kit.pitchEmail.body}
+                </p>
+              </div>
+
+              {/* DM + follow-up */}
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 font-black">
+                      <MessageCircle className="h-4 w-4 text-primary" aria-hidden="true" />
+                      {t("playlistPitch.dmVersion")}
+                    </h3>
+                    <PlaylistCopyButton text={kit.dmPitch} labelKey="playlistPitch.copyDmLabel" />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-white/75">{kit.dmPitch}</p>
+                </div>
+                <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 font-black">
+                      <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
+                      {t("playlistPitch.followUpTitle")}
+                    </h3>
+                    <PlaylistCopyButton text={kit.followUp} labelKey="playlistPitch.copyFollowUpLabel" />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-white/75">{kit.followUp}</p>
+                </div>
+              </div>
+
+              <p className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 text-center text-[13px] leading-relaxed text-amber-200/80">
+                {kit.disclaimer}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ CURATORS TAB ═══ */}
+      {tab === "curators" && (
+        <div className="relative mt-8">
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 text-[13px] leading-relaxed text-amber-200/85">
+            <span className="font-black text-amber-300">{t("playlistPitch.starterList")}</span>{" "}
+            {curatorNotice || t("playlistPitch.curatorFallback")}
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {["all", ...PLAYLIST_GENRES].map((g) => (
+              <button
+                key={g}
+                onClick={() => { setGenreFilter(g); loadCurators(g); }}
+                className={`rounded-full px-4 py-2 text-sm font-semibold capitalize transition ${
+                  genreFilter === g
+                    ? "bg-primary text-black"
+                    : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                {g === "all" ? t("playlistPitch.allGenres") : g}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 space-y-4">
+            {curators.map((c) => (
+              <div key={c.id} className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-black text-white">{c.name}</h3>
+                    <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest text-primary/80">
+                      {c.platform}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.genres.slice(0, 4).map((g) => (
+                      <span key={g} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] font-semibold capitalize text-white/60">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-white/65">{c.focus}</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/50">
+                  <span className="font-semibold text-white/70">{t("playlistPitch.howToSubmit")}</span>
+                  {c.submitVia}
+                </p>
+                <button
+                  onClick={() => addCuratorToTracker(c)}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  {t("playlistPitch.addToTracker")}
+                </button>
+              </div>
+            ))}
+            {curators.length === 0 && (
+              <p className="py-10 text-center text-sm text-white/40">
+                {t("playlistPitch.noCurators")}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TRACKER TAB ═══ */}
+      {tab === "tracker" && (
+        <div id="pitch-tracker" className="relative mt-8">
+          {/* ── Submission deadlines ── */}
+          <div className={`${isLight ? "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="inline-flex items-center gap-2 text-lg font-bold">
+                <CalendarClock className="h-5 w-5 text-primary" aria-hidden="true" />
+                {t("playlistPitch.deadlinesTitle")}
+              </h3>
+              <button
+                onClick={() => setShowDeadlineForm((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                {t("playlistPitch.deadlineAdd")}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-white/50">{t("playlistPitch.deadlinesIntro")}</p>
+
+            {dueNext && (
+              <div className={`mt-4 flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${dueNext.overdue ? "border-red-500/40 bg-red-500/10 text-red-200" : "border-primary/40 bg-primary/10 text-white"}`}>
+                <span className="font-black uppercase tracking-wide text-xs">
+                  {t("playlistPitch.dueNext")}
+                </span>
+                <span className="font-bold">{dueNext.playlistName}</span>
+                {dueNext.curatorName ? <span className="text-white/50">· {dueNext.curatorName}</span> : null}
+                <span className="text-white/60">
+                  {t("playlistPitch.dueOn", { date: new Date(dueNext.deadlineAt).toLocaleDateString() })}
+                </span>
+                {dueNext.overdue && (
+                  <span className="rounded-full border border-red-500/50 bg-red-500/15 px-2.5 py-0.5 text-xs font-bold text-red-300">
+                    {t("playlistPitch.overdue")}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {showDeadlineForm && (
+              <div className="mt-4 rounded-2xl border border-white/10 p-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input
+                    value={newDeadline.playlistName}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, playlistName: e.target.value })}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.playlistNamePlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    value={newDeadline.curatorName}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, curatorName: e.target.value })}
+                    maxLength={200}
+                    placeholder={t("playlistPitch.curatorNamePlaceholder")}
+                    className={inputClass}
+                  />
+                  <input
+                    type="date"
+                    value={newDeadline.deadlineDate}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, deadlineDate: e.target.value })}
+                    className={inputClass}
+                    aria-label={t("playlistPitch.deadlinesTitle")}
+                  />
+                  <select
+                    value={newDeadline.releaseId}
+                    onChange={(e) => setNewDeadline({ ...newDeadline, releaseId: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="">{t("playlistPitch.deadlineReleaseNone")}</option>
+                    {releases.map((r) => (
+                      <option key={r.id} value={r.id}>{r.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={addDeadline}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                    {t("playlistPitch.deadlineSave")}
+                  </button>
+                  <button
+                    onClick={() => setShowDeadlineForm(false)}
+                    className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:text-white"
+                  >
+                    {t("playlistPitch.cancel")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3">
+              {deadlinesLoading && (
+                <p className="py-6 text-center text-sm text-white/40">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+                </p>
+              )}
+              {!deadlinesLoading && deadlines.map((d) => {
+                const meta = PLAYLIST_DEADLINE_STATUS_META[d.status] ?? PLAYLIST_DEADLINE_STATUS_META["drafted"]!;
+                const releaseTitle = d.releaseId ? releases.find((r) => r.id === d.releaseId)?.title : undefined;
+                return (
+                  <div key={d.id} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-black text-white">
+                          {d.playlistName}
+                          {d.curatorName ? <span className="font-normal text-white/45"> · {d.curatorName}</span> : null}
+                        </p>
+                        <p className="mt-1 text-sm text-white/55">
+                          {t("playlistPitch.dueOn", { date: new Date(d.deadlineAt).toLocaleDateString() })}
+                          {releaseTitle ? <span className="text-white/35"> · {releaseTitle}</span> : null}
+                          {d.overdue && (
+                            <span className="ml-2 rounded-full border border-red-500/50 bg-red-500/15 px-2 py-0.5 text-[11px] font-bold text-red-300">
+                              {t("playlistPitch.overdue")}
+                            </span>
+                          )}
+                        </p>
+                        {d.notes ? (
+                          <p className="mt-1.5 text-[13px] italic text-white/40">{d.notes}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${meta.cls}`}>
+                          {t(meta.labelKey)}
+                        </span>
+                        <button
+                          onClick={() => deleteDeadline(d.id)}
+                          className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300"
+                          aria-label={t("playlistPitch.deadlineDelete")}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {Object.entries(PLAYLIST_DEADLINE_STATUS_META).map(([key, m]) => (
+                        <button
+                          key={key}
+                          onClick={() => updateDeadlineStatus(d.id, key)}
+                          disabled={d.status === key}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                            d.status === key
+                              ? "cursor-default bg-white/10 text-white/40"
+                              : "border border-white/10 text-white/55 hover:border-primary/50 hover:text-white"
+                          }`}
+                        >
+                          {t("playlistPitch.markStatus", { status: t(m.labelKey).toLowerCase() })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!deadlinesLoading && deadlines.length === 0 && (
+                <p className="py-2 text-sm text-white/45">{t("playlistPitch.deadlineNone")}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Pitch packet from the release record ── */}
+          <div className={`${isLight ? "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mb-5 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
+            <h3 className="inline-flex items-center gap-2 text-lg font-bold">
+              <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
+              {t("playlistPitch.packetTitle")}
+            </h3>
+            <p className="mt-1 text-sm text-white/50">{t("playlistPitch.packetIntro")}</p>
+
+            {releases.length === 0 ? (
+              <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNoReleases")}</p>
+            ) : (
+              <>
+                <select
+                  value={packetReleaseId}
+                  onChange={(e) => {
+                    setPacketReleaseId(e.target.value);
+                    loadPacket(e.target.value);
+                  }}
+                  className={`${inputClass} mt-4`}
+                >
+                  <option value="">{t("playlistPitch.packetReleasePick")}</option>
+                  {releases.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title} — {r.artistName}
+                    </option>
+                  ))}
+                </select>
+
+                {packetLoading && (
+                  <p className="py-8 text-center text-sm text-white/40">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+                  </p>
+                )}
+
+                {!packetLoading && !packet && (
+                  <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNone")}</p>
+                )}
+
+                {!packetLoading && packet && (
+                  <div className="mt-5 space-y-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xl font-black text-white">
+                          {packet.release.title}
+                          <span className="font-normal text-white/45"> — {packet.artist.name}</span>
+                        </p>
+                        <p className="mt-1 text-sm text-white/55">
+                          {packet.artist.followerCount != null && (
+                            <span>{t("playlistPitch.packetFollowers", { count: packet.artist.followerCount })} · </span>
+                          )}
+                          {packet.artist.totalPlays != null && (
+                            <span>{t("playlistPitch.packetPlays", { count: packet.artist.totalPlays })}</span>
+                          )}
+                        </p>
+                        {packet.artist.bio ? (
+                          <p className="mt-2 max-w-xl text-sm text-white/60">{packet.artist.bio}</p>
+                        ) : null}
+                      </div>
+                      <PlaylistCopyButton text={packetAsText(packet)} labelKey="playlistPitch.packetTitle" />
+                    </div>
+
+                    {packet.genre.length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetGenre")}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {packet.genre.map((g) => (
+                            <span key={g} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {packet.description && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetDescription")}
+                        </p>
+                        <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-white/70">{packet.description}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t("playlistPitch.packetLinks")}
+                      </p>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {Object.entries(packet.links.streaming).map(([platform, url]) => (
+                          <p key={platform} className="truncate text-white/70">
+                            <span className="font-semibold capitalize text-white">{platform.replace(/_/g, " ")}</span>
+                            {" — "}
+                            <a href={url} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">{url}</a>
+                          </p>
+                        ))}
+                        {packet.track.audioUrl && (
+                          <p className="truncate text-white/70">
+                            <span className="font-semibold text-white">{t("playlistPitch.packetAudioLabel")}</span>
+                            {" — "}
+                            <a href={packet.track.audioUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">{packet.track.audioUrl}</a>
+                          </p>
+                        )}
+                        {packet.links.profileUrl && (
+                          <p className="truncate text-white/70">
+                            <span className="font-semibold text-white">{t("playlistPitch.packetProfileLabel")}</span>
+                            {" — "}
+                            <span className="text-primary">{packet.links.profileUrl}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        {t("playlistPitch.packetStats")}
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {([
+                          ["packetStatPresaves", packet.stats.presaves],
+                          ["packetStatShares", packet.stats.shares],
+                          ["packetStatViews", packet.stats.linkViews],
+                          ["packetStatClicks", packet.stats.linkClicks],
+                        ] as const).map(([key, val]) => (
+                          <div key={key} className="rounded-2xl border border-white/10 px-4 py-3">
+                            <p className="font-display text-2xl font-black text-primary">{val}</p>
+                            <p className="mt-0.5 text-xs text-white/45">{t(`playlistPitch.${key}`)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(packet.pressAssets.artworkUrl || packet.pressAssets.headline || packet.pressAssets.bonusUrl || packet.pressAssets.bannerUrl || packet.pressAssets.avatarUrl) && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+                          {t("playlistPitch.packetPressAssets")}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          {packet.pressAssets.artworkUrl && (
+                            <img src={packet.pressAssets.artworkUrl} alt="" className="h-20 w-20 rounded-xl border border-white/10 object-cover" />
+                          )}
+                          {packet.pressAssets.avatarUrl && (
+                            <img src={packet.pressAssets.avatarUrl} alt="" className="h-20 w-20 rounded-full border border-white/10 object-cover" />
+                          )}
+                          {packet.pressAssets.bannerUrl && (
+                            <img src={packet.pressAssets.bannerUrl} alt="" className="h-20 w-36 rounded-xl border border-white/10 object-cover" />
+                          )}
+                        </div>
+                        {packet.pressAssets.headline && (
+                          <p className="mt-2 text-sm italic text-white/60">“{packet.pressAssets.headline}”</p>
+                        )}
+                      </div>
+                    )}
+
+                    {packet.missing.length > 0 && (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] p-4">
+                        <p className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-200">
+                          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                          {t("playlistPitch.packetMissingTitle")}
+                        </p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-100/80">
+                          {packet.missing.map((m) => (
+                            <li key={m}>{t(PACKET_MISSING_LABEL_KEYS[m] ?? m)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex gap-4 text-sm">
+              <span className="text-white/50">
+                <span className="font-black text-white">{pitches.length}</span> {t("playlistPitch.pitchesCount")}
+              </span>
+              <span className="text-white/50">
+                <span className="font-black text-emerald-300">{acceptedCount}</span> {t("playlistPitch.acceptedCount")}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t("playlistPitch.logPitch")}
+            </button>
+          </div>
+
+          {showAddForm && (
+            <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <input
+                  value={newPitch.songTitle}
+                  onChange={(e) => setNewPitch({ ...newPitch, songTitle: e.target.value })}
+                  maxLength={200}
+                  placeholder={t("playlistPitch.songTitlePlaceholder")}
+                  className={inputClass}
+                />
+                <input
+                  value={newPitch.playlistName}
+                  onChange={(e) => setNewPitch({ ...newPitch, playlistName: e.target.value })}
+                  maxLength={200}
+                  placeholder={t("playlistPitch.playlistNamePlaceholder")}
+                  className={inputClass}
+                />
+                <input
+                  value={newPitch.artistName}
+                  onChange={(e) => setNewPitch({ ...newPitch, artistName: e.target.value })}
+                  maxLength={200}
+                  placeholder={t("playlistPitch.artistNamePlaceholder")}
+                  className={inputClass}
+                />
+                <input
+                  value={newPitch.curatorName}
+                  onChange={(e) => setNewPitch({ ...newPitch, curatorName: e.target.value })}
+                  maxLength={200}
+                  placeholder={t("playlistPitch.curatorNamePlaceholder")}
+                  className={inputClass}
+                />
+              </div>
+              <textarea
+                value={newPitch.notes}
+                onChange={(e) => setNewPitch({ ...newPitch, notes: e.target.value })}
+                maxLength={1000}
+                rows={2}
+                placeholder={t("playlistPitch.notesPlaceholder")}
+                className={`${inputClass} mt-3 resize-y`}
+              />
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={addPitch}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+                >
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                  {t("playlistPitch.savePitch")}
+                </button>
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:text-white"
+                >
+                  {t("playlistPitch.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5 space-y-3">
+            {trackerLoading && (
+              <p className="py-10 text-center text-sm text-white/40">
+                <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+              </p>
+            )}
+            {!trackerLoading && pitches.map((p) => {
+              const meta = PLAYLIST_STATUS_META[p.status] ?? PLAYLIST_STATUS_META["sent"]!;
+              const Icon = meta.icon;
+              return (
+                <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black text-white">
+                        {p.songTitle}
+                        {p.artistName ? <span className="font-normal text-white/45"> — {p.artistName}</span> : null}
+                      </p>
+                      <p className="mt-1 text-sm text-white/55">
+                        {p.playlistName}
+                        {p.curatorName ? <span className="text-white/35"> · {p.curatorName}</span> : null}
+                      </p>
+                      {p.notes ? (
+                        <p className="mt-2 text-[13px] italic text-white/40">{p.notes}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${meta.cls}`}>
+                        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t(meta.labelKey)}
+                      </span>
+                      <button
+                        onClick={() => deletePitch(p.id)}
+                        className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300"
+                        aria-label={t("playlistPitch.deletePitch")}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {Object.entries(PLAYLIST_STATUS_META).map(([key, m]) => (
+                      <button
+                        key={key}
+                        onClick={() => updatePitchStatus(p.id, key)}
+                        disabled={p.status === key}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                          p.status === key
+                            ? "cursor-default bg-white/10 text-white/40"
+                            : "border border-white/10 text-white/55 hover:border-primary/50 hover:text-white"
+                        }`}
+                      >
+                        {t("playlistPitch.markStatus", { status: t(m.labelKey).toLowerCase() })}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {!trackerLoading && pitches.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
+                <ClipboardList className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
+                <p className="mt-3 text-sm text-white/50">
+                  {t("playlistPitch.noPitches")}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SYNC PITCH KIT TAB ═══ */}
+      {tab === "sync" && (
+        <SyncTab library={library} initialSongTitle={syncInitialSong} />
+      )}
     </div>
   );
 }

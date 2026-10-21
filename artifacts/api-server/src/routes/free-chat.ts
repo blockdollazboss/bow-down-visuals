@@ -2,6 +2,16 @@ import { Router } from "express";
 import { z } from "zod";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { buildChatSystemPrompt } from "../lib/ai-chat-assistant";
+import { resolveOptionalSession } from "../lib/optional-auth";
+import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import {
+  OPERATOR_KB,
+  findFeatures,
+  findInventedPrice,
+  PRICE_FALLBACK_REPLY,
+  type OperatorFeature,
+} from "../lib/operator-knowledge";
 
 const router = Router();
 
@@ -9,9 +19,22 @@ const router = Router();
    POST /api/free-chat { message, history? } → 200 { reply }
    - message: string, 1–2000 chars
    - history: optional array of { role: "user" | "assistant", content: string }, max 6 turns
-   Free tier providers (tried in order):
-   1. Groq (https://api.groq.com) — if GROQ_API_KEY env var is set. Fast, reliable, generous free tier.
-   2. Local FAQ — privacy-safe keyword-based fallback, no external calls. */
+   - always FREE: no auth, no credit charge (pricing for chat is an owner
+     decision; this route stays free until he rules otherwise)
+
+   Brain (Cloud Operator): the system prompt is the SAME operator prompt
+   /api/chat uses — persona + rules + grounding built per message from the
+   generated feature knowledge base (lib/operator-knowledge.ts). There is
+   no hand-typed fact sheet in this file anymore: the old hardcoded prompt
+   quoted pre-x100 pack prices and stale claims, and the keyword-FAQ that
+   backed it up carried the same era's facts. Both are deleted.
+
+   Answer path:
+   1. Free-tier model provider — if its API key env var is set. The reply
+      passes through the shared no-invention price guard before it ships.
+   2. Local fallback — a reply composed from the knowledge base itself
+      (lib/operator-knowledge data, read at runtime), so it cannot drift
+      from the operator's facts. No external calls. */
 
 const historyItemSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -22,30 +45,6 @@ const chatSchema = z.object({
   message: z.string().min(1, "Message is required.").max(2000, "Message is too long (max 2000 characters)."),
   history: z.array(historyItemSchema).max(6, "Too many history turns (max 6).").optional().default([]),
 });
-
-const SYSTEM_PROMPT = `You are the Bow Down Visuals sales assistant on bowdownvisuals.com. Bow Down Visuals is an AI music-and-video studio built around the artist blockdollazboss. You help visitors understand the services and decide what to buy.
-
-Key facts:
-Visual Buc packs (exact pricing from bowdownvisuals.com/pricing):
-- 10 Visual Bucs — $9
-- 50 Visual Bucs — $39
-- 150 Visual Bucs — $99
-- 500 Visual Bucs — $249
-Always use these exact prices. Never invent pack names or different prices.
-- Tagline: "Your competitors will think you hired a team." / "THIS FEELS LIKE CHEATING. THAT'S THE POINT."
-- Creator Vault: 81 AI tools for content creators.
-- Credits are used to generate songs, videos, thumbnails, promo clips, etc.
-- Refer & Earn: 25% commission for referrals.
-- Creator Academy: training for creators.
-- Support email: support@bowdownvisuals.com.
-
-Rules:
-- Be concise, friendly, and helpful. Match the site's bold, confident tone but stay professional.
-- Answer questions about services, pricing, how it works, and what credits buy.
-- If asked something you don't know, say so and point them to support@bowdownvisuals.com.
-- Never invent prices, features, or policies not listed above.
-- Never ask for payment details, passwords, or personal information.
-- Keep replies under 150 words unless the question needs more detail.`;
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const REQUEST_TIMEOUT_MS = 45_000;
@@ -107,54 +106,59 @@ async function callGroq(messages: ChatMessage[]): Promise<string> {
   return extractReply(data);
 }
 
-/** Local FAQ fallback — works with zero external APIs. Matches keywords to answers. */
-function getFaqReply(userMessage: string): string | null {
-  const msg = userMessage.toLowerCase();
+/* ─── Local fallback, composed from the operator knowledge base ──────────
+   Every fact below — names, paths, descriptions, prices, pack sizes — is
+   read from the generated KB at runtime. Nothing is hand-typed, so this
+   fallback stays exactly as current as the operator's own knowledge. */
 
-  // Greetings
-  if (/^(hi|hey|hello|yo|sup|howdy|good\s?(morning|afternoon|evening))\b/.test(msg) && msg.length < 30) {
-    return "Hey! Welcome to Bow Down Visuals. I can help with our AI tools, Visual Buc credit packs, booking, or how everything works — what do you want to know?";
+function describeFeature(f: OperatorFeature): string {
+  const sentences: string[] = [`${f.name} — ${f.path}`];
+  if (f.description) sentences.push(f.description);
+  if (f.prices.length > 0) {
+    const prices = f.prices
+      .slice(0, 6)
+      .map((p) => (p.vb === 0 ? `${p.feature}: free` : `${p.feature}: ${p.vb.toLocaleString("en-US")} Visual Bucs`));
+    sentences.push(`Prices: ${prices.join("; ")}.`);
   }
-
-  // Pricing / Visual Buc packs
-  if (/pric|pack|buc|cost|much|pay|price|\$/.test(msg)) {
-    return "We offer Visual Buc credit packs: 10 Bucs for $9, 50 Bucs for $39, 150 Bucs for $99, and 500 Bucs for $249. Each AI tool costs a set number of Bucs per use. You can see the full breakdown and grab a pack on the Pricing page — want me to point you there?";
+  if (f.offer) {
+    sentences.push(
+      `Price: $${f.offer.priceDollars.toLocaleString("en-US")} for ${f.offer.durationDays} days — a paid advertising placement in dollars (not Visual Bucs), booked by inquiry at ${f.offer.doorLabel} (${f.path}).`,
+    );
   }
-
-  // Services / what they do
-  if (/service|offer|what.*do|tool|create|make|video|music|content/.test(msg)) {
-    return "Bow Down Visuals is an AI-powered creative studio. We offer 81 AI tools for creating music videos, content, graphics, and more. You use Visual Bucs to run the tools — pick a pack, choose your tool, and start creating. What kind of content are you looking to make?";
+  if (f.guide) {
+    sentences.push(`Open the page and tap "Walk me through it" for a step-by-step guide.`);
   }
-
-  // Booking / get started / sign up
-  if (/book|start|sign\s?up|join|register|account|claim|access/.test(msg)) {
-    return "Getting started is easy: hit 'Claim your access' on the homepage to create your account, grab a Visual Buc pack that fits your needs, then dive into the Creator Vault and start making content. Anything specific you want help with?";
+  if (f.nextSteps.length > 0) {
+    sentences.push(`Next step after that: ${f.nextSteps[0].label} (${f.nextSteps[0].path}).`);
   }
-
-  // Support / contact / help
-  if (/support|contact|help|email|human|person|issue|problem/.test(msg)) {
-    return "For support, email us at support@bowdownvisuals.com and we'll get back to you. If you're asking about the site or tools, I can probably help right here — what's going on?";
-  }
-
-  // How it works
-  if (/how.*work|how.*it/.test(msg)) {
-    return "It's 3 steps: 1) Claim your access and create an account. 2) Grab a Visual Buc pack. 3) Pick an AI tool from the Creator Vault and start creating. Each tool costs a few Bucs per use. Simple as that!";
-  }
-
-  // Thanks
-  if (/thank|thanks|thx|appreciated/.test(msg)) {
-    return "Anytime! Let me know if you need anything else.";
-  }
-
-  // Bye
-  if (/^(bye|goodbye|see\s?ya|later)\b/.test(msg)) {
-    return "See you soon! Come back anytime you need help.";
-  }
-
-  return null;
+  return sentences.join(" ");
 }
 
-/** Try Groq first (if key is set), then fall back to the privacy-safe local FAQ. */
+function packFacts(): string {
+  return `Visual Buc packs come in ${OPERATOR_KB.packs.map((p) => p.label).join(", ")} — dollar prices are set at checkout on the Pricing page (/pricing).`;
+}
+
+function getKnowledgeReply(userMessage: string): string {
+  const matches = findFeatures(userMessage);
+  const asksAboutPacks = /\b(packs?|pricing|credits?|visual bucs?|bucs?)\b/i.test(userMessage);
+
+  if (matches.length > 0) {
+    const parts = matches.slice(0, 2).map(describeFeature);
+    if (asksAboutPacks) parts.push(packFacts());
+    return parts.join("\n");
+  }
+  if (asksAboutPacks) {
+    return `${packFacts()} Every tool's exact price in Visual Bucs is on its page before you spend anything — ask me about a specific tool and I'll give you its price.`;
+  }
+  return "I don't have that one — I'm Thy Cheat Code, and I can help with anything that IS on Bow Down Visuals: making songs and videos, branding, promoting your work, and getting paid. Ask me about a tool, what it costs, or how to get started. For account problems, the Contact page (/contact) is the fastest door. 🦈";
+}
+
+/** Try the model provider first (if its key is set), then fall back to the
+    knowledge-base reply. Returns the RAW reply: the handler runs the
+    Phase 2 action protocol over it first (a marker turn ships the
+    executor's code-composed outcome, not model text), and only then
+    applies the shared no-invention price guard to model-authored text —
+    the same treatment /api/chat gets (Cloud Operator Phase 1). */
 async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; provider: string }> {
   const groqKey = process.env["GROQ_API_KEY"];
   if (groqKey) {
@@ -162,21 +166,12 @@ async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; p
       const reply = await callGroq(messages);
       return { reply, provider: "groq" };
     } catch (err) {
-      logger.warn({ err }, "[chat] Groq failed, falling back to local FAQ");
+      logger.warn({ err }, "[chat] Groq failed, falling back to knowledge base");
     }
   }
 
-  // Fallback: local FAQ (no external API needed)
-  const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
-  const faqReply = getFaqReply(lastUserMsg);
-  if (faqReply) {
-    return { reply: faqReply, provider: "local-faq" };
-  }
-  // Generic fallback if no FAQ match
-  return {
-    reply: "I'm having trouble connecting right now, but I can still help! Ask me about our Visual Buc packs, AI tools, getting started, or support — or email support@bowdownvisuals.com.",
-    provider: "local-fallback"
-  };
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  return { reply: getKnowledgeReply(lastUserMsg), provider: "knowledge-base" };
 }
 
 router.post("/free-chat", publicApiLimiter, async (req, res) => {
@@ -191,16 +186,72 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
 
   const { message, history } = parsed.data;
 
-  const messages: { role: string; content: string }[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history.map((h) => ({ role: h.role, content: h.content })),
-    { role: "user", content: message.trim() },
-  ];
+  /* Tier 1 doors (Phase 2 Lane C): computed once from the member's own
+     message by the shared chat implementation — the same doors /api/chat
+     attaches, never a per-route variation. */
+  const doors = buildReplyDoors(message.trim());
+  const doorPayload = doors.length ? { doors } : {};
+
+  /* Still free, still no gate — but a signed-in member's session
+     resolves when one rides along, so the operator's hands (Phase 2)
+     can act as them. Guests stay guests; nothing here can 401. */
+  await resolveOptionalSession(req);
 
   try {
-    const { reply, provider } = await getChatReply(messages);
+    /* A live pending confirmation gets first claim (yes runs it, no
+       drops it) — same shared protocol as /api/chat. */
+    const preTurn = await processOperatorPreTurn({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      message: message.trim(),
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator pre-turn failed — falling through to the model");
+      return null;
+    });
+    if (preTurn) {
+      res.json({ reply: preTurn.replyText, action: preTurn.action, ...doorPayload });
+      return;
+    }
+
+    const messages: { role: string; content: string }[] = [
+      { role: "system", content: buildChatSystemPrompt(message) },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
+      { role: "user", content: message.trim() },
+    ];
+
+    const { reply: rawReply, provider } = await getChatReply(messages);
+
+    /* An action marker hands the turn to the executor — its outcome
+       text is code-composed from rail results, so the price guard
+       below guards model text only, exactly as on /api/chat. */
+    const actionTurn = await processOperatorReply({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      modelReply: rawReply,
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator action turn failed — answering without hands");
+      return null;
+    });
+    if (actionTurn) {
+      logger.info({ provider }, "[chat] reply generated");
+      res.json({ reply: actionTurn.replyText, action: actionTurn.action, ...doorPayload });
+      return;
+    }
+
+    let reply = rawReply;
+    const invented = findInventedPrice(reply);
+    if (invented !== null) {
+      logger.warn(
+        { invented, provider },
+        "[chat] free-chat reply quoted a price outside the knowledge base — replaced",
+      );
+      reply = PRICE_FALLBACK_REPLY;
+    }
+
     logger.info({ provider }, "[chat] reply generated");
-    res.json({ reply });
+    res.json({ reply, ...doorPayload });
   } catch (err: unknown) {
     logger.error({ err }, "[chat] failed to get chatbot reply");
     if (err instanceof Error && err.name === "AbortError") {

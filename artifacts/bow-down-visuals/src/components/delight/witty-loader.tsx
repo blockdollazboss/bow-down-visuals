@@ -1,0 +1,427 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { mediaUrl } from "@/lib/media-cdn";
+import SpotlightModal from "@/components/SpotlightModal";
+import LoadingScreenModal from "@/components/LoadingScreenModal";
+
+/* ─── Shared loader timing — every loading screen matches ──
+   The barcode is the single source of truth: it drives the progress,
+   the headline/promo slides, and the dismissal. */
+
+/* ─── WittyLoader — the loading screen is a first impression, not a spinner ──
+   Rotating mascot-voiced status lines in Thy Cheat Code's voice: royal,
+   playful, confident. Used on every protected page load (ProtectedRoute)
+   and anywhere a wait should feel like part of the show. */
+
+const FALLBACK_LINES = [
+  "Waking up Thy Cheat Code…",
+  "Polishing the crown…",
+  "Sharpening the shark teeth…",
+  "Rolling out the gold carpet…",
+  "Summoning your creative vault…",
+  "Tuning the cheat codes…",
+  "Lighting the throne room…",
+];
+
+/* Rotating feature highlight promos - shown below the status line.
+   Ad spots carry an `inquire` key so the card opens the matching
+   inquiry modal when tapped. */
+const FEATURE_PROMOS = [
+  { title: "Spotlight Takeover — $1,000", desc: "Your brand over the drone video for 7 days. Prime placement.", inquire: "spotlight" as const },
+  { title: "Loading Screen Takeover — $2,500", desc: "Your brand on every loading screen for 7 days. Unmissable.", inquire: "loading-screen" as const },
+  { title: "Refer & Earn", desc: "Invite creators, earn 25% of their credit purchases for 90 days." },
+  { title: "AI Music Videos", desc: "Turn your songs into cinematic music videos in minutes." },
+  { title: "Viral Thumbnails", desc: "Scroll-stopping thumbnails with AI A/B testing." },
+  { title: "Thy Hook Vault", desc: "Hooks engineered to stop the scroll." },
+  { title: "4K Masterpiece Exports", desc: "Crystal-clear 4K quality on every export." },
+];
+
+export function useWittyLine(intervalMs = 2200): string {
+  const { t } = useTranslation();
+  const [idx, setIdx] = useState(0);
+  const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
+  const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
+
+  useEffect(() => {
+    if (safe.length <= 1) return;
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % safe.length), intervalMs);
+    return () => window.clearInterval(id);
+  }, [safe.length, intervalMs]);
+
+  return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
+}
+
+export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
+  const { t } = useTranslation();
+  const [inquireModal, setInquireModal] = useState<"spotlight" | "loading-screen" | null>(null);
+  // Theme-aware background: light theme gets the ivory throne, dark gets the dark throne
+  const [isLight, setIsLight] = useState(false);
+  useEffect(() => {
+    const check = () => setIsLight(document.documentElement.classList.contains("light"));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+
+  // Barcode is the single source of truth — progress drives everything.
+  // Slide changes at the halfway mark, so each headline/promo gets ~half the fill.
+  const [progress, setProgress] = useState(0);
+  const completedRef = useRef(false);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) return 0;
+        const next = p + Math.random() * 8 + 2;
+        if (next >= 100 && !completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
+        return next;
+      });
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [onComplete]);
+
+  const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
+  const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
+  // Slide flips at the halfway mark of the barcode fill
+  const slideIdx = progress >= 50 ? 1 : 0;
+  const line = message ?? safe[slideIdx % safe.length] ?? FALLBACK_LINES[0]!;
+  const promo = FEATURE_PROMOS[slideIdx % FEATURE_PROMOS.length]!;
+
+  return (
+    <div className="fixed inset-0 z-[20000] bg-background overflow-hidden dark-lock" data-dark-lock>
+      {/* Throne room backdrop — theme-aware: light gets the shark action
+          video, dark keeps the dark throne image */}
+      {isLight ? (
+        <video
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover"
+          src={mediaUrl("videos/loading-light-temp.mp4")}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/images/loading-bg-light-throne.webp"
+        />
+      ) : (
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
+        />
+      )}
+      {/* Cinematic gradient — DARK theme only. Light theme used to lay a
+          0.9 → 0.2 ivory gradient over the whole loading video; the owner
+          ordered it gone 2026-10-12 (no white layer over any video in the
+          light theme — the loading screen included). The light loading
+          video now plays clean; the gold edge vignette below stays. */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: isLight
+          ? "none"
+          : "linear-gradient(260deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.35) 100%)" }}
+      />
+      {/* Vignette — theater darkness at the edges (dark) or soft light glow (light) */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: isLight
+          ? "radial-gradient(ellipse at center, transparent 45%, rgba(201,168,76,0.15) 100%)"
+          : "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
+      />
+
+      {/* Bottom-center: brand eyebrow — deep bronze-gold on ivory */}
+      <p className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-[11px] font-bold uppercase tracking-[0.35em] whitespace-nowrap ${isLight ? "text-[#7A5A12]" : "text-primary/90"}`}>
+        Bow Down Visuals presents
+      </p>
+
+      {/* Top-left: now featuring */}
+      <div
+        key={slideIdx}
+        className="absolute top-6 left-6 md:left-14 z-10 max-w-[280px] animate-in fade-in slide-in-from-left duration-700"
+      >
+          <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${isLight ? "text-[#8a6d1f]" : "text-white/40"}`}>Now featuring</p>
+          {"inquire" in promo && promo.inquire ? (
+            <button
+              onClick={() => setInquireModal(promo.inquire)}
+              className={`mt-2 border rounded-xl backdrop-blur-sm p-5 text-left w-full transition-colors cursor-pointer ${
+                isLight
+                  ? "border-[#c9a84c]/40 bg-white/85 hover:border-[#c9a84c]/70 hover:bg-white"
+                  : "border-primary/25 bg-black/40 hover:border-primary/60 hover:bg-black/60"
+              }`}
+            >
+              <p className={`font-black text-lg uppercase tracking-wider ${isLight ? "text-[#8a6d1f]" : "text-primary"}`}>{promo.title}</p>
+              <p className={`text-[13px] mt-2 leading-relaxed ${isLight ? "text-stone-700" : "text-white/65"}`}>{promo.desc}</p>
+              <p className={`text-xs font-bold mt-3 uppercase tracking-widest ${isLight ? "text-[#8a6d1f]" : "text-primary/80"}`}>Request this spot →</p>
+            </button>
+          ) : (
+            <div className={`mt-2 border rounded-xl backdrop-blur-sm p-5 ${
+              isLight ? "border-[#c9a84c]/40 bg-white/85" : "border-primary/25 bg-black/40"
+            }`}>
+              <p className={`font-black text-lg uppercase tracking-wider ${isLight ? "text-[#8a6d1f]" : "text-primary"}`}>{promo.title}</p>
+              <p className={`text-[13px] mt-2 leading-relaxed ${isLight ? "text-stone-700" : "text-white/65"}`}>{promo.desc}</p>
+            </div>
+          )}
+      </div>
+
+      {/* ── TOP-RIGHT: the title treatment ── */}
+      <div className="absolute top-8 right-6 md:right-14 z-10 max-w-md text-right">
+        {/* The headline — gold luxury */}
+        <h1
+          key={slideIdx}
+          className={`text-transparent bg-clip-text bg-gradient-to-b text-3xl md:text-4xl font-black leading-[1.05] mt-3 animate-in fade-in slide-in-from-right duration-700 ${
+            isLight
+              ? "from-[#8a6d1f] via-[#a8842e] to-[#5c4a12] drop-shadow-[0_2px_12px_rgba(255,255,255,0.9)]"
+              : "from-[#f5e6b8] via-[#d4af37] to-[#8a6d1f] drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]"
+          }`}
+          style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.02em" }}
+        >
+          {line}
+        </h1>
+        <p className={`text-sm mt-3 ${isLight ? "text-stone-600" : "text-white/50"}`}>
+          {t("delight.loaderSub", { defaultValue: "Thy Cheat Code is getting your world ready" })}
+        </p>
+      </div>
+
+      {/* ── BOTTOM-LEFT: the crowned mark ── */}
+      <div className="absolute bottom-8 left-6 md:left-14 z-10">
+        <CrownedLogo isLight={isLight} />
+      </div>
+
+      {/* ── BOTTOM-RIGHT: ticket-stub barcode ── */}
+      <div className="absolute bottom-8 right-6 md:right-10 z-10">
+        <BarcodeStrip progress={progress} isLight={isLight} />
+      </div>
+
+      {/* Ad inquiry modals — above the loader overlay */}
+      <SpotlightModal open={inquireModal === "spotlight"} onClose={() => setInquireModal(null)} />
+      <LoadingScreenModal open={inquireModal === "loading-screen"} onClose={() => setInquireModal(null)} />
+
+    </div>
+  );
+}
+
+/* CrownedLogo — bare Shark King mark, no box. Levitates with a breathing
+   gold aura and orbiting light ring. The aura brightens and the mark swells
+   subtly as your cursor approaches — alive, not gimmicky. */
+function CrownedLogo({ isLight }: { isLight: boolean }) {
+  const [proximity, setProximity] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = wrapRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2);
+        const dy = e.clientY - (r.top + r.height / 2);
+        const dist = Math.hypot(dx, dy);
+        const maxDist = Math.max(window.innerWidth, window.innerHeight) * 0.4;
+        setProximity(Math.max(0, 1 - dist / maxDist));
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="relative w-fit">
+      <div
+        className="relative animate-[float_4s_ease-in-out_infinite] transition-transform duration-300 ease-out"
+        style={{ transform: `scale(${1 + proximity * 0.1})` }}
+      >
+        {/* Breathing aura — brightens with cursor proximity */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -m-8 rounded-full blur-2xl animate-[breathe_3s_ease-in-out_infinite] transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle, rgba(212,175,55,${0.08 + proximity * 0.15}) 0%, transparent 70%)`,
+          }}
+        />
+        {/* Orbiting light ring */}
+        <div aria-hidden className="absolute inset-0 -m-4 animate-[spin_12s_linear_infinite]">
+          <div className="absolute inset-0 rounded-full border border-transparent border-t-primary/70 border-r-primary/30" />
+        </div>
+        {/* Bare mark — no box, no container. Light theme gets the ivory-ribbon logo. */}
+        <img
+          src={isLight ? "/logo-light.webp" : "/logo-static.webp"}
+          alt="Bow Down Visuals"
+          className="relative h-28 w-28 object-contain"
+          style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}
+        />
+      </div>
+      <style>{`
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes breathe { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.08); } }
+      `}</style>
+    </div>
+  );
+}
+
+/* BarcodeStrip — a real UPC-A barcode label in the Bow Down theme.
+   Black sticker with gold bars on dark theme; ivory sticker with deep
+   bronze bars on light theme. 12 typewriter digits below that count
+   from 000000000000 to 999999999999 with progress. */
+function BarcodeStrip({ progress, isLight }: { progress: number; isLight: boolean }) {
+
+  // UPC-A: 12 digits, guard | 6 left | middle guard | 6 right | guard
+  const MODULE = 2;
+  const bars: number[] = [
+    1, 1, 1,
+    3, 1, 2, 1, 1, 4, 2, 1, 3, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 2, 1,
+    1, 1, 1, 1, 1,
+    2, 4, 1, 2, 3, 1, 4, 1, 2, 1, 3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1,
+    1, 1, 1,
+  ];
+  const totalModules = bars.reduce((a, b) => a + b, 0);
+  let filled = 0;
+  // 12-digit counter scaled by progress
+  const counter = Math.floor((Math.min(100, progress) / 100) * 999999999999);
+  const digits = String(counter).padStart(12, "0");
+
+  return (
+    <div
+      className={`border rounded-md px-4 pt-3 pb-2 ${
+        isLight
+          ? "bg-[#FDFBF6] border-[#c9a84c]/50 shadow-[0_4px_24px_rgba(90,70,20,0.18),0_0_20px_rgba(201,168,76,0.25)]"
+          : "bg-black border-primary/40 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_20px_rgba(212,175,55,0.15)]"
+      }`}
+      style={{ transform: "rotate(-1.5deg)" }}
+    >
+      {/* Quiet zone + bars — deep bronze on ivory for light theme */}
+      <div className="flex items-stretch" style={{ height: "48px" }}>
+        {bars.map((w, i) => {
+          const barStart = (filled / totalModules) * 100;
+          filled += w;
+          const barEnd = (filled / totalModules) * 100;
+          const isLit = progress >= barEnd;
+          const isBar = i % 2 === 0;
+          return (
+            <div
+              key={i}
+              className="transition-colors duration-200"
+              style={{
+                width: `${w * MODULE}px`,
+                height: "100%",
+                backgroundColor: !isBar
+                  ? "transparent"
+                  : isLit
+                    ? isLight ? "#8a6d2b" : "#d4af37"
+                    : isLight ? "#DDD6C6" : "#2a2a2a",
+                boxShadow: isBar && isLit
+                  ? isLight ? "0 0 4px rgba(138,109,43,0.4)" : "0 0 4px rgba(212,175,55,0.5)"
+                  : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+      {/* 12 typewriter digits */}
+      <p
+        className={`text-center font-mono font-bold mt-1 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}
+        style={{ fontSize: "13px", letterSpacing: "0.18em" }}
+      >
+        {digits.slice(0, 6)} {digits.slice(6)}
+      </p>
+    </div>
+  );
+}
+
+/* Legacy centered barcode loader — kept for inline use elsewhere */
+function BarcodeLoader() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) return 0;
+        return p + Math.random() * 8 + 2;
+      });
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Deterministic pseudo-random bar widths for a barcode look
+  const bars = [3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 2, 4];
+  const totalWidth = bars.reduce((a, b) => a + b, 0) + bars.length * 2;
+  let filled = 0;
+
+  return (
+    <div className="mt-6 w-64">
+      <div className="flex items-end gap-[2px] h-10 justify-center">
+        {bars.map((w, i) => {
+          const barStart = (filled / totalWidth) * 100;
+          filled += w + 2;
+          const barEnd = (filled / totalWidth) * 100;
+          const isLit = progress >= barEnd;
+          const isPartial = progress > barStart && progress < barEnd;
+          return (
+            <div
+              key={i}
+              className="transition-colors duration-200"
+              style={{
+                width: `${w * 2}px`,
+                height: "100%",
+                backgroundColor: isLit
+                  ? "#d4af37"
+                  : isPartial
+                    ? "rgba(212,175,55,0.5)"
+                    : "rgba(255,255,255,0.12)",
+                boxShadow: isLit ? "0 0 8px rgba(212,175,55,0.6)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+      <p className="text-white/40 text-xs mt-2 font-mono">{Math.min(100, Math.floor(progress))}%</p>
+    </div>
+  );
+}
+
+/* ─── useGeneratingLine — witty status for AI generation waits ─────────────
+   Video/song/image generation takes 30s–40min. The wait should feel like
+   part of the show, not a dead spinner. */
+
+const FALLBACK_GENERATING = [
+  "Thy Cheat Code is cooking…",
+  "The sharks are rendering frames…",
+  "Sprinkling gold dust on pixels…",
+  "Teaching AI your vibe…",
+  "This is the part where magic happens…",
+  "Almost worthy of the crown…",
+];
+
+export function useGeneratingLine(intervalMs = 3000): string {
+  const { t } = useTranslation();
+  const [idx, setIdx] = useState(0);
+  const lines = (t("delight.generatingLines", { returnObjects: true, defaultValue: FALLBACK_GENERATING }) as unknown as string[]) || FALLBACK_GENERATING;
+  const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_GENERATING;
+
+  useEffect(() => {
+    if (safe.length <= 1) return;
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % safe.length), intervalMs);
+    return () => window.clearInterval(id);
+  }, [safe.length, intervalMs]);
+
+  return safe[idx % safe.length] ?? FALLBACK_GENERATING[0]!;
+}
+
+/* ─── GeneratingStatus — inline witty status under a generate button ─────── */
+export function GeneratingStatus() {
+  const line = useGeneratingLine();
+  return (
+    <p key={line} className="text-center text-sm text-primary/90 font-semibold animate-in fade-in duration-500 pt-1">
+      {line}
+    </p>
+  );
+}

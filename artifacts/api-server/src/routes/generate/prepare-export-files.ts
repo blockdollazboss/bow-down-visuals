@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { createWriteStream, existsSync, mkdirSync, statSync } from "fs";
@@ -242,13 +243,33 @@ interface ClipInput {
   urlFields: Record<string, string>;
 }
 
+const clipInputSchema = z.object({
+  sceneNumber: z.number(),
+  sceneTitle: z.string(),
+  clipId: z.string().nullable(),
+  provider: z.string().nullable(),
+  approved: z.boolean(),
+  selected: z.boolean(),
+  urlFields: z.record(z.string(), z.string()),
+});
+
+const prepareExportFilesSchema = z.object({
+  projectId: z.string().min(1),
+  clips: z.array(clipInputSchema).min(1),
+  /** Exact master-player audio URL — null when project has no audio */
+  audioUrl: z.string().nullish(),
+});
+
 router.post("/prepare-export-files", requireAuth, async (req, res) => {
-  const { projectId, clips, audioUrl } = req.body as {
-    projectId: string;
-    clips: ClipInput[];
-    /** Exact master-player audio URL — null when project has no audio */
-    audioUrl?: string | null;
-  };
+  const bodyParse = prepareExportFilesSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: bodyParse.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { projectId, clips, audioUrl } = bodyParse.data;
 
   if (!projectId?.trim()) {
     res.status(400).json({ error: "projectId is required" });

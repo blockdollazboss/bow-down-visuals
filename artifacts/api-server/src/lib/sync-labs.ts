@@ -7,6 +7,7 @@ import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { logger } from "./logger";
+import { r2Upload, r2GetSignedUrl, isR2Configured } from "./r2-client";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,8 +72,9 @@ export function getSyncLabsBase(): string {
   return SYNC_LABS_BASE;
 }
 // Upgraded 2026-09-24: sync-1.9.0-beta produced poor lip-sync on song audio.
-// lipsync-2 is the current-gen model (same input shape); override via env if needed.
-export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "lipsync-2";
+// sync-3 is the current-gen model (won the 2026-09-24 A/B, same input shape);
+// override via env if needed.
+export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "sync-3";
 const SYNC_POLL_INTERVAL_MS = 5_000;
 const SYNC_MAX_POLLS = 144; // 144 × 5s = 12 minutes max — provider queues can be slow; the client recovers directly past this
 
@@ -347,6 +349,15 @@ export async function uploadAudioToSupabase(
   objectName: string,
   contentType = "audio/mpeg",
 ): Promise<string> {
+  /* R2 first with namespaced key (lip-sync-temp/<objectName>), signed URL
+     with the same 2-hour TTL the sync.so provider expects. Supabase is the
+     fallback only when R2 is not configured. */
+  const r2Key = `${LIP_SYNC_AUDIO_BUCKET}/${objectName}`;
+  if (isR2Configured()) {
+    await r2Upload(r2Key, buffer, contentType);
+    return r2GetSignedUrl(r2Key, 7200);
+  }
+
   // Fail fast here: ensureSupabaseBucket verifies the bucket exists after
   // creation and throws loudly if it is still missing — never silently
   // march into a doomed upload.

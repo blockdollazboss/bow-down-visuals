@@ -228,9 +228,9 @@ export function AutoDirectorPanel({
           <Clapperboard className="h-4.5 w-4.5 text-primary" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-bold text-white">Auto Director</span>
+          <span className="block text-sm font-bold text-white">Turbo Director</span>
           <span className="block text-xs text-white/45 truncate">
-            Song → shoot-ready video plan with elite prompts. Automatic or build it by hand.
+            Song → shoot-ready video plan with elite prompts. Turbo, or build it by hand.
           </span>
         </span>
         <ChevronDown className={`h-4 w-4 text-white/40 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} />
@@ -280,7 +280,7 @@ export function AutoDirectorPanel({
             <button
               type="button"
               onClick={startBlankPlan}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-white/70 hover:bg-white/[0.06]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-white/70 hover:bg-white/5"
             >
               <Pencil className="h-3.5 w-3.5" />
               Manual plan
@@ -309,7 +309,7 @@ export function AutoDirectorPanel({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] text-white/40 font-semibold">Palette:</span>
                   {plan.colorPalette.map((c, i) => (
-                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] border border-white/10 text-white/55">{c}</span>
+                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/55">{c}</span>
                   ))}
                 </div>
               )}
@@ -417,9 +417,9 @@ export function AutoDirectorPanel({
                           </label>
                         </div>
                         <label className="block">
-                          <span className="text-[9px] uppercase text-primary/80 font-bold">Video prompt — the money shot</span>
+                          <span className="text-[9px] uppercase text-primary/70 font-bold">Video prompt — the money shot</span>
                           <textarea value={s.videoPrompt} onChange={(e) => updateDraft(i, { videoPrompt: e.target.value })}
-                            rows={4} placeholder="The elite Runway prompt for this scene…"
+                            rows={4} placeholder="The elite prompt for this scene…"
                             className="mt-0.5 w-full rounded-md bg-white/[0.04] border border-primary/25 px-2 py-1.5 text-[11px] text-white placeholder:text-white/25 focus:outline-none focus:border-primary/60 resize-y leading-relaxed" />
                         </label>
                         <label className="block">

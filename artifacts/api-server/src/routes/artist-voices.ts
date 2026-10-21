@@ -15,17 +15,18 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { promises as fs } from "node:fs";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { freeExpensiveAiLimiter } from "../lib/rate-limit";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError, buildChargeIdempotencyKey } from "../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRefBucketed,
+  downloadStorageObjectBuffer,
 } from "../lib/objectStorage";
 import { separateVocalStems, cleanupWorkdir } from "../lib/stem-separation";
 import { canUseInstantVoiceCloning } from "../lib/elevenlabs";
@@ -88,10 +89,20 @@ router.get("/voices", requireAuth, async (req, res) => {
   }
 });
 
-/* ── POST /api/artist-vaults/:id/voice/clone — instant voice clone ──── */
+/* ── POST /api/artist-vaults/:id/voice/clone — instant voice clone ────
+   Costs 200 Visual Bucs — the same price as its sibling
+   .../voice/from-song (owner's 2026-10-14 ruling: the plain clone had
+   silently been free while the harder from-song job charged). The
+   charge flow mirrors from-song exactly: IVC eligibility before any
+   credits move, the same 402 shape, chargeCredits with the same
+   LedgerWriteError handling, and a refund closure that is only armed
+   after the charge lands and fires on every failure exit. */
+const CLONE_CREDIT_COST = 200;
+
 router.post(
   "/artist-vaults/:id/voice/clone",
   requireAuth,
+  freeExpensiveAiLimiter,
   upload.array("files", 3),
   async (req, res) => {
     const apiKey = elevenKey();
@@ -99,17 +110,88 @@ router.post(
       res.status(503).json({ error: "Voice service is not configured on this server." });
       return;
     }
+
+    // IVC eligibility BEFORE any credits move or any heavy work (same
+    // gate as from-song). Fail open: if the check itself errors,
+    // proceed as before.
+    const ivcAllowed = await canUseInstantVoiceCloning(apiKey).catch(() => true);
+    if (!ivcAllowed) {
+      res.status(402).json({
+        error:
+          "Your ElevenLabs plan does not include instant voice cloning. Upgrade your ElevenLabs plan to use voice cloning.",
+        code: "ivc_not_included",
+      });
+      return;
+    }
+
     const files = (req.files ?? []) as Express.Multer.File[];
     if (files.length === 0) {
       res.status(400).json({ error: "Upload at least one voice sample.", code: "no_files" });
       return;
     }
-    const vault = await getOwnedVault(req.params.id as string, req.userId!);
-    if (!vault) {
-      res.status(404).json({ error: "Artist not found." });
-      return;
-    }
+
+    // Everything below returns JSON: the vault lookup and credit
+    // deduction live inside the try so a throw can never escape to
+    // Express's default HTML error handler (mirrors from-song).
+    let refund: () => PromiseLike<void> = () => Promise.resolve();
     try {
+      const vault = await getOwnedVault(req.params.id as string, req.userId!);
+      if (!vault) {
+        res.status(404).json({ error: "Artist not found." });
+        return;
+      }
+
+      const currentCredits = req.userCredits ?? 0;
+      const isDev = process.env["NODE_ENV"] === "development";
+      if (!isDev && currentCredits < CLONE_CREDIT_COST) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "You are out of Visual Bucs. Upgrade to keep creating.",
+          required: CLONE_CREDIT_COST,
+        });
+        return;
+      }
+      // chargeCredits(): deduct + strict ledger write. A ledger failure
+      // rolls the deduction back and throws LedgerWriteError (loud).
+      // The idempotency key is stable per (user, endpoint, intent) —
+      // the intent is the vault plus the sample bytes — so a double-tap
+      // or retry of the same clone can't double-charge.
+      if (!isDev) {
+        try {
+          const idempotencyKey = buildChargeIdempotencyKey(
+            "vault-voice-clone",
+            req.userId!,
+            (req.body as { idempotencyKey?: unknown } | undefined)?.idempotencyKey,
+            {
+              vaultId: vault.id,
+              files: files.map((f) => createHash("sha256").update(f.buffer).digest("hex")),
+            },
+          );
+          await chargeCredits(req.userId!, CLONE_CREDIT_COST, { action: "Vault Voice Clone" }, { idempotencyKey });
+        } catch (chargeErr) {
+          if (chargeErr instanceof LedgerWriteError) {
+            res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+            return;
+          }
+          if (chargeErr instanceof OutOfCreditsError) {
+            res.status(402).json({
+              error: "out_of_credits",
+              message: "You are out of Visual Bucs. Upgrade to keep creating.",
+              required: CLONE_CREDIT_COST,
+            });
+            return;
+          }
+          throw chargeErr;
+        }
+      }
+
+      // Refund with a ledger trace if the clone fails (armed only now
+      // that the charge has landed — mirroring from-song).
+      refund = () =>
+        !isDev
+          ? refundCredits(req.userId!, CLONE_CREDIT_COST, { action: "Vault Voice Clone — Refund (clone failure)" })
+          : Promise.resolve();
+
       const form = new FormData();
       const voiceName = `${vault.artist_name} — Locked Voice`;
       form.append("name", voiceName);
@@ -137,6 +219,7 @@ router.post(
       if (!r.ok) {
         const errText = await r.text().catch(() => "");
         req.log.error({ status: r.status, errText }, "artist-voices: IVC failed");
+        await refund();
         res.status(502).json({
           error: "Voice cloning failed. Try a clearer sample, at least 30 seconds.",
           code: "clone_failed",
@@ -182,9 +265,11 @@ router.post(
         voice_name: voiceName,
         voice_preview_url: previewUrl,
         requires_verification: data.requires_verification ?? false,
+        creditsAfter: isDev ? currentCredits : currentCredits - CLONE_CREDIT_COST,
       });
     } catch (err) {
       req.log.error({ err }, "artist-voices: clone error");
+      await refund();
       res.status(502).json({ error: "Voice cloning failed. Please try again." });
     }
   },
@@ -308,11 +393,13 @@ async function loadSongBuffer(
     if (song.audio_path) {
       const parsed = parseSupabaseStorageRefBucketed(song.audio_path);
       if (parsed) {
-        const { data, error } = await getSupabaseAdmin().storage
-          .from(parsed.bucket)
-          .download(parsed.objectPath);
-        if (!error && data) {
-          return { buffer: Buffer.from(await data.arrayBuffer()), label: song.title };
+        // R2-first dual-stack read — a direct Supabase download bills
+        // egress even when the object already lives in R2 (and 404s
+        // for R2-only objects). Null = in neither store; the stored
+        // URL fetch below stays as the fallback.
+        const buf = await downloadStorageObjectBuffer(parsed);
+        if (buf) {
+          return { buffer: buf, label: song.title };
         }
       }
     }

@@ -25,7 +25,17 @@ import { sql } from "drizzle-orm";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
+  isStorageRef,
 } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+
+/* Read presentation: a stored location image is served from its permanent
+   storage ref (image_path when present, else a ref-valued image_url) with
+   a fresh signed URL minted per read — a stored link can never expire. */
+async function presentLocation(row: LocationRow): Promise<LocationRow> {
+  const source = row.image_path ?? row.image_url;
+  return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
+}
 
 const router = Router();
 
@@ -77,7 +87,8 @@ router.get("/locations", requireAuth, async (req, res) => {
     ORDER BY created_at DESC
     LIMIT 200
   `);
-  res.json({ locations: result.rows as unknown as LocationRow[] });
+  const rows = result.rows as unknown as LocationRow[];
+  res.json({ locations: await Promise.all(rows.map(presentLocation)) });
 });
 
 /* ── POST /api/locations ───────────────────────────────────────────────── */
@@ -90,13 +101,18 @@ router.post("/locations", requireAuth, async (req, res) => {
     });
     return;
   }
+  /* Mirror-on-save (2026-10-13 law): an external image URL is re-hosted
+     into permanent storage before it is stored. */
+  const storedUrl =
+    (await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ??
+    parsed.data.image_url;
   const id = randomUUID();
   const result = await db.execute(sql`
-    INSERT INTO locations (id, user_id, label, image_url)
-    VALUES (${id}, ${req.userId!}, ${parsed.data.label}, ${parsed.data.image_url})
+    INSERT INTO locations (id, user_id, label, image_url, image_path)
+    VALUES (${id}, ${req.userId!}, ${parsed.data.label}, ${storedUrl}, ${isStorageRef(storedUrl) ? storedUrl : null})
     RETURNING id, user_id, label, image_url, image_path, created_at
   `);
-  res.status(201).json({ location: result.rows[0] as unknown as LocationRow });
+  res.status(201).json({ location: await presentLocation(result.rows[0] as unknown as LocationRow) });
 });
 
 /* ── POST /api/locations/upload ────────────────────────────────────────── */

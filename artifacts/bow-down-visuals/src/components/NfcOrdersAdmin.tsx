@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Nfc, Loader2, Download, RefreshCw } from "lucide-react";
 import { nfcStyleByKey, formatMoney } from "@/lib/nfc-cards";
@@ -23,6 +24,7 @@ interface AdminOrder {
 }
 
 export function NfcOrdersAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
+  const isLight = useIsLightTheme();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,7 +59,7 @@ export function NfcOrdersAdmin({ authHeaders }: { authHeaders: () => Promise<Hea
   };
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mb-4">
+    <div className={`rounded-xl border p-5 mb-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Nfc className="h-4 w-4 text-primary" />

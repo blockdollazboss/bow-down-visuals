@@ -1,20 +1,24 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
 import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
-  Store, ArrowLeft, Check, BadgeCheck,
+  Store, ArrowLeft, Check, BadgeCheck, Play,
 } from "lucide-react";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
   type CartLine,
 } from "@/lib/shops";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
-   Checkout records a real order via /api/storefronts/checkout: the buyer
-   pays the listed price, Bow Down Visuals takes a 10% platform fee from the
-   seller's cut. Card processing via Stripe Connect is the follow-up — the
-   seller follows up to complete payment. */
+   Checkout is a real card checkout via /api/storefronts/checkout (0144):
+   the order is recorded pending, the buyer pays the listed price on the
+   hosted payment page, and Bow Down Visuals takes a 5% platform fee
+   from the seller's cut. Returning with ?session_id= verifies the
+   payment server-side — only a confirmed payment shows as paid here. */
 
 interface PublicShop {
   id: string;
@@ -35,12 +39,23 @@ interface PublicProduct {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /** The finished UGC ad pinned to this product (migration 0178),
+      resolved server-side; null when nothing is pinned. */
+  pinned_ad?: { id: string; video_url: string } | null;
+}
+
+/** $0 shop products are FREE goods — label them, never "$0.00". */
+function priceLabel(cents: number): string {
+  return cents === 0 ? "FREE" : centsToDisplay(cents);
 }
 
 export default function ShopStorefront() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
+  usePageTitle(shop?.name ?? "Shop", "A creator storefront on Bow Down Visuals.");
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -53,6 +68,14 @@ export default function ShopStorefront() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderDone, setOrderDone] = useState<{ lines: number; gross: number; fee: number; net: number } | null>(null);
+  /* Discount code (0190): validated against THIS shop's codes via the
+     public validate endpoint; the server re-validates at checkout and
+     is always the pricing authority — the totals shown here mirror
+     its exact unit-rounding formula. */
+  const [discountInput, setDiscountInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState<{ code: string; percentOff: number } | null>(null);
+  const [codeMsg, setCodeMsg] = useState<string | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +96,7 @@ export default function ShopStorefront() {
         if (!cancelled) {
           setShop(data.shop);
           setProducts(data.products ?? []);
-          setFeePct(data.platformFeePct ?? 10);
+          setFeePct(data.platformFeePct ?? 5);
         }
       } catch {
         if (!cancelled) setNotFound(true);
@@ -110,7 +133,37 @@ export default function ShopStorefront() {
   );
 
   const cartTotal = cartDetailed.reduce((sum, l) => sum + l.product!.price_cents * l.qty, 0);
+  /* The server's discount sequence, mirrored for display: percent off
+     the unit price (rounded), summed per line. Checkout re-prices
+     server-side regardless — this number can never overcharge. */
+  const discountedTotal = appliedCode
+    ? cartDetailed.reduce(
+        (sum, l) => sum + Math.round((l.product!.price_cents * (100 - appliedCode.percentOff)) / 100) * l.qty,
+        0,
+      )
+    : cartTotal;
   const cartCount = cartDetailed.reduce((sum, l) => sum + l.qty, 0);
+
+  async function applyCode() {
+    if (!shop || !discountInput.trim()) return;
+    setCheckingCode(true);
+    setCodeMsg(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}/discounts/validate?code=${encodeURIComponent(discountInput.trim())}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.valid === true) {
+        setAppliedCode({ code: String(data.code), percentOff: Number(data.percentOff) });
+        setCodeMsg(`${data.code} — ${data.percentOff}% off applied.`);
+      } else {
+        setAppliedCode(null);
+        setCodeMsg(typeof data.reason === "string" ? data.reason : "That code doesn't work at this shop.");
+      }
+    } catch {
+      setCodeMsg("Couldn't check that code just now — you can still check out and the code is verified again there.");
+    } finally {
+      setCheckingCode(false);
+    }
+  }
 
   function addToCart(productId: string) {
     setCart((c) => addToCartLines(c, productId));
@@ -120,35 +173,77 @@ export default function ShopStorefront() {
     setCart((c) => setCartLineQty(c, productId, qty));
   }
 
-  /* Real order capture: one checkout call per cart line, fee broken out
-     honestly. The buyer pays the listed price; the 10% platform fee comes
-     out of the seller's cut. Card processing (Stripe Connect) is next —
-     the seller follows up to complete payment. */
+  /* Returning from the hosted payment page: verify the session with
+     the server — the paid panel below renders ONLY from a confirmed
+     payment, never from the redirect alone. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (!sessionId || params.get("checkout") !== "paid") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/storefronts/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data.paid === true) {
+          const lines = Array.isArray(data.lines) ? data.lines : [];
+          setOrderDone({
+            lines: lines.reduce((s: number, l: { quantity?: number }) => s + (l.quantity ?? 1), 0) || 1,
+            gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0,
+          });
+          setCart([]);
+          setCartOpen(true);
+        } else {
+          setOrderError("That payment hasn't confirmed yet — if you completed it, give it a moment and reopen your cart.");
+          setCartOpen(true);
+        }
+      } catch {
+        if (!cancelled) setOrderError("Your payment couldn't be confirmed just now — the order stays pending until it does.");
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Real card checkout: ONE call for the whole cart. The server prices
+     it from its own product rows, records the order as pending, and
+     answers the hosted payment page — the browser goes there to pay.
+     A free cart completes in place. Failure leaves the cart untouched. */
   async function placeOrder() {
     if (!shop || cartDetailed.length === 0) return;
     setPlacing(true);
     setOrderError(null);
     try {
-      let gross = 0, fee = 0, net = 0;
-      for (const l of cartDetailed) {
-        const res = await fetch("/api/storefronts/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shopId: shop.id,
-            productId: l.productId,
-            quantity: l.qty,
-            buyerEmail: buyerEmail.trim() || undefined,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Order failed.");
-        gross += data.gross_cents; fee += data.platform_fee_cents; net += data.seller_net_cents;
+      const res = await fetch("/api/storefronts/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId: shop.id,
+          items: cartDetailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
+          buyerEmail: buyerEmail.trim() || undefined,
+          ...(appliedCode ? { discountCode: appliedCode.code } : discountInput.trim() ? { discountCode: discountInput.trim() } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
+      if (data.free === true && data.paid === true) {
+        setOrderDone({ lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0 });
+        setCart([]);
+        return;
       }
-      setOrderDone({ lines: cartDetailed.length, gross, fee, net });
-      setCart([]);
+      const url = typeof data.url === "string" ? data.url : typeof data.checkoutUrl === "string" ? data.checkoutUrl : null;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      throw new Error(t("shop.errorOrderFailed"));
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Order failed. Try again.");
+      setOrderError(e instanceof Error ? e.message : t("shop.errorOrderFailedRetry"));
     } finally {
       setPlacing(false);
     }
@@ -164,10 +259,10 @@ export default function ShopStorefront() {
       ) : notFound || !shop ? (
         <main className="max-w-2xl mx-auto px-5 py-32 text-center">
           <Store className="w-12 h-12 mx-auto text-white/25" />
-          <h1 className="mt-6 text-3xl font-black">Shop not found</h1>
-          <p className="mt-3 text-white/50 text-sm">There's no storefront at <span className="font-mono text-amber-300">/shop/{handle}</span> — check the link or start your own shop.</p>
+          <h1 className="mt-6 text-3xl font-black">{t("shop.notFoundTitle")}</h1>
+          <p className="mt-3 text-white/50 text-sm">{t("shop.notFoundDescStart")} <span className="font-mono text-amber-300">/shop/{handle}</span> {t("shop.notFoundDescEnd")}</p>
           <Link href="/my-shop" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black">
-            <Store className="w-4 h-4" /> Start my shop
+            <Store className="w-4 h-4" /> {t("shop.startMyShop")}
           </Link>
         </main>
       ) : (
@@ -178,7 +273,7 @@ export default function ShopStorefront() {
             style={{ background: shop.banner_image_url ? undefined : `linear-gradient(135deg, ${shop.banner_color}, #000)` }}
           >
             {shop.banner_image_url && (
-              <img src={shop.banner_image_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+              <img src={shop.banner_image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
             <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14">
@@ -199,10 +294,10 @@ export default function ShopStorefront() {
                 <button
                   onClick={() => setCartOpen(true)}
                   className="relative shrink-0 rounded-xl border border-white/15 bg-black/60 backdrop-blur px-4 py-3 flex items-center gap-2 hover:bg-black/80 transition"
-                  aria-label="Open cart"
+                  aria-label={t("shop.openCartLabel")}
                 >
                   <ShoppingBag className="w-5 h-5" />
-                  <span className="text-sm font-bold hidden sm:inline">Cart</span>
+                  <span className="text-sm font-bold hidden sm:inline">{t("shop.cartLabel")}</span>
                   {cartCount > 0 && (
                     <span
                       className="absolute -top-2 -right-2 min-w-[22px] h-[22px] rounded-full text-[11px] font-black text-black flex items-center justify-center px-1"
@@ -219,9 +314,9 @@ export default function ShopStorefront() {
           {/* product grid */}
           <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
             {products.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
+              <div className={`rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
-                <p className="mt-4 text-white/50 text-sm">This shop is setting up — products are on the way.</p>
+                <p className="mt-4 text-white/50 text-sm">{t("shop.noProducts")}</p>
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -229,10 +324,15 @@ export default function ShopStorefront() {
                   <button
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className="text-left rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden hover:border-white/25 transition group"
+                    className={`relative text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
+                    {p.pinned_ad?.video_url && (
+                      <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+                        <Play className="h-3 w-3" /> {t("shop.ugcAd", "UGC ad")}
+                      </span>
+                    )}
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
+                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
                     ) : (
                       <div className="h-56 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                         <ShoppingBag className="w-10 h-10 text-white/20" />
@@ -240,15 +340,15 @@ export default function ShopStorefront() {
                     )}
                     <div className="p-4">
                       <div className="font-bold truncate">{p.name}</div>
-                      <div className="mt-1 font-black" style={{ color: accent }}>{centsToDisplay(p.price_cents)}</div>
+                      <div className="mt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
                     </div>
                   </button>
                 ))}
               </div>
             )}
-            <p className="mt-10 text-center text-xs text-white/30">
-              Powered by <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · Sellers keep 90% of every sale ·{" "}
-              <Link href="/storefronts" className="underline hover:text-white/60">Browse all shops</Link>
+            <p className="mt-10 text-center text-xs text-white/50">
+              {t("shop.poweredBy")} <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · {t("shop.sellersKeep")} ·{" "}
+              <Link href="/storefronts" className="underline hover:text-white/60">{t("shop.browseAllShops")}</Link>
             </p>
           </div>
         </main>
@@ -258,24 +358,36 @@ export default function ShopStorefront() {
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#0c0c0c] overflow-hidden"
+            className={`w-full max-w-lg rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/15 bg-[#0c0c0c]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
-              <img src={selected.image_url} alt={selected.name} className="h-64 w-full object-cover" />
+              <img src={selected.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={selected.name} className="h-64 w-full object-cover" />
             ) : (
               <div className="h-40 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                 <ShoppingBag className="w-10 h-10 text-white/20" />
               </div>
             )}
+            {selected.pinned_ad?.video_url && (
+              <div className="px-6 pt-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-white/40">{t("shop.watchTheAd", "Watch the ad")}</p>
+                <video
+                  src={selected.pinned_ad.video_url}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="mt-2 aspect-[9/16] max-h-80 w-full rounded-xl bg-black object-contain"
+                />
+              </div>
+            )}
             <div className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-xl font-black">{selected.name}</h2>
-                <button className="text-white/40 hover:text-white" onClick={() => setSelected(null)} aria-label="Close">
+                <button className="text-white/40 hover:text-white" onClick={() => setSelected(null)} aria-label={t("shop.closeLabel")}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{centsToDisplay(selected.price_cents)}</div>
+              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}
@@ -284,7 +396,7 @@ export default function ShopStorefront() {
                 style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 onClick={() => { addToCart(selected.id); setSelected(null); setCartOpen(true); }}
               >
-                Add to cart
+                {t("shop.addToCart")}
               </button>
             </div>
           </div>
@@ -296,23 +408,23 @@ export default function ShopStorefront() {
         <div className="fixed inset-0 z-50" onClick={() => setCartOpen(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <aside
-            className="absolute right-0 top-0 h-full w-full max-w-md bg-[#0c0c0c] border-l border-white/10 p-6 flex flex-col"
+            className={`absolute right-0 top-0 h-full w-full max-w-md border-l p-6 flex flex-col ${isLight ? "border-[#C9A84C]/40 bg-[#FCF7EA]" : "bg-[#0c0c0c] border-white/10"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">Your cart {cartCount > 0 && <span className="text-white/40 font-normal">({cartCount})</span>}</h2>
-              <button className="text-white/40 hover:text-white" onClick={() => setCartOpen(false)} aria-label="Close cart">
+              <h2 className="text-lg font-black">{t("shop.yourCart")} {cartCount > 0 && <span className="text-white/40 font-normal">({cartCount})</span>}</h2>
+              <button className="text-white/40 hover:text-white" onClick={() => setCartOpen(false)} aria-label={t("shop.closeCartLabel")}>
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="mt-4 flex-1 overflow-y-auto space-y-3">
               {cartDetailed.length === 0 ? (
-                <p className="text-sm text-white/40 text-center py-12">Your cart is empty.</p>
+                <p className="text-sm text-white/40 text-center py-12">{t("shop.cartEmpty")}</p>
               ) : (
                 cartDetailed.map((l) => (
                   <div key={l.productId} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
                     {l.product!.image_url ? (
-                      <img src={l.product!.image_url} alt={l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                      <img src={l.product!.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="h-14 w-14 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">
                         <ShoppingBag className="w-5 h-5 text-white/25" />
@@ -320,16 +432,16 @@ export default function ShopStorefront() {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold truncate">{l.product!.name}</div>
-                      <div className="text-sm font-bold" style={{ color: accent }}>{centsToDisplay(l.product!.price_cents)}</div>
+                      <div className="text-sm font-bold" style={{ color: accent }}>{priceLabel(l.product!.price_cents)}</div>
                       <div className="mt-1.5 flex items-center gap-2">
-                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label="Decrease">
+                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label={t("shop.decreaseLabel")}>
                           <Minus className="w-3.5 h-3.5" />
                         </button>
                         <span className="text-sm font-bold w-6 text-center">{l.qty}</span>
-                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty + 1)} aria-label="Increase">
+                        <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty + 1)} aria-label={t("shop.increaseLabel")}>
                           <Plus className="w-3.5 h-3.5" />
                         </button>
-                        <button className="ml-auto text-red-400/70 hover:text-red-400" onClick={() => setQty(l.productId, 0)} aria-label="Remove">
+                        <button className="ml-auto text-red-400/70 hover:text-red-400" onClick={() => setQty(l.productId, 0)} aria-label={t("shop.removeItemLabel")}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -341,14 +453,40 @@ export default function ShopStorefront() {
             {cartDetailed.length > 0 && !orderDone && (
               <div className="mt-4 border-t border-white/10 pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/50">Total</span>
-                  <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
+                  <span className="text-white/50">{t("shop.totalLabel")}</span>
+                  {appliedCode ? (
+                    <span className="text-lg font-black">
+                      <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal)}</span>
+                      {centsToDisplay(discountedTotal)}
+                    </span>
+                  ) : (
+                    <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
+                  )}
                 </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={discountInput}
+                    onChange={(e) => { setDiscountInput(e.target.value); setAppliedCode(null); setCodeMsg(null); }}
+                    placeholder="Discount code (optional)"
+                    aria-label="Discount code"
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                  />
+                  <button
+                    onClick={applyCode}
+                    disabled={checkingCode || !discountInput.trim()}
+                    className="shrink-0 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
+                  >
+                    {checkingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </button>
+                </div>
+                {codeMsg && (
+                  <p className={`mt-2 text-xs ${appliedCode ? "text-emerald-300" : "text-red-300"}`}>{codeMsg}</p>
+                )}
                 <input
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   type="email"
-                  placeholder="Email for order follow-up"
+                  placeholder={t("shop.emailPlaceholder")}
                   className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
                 />
                 {orderError && <p className="mt-2 text-xs text-red-300">{orderError}</p>}
@@ -358,12 +496,10 @@ export default function ShopStorefront() {
                   className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                   style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : `Place order — ${centsToDisplay(cartTotal)}`}
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(discountedTotal) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/35">
-                  Order capture — card processing via Stripe Connect is coming soon; the seller
-                  follows up to complete payment. You pay the listed price; Bow Down Visuals
-                  takes a {feePct}% platform fee from the seller's cut.
+                  {t("shop.checkoutNote", { feePct })}
                 </p>
               </div>
             )}
@@ -372,15 +508,15 @@ export default function ShopStorefront() {
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
                   <Check className="h-6 w-6 text-emerald-300" />
                 </div>
-                <h3 className="mt-3 font-black">Order recorded!</h3>
-                <p className="mt-1 text-xs text-white/50">{orderDone.lines} item{orderDone.lines === 1 ? "" : "s"} — the seller will follow up to complete payment.</p>
+                <h3 className="mt-3 font-black">{t("shop.orderRecorded")}</h3>
+                <p className="mt-1 text-xs text-white/50">{t("shop.orderRecordedDesc", { count: orderDone.lines })}</p>
                 <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs">
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">Order total</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">Platform fee ({feePct}%)</span><span>{centsToDisplay(orderDone.fee)}</span></div>
-                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">Seller receives</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.orderTotalLabel")}</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.platformFeeLabel", { feePct })}</span><span>{centsToDisplay(orderDone.fee)}</span></div>
+                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">{t("shop.sellerReceivesLabel")}</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
                 </div>
                 <button className="mt-3 text-xs font-bold text-white/50 hover:text-white" onClick={() => { setOrderDone(null); setCartOpen(false); }}>
-                  Continue shopping
+                  {t("shop.continueShopping")}
                 </button>
               </div>
             )}
@@ -390,7 +526,7 @@ export default function ShopStorefront() {
 
       <div className="max-w-6xl mx-auto px-5 md:px-8 pb-6">
         <Link href="/my-shop" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white">
-          <ArrowLeft className="w-4 h-4" /> Open my own shop
+          <ArrowLeft className="w-4 h-4" /> {t("shop.openMyShop")}
         </Link>
       </div>
 

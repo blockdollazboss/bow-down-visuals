@@ -7,11 +7,14 @@ import {
   monthGridDays,
   movePostToDate,
   normalizeHashtags,
+  planReschedule,
+  postingAccountStates,
   prettyDateTime,
   scheduleCost,
   timeLocal,
   todayLocal,
   toLocalDate,
+  type PostingAccountLike,
   type ScheduledPostShape,
 } from "./scheduler";
 
@@ -30,6 +33,7 @@ function post(overrides: Partial<ScheduledPostShape> = {}): ScheduledPostShape {
     attempts: 1,
     lastError: null,
     creditsCharged: 1,
+    releaseId: null,
     results: [],
     createdAt: "2026-09-25T00:00:00.000Z",
     updatedAt: "2026-09-25T00:00:00.000Z",
@@ -90,6 +94,89 @@ describe("movePostToDate", () => {
   it("returns null for bad input", () => {
     expect(movePostToDate("not-a-date", "2026-10-02")).toBeNull();
     expect(movePostToDate(new Date().toISOString(), "10/02/2026")).toBeNull();
+  });
+});
+
+describe("planReschedule", () => {
+  const at = (date: string, time: string) => combineLocalDateTime(date, time)!.toISOString();
+  const nowSep27Noon = combineLocalDateTime("2026-09-27", "12:00")!.getTime();
+
+  it("plans a move to the target day, keeping the local time-of-day", () => {
+    const plan = planReschedule(post({ scheduledAt: at("2026-09-28", "18:30") }), "2026-10-02", nowSep27Noon);
+    expect(plan.kind).toBe("move");
+    if (plan.kind === "move") {
+      const d = new Date(plan.scheduledAt);
+      expect(toLocalDate(d)).toBe("2026-10-02");
+      expect(timeLocal(d)).toBe("18:30");
+    }
+  });
+
+  it("is a noop when dropped on the day the post already sits on", () => {
+    expect(planReschedule(post({ scheduledAt: at("2026-09-28", "18:30") }), "2026-09-28", nowSep27Noon))
+      .toEqual({ kind: "noop" });
+  });
+
+  it("refuses a move that would land in the past (the server's 60-second rule)", () => {
+    const now = combineLocalDateTime("2026-09-28", "17:59")!.getTime() + 30_000;
+    expect(planReschedule(post({ scheduledAt: at("2026-09-28", "18:30") }), "2026-09-27", now))
+      .toEqual({ kind: "past" });
+    /* Dropping tomorrow's 9am post onto today at 3pm also lands in the past. */
+    const nowAfternoon = combineLocalDateTime("2026-09-28", "15:00")!.getTime();
+    expect(planReschedule(post({ scheduledAt: at("2026-09-29", "09:00") }), "2026-09-28", nowAfternoon))
+      .toEqual({ kind: "past" });
+  });
+
+  it("is invalid without a scheduled time or with an unparseable target", () => {
+    expect(planReschedule(post({ scheduledAt: null }), "2026-10-02", nowSep27Noon)).toEqual({ kind: "invalid" });
+    expect(planReschedule(post({ scheduledAt: at("2026-09-28", "18:30") }), "10/02/2026", nowSep27Noon))
+      .toEqual({ kind: "invalid" });
+  });
+});
+
+describe("postingAccountStates", () => {
+  const acct = (over: Partial<PostingAccountLike> = {}): PostingAccountLike => ({
+    platform: "instagram",
+    username: "trgdy",
+    pageName: null,
+    usernameMasked: "tr•••",
+    expired: false,
+    ...over,
+  });
+
+  it("reports all three platforms in order, none connected by default", () => {
+    const states = postingAccountStates([]);
+    expect(states.map((s) => s.platform)).toEqual(["instagram", "tiktok", "facebook"]);
+    expect(states.every((s) => s.state === "none" && s.accountLabel === null)).toBe(true);
+  });
+
+  it("marks a usable account connected, labeled by its masked username", () => {
+    const states = postingAccountStates([acct()]);
+    expect(states[0]).toEqual({ platform: "instagram", state: "connected", accountLabel: "tr•••" });
+  });
+
+  it("prefers the usable account when an expired twin also exists", () => {
+    const states = postingAccountStates([
+      acct({ usernameMasked: "old•••", expired: true }),
+      acct({ usernameMasked: "new•••", expired: false }),
+    ]);
+    expect(states[0]).toEqual({ platform: "instagram", state: "connected", accountLabel: "new•••" });
+  });
+
+  it("calls an all-expired platform expired — never 'none'", () => {
+    const states = postingAccountStates([acct({ expired: true })]);
+    expect(states[0]).toEqual({ platform: "instagram", state: "expired", accountLabel: "tr•••" });
+  });
+
+  it("labels a Facebook account by its page name when it has one", () => {
+    const states = postingAccountStates([
+      acct({ platform: "facebook", pageName: "Bow Down Visuals", usernameMasked: null }),
+    ]);
+    expect(states[2]).toEqual({ platform: "facebook", state: "connected", accountLabel: "Bow Down Visuals" });
+  });
+
+  it("falls back to the raw username when no masked form exists", () => {
+    const states = postingAccountStates([acct({ platform: "tiktok", usernameMasked: null, username: "trgdy" })]);
+    expect(states[1]).toEqual({ platform: "tiktok", state: "connected", accountLabel: "trgdy" });
   });
 });
 

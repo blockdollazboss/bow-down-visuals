@@ -29,6 +29,11 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
+    if (f && f.size > 25 * 1024 * 1024) {
+      setError("That file is over 25 MB — pick a smaller one.");
+      e.target.value = "";
+      return;
+    }
     setFile(f);
     setError(null);
     if (onFileUrl) onFileUrl(f ? URL.createObjectURL(f) : null);

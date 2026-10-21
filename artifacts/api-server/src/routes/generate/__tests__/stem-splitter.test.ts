@@ -21,14 +21,25 @@ vi.mock("../../../lib/objectStorage", () => ({
 
 import {
   STEM_SPLITTER_CREDIT_COST,
+  STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST,
+  STEM_PRO_DEMUCS_MODEL,
+  STEM_SPLIT_MODES,
   STEM_KEYS,
+  PRO_STEM_KEYS,
+  ALL_STEM_KEYS,
   STEM_LABELS,
+  ALL_STEM_LABELS,
+  parseStemSplitMode,
+  parseStemTier,
+  jobKeySet,
   buildDemucsArgs,
   demucsStemDir,
   stemFilePath,
   validateStemLevels,
   buildRemixFilter,
   buildRemixArgs,
+  buildInstrumentalFilter,
+  buildInstrumentalMixArgs,
   runStemJob,
   __clearStemJobs,
   type StemJob,
@@ -47,10 +58,14 @@ function makeJob(overrides: Partial<StemJob> = {}): StemJob {
     id: "job-123",
     userId: "user-456",
     status: "queued",
+    mode: "full",
+    pro: false,
     sourceName: "track.mp3",
     durationSeconds: null,
     stemUrls: null,
     stemRefs: null,
+    instrumentalUrl: null,
+    instrumentalRef: null,
     error: null,
     creditsCharged: STEM_SPLITTER_CREDIT_COST,
     createdAt: Date.now(),
@@ -64,6 +79,46 @@ describe("STEM_SPLITTER_CREDIT_COST", () => {
   });
 });
 
+describe("STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST", () => {
+  it("prices the instrumental preset at 3 credits (matches the vocals preset)", () => {
+    expect(STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST).toBe(300);
+  });
+  it("is cheaper than the full 4-stem split", () => {
+    expect(STEM_SPLITTER_INSTRUMENTAL_CREDIT_COST).toBeLessThan(STEM_SPLITTER_CREDIT_COST);
+  });
+});
+
+describe("STEM_SPLIT_MODES / parseStemSplitMode", () => {
+  it("lists full and instrumental", () => {
+    expect(STEM_SPLIT_MODES).toEqual(["full", "instrumental"]);
+  });
+  it("parses both modes and rejects everything else", () => {
+    expect(parseStemSplitMode("full")).toBe("full");
+    expect(parseStemSplitMode("instrumental")).toBe("instrumental");
+    expect(parseStemSplitMode("vocals")).toBeNull();
+    expect(parseStemSplitMode(undefined)).toBeNull();
+    expect(parseStemSplitMode(42)).toBeNull();
+  });
+});
+
+describe("buildInstrumentalFilter / buildInstrumentalMixArgs", () => {
+  it("sums exactly drums, bass, other — vocals are never in the mix", () => {
+    const filter = buildInstrumentalFilter();
+    expect(filter).toContain("amix=inputs=3");
+    expect(filter).toContain("normalize=0");
+    expect(filter).toContain("alimiter=limit=0.95");
+  });
+  it("maps the three instrumental stems as inputs in order, then the filter and output", () => {
+    const args = buildInstrumentalMixArgs("/tmp/stemdir", "/tmp/instrumental.wav");
+    expect(args.slice(0, 4)).toEqual(["-y", "-hide_banner", "-loglevel", "error"]);
+    expect(args).toContain("/tmp/stemdir/drums.wav");
+    expect(args).toContain("/tmp/stemdir/bass.wav");
+    expect(args).toContain("/tmp/stemdir/other.wav");
+    expect(args).not.toContain("/tmp/stemdir/vocals.wav");
+    expect(args[args.length - 1]).toBe("/tmp/instrumental.wav");
+  });
+});
+
 describe("STEM_KEYS / STEM_LABELS", () => {
   it("covers exactly the 4 Demucs stems", () => {
     expect(STEM_KEYS).toEqual(["vocals", "drums", "bass", "other"]);
@@ -71,6 +126,110 @@ describe("STEM_KEYS / STEM_LABELS", () => {
 
   it("labels the 'other' stem honestly as melody/other", () => {
     expect(STEM_LABELS.other).toMatch(/other/i);
+  });
+});
+
+describe("Pro tier — key sets and labels", () => {
+  it("adds exactly guitar and piano on top of the classic four", () => {
+    expect(PRO_STEM_KEYS).toEqual(["guitar", "piano"]);
+    expect(ALL_STEM_KEYS).toEqual(["vocals", "drums", "bass", "other", "guitar", "piano"]);
+  });
+
+  it("labels every key in the full set", () => {
+    expect(ALL_STEM_LABELS.guitar).toBe("Guitar");
+    expect(ALL_STEM_LABELS.piano).toBe("Piano");
+    for (const key of ALL_STEM_KEYS) expect(ALL_STEM_LABELS[key]).toBeTruthy();
+  });
+
+  it("uses the 6-stem model by default", () => {
+    expect(STEM_PRO_DEMUCS_MODEL).toBe("htdemucs_6s");
+  });
+
+  it("jobKeySet follows the job's tier", () => {
+    expect(jobKeySet({ pro: false })).toEqual(STEM_KEYS);
+    expect(jobKeySet({ pro: true })).toEqual(ALL_STEM_KEYS);
+  });
+});
+
+describe("parseStemTier", () => {
+  it("defaults to standard when omitted", () => {
+    expect(parseStemTier(undefined)).toBe("standard");
+    expect(parseStemTier(null)).toBe("standard");
+    expect(parseStemTier("")).toBe("standard");
+    expect(parseStemTier("standard")).toBe("standard");
+  });
+  it("parses pro and rejects everything else", () => {
+    expect(parseStemTier("pro")).toBe("pro");
+    expect(parseStemTier("6")).toBeNull();
+    expect(parseStemTier("PRO")).toBeNull();
+    expect(parseStemTier(42)).toBeNull();
+  });
+});
+
+describe("Pro Demucs args / output layout", () => {
+  it("runs the 6-stem model through the same CLI shape — never --two-stems", () => {
+    const args = buildDemucsArgs("/tmp/song.mp3", "/tmp/out", STEM_PRO_DEMUCS_MODEL);
+    expect(args).toEqual([
+      "-m", "demucs",
+      "-n", "htdemucs_6s",
+      "-d", "cpu",
+      "--out", "/tmp/out",
+      "/tmp/song.mp3",
+    ]);
+    expect(args).not.toContain("--two-stems");
+  });
+
+  it("places guitar/piano files under the model dir like the classic stems", () => {
+    const dir = demucsStemDir("/tmp/out", "htdemucs_6s", "/tmp/work/input.mp3");
+    expect(dir).toBe("/tmp/out/htdemucs_6s/input");
+    expect(stemFilePath(dir, "guitar")).toBe("/tmp/out/htdemucs_6s/input/guitar.wav");
+    expect(stemFilePath(dir, "piano")).toBe("/tmp/out/htdemucs_6s/input/piano.wav");
+  });
+});
+
+describe("validateStemLevels — Pro key set", () => {
+  const proLevels = { vocals: 1, drums: 1, bass: 1, other: 1, guitar: 0.5, piano: 2 };
+
+  it("accepts a full 6-key map against ALL_STEM_KEYS", () => {
+    expect(validateStemLevels(proLevels, ALL_STEM_KEYS)).toEqual(proLevels);
+  });
+
+  it("rejects a Pro map missing guitar or piano", () => {
+    expect(validateStemLevels({ vocals: 1, drums: 1, bass: 1, other: 1 }, ALL_STEM_KEYS)).toBeNull();
+    expect(validateStemLevels({ ...proLevels, guitar: 3 }, ALL_STEM_KEYS)).toBeNull();
+  });
+
+  it("the default (classic) validation ignores extra Pro keys entirely", () => {
+    expect(validateStemLevels(proLevels)).toEqual({
+      vocals: 1, drums: 1, bass: 1, other: 1,
+    });
+  });
+});
+
+describe("buildRemixFilter / buildRemixArgs — Pro key set", () => {
+  const proLevels = { vocals: 1, drums: 0.5, bass: 1, other: 1, guitar: 0.75, piano: 0 };
+
+  it("sums all six stems with per-stem volume and no normalization", () => {
+    const filter = buildRemixFilter(proLevels, ALL_STEM_KEYS);
+    expect(filter).toContain("[4:a]volume=0.75[s4]");
+    expect(filter).toContain("[5:a]volume=0[s5]");
+    expect(filter).toContain("amix=inputs=6");
+    expect(filter).toContain("normalize=0");
+    expect(filter).toContain("alimiter");
+  });
+
+  it("maps the six stem files as inputs in stem order", () => {
+    const paths = {
+      vocals: "/w/vocals.wav", drums: "/w/drums.wav", bass: "/w/bass.wav",
+      other: "/w/other.wav", guitar: "/w/guitar.wav", piano: "/w/piano.wav",
+    };
+    const args = buildRemixArgs(paths, proLevels, "/w/remix.wav", ALL_STEM_KEYS);
+    const inputs = args.filter((_, i) => args[i - 1] === "-i");
+    expect(inputs).toEqual([
+      "/w/vocals.wav", "/w/drums.wav", "/w/bass.wav",
+      "/w/other.wav", "/w/guitar.wav", "/w/piano.wav",
+    ]);
+    expect(args[args.length - 1]).toBe("/w/remix.wav");
   });
 });
 
@@ -160,6 +319,17 @@ describe("runStemJob failure path", () => {
     await runStemJob(job, Buffer.from("not-real-audio"), "track.mp3");
     expect(job.status).toBe("failed");
     expect(job.error).toBeTruthy();
+    expect(mockRefund).toHaveBeenCalledWith(
+      job.userId,
+      STEM_SPLITTER_CREDIT_COST,
+      expect.objectContaining({ action: expect.stringContaining("Refund") }),
+    );
+  });
+
+  it("a failed Pro job refunds the same 400 — no tier surcharge, ever", async () => {
+    const job = makeJob({ pro: true });
+    await runStemJob(job, Buffer.from("not-real-audio"), "track.mp3");
+    expect(job.status).toBe("failed");
     expect(mockRefund).toHaveBeenCalledWith(
       job.userId,
       STEM_SPLITTER_CREDIT_COST,

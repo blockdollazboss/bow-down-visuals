@@ -321,10 +321,7 @@ function retryAfterSeconds(target: Date): number {
   return Math.max(1, Math.ceil((target.getTime() - Date.now()) / 1000));
 }
 
-async function resolveDisplayName(
-  userId: string,
-  email: string | undefined,
-): Promise<string> {
+async function resolveDisplayName(userId: string): Promise<string> {
   try {
     const supabase = getSupabaseAdmin();
     const { data } = await supabase
@@ -335,12 +332,9 @@ async function resolveDisplayName(
     const name = (data as { display_name?: string } | null)?.display_name?.trim();
     if (name) return name;
   } catch {
-    /* fall through to email fallback */
+    /* fall through to anonymous fallback */
   }
-  if (email) {
-    const local = email.split("@")[0]?.trim();
-    if (local) return local;
-  }
+  // Privacy: never derive a display name from the email address.
   return "Anonymous Shark";
 }
 
@@ -452,7 +446,7 @@ router.post(
          matches (winner_user_id IS NULL flips on the first).
          `success` is logged only after the claim resolves, so it means
          "actually won the jackpot", not merely "entered the right code". */
-      const winnerDisplayName = await resolveDisplayName(userId, req.userEmail);
+      const winnerDisplayName = await resolveDisplayName(userId);
       const now = new Date();
       const claimRes = await db.execute(sql`
         UPDATE cheat_code_events

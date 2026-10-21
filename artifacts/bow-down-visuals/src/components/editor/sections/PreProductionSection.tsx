@@ -295,7 +295,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
               {generating ? "Boarding…" : "Generate Storyboard (100 Visual Bucs)"}
             </Button>
             {!pp.bible.locked && pp.storyboard.length > 0 && (
-              <span className="text-[11px] text-amber-300/70">Tip: lock your bible first so frames stay on-vision.</span>
+              <span className="text-[11px] text-amber-300">Tip: lock your bible first so frames stay on-vision.</span>
             )}
           </div>
 
@@ -416,7 +416,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
               </Button>
             </div>
             {!pp.bible.locked && (
-              <p className="text-[11px] text-amber-300/70">Tip: lock your bible so assets match the video's world.</p>
+              <p className="text-[11px] text-amber-300">Tip: lock your bible so assets match the video's world.</p>
             )}
           </div>
 
@@ -460,7 +460,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
                     </div>
                   )}
                   <div className="px-2 py-1.5 flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C9A84C]/80">{a.category}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#C9A84C]">{a.category}</span>
                     {a.imageUrl && (
                       <button onClick={() => removeAsset(a.id)} className="text-white/25 hover:text-red-300">
                         <Trash2 className="w-3 h-3" />

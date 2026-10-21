@@ -12,9 +12,10 @@
  *   When master player is paused/scrubbing, all CSS animations freeze instantly.
  */
 import type React from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
 
-/* ─── Watermark asset (transparent PNG) ─────────────────────────────────── */
-const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.webp`;
+/* ─── Watermark asset (theme-aware — use getDefaultWatermarkUrl(isLight)) ── */
 
 /* ─── Music Video defaults — clearly visible, never 100% ────────────────── */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
@@ -26,6 +27,20 @@ export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
   "Dust":              25,
   "Animated Waveform": 45,
   "Logo / Watermark":  30,
+  "Snow":              30,
+  "Confetti":          40,
+  "Fireworks":         40,
+  "God Rays":          30,
+  "Anamorphic Flares": 30,
+  "Bokeh":             30,
+  "Scan Lines":        25,
+  "Hologram":          35,
+  "Kaleidoscope":      35,
+  "Mirror":            30,
+  "Neon Frame":        30,
+  "VHS Tracking":      35,
+  "Datamosh-lite":     35,
+  "Tilt-Shift":        30,
 };
 
 /* ─── Per-mode intensity presets ─────────────────────────────────────────── */
@@ -33,18 +48,34 @@ export const STRENGTH_PRESETS: Record<string, Record<string, number>> = {
   subtle: {
     "Light Leaks": 8, "Lens Flare": 8, "Smoke": 8,
     "Rain": 10, "Sparks": 6, "Dust": 6, "Animated Waveform": 20,
+    "Snow": 12, "Confetti": 14, "Fireworks": 12, "God Rays": 10,
+    "Anamorphic Flares": 10, "Bokeh": 10, "Scan Lines": 10, "Hologram": 12,
+    "Kaleidoscope": 12, "Mirror": 10, "Neon Frame": 10, "VHS Tracking": 12,
+    "Datamosh-lite": 12, "Tilt-Shift": 10,
   },
   visible: {
     "Light Leaks": 25, "Lens Flare": 22, "Smoke": 20,
     "Rain": 25, "Sparks": 25, "Dust": 18, "Animated Waveform": 35,
+    "Snow": 22, "Confetti": 28, "Fireworks": 28, "God Rays": 20,
+    "Anamorphic Flares": 20, "Bokeh": 20, "Scan Lines": 16, "Hologram": 24,
+    "Kaleidoscope": 24, "Mirror": 20, "Neon Frame": 20, "VHS Tracking": 24,
+    "Datamosh-lite": 24, "Tilt-Shift": 20,
   },
   "music-video": {
     "Light Leaks": 35, "Lens Flare": 30, "Smoke": 28,
     "Rain": 35, "Sparks": 35, "Dust": 25, "Animated Waveform": 45,
+    "Snow": 30, "Confetti": 40, "Fireworks": 40, "God Rays": 30,
+    "Anamorphic Flares": 30, "Bokeh": 30, "Scan Lines": 25, "Hologram": 35,
+    "Kaleidoscope": 35, "Mirror": 30, "Neon Frame": 30, "VHS Tracking": 35,
+    "Datamosh-lite": 35, "Tilt-Shift": 30,
   },
   heavy: {
     "Light Leaks": 55, "Lens Flare": 45, "Smoke": 45,
     "Rain": 55, "Sparks": 55, "Dust": 40, "Animated Waveform": 65,
+    "Snow": 50, "Confetti": 60, "Fireworks": 60, "God Rays": 50,
+    "Anamorphic Flares": 48, "Bokeh": 48, "Scan Lines": 40, "Hologram": 55,
+    "Kaleidoscope": 55, "Mirror": 48, "Neon Frame": 48, "VHS Tracking": 55,
+    "Datamosh-lite": 55, "Tilt-Shift": 50,
   },
 };
 
@@ -88,6 +119,65 @@ const KEYFRAMES = `
 @keyframes bdv-bar{
   0%,100%{ transform:scaleY(var(--h1)) }
   50%    { transform:scaleY(var(--h2)) }
+}
+@keyframes bdv-snow{
+  0%  { transform:translate(0,-12%); opacity:1   }
+  50% { transform:translate(var(--swx),52%) }
+  100%{ transform:translate(0,115%);  opacity:0   }
+}
+@keyframes bdv-confetti{
+  0%  { transform:translateY(-10%) rotate(0deg);   opacity:1 }
+  100%{ transform:translateY(120%) rotate(560deg); opacity:0 }
+}
+@keyframes bdv-firework{
+  0%  { transform:translate(0,0) scale(1.6);               opacity:1 }
+  60% { opacity:0.7 }
+  100%{ transform:translate(var(--dx),var(--dy)) scale(0.05); opacity:0 }
+}
+@keyframes bdv-rays{
+  0%,100%{ transform:rotate(-9deg) scale(1.15); opacity:1   }
+  50%    { transform:rotate(9deg)  scale(1.25);  opacity:0.72 }
+}
+@keyframes bdv-bokeh{
+  0%  { transform:translateY(8%)  scale(1);    opacity:0 }
+  20% { opacity:1 }
+  85% { opacity:0.75 }
+  100%{ transform:translateY(-95%) scale(1.35); opacity:0 }
+}
+@keyframes bdv-scan-drift{
+  0%  { background-position-y:0px }
+  100%{ background-position-y:8px }
+}
+@keyframes bdv-holo-flicker{
+  0%,100%{ opacity:1    }
+  8%     { opacity:0.55 }
+  12%    { opacity:1    }
+  46%    { opacity:0.70 }
+  52%    { opacity:1    }
+}
+@keyframes bdv-holo-scan{
+  0%  { top:-12%; opacity:1 }
+  88% { opacity:1 }
+  100%{ top:112%; opacity:0 }
+}
+@keyframes bdv-prism{
+  0%  { transform:rotate(0deg)   scale(1.25); filter:hue-rotate(0deg)   }
+  100%{ transform:rotate(360deg) scale(1.25); filter:hue-rotate(360deg) }
+}
+@keyframes bdv-neon-pulse{
+  0%,100%{ opacity:1    }
+  50%    { opacity:0.55 }
+}
+@keyframes bdv-tracking{
+  0%  { top:-14%; opacity:1 }
+  88% { opacity:1 }
+  100%{ top:112%; opacity:0 }
+}
+@keyframes bdv-datamosh{
+  0%,100%{ transform:translateX(0) }
+  25%    { transform:translateX(var(--jx)) }
+  50%    { transform:translateX(calc(var(--jx) * -1)) }
+  75%    { transform:translateX(var(--jx)) }
 }
 `;
 
@@ -254,6 +344,435 @@ function DustEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolea
           />
         );
       })}
+    </div>
+  );
+}
+
+/* ══════════════════ Snow ══════════════════════════════════════════════════ */
+function SnowEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const N = 60;
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="snow">
+      {Array.from({ length: N }, (_, i) => {
+        const sz = 2 + dr(i * 3) * 4.5;
+        const swx = Math.round((dr(i * 7) - 0.5) * 90);
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `${dr(i * 5) * 98}%`,
+              top: "-6%",
+              width: `${sz}px`,
+              height: `${sz}px`,
+              background: `rgba(${225 + Math.round(dr(i * 11) * 30)},${235 + Math.round(dr(i * 13) * 20)},255,${0.55 + dr(i * 17) * 0.45})`,
+              borderRadius: "50%",
+              filter: "blur(0.6px)",
+              "--swx": `${swx}px`,
+              animationName: "bdv-snow",
+              animationDuration: `${3 + dr(i * 19) * 5.5}s`,
+              animationDelay: `${-dr(i * 23) * 8}s`,
+              animationTimingFunction: "linear",
+              animationIterationCount: "infinite",
+              animationPlayState: playState,
+            } as React.CSSProperties}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ══════════════════ Confetti ══════════════════════════════════════════════ */
+function ConfettiEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const palette = ["#C9A84C", "#FF5DA2", "#4FD8FF", "#7CFF6B", "#FF8A3D", "#FFFFFF"];
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="confetti">
+      {Array.from({ length: 46 }, (_, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${dr(i * 5) * 96}%`,
+            top: "-8%",
+            width: `${5 + dr(i * 3) * 5}px`,
+            height: `${8 + dr(i * 7) * 7}px`,
+            background: palette[i % palette.length],
+            borderRadius: "1px",
+            animationName: "bdv-confetti",
+            animationDuration: `${2.2 + dr(i * 11) * 2.4}s`,
+            animationDelay: `${-dr(i * 13) * 4.6}s`,
+            animationTimingFunction: "linear",
+            animationIterationCount: "infinite",
+            animationPlayState: playState,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════ Fireworks ═════════════════════════════════════════════ */
+function FireworksEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const bursts = [
+    { x: 18, y: 24, r: 255, g: 196, b: 70 },
+    { x: 62, y: 16, r: 120, g: 220, b: 255 },
+    { x: 42, y: 32, r: 255, g: 110, b: 160 },
+    { x: 80, y: 32, r: 190, g: 255, b: 150 },
+  ];
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="fireworks">
+      {bursts.map((b, bi) => (
+        <div key={bi} style={{ position: "absolute", left: `${b.x}%`, top: `${b.y}%` }}>
+          {/* Launch flash */}
+          <div style={{
+            position: "absolute", left: "-14px", top: "-14px", width: "28px", height: "28px",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(${b.r},${b.g},${b.b},0.55) 45%, transparent 70%)`,
+            filter: "blur(1px)",
+            animationName: "bdv-flare-pulse",
+            animationDuration: "1.5s",
+            animationDelay: `${-bi * 0.38}s`,
+            animationTimingFunction: "ease-in-out",
+            animationIterationCount: "infinite",
+            animationPlayState: playState,
+          }} />
+          {Array.from({ length: 18 }, (_, i) => {
+            const idx = bi * 31 + i;
+            const angle = (i / 18) * 2 * Math.PI + dr(idx * 3) * 0.6;
+            const dist = 45 + dr(idx * 7) * 110;
+            const sz = 2 + dr(idx * 11) * 3.5;
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  left: "-3px", top: "-3px",
+                  width: `${sz}px`, height: `${sz}px`,
+                  borderRadius: "50%",
+                  background: `rgb(${b.r},${b.g},${b.b})`,
+                  boxShadow: `0 0 ${sz * 2.5}px ${sz * 0.8}px rgba(${b.r},${b.g},${b.b},0.8)`,
+                  "--dx": `${Math.round(Math.cos(angle) * dist)}px`,
+                  "--dy": `${Math.round(Math.sin(angle) * dist)}px`,
+                  animationName: "bdv-firework",
+                  animationDuration: `${1.0 + dr(idx * 13) * 0.9}s`,
+                  animationDelay: `${-bi * 0.55 - dr(idx * 17) * 1.4}s`,
+                  animationTimingFunction: "ease-out",
+                  animationIterationCount: "infinite",
+                  animationPlayState: playState,
+                } as React.CSSProperties}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════ God Rays ══════════════════════════════════════════════ */
+function GodRaysEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const, overflow: "hidden" }} data-effect="god-rays">
+      <div style={{
+        position: "absolute", inset: "-25%",
+        transformOrigin: "50% 0%",
+        background: "repeating-conic-gradient(from 0deg at 50% 0%, rgba(255,228,150,0.14) 0deg 5deg, transparent 5deg 11deg)",
+        animationName: "bdv-rays",
+        animationDuration: "14s",
+        animationTimingFunction: "ease-in-out",
+        animationIterationCount: "infinite",
+        animationPlayState: playState,
+      }} />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255,225,140,0.28), transparent 70%)",
+      }} />
+    </div>
+  );
+}
+
+/* ══════════════════ Anamorphic Flares ═════════════════════════════════════ */
+function AnamorphicFlaresEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const pulse = {
+    animationName: "bdv-flare-pulse",
+    animationTimingFunction: "ease-in-out",
+    animationIterationCount: "infinite",
+    animationPlayState: playState,
+  } as React.CSSProperties;
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="anamorphic-flares">
+      {/* Blue streak */}
+      <div style={{
+        ...pulse,
+        position: "absolute", top: "26%", left: "4%", right: "4%", height: "3px",
+        background: "linear-gradient(90deg, transparent, rgba(120,190,255,0.75) 25%, rgba(200,240,255,0.95) 50%, rgba(120,190,255,0.75) 75%, transparent)",
+        filter: "blur(1px)",
+        boxShadow: "0 0 18px 3px rgba(120,190,255,0.35)",
+        animationDuration: "3.2s",
+      }} />
+      <div style={{
+        position: "absolute", top: "26%", left: "64%", width: "10px", height: "10px",
+        transform: "translate(-50%,-50%)", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(220,245,255,1) 0%, rgba(120,190,255,0.6) 60%, transparent 70%)",
+      }} />
+      {/* Warm streak */}
+      <div style={{
+        ...pulse,
+        position: "absolute", top: "58%", left: "8%", right: "8%", height: "2px",
+        background: "linear-gradient(90deg, transparent, rgba(255,190,120,0.60) 30%, rgba(255,240,200,0.85) 52%, rgba(255,190,120,0.60) 72%, transparent)",
+        filter: "blur(1px)",
+        boxShadow: "0 0 14px 2px rgba(255,190,120,0.30)",
+        animationDuration: "4.1s",
+        animationDelay: "-1.7s",
+      }} />
+    </div>
+  );
+}
+
+/* ══════════════════ Bokeh ═════════════════════════════════════════════════ */
+function BokehEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const colors = ["255,210,130", "255,150,180", "150,210,255", "255,255,255", "200,160,255"];
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const }} data-effect="bokeh">
+      {Array.from({ length: 26 }, (_, i) => {
+        const c = colors[i % colors.length];
+        const sz = 14 + dr(i * 3) * 46;
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `${dr(i * 5) * 94}%`,
+              top: `${dr(i * 7) * 95}%`,
+              width: `${sz}px`,
+              height: `${sz}px`,
+              borderRadius: "50%",
+              background: `rgba(${c},0.50)`,
+              filter: "blur(7px)",
+              boxShadow: `0 0 ${sz * 0.8}px rgba(${c},0.35)`,
+              animationName: "bdv-bokeh",
+              animationDuration: `${6 + dr(i * 11) * 8}s`,
+              animationDelay: `${-dr(i * 13) * 12}s`,
+              animationTimingFunction: "ease-in-out",
+              animationIterationCount: "infinite",
+              animationPlayState: playState,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ══════════════════ Scan Lines ════════════════════════════════════════════ */
+function ScanLinesEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div
+      style={{
+        position: "absolute", inset: 0, opacity,
+        background: "repeating-linear-gradient(0deg, rgba(0,0,0,0.32) 0px, rgba(0,0,0,0.32) 1px, transparent 1px, transparent 4px)",
+        animationName: "bdv-scan-drift",
+        animationDuration: "0.9s",
+        animationTimingFunction: "linear",
+        animationIterationCount: "infinite",
+        animationPlayState: playState,
+      }}
+      data-effect="scan-lines"
+    />
+  );
+}
+
+/* ══════════════════ Hologram ══════════════════════════════════════════════ */
+function HologramEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const infinite = { animationTimingFunction: "linear", animationIterationCount: "infinite", animationPlayState: playState } as React.CSSProperties;
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const, overflow: "hidden" }} data-effect="hologram">
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "rgba(90,220,255,0.10)",
+        animationName: "bdv-holo-flicker",
+        animationDuration: "2.4s",
+        ...infinite,
+      }} />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "repeating-linear-gradient(0deg, rgba(140,240,255,0.16) 0 1px, transparent 1px 3px)",
+      }} />
+      <div style={{
+        position: "absolute", left: 0, right: 0, height: "10%", top: "-12%",
+        background: "linear-gradient(180deg, transparent, rgba(160,245,255,0.35), transparent)",
+        animationName: "bdv-holo-scan",
+        animationDuration: "3.4s",
+        ...infinite,
+      }} />
+    </div>
+  );
+}
+
+/* ══════════════════ Kaleidoscope ══════════════════════════════════════════ */
+function KaleidoscopeEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const, overflow: "hidden" }} data-effect="kaleidoscope">
+      <div style={{
+        position: "absolute", inset: "-30%",
+        background: "repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,90,160,0.10) 0deg 10deg, rgba(255,220,90,0.10) 10deg 20deg, rgba(90,220,255,0.10) 20deg 30deg, rgba(150,110,255,0.10) 30deg 40deg)",
+        animationName: "bdv-prism",
+        animationDuration: "26s",
+        animationTimingFunction: "linear",
+        animationIterationCount: "infinite",
+        animationPlayState: playState,
+      }} />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "radial-gradient(circle at 50% 50%, transparent 30%, rgba(255,255,255,0.06) 70%, transparent 100%)",
+      }} />
+    </div>
+  );
+}
+
+/* ══════════════════ Mirror ════════════════════════════════════════════════ */
+function MirrorEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, overflow: "hidden" }} data-effect="mirror">
+      {/* Center mirror glint */}
+      <div style={{
+        position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px",
+        transform: "translateX(-50%)",
+        background: "linear-gradient(180deg, transparent, rgba(255,244,200,0.85) 30%, rgba(255,244,200,0.85) 70%, transparent)",
+        boxShadow: "0 0 14px 2px rgba(255,230,150,0.45)",
+      }} />
+      {/* Sweeping sheen */}
+      <div style={{
+        position: "absolute", top: "-25%", left: "-35%", width: "34%", height: "155%",
+        background: "linear-gradient(135deg, transparent, rgba(255,255,255,0.20) 45%, rgba(255,255,255,0.35) 55%, transparent)",
+        mixBlendMode: "screen" as const,
+        animationName: "bdv-leak",
+        animationDuration: "5.4s",
+        animationTimingFunction: "ease-in-out",
+        animationIterationCount: "infinite",
+        animationPlayState: playState,
+      }} />
+    </div>
+  );
+}
+
+/* ══════════════════ Neon Frame (overlay) ══════════════════════════════════ */
+/* Named "Neon Frame" (not "Neon Glow") to avoid colliding with the "Neon Glow"
+ * filter effect — overlay + effect share the overlayIntensity key space. */
+function NeonFrameEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  const pulse = {
+    animationName: "bdv-neon-pulse",
+    animationDuration: "2.2s",
+    animationTimingFunction: "ease-in-out",
+    animationIterationCount: "infinite",
+    animationPlayState: playState,
+  } as React.CSSProperties;
+  const magenta = "#FF4FD8";
+  const cyan = "#3DE8FF";
+  const h: React.CSSProperties = { position: "absolute", left: "1.5%", right: "1.5%", height: "5px", borderRadius: "3px" };
+  const v: React.CSSProperties = { position: "absolute", top: "3%", bottom: "3%", width: "5px", borderRadius: "3px" };
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="neon-frame">
+      <div style={{ ...h, ...pulse, top: "2%", background: `linear-gradient(90deg, ${magenta}, ${cyan})`, boxShadow: "0 0 16px 3px rgba(255,79,216,0.55)" }} />
+      <div style={{ ...h, ...pulse, bottom: "2%", animationDelay: "-1.1s", background: `linear-gradient(90deg, ${cyan}, ${magenta})`, boxShadow: "0 0 16px 3px rgba(61,232,255,0.55)" }} />
+      <div style={{ ...v, ...pulse, left: "1%", animationDelay: "-0.55s", background: `linear-gradient(180deg, ${magenta}, ${cyan})`, boxShadow: "0 0 16px 3px rgba(255,79,216,0.45)" }} />
+      <div style={{ ...v, ...pulse, right: "1%", animationDelay: "-1.65s", background: `linear-gradient(180deg, ${cyan}, ${magenta})`, boxShadow: "0 0 16px 3px rgba(61,232,255,0.45)" }} />
+    </div>
+  );
+}
+
+/* ══════════════════ VHS Tracking ══════════════════════════════════════════ */
+function VhsTrackingEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, overflow: "hidden" }} data-effect="vhs-tracking">
+      <div style={{
+        position: "absolute", left: 0, right: 0, height: "9%", top: "-14%",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.12) 55%, rgba(120,200,255,0.30))",
+        filter: "blur(2px)",
+        boxShadow: "0 4px 18px rgba(150,220,255,0.35)",
+        animationName: "bdv-tracking",
+        animationDuration: "2.3s",
+        animationTimingFunction: "linear",
+        animationIterationCount: "infinite",
+        animationPlayState: playState,
+      }} />
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} style={{
+          position: "absolute", left: 0, right: 0, height: "2px",
+          top: `${12 + dr(i * 7) * 70}%`,
+          background: "rgba(255,255,255,0.35)",
+          filter: "blur(0.5px)",
+          animationName: "bdv-holo-flicker",
+          animationDuration: `${0.4 + dr(i * 3) * 0.5}s`,
+          animationTimingFunction: "linear",
+          animationIterationCount: "infinite",
+          animationPlayState: playState,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════ Datamosh-lite ═════════════════════════════════════════ */
+function DatamoshEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity, overflow: "hidden", mixBlendMode: "screen" as const }} data-effect="datamosh">
+      {Array.from({ length: 6 }, (_, i) => {
+        const c = i % 2 === 0 ? "255,70,90" : "70,220,255";
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute", left: "-6%", right: "-6%",
+              top: `${dr(i * 7) * 88}%`,
+              height: `${12 + dr(i * 11) * 30}px`,
+              background: `linear-gradient(90deg, rgba(${c},0.28), rgba(255,255,255,0.10) 50%, rgba(${c},0.28))`,
+              "--jx": `${Math.round(12 + dr(i * 13) * 34)}px`,
+              animationName: "bdv-datamosh",
+              animationDuration: `${0.8 + dr(i * 5) * 0.9}s`,
+              animationTimingFunction: "steps(4, end)",
+              animationIterationCount: "infinite",
+              animationPlayState: playState,
+            } as React.CSSProperties}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ══════════════════ Tilt-Shift ════════════════════════════════════════════ */
+function TiltShiftEffect({ opacity }: { opacity: number; isPlaying: boolean }) {
+  const band = (pos: "top" | "bottom"): React.CSSProperties => ({
+    position: "absolute", left: 0, right: 0, height: "24%",
+    ...(pos === "top" ? { top: 0 } : { bottom: 0 }),
+    backdropFilter: "blur(5px) brightness(1.06) saturate(0.85)",
+    WebkitBackdropFilter: "blur(5px) brightness(1.06) saturate(0.85)",
+    maskImage: pos === "top"
+      ? "linear-gradient(180deg, black 0%, black 55%, transparent 100%)"
+      : "linear-gradient(0deg, black 0%, black 55%, transparent 100%)",
+    WebkitMaskImage: pos === "top"
+      ? "linear-gradient(180deg, black 0%, black 55%, transparent 100%)"
+      : "linear-gradient(0deg, black 0%, black 55%, transparent 100%)",
+  });
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity }} data-effect="tilt-shift">
+      <div style={band("top")} />
+      <div style={band("bottom")} />
     </div>
   );
 }
@@ -452,6 +971,7 @@ function WatermarkEffect({
   showOnPreview?: boolean;
   logoUrl?: string;
 }) {
+  const isLight = useIsLightTheme();
   if (!showOnPreview || type === "none") return null;
 
   const isBottom = position.includes("bottom");
@@ -480,7 +1000,7 @@ function WatermarkEffect({
     return (
       <img
         data-testid="watermark-overlay"
-        src={logoUrl || WATERMARK_URL}
+        src={logoUrl || getDefaultWatermarkUrl(isLight)}
         alt="Bow Down Visuals"
         draggable={false}
         style={{
@@ -555,7 +1075,9 @@ export interface ActiveOverlayEffectsProps {
 
 const BRANDING_WM_OPACITY: Record<string, number> = { low: 0.30, medium: 0.60, high: 0.90 };
 
-const VISUAL_EFFECTS = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
+/* Names of overlays that are true animated visuals (vs. watermark branding).
+ * Exported so the Effects tab's strength presets + debug panel stay in sync. */
+export const VISUAL_EFFECTS = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform", "Snow", "Confetti", "Fireworks", "God Rays", "Anamorphic Flares", "Bokeh", "Scan Lines", "Hologram", "Kaleidoscope", "Mirror", "Neon Frame", "VHS Tracking", "Datamosh-lite", "Tilt-Shift"];
 
 export function ActiveOverlayEffects({
   activeOverlays,
@@ -566,7 +1088,7 @@ export function ActiveOverlayEffects({
   watermarkText = "Bow Down Visuals",
   watermarkType = "logo",
   watermarkPosition = "bottom-right",
-  watermarkSize = "medium",
+  watermarkSize = "small",
   watermarkMargin = 16,
   watermarkShowOnPreview = true,
   brandingWatermark = null,
@@ -614,6 +1136,20 @@ export function ActiveOverlayEffects({
       {show.includes("Sparks")            && <SparksEffect      opacity={o("Sparks")}      isPlaying={isPlaying} />}
       {show.includes("Lens Flare")        && <LensFlareEffect   opacity={o("Lens Flare")}  isPlaying={isPlaying} />}
       {show.includes("Dust")              && <DustEffect        opacity={o("Dust")}        isPlaying={isPlaying} />}
+      {show.includes("Snow")              && <SnowEffect        opacity={o("Snow")}        isPlaying={isPlaying} />}
+      {show.includes("Confetti")          && <ConfettiEffect    opacity={o("Confetti")}    isPlaying={isPlaying} />}
+      {show.includes("Fireworks")         && <FireworksEffect   opacity={o("Fireworks")}   isPlaying={isPlaying} />}
+      {show.includes("God Rays")          && <GodRaysEffect     opacity={o("God Rays")}    isPlaying={isPlaying} />}
+      {show.includes("Anamorphic Flares") && <AnamorphicFlaresEffect opacity={o("Anamorphic Flares")} isPlaying={isPlaying} />}
+      {show.includes("Bokeh")             && <BokehEffect       opacity={o("Bokeh")}       isPlaying={isPlaying} />}
+      {show.includes("Scan Lines")        && <ScanLinesEffect   opacity={o("Scan Lines")} isPlaying={isPlaying} />}
+      {show.includes("Hologram")          && <HologramEffect    opacity={o("Hologram")}    isPlaying={isPlaying} />}
+      {show.includes("Kaleidoscope")      && <KaleidoscopeEffect opacity={o("Kaleidoscope")} isPlaying={isPlaying} />}
+      {show.includes("Mirror")            && <MirrorEffect      opacity={o("Mirror")}      isPlaying={isPlaying} />}
+      {show.includes("Neon Frame")        && <NeonFrameEffect   opacity={o("Neon Frame")}  isPlaying={isPlaying} />}
+      {show.includes("VHS Tracking")      && <VhsTrackingEffect opacity={o("VHS Tracking")} isPlaying={isPlaying} />}
+      {show.includes("Datamosh-lite")     && <DatamoshEffect    opacity={o("Datamosh-lite")} isPlaying={isPlaying} />}
+      {show.includes("Tilt-Shift")        && <TiltShiftEffect   opacity={o("Tilt-Shift")}  isPlaying={isPlaying} />}
       {show.includes("Light Leaks")       && <LightLeaksEffect  opacity={o("Light Leaks")} protectCaptions={overlayProtectCaptions} isPlaying={isPlaying} />}
       {show.includes("Animated Waveform") && (
         <WaveformEffect

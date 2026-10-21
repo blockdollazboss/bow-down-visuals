@@ -1,5 +1,6 @@
 import { Menu } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /**
  * Floating "open navigation" button for mobile. The desktop sidebar has its
@@ -11,6 +12,7 @@ import { useSidebar } from "@/components/ui/sidebar";
  * never be left without a way to open navigation.
  */
 export function MobileSidebarTrigger() {
+  const isLight = useIsLightTheme();
   const { toggleSidebar } = useSidebar();
   return (
     <button
@@ -19,10 +21,10 @@ export function MobileSidebarTrigger() {
       title="Open navigation"
       aria-label="Open navigation"
       data-testid="btn-open-sidebar-mobile"
-      className="fixed bottom-24 left-5 z-[9999] flex h-12 w-12 items-center justify-center rounded-full md:hidden
-        border border-primary/40 bg-black/85 text-primary backdrop-blur
+      className={`fixed bottom-24 left-5 z-[9999] flex h-12 w-12 items-center justify-center rounded-full md:hidden
+        border border-primary/40 ${isLight ? "bg-[#FBF6E9]/95" : "bg-[#171208]/85"} text-primary backdrop-blur
         shadow-[0_0_20px_rgba(218,165,32,0.35)]
-        transition-all duration-200 hover:bg-primary hover:text-black active:scale-95"
+        transition-all duration-200 hover:bg-primary hover:text-black active:scale-95`}
     >
       <Menu className="h-5 w-5" />
     </button>

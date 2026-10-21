@@ -1,5 +1,7 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   ListMusic, Plus, GripVertical, ChevronUp, ChevronDown, Trash2,
   Sparkles, Loader2, Printer, Clock, Music2, StickyNote, X,
@@ -22,6 +24,7 @@ import {
   type SetSong,
   type FlowOrderItem,
 } from "@/lib/setlist";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Setlist Builder ───────────────────────────────────────
    Plan a live show: pull songs from the user's library or add them manually,
@@ -29,7 +32,7 @@ import {
    (opener → peaks → closer → encore). Building the setlist is pure UI and
    free — only the AI flow suggestion costs 1 credit (POST /api/setlist/flow). */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -50,6 +53,9 @@ interface FlowResponse {
 }
 
 export default function SetlistBuilder() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Setlist Builder", "Build your live setlist and plan the show.");
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
 
   const [songs, setSongs] = useState<SetSong[]>([]);
@@ -98,7 +104,7 @@ export default function SetlistBuilder() {
 
   function handleAddManual() {
     if (!newTitle.trim()) {
-      setError("Give the song a title first.");
+      setError(t("setlist.errorNeedTitle"));
       return;
     }
     setError(null);
@@ -117,14 +123,14 @@ export default function SetlistBuilder() {
       const res = await fetch("/api/songs", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error("Couldn't load your song library.");
+      if (!res.ok) throw new Error(t("setlist.errorLoadLibrary"));
       const data = (await res.json()) as { songs?: LibrarySong[] };
       const inSet = new Set(songs.map((s) => s.title.toLowerCase()));
       setLibrarySongs(
         (data.songs ?? []).filter((s) => s.title && !inSet.has(s.title.toLowerCase()))
       );
     } catch (err) {
-      setLibraryError(err instanceof Error ? err.message : "Couldn't load your song library.");
+      setLibraryError(err instanceof Error ? err.message : t("setlist.errorLoadLibrary"));
     } finally {
       setLibraryLoading(false);
     }
@@ -164,7 +170,7 @@ export default function SetlistBuilder() {
 
   async function handleAiFlow() {
     if (songs.length === 0) {
-      setError("Add at least one song before asking for a flow.");
+      setError(t("setlist.errorNeedSongs"));
       return;
     }
     setError(null);
@@ -196,14 +202,14 @@ export default function SetlistBuilder() {
         return;
       }
       if (!res.ok || !data.order || !data.flowNotes) {
-        throw new Error(data.error || data.message || "The AI fumbled the setlist — try again.");
+        throw new Error(data.error || data.message || t("setlist.errorFlowFailed"));
       }
       setSongs((prev) => applyFlowOrder(prev, data.order!));
       setFlowNotes(data.flowNotes!);
-      setNotice(`Flow applied — ${data.order!.length} songs placed. ${CREDIT_COST} Visual Buc used.`);
+      setNotice(t("setlist.flowApplied", { count: data.order!.length, cost: CREDIT_COST }));
       void refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The AI fumbled the setlist — try again.");
+      setError(err instanceof Error ? err.message : t("setlist.errorFlowFailed"));
     } finally {
       setFlowLoading(false);
     }
@@ -228,7 +234,7 @@ export default function SetlistBuilder() {
 
       <div className="mx-auto max-w-6xl px-5 md:px-8 py-10 md:py-14">
         <Link href="/dashboard" className="no-print inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8">
-          ← Back to Dashboard
+          {t("setlist.backToDashboard")}
         </Link>
 
         {/* hero */}
@@ -238,21 +244,20 @@ export default function SetlistBuilder() {
               <ListMusic className="h-5 w-5 text-primary" />
             </div>
             <span className="text-xs font-semibold uppercase tracking-widest text-primary/80 border border-primary/25 rounded-full px-3 py-1">
-              Free to plan · 100 Visual Bucs for AI flow
+              {t("setlist.planBadge")}
             </span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
-            {showTitle.trim() || "Setlist Builder"}
+            {showTitle.trim() || t("setlist.defaultTitle")}
           </h1>
           <p className="no-print text-white/50 text-lg max-w-2xl">
-            Build your live show like a director — order the arc, time the runtime, and let AI place
-            your opener, peaks, and closer.
+            {t("setlist.pageDescription")}
           </p>
           <div className="no-print mt-4 max-w-md">
             <input
               value={showTitle}
               onChange={(e) => setShowTitle(e.target.value)}
-              placeholder="Name this show (e.g. Summer Fest — Main Stage)"
+              placeholder={t("setlist.showTitlePlaceholder")}
               className={inputClass}
               maxLength={120}
             />
@@ -260,19 +265,19 @@ export default function SetlistBuilder() {
         </div>
 
         {/* runtime bar */}
-        <div className="no-print mb-8 flex flex-wrap items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4">
+        <div className={`no-print mb-8 flex flex-wrap items-center gap-4 rounded-2xl border px-5 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            <span className="text-sm text-white/60">Runtime</span>
+            <span className="text-sm text-white/60">{t("setlist.runtimeLabel")}</span>
             <span className="text-lg font-bold text-white">{formatDuration(runtime)}</span>
           </div>
           <div className="flex items-center gap-2">
             <Music2 className="h-4 w-4 text-primary" />
-            <span className="text-sm text-white/60">{songs.length} song{songs.length === 1 ? "" : "s"}</span>
+            <span className="text-sm text-white/60">{t("setlist.songCount", { count: songs.length })}</span>
           </div>
           {songs.length > 0 && known < songs.length && (
             <span className="text-xs text-amber-300/80">
-              {songs.length - known} song{songs.length - known === 1 ? "" : "s"} missing duration — runtime is partial
+              {t("setlist.missingDuration", { count: songs.length - known })}
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -281,14 +286,14 @@ export default function SetlistBuilder() {
               data-min-stars="2"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
             >
-              <Library className="h-4 w-4" /> From my songs
+              <Library className="h-4 w-4" /> {t("setlist.fromMySongs")}
             </button>
             <button
               onClick={() => printRef.current && window.print()}
               disabled={songs.length === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
             >
-              <Printer className="h-4 w-4" /> Print setlist
+              <Printer className="h-4 w-4" /> {t("setlist.printSetlist")}
             </button>
           </div>
         </div>
@@ -314,20 +319,20 @@ export default function SetlistBuilder() {
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8 items-start">
           {/* ── left column: add songs + AI flow ── */}
           <div className="no-print space-y-6">
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-white/70 mb-4">Add a song</h2>
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-white/70 mb-4">{t("setlist.addSongTitle")}</h2>
               <div className="space-y-3">
                 <input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Song title *"
+                  placeholder={t("setlist.songTitlePlaceholder")}
                   className={inputClass}
                   maxLength={200}
                 />
                 <input
                   value={newArtist}
                   onChange={(e) => setNewArtist(e.target.value)}
-                  placeholder="Artist (optional)"
+                  placeholder={t("setlist.artistPlaceholder")}
                   className={inputClass}
                   maxLength={200}
                 />
@@ -335,7 +340,7 @@ export default function SetlistBuilder() {
                   <input
                     value={newDuration}
                     onChange={(e) => setNewDuration(e.target.value)}
-                    placeholder="Length (3:30)"
+                    placeholder={t("setlist.lengthPlaceholder")}
                     className={inputClass}
                     maxLength={10}
                   />
@@ -343,10 +348,10 @@ export default function SetlistBuilder() {
                     value={newEnergy}
                     onChange={(e) => setNewEnergy(Number(e.target.value))}
                     className={inputClass + " cursor-pointer"}
-                    aria-label="Energy level"
+                    aria-label={t("setlist.energyLevelLabel")}
                     data-min-stars="2"
                   >
-                    <option value={0} className="bg-black">Energy…</option>
+                    <option value={0} className="bg-black">{t("setlist.energyPlaceholder")}</option>
                     {[1, 2, 3, 4, 5].map((n) => (
                       <option key={n} value={n} className="bg-black">
                         {n} — {ENERGY_LABELS[n]}
@@ -358,23 +363,22 @@ export default function SetlistBuilder() {
                   onClick={handleAddManual}
                   className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition"
                 >
-                  <Plus className="h-4 w-4" /> Add to setlist
+                  <Plus className="h-4 w-4" /> {t("setlist.addToSetlist")}
                 </button>
               </div>
             </div>
 
             <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
               <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white/80 mb-2">
-                <Sparkles className="h-4 w-4 text-primary" /> AI flow director
+                <Sparkles className="h-4 w-4 text-primary" /> {t("setlist.aiFlowDirectorTitle")}
               </h2>
               <p className="text-xs text-white/45 mb-4">
-                AI orders your songs into a real arc — opener, build, peaks, breather, closer, encore —
-                with stage notes for each placement. {CREDIT_COST} Visual Buc per suggestion.
+                {t("setlist.aiFlowDirectorDesc", { cost: CREDIT_COST })}
               </p>
               <textarea
                 value={showNotes}
                 onChange={(e) => setShowNotes(e.target.value)}
-                placeholder="Show context (optional): venue, crowd, slot time…"
+                placeholder={t("setlist.showContextPlaceholder")}
                 data-min-stars="3"
                 className={inputClass + " resize-none mb-3"}
                 style={{ minHeight: "64px" }}
@@ -383,17 +387,17 @@ export default function SetlistBuilder() {
               <button
                 onClick={handleAiFlow}
                 disabled={flowLoading || songs.length === 0}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition disabled:opacity-40"
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed ${songs.length === 0 && !flowLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
               >
                 {flowLoading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Directing…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {t("setlist.directingLabel")}</>
                 ) : (
-                  <><Sparkles className="h-4 w-4" /> Suggest flow ({CREDIT_COST} Visual Buc)</>
+                  <><Sparkles className="h-4 w-4" /> {t("setlist.suggestFlow", { cost: CREDIT_COST })}</>
                 )}
               </button>
               {flowNotes && (
                 <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-3">
-                  <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Director's notes</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">{t("setlist.directorsNotes")}</p>
                   <p className="text-sm text-white/70 leading-relaxed">{flowNotes}</p>
                 </div>
               )}
@@ -403,18 +407,18 @@ export default function SetlistBuilder() {
           {/* ── right column: the setlist ── */}
           <div ref={printRef} className="print-area">
             <div className="hidden print:block mb-6">
-              <h1 className="text-2xl font-bold">{showTitle.trim() || "Setlist"}</h1>
+              <h1 className="text-2xl font-bold">{showTitle.trim() || t("setlist.setlistFallback")}</h1>
               <p className="text-sm">
-                {songs.length} songs · {formatDuration(runtime)} runtime
-                {known < songs.length ? " (partial — some durations unknown)" : ""}
+                {t("setlist.printSummary", { count: songs.length, runtime: formatDuration(runtime) })}
+                {known < songs.length ? t("setlist.partialRuntime") : ""}
               </p>
             </div>
 
             {songs.length === 0 ? (
-              <div className="no-print rounded-2xl border border-dashed border-white/15 bg-white/[0.01] p-12 text-center">
+              <div className={`no-print rounded-2xl border border-dashed p-12 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ListMusic className="h-10 w-10 text-white/15 mx-auto mb-4" />
-                <p className="text-white/50 font-semibold mb-1">Your setlist is empty</p>
-                <p className="text-white/30 text-sm">Add songs manually or pull them from your library.</p>
+                <p className="text-white/50 font-semibold mb-1">{t("setlist.emptyTitle")}</p>
+                <p className="text-white/30 text-sm">{t("setlist.emptyDesc")}</p>
               </div>
             ) : (
               <ol className="space-y-3">
@@ -439,16 +443,16 @@ export default function SetlistBuilder() {
                       setDragIndex(null);
                       setDragOverIndex(null);
                     }}
-                    className={`rounded-2xl border bg-white/[0.02] p-4 transition-colors ${
+                    className={`rounded-2xl border p-4 transition-colors ${
                       dragOverIndex === i && dragIndex !== i
-                        ? "border-primary/60 bg-primary/[0.06]"
-                        : "border-white/[0.07]"
+                        ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
+                        : (isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]")
                     } ${dragIndex === i ? "opacity-40" : ""}`}
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className="no-print cursor-grab active:cursor-grabbing text-white/25 hover:text-white/60 shrink-0"
-                        title="Drag to reorder"
+                        title={t("setlist.dragToReorder")}
                       >
                         <GripVertical className="h-5 w-5" />
                       </span>
@@ -489,7 +493,7 @@ export default function SetlistBuilder() {
                           onClick={() => setNotesOpen((p) => ({ ...p, [s.id]: !p[s.id] }))}
                           data-min-stars="3"
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition"
-                          title="Stage notes"
+                          title={t("setlist.stageNotesTitle")}
                         >
                           <StickyNote className="h-4 w-4" />
                         </button>
@@ -497,7 +501,7 @@ export default function SetlistBuilder() {
                           onClick={() => handleMove(i, i - 1)}
                           disabled={i === 0}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
-                          title="Move up"
+                          title={t("setlist.moveUp")}
                         >
                           <ChevronUp className="h-4 w-4" />
                         </button>
@@ -505,14 +509,14 @@ export default function SetlistBuilder() {
                           onClick={() => handleMove(i, i + 1)}
                           disabled={i === songs.length - 1}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
-                          title="Move down"
+                          title={t("setlist.moveDown")}
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => removeSong(s.id)}
                           className="rounded-lg p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 transition"
-                          title="Remove"
+                          title={t("setlist.removeSong")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -527,18 +531,18 @@ export default function SetlistBuilder() {
                           const v = parseDurationInput(e.target.value);
                           updateSong(s.id, { durationSec: v });
                         }}
-                        placeholder="3:30"
+                        placeholder={t("setlist.durationPlaceholder")}
                         className={inputClass + " !py-1.5 !text-xs"}
-                        aria-label={`Duration for ${s.title}`}
+                        aria-label={t("setlist.durationFor", { title: s.title })}
                         maxLength={10}
                       />
                       <select
                         value={s.energy}
                         onChange={(e) => updateSong(s.id, { energy: Number(e.target.value) })}
                         className={inputClass + " !py-1.5 !text-xs cursor-pointer"}
-                        aria-label={`Energy for ${s.title}`}
+                        aria-label={t("setlist.energyFor", { title: s.title })}
                       >
-                        <option value={0} className="bg-black">Energy…</option>
+                        <option value={0} className="bg-black">{t("setlist.energyPlaceholder")}</option>
                         {[1, 2, 3, 4, 5].map((n) => (
                           <option key={n} value={n} className="bg-black">
                             {n} — {ENERGY_LABELS[n]}
@@ -551,7 +555,7 @@ export default function SetlistBuilder() {
                         <textarea
                           value={s.stageNote}
                           onChange={(e) => updateSong(s.id, { stageNote: e.target.value })}
-                          placeholder="Stage notes: cues, talk points, transitions…"
+                          placeholder={t("setlist.stageNotesPlaceholder")}
                           className={inputClass + " !text-xs resize-none"}
                           style={{ minHeight: "56px" }}
                           maxLength={500}
@@ -581,11 +585,11 @@ export default function SetlistBuilder() {
       {libraryOpen && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLibraryOpen(false)}>
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0c0c0c] p-6 max-h-[80vh] overflow-y-auto"
+            className={`w-full max-w-lg rounded-2xl border p-6 max-h-[80vh] overflow-y-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/10 bg-[#0c0c0c]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Your songs</h2>
+              <h2 className="text-lg font-bold">{t("setlist.yourSongsTitle")}</h2>
               <button onClick={() => setLibraryOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/10">
                 <X className="h-5 w-5" />
               </button>
@@ -599,15 +603,15 @@ export default function SetlistBuilder() {
             ) : librarySongs.length === 0 ? (
               <div className="py-8 text-center">
                 <Music2 className="h-8 w-8 text-white/15 mx-auto mb-3" />
-                <p className="text-white/50 text-sm">No more songs to add — they're all in the setlist already.</p>
+                <p className="text-white/50 text-sm">{t("setlist.noMoreSongs")}</p>
                 <Link href="/songs" className="text-primary text-sm font-semibold hover:underline mt-2 inline-block">
-                  Manage your song library →
+                  {t("setlist.manageLibrary")}
                 </Link>
               </div>
             ) : (
               <ul className="space-y-2">
                 {librarySongs.map((ls) => (
-                  <li key={ls.id} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-2.5">
+                  <li key={ls.id} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-white truncate">{ls.title}</p>
                       <p className="text-xs text-white/35">{ls.duration_sec ? formatDuration(parseDurationInput(ls.duration_sec)) : "Unknown length"}</p>
@@ -616,7 +620,7 @@ export default function SetlistBuilder() {
                       onClick={() => addFromLibrary(ls)}
                       className="inline-flex items-center gap-1 rounded-lg bg-primary/15 border border-primary/30 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/25 transition"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add
+                      <Plus className="h-3.5 w-3.5" /> {t("setlist.addButton")}
                     </button>
                   </li>
                 ))}

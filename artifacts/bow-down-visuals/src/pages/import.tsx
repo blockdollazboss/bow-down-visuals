@@ -1,11 +1,16 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Link2, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Import, ShieldCheck, Music, Clapperboard, RefreshCw,
+  Scissors, Sparkles, FolderOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Media Importer ────────────────────────────────────────────────────
    Paste a link — YouTube, SoundCloud, TikTok, Instagram, X, Vimeo, or a
@@ -17,13 +22,13 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    markets it as a piracy downloader, and the user must actively confirm
    they have the rights before every import. */
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 type ImportFormat = "video" | "audio";
 
-const FORMATS: Array<{ key: ImportFormat; label: string; blurb: string; icon: typeof Clapperboard }> = [
-  { key: "video", label: "Video · MP4", blurb: "Best quality video, browser-ready", icon: Clapperboard },
-  { key: "audio", label: "Audio · MP3", blurb: "Audio-only, 192k MP3 for your song library", icon: Music },
+const FORMATS: Array<{ key: ImportFormat; labelKey: string; blurbKey: string; icon: typeof Clapperboard }> = [
+  { key: "video", labelKey: "importPage.formatVideo", blurbKey: "importPage.formatVideoBlurb", icon: Clapperboard },
+  { key: "audio", labelKey: "importPage.formatAudio", blurbKey: "importPage.formatAudioBlurb", icon: Music },
 ];
 
 const SUPPORTED = ["YouTube", "SoundCloud", "TikTok", "Instagram", "X", "Vimeo"];
@@ -44,14 +49,21 @@ interface JobResponse {
   creditsUsed?: number;
 }
 
-function formatBytes(n: number | null | undefined): string {
+function formatBytes(
+  n: number | null | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   if (n == null || !Number.isFinite(n)) return "";
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n < 1024 * 1024) return t("importPage.kbSize", { size: (n / 1024).toFixed(0) });
+  return t("importPage.mbSize", { size: (n / 1024 / 1024).toFixed(1) });
 }
 
 export default function MediaImport() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Import Media", "Import your existing media into Bow Down Visuals and turn it into new content.");
+  const { t } = useTranslation();
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const [url, setUrl] = useState("");
   const [format, setFormat] = useState<ImportFormat>("video");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
@@ -76,7 +88,7 @@ export default function MediaImport() {
         const data: JobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || "Import job not found");
+          setError(data.error || t("importPage.jobNotFound"));
           return;
         }
         if (data.status === "done") {
@@ -85,9 +97,20 @@ export default function MediaImport() {
           setMediaType(data.mediaType ?? null);
           setOutputUrl(data.outputUrl ?? null);
           setFileSize(data.fileSize ?? null);
+          /* Imported media flows into the hub project — no more dead-end downloads. */
+          if (data.outputUrl) {
+            try {
+              addAsset({
+                kind: data.mediaType === "audio" ? "song" : "video",
+                url: data.outputUrl,
+                label: data.title || "Imported media",
+                detail: "Media importer",
+              });
+            } catch { /* hub unavailable — non-fatal */ }
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || `Import failed — your ${CREDIT_COST} Visual Bucs were refunded.`);
+          setError(data.error || t("importPage.importFailedRefunded", { cost: CREDIT_COST }));
         } else {
           setStatus(data.status as JobStatus);
           if (data.title) setTitle(data.title);
@@ -99,7 +122,7 @@ export default function MediaImport() {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
-  }, [jobId, status]);
+  }, [jobId, status, t]);
 
   const urlLooksValid = /^https?:\/\/.+\..+/.test(url.trim());
 
@@ -122,7 +145,7 @@ export default function MediaImport() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || "Could not start the import.");
+        setError(data.message || data.error || t("importPage.startFailed"));
         return;
       }
       setJobId(data.jobId);
@@ -130,7 +153,7 @@ export default function MediaImport() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("importPage.networkError"));
     }
   }
 
@@ -153,7 +176,7 @@ export default function MediaImport() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("importPage.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -161,8 +184,8 @@ export default function MediaImport() {
             <Import className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Media Importer</h1>
-            <p className="text-sm text-white/45">Paste a link, pull it into your library — {CREDIT_COST} Visual Bucs</p>
+            <h1 className="text-2xl font-black">{t("importPage.title")}</h1>
+            <p className="text-sm text-white/45">{t("importPage.tagline", { cost: CREDIT_COST })}</p>
           </div>
         </div>
 
@@ -170,11 +193,7 @@ export default function MediaImport() {
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/[0.05] px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
           <p className="text-xs text-white/60 leading-relaxed">
-            <span className="text-white/85 font-semibold">Only import content you own or have the rights to</span> —
-            your own uploads, backups, client work, and royalty-free material. This tool exists so
-            creators can pull their own media into Bow Down Visuals in one click. Importing someone
-            else's copyrighted work without permission violates our terms and can get your account
-            suspended.
+            <span className="text-white/85 font-semibold">{t("importPage.rightsTitle")}</span> — {t("importPage.rightsBody")}
           </p>
         </div>
 
@@ -191,10 +210,10 @@ export default function MediaImport() {
 
         {/* Import form */}
         {(status === "idle" || status === "failed") && (
-          <div className="mt-6 space-y-5">
+          <div className={`mt-6 space-y-5 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">
-                Paste your link
+                {t("importPage.pasteLink")}
               </label>
               <div className="relative">
                 <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -202,18 +221,17 @@ export default function MediaImport() {
                   type="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=…"
+                  placeholder={t("importPage.urlPlaceholder")}
                   className="w-full rounded-2xl border border-white/[0.1] bg-white/[0.03] pl-11 pr-4 py-4 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
                 />
               </div>
               <p className="mt-2 text-xs text-white/35">
-                Works with {SUPPORTED.join(" · ")} and direct links to audio/video files (MP3, MP4, WAV, …).
-                Files up to 500&nbsp;MB.
+                {t("importPage.worksWith", { platforms: SUPPORTED.join(" · ") })}
               </p>
             </div>
 
             <div data-min-stars="2">
-              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Format</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("importPage.format")}</p>
               <div className="grid grid-cols-2 gap-3">
                 {FORMATS.map((f) => {
                   const Icon = f.icon;
@@ -224,22 +242,22 @@ export default function MediaImport() {
                       onClick={() => setFormat(f.key)}
                       className={`rounded-xl border px-4 py-3.5 text-left transition ${
                         format === f.key
-                          ? "border-primary/60 bg-primary/[0.08]"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                       }`}
                     >
                       <span className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-primary" />
-                        <span className="font-bold text-white text-sm">{f.label}</span>
+                        <span className="font-bold text-white text-sm">{t(f.labelKey)}</span>
                       </span>
-                      <span className="text-xs text-white/40 mt-1 block">{f.blurb}</span>
+                      <span className="text-xs text-white/40 mt-1 block">{t(f.blurbKey)}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
+            <label className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <input
                 type="checkbox"
                 checked={rightsConfirmed}
@@ -247,9 +265,7 @@ export default function MediaImport() {
                 className="mt-0.5 h-4 w-4 shrink-0 accent-yellow-500"
               />
               <span className="text-xs text-white/60 leading-relaxed">
-                I confirm this is <span className="text-white/85 font-semibold">my own content, a backup, client
-                work, or royalty-free material</span> that I have the right to import — not someone
-                else's copyrighted work.
+                {t("importPage.confirmPrefix")} <span className="text-white/85 font-semibold">{t("importPage.confirmEmphasis")}</span> {t("importPage.confirmSuffix")}
               </span>
             </label>
 
@@ -258,23 +274,23 @@ export default function MediaImport() {
               disabled={!urlLooksValid || !rightsConfirmed || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Import media · {CREDIT_COST} Visual Bucs
+              {t("importPage.importButton", { cost: CREDIT_COST })}
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+              <p className="text-center text-xs text-white/35">{t("importPage.creditsRemaining", { count: creditsRemaining })}</p>
             )}
           </div>
         )}
 
         {/* Progress */}
         {busy && (
-          <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+          <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-bold text-white">
-              {status === "starting" ? "Starting your import…" : status === "queued" ? "In the import queue…" : "Downloading your media…"}
+              {status === "starting" ? t("importPage.starting") : status === "queued" ? t("importPage.queued") : t("importPage.downloading")}
             </p>
             <p className="text-sm text-white/40 mt-1">
-              This runs on our servers — safe to close this tab. Your file will be waiting in your library.
+              {t("importPage.progressNote")}
             </p>
           </div>
         )}
@@ -285,9 +301,9 @@ export default function MediaImport() {
             <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-white/80">Imported{title ? ` — ${title}` : ""}</p>
+                <p className="text-sm font-semibold text-white/80">{title ? t("importPage.importedWithTitle", { title }) : t("importPage.imported")}</p>
                 {fileSize != null && (
-                  <p className="text-xs text-white/40">{formatBytes(fileSize)} · saved to your {mediaType === "audio" ? "song" : "video"} library</p>
+                  <p className="text-xs text-white/40">{t("importPage.savedToLibrary", { size: formatBytes(fileSize, t), lib: t(mediaType === "audio" ? "importPage.song" : "importPage.video") })}</p>
                 )}
               </div>
             </div>
@@ -302,14 +318,35 @@ export default function MediaImport() {
                 download={mediaType === "audio" ? "import.mp3" : "import.mp4"}
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 font-bold text-black transition hover:brightness-110"
               >
-                <Download className="h-4 w-4" /> Download
+                <Download className="h-4 w-4" /> {t("importPage.download")}
               </a>
               <button
                 onClick={reset}
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
               >
-                <RefreshCw className="h-4 w-4" /> New import
+                <RefreshCw className="h-4 w-4" /> {t("importPage.newImport")}
               </button>
+            </div>
+            {/* Next steps — the import no longer dead-ends at download */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Link
+                href={mediaType === "audio" ? `/audio-studio?tab=stems&audioUrl=${encodeURIComponent(outputUrl)}` : `/video-editor`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+              >
+                <Scissors className="h-4 w-4" /> {t("importPage.useInStems", { defaultValue: mediaType === "audio" ? "Split stems" : "Open in editor" })}
+              </Link>
+              <Link
+                href={mediaType === "audio" ? `/make-song?audioUrl=${encodeURIComponent(outputUrl)}` : `/hooks?tab=styler&video=${encodeURIComponent(outputUrl)}`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/25 hover:text-white"
+              >
+                <Sparkles className="h-4 w-4" /> {t("importPage.useInSong", { defaultValue: mediaType === "audio" ? "Use in a song" : "Add captions" })}
+              </Link>
+              <Link
+                href="/my-clips"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/25 hover:text-white"
+              >
+                <FolderOpen className="h-4 w-4" /> {t("importPage.viewLibrary", { defaultValue: "My clips" })}
+              </Link>
             </div>
           </div>
         )}

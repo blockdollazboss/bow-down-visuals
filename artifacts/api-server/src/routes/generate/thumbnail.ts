@@ -1,8 +1,10 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordThumbnailHistory } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -17,6 +19,10 @@ const TEXT_CREDIT_COST = 100;
 const IMAGE_CREDIT_COST = 200;
 /** Total credits required up-front to attempt a full generation (text + image). */
 const CREDIT_COST = TEXT_CREDIT_COST + IMAGE_CREDIT_COST;
+
+/** Image model (env-overridable, same constant as the sunburst fleet).
+ *  gpt-image-1 was retired by OpenAI on 2026-10-23 — never re-hardcode it. */
+const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -66,6 +72,37 @@ interface VaultInput {
   consistencyPrompt?: string | null;
   referenceImageUrl?: string | null;
 }
+
+/** Request-body validation for POST /generate-thumbnail. All fields optional;
+ * the route applies its own fallbacks when they're absent. */
+const vaultInputSchema = z.object({
+  artistType: z.string().nullable().optional(),
+  artistDescription: z.string().nullable().optional(),
+  visualStyle: z.string().nullable().optional(),
+  hair: z.string().nullable().optional(),
+  tattoos: z.string().nullable().optional(),
+  jewelry: z.string().nullable().optional(),
+  clothingStyle: z.string().nullable().optional(),
+  brandColors: z.string().nullable().optional(),
+  doNotChangeRules: z.string().nullable().optional(),
+  consistencyPrompt: z.string().nullable().optional(),
+  referenceImageUrl: z.string().nullable().optional(),
+  /* Co-star linkage keys the client may also send (kept so they aren't stripped). */
+  vaultId: z.string().optional(),
+  id: z.string().optional(),
+});
+
+const thumbnailBodySchema = z.object({
+  artistName: z.string().optional(),
+  songTitle: z.string().optional(),
+  platform: z.string().optional(),
+  artStyle: z.string().optional(),
+  colorTheme: z.string().optional(),
+  mood: z.string().optional(),
+  featuredText: z.string().optional(),
+  specialRequests: z.string().optional(),
+  artistVault: vaultInputSchema.nullable().optional(),
+});
 
 function buildVaultContext(vault: VaultInput | null | undefined): string {
   if (!vault) return "";
@@ -180,7 +217,7 @@ async function generateThumbnailImage(
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change ` +
         `their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size,
@@ -193,7 +230,7 @@ async function generateThumbnailImage(
         "[generate-thumbnail] no usable reference photo, falling back to text-to-image",
       );
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         prompt: imagePrompt.slice(0, 4000),
         size,
         n: 1,
@@ -216,11 +253,19 @@ async function generateThumbnailImage(
 }
 
 router.post("/generate-thumbnail", requireAuth, async (req, res) => {
+  const parsed = thumbnailBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const {
     artistName, songTitle, platform, artStyle, colorTheme, mood, featuredText, specialRequests,
-  } = req.body as Record<string, string>;
+  } = parsed.data;
 
-  const artistVault = req.body.artistVault as VaultInput | null | undefined;
+  const artistVault = parsed.data.artistVault;
 
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
@@ -245,7 +290,7 @@ Color Theme: ${colorTheme || "Black and gold"}
 Mood: ${mood || "Dark"}
 Featured Text: ${featuredText || "None"}
 ${specialRequests ? `Special Requests: ${specialRequests}` : ""}
-${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
+${buildVaultContext(artistVault)}${await buildCoStarContext(artistVault?.vaultId ?? artistVault?.id, req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Write detailed, actionable, AI-ready content for every section.
 
@@ -335,6 +380,8 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       creditsUsed,
       creditsRemaining: creditsAfter,
     });
+    // Retention hook: counts as a creation day + feeds the thumbnail quest.
+    void recordCreation(req.userId!, "thumbnail");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

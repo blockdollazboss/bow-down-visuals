@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router, NextFunction } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -29,6 +30,8 @@ import {
   type StemType,
   type LoudnormMeasurement,
 } from "./mix-master-chain";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -118,9 +121,15 @@ export interface MixMasterJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the master input came from (master jobs only; a mix
+   *  has many parents, so mixes record no single parent). */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished output (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, MixMasterJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getMixMasterJob(id: string): MixMasterJob | undefined {
   return jobs.get(id);
@@ -318,6 +327,20 @@ export async function runMasterJob(
     const mp3Ref = await uploadMediaToSupabaseStorage(`mix-master/${stamp}.mp3`, mp3Buffer, "audio/mpeg");
     job.wavUrl = await refreshSupabaseStorageUrl(wavRef);
     job.mp3Url = await refreshSupabaseStorageUrl(mp3Ref);
+
+    /* Linkage (DE-6): the finished master lands in the caller's song
+       library, chained to the library song it started from when the
+       input was one. A library-write failure never fails a delivered
+       job — recordLibrarySong logs and returns null. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Master"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "master",
+      parentSongId: job.sourceSongId,
+    });
+
     job.status = "done";
   } catch (err) {
     await refundJob(job, err);
@@ -366,6 +389,20 @@ export async function runMixJob(
     const mp3Ref = await uploadMediaToSupabaseStorage(`mix-master/${stamp}.mp3`, mp3Buffer, "audio/mpeg");
     job.wavUrl = await refreshSupabaseStorageUrl(wavRef);
     job.mp3Url = await refreshSupabaseStorageUrl(mp3Ref);
+
+    /* Linkage (DE-6): the finished mix lands in the caller's song
+       library. A mix has many parents (its stems), so no single
+       parent_song_id is recorded. A library-write failure never fails
+       a delivered job. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.stemNames[0] ?? job.sourceName, "Mix"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "mix",
+      parentSongId: null,
+    });
+
     job.status = "done";
   } catch (err) {
     await refundJob(job, err);
@@ -378,19 +415,35 @@ export async function runMixJob(
 
 /* ── Shared request helpers ────────────────────────────────────────── */
 
-function parseCommonFields(req: Request): {
+/* Multer delivers body fields as strings — coerce the numeric knob.
+ * Genre/intensity/loudness enums are still resolved + reported by
+ * parseCommonFields below (keeps the existing INVALID_PARAMS messages). */
+const mixMasterBodySchema = z.object({
+  genre: z.string().optional(),
+  intensity: z.string().optional(),
+  loudness: z.string().optional(),
+  vocalLevelDb: z.coerce.number().optional(),
+  /** Master jobs: id of the library song the input was picked from. */
+  sourceSongId: z.string().max(64).optional(),
+});
+
+function parseCommonFields(body: z.infer<typeof mixMasterBodySchema> | undefined): {
   genre: MixMasterGenre;
   intensity: MixMasterIntensity;
   loudness: MixMasterLoudness;
   vocalLevelDb: number;
 } | { error: string } {
-  const genre = resolveGenre(req.body?.genre);
+  const genre = resolveGenre(body?.genre);
   if (!genre) return { error: "Genre must be one of: " + Object.keys(GENRE_PRESETS).join(", ") + "." };
-  const intensity = resolveIntensity(req.body?.intensity) ?? "balanced";
-  const loudness = resolveLoudness(req.body?.loudness) ?? "streaming";
-  const rawVocal = Number(req.body?.vocalLevelDb);
+  const intensity = resolveIntensity(body?.intensity) ?? "balanced";
+  const loudness = resolveLoudness(body?.loudness) ?? "streaming";
+  const rawVocal = Number(body?.vocalLevelDb);
   const vocalLevelDb = Number.isFinite(rawVocal) ? Math.min(4, Math.max(-6, rawVocal)) : 0;
   return { genre, intensity, loudness, vocalLevelDb };
+}
+
+function invalidBodyDetails(error: z.ZodError) {
+  return error.issues.map((i) => ({ field: i.path.join("."), message: i.message }));
 }
 
 async function chargeOr402(
@@ -448,6 +501,7 @@ function jobResponse(job: MixMasterJob) {
     },
     wavUrl: job.wavUrl,
     mp3Url: job.mp3Url,
+    songId: job.librarySongId,
     error: job.error,
     creditsCharged: job.creditsCharged,
   };
@@ -469,7 +523,7 @@ function jobResponse(job: MixMasterJob) {
  * Failed jobs are refunded automatically.
  */
 router.post(
-  "/api/mix-master/master",
+  "/mix-master/master",
   requireAuth,
   fieldsUpload([
     { name: "audio", maxCount: 1 },
@@ -480,7 +534,14 @@ router.post(
     const audio = files?.["audio"]?.[0];
     const reference = files?.["reference"]?.[0] ?? null;
 
-    const parsed = parseCommonFields(req);
+    const bodyParse = mixMasterBodySchema.safeParse(req.body ?? {});
+    if (!bodyParse.success) {
+      cleanupUploads(files?.["audio"]);
+      if (reference) cleanupUploads([reference]);
+      res.status(400).json({ error: "Invalid request.", details: invalidBodyDetails(bodyParse.error) });
+      return;
+    }
+    const parsed = parseCommonFields(bodyParse.data);
     if ("error" in parsed) {
       cleanupUploads(files?.["audio"]);
       if (reference) cleanupUploads([reference]);
@@ -517,7 +578,7 @@ router.post(
       inputLufs: null,
       inputTruePeak: null,
       inputLra: null,
-      targetLufs: LOUDNESS_TARGETS[parsed.loudness].targetLufs,
+      targetLufs: GENRE_PRESETS[parsed.genre].targetLufsOverride ?? LOUDNESS_TARGETS[parsed.loudness].targetLufs,
       targetTruePeak: LOUDNESS_TARGETS[parsed.loudness].targetTruePeak,
       referenceLufs: null,
       outputLufs: null,
@@ -527,6 +588,8 @@ router.post(
       error: null,
       creditsCharged: MIX_MASTER_CREDIT_COST,
       createdAt: Date.now(),
+      sourceSongId: bodyParse.data.sourceSongId ?? null,
+      librarySongId: null,
     };
     jobs.set(job.id, job);
 
@@ -556,7 +619,7 @@ router.post(
  * background job → poll GET /api/mix-master/job/:id. Refund on failure.
  */
 router.post(
-  "/api/mix-master/mix",
+  "/mix-master/mix",
   requireAuth,
   fieldsUpload([
     { name: "stems", maxCount: MAX_STEMS },
@@ -572,7 +635,12 @@ router.post(
       res.status(status).json(body);
     };
 
-    const parsed = parseCommonFields(req);
+    const parsedBody = mixMasterBodySchema.safeParse(req.body ?? {});
+    if (!parsedBody.success) {
+      fail(400, { error: "Invalid request.", details: invalidBodyDetails(parsedBody.error) });
+      return;
+    }
+    const parsed = parseCommonFields(parsedBody.data);
     if ("error" in parsed) {
       fail(400, { error: "INVALID_PARAMS", message: parsed.error });
       return;
@@ -612,7 +680,7 @@ router.post(
       inputLufs: null,
       inputTruePeak: null,
       inputLra: null,
-      targetLufs: LOUDNESS_TARGETS[parsed.loudness].targetLufs,
+      targetLufs: GENRE_PRESETS[parsed.genre].targetLufsOverride ?? LOUDNESS_TARGETS[parsed.loudness].targetLufs,
       targetTruePeak: LOUDNESS_TARGETS[parsed.loudness].targetTruePeak,
       referenceLufs: null,
       outputLufs: null,
@@ -622,6 +690,8 @@ router.post(
       error: null,
       creditsCharged: MIX_STEMS_CREDIT_COST,
       createdAt: Date.now(),
+      sourceSongId: null,
+      librarySongId: null,
     };
     jobs.set(job.id, job);
 
@@ -644,7 +714,7 @@ router.post(
  * Poll job status. Returns the Master Report stats and download URLs
  * when done (reviewable output, never faked).
  */
-router.get("/api/mix-master/job/:id", requireAuth, (req: Request, res: Response) => {
+router.get("/mix-master/job/:id", requireAuth, (req: Request, res: Response) => {
   const job = getMixMasterJob(req.params["id"] as string);
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });

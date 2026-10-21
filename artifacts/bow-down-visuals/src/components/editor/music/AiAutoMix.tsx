@@ -47,14 +47,14 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
 
   function handleApplyMix() {
     if (ms.stems.length === 0) {
-      toast({ title: "No stems to mix", description: "Upload stems in Manual Studio first, then apply the AI mix.", variant: "destructive" });
+      toast({ title: "No stems to mix", description: "Upload stems in Manual Studio first, then apply the mix.", variant: "destructive" });
       return;
     }
     const nextStems = applyAiMixToStems(ms.stems, opts);
     onChange({ ...settings, musicStudio: { ...ms, mode: "manual", stems: nextStems } });
     const locked = ms.stems.filter((s) => s.locked).length;
     toast({
-      title: "AI mix settings applied",
+      title: "Mix settings applied",
       description: locked > 0
         ? `Preview volumes & pan set on your stems (${locked} locked stem${locked > 1 ? "s" : ""} kept). Switched to Manual Studio to preview.`
         : "Preview volumes & pan set on your stems. Switched to Manual Studio so you can preview the mix.",
@@ -94,6 +94,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           volume: s.volume, muted: s.muted, solo: s.solo, pan: s.pan,
           trimStart: s.trimStart, trimEnd: s.trimEnd,
           effects: s.effects,
+          ...(s.fxChain.length > 0 ? { fxChain: s.fxChain } : {}),
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       }, confirmedFetch);
@@ -124,11 +125,12 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
   async function handleGenerate() {
     setGenerating(true);
     try {
-      const token = await getAccessToken();
       const presetName = MIX_PRESETS.find((p) => p.id === opts.preset)?.name ?? opts.preset;
-      const res = await fetch("/api/mix-plan", {
+      /* Credit confirmation: /api/mix-plan costs 200 VB (registry). confirmedFetch
+         shows the standard spend popup and returns null if the user cancels. */
+      const res = await confirmedFetch("/api/mix-plan", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           preset: opts.preset,
           presetName,
@@ -145,6 +147,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           stems: ms.stems.map((s) => ({ name: s.name, type: s.type })),
         }),
       });
+      if (!res) return; /* user cancelled the credit confirmation */
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: "Mix plan failed" }))) as { error?: string };
         throw new Error(err.error ?? "Mix plan failed");
@@ -152,7 +155,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
       const generatedPlan = (await res.json()) as AiMixPlan;
       onChange({ ...settings, musicStudio: { ...ms, aiMix: opts, aiMixPlan: generatedPlan } });
       toast({
-        title: "AI Mix Plan ready",
+        title: "Mix Plan ready",
         description: generatedPlan.fallback
           ? "Generated an offline plan — AI was unavailable."
           : `Mix & master plan built for ${presetName}.`,
@@ -242,7 +245,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         className="w-full h-12 text-sm font-black bg-primary text-black hover:bg-primary/90"
         data-testid="btn-create-mix-plan"
       >
-        {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Building mix plan…</> : <><Sparkles className="h-4 w-4 mr-2" /> Create AI Mix Plan</>}
+        {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Building mix plan…</> : <><Sparkles className="h-4 w-4 mr-2" /> Create Mix Plan</>}
       </Button>
 
       {plan && (
@@ -284,7 +287,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
             {rendering && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.06] border border-primary/20">
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                <p className="text-xs font-bold text-primary">Rendering your AI mix…</p>
+                <p className="text-xs font-bold text-primary">Rendering your mix…</p>
               </div>
             )}
 
@@ -299,7 +302,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
               <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <p className="text-xs font-black text-emerald-300">AI Mix Rendered</p>
+                  <p className="text-xs font-black text-emerald-300">Mix Rendered</p>
                   <span className="text-[10px] text-white/40 ml-auto">Full MP3 · {new Date(renderResult.createdAt).toLocaleTimeString()}</span>
                 </div>
                 <audio controls src={renderResult.url} className="w-full" />

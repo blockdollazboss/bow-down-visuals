@@ -3,6 +3,16 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import { db, artistVaultsTable, artistOutfitsTable } from "@workspace/db";
 import { eq, and, asc } from "drizzle-orm";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl, isStorageRef } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): outfit images are re-hosted into
+   permanent storage at save time; reads serve a fresh signed URL minted
+   from the stored ref (image_path when present, else image_url). */
+async function presentOutfit<T extends { image_url: string; image_path: string | null }>(row: T): Promise<T> {
+  const source = row.image_path ?? row.image_url;
+  return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
+}
 
 const router = Router();
 
@@ -60,7 +70,7 @@ router.get("/artist-vaults/:vaultId/outfits", requireAuth, async (req, res) => {
     .from(artistOutfitsTable)
     .where(eq(artistOutfitsTable.vault_id, vaultId))
     .orderBy(asc(artistOutfitsTable.sort_order), asc(artistOutfitsTable.created_at));
-  res.json({ outfits });
+  res.json({ outfits: await Promise.all(outfits.map(presentOutfit)) });
 });
 
 /* ── POST /api/artist-vaults/:vaultId/outfits — add an outfit ── */
@@ -89,18 +99,20 @@ router.post("/artist-vaults/:vaultId/outfits", requireAuth, async (req, res) => 
   }
   const isFirst = existing.length === 0;
 
+  const storedUrl =
+    (await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url;
   const [row] = await db
     .insert(artistOutfitsTable)
     .values({
       vault_id: vaultId,
       label: d.label,
-      image_url: d.image_url,
-      image_path: d.image_path ?? null,
+      image_url: storedUrl,
+      image_path: isStorageRef(storedUrl) ? storedUrl : (d.image_path ?? null),
       is_default: isFirst,
     })
     .returning();
 
-  res.status(201).json({ outfit: row });
+  res.status(201).json({ outfit: row ? await presentOutfit(row) : row });
 });
 
 /* ── PATCH /api/artist-vaults/:vaultId/outfits/:outfitId — rename / set default ── */

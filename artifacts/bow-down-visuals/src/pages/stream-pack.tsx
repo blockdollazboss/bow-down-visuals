@@ -1,14 +1,21 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Layers,
-  MonitorPlay, Bell, LayoutPanelTop, Tv,
+  MonitorPlay, Bell, LayoutPanelTop, Tv, Radio, Plus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  fetchMyStreamPackAssets,
+  setStreamPackAssetApplied,
+  type StreamPackAssetRecord,
+} from "@/lib/stream-pack";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 /* ─── Stream Pack Generator ───────────────────────────────────────────────
    One-click branded asset bundles for streamers: overlay frames, alert
@@ -55,8 +62,16 @@ const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", 
 const FALLBACK_CREDIT_COST = 1;
 
 export function StreamPackTool() {
-  const { user } = useAuth();
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  /* ── Your library: every graphic you've ever generated here, read
+     from the server records (not this sitting's state) — and the
+     apply toggles that mark graphics for the Go Live studio tray. */
+  const [library, setLibrary] = useState<StreamPackAssetRecord[] | null>(null);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [channelName, setChannelName] = useState("");
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
   const [assets, setAssets] = useState<AssetInfo[]>([]);
@@ -93,9 +108,51 @@ export function StreamPackTool() {
     return () => { cancelled = true; };
   }, []);
 
+  /* Load the durable library (members only — generation needs an
+     account too). A failed load is an honest error with a retry,
+     never a fake empty shelf. */
+  async function loadLibrary() {
+    if (!user) return;
+    try {
+      const assets = await fetchMyStreamPackAssets(getAccessToken);
+      setLibrary(assets);
+      setLibraryError(null);
+    } catch {
+      setLibraryError(t("streamPack.libraryError"));
+    }
+  }
+
+  useEffect(() => {
+    void loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Apply / unapply one library graphic for the Go Live studio tray.
+     The server re-checks ownership and answers with the record as it
+     now stands; the card renders from that answer. */
+  async function toggleApplied(asset: StreamPackAssetRecord) {
+    if (applyingId) return;
+    setApplyingId(asset.id);
+    try {
+      const updated = await setStreamPackAssetApplied(
+        getAccessToken,
+        asset.id,
+        !asset.appliedToStudio,
+      );
+      setLibrary((list) =>
+        (list ?? []).map((a) => (a.id === updated.id ? updated : a)),
+      );
+      setLibraryError(null);
+    } catch {
+      setLibraryError(t("streamPack.libraryActionFailed"));
+    } finally {
+      setApplyingId(null);
+    }
+  }
+
   const selectedAssets = assets.filter((a) => selected.has(a.key));
   const totalCost = selectedAssets.length * creditCost;
-  const activeTheme = themes.find((t) => t.id === themeId);
+  const activeTheme = themes.find((theme) => theme.id === themeId);
 
   function toggleAsset(key: string) {
     setSelected((prev) => {
@@ -142,22 +199,25 @@ export function StreamPackTool() {
       if (res.status === 402) {
         setOutOfCredits(true);
         setStates((s) => ({ ...s, [assetKey]: "failed" }));
-        setFailedMsg((f) => ({ ...f, [assetKey]: "Out of Visual Bucs" }));
+        setFailedMsg((f) => ({ ...f, [assetKey]: t("streamPack.errorOutOfCredits") }));
         return false;
       }
       if (!res.ok || !data.url) {
         setStates((s) => ({ ...s, [assetKey]: "failed" }));
-        setFailedMsg((f) => ({ ...f, [assetKey]: data.message || data.error || "Generation failed — no Visual Bucs charged." }));
+        setFailedMsg((f) => ({ ...f, [assetKey]: data.message || data.error || t("streamPack.errorGenerationFailed") }));
         return false;
       }
       const label = assets.find((a) => a.key === assetKey)?.label ?? assetKey;
       setResults((r) => ({ ...r, [assetKey]: { key: assetKey, label, url: data.url!, path: data.path ?? null } }));
       setStates((s) => ({ ...s, [assetKey]: "done" }));
       setDoneCount((c) => c + 1);
+      /* The server recorded this graphic — refresh the library so it
+         shows up below as a durable, applicable asset. */
+      void loadLibrary();
       return true;
     } catch {
       setStates((s) => ({ ...s, [assetKey]: "failed" }));
-      setFailedMsg((f) => ({ ...f, [assetKey]: "Network error — no Visual Bucs charged." }));
+      setFailedMsg((f) => ({ ...f, [assetKey]: t("streamPack.errorNetwork") }));
       return false;
     }
   }
@@ -205,7 +265,7 @@ export function StreamPackTool() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("streamPack.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -213,20 +273,17 @@ export function StreamPackTool() {
             <Clapperboard className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Stream Pack Generator</h1>
+            <h1 className="text-2xl font-black">{t("streamPack.pageTitle")}</h1>
             <p className="text-sm text-white/45">
-              Full branded bundle for your stream — {creditCost} Visual Buc per asset
+              {t("streamPack.pageSubtitle", { cost: creditCost })}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
-            Overlays, alerts, panels, and screens — all generated in one matching theme with your
-            channel name baked in. Alerts are <span className="text-white/80 font-semibold">static graphics</span> (they
-            pop, they don't animate), and AI can't do true transparency — layer the frames over
-            your scene in OBS.
+            {t("streamPack.infoBoxA")} <span className="text-white/80 font-semibold">{t("streamPack.infoBoxStatic")}</span> {t("streamPack.infoBoxB")}
           </p>
         </div>
 
@@ -245,34 +302,34 @@ export function StreamPackTool() {
         <div className="mt-6 space-y-6">
           <div>
             <label htmlFor="sp-channel" className="text-xs font-bold text-white/40 uppercase tracking-wider">
-              Channel name
+              {t("streamPack.channelNameLabel")}
             </label>
             <input
               id="sp-channel"
               value={channelName}
               onChange={(e) => setChannelName(e.target.value.slice(0, 40))}
-              placeholder="e.g. ThyCheatCode"
+              placeholder={t("streamPack.channelNamePlaceholder")}
               maxLength={40}
               className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
             />
           </div>
 
           <div data-min-stars="2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Theme</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("streamPack.themeLabel")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {themes.map((t) => (
+              {themes.map((theme) => (
                 <button
-                  key={t.id}
+                  key={theme.id}
                   type="button"
-                  onClick={() => setThemeId(t.id)}
+                  onClick={() => setThemeId(theme.id)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
-                    themeId === t.id
-                      ? "border-primary/60 bg-primary/[0.08]"
+                    themeId === theme.id
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
                   <span className="flex gap-1.5 mb-2">
-                    {t.swatches.map((c) => (
+                    {theme.swatches.map((c) => (
                       <span
                         key={c}
                         className="h-5 w-5 rounded-full border border-white/20"
@@ -280,8 +337,8 @@ export function StreamPackTool() {
                       />
                     ))}
                   </span>
-                  <p className="font-bold text-white text-sm">{t.name}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{t.blurb}</p>
+                  <p className="font-bold text-white text-sm">{theme.name}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{theme.blurb}</p>
                 </button>
               ))}
             </div>
@@ -289,7 +346,7 @@ export function StreamPackTool() {
 
           <div data-min-stars="5">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
-              Assets in this pack ({selectedAssets.length} selected · {totalCost} Visual Bucs)
+              {t("streamPack.assetsTitle", { count: selectedAssets.length, cost: totalCost })}
             </p>
             <div className="space-y-4">
               {GROUP_ORDER.map((group) => {
@@ -298,7 +355,7 @@ export function StreamPackTool() {
                 const Icon = GROUP_ICONS[group];
                 const allOn = groupAssets.every((a) => selected.has(a.key));
                 return (
-                  <div key={group} className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+                  <div key={group} className={`rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <button
                       type="button"
                       onClick={() => toggleGroup(group)}
@@ -307,7 +364,7 @@ export function StreamPackTool() {
                       <Icon className="h-4 w-4 text-primary/70" />
                       <span className="font-bold text-white text-sm">{group}</span>
                       <span className="ml-auto text-xs text-white/35">
-                        {allOn ? "all on" : `${groupAssets.filter((a) => selected.has(a.key)).length}/${groupAssets.length}`}
+                        {allOn ? t("streamPack.allOn") : `${groupAssets.filter((a) => selected.has(a.key)).length}/${groupAssets.length}`}
                       </span>
                     </button>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -318,7 +375,7 @@ export function StreamPackTool() {
                             key={a.key}
                             className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition ${
                               selected.has(a.key)
-                                ? "border-primary/40 bg-primary/[0.06]"
+                                ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                                 : "border-white/[0.06] opacity-50"
                             }`}
                           >
@@ -348,15 +405,15 @@ export function StreamPackTool() {
           <button
             onClick={generatePack}
             disabled={!channelName.trim() || !user || busy || selectedAssets.length === 0}
-            className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${(!channelName.trim() || !user || selectedAssets.length === 0) && !busy ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
             {busy ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Generating {doneCount}/{selectedAssets.length}…
+                {t("streamPack.generating", { done: doneCount, total: selectedAssets.length })}
               </span>
             ) : (
-              <>Generate Pack · {totalCost} Visual Bucs</>
+              <>{t("streamPack.generatePack", { cost: totalCost })}</>
             )}
           </button>
 
@@ -375,20 +432,26 @@ export function StreamPackTool() {
           <div className="mt-10">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black text-white">
-                Your pack {activeTheme ? <span className="text-white/40 font-semibold">· {activeTheme.name}</span> : null}
+                {t("streamPack.yourPack")} {activeTheme ? <span className="text-white/40 font-semibold">· {activeTheme.name}</span> : null}
               </h2>
               <button
                 onClick={downloadAll}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
               >
-                <Download className="h-4 w-4" /> Download All
+                <Download className="h-4 w-4" /> {t("streamPack.downloadAll")}
               </button>
             </div>
+            <Link
+              href="/go-live"
+              className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
+            >
+              <Radio className="h-4 w-4" /> {t("streamPack.goLive", { defaultValue: "Pack ready — set up your stream in Go Live" })}
+            </Link>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {generatedList.map((a) => {
                 const r = results[a.key]!;
                 return (
-                  <div key={a.key} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+                  <div key={a.key} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <img src={r.url} alt={r.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />
                     <div className="flex items-center gap-2 px-4 py-3">
                       <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
@@ -396,7 +459,7 @@ export function StreamPackTool() {
                       <span className="ml-auto flex gap-1.5 shrink-0">
                         <button
                           onClick={() => generateOne(a.key)}
-                          title="Regenerate (100 Visual Bucs)"
+                          title={t("streamPack.regenerate", { cost: creditCost * 100 })}
                           data-min-stars="3"
                           className="rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
                         >
@@ -404,7 +467,7 @@ export function StreamPackTool() {
                         </button>
                         <button
                           onClick={() => downloadUrl(r.url, `stream-pack-${a.key}.png`)}
-                          title="Download"
+                          title={t("streamPack.download")}
                           className="rounded-lg bg-primary p-2 text-black hover:brightness-110 transition"
                         >
                           <Download className="h-3.5 w-3.5" />
@@ -415,14 +478,107 @@ export function StreamPackTool() {
                 );
               })}
             </div>
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+            <div className={`mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <MonitorPlay className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
               <p className="text-xs text-white/55 leading-relaxed">
-                Drop these into OBS or Streamlabs as image sources. Screens go full-frame on their
-                own scenes; frames and alerts layer over your gameplay or camera.
+                {t("streamPack.obsNote")}
               </p>
             </div>
           </div>
+        )}
+
+        {/* ── Your library ── */}
+        {user && (
+          <section className="mt-10" data-testid="stream-pack-library">
+            <h2 className="text-lg font-black text-white">{t("streamPack.libraryTitle")}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/45">
+              {t("streamPack.libraryNote")}
+            </p>
+            {libraryError && (
+              <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+                <p className="text-sm text-red-200/80">{libraryError}</p>
+                <button
+                  onClick={() => void loadLibrary()}
+                  className="ml-auto shrink-0 rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white/70 hover:border-white/25 transition"
+                >
+                  {t("streamPack.retry")}
+                </button>
+              </div>
+            )}
+            {library === null && !libraryError && (
+              <p className="mt-4 inline-flex items-center gap-2 text-sm text-white/40">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("streamPack.libraryLoading")}
+              </p>
+            )}
+            {library !== null && library.length === 0 && !libraryError && (
+              <p className="mt-4 text-sm text-white/40">{t("streamPack.libraryEmpty")}</p>
+            )}
+            {library !== null && library.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {library.map((asset) => {
+                  const themeName = themes.find((th) => th.id === asset.themeId)?.name;
+                  return (
+                    <div key={asset.id} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                      <img src={asset.url} alt={asset.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />
+                      <div className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
+                          <p className="truncate text-sm font-semibold text-white">{asset.label}</p>
+                          <button
+                            onClick={() => downloadUrl(asset.url, `stream-pack-${asset.assetKey}.png`)}
+                            title={t("streamPack.download")}
+                            className="ml-auto shrink-0 rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {(themeName || asset.channelName) && (
+                          <p className="mt-1 truncate text-xs text-white/35">
+                            {[themeName, asset.channelName].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                        {asset.appliedToStudio ? (
+                          <div className="mt-3 flex items-center gap-2">
+                            <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/15 px-4 py-2.5 text-sm font-bold text-primary">
+                              <CheckCircle2 className="h-4 w-4" />
+                              {t("streamPack.inStudio")}
+                            </span>
+                            <button
+                              onClick={() => void toggleApplied(asset)}
+                              disabled={applyingId === asset.id}
+                              data-testid={`library-apply-${asset.id}`}
+                              className="shrink-0 rounded-xl border border-white/[0.12] px-3 py-2.5 text-xs font-semibold text-white/60 hover:border-white/25 hover:text-white transition disabled:opacity-60"
+                            >
+                              {applyingId === asset.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                t("streamPack.removeFromStudio")
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => void toggleApplied(asset)}
+                            disabled={applyingId === asset.id}
+                            data-testid={`library-apply-${asset.id}`}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                          >
+                            {applyingId === asset.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                            {t("streamPack.addToStudio")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         {/* Failed assets with retry */}
@@ -438,7 +594,7 @@ export function StreamPackTool() {
                   onClick={() => generateOne(key)}
                   className="ml-auto shrink-0 rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white/70 hover:border-white/25 transition"
                 >
-                  Retry
+                  {t("streamPack.retry")}
                 </button>
               </div>
             ))}
@@ -449,7 +605,8 @@ export function StreamPackTool() {
 }
 
 export default function StreamPack() {
-  usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
+  const { t } = useTranslation();
+  usePageTitle(t("streamPack.pageTitle"), t("streamPack.pageDescription"));
   return (
     <div className="min-h-screen bg-black text-white">
       <StreamPackTool />

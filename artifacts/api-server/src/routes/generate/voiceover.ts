@@ -4,8 +4,8 @@
  *  POST /api/voiceover/generate   generate studio-quality narration audio
  *                                 from a script (ElevenLabs TTS)
  *
- * Pricing: 2 credits per minute of generated audio (env-overridable via
- * VOICEOVER_CREDITS_PER_MINUTE). Duration is estimated from word count at
+ * Pricing: 200 Visual Bucs per minute of generated audio (env-overridable
+ * via VOICEOVER_CREDITS_PER_MINUTE). Duration is estimated from word count at
  * ~150 wpm; the charge is taken BEFORE generation (charge-before-generate)
  * and automatically refunded if the provider call fails. If the actual audio
  * comes back shorter than the estimate, the unused minutes are refunded.
@@ -43,7 +43,7 @@ export const MAX_SCRIPT_CHARS = 18_000;
 
 /** ElevenLabs TTS model (env-overridable). */
 function ttsModel(): string {
-  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2";
+  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4";
 }
 
 function elevenKey(): string | undefined {

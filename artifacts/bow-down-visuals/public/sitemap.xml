@@ -1,11 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Access lock-down (Lane 4, audit §1.4 / §5.1): the sitemap lists ONLY
+     the static public set. The SEO/marketing/discovery family and every
+     locked app surface were removed — a sitemap URL that bounces to
+     /login is a soft-404 risk. Parameterized public routes
+     (/artist/:slug, /shop/:slug, /tips/:handle, media/funnel landings…)
+     are dynamic and were never listed here. Pinned by
+     src/lib/prerender-sitemap-lockdown.test.ts. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://bowdownvisuals.com/</loc></url>
-  <url><loc>https://bowdownvisuals.com/pricing</loc></url>
-  <url><loc>https://bowdownvisuals.com/waitlist</loc></url>
-  <url><loc>https://bowdownvisuals.com/beta-access</loc></url>
-  <url><loc>https://bowdownvisuals.com/contact</loc></url>
+  <url><loc>https://bowdownvisuals.com/charts</loc></url>
+  <url><loc>https://bowdownvisuals.com/shorts</loc></url>
+  <url><loc>https://bowdownvisuals.com/beats</loc></url>
+  <url><loc>https://bowdownvisuals.com/shoutouts</loc></url>
+  <url><loc>https://bowdownvisuals.com/memberships</loc></url>
+  <url><loc>https://bowdownvisuals.com/contests</loc></url>
+  <url><loc>https://bowdownvisuals.com/winners</loc></url>
   <url><loc>https://bowdownvisuals.com/terms</loc></url>
   <url><loc>https://bowdownvisuals.com/privacy</loc></url>
   <url><loc>https://bowdownvisuals.com/refund-policy</loc></url>
+  <url><loc>https://bowdownvisuals.com/storefronts</loc></url>
 </urlset>

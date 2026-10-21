@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Disc3, Loader2, Download, AlertTriangle, ArrowLeft, RefreshCw,
   Sparkles, Type, Palette,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
+import { coverArtSeedFromAsset, COVER_ART_PROMPT_MAX } from "@/lib/hub-song";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
@@ -15,6 +22,7 @@ import {
   getCoverArtTier,
   type CoverArtResult,
 } from "@/lib/cover-art";
+import { AttributionToggle } from "@/components/AttributionToggle";
 
 /* ─── AI Cover Art Generator ────────────────────────────────────────────────
    Professional album/single/EP cover art. GPT-6 art-directs the concept +
@@ -26,9 +34,13 @@ interface GenerateResponse extends CoverArtResult {
 }
 
 export default function CoverArt() {
-  const { user } = useAuth();
-  const { addAsset } = useHubProject();
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
+  const { addAsset, project } = useHubProject();
+  const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
+  const [mode, setMode] = useState<"simple" | "custom">("simple");
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
   const [mood, setMood] = useState("");
@@ -36,10 +48,40 @@ export default function CoverArt() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState<"standard" | "premium">("standard");
   const [generating, setGenerating] = useState(false);
+  /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
+  const [attribution, setAttribution] = useState(false);
   const [result, setResult] = useState<CoverArtResult | null>(null);
   const [history, setHistory] = useState<CoverArtResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* The vault + hub project know the artist and song — prefill so nothing is retyped. */
+  useEffect(() => {
+    if (!artistName && activeArtist?.artist_name) setArtistName(activeArtist.artist_name);
+    if (!songTitle && project.name && project.name !== "Untitled Project") setSongTitle(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeArtist?.artist_name]);
+
+  /* A saved location can seed the backdrop — comes from the locations library. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const scene = q.get("scene");
+    if (scene) {
+      setMood((m) => (m ? `${m} — set against this saved location backdrop: ${scene}` : `Set against this saved location backdrop: ${scene}`));
+      q.delete("scene");
+      const next = q.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* One-click cover art presets */
+  const COVER_PRESETS = [
+    { label: "💎 Luxury Gold", style: "luxury-gold", mood: "luxurious and premium" },
+    { label: "🌙 Dark Moody", style: "dark-moody", mood: "dark and atmospheric" },
+    { label: "🎨 Vibrant Pop", style: "vibrant-pop", mood: "bold and energetic" },
+    { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
+  ];
 
   const tierInfo = getCoverArtTier(tier);
   const canGenerate = songTitle.trim().length > 0 && artistName.trim().length > 0 && !generating;
@@ -53,6 +95,9 @@ export default function CoverArt() {
       const res = await confirmedFetch("/api/cover-art", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        /* Confirm the selected tier's charge (registry is the standard tier's flat 200). */
+        overrideCost: tierInfo.credits,
+        overrideFeature: t("cover-art.confirmFeature", { defaultValue: "Cover Art" }),
         body: JSON.stringify({
           songTitle: songTitle.trim(),
           artistName: artistName.trim(),
@@ -60,6 +105,8 @@ export default function CoverArt() {
           style,
           aspectRatio,
           tier,
+          /* Virality: opt-in attribution credit (paid export → opt-in). */
+          attribution,
         }),
       });
       if (!res) return;
@@ -100,15 +147,14 @@ export default function CoverArt() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-4xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+          <ArrowLeft className="h-4 w-4" />{t("cover-art.back")}</Link>
 
         <div className="flex items-center gap-3 mb-2">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <Disc3 className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">AI Cover Art Generator</h1>
+            <h1 className="text-2xl font-black">{t("cover-art.ai_cover_art_generator")}</h1>
             <p className="text-sm text-white/45">
               Release-ready artwork with pro typography direction — {tierInfo.credits} Visual Bucs
             </p>
@@ -122,54 +168,111 @@ export default function CoverArt() {
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200/80">{error}</p>
+            <p className="text-sm text-red-300/80">{error}</p>
           </div>
         )}
 
+        {/* Spine: the song package already art-directed its cover — pull
+            the song in and its coverArtPrompt seeds this desk, instead of
+            the prompt dying unread in the asset meta (DE-8). */}
+        <div className="mt-6">
+          <ProjectFlowBar
+            kinds={["song", "script"]}
+            actionLabel={t("cover-art.useSong", { defaultValue: "Use song" })}
+            onPick={(asset) => {
+              const seed = coverArtSeedFromAsset(asset);
+              if (seed.title) setSongTitle(seed.title);
+              if (seed.artist) setArtistName(seed.artist);
+              if (seed.coverArtPrompt) setMood(seed.coverArtPrompt);
+              else if (seed.mood) setMood(seed.mood);
+              else if (seed.genre) setMood(seed.genre);
+              setMode("custom");
+            }}
+          />
+        </div>
+
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {/* ── Controls ── */}
-          <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className={`space-y-5 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            {/* Simple / Custom toggle */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("simple")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                {t("cover-art.simple", { defaultValue: "Turbo" })}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("custom")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                {t("cover-art.custom", { defaultValue: "Advanced" })}
+              </button>
+            </div>
+
+            {mode === "simple" && (
+              <div className="space-y-4">
+                <p className="text-sm text-white/60">{t("cover-art.pickVibe", { defaultValue: "Pick a vibe — one tap, done." })}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {COVER_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setStyle(preset.style);
+                        setMood(preset.mood);
+                      }}
+                      className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-center"
+                    >
+                      <span className="text-sm font-semibold">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mode === "custom" && (
+            <>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Song title
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.song_title")}</label>
               <input
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
-                placeholder="Midnight Crown"
+                placeholder={t("cover-art.midnight_crown")}
                 maxLength={120}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Artist name
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.artist_name")}</label>
               <input
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
-                placeholder="Thy Cheat Code"
+                placeholder={t("cover-art.thy_cheat_code")}
                 maxLength={120}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Mood / genre <span className="normal-case text-white/25">(optional)</span>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.mood_genre")}<span className="normal-case text-white/25">{t("cover-art.optional")}</span>
               </label>
               <input
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
-                placeholder="dark hip-hop, triumphant, late-night drive"
-                maxLength={300}
+                placeholder={t("cover-art.dark_hip_hop_triumphant_late_nig")}
+                maxLength={COVER_ART_PROMPT_MAX}
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Style
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.style")}</label>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {COVER_ART_STYLES.map((s) => (
                   <button
@@ -190,9 +293,7 @@ export default function CoverArt() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Format
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.format")}</label>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {COVER_ART_RATIOS.map((r) => (
                   <button
@@ -212,28 +313,29 @@ export default function CoverArt() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Detail level
-              </label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.detail_level")}</label>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {COVER_ART_TIERS.map((t) => (
+                {COVER_ART_TIERS.map((tr) => (
                   <button
-                    key={t.key}
-                    onClick={() => setTier(t.key)}
+                    key={tr.key}
+                    onClick={() => setTier(tr.key)}
                     className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                      tier === t.key
+                      tier === tr.key
                         ? "border-primary/70 bg-primary/10"
                         : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                     }`}
                   >
                     <span className="block text-xs font-bold">
-                      {t.label} <span className="text-primary">· {t.credits} VB</span>
+                      {t(`cover-art.tier.${tr.key}.label`, { defaultValue: tr.label })} <span className="text-primary">· {tr.credits} VB</span>
                     </span>
-                    <span className="block text-[10px] text-white/40">{t.blurb}</span>
+                    <span className="block text-[10px] text-white/40">{t(`cover-art.tier.${tr.key}.blurb`, { defaultValue: tr.blurb })}</span>
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Attribution — the virality playbook, opt-in for paid exports */}
+            <AttributionToggle checked={attribution} onChange={setAttribution} disabled={generating} />
 
             <button
               onClick={generate}
@@ -242,36 +344,33 @@ export default function CoverArt() {
             >
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Art-directing your cover…
-                </>
+                  <Loader2 className="h-4 w-4 animate-spin" />{t("cover-art.art_directing_your_cover")}</>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate cover · {tierInfo.credits} Visual Bucs
+                  <Sparkles className="h-4 w-4" /> {t("cover-art.generateBtn", { defaultValue: "Generate cover · {{credits}} Visual Bucs", credits: tierInfo.credits })}
                 </>
               )}
             </button>
             {!user && (
-              <p className="text-xs text-white/35 text-center">
-                Sign in to generate — your covers save to your library.
-              </p>
+              <p className="text-xs text-white/35 text-center">{t("cover-art.sign_in_to_generate_your_covers")}</p>
+            )}
+            </>
             )}
           </div>
 
           {/* ── Result ── */}
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {!result && !generating && (
               <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
                 <Disc3 className="h-10 w-10 text-white/15 mb-3" />
-                <p className="text-sm text-white/40 max-w-[220px]">
-                  Your cover art appears here — enter a song title and artist name to start.
-                </p>
+                <p className="text-sm text-white/40 max-w-[220px]">{t("cover-art.your_cover_art_appears_here_ente")}</p>
               </div>
             )}
             {generating && !result && (
               <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
                 <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-                <p className="text-sm text-white/50">AI is art-directing your cover…</p>
-                <p className="text-xs text-white/30 mt-1">Concept, typography, then the artwork.</p>
+                <p className="text-sm text-white/50">{t("cover-art.ai_is_art_directing_your_cover")}</p>
+                <p className="text-xs text-white/30 mt-1">{t("cover-art.concept_typography_then_the_artw")}</p>
               </div>
             )}
             {result && (
@@ -287,8 +386,18 @@ export default function CoverArt() {
                     rel="noreferrer"
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition"
                   >
-                    <Download className="h-4 w-4" /> Download
-                  </a>
+                    <Download className="h-4 w-4" />{t("cover-art.download")}</a>
+                  <Link
+                    href={`/distribute?cover=${encodeURIComponent(result.url)}&title=${encodeURIComponent(songTitle)}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition"
+                  >
+                    <Disc3 className="h-4 w-4" />{t("cover-art.sendToDistribute", { defaultValue: "Distribute" })}</Link>
+                  <Link
+                    href={`/video-editor?tab=export&canvas=1&canvasCover=${encodeURIComponent(result.url)}&canvasTitle=${encodeURIComponent(songTitle)}&canvasArtist=${encodeURIComponent(artistName)}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition"
+                    title="Turn this cover art into an 8-second Spotify Canvas loop"
+                  >
+                    <Sparkles className="h-4 w-4" />{t("cover-art.animateAsCanvas", { defaultValue: "Animate as Canvas" })}</Link>
                   <button
                     onClick={generate}
                     disabled={generating}
@@ -299,14 +408,31 @@ export default function CoverArt() {
                     ) : (
                       <RefreshCw className="h-4 w-4" />
                     )}
-                    Variation
+                    {t("cover-art.variation", { defaultValue: "Variation" })}
                   </button>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="flex-1 min-w-[140px]" data-testid="btn-cover-share">
+                    <ShareMenu
+                      getToken={getAccessToken}
+                      shareUrl={result.url}
+                      text={songTitle ? `Cover art for "${songTitle}" — made with Bow Down Visuals` : "My new cover art — made with Bow Down Visuals"}
+                      contentType="image"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px] flex" data-testid="btn-cover-showcase">
+                    <PublishToShowcase
+                      mediaType="image"
+                      mediaUrl={result.url}
+                      thumbnailUrl={result.url}
+                      defaultTitle={songTitle}
+                    />
+                  </div>
+                </div>
                 {result.typography && (
-                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/40 p-3">
+                  <div className={`mt-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/[0.08] bg-black/40"}`}>
                     <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary/90 mb-1">
-                      <Type className="h-3 w-3" /> Typography direction
-                    </p>
+                      <Type className="h-3 w-3" />{t("cover-art.typography_direction")}</p>
                     <p className="text-xs text-white/55 leading-relaxed">{result.typography}</p>
                   </div>
                 )}
@@ -331,9 +457,7 @@ export default function CoverArt() {
         {/* ── Recent generations ── */}
         {history.length > 1 && (
           <div className="mt-8">
-            <h2 className="text-sm font-black uppercase tracking-wider text-white/40 mb-3">
-              This session
-            </h2>
+            <h2 className="text-sm font-black uppercase tracking-wider text-white/40 mb-3">{t("cover-art.this_session")}</h2>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
               {history.map((h, i) => (
                 <button

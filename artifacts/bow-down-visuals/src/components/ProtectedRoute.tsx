@@ -1,24 +1,24 @@
-import { type ReactNode } from "react";
-import { Redirect } from "wouter";
+import { useState, type ReactNode } from "react";
+import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { loginPathWithNext } from "@/lib/auth-next";
+import WittyLoader from "@/components/delight/witty-loader";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
+  const [location] = useLocation();
+  const search = useSearch();
+  const [barcodeDone, setBarcodeDone] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
+  if (loading || !barcodeDone) {
+    return <WittyLoader onComplete={() => setBarcodeDone(true)} />;
   }
 
   if (!user) {
-    return <Redirect to="/login" />;
+    /* Carry the destination: the shared builder preserves path + query
+       in ?next= so sign-in returns the visitor here (audit §4.2) —
+       the same helper the AppShell GuestGate uses. */
+    return <Redirect to={loginPathWithNext(location, search)} />;
   }
 
   return <>{children}</>;

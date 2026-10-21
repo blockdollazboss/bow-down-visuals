@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
@@ -88,7 +89,7 @@ async function hasAdminGrant(userId: string): Promise<boolean> {
  * In normal mode: everyone. In admin-only mode (CREDITS_ADMIN_ONLY=true):
  * only admins and users who've received an admin grant.
  */
-async function canUseCredits(userId: string): Promise<boolean> {
+export async function canUseCredits(userId: string): Promise<boolean> {
   if (!isAdminOnlyMode()) return true;
   if (await isAdminUser(userId)) return true;
   return await hasAdminGrant(userId);
@@ -178,6 +179,116 @@ export interface ChargeLedgerRecord {
   projectId?: string | null;
 }
 
+export interface ChargeCreditsOpts {
+  rollbackOnLedgerFailure?: boolean;
+  /**
+   * Idempotency key for this charge. If a credit_usage row already exists
+   * with this key, the charge is skipped and the current balance is returned
+   * (idempotent success — safe for client retries). The key is written into
+   * the ledger row on success.
+   */
+  idempotencyKey?: string | null;
+  /**
+   * Force the deduction from the personal balance, skipping team-pool
+   * routing. Use for endpoints where the spend must be personal (e.g.
+   * funding a team pool from personal credits).
+   */
+  personalOnly?: boolean;
+}
+
+/**
+ * Build the stable idempotency key for a charge: one key per
+ * (user, endpoint scope, request-intent), so a double-tap or a client
+ * retry of the SAME request can never double-charge.
+ *
+ * A client-supplied key (the thumbnail-generator pattern: the client
+ * generates one key per user intent) wins when present; it is scoped
+ * by endpoint + user so a key reused across endpoints or users can't
+ * cross-suppress a legitimate charge. Without a client key, the key
+ * is derived from a hash of the request intent itself (the validated
+ * payload / file bytes hash the caller passes in `intent`) — an
+ * identical retry hashes to the identical key.
+ *
+ * Trade-off of the derived form: a deliberate re-run with byte-identical
+ * inputs is treated as the same purchase and is not charged again.
+ * That errs on the customer's side (never an overcharge), which is the
+ * direction the money rules require.
+ */
+export function buildChargeIdempotencyKey(
+  scope: string,
+  userId: string,
+  clientKey: unknown,
+  intent: unknown,
+): string {
+  if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+    return `${scope}:${userId}:client:${clientKey.trim()}`;
+  }
+  const intentJson = typeof intent === "string" ? intent : (JSON.stringify(intent) ?? "");
+  const hash = createHash("sha256").update(intentJson).digest("hex").slice(0, 32);
+  return `${scope}:${userId}:${hash}`;
+}
+
+/**
+ * Check whether an idempotency key was already charged. Returns the existing
+ * ledger row's id and teamId if found (teamId null = the original charge hit
+ * the personal balance), null otherwise. The teamId lets the replay path
+ * report the balance of the pool the original charge actually drew from.
+ */
+async function findExistingCharge(
+  idempotencyKey: string,
+): Promise<{ id: string; teamId: string | null } | null> {
+  try {
+    const [row] = await db
+      .select({ id: creditUsageTable.id, teamId: creditUsageTable.teamId })
+      .from(creditUsageTable)
+      .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
+      .limit(1);
+    return row ? { id: row.id, teamId: row.teamId ?? null } : null;
+  } catch {
+    // Table/column missing on a lagging DB — fail open (no dedup) rather
+    // than blocking the charge. Logged by the caller.
+    return null;
+  }
+}
+
+/**
+ * Read a team's current pool balance by id — the same teams-table read the
+ * team charge path uses (teams.ts getUserActiveTeam selects the row by id
+ * and reads .credits off it). Returns null when the team row is gone or the
+ * read fails, so callers can fall back rather than throw.
+ */
+async function readTeamPoolBalance(teamId: string): Promise<number | null> {
+  try {
+    const [team] = await db
+      .select()
+      .from(teamsTable)
+      .where(eq(teamsTable.id, teamId))
+      .limit(1);
+    return team?.credits ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the user's current personal credit balance (fresh, no cache).
+ * This is THE balance read the credits rail serves from (requireAuth
+ * stamps the same profiles.credits value onto the request); the
+ * Cloud Operator's balance tool calls it through getCreditBalance.
+ */
+async function readPersonalBalance(userId: string): Promise<number> {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("profiles").select("credits").eq("id", userId).single();
+  return (data as { credits?: number } | null)?.credits ?? 0;
+}
+
+/** Public balance read for rails that answer "how many Visual Bucs do
+ *  I have" (the operator's Tier-0 balance tool). Same read, same
+ *  source — never a second balance implementation. */
+export async function getCreditBalance(userId: string): Promise<number> {
+  return readPersonalBalance(userId);
+}
+
 /**
  * Charge `cost` credits with a guaranteed ledger trace.
  *
@@ -203,14 +314,40 @@ export async function chargeCredits(
   userId: string,
   cost: number,
   record: ChargeLedgerRecord,
-  opts?: { rollbackOnLedgerFailure?: boolean },
+  opts?: ChargeCreditsOpts,
 ): Promise<number> {
-  // Team pool first: if the user is an active member of a team, the spend
-  // comes from the shared pool — not their personal balance — unless the
-  // team's policy allows falling back to personal credits.
+  // Admin-only mode: block users who haven't been explicitly approved.
+  // This check sits BEFORE team-pool handling so team members can't
+  // bypass the lockdown by spending from the shared pool.
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ userId, cost }, "[credits] blocked non-whitelisted spend (admin-only mode)");
+    throw new CreditsDisabledError();
+  }
+  // P0-23 idempotency: if this exact charge already landed, don't charge
+  // again — return the current balance as an idempotent success.
+  const idempotencyKey = opts?.idempotencyKey?.trim() || null;
+  if (idempotencyKey) {
+    const existing = await findExistingCharge(idempotencyKey);
+    if (existing) {
+      logger.info({ userId, cost, action: record.action, idempotencyKey }, "[credits] duplicate charge suppressed by idempotency key");
+      // A replayed TEAM charge must report the pool balance — that's the
+      // balance the original charge returned and the one the client is
+      // displaying. If the team is gone or its balance is unreadable, fall
+      // back to the personal balance (fail-open, same as the lookup itself).
+      if (existing.teamId) {
+        const poolBalance = await readTeamPoolBalance(existing.teamId);
+        if (poolBalance !== null) return poolBalance;
+      }
+      return readPersonalBalance(userId);
+    }
+  }
+  // Team pool first (unless forced personal): if the user is an active
+  // member of a team, the spend comes from the shared pool — not their
+  // personal balance — unless the team's policy allows falling back.
   let teamId: string | null = null;
   let creditsAfter: number;
-  const activeTeam = await getUserActiveTeam(userId);
+  const useTeamPool = !opts?.personalOnly;
+  const activeTeam = useTeamPool ? await getUserActiveTeam(userId) : null;
   if (activeTeam) {
     const tid: string = activeTeam.team.id;
     const poolBalance: number = activeTeam.team.credits;
@@ -247,6 +384,7 @@ export async function chargeCredits(
       creditsUsed: cost,
       projectId: record.projectId ?? null,
       teamId,
+      idempotencyKey,
     });
   } catch (err) {
     if (rollback) {
@@ -279,6 +417,45 @@ export async function chargeCredits(
     throw new LedgerWriteError();
   }
   return creditsAfter;
+}
+
+/**
+ * Void a charge's idempotency key (Lane V3 F1): after a charge is
+ * refunded, its ledger row keeps the key — so a retry with the same
+ * key is suppressed as a "replay" and runs FREE while costing real
+ * provider money. Voiding nulls the key on the charge row (the row
+ * itself stays for audit; the refund row carries the reversal), so
+ * the next attempt with that key charges again. Returns true when a
+ * row was voided. Never throws — a failed void is logged loudly and
+ * the caller still reports the refund honestly.
+ */
+export async function voidChargeIdempotencyKey(
+  idempotencyKey: string,
+): Promise<boolean> {
+  if (!idempotencyKey) return false;
+  try {
+    /* Raw SQL for the lookups: a literal LIMIT (some drivers reject a
+       bound LIMIT parameter). The void counts only when a row existed
+       AND the key no longer answers afterwards. */
+    const before = await db.execute(
+      sql`SELECT id FROM credit_usage WHERE idempotency_key = ${idempotencyKey} LIMIT 1`,
+    );
+    if (!before.rows.length) return false;
+    await db
+      .update(creditUsageTable)
+      .set({ idempotencyKey: null })
+      .where(eq(creditUsageTable.idempotencyKey, idempotencyKey));
+    const after = await db.execute(
+      sql`SELECT id FROM credit_usage WHERE idempotency_key = ${idempotencyKey} LIMIT 1`,
+    );
+    return after.rows.length === 0;
+  } catch (err) {
+    logger.error(
+      { idempotencyKey, err },
+      "[credits] CRITICAL: failed to void a refunded charge's idempotency key — a retry could run free; manual reconciliation required",
+    );
+    return false;
+  }
 }
 
 /**

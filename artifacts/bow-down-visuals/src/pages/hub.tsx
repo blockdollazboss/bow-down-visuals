@@ -1,5 +1,6 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -9,12 +10,17 @@ import {
 } from "lucide-react";
 import { useHubProject, type HubAsset, type HubAssetKind, type HubProjectType } from "@/lib/hub-project";
 import {
-  getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, NEXT_STEPS,
+  getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, nextStepsFor,
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
-import { BeatMakerModule } from "./beat-maker";
-import { ThumbnailMakerModule } from "./thumbnail-maker";
+import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
+import { buildAssetContextItems, downloadAsset } from "@/lib/asset-context-menu";
+import { sendAssetToDesk } from "@/lib/asset-handoff";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
+import { BeatMakerModule } from "./ai-audio";
+import { ThumbnailMakerModule } from "./thumbnail-studio";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────
    One place for everything. Pick what you're making and the hub walks you
@@ -31,23 +37,72 @@ import { ThumbnailMakerModule } from "./thumbnail-maker";
    get a "Done, next" button that stores progress per project type. */
 
 function AssetCard({ asset }: { asset: HubAsset }) {
-  const { removeAsset } = useHubProject();
-  const next = NEXT_STEPS[asset.kind] ?? [];
+  const { t } = useTranslation();
+  const { project, removeAsset, renameAsset } = useHubProject();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState("");
+  const next = nextStepsFor(asset);
+
+  /* "Send to desk": the real handoff — stash (ownership-validated
+     against this project) and navigate to the receiving desk. */
+  const sendToDesk = (a: HubAsset, intentId: string) => {
+    try {
+      const route = sendAssetToDesk({
+        intentId,
+        asset: { hubAssetId: a.id, kind: a.kind, url: a.url, label: a.label, detail: a.detail, meta: a.meta },
+        projectAssets: project.assets,
+      });
+      setLocation(route);
+    } catch (err) {
+      toast({ title: "Couldn't send that asset", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const commitRename = () => {
+    renameAsset(asset.id, draft);
+    setRenaming(false);
+  };
+
   return (
-    <div className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3">
+    <div
+      className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3"
+      onContextMenu={(e) => {
+        if (renaming) return; // the rename field keeps its own menu
+        e.preventDefault();
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary mb-1.5">
             {KIND_LABEL[asset.kind]}
           </span>
-          <p className="text-white text-sm font-medium truncate">{asset.label}</p>
+          {renaming ? (
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename();
+                if (e.key === "Escape") setRenaming(false);
+              }}
+              onBlur={commitRename}
+              aria-label="Rename asset"
+              className="w-full rounded-md border border-primary/60 bg-black/60 px-2 py-1 text-sm text-white focus:outline-none"
+            />
+          ) : (
+            <p className="text-white text-sm font-medium truncate">{asset.label}</p>
+          )}
           {asset.detail && <p className="text-white/40 text-xs mt-0.5 truncate">{asset.detail}</p>}
         </div>
         <button
           type="button"
           onClick={() => removeAsset(asset.id)}
           className="text-white/30 hover:text-red-400 transition-colors shrink-0"
-          aria-label={`Remove ${asset.label}`}
+          aria-label={t("hub.removeAssetAria", { label: asset.label })}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -71,7 +126,7 @@ function AssetCard({ asset }: { asset: HubAsset }) {
           href={asset.url} download target="_blank" rel="noreferrer"
           className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white border border-white/15 rounded-lg px-2.5 py-1.5 transition-colors"
         >
-          <Download className="w-3.5 h-3.5" /> Download
+          <Download className="w-3.5 h-3.5" /> {t("hub.download")}
         </a>
         {next.map((n) => (
           <Link
@@ -83,17 +138,34 @@ function AssetCard({ asset }: { asset: HubAsset }) {
           </Link>
         ))}
       </div>
+      {menu && (
+        <ClipContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          testId="hub-asset-context-menu"
+          items={buildAssetContextItems(asset, {
+            onNavigate: (href) => setLocation(href),
+            onSendIntent: sendToDesk,
+            onDownload: downloadAsset,
+            onRename: (a) => { setDraft(a.label); setRenaming(true); },
+            onRemove: (a) => removeAsset(a.id),
+          })}
+        />
+      )}
     </div>
   );
 }
 
 function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 text-center max-w-4xl mx-auto">
+    <div className={`rounded-2xl border p-8 md:p-12 text-center max-w-4xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <Layers className="w-10 h-10 text-primary mx-auto mb-4" />
-      <h2 className="text-white font-black text-2xl mb-2">What are we working on?</h2>
+      <h2 className="text-white font-black text-2xl mb-2">{t("hub.typePickerTitle")}</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
-        Pick one — the hub handles the rest, one easy step at a time.
+        {t("hub.typePickerSub")}
       </p>
       <div className="space-y-8 text-left">
         {FAMILIES.map((f) => {
@@ -131,20 +203,22 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
 /* ─── Template picker: CapCut-style preloaded starters ───────────────────── */
 
 function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick: (t: HubTemplate | null) => void; onBack: () => void }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const workflow = getWorkflow(type);
   const templates = getTemplates(type);
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 max-w-4xl mx-auto">
+    <div className={`rounded-2xl border p-8 md:p-12 max-w-4xl mx-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <button
         type="button"
         onClick={onBack}
         className="flex items-center gap-1 text-white/40 hover:text-white text-sm mb-6 transition-colors"
       >
-        <ChevronLeft className="w-4 h-4" /> All project types
+        <ChevronLeft className="w-4 h-4" /> {t("hub.allProjectTypes")}
       </button>
-      <h2 className="text-white font-black text-2xl mb-2">Start your {workflow.title} from a template?</h2>
+      <h2 className="text-white font-black text-2xl mb-2">{t("hub.startFromTemplate", { title: workflow.title })}</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md">
-        Preloaded with the concept, settings, and step-by-step starters — pick one and you're already moving.
+        {t("hub.templatePickerSub")}
       </p>
       <div className="grid sm:grid-cols-2 gap-3 text-left">
         <button
@@ -154,23 +228,23 @@ function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick
           className="rounded-2xl border border-dashed border-white/15 bg-transparent p-5 hover:border-primary/60 hover:bg-primary/[0.04] transition-all group text-left"
         >
           <FilePlus2 className="w-7 h-7 text-white/40 mb-3 group-hover:text-primary group-hover:scale-110 transition-all" />
-          <p className="text-white font-bold mb-1">Start blank</p>
-          <p className="text-white/40 text-xs leading-relaxed">A clean slate — the guide walks you through everything.</p>
+          <p className="text-white font-bold mb-1">{t("hub.startBlank")}</p>
+          <p className="text-white/40 text-xs leading-relaxed">{t("hub.startBlankBlurb")}</p>
         </button>
-        {templates.map((t) => {
-          const Icon: LucideIcon = t.icon;
+        {templates.map((tpl) => {
+          const Icon: LucideIcon = tpl.icon;
           return (
             <button
-              key={t.key}
+              key={tpl.key}
               type="button"
-              onClick={() => onPick(t)}
+              onClick={() => onPick(tpl)}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-primary/60 hover:bg-primary/[0.06] transition-all group text-left"
             >
               <Icon className="w-7 h-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
-              <p className="text-white font-bold mb-1">{t.name}</p>
-              <p className="text-white/40 text-xs leading-relaxed mb-2">{t.blurb}</p>
+              <p className="text-white font-bold mb-1">{tpl.name}</p>
+              <p className="text-white/40 text-xs leading-relaxed mb-2">{tpl.blurb}</p>
               <p className="text-primary/70 text-[11px] font-semibold flex items-center gap-1">
-                <Zap className="w-3 h-3" /> Preloaded: concept + {t.preload.length} step starters
+                <Zap className="w-3 h-3" /> {t("hub.preloadedStarters", { count: tpl.preload.length })}
               </p>
             </button>
           );
@@ -181,6 +255,7 @@ function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick
 }
 
 function EmbeddedModule({ step }: { step: WorkflowStep }) {
+  const { t } = useTranslation();
   const { addAsset } = useHubProject();
   if (step.embed === "beat-maker") {
     return (
@@ -190,7 +265,7 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
             kind: "beat",
             url: beat.url,
             label: beat.title,
-            detail: `${Math.round(beat.durationMs / 1000)}s · AI generated`,
+            detail: t("hub.beatDetail", { seconds: Math.round(beat.durationMs / 1000) }),
             meta: beat.meta,
           })
         }
@@ -206,6 +281,8 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
 /* ─── Guided view: the cheat-code view ────────────────────────────────────── */
 
 function GuidedView({ onNewProject }: { onNewProject: () => void }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { project, hasKind, stepDones, markStepDone } = useHubProject();
   const workflow = getWorkflow(project.type);
   const steps = workflow.steps;
@@ -247,10 +324,10 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Preloaded concept */}
       {project.concept && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-2">
-            Your concept
-            {template && <span className="text-primary/70 normal-case"> · {template.name} template</span>}
+            {t("hub.yourConcept")}
+            {template && <span className="text-primary/70 normal-case">{t("hub.templateNameSuffix", { name: template.name })}</span>}
           </p>
           <p className="text-white/70 text-sm leading-relaxed">{project.concept}</p>
         </div>
@@ -260,9 +337,9 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-white/50 text-xs font-bold uppercase tracking-widest">
-            {allDone ? "Complete" : `Step ${safeIdx + 1} of ${steps.length}`}
+            {allDone ? t("hub.complete") : t("hub.stepOf", { current: safeIdx + 1, total: steps.length })}
           </p>
-          <p className="text-white/50 text-xs">{doneCount}/{steps.length} done</p>
+          <p className="text-white/50 text-xs">{t("hub.doneCount", { done: doneCount, total: steps.length })}</p>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
           <div
@@ -275,24 +352,23 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
       {allDone ? (
         <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-8 md:p-10 text-center">
           <Sparkles className="w-10 h-10 text-primary mx-auto mb-4" />
-          <h2 className="text-white font-black text-2xl mb-2">That's the whole chain.</h2>
+          <h2 className="text-white font-black text-2xl mb-2">{t("hub.chainCompleteTitle")}</h2>
           <p className="text-white/50 text-sm max-w-sm mx-auto mb-6">
-            {project.name} went from idea to finished — {project.assets.length} asset
-            {project.assets.length === 1 ? "" : "s"} in the tray, every step feeding the next.
+            {t("hub.chainCompleteSub", { name: project.name, count: project.assets.length })}
           </p>
           <Button
             onClick={onNewProject}
             className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4 mr-2" /> Start something new
+            <Plus className="w-4 h-4 mr-2" /> {t("hub.startSomethingNew")}
           </Button>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+        <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-3">
-            Step {safeIdx + 1}
+            {t("hub.stepN", { n: safeIdx + 1 })}
             {done
-              ? <span className="text-emerald-400"> · done</span>
+              ? <span className="text-emerald-400"> · {t("hub.doneWord")}</span>
               : <span> · {step.creditNote}</span>}
           </p>
           <div className="flex items-center gap-3 mb-2">
@@ -312,7 +388,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
             <div className="rounded-xl border border-primary/25 bg-primary/[0.06] p-4 mb-6 flex gap-3">
               <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
-                <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">Preloaded starter</p>
+                <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">{t("hub.preloadedStarter")}</p>
                 <p className="text-white/75 text-sm leading-relaxed">{stepHint.hint}</p>
               </div>
             </div>
@@ -326,22 +402,22 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                 </div>
               )}
               <p className="text-emerald-300/90 text-sm font-semibold">
-                {step.label} locked in — nice.
+                {t("hub.stepLockedIn", { label: step.label })}
               </p>
               {next ? (
                 <Button
                   onClick={advance}
                   className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90"
                 >
-                  Next up: {next.label} <ArrowRight className="w-5 h-5 ml-2" />
+                  {t("hub.nextUp", { label: next.label })} <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               ) : (
-                <p className="text-white/60 text-sm">That was the last step — chain complete.</p>
+                <p className="text-white/60 text-sm">{t("hub.lastStepComplete")}</p>
               )}
               {step.assetKind && !step.embed && (
                 <div className="text-center">
                   <Link href={step.href} className="text-white/40 hover:text-white text-xs underline underline-offset-4">
-                    Make another {step.label.toLowerCase()}
+                    {t("hub.makeAnother", { label: step.label.toLowerCase() })}
                   </Link>
                 </div>
               )}
@@ -355,7 +431,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                   onClick={finishStep}
                   className="text-white/40 hover:text-white text-xs underline underline-offset-4"
                 >
-                  Skip for now
+                  {t("hub.skipForNow")}
                 </button>
               </div>
             </div>
@@ -364,12 +440,12 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
               <Link href={step.href} className="block">
                 <Button className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  {step.assetKind ? `Make my ${step.label.toLowerCase()}` : `Open ${step.label}`}
+                  {step.assetKind ? t("hub.makeMy", { label: step.label.toLowerCase() }) : t("hub.openX", { label: step.label })}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
               <p className="text-white/35 text-xs text-center">
-                Anything you make lands back here automatically.
+                {t("hub.anythingLandsBack")}
               </p>
               <div className="text-center">
                 <button
@@ -377,7 +453,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                   onClick={finishStep}
                   className="text-white/40 hover:text-white text-xs underline underline-offset-4"
                 >
-                  {step.skipLabel ?? (step.assetKind ? "Skip for now" : "Done — next")}
+                  {step.skipLabel ?? (step.assetKind ? t("hub.skipForNow") : t("hub.doneNext"))}
                 </button>
               </div>
             </div>
@@ -387,9 +463,9 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 
       {/* Slim tray strip: proof the cheat code is working */}
       {project.assets.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">
-            Your stuff so far · {project.assets.length}
+            {t("hub.yourStuffSoFar", { count: project.assets.length })}
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {project.assets.slice(0, 12).map((a) => (
@@ -413,6 +489,8 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 /* ─── All-steps view: the advanced map ────────────────────────────────────── */
 
 function AllStepsView() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { project, setProjectType, hasKind } = useHubProject();
   const workflow = getWorkflow(project.type);
   const [activeStep, setActiveStep] = useState<string | null>(null);
@@ -439,7 +517,7 @@ function AllStepsView() {
           ))}
         </div>
         <span className="text-white/30 text-sm">
-          · {project.assets.length} asset{project.assets.length === 1 ? "" : "s"}
+          {t("hub.trayAssetCount", { count: project.assets.length })}
         </span>
       </div>
 
@@ -457,13 +535,13 @@ function AllStepsView() {
               onClick={() => setActiveStep(s.key)}
               className={`relative rounded-2xl border p-4 text-left transition-all shrink-0 w-[132px] sm:w-auto sm:shrink sm:flex-1 ${
                 active
-                  ? "border-primary bg-primary/[0.08] shadow-[0_0_24px_rgba(218,165,32,0.15)]"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55),0_0_24px_rgba(212,175,55,0.18)]")
                   : "border-white/10 bg-white/[0.03] hover:border-white/25"
               } ${isNext ? "ring-1 ring-primary/40" : ""}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">
-                  {isNext ? <span className="text-primary">Up next</span> : `Step ${i + 1}`}
+                  {isNext ? <span className="text-primary">{t("hub.upNext")}</span> : t("hub.stepN", { n: i + 1 })}
                 </span>
                 {done && (
                   <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
@@ -481,7 +559,7 @@ function AllStepsView() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Stage */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 min-h-[420px]">
+        <div className={`rounded-2xl border p-6 min-h-[420px] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="mb-5">
             <h2 className="text-white font-bold text-lg flex items-center gap-2">
               <step.icon className="w-5 h-5 text-primary" /> {step.label}
@@ -503,14 +581,13 @@ function AllStepsView() {
                 <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
                   <step.icon className="w-10 h-10 text-white/20 mx-auto mb-3" />
                   <p className="text-white/50 text-sm max-w-sm mx-auto">
-                    Nothing here yet. Open the {step.label.toLowerCase()} studio — anything you
-                    make lands back in this project automatically.
+                    {t("hub.nothingHereYet", { label: step.label.toLowerCase() })}
                   </p>
                 </div>
               )}
               <Link href={step.href}>
                 <Button className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90">
-                  <Sparkles className="w-4 h-4 mr-2" /> Open {step.label} Studio
+                  <Sparkles className="w-4 h-4 mr-2" /> {t("hub.openStudio", { label: step.label })}
                 </Button>
               </Link>
             </div>
@@ -518,17 +595,17 @@ function AllStepsView() {
         </div>
 
         {/* Project tray */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-fit lg:sticky lg:top-6">
+        <div className={`rounded-2xl border p-5 h-fit lg:sticky lg:top-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
-            <Music4 className="w-4 h-4 text-primary" /> Project assets
+            <Music4 className="w-4 h-4 text-primary" /> {t("hub.projectAssets")}
           </h3>
           <p className="text-white/35 text-xs mb-4">
-            Everything you make — here or in any studio — collects in this project.
+            {t("hub.trayExplainer")}
           </p>
           {project.assets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
               <p className="text-white/40 text-sm">
-                Start step 1 and <span className="text-white/70 font-medium">{project.name}</span> comes alive.
+                {t("hub.emptyTrayBefore")}<span className="text-white/70 font-medium">{project.name}</span>{t("hub.emptyTrayAfter")}
               </p>
             </div>
           ) : (
@@ -542,8 +619,9 @@ function AllStepsView() {
   );
 }
 
-export default function Hub() {
-  const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, newProject, clearStepDones } = useHubProject();
+export function HubModule() {
+  const { t } = useTranslation();
+  const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [pickingType, setPickingType] = useState(project.assets.length === 0);
@@ -570,8 +648,9 @@ export default function Hub() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Panel header — the page title lives on the unified Create page;
+          keep the functional controls (view toggle, new project). */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           {!pickingType && (
@@ -579,13 +658,11 @@ export default function Hub() {
               type="button"
               onClick={() => setPickingType(true)}
               className="text-white/40 hover:text-white transition-colors"
-              aria-label="Back to project picker"
+              aria-label={t("hub.backToPickerAria")}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
-          <h1 className="text-3xl font-black text-white">Hub</h1>
-          <MarketingBadge variant="muted">Beta</MarketingBadge>
         </div>
         <div className="flex items-center gap-2">
           {!pickingType && (
@@ -597,7 +674,7 @@ export default function Hub() {
                   view === "guided" ? "bg-primary text-black" : "text-white/50 hover:text-white"
                 }`}
               >
-                Guide me
+                {t("hub.guideMe")}
               </button>
               <button
                 type="button"
@@ -606,7 +683,7 @@ export default function Hub() {
                   view === "all" ? "bg-primary text-black" : "text-white/50 hover:text-white"
                 }`}
               >
-                All steps
+                {t("hub.allSteps")}
               </button>
             </div>
           )}
@@ -615,7 +692,7 @@ export default function Hub() {
             onClick={backToPicker}
             className="rounded-xl border-white/15 text-white/70 hover:text-white hover:border-white/30"
           >
-            <Plus className="w-4 h-4 mr-2" /> New project
+            <Plus className="w-4 h-4 mr-2" /> {t("hub.newProject")}
           </Button>
         </div>
       </div>
@@ -652,13 +729,32 @@ export default function Hub() {
                 type="button"
                 onClick={() => { setNameDraft(project.name); setEditingName(true); }}
                 className="text-white/80 font-semibold hover:text-white transition-colors"
-                title="Rename project"
+                title={t("hub.renameProjectTitle")}
               >
                 {project.name}
               </button>
             )}
             <span className="text-white/30 text-sm">·</span>
             <span className="text-white/30 text-sm">{getWorkflow(project.type).title}</span>
+            {/* Virality: project-level "Made with Bow Down Visuals" credit.
+                Default ON — flows into every export/share from every tool. */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={project.attribution}
+              onClick={() => setAttribution(!project.attribution)}
+              title={t("hubSpine.attributionDesc")}
+              className={`ml-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all ${
+                project.attribution
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70"
+              }`}
+            >
+              <span className={`relative h-4 w-7 rounded-full transition-colors ${project.attribution ? "bg-primary" : "bg-white/15"}`}>
+                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-black transition-all ${project.attribution ? "left-3.5" : "left-0.5"}`} />
+              </span>
+              {t("hubSpine.attributionTitle")}
+            </button>
           </div>
 
           {view === "guided" ? (
@@ -668,6 +764,22 @@ export default function Hub() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/* ─── Standalone page wrapper ─────────────────────────────────────────────
+   Preserves the original /hub page chrome for the default export.
+   The unified /create page renders HubModule directly as a mode panel. */
+export default function Hub() {
+  const { t } = useTranslation();
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-black text-white">Hub</h1>
+        <MarketingBadge variant="muted">{t("hub.beta")}</MarketingBadge>
+      </div>
+      <HubModule />
     </div>
   );
 }

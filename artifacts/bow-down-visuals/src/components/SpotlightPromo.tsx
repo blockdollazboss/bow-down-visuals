@@ -31,11 +31,11 @@ export default function SpotlightPromo() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute top-4 right-4 z-20 group flex items-center gap-2 rounded-full border border-[#c9a84c]/50 bg-black/55 backdrop-blur-md px-4 py-2 text-sm font-medium text-[#e8c86a] shadow-[0_0_18px_rgba(201,168,76,0.25)] transition hover:bg-black/75 hover:shadow-[0_0_26px_rgba(201,168,76,0.45)]"
+        className="spotlight-promo-badge absolute top-4 right-4 z-20 group flex items-center gap-2 rounded-full border border-[#c9a84c]/50 bg-black/55 backdrop-blur-md px-4 py-2 text-sm font-medium text-[#e8c86a] shadow-[0_0_18px_rgba(201,168,76,0.25)] transition hover:bg-black/75 hover:shadow-[0_0_26px_rgba(201,168,76,0.45)]"
         aria-label="Advertise on this screen"
       >
         <Sparkles className="h-4 w-4" />
-        <span>Your video here · $99/7 days</span>
+        <span>Your video here · $1,000/7 days</span>
         <span
           role="button"
           tabIndex={0}

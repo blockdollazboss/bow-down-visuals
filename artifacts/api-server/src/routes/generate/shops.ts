@@ -19,7 +19,7 @@
  */
 import { Router } from "express";
 import { z } from "zod";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
@@ -31,9 +31,74 @@ import {
   OutOfCreditsError,
 } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { ensureShopProductsBucket, SHOP_PRODUCTS_BUCKET } from "../../lib/objectStorage";
+import {
+  getCheckoutStripe,
+  retrieveCheckoutSession,
+  checkoutBaseUrl,
+  isCheckoutTestMode,
+} from "../../lib/stripe-checkout";
+import {
+  fetchMarketSaleBySession,
+  markMarketSalePaid,
+  marketSaleIsPaid,
+  marketSaleReceipt,
+} from "../../lib/market-sale";
+import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+
+/* Mirror-on-save (2026-10-13 law): shop banners + product images are
+   re-hosted into permanent storage at save time; presenters mint fresh
+   signed URLs from the stored refs on every read. */
+async function presentShopRow<T extends { banner_image_url: string | null }>(row: T): Promise<T> {
+  return {
+    ...row,
+    banner_image_url: row.banner_image_url ? await refreshSupabaseStorageUrl(row.banner_image_url) : row.banner_image_url,
+  };
+}
+
+async function presentShopProductRow<T extends { image_url: string | null; image_path: string | null }>(row: T): Promise<T> {
+  const source = row.image_path ?? row.image_url;
+  return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
+}
+
+/* ── Pinned UGC ads (migration 0178) ─────────────────────────────────────
+   shop_products.pinned_ugc_ad_id points at the ugc_ads row the seller
+   pinned to the product (the pin verb lives on the ad record, in
+   routes/ugc-ads.ts). Every product surface resolves it through here,
+   so the render rule is identical everywhere: the ad shows only while
+   it is still 'ready' with a video — a not-ready or deleted ad renders
+   as NO pin, never as a broken player — and its playable URL is minted
+   fresh on the read, never stored. Keyed by ad id. Buyer payloads get
+   the resolved `pinned_ad` only; the raw pin id is owner state and is
+   stripped before a buyer DTO leaves (the 0176 discipline: buyer
+   reads carry no management state). */
+async function pinnedAdVideosById(
+  rows: Array<{ pinned_ugc_ad_id?: string | null }>,
+): Promise<Map<string, { id: string; video_url: string }>> {
+  const ids = [
+    ...new Set(
+      rows
+        .map((r) => r.pinned_ugc_ad_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0),
+    ),
+  ];
+  const out = new Map<string, { id: string; video_url: string }>();
+  if (ids.length === 0) return out;
+  const result = await db.execute(sql`
+    SELECT id, status, video_ref
+    FROM ugc_ads
+    WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+  `);
+  for (const a of result.rows as unknown as Array<{ id: string; status: string; video_ref: string | null }>) {
+    if (a.status === "ready" && a.video_ref) {
+      out.set(a.id, { id: a.id, video_url: await refreshSupabaseStorageUrl(a.video_ref) });
+    }
+  }
+  return out;
+}
+import { r2Upload, r2PublicUrl, isR2Configured } from "../../lib/r2-client";
+import { promises as dns } from "dns";
 import { db } from "@workspace/db";
-import { requireProTier } from "./storefronts";
 import { sql } from "drizzle-orm";
 
 const router = Router();
@@ -112,6 +177,10 @@ const updateProductSchema = z.object({
   price_cents: z.number().int().min(0).max(100_000_000).optional(),
   description: z.string().trim().max(2000).optional(),
   image_url: z.string().trim().max(2000).optional(),
+  /* Pause/unlist (migration 0176): the seller flips listing state on
+     the same edit rail — 'active' is live in the storefront, 'paused'
+     is seller-only and refused at checkout. */
+  status: z.enum(["active", "paused"]).optional(),
 });
 
 const shopDescriptionSchema = z.object({
@@ -161,6 +230,13 @@ interface ProductRow {
   description: string | null;
   image_url: string | null;
   image_path: string | null;
+  /** 'active' | 'paused' (migration 0176) — owner DTOs only; buyer
+      reads select explicit columns and never carry it. */
+  status: string;
+  /** The pinned UGC ad's id (migration 0178) — owner state like
+      status: owner DTOs carry it, buyer payloads never do (they get
+      the resolved `pinned_ad` video instead). */
+  pinned_ugc_ad_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -176,7 +252,7 @@ async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | n
     LIMIT 1
   `);
   const rows = result.rows as unknown as ShopRow[];
-  return rows[0] ?? null;
+  return rows[0] ? await presentShopRow(rows[0]) : null;
 }
 
 async function productCount(shopId: string): Promise<number> {
@@ -184,6 +260,79 @@ async function productCount(shopId: string): Promise<number> {
     SELECT COUNT(*)::int AS count FROM shop_products WHERE shop_id = ${shopId}
   `);
   return (result.rows as unknown as Array<{ count: number }>)[0]?.count ?? 0;
+}
+
+/* ── Shop discount codes (migration 0190) ────────────────────────────────
+   Parity with the profile storefront's discount_codes (routes/
+   storefront.ts): same fields, same validation, same redemption
+   discipline — keyed by shop instead of creator profile, on
+   shop_discount_codes. A code is validated server-side at checkout; a
+   use is counted only when the sale is RECORDED (the paid flip in
+   lib/market-sale.ts, or the free-cart record in the checkout route
+   below) — never at validate time. Money math is the storefront's
+   exact sequence: percent off the UNIT price (rounded to the cent),
+   line gross from the discounted unit, then the ruled 5% marketplace
+   fee (STOREFRONT_PLATFORM_FEE_BPS) out of the discounted gross. A
+   code is scoped to its shop by the table's key: the same code name
+   at another shop is a different code and never applies here. */
+
+interface ShopDiscountRow {
+  id: string;
+  shop_id: string;
+  code: string;
+  percent_off: number;
+  max_uses: number;
+  used_count: number;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+async function findShopDiscount(shopId: string, code: string): Promise<ShopDiscountRow | null> {
+  const r = await db.execute(sql`
+    SELECT id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    FROM shop_discount_codes
+    WHERE shop_id = ${shopId} AND UPPER(code) = ${code.trim().toUpperCase()}
+    LIMIT 1
+  `);
+  return (r.rows as unknown as ShopDiscountRow[])[0] ?? null;
+}
+
+function shopDiscountUsable(d: ShopDiscountRow): { ok: boolean; reason?: string } {
+  if (!d.is_active) return { ok: false, reason: "This code is no longer active." };
+  if (d.expires_at && new Date(d.expires_at).getTime() < Date.now()) return { ok: false, reason: "This code has expired." };
+  if (d.max_uses !== -1 && d.used_count >= d.max_uses) return { ok: false, reason: "This code has hit its usage limit." };
+  return { ok: true };
+}
+
+/** The storefront's discount step, verbatim: percent off the unit
+    price, rounded to the cent. Line gross and fee derive from this. */
+export function discountedUnitCents(unitCents: number, percentOff: number): number {
+  return Math.round((unitCents * (100 - percentOff)) / 100);
+}
+
+/** Count one redemption of a code — called ONLY where a sale is
+    recorded (paid flip / free-cart record), never at validate. */
+async function countShopDiscountUse(shopId: string, code: string): Promise<void> {
+  await db.execute(sql`
+    UPDATE shop_discount_codes
+    SET used_count = used_count + 1
+    WHERE shop_id = ${shopId} AND UPPER(code) = ${code.toUpperCase()}
+  `);
+}
+
+function presentShopDiscount(c: ShopDiscountRow) {
+  return {
+    id: String(c.id),
+    shopId: String(c.shop_id),
+    code: String(c.code),
+    percentOff: Number(c.percent_off),
+    maxUses: Number(c.max_uses),
+    usedCount: Number(c.used_count),
+    expiresAt: c.expires_at ? String(c.expires_at) : null,
+    isActive: Boolean(c.is_active),
+    createdAt: String(c.created_at),
+  };
 }
 
 /** First value of a route param (Express 5 types params as string | string[]). */
@@ -216,10 +365,12 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
     byShop.set(row.shop_id, row.n);
   }
   res.json({
-    shops: (result.rows as unknown as Array<{ id: string }>).map((s) => ({
-      ...s,
-      product_count: byShop.get(s.id) ?? 0,
-    })),
+    shops: await Promise.all(
+      (result.rows as unknown as Array<{ id: string; banner_image_url: string | null }>).map(async (s) => ({
+        ...(await presentShopRow(s)),
+        product_count: byShop.get(s.id) ?? 0,
+      })),
+    ),
   });
 });
 
@@ -271,6 +422,9 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  const bannerImageUrl = d.banner_image_url
+    ? ((await mirrorExternalMediaUrl(d.banner_image_url, { kind: "image", ownerKey: req.userId! })) ?? d.banner_image_url)
+    : null;
   await db.execute(sql`
     UPDATE shops SET
       name = COALESCE(${d.name ?? null}, name),
@@ -278,7 +432,7 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
       description = COALESCE(${d.description ?? null}, description),
       banner_color = COALESCE(${d.banner_color ?? null}, banner_color),
       accent_color = COALESCE(${d.accent_color ?? null}, accent_color),
-      banner_image_url = COALESCE(${d.banner_image_url ?? null}, banner_image_url),
+      banner_image_url = COALESCE(${bannerImageUrl}, banner_image_url),
       updated_at = NOW()
     WHERE id = ${shop.id}
   `);
@@ -314,14 +468,69 @@ router.get("/shops/handle/:handle", async (req, res) => {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
+  /* Buyers see live products only: a paused product (migration 0176)
+     is unlisted — filtered here, and its status is never selected, so
+     the buyer DTO carries no trace of it. The pinned-ad id (0178) is
+     selected only to resolve the pin; it is stripped from the payload
+     and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
+    FROM shop_products
+    WHERE shop_id = ${shop.id} AND status = 'active'
+    ORDER BY created_at ASC
+    LIMIT 200
+  `);
+  const productRows = productsResult.rows as unknown as Array<{
+    image_url: string | null;
+    image_path: string | null;
+    pinned_ugc_ad_id: string | null;
+  }>;
+  const pinnedAds = await pinnedAdVideosById(productRows);
+  res.json({
+    shop: await presentShopRow(shop),
+    products: await Promise.all(
+      productRows.map(async (p) => {
+        const { pinned_ugc_ad_id, ...pub } = p;
+        return {
+          ...pub,
+          image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url,
+          pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+        };
+      }),
+    ),
+  });
+});
+
+/* ── GET /api/shops/:id/products — the OWNER's product list (free) ─────────
+   Every product in the shop, paused included, each carrying its
+   status — this is the management read (my-shop). The public handle
+   read above is buyer-shaped and can never serve it: it filters
+   paused rows out, which would blind the seller to their own paused
+   products. Same no-leak scoping as the other product rails: a shop
+   the caller doesn't own 404s. */
+router.get("/shops/:id/products", requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const result = await db.execute(sql`
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
     LIMIT 200
   `);
-  res.json({ shop, products: productsResult.rows });
+  const rows = result.rows as unknown as ProductRow[];
+  const pinnedAds = await pinnedAdVideosById(rows);
+  res.json({
+    products: await Promise.all(
+      rows.map(async (p) => ({
+        ...(await presentShopProductRow(p)),
+        pinned_ad: p.pinned_ugc_ad_id ? (pinnedAds.get(p.pinned_ugc_ad_id) ?? null) : null,
+      })),
+    ),
+  });
 });
 
 /* ── POST /api/shops/:id/products — add a product (free) ─────────────────── */
@@ -340,17 +549,25 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
     return;
   }
   const id = randomUUID();
+  const storedImageUrl = parsed.data.image_url
+    ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
+    : null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url)
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path)
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
-            ${parsed.data.description}, ${parsed.data.image_url || null})
+            ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
-  res.status(201).json({ product: (result.rows as unknown as ProductRow[])[0] });
+  const createdRow = (result.rows as unknown as ProductRow[])[0];
+  res.status(201).json({
+    product: createdRow
+      ? { ...(await presentShopProductRow(createdRow)), pinned_ad: null }
+      : createdRow,
+  });
 });
 
 /* ── PATCH /api/shops/:id/products/:productId (free) ─────────────────────── */
@@ -376,20 +593,38 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     return;
   }
   const d = parsed.data;
+  const storedImageUrl = d.image_url
+    ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
+    : null;
   await db.execute(sql`
     UPDATE shop_products SET
       name = COALESCE(${d.name ?? null}, name),
       price_cents = COALESCE(${d.price_cents ?? null}, price_cents),
       description = COALESCE(${d.description ?? null}, description),
-      image_url = COALESCE(${d.image_url ?? null}, image_url),
+      image_url = COALESCE(${storedImageUrl}, image_url),
+      image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),
+      status = COALESCE(${d.status ?? null}, status),
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
-  res.json({ product: (result.rows as unknown as ProductRow[])[0] });
+  const updatedRow = (result.rows as unknown as ProductRow[])[0];
+  if (!updatedRow) {
+    res.json({ product: updatedRow });
+    return;
+  }
+  const pinnedAds = await pinnedAdVideosById([updatedRow]);
+  res.json({
+    product: {
+      ...(await presentShopProductRow(updatedRow)),
+      pinned_ad: updatedRow.pinned_ugc_ad_id
+        ? (pinnedAds.get(updatedRow.pinned_ugc_ad_id) ?? null)
+        : null,
+    },
+  });
 });
 
 /* ── DELETE /api/shops/:id/products/:productId (free) ────────────────────── */
@@ -404,6 +639,169 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
     DELETE FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id}
   `);
   res.json({ deleted: true });
+});
+
+/* ── Shop discount codes: owner management (0190) ────────────────────────
+   Mirrors the storefront's /storefront/discounts CRUD, scoped to a
+   shop the caller owns (getOwnedShop — another owner's shop 404s
+   exactly like a missing one, on every verb). */
+
+const UUID_PARAM_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+const createShopDiscountSchema = z.object({
+  code: z.string().trim().min(2).max(40).regex(/^[A-Za-z0-9_-]+$/, "Letters, numbers, - and _ only."),
+  percentOff: z.number().int().min(1).max(90),
+  maxUses: z.number().int().min(-1).default(-1),
+  expiresAt: z.string().datetime().nullable().optional(),
+});
+
+router.get("/shops/:id/discounts", requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const r = await db.execute(sql`
+    SELECT id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    FROM shop_discount_codes
+    WHERE shop_id = ${shop.id}
+    ORDER BY created_at DESC
+    LIMIT 200
+  `);
+  const activeProducts = await productCount(shop.id);
+  const codes = (r.rows as unknown as ShopDiscountRow[]).map((c) => ({
+    ...presentShopDiscount(c),
+    /* Codes are shop-wide: they apply to every product in the shop. */
+    appliesTo: `${activeProducts} product(s)`,
+  }));
+  res.json({ codes });
+});
+
+router.post("/shops/:id/discounts", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = createShopDiscountSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid discount code.", details: parsed.error.issues });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = parsed.data;
+  /* Duplicate name → 409, the storefront's answer. SELECT-first (the
+     unique index stays the backstop for a same-instant race): the
+     storefront's ON CONFLICT … DO NOTHING + empty-RETURNING idiom
+     reads differently under the pg-mem test engine, and this route's
+     behavior must be identical on both. */
+  const existing = await findShopDiscount(shop.id, d.code);
+  if (existing) {
+    res.status(409).json({ error: "CODE_TAKEN", message: "This shop already has a code with that name." });
+    return;
+  }
+  let r;
+  try {
+    r = await db.execute(sql`
+      INSERT INTO shop_discount_codes (shop_id, code, percent_off, max_uses, expires_at)
+      VALUES (${shop.id}, ${d.code.trim().toUpperCase()}, ${d.percentOff}, ${d.maxUses}, ${d.expiresAt ?? null})
+      RETURNING id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
+    `);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/duplicate key|unique/i.test(msg)) {
+      res.status(409).json({ error: "CODE_TAKEN", message: "This shop already has a code with that name." });
+      return;
+    }
+    throw err;
+  }
+  logger.info({ userId: req.userId, shopId: shop.id, code: (r.rows[0] as Record<string, unknown>)["code"] }, "[shops] discount code created");
+  res.status(201).json({ code: presentShopDiscount(r.rows[0] as unknown as ShopDiscountRow) });
+});
+
+router.patch("/shops/:id/discounts/:codeId", publicApiLimiter, requireAuth, async (req, res) => {
+  const codeId = param(req.params.codeId);
+  const parsed = z.object({
+    isActive: z.boolean().optional(),
+    expiresAt: z.string().datetime().nullable().optional(),
+    maxUses: z.number().int().min(-1).optional(),
+  }).safeParse(req.body ?? {});
+  if (!UUID_PARAM_RE.test(codeId) || !parsed.success) {
+    res.status(400).json({ error: "Invalid request." });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = parsed.data;
+  const sets: ReturnType<typeof sql>[] = [];
+  if (d.isActive !== undefined) sets.push(sql`is_active = ${d.isActive}`);
+  if (d.expiresAt !== undefined) sets.push(sql`expires_at = ${d.expiresAt}`);
+  if (d.maxUses !== undefined) sets.push(sql`max_uses = ${d.maxUses}`);
+  if (sets.length === 0) {
+    res.status(400).json({ error: "Nothing to update." });
+    return;
+  }
+  const r = await db.execute(sql`
+    UPDATE shop_discount_codes SET ${sql.join(sets, sql`, `)}
+    WHERE id = ${codeId} AND shop_id = ${shop.id}
+    RETURNING id
+  `);
+  if (r.rows.length === 0) {
+    res.status(404).json({ error: "Discount code not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+router.delete("/shops/:id/discounts/:codeId", requireAuth, async (req, res) => {
+  const codeId = param(req.params.codeId);
+  if (!UUID_PARAM_RE.test(codeId)) {
+    res.status(400).json({ error: "Invalid id." });
+    return;
+  }
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const r = await db.execute(sql`
+    DELETE FROM shop_discount_codes WHERE id = ${codeId} AND shop_id = ${shop.id} RETURNING id
+  `);
+  if (r.rows.length === 0) {
+    res.status(404).json({ error: "Discount code not found." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+/* ── GET /api/shops/:id/discounts/validate?code= — public ──────────────────
+   Answers "is this code good at THIS shop?" without spending a use —
+   uses are only incremented when a sale is recorded. */
+router.get("/shops/:id/discounts/validate", publicApiLimiter, async (req, res) => {
+  const shopId = param(req.params.id);
+  const code = String(req.query.code ?? "").trim();
+  if (!UUID_PARAM_RE.test(shopId) || !code) {
+    res.status(400).json({ error: "code is required." });
+    return;
+  }
+  const shopRes = await db.execute(sql`SELECT id FROM shops WHERE id = ${shopId} LIMIT 1`);
+  if (shopRes.rows.length === 0) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const d = await findShopDiscount(shopId, code);
+  if (!d) {
+    res.json({ valid: false, reason: "That code doesn't exist for this shop." });
+    return;
+  }
+  const usable = shopDiscountUsable(d);
+  if (!usable.ok) {
+    res.json({ valid: false, reason: usable.reason });
+    return;
+  }
+  res.json({ valid: true, code: d.code, percentOff: Number(d.percent_off) });
 });
 
 /* ── AI: shop description writer — 1 credit ───────────────────────────────── */
@@ -604,18 +1002,26 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) throw new Error("Image generation returned no image data.");
 
-    /* Self-healing bucket: verify/create BEFORE the upload, never assume it
-       exists. Throws loudly on failure → credit is refunded by the catch. */
-    await ensureShopProductsBucket();
-
+    /* R2 upload with namespaced key (shop-products/<userId>/products/<uuid>.png).
+       Falls back to Supabase only when R2 is not configured. */
     const filePath = `${req.userId!}/products/${randomUUID()}.png`;
-    const { error: upErr } = await getSupabaseAdmin().storage
-      .from(SHOP_PRODUCTS_BUCKET)
-      .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-    if (upErr) throw upErr;
-    const { data: { publicUrl } } = getSupabaseAdmin().storage
-      .from(SHOP_PRODUCTS_BUCKET)
-      .getPublicUrl(filePath);
+    const r2Key = `${SHOP_PRODUCTS_BUCKET}/${filePath}`;
+    let publicUrl: string;
+    if (isR2Configured()) {
+      publicUrl = await r2Upload(r2Key, Buffer.from(b64, "base64"), "image/png");
+    } else {
+      /* Self-healing bucket: verify/create BEFORE the upload, never assume it
+         exists. Throws loudly on failure → credit is refunded by the catch. */
+      const { ensureShopProductsBucket } = await import("../../lib/objectStorage");
+      await ensureShopProductsBucket();
+      const { error: upErr } = await getSupabaseAdmin().storage
+        .from(SHOP_PRODUCTS_BUCKET)
+        .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
+      if (upErr) throw upErr;
+      publicUrl = getSupabaseAdmin().storage
+        .from(SHOP_PRODUCTS_BUCKET)
+        .getPublicUrl(filePath).data.publicUrl;
+    }
 
     res.json({
       url: publicUrl,
@@ -633,5 +1039,746 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
     res.status(502).json({ error: `${msg} Your Visual Buc was refunded.` });
   }
 });
+
+
+/* ─── Storefronts platform layer (Stack 8 #2 — merged from
+   generate/storefronts.ts) ─────────────────────────────────────────────
+   Hub, public storefront by slug, analytics, sale recording, and custom
+   domains over the SAME shops / shop_products / shop_events tables this
+   module's CRUD + AI tools serve. One canonical shop surface: this file.
+   The helpers below (STOREFRONT_PLATFORM_FEE_BPS, meetsProTier,
+   requireProTier, issueDomainToken, txtRecordsMatch) keep their names —
+   routes/store.ts, the require-auth plan tests, and this module's own
+   Pro gates import them (via the generate/storefronts.ts shim). */
+
+/* ── Platform economics — env-overridable without a deploy ─────────────── */
+export const STOREFRONT_PLATFORM_FEE_BPS =
+  Number(process.env["STOREFRONT_PLATFORM_FEE_BPS"]) || 500; // 500 bps = 5% (owner ruling 2026-10-18)
+export const PLATFORM_FEE_PCT = STOREFRONT_PLATFORM_FEE_BPS / 100;
+
+/**
+ * "Pro or higher" tier gate. Plan names on the pricing page: Creator,
+ * Pro Artist, Studio, VIP, MVP. Shops + custom domains require Pro Artist
+ * or above — free / Creator plans are redirected to /pricing.
+ */
+export function meetsProTier(plan: string | null | undefined): boolean {
+  const p = (plan ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!p) return false;
+  return (
+    p.includes("pro") ||
+    p.includes("studio") ||
+    p.includes("vip") ||
+    p.includes("mvp")
+  );
+}
+
+export function requireProTier(req: any, res: any, next: any) {
+  if (meetsProTier(req.userPlan)) return next();
+  res.status(403).json({
+    error: "PRO_TIER_REQUIRED",
+    message:
+      "Storefronts require a Pro plan or higher. Upgrade to open your own shop.",
+    upgradeUrl: "/pricing",
+  });
+}
+
+/* ── Domain rules ──────────────────────────────────────────────────────────
+   Real verification: the owner publishes a TXT record at
+   bdv-verify.<domain> containing the issued token. We never fake this. */
+const DOMAIN_RE =
+  /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*\.[a-z]{2,}$/;
+const VERIFY_HOST_PREFIX = "bdv-verify";
+
+function normalizeDomain(raw: string): string | null {
+  const d = raw.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  if (!DOMAIN_RE.test(d) || d.length > 253) return null;
+  if (d.endsWith(".bowdownvisuals.com")) return null; // platform subdomains stay ours
+  return d;
+}
+
+export function issueDomainToken(): string {
+  return `bdv-${randomUUID().replace(/-/g, "").slice(0, 24)}`;
+}
+
+/** Pure: does any TXT record at the host match the token? */
+export function txtRecordsMatch(records: string[][], token: string): boolean {
+  for (const rec of records) {
+    if (rec.join("").trim() === token) return true;
+  }
+  return false;
+}
+
+async function checkDomainTxt(domain: string, token: string): Promise<{ ok: boolean; reason: string }> {
+  const host = `${VERIFY_HOST_PREFIX}.${domain}`;
+  let records: string[][];
+  try {
+    records = await dns.resolveTxt(host);
+  } catch (err: any) {
+    const code = err?.code ?? "UNKNOWN";
+    return {
+      ok: false,
+      reason:
+        code === "ENOTFOUND" || code === "ENODATA"
+          ? `No TXT record found at ${host} yet — DNS can take a few minutes to propagate.`
+          : `DNS lookup failed (${code}). Try again in a minute.`,
+    };
+  }
+  if (txtRecordsMatch(records, token)) return { ok: true, reason: "verified" };
+  return {
+    ok: false,
+    reason: `TXT record at ${host} doesn't match the verification token yet.`,
+  };
+}
+
+/* ── View dedup: one counted view per IP+shop per hour ───────────────────── */
+function hashIp(ip: string | undefined): string | null {
+  if (!ip) return null;
+  return createHash("sha256").update(`shop-view|${ip}`).digest("hex").slice(0, 32);
+}
+
+async function recordView(shopId: string, userId: string, ip: string | undefined) {
+  const ipHash = hashIp(ip);
+  try {
+    if (ipHash) {
+      const recent = await db.execute(sql`
+        SELECT id FROM shop_events
+        WHERE shop_id = ${shopId} AND event_type = 'view' AND ip_hash = ${ipHash}
+          AND created_at > NOW() - INTERVAL '1 hour'
+        LIMIT 1
+      `);
+      if ((recent.rows as unknown[]).length > 0) return;
+    }
+    await db.execute(sql`
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, ip_hash)
+      VALUES (${randomUUID()}, ${shopId}, ${userId}, 'view', ${ipHash})
+    `);
+  } catch (err) {
+    /* Analytics must never break the storefront. */
+    logger.warn({ err, shopId }, "[storefronts] view record failed");
+  }
+}
+
+async function getOwnedShopFull(shopId: string, userId: string) {
+  const result = await db.execute(sql`
+    SELECT id, user_id, name, handle, tagline, description,
+           banner_color, accent_color, banner_image_url,
+           custom_domain, domain_verified, domain_verification_token,
+           created_at, updated_at
+    FROM shops
+    WHERE id = ${shopId} AND user_id = ${userId}
+    LIMIT 1
+  `);
+  const rows = result.rows as unknown as Array<Record<string, unknown>>;
+  return rows[0] ?? null;
+}
+
+/* ── GET /api/storefronts — public hub ─────────────────────────────────────
+   Every creator shop on the platform. Free, no auth. */
+router.get("/storefronts", async (req, res) => {
+  const q = (Array.isArray(req.query.q) ? req.query.q[0] : req.query.q ?? "").toString().trim().slice(0, 60);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 100);
+  const where = q
+    ? sql`WHERE (s.name ILIKE ${"%" + q + "%"} OR s.handle ILIKE ${"%" + q + "%"} OR COALESCE(s.tagline, '') ILIKE ${"%" + q + "%"})`
+    : sql``;
+  const result = await db.execute(sql`
+    SELECT s.id, s.name, s.handle, s.tagline, s.description,
+           s.banner_color, s.accent_color, s.banner_image_url,
+           s.custom_domain, s.domain_verified, s.created_at
+    FROM shops s
+    ${where}
+    ORDER BY s.created_at DESC
+    LIMIT ${limit}
+  `);
+  /* Live-product counts in a separate grouped query (kept pg-mem
+     friendly, same as /shops/mine — the correlated-subquery form
+     this replaces could not run under the test database at all).
+     Paused products (migration 0176) are unlisted, so the public
+     count is live products only; the owner's /mine count stays the
+     owner's full truth. */
+  const counts = await db.execute(sql`
+    SELECT shop_id, COUNT(*)::int AS n
+    FROM shop_products
+    WHERE status = 'active'
+    GROUP BY shop_id
+  `);
+  const byShop = new Map<string, number>();
+  for (const row of counts.rows as unknown as Array<{ shop_id: string; n: number }>) {
+    byShop.set(row.shop_id, row.n);
+  }
+  const shopRows = (await refreshSupabaseStorageUrlsDeep(result.rows)) as Array<
+    Record<string, unknown> & { id: string }
+  >;
+  res.json({
+    shops: shopRows.map((s) => ({ ...s, product_count: byShop.get(s.id) ?? 0 })),
+    platformFeePct: PLATFORM_FEE_PCT,
+  });
+});
+
+/* ── GET /api/storefronts/slug/:slug — public storefront + view ────────────
+   No auth: anyone can view. Records a (deduped) view. Never leaks user_id.
+   Resolution is TWO namespaces, in order:
+   1. shops.handle — the canonical caller (/shop/:handle, hub links).
+   2. creator_profiles.slug → profile's user_id → that user's shop —
+      the media-page caller (MediaLinkBar via lib/streaming.ts
+      resolveStoreSlug, fed creator-profile slugs from track / watch /
+      playlist pages). Shop handles are freely chosen at creation and
+      are NOT the owner's profile slug; without this fallback the
+      lookup 404'd whenever they differed and the Store button on
+      media pages never rendered. Handle wins on a collision so the
+      canonical namespace is never shadowed by a profile slug. */
+router.get("/storefronts/slug/:slug", async (req, res) => {
+  const slug = (Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug ?? "").toLowerCase();
+  const shopResult = await db.execute(sql`
+    SELECT id, user_id, name, handle, tagline, description,
+           banner_color, accent_color, banner_image_url,
+           custom_domain, domain_verified, created_at
+    FROM shops
+    WHERE handle = ${slug}
+    LIMIT 1
+  `);
+  let shops = shopResult.rows as unknown as Array<Record<string, unknown> & { id: string; user_id: string }>;
+  if (shops.length === 0) {
+    const byProfileResult = await db.execute(sql`
+      SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
+             s.banner_color, s.accent_color, s.banner_image_url,
+             s.custom_domain, s.domain_verified, s.created_at
+      FROM shops s
+      JOIN creator_profiles cp ON cp.user_id = s.user_id
+      WHERE cp.slug = ${slug}
+      ORDER BY s.created_at ASC
+      LIMIT 1
+    `);
+    shops = byProfileResult.rows as unknown as Array<Record<string, unknown> & { id: string; user_id: string }>;
+  }
+  const shop = shops[0];
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  /* Buyers see live products only — paused rows (migration 0176) are
+     unlisted here exactly as on the handle read, status unselected.
+     The pinned-ad id (0178) is selected only to resolve the pin and
+     stripped before the payload leaves, exactly as on the handle
+     read; the minted video URL passes the deep refresh untouched. */
+  const productsResult = await db.execute(sql`
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
+    FROM shop_products
+    WHERE shop_id = ${shop.id} AND status = 'active'
+    ORDER BY created_at ASC
+    LIMIT 200
+  `);
+  const { user_id, ...publicShop } = shop;
+  /* Fire-and-forget analytics — never blocks the page. */
+  recordView(shop.id, user_id, req.ip);
+  const rawProducts = productsResult.rows as unknown as Array<
+    Record<string, unknown> & { pinned_ugc_ad_id: string | null }
+  >;
+  const pinnedAds = await pinnedAdVideosById(rawProducts);
+  const buyerProducts = rawProducts.map((p) => {
+    const { pinned_ugc_ad_id, ...pub } = p;
+    return {
+      ...pub,
+      pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+    };
+  });
+  res.json(await refreshSupabaseStorageUrlsDeep({
+    shop: publicShop,
+    products: buyerProducts,
+    platformFeePct: PLATFORM_FEE_PCT,
+  }));
+});
+
+/* ── GET /api/storefronts/:id/analytics — owner-only ─────────────────────── */
+router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const shop = await getOwnedShopFull(id ?? "", req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const totals = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
+      COUNT(*) FILTER (WHERE event_type = 'sale')::int AS sales,
+      COALESCE(SUM(amount_cents) FILTER (WHERE event_type = 'sale'), 0)::int AS gross_cents,
+      COALESCE(SUM(platform_fee_cents) FILTER (WHERE event_type = 'sale'), 0)::int AS platform_fee_cents
+    FROM shop_events
+    WHERE shop_id = ${shop.id}
+  `);
+  const daily = await db.execute(sql`
+    SELECT DATE_TRUNC('day', created_at)::date AS day,
+           COUNT(*)::int AS views
+    FROM shop_events
+    WHERE shop_id = ${shop.id} AND event_type = 'view'
+      AND created_at > NOW() - INTERVAL '30 days'
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `);
+  const sales = await db.execute(sql`
+    SELECT e.id, e.product_id, p.name AS product_name,
+           e.amount_cents, e.platform_fee_cents,
+           (e.amount_cents - e.platform_fee_cents) AS seller_net_cents,
+           e.buyer_email, e.created_at,
+           e.quantity, e.payment_status, e.paid_at
+    FROM shop_events e
+    LEFT JOIN shop_products p ON p.id = e.product_id
+    WHERE e.shop_id = ${shop.id} AND e.event_type = 'sale'
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `);
+  /* Pending checkouts are the seller's honest "not yet" list: shown
+     apart, never folded into the sales totals above (0146). */
+  const pending = await db.execute(sql`
+    SELECT e.id, e.product_id, p.name AS product_name,
+           e.amount_cents, e.platform_fee_cents,
+           (e.amount_cents - e.platform_fee_cents) AS seller_net_cents,
+           e.buyer_email, e.created_at, e.quantity, e.payment_status
+    FROM shop_events e
+    LEFT JOIN shop_products p ON p.id = e.product_id
+    WHERE e.shop_id = ${shop.id} AND e.event_type = 'pending_sale'
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `);
+  const t = (totals.rows as unknown as Array<Record<string, number>>)[0] ?? {
+    views: 0, sales: 0, gross_cents: 0, platform_fee_cents: 0,
+  };
+  res.json({
+    totals: {
+      views: t.views,
+      sales: t.sales,
+      gross_cents: t.gross_cents,
+      platform_fee_cents: t.platform_fee_cents,
+      seller_net_cents: t.gross_cents - t.platform_fee_cents,
+      pending_orders: (pending.rows as unknown[]).length,
+    },
+    dailyViews: daily.rows,
+    sales: sales.rows,
+    pendingSales: pending.rows,
+    platformFeePct: PLATFORM_FEE_PCT,
+  });
+});
+
+/* ── POST /api/storefronts/checkout — real card checkout (0146) ───────────
+   The house pattern (tip-jar / shoutouts / memberships, over
+   lib/stripe-checkout): the order is recorded FIRST as pending
+   (shop_events event_type='pending_sale' — never counted as a sale),
+   then a hosted Stripe Checkout session opens for the cart total, and
+   the sale only becomes a sale when the session is confirmed paid via
+   POST /storefronts/checkout/verify or the central webhook — both run
+   the same guarded flip in lib/market-sale.
+   Amounts are ALWAYS computed here from shop_products.price_cents —
+   the client sends product ids and quantities, never money.
+   The 5% platform fee comes out of the SELLER's cut; the buyer pays
+   the listed price. All money math in integer cents.
+   Seller side: the house's Stripe Connect is recipient/transfers-only
+   (money-out — see lib/stripe-connect); there are NO destination
+   charges anywhere, so this is a platform-account checkout (TEST mode
+   only, enforced by getCheckoutStripe): funds land on the platform
+   account, the row records the seller (shop owner user_id) and their
+   net, settled later through the existing creator-payout path.
+   A zero-total cart (free goods) needs no card: it records as paid
+   with payment_status='no_payment_required', honestly labelled.
+   Discount codes (0190): an optional code is validated against THIS
+   shop's shop_discount_codes, applied to unit prices before the fee
+   (the storefront's sequence), carried on the order rows, and counted
+   as used only when the sale records — at the flip, or right here for
+   a free cart. */
+const checkoutSchema = z.object({
+  shopId: z.string().uuid(),
+  /* Legacy single-line shape (kept for older callers). */
+  productId: z.string().uuid().optional(),
+  quantity: z.number().int().min(1).max(99).default(1),
+  /* Cart shape: one checkout — one session — for the whole cart. */
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().int().min(1).max(99).default(1),
+  })).min(1).max(50).optional(),
+  buyerEmail: z.string().trim().email().max(254).optional().default(""),
+  /* Optional shop discount code (0190) — validated server-side against
+     THIS shop's codes, exactly like the storefront rail validates
+     against the seller's profile. */
+  discountCode: z.string().trim().min(1).max(40).optional(),
+});
+
+interface CheckoutLine {
+  productId: string;
+  name: string;
+  /** The unit price actually charged (after any discount). */
+  unitCents: number;
+  /** The listed unit price before any discount. */
+  listUnitCents: number;
+  quantity: number;
+  gross: number;
+  fee: number;
+  saleId: string;
+}
+
+router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
+  const parsed = checkoutSchema.safeParse(req.body ?? {});
+  if (!parsed.success || (!parsed.data.productId && !parsed.data.items)) {
+    res.status(400).json({ error: "Invalid order." });
+    return;
+  }
+  const { shopId, buyerEmail } = parsed.data;
+
+  /* Merge duplicate lines, then price EVERY line from the server's
+     own product rows — client-supplied amounts are never read. */
+  const wanted = new Map<string, number>();
+  const rawLines = parsed.data.items ?? [{ productId: parsed.data.productId!, quantity: parsed.data.quantity }];
+  for (const l of rawLines) {
+    wanted.set(l.productId, Math.min(99, (wanted.get(l.productId) ?? 0) + l.quantity));
+  }
+
+  const shopRes = await db.execute(sql`
+    SELECT id, user_id, name, handle FROM shops WHERE id = ${shopId} LIMIT 1
+  `);
+  const shop = (shopRes.rows as unknown as Array<{ id: string; user_id: string; name: string; handle: string }>)[0];
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+
+  /* Server-side discount validation (0190), before any row is written:
+     the code must exist for THIS shop and be usable. A code from
+     another shop — even with the same name — never applies here. */
+  let discountCode: string | null = null;
+  let percentOff = 0;
+  if (parsed.data.discountCode) {
+    const d = await findShopDiscount(shopId, parsed.data.discountCode);
+    if (!d) {
+      res.status(400).json({ error: "BAD_CODE", message: "That discount code doesn't exist for this shop." });
+      return;
+    }
+    const usable = shopDiscountUsable(d);
+    if (!usable.ok) {
+      res.status(400).json({ error: "BAD_CODE", message: usable.reason });
+      return;
+    }
+    discountCode = d.code;
+    percentOff = Number(d.percent_off);
+  }
+
+  const lines: CheckoutLine[] = [];
+  for (const [productId, quantity] of wanted) {
+    const prod = await db.execute(sql`
+      SELECT p.id, p.name, p.price_cents, p.status
+      FROM shop_products p
+      WHERE p.id = ${productId} AND p.shop_id = ${shopId}
+      LIMIT 1
+    `);
+    const product = (prod.rows as unknown as Array<{ id: string; name: string; price_cents: number; status: string }>)[0];
+    /* A paused product (migration 0176) is unlisted: to a buyer it is
+       indistinguishable from a product that isn't in this shop, so it
+       refuses on the exact same path — 404, before any row is written
+       or any charge is attempted. A paused product can never sell. */
+    if (!product || product.status !== "active") {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    /* The storefront's money sequence (0190): discount the unit price
+       first (rounded), line gross from the discounted unit, then the
+       ruled 5% fee out of the discounted gross. */
+    const listUnitCents = Number(product.price_cents);
+    const unitCents = percentOff > 0 ? discountedUnitCents(listUnitCents, percentOff) : listUnitCents;
+    const gross = unitCents * quantity;
+    lines.push({
+      productId, name: product.name, unitCents, listUnitCents, quantity,
+      gross, fee: Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
+      saleId: randomUUID(),
+    });
+  }
+  const gross = lines.reduce((s, l) => s + l.gross, 0);
+  const listGross = lines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
+  const fee = lines.reduce((s, l) => s + l.fee, 0);
+  const groupId = randomUUID();
+  const totals = {
+    gross_cents: gross,
+    list_gross_cents: listGross,
+    discount_code: discountCode,
+    percent_off: percentOff,
+    platform_fee_cents: fee,
+    platform_fee_pct: PLATFORM_FEE_PCT,
+    seller_net_cents: gross - fee,
+    buyerEmail: buyerEmail || null,
+  };
+  const lineReceipts = lines.map((l) => ({
+    saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
+    unit_cents: l.unitCents, list_unit_cents: l.listUnitCents,
+    gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
+  }));
+
+  /* Free cart: no card exists to charge — record the sale as paid
+     with the honest no-payment status, exactly once, right here. */
+  if (gross <= 0) {
+    for (const l of lines) {
+      await db.execute(sql`
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
+        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode})
+      `);
+    }
+    /* The sale is recorded right here, so a presented code's use is
+       counted right here too (0190 redemption discipline). */
+    if (discountCode) {
+      await countShopDiscountUse(shopId, discountCode);
+    }
+    res.status(201).json({
+      saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+      status: "paid", paid: true, free: true, paymentStatus: "no_payment_required",
+      productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+      lines: lineReceipts, ...totals,
+      note: "Free order — no payment was needed, and none was taken. It's yours.",
+    });
+    return;
+  }
+
+  /* Payments must be configured before any row is written, so a
+     config failure never leaves a phantom pending order behind. */
+  let stripe: ReturnType<typeof getCheckoutStripe>;
+  try {
+    stripe = getCheckoutStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+
+  /* 1) Record the order as PENDING first (brief + house pattern). */
+  for (const l of lines) {
+    await db.execute(sql`
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code)
+      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${discountCode})
+    `);
+  }
+
+  /* 2) Open the hosted session for the cart total. Failure = honest
+        error and the pending rows are removed (tip-jar's orphan rule):
+        no session, no charge possible, no order pretending to exist. */
+  let session: { id: string; url: string | null };
+  try {
+    const base = checkoutBaseUrl(req);
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      ...(buyerEmail ? { customer_email: buyerEmail } : {}),
+      line_items: lines.map((l) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: l.unitCents,
+          product_data: { name: l.name, description: shop.name },
+        },
+        quantity: l.quantity,
+      })),
+      metadata: {
+        type: "marketplace_shop_purchase",
+        shop_id: shopId,
+        checkout_group_id: groupId,
+        sale_id: lines[0]!.saleId,
+        discount_code: discountCode ?? "",
+      },
+      success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
+    }, { idempotencyKey: `market-sale:${groupId}` });
+    if (!session.url) throw new Error("Checkout session did not return a URL");
+  } catch (err) {
+    await db.execute(sql`DELETE FROM shop_events WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'`).catch(() => {});
+    logger.error({ err, shopId, groupId }, "[storefronts] checkout session failed — pending order removed");
+    res.status(502).json({ error: "Could not start checkout. Nothing was charged — try again." });
+    return;
+  }
+
+  await db.execute(sql`
+    UPDATE shop_events SET stripe_session_id = ${session.id}
+    WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'
+  `);
+  logger.info({ shopId, groupId, sessionId: session.id, gross }, "[storefronts] checkout session created (order pending)");
+  res.status(201).json({
+    saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+    status: "pending_payment", paid: false, paymentStatus: "pending",
+    sessionId: session.id,
+    url: session.url, checkoutUrl: session.url,
+    productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+    lines: lineReceipts, ...totals,
+    testMode: isCheckoutTestMode(),
+    note: "Your order is saved as pending — payment happens at the hosted checkout. It only counts as a sale once the payment confirms.",
+  });
+});
+
+/* ── POST /api/storefronts/checkout/verify — confirm a payment ───────────
+   The buyer is back from hosted checkout (or a stand is refreshing on
+   focus): retrieve the session from Stripe, and only a PAID session
+   whose total matches the pending order's server-computed gross flips
+   the order to a sale — through the same guarded flip the webhook
+   runs, so the two doors can never double-fulfil. The session id is
+   the capability (shoutout/tip-jar pattern): no auth, but nothing is
+   revealed beyond the order the session itself paid for. */
+const checkoutVerifySchema = z.object({ sessionId: z.string().trim().min(1).max(200) });
+
+router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) => {
+  const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  const { sessionId } = parsed.data;
+  const rows = await fetchMarketSaleBySession(sessionId);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Order not found for that checkout session." });
+    return;
+  }
+  if (marketSaleIsPaid(rows)) {
+    const receipt = marketSaleReceipt(rows);
+    /* The receipt itself carries status/paid — spreading it last is
+       the whole shape; no duplicate literals. */
+    res.json({ duplicate: true, sessionId, order: receipt, ...receipt });
+    return;
+  }
+  let session;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.metadata?.["type"] !== "marketplace_shop_purchase") {
+    res.status(400).json({ error: "This session isn't a shop purchase." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    const receipt = marketSaleReceipt(rows);
+    res.json({ sessionId, order: receipt, ...receipt });
+    return;
+  }
+  const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0);
+  if ((session.amount_total ?? 0) !== expected) {
+    logger.error({ sessionId, amountTotal: session.amount_total, expected }, "[storefronts] verify: paid amount does not match the order");
+    res.status(400).json({ error: "The paid amount doesn't match this order." });
+    return;
+  }
+  const { flipped, rows: after } = await markMarketSalePaid(sessionId);
+  const receipt = marketSaleReceipt(after);
+  logger.info({ sessionId, flipped }, "[storefronts] checkout verified — sale recorded");
+  res.json({ duplicate: flipped === 0, sessionId, order: receipt, ...receipt });
+});
+
+/* ── GET /api/storefronts/checkout/status?sessionId= — DB truth, read-only ─
+   What the server currently believes about an order, without asking
+   Stripe: paid only when the flip has landed, pending (or expired)
+   otherwise. A pending order NEVER reads as paid here. */
+router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) => {
+  const sessionId = String(req.query.sessionId ?? "").trim();
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  const rows = await fetchMarketSaleBySession(sessionId);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Order not found for that checkout session." });
+    return;
+  }
+  const receipt = marketSaleReceipt(rows);
+  res.json({ sessionId, ...receipt, order: receipt });
+});
+
+/* ── POST /api/storefronts/:id/domain — attach a custom domain (Pro+) ────── */
+const domainSchema = z.object({
+  domain: z.string().trim().min(4).max(253),
+});
+
+router.post("/storefronts/:id/domain", publicApiLimiter, requireAuth, requireProTier, async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const shop = await getOwnedShopFull(id ?? "", req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const parsed = domainSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid domain is required (e.g. shop.yourname.com)." });
+    return;
+  }
+  const domain = normalizeDomain(parsed.data.domain);
+  if (!domain) {
+    res.status(400).json({ error: "That doesn't look like a valid domain." });
+    return;
+  }
+  const clash = await db.execute(sql`
+    SELECT id FROM shops WHERE custom_domain = ${domain} AND id != ${shop.id} LIMIT 1
+  `);
+  if ((clash.rows as unknown[]).length > 0) {
+    res.status(409).json({ error: "That domain is already connected to another shop." });
+    return;
+  }
+  const token = issueDomainToken();
+  await db.execute(sql`
+    UPDATE shops
+    SET custom_domain = ${domain},
+        domain_verified = FALSE,
+        domain_verification_token = ${token},
+        updated_at = NOW()
+    WHERE id = ${shop.id}
+  `);
+  res.json({
+    domain,
+    verified: false,
+    verification: {
+      type: "TXT",
+      host: `${VERIFY_HOST_PREFIX}.${domain}`,
+      value: token,
+    },
+    dns: {
+      step1: `Add a TXT record at host "${VERIFY_HOST_PREFIX}" with the value above in your DNS provider (Cloudflare, GoDaddy, Namecheap…).`,
+      step2: `Add a CNAME record: host "@" (or "shop") → cname.bowdownvisuals.com — this points your domain at your storefront.`,
+      step3: `Come back here and hit "Verify domain". DNS can take a few minutes to propagate.`,
+      cnameTarget: "cname.bowdownvisuals.com",
+    },
+  });
+});
+
+/* ── POST /api/storefronts/domain/verify — verify via DNS TXT ────────────── */
+const verifySchema = z.object({
+  shopId: z.string().uuid(),
+});
+
+router.post("/storefronts/domain/verify", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = verifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "shopId is required." });
+    return;
+  }
+  const shop = await getOwnedShopFull(parsed.data.shopId, req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const domain = shop.custom_domain as string | null;
+  const token = shop.domain_verification_token as string | null;
+  if (!domain || !token) {
+    res.status(400).json({ error: "No domain is waiting for verification on this shop." });
+    return;
+  }
+  const check = await checkDomainTxt(domain, token);
+  if (check.ok) {
+    await db.execute(sql`
+      UPDATE shops SET domain_verified = TRUE, updated_at = NOW() WHERE id = ${shop.id}
+    `);
+    logger.info({ shopId: shop.id, domain }, "[storefronts] domain verified");
+  }
+  res.json({ domain, verified: check.ok, reason: check.reason });
+});
+
+/* ── DELETE /api/storefronts/:id/domain — detach (Pro+ not required) ─────── */
+router.delete("/storefronts/:id/domain", requireAuth, async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const shop = await getOwnedShopFull(id ?? "", req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  await db.execute(sql`
+    UPDATE shops
+    SET custom_domain = NULL, domain_verified = FALSE, domain_verification_token = NULL, updated_at = NOW()
+    WHERE id = ${shop.id}
+  `);
+  res.json({ detached: true });
+});
+
 
 export default router;

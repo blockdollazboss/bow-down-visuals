@@ -54,6 +54,12 @@ export interface ScheduledPlatformResult {
   mediaId?: string;
   permalink?: string | null;
   error?: string;
+  /** Stack-30 C4: a failure that can never succeed on retry — the
+   *  platform cannot accept this post's media type at all (e.g. an
+   *  image post aimed at video-only TikTok). The scheduler worker
+   *  settles such a platform on the first attempt and never re-fires
+   *  it on later passes driven by other platforms' transient failures. */
+  permanent?: boolean;
 }
 
 /** AI best-time suggestion payload (stored for review, free to view). */
@@ -105,6 +111,13 @@ export const scheduledPostsTable = pgTable(
     credits_charged: integer("credits_charged").notNull().default(0),
     /* True once the reservation was refunded — prevents double refunds. */
     credits_refunded: boolean("credits_refunded").notNull().default(false),
+    /* Release attribution (migration 0143): the distribution release this
+       post announces, when it was scheduled FROM the release (the DE-4
+       scheduler-from-release flow carries the id through the composer).
+       Nullable — posts scheduled any other way have no release. No FK:
+       attribution only; deleting a release must never block on or cascade
+       into already-scheduled posts. */
+    release_id: uuid("release_id"),
     ai_best_time: jsonb("ai_best_time").$type<AiBestTimeSuggestion | null>(),
     results: jsonb("results")
       .notNull()

@@ -1,13 +1,18 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, RefreshCw, Film,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { fetchBrandKit } from "@/lib/brand-kit";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useHubProject } from "@/lib/hub-project";
+import { getLibraryTemplate } from "@/data/library-templates";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -16,14 +21,16 @@ import { usePageTitle } from "@/hooks/use-page-title";
 
 type StingType = "intro" | "outro";
 
-const TYPES: Array<{ key: StingType; label: string; blurb: string }> = [
-  { key: "intro", label: "Intro", blurb: "Open every video with a bang" },
-  { key: "outro", label: "Outro", blurb: "Close with style, drive the subscribe" },
+const TYPES: Array<{ key: StingType; labelKey: string; blurbKey: string }> = [
+  { key: "intro", labelKey: "introsOutros.introLabel", blurbKey: "introsOutros.introBlurb" },
+  { key: "outro", labelKey: "introsOutros.outroLabel", blurbKey: "introsOutros.outroBlurb" },
 ];
 
 const DURATION_SEC = 5;
-const CREDITS_PER_SEC = 1.5;
-const CREDIT_COST = Math.ceil(DURATION_SEC * CREDITS_PER_SEC); // 8
+/* x100 Visual Bucs/sec — mirrors the Seedance site rate on the backend
+   (backend charges 5s × 150 = 750 VB per intro/outro). */
+const CREDITS_PER_SEC = 150;
+const CREDIT_COST = Math.ceil(DURATION_SEC * CREDITS_PER_SEC); // 750
 
 type JobStatus = "idle" | "working" | "processing" | "done" | "failed";
 
@@ -47,7 +54,10 @@ interface RecentSting {
 }
 
 export function IntrosOutrosTool() {
-  const { user } = useAuth();
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [tagline, setTagline] = useState("");
@@ -61,6 +71,50 @@ export function IntrosOutrosTool() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [recent, setRecent] = useState<RecentSting[]>([]);
   const pollRef = useRef<number | null>(null);
+  const [fromBrandKit, setFromBrandKit] = useState(false);
+
+  /* Linkage (DE-5): the brand kit is the source of truth — prefill the
+     channel name, tagline and logo from it instead of asking for a
+     pasted logo URL and re-typed brand facts. Only empty fields fill;
+     anything the creator typed (or a template seeded) wins. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const kit = await fetchBrandKit(getAccessToken);
+        if (cancelled || !kit) return;
+        let used = false;
+        if (kit.brandName) { setChannelName((prev) => { if (!prev.trim()) { used = true; return kit.brandName; } return prev; }); }
+        const taglinePick = kit.selectedTagline ?? kit.taglines[0];
+        if (taglinePick) { setTagline((prev) => { if (!prev.trim()) { used = true; return taglinePick.slice(0, 80); } return prev; }); }
+        if (kit.logoUrl) { setLogoUrl((prev) => { if (!prev.trim()) { used = true; return kit.logoUrl!; } return prev; }); }
+        if (used) setFromBrandKit(true);
+      } catch {
+        /* brand kit is a prefill nicety — the manual fields still work */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Template deep-link: ?template=<slug> from Thy Library pre-selects the
+     sting type (intro/outro from the slug prefix) and seeds the tagline with
+     the template's vibe when the field is empty. Unknown slugs are ignored. */
+  useEffect(() => {
+    try {
+      const slug = new URLSearchParams(window.location.search).get("template");
+      if (!slug) return;
+      const tpl = getLibraryTemplate(slug);
+      if (!tpl || tpl.category !== "Intros & Outros") return;
+      if (slug.startsWith("outro-")) setType("outro");
+      else if (slug.startsWith("intro-")) setType("intro");
+      setTagline((prev) => (prev.trim() ? prev : `${tpl.title} — ${tpl.blurb}`.slice(0, 80)));
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Poll the Seedance task until it completes. Server-owned: safe to
      keep this tab open or come back later. */
@@ -72,19 +126,23 @@ export function IntrosOutrosTool() {
         const data: StingResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || "Sting not found");
+          setError(data.error || t("introsOutros.stingNotFound"));
           return;
         }
         if (data.status === "succeeded") {
           setStatus("done");
           setOutputUrl(data.url ?? null);
+          /* The intro/outro flows into the hub project — it's a timeline input for the editor. */
+          if (data.url) {
+            try { addAsset({ kind: "video", url: data.url, label: `${type} — ${channelName.trim() || "channel"}`, detail: "Intro/outro sting" }); } catch { /* non-fatal */ }
+          }
           if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
           if (data.url) {
             setRecent((r) => [{ url: data.url!, channelName, type, at: Date.now() }, ...r].slice(0, 6));
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
-          setError(data.error || "Generation failed — no Visual Bucs were charged.");
+          setError(data.error || t("introsOutros.generationFailed"));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -93,7 +151,7 @@ export function IntrosOutrosTool() {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
-  }, [taskId, status, channelName, type]);
+  }, [taskId, status, channelName, type, t]);
 
   async function generate() {
     if (!channelName.trim() || !user) return;
@@ -124,7 +182,7 @@ export function IntrosOutrosTool() {
       }
       if (!res.ok || !data.taskId) {
         setStatus("failed");
-        setError(data.error || "Could not start the generation.");
+        setError(data.error || t("introsOutros.startFailed"));
         return;
       }
       setTaskId(data.taskId);
@@ -132,7 +190,7 @@ export function IntrosOutrosTool() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("introsOutros.networkError"));
     }
   }
 
@@ -146,11 +204,12 @@ export function IntrosOutrosTool() {
 
   const busy = status === "working" || status === "processing";
   const canGenerate = channelName.trim().length > 0 && !!user && !busy;
+  const typeLabel = t(type === "intro" ? "introsOutros.introLabel" : "introsOutros.outroLabel");
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("introsOutros.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -158,8 +217,8 @@ export function IntrosOutrosTool() {
             <Clapperboard className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Intros & Outros</h1>
-            <p className="text-sm text-white/45">Branded 5-second video stings — {CREDIT_COST} Visual Bucs each</p>
+            <h1 className="text-2xl font-black">{t("introsOutros.title")}</h1>
+            <p className="text-sm text-white/45">{t("introsOutros.tagline", { cost: CREDIT_COST })}</p>
           </div>
         </div>
 
@@ -175,24 +234,24 @@ export function IntrosOutrosTool() {
         )}
 
         {status === "idle" || status === "failed" ? (
-          <div className="mt-6 space-y-5">
+          <div className={`mt-6 space-y-5 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Type picker */}
             <div data-min-stars="2">
-              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Sting type</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("introsOutros.stingType")}</p>
               <div className="grid grid-cols-2 gap-3">
-                {TYPES.map((t) => (
+                {TYPES.map((opt) => (
                   <button
-                    key={t.key}
+                    key={opt.key}
                     type="button"
-                    onClick={() => setType(t.key)}
+                    onClick={() => setType(opt.key)}
                     className={`rounded-xl border px-4 py-3.5 text-left transition ${
-                      type === t.key
-                        ? "border-primary/60 bg-primary/[0.08]"
+                      type === opt.key
+                        ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                         : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                     }`}
                   >
-                    <p className="font-bold text-white">{t.label}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{t.blurb}</p>
+                    <p className="font-bold text-white">{t(opt.labelKey)}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{t(opt.blurbKey)}</p>
                   </button>
                 ))}
               </div>
@@ -200,11 +259,11 @@ export function IntrosOutrosTool() {
 
             {/* Channel name */}
             <div>
-              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Channel name</label>
+              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("introsOutros.channelName")}</label>
               <input
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
-                placeholder="e.g. Bow Down Visuals"
+                placeholder={t("introsOutros.channelNamePh")}
                 maxLength={60}
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
               />
@@ -212,11 +271,11 @@ export function IntrosOutrosTool() {
 
             {/* Tagline */}
             <div>
-              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Tagline <span className="text-white/25 normal-case font-normal">(optional)</span></label>
+              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("introsOutros.taglineLabel")} <span className="text-white/25 normal-case font-normal">{t("introsOutros.taglineOptional")}</span></label>
               <input
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
-                placeholder="e.g. The Content Creation Cheat Code"
+                placeholder={t("introsOutros.taglinePh")}
                 maxLength={80}
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
               />
@@ -225,7 +284,7 @@ export function IntrosOutrosTool() {
             {/* Logo reference (optional) */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
-                Logo image URL <span className="text-white/25 normal-case font-normal">(optional — paste one from the Logo Maker)</span>
+                {t("introsOutros.logoUrlLabel")} <span className="text-white/25 normal-case font-normal">{t("introsOutros.logoUrlOptional")}</span>
               </label>
               <input
                 value={logoUrl}
@@ -233,6 +292,11 @@ export function IntrosOutrosTool() {
                 placeholder="https://…"
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
               />
+              {fromBrandKit && (
+                <p className="mt-1.5 text-[11px] text-primary/70">
+                  {t("introsOutros.fromBrandKit", { defaultValue: "Prefilled from your brand kit — edit anything and it only changes this sting." })}
+                </p>
+              )}
             </div>
 
             <button
@@ -240,23 +304,23 @@ export function IntrosOutrosTool() {
               disabled={!canGenerate}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Generate {type} · {DURATION_SEC}s · {CREDIT_COST} Visual Bucs
+              {t("introsOutros.generate", { type: typeLabel, seconds: DURATION_SEC, cost: CREDIT_COST })}
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+              <p className="text-center text-xs text-white/35">{t("introsOutros.creditsRemaining", { count: creditsRemaining })}</p>
             )}
           </div>
         ) : null}
 
         {/* Progress */}
         {busy && (
-          <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+          <div className={`mt-6 rounded-2xl border px-6 py-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-bold text-white">
-              {status === "working" ? "Submitting…" : "Rendering your sting…"}
+              {status === "working" ? t("introsOutros.submitting") : t("introsOutros.rendering")}
             </p>
             <p className="text-sm text-white/40 mt-1">
-              This runs on our servers — safe to close this tab. Your {type} will be waiting when you return.
+              {t("introsOutros.progressNote", { type: typeLabel })}
             </p>
           </div>
         )}
@@ -266,7 +330,7 @@ export function IntrosOutrosTool() {
           <div className="mt-6 space-y-4">
             <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-              <p className="text-sm font-semibold text-white/80">{type === "intro" ? "Intro" : "Outro"} ready — {channelName}</p>
+              <p className="text-sm font-semibold text-white/80">{t("introsOutros.ready", { type: typeLabel, channel: channelName })}</p>
             </div>
             <video src={outputUrl} controls autoPlay loop muted className="w-full rounded-2xl border border-white/[0.08] bg-black" />
             <div className="flex gap-3">
@@ -275,13 +339,13 @@ export function IntrosOutrosTool() {
                 download={`${channelName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${type}.mp4`}
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 font-bold text-black transition hover:brightness-110"
               >
-                <Download className="h-4 w-4" /> Download
+                <Download className="h-4 w-4" /> {t("introsOutros.download")}
               </a>
               <button
                 onClick={reset}
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
               >
-                <RefreshCw className="h-4 w-4" /> New sting
+                <RefreshCw className="h-4 w-4" /> {t("introsOutros.newSting")}
               </button>
             </div>
           </div>
@@ -291,13 +355,13 @@ export function IntrosOutrosTool() {
         {recent.length > 0 && status !== "done" && (
           <div className="mt-10">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Film className="h-3.5 w-3.5" /> Recent stings
+              <Film className="h-3.5 w-3.5" /> {t("introsOutros.recentStings")}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {recent.map((r) => (
                 <a key={r.at} href={r.url} target="_blank" rel="noreferrer" className="group">
                   <video src={r.url} muted playsInline className="aspect-video w-full rounded-xl border border-white/[0.08] object-cover group-hover:border-primary/50 transition" />
-                  <p className="text-xs text-white/50 mt-1 truncate">{r.channelName} · {r.type}</p>
+                  <p className="text-xs text-white/50 mt-1 truncate">{r.channelName} · {t(r.type === "intro" ? "introsOutros.introLabel" : "introsOutros.outroLabel")}</p>
                 </a>
               ))}
             </div>
@@ -308,7 +372,8 @@ export function IntrosOutrosTool() {
 }
 
 export default function IntrosOutros() {
-  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
+  const { t } = useTranslation();
+  usePageTitle(t("introsOutros.pageTitle"), t("introsOutros.pageDesc"));
   return (
     <div className="min-h-screen bg-black text-white">
       <IntrosOutrosTool />

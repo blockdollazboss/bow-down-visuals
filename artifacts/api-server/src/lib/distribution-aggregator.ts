@@ -252,7 +252,4 @@ export function getAggregator(): AggregatorAdapter {
   return cached;
 }
 
-/** Test-only: reset the cached adapter. */
-export function resetAggregatorForTests(): void {
-  cached = null;
-}
+/* Removed 2026-10-10: resetAggregatorForTests was dead (zero imports). */

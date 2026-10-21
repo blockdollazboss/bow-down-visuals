@@ -3,23 +3,29 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and, desc, isNull, or } from "drizzle-orm";
-import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
+import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
+import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
 import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
+import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 
 
 const router = Router();
 
 /**
  * Returns a vault if the user can USE it: they own it, or it's shared with
- * their active team. Use for generation/read operations.
- * For MANAGE operations (edit, delete, share), require strict ownership
- * via eq(artistVaultsTable.user_id, userId) instead.
+ * their active team. Use for read operations.
+ * For MANAGE operations (edit, delete, share — and every reference-video
+ * write: attach, generate, loop), require strict ownership
+ * via eq(artistVaultsTable.user_id, userId) instead: those writes are
+ * owner-scoped, so a use-access caller's save could never land.
  */
 async function getAccessibleVault(userId: string, vaultId: string) {
   const [vault] = await db
@@ -36,6 +42,28 @@ async function getAccessibleVault(userId: string, vaultId: string) {
     if (activeTeam && activeTeam.team.id === vault.team_id) return vault;
   }
   return null;
+}
+
+/**
+ * Returns the caller's OWN vault row id, scoped exactly like the manage
+ * writes below (owner-only; soft-deleted rows excluded unless
+ * `includeDeleted`). Manage rails check this BEFORE writing so a
+ * PUT/DELETE against a vault the caller doesn't own — a team-shared
+ * row, an already-deleted row, or a nonexistent id — fails honestly
+ * with a 404 instead of answering success over a zero-row update.
+ */
+async function getOwnedVaultRow(userId: string, vaultId: string, includeDeleted = false) {
+  const conds = [
+    eq(artistVaultsTable.id, vaultId),
+    eq(artistVaultsTable.user_id, userId),
+  ];
+  if (!includeDeleted) conds.push(isNull(artistVaultsTable.deleted_at));
+  const [vault] = await db
+    .select({ id: artistVaultsTable.id })
+    .from(artistVaultsTable)
+    .where(and(...conds))
+    .limit(1);
+  return vault ?? null;
 }
 
 const ArtistVaultSchema = z.object({
@@ -57,6 +85,10 @@ const ArtistVaultSchema = z.object({
   referenceImageUrl: z.string().optional().nullable(),
   referenceImagePath: z.string().optional().nullable(),
   consistencyPrompt: z.string().optional().nullable(),
+  /* World voice-shaping profile (0142, G4): raw JSON, sanitized by
+     sanitizeCharacterVoiceProfile before it is stored. Explicit null
+     clears the profile (the character sounds like its speaker again). */
+  voiceProfile: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 router.post("/artist-vaults", requireAuth, async (req, res) => {
@@ -66,12 +98,20 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  /* Mirror-on-save: an external photo URL is re-hosted into permanent
+     storage so the character's photo can never expire (2026-10-13). */
+  d.referenceImageUrl = await mirrorExternalMediaUrl(d.referenceImageUrl, { kind: "image", ownerKey: req.userId! });
 
   try {
+    /* New vaults go to the end of the user's spotlight order. */
+    const maxRow = (await db.execute(
+      sql`SELECT COALESCE(MAX(spotlight_order), -1)::int AS "maxOrder" FROM artist_vaults WHERE user_id = ${req.userId!} AND deleted_at IS NULL`,
+    )).rows[0] as { maxOrder: number } | undefined;
     const [row] = await db
       .insert(artistVaultsTable)
       .values({
         user_id: req.userId!,
+        spotlight_order: (maxRow?.maxOrder ?? -1) + 1,
         artist_name: d.artistName,
         artist_type: d.artistType ?? null,
         genre: d.genre ?? null,
@@ -90,7 +130,7 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
         reference_image_url: d.referenceImageUrl ?? null,
         reference_image_path: d.referenceImagePath ?? null,
         consistency_prompt: d.consistencyPrompt ?? null,
-        is_active: false,
+        voice_profile: d.voiceProfile ? sanitizeCharacterVoiceProfile(d.voiceProfile) : null,
       })
       .returning({ id: artistVaultsTable.id });
 
@@ -123,7 +163,30 @@ router.get("/artist-vaults", requireAuth, async (req, res) => {
     )
     .orderBy(desc(artistVaultsTable.created_at));
 
-  res.json({ vaults });
+  /* Stored media may be storage refs (mirrored at save) or legacy
+     public-bucket URLs — resolve R2-first / re-sign on every read,
+     same as the creator-profile reads. */
+  res.json({ vaults: await refreshSupabaseStorageUrlsDeep(vaults) });
+});
+
+/* ─── Spotlight slot order ──────────────────────────────────────────────
+   PUT /artist-vaults/spotlight-order { order: [<vaultId>, ...] }
+   The user drag-and-drops which artist/character holds each spotlight slot
+   on the choose-artist page. Only the user's OWN vaults can be reordered. */
+router.put("/artist-vaults/spotlight-order", requireAuth, async (req, res) => {
+  const parsed = z.object({ order: z.array(z.string().uuid()).max(50) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "order must be an array of vault UUIDs" });
+    return;
+  }
+  const ids = parsed.data.order;
+  for (let i = 0; i < ids.length; i++) {
+    await db
+      .update(artistVaultsTable)
+      .set({ spotlight_order: i, updated_at: new Date() })
+      .where(and(eq(artistVaultsTable.id, ids[i]), eq(artistVaultsTable.user_id, req.userId!)));
+  }
+  res.json({ ok: true });
 });
 
 router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
@@ -134,6 +197,16 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  /* The update below is scoped to the caller's own rows, so without
+     this check a non-owner's PUT (e.g. a rename attempt on a
+     team-shared row) would write nothing and still answer success.
+     404 is the codebase's no-leak answer for "not yours / not there". */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
+  d.referenceImageUrl = await mirrorExternalMediaUrl(d.referenceImageUrl, { kind: "image", ownerKey: req.userId! });
 
   await db
     .update(artistVaultsTable)
@@ -156,6 +229,11 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       reference_image_url: d.referenceImageUrl ?? null,
       reference_image_path: d.referenceImagePath ?? null,
       consistency_prompt: d.consistencyPrompt ?? null,
+      /* Only touch the voice profile when the caller sent the field —
+         partial editors that don't know about it must not clear it. */
+      ...(d.voiceProfile !== undefined
+        ? { voice_profile: d.voiceProfile ? sanitizeCharacterVoiceProfile(d.voiceProfile) : null }
+        : {}),
       updated_at: new Date(),
     })
     .where(
@@ -169,35 +247,17 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
-  const id = String(req.params["id"]);
-
-  await db
-    .update(artistVaultsTable)
-    .set({ is_active: false })
-    .where(
-      and(
-        eq(artistVaultsTable.user_id, req.userId!),
-        isNull(artistVaultsTable.deleted_at),
-      ),
-    );
-
-  await db
-    .update(artistVaultsTable)
-    .set({ is_active: true })
-    .where(
-      and(
-        eq(artistVaultsTable.id, id),
-        eq(artistVaultsTable.user_id, req.userId!),
-        isNull(artistVaultsTable.deleted_at),
-      ),
-    );
-
-  res.json({ success: true });
-});
-
 router.delete("/artist-vaults/:id", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
+
+  /* Same honesty rule as the PUT above: a delete against a vault the
+     caller doesn't own (or one already deleted) must not answer
+     success over a zero-row update. */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
 
   /* Soft delete only — never hard-delete. The vault is hidden but the data
      is preserved and can be restored. User data must never be permanently lost. */
@@ -264,7 +324,9 @@ router.get("/artist-vaults/:id/links", requireAuth, async (req, res) => {
     }),
   );
 
-  res.json({ links: enriched });
+  /* Linked vault rows ride along in full — same R2-first refresh as
+     the vault list above. */
+  res.json({ links: await refreshSupabaseStorageUrlsDeep(enriched) });
 });
 
 /** Link another character to star in this character's content. */
@@ -317,6 +379,25 @@ router.delete("/artist-vaults/:id/links/:linkId", requireAuth, async (req, res) 
   const id = String(req.params["id"]);
   const linkId = String(req.params["linkId"]);
 
+  /* The delete below is scoped to the caller's own links; without this
+     check, removing a link that isn't theirs (or doesn't exist) would
+     answer success over a zero-row delete. */
+  const [link] = await db
+    .select({ id: artistCharacterLinksTable.id })
+    .from(artistCharacterLinksTable)
+    .where(
+      and(
+        eq(artistCharacterLinksTable.id, linkId),
+        eq(artistCharacterLinksTable.character_id, id),
+        eq(artistCharacterLinksTable.user_id, req.userId!),
+      ),
+    )
+    .limit(1);
+  if (!link) {
+    res.status(404).json({ error: "Link not found" });
+    return;
+  }
+
   await db
     .delete(artistCharacterLinksTable)
     .where(
@@ -348,9 +429,20 @@ const refVideoTasks = new Map<
 router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
 
-  // Team members can generate from shared vaults (use-access).
   const vault = await getAccessibleVault(req.userId!, id);
   if (!vault) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
+
+  /* The generated video is SAVED onto the vault by the poll below
+     (owner-scoped update) and the charge lands on the caller — so
+     generation is a manage write, not a use. A team member's save
+     could never land, yet the poll would still have charged them and
+     answered "succeeded". Refuse here, before the balance check and
+     before any provider submission, with the same no-leak 404
+     (Stack-4 wave-2 #1). */
+  if (vault.user_id !== req.userId!) {
     res.status(404).json({ error: "Character not found" });
     return;
   }
@@ -433,6 +525,11 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
     return;
   }
 
+  /* Set once the charge below actually lands. The save after the charge
+     can still fail (DB write), and that failure must give the money back
+     — the pending-task entry is already deleted by then, so the member
+     cannot retry the poll (D5 sweep G1). */
+  let chargedCredits = 0;
   try {
     const client = new RunwayML({ apiKey });
     const task = await client.tasks.retrieve(taskId);
@@ -444,23 +541,40 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
         res.json({ status: "succeeded", url: null });
         return;
       }
+      /* The save below is owner-scoped; never charge ahead of a write
+         that cannot land. Ownership was proven at submit — re-check it
+         here so the charge can only ever precede a save that matches
+         (Stack-4 wave-2 #1). */
+      const owned = await getOwnedVaultRow(req.userId!, id);
+      if (!owned) {
+        res.json({ status: "failed" });
+        return;
+      }
       /* Charge credits (once — guarded by pendingTasks presence). */
       try {
         await chargeCreditsAtomic(req.userId!, pending.credits, {
           action: "Character Reference Video",
           projectId: null,
         });
+        chargedCredits = pending.credits;
       } catch (e) {
         if (e instanceof LedgerWriteError) {
+          /* chargeCredits rolled the deduction itself back when the
+             ledger write failed — no standing charge to refund. */
           req.log.error({ taskId, err: e.message }, "[ref-video] ledger write failed after charge");
         } else {
           throw e;
         }
       }
+      /* Mirror-on-save: the provider's output URL is a CDN link that can
+         vanish — re-host it into permanent storage before saving to the
+         vault, same as the reference photo above (2026-10-13 law). */
+      const storedVideoUrl =
+        (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey: req.userId! })) ?? videoUrl;
       /* Save to the vault. */
       await db
         .update(artistVaultsTable)
-        .set({ reference_video_url: videoUrl, updated_at: new Date() })
+        .set({ reference_video_url: storedVideoUrl, updated_at: new Date() })
         .where(
           and(
             eq(artistVaultsTable.id, id),
@@ -481,6 +595,21 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     req.log.error({ taskId, err: msg }, "[ref-video] poll failed");
+    if (chargedCredits > 0) {
+      /* The charge landed but the save after it failed — refund the
+         exact charged amount. The task record is gone, so this refund
+         is the member's only path back to whole. */
+      try {
+        await refundCredits(req.userId!, chargedCredits, {
+          action: "Character Reference Video — Refund (save failed)",
+          projectId: null,
+        });
+      } catch (refundErr) {
+        req.log.error({ taskId, err: refundErr }, "[ref-video] CRITICAL: refund failed after save failure — manual reconciliation required");
+      }
+      res.status(502).json({ error: "The video finished but saving it failed — your Visual Bucs were refunded." });
+      return;
+    }
     res.status(502).json({ error: "Could not check video status" });
   }
 });
@@ -488,6 +617,14 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
 /** Remove a character's reference video (keeps the photo). */
 router.delete("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
+  /* The update below is scoped to the caller's own rows (and, like the
+     update, does not exclude soft-deleted rows); a non-owner's DELETE
+     must 404 instead of answering success over a zero-row update. */
+  const owned = await getOwnedVaultRow(req.userId!, id, true);
+  if (!owned) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
   await db
     .update(artistVaultsTable)
     .set({ reference_video_url: null, reference_video_path: null, updated_at: new Date() })
@@ -515,9 +652,14 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
     return;
   }
   try {
-    /* Verify the user can use the vault (owner or team member). */
-    const vault = await getAccessibleVault(userId, vaultId);
-    if (!vault) {
+    /* Attaching REPLACES the character's reference video — a manage
+       write. The update below is scoped to the caller's own rows, so
+       a team member (use-access) would write zero rows and still be
+       answered success. Require ownership BEFORE any download/mirror
+       work, with the same no-leak 404 as the other manage rails
+       (Stack-4 wave-2 #1). */
+    const owned = await getOwnedVaultRow(userId, vaultId);
+    if (!owned) {
       res.status(404).json({ error: "Vault not found." });
       return;
     }
@@ -531,8 +673,12 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
     } catch (e) {
       /* If HEAD fails, fall through — the URL may still be valid. */
     }
-    /* Set the URL directly on the vault (no storage upload needed). */
-    const publicUrl = videoUrl;
+    /* Mirror-on-save: download + re-host into permanent storage so an
+       arbitrary external link can never expire under the vault (the same
+       law the reference photo follows). Best-effort — the helper returns
+       the original URL if the download fails. */
+    const publicUrl =
+      (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey: userId })) ?? videoUrl;
     await db
       .update(artistVaultsTable)
       .set({ reference_video_url: publicUrl, reference_video_path: null, updated_at: new Date() })
@@ -575,13 +721,7 @@ async function runRefVideoLoop(taskId: string, videoUrl: string) {
     workDir = wd;
     const fileBytes = await readFile(outPath);
     const filePath = `${task.userId}/reference-videos/${randomUUID()}-loop.mp4`;
-    const { error: upErr } = await getSupabaseAdmin()
-      .storage.from("artist-references")
-      .upload(filePath, fileBytes, { contentType: "video/mp4", upsert: false });
-    if (upErr) throw new VideoLoopError(upErr.message);
-    const {
-      data: { publicUrl },
-    } = getSupabaseAdmin().storage.from("artist-references").getPublicUrl(filePath);
+    const publicUrl = await r2Upload(filePath, fileBytes, "video/mp4");
     task.status = "done";
     task.url = publicUrl;
     task.path = filePath;
@@ -631,9 +771,19 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0]! : rawId;
   try {
-    // Team members can loop shared vaults (use-access).
     const vault = await getAccessibleVault(req.userId!, id);
     if (!vault) {
+      res.status(404).json({ error: "Artist vault not found." });
+      return;
+    }
+
+    /* Looping REPLACES the vault's reference video via the poll's
+       owner-scoped save, charged to the caller — a manage write, not
+       a use. A team member's save could never land, yet the poll
+       would still have charged them and answered "succeeded".
+       Refuse here, before the balance check, with the same no-leak
+       404 (Stack-4 wave-2 #1). */
+    if (vault.user_id !== req.userId!) {
       res.status(404).json({ error: "Artist vault not found." });
       return;
     }
@@ -661,7 +811,7 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
   }
 });
 
-/** Poll a seamless-loop job. On success: charge once (2cr) and swap the vault's video to the looped version. */
+/** Poll a seamless-loop job. On success: charge once and swap the vault's video to the looped version. */
 router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async (req, res) => {
   const rawId = req.params.id;
   const rawTaskId = req.params.taskId;
@@ -682,11 +832,21 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
     res.json({ status: "failed", error: task.error ?? "Loop processing failed." });
     return;
   }
+  /* The save below is owner-scoped; never charge ahead of a write
+     that cannot land. Ownership was proven at submit — re-check it
+     here, before the charge (Stack-4 wave-2 #1). */
+  const owned = await getOwnedVaultRow(req.userId!, id);
+  if (!owned) {
+    res.json({ status: "failed", error: "This character isn't yours to change — nothing was charged." });
+    return;
+  }
+  let charged = false;
   try {
     const newBalance = await chargeCreditsAtomic(req.userId!, task.credits, {
       action: "Artist Vault Video Loop",
       projectId: null,
     });
+    charged = true;
     await db
       .update(artistVaultsTable)
       .set({
@@ -698,7 +858,25 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
     res.json({ status: "succeeded", url: task.url, newBalance });
   } catch (err) {
     if (err instanceof LedgerWriteError) {
+      /* chargeCredits rolled the deduction itself back — no standing
+         charge to refund. */
       res.json({ status: "failed", error: "Credit ledger write failed — no video was changed." });
+      return;
+    }
+    if (charged) {
+      /* The charge landed but the save after it failed — refund the
+         exact charged amount (D5 sweep G4). */
+      try {
+        await refundCredits(req.userId!, task.credits, {
+          action: "Artist Vault Video Loop — Refund (save failed)",
+          projectId: null,
+        });
+      } catch (refundErr) {
+        req.log.error({ taskId, err: refundErr }, "[ref-video-loop] CRITICAL: refund failed after save failure — manual reconciliation required");
+        res.json({ status: "failed", error: "Saving the looped video failed." });
+        return;
+      }
+      res.json({ status: "failed", error: "Saving the looped video failed — your Visual Bucs were refunded." });
       return;
     }
     res.json({ status: "failed", error: err instanceof Error ? err.message : "Loop failed." });

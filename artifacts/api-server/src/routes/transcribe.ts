@@ -1,10 +1,83 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { getOpenAI } from "../lib/ai-clients";
+import { createHash } from "crypto";
+import { getOpenAI, getPlainTranscribeModel } from "../lib/ai-clients";
+import { transcribeAudioTimed } from "../lib/transcription";
 import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeAiLimiter } from "../lib/rate-limit";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../lib/credits";
 
 const router = Router();
+
+/* Charged server-side at the price the UI has always displayed for
+   these tools (frontend registry: "/api/transcribe" and
+   "/api/transcribe-url" → 100 Visual Bucs each). Until the owner's
+   2026-10-14 ruling both routes called the paid transcription models
+   for free. */
+const TRANSCRIBE_CREDIT_COST = 100;
+
+/**
+ * Charge the displayed transcription price before the paid provider
+ * call. Returns the balance after the charge, or null after sending
+ * the standard error response (402 out_of_credits / 500 ledger) — the
+ * caller must return immediately on null. The idempotency key is
+ * stable per (user, endpoint, request-intent): a double-tap or retry
+ * of the same transcription can't double-charge.
+ */
+async function chargeForTranscription(
+  req: Request,
+  res: Response,
+  scope: "transcribe" | "transcribe-url",
+  clientKey: unknown,
+  intent: unknown,
+): Promise<number | null> {
+  /* Balance fast-fail on the middleware balance (skipped in dev, the
+     thumbnail-generator pattern); chargeCredits re-reads fresh and is
+     authoritative. */
+  const isDev = process.env["NODE_ENV"] === "development";
+  if (!isDev && (req.userCredits ?? 0) < TRANSCRIBE_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+      required: TRANSCRIBE_CREDIT_COST,
+    });
+    return null;
+  }
+  const idempotencyKey = buildChargeIdempotencyKey(scope, req.userId!, clientKey, intent);
+  try {
+    return await chargeCredits(req.userId!, TRANSCRIBE_CREDIT_COST, {
+      action: scope === "transcribe" ? "Transcribe Audio" : "Transcribe",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
+        required: TRANSCRIBE_CREDIT_COST,
+      });
+      return null;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+      return null;
+    }
+    throw err;
+  }
+}
+
+/** Refund a transcription charge after a provider-side failure. */
+async function refundTranscription(req: Request): Promise<void> {
+  await refundCredits(req.userId!, TRANSCRIBE_CREDIT_COST, {
+    action: "Transcribe — Refund (transcription failed)",
+  }).catch(() => {});
+}
 
 /** Whisper's hard file-size limit */
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -45,11 +118,23 @@ const upload = multer({
   },
 });
 
-router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res) => {
+router.post("/transcribe", requireAuth, freeAiLimiter, upload.single("audio"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
   }
+  /* Charge the displayed price before the paid provider call. The
+     request-intent is the uploaded file itself (bytes hash), so a
+     retry of the same upload can't double-charge. */
+  const fileHash = createHash("sha256").update(req.file.buffer).digest("hex");
+  const creditsAfter = await chargeForTranscription(
+    req,
+    res,
+    "transcribe",
+    (req.body as { idempotencyKey?: unknown } | undefined)?.idempotencyKey,
+    { fileHash, name: req.file.originalname ?? "" },
+  );
+  if (creditsAfter === null) return; // error response already sent
   try {
     const audioFile = await toFile(
       req.file.buffer,
@@ -59,13 +144,21 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
     const transcription = await getOpenAI().audio.transcriptions.create(
       {
         file: audioFile,
-        model: "whisper-1",
+        // Plain text only — this route returns just the transcript, so it
+        // runs on the plain-transcription model (gpt-transcribe). The
+        // /transcribe-url route below uses the timed seam
+        // (lib/transcription.ts): its clients align captions to the word
+        // timestamps it returns.
+        model: getPlainTranscribeModel(),
+        response_format: "json",
       },
       { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
     );
-    res.json({ transcript: transcription.text });
+    res.json({ transcript: transcription.text, creditsRemaining: creditsAfter });
   } catch (err) {
     req.log.error({ err }, "Transcription failed");
+    /* Provider failure after the charge — refund with a ledger trace. */
+    await refundTranscription(req);
     if (isTimeoutError(err)) {
       timeoutResponse(res);
       return;
@@ -75,8 +168,11 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
 });
 
 /** Transcribe an already-uploaded audio file by URL (Supabase storage). */
-router.post("/transcribe-url", requireAuth, async (req, res) => {
-  const { audioUrl } = req.body as { audioUrl?: string };
+router.post("/transcribe-url", requireAuth, freeAiLimiter, async (req, res) => {
+  const { audioUrl, idempotencyKey: clientIdempotencyKey } = req.body as {
+    audioUrl?: string;
+    idempotencyKey?: unknown;
+  };
 
   if (!audioUrl) {
     res.status(400).json({ error: "audioUrl is required" });
@@ -105,6 +201,10 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
     }
   }
 
+  /* Tracks whether the charge landed, so the catch block refunds only
+     failures that happen after it (fetch/size failures before the
+     charge were never charged). */
+  let charged = false;
   try {
     /* ── HEAD request: check Content-Length before downloading ── */
     const headRes = await fetch(audioUrl, {
@@ -141,32 +241,35 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
       return;
     }
 
+    /* ── Charge the displayed price — every free validation (SSRF,
+       reachability, size) has passed; the paid provider call is next.
+       The request-intent is the audio URL, so a retry of the same
+       transcription can't double-charge. ── */
+    const creditsAfter = await chargeForTranscription(
+      req,
+      res,
+      "transcribe-url",
+      clientIdempotencyKey,
+      { audioUrl },
+    );
+    if (creditsAfter === null) return; // error response already sent
+    charged = true;
+
     const fileName = parsedUrl.pathname.split("/").pop() ?? "audio.mp3";
-    const audioFile = await toFile(buffer, decodeURIComponent(fileName), { type: contentType });
 
-    type VerboseTranscription = {
-      text: string;
-      duration?: number;
-      segments?: Array<{ id: number; start: number; end: number; text: string }>;
-      words?: Array<{ word: string; start: number; end: number }>;
-      language?: string;
-    };
-
-    // Requesting word-level granularity (in addition to segment-level) gives
-    // much finer-grained timestamps than segment boundaries alone — segments
-    // can span several seconds/several words, which is too coarse to track
-    // sung vocals (melisma, held notes, word stretching) accurately. Word
-    // timestamps let the client align each caption line to the actual words
-    // being sung rather than the whole segment they fall within.
-    const transcription = (await getOpenAI().audio.transcriptions.create(
-      {
-        file: audioFile,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["word", "segment"],
-      },
-      { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-    )) as unknown as VerboseTranscription;
+    // Word-level timestamps (in addition to segment-level) give much
+    // finer-grained timing than segment boundaries alone — segments can
+    // span several seconds/several words, which is too coarse to track
+    // sung vocals (melisma, held notes, word stretching) accurately.
+    // Word timestamps let the client align each caption line to the
+    // actual words being sung rather than the whole segment they fall
+    // within. The timed seam returns exactly this shape.
+    const transcription = await transcribeAudioTimed({
+      buffer,
+      filename: decodeURIComponent(fileName),
+      mimeType: contentType,
+      signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+    });
 
     res.json({
       transcript: transcription.text,
@@ -174,9 +277,21 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
       words: transcription.words ?? null,
       duration: transcription.duration ?? null,
       language: transcription.language ?? null,
+      creditsRemaining: creditsAfter,
     });
   } catch (err) {
     req.log.error({ err }, "URL transcription failed");
+    /* Provider failure after the charge — refund with a ledger trace. */
+    if (charged) await refundTranscription(req);
+    /* Admin-only lockdown (thrown by the charge): use the same shape
+       the global error handler gives it, not a transcription 500. */
+    if (err instanceof Error && err.name === "CreditsDisabledError") {
+      res.status(403).json({
+        error: "credits_disabled",
+        message: "Credit spending is temporarily disabled. Please try again later.",
+      });
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Transcription failed";
     if (isTimeoutError(err)) {
       timeoutResponse(res);

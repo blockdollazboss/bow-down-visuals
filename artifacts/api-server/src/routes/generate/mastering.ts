@@ -6,12 +6,16 @@ import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -44,7 +48,7 @@ export {
 };
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: MASTERING_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const name = (file.originalname || "").toLowerCase();
@@ -56,6 +60,15 @@ const upload = multer({
 });
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
+
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const masteringSchema = z.object({
+  preset: z.string().optional(),
+  /** When the input was picked from the caller's song library, its id —
+   *  the master lands back in the library chained to it. */
+  sourceSongId: z.string().max(64).optional(),
+});
 
 export type MasteringJobStatus = "queued" | "processing" | "done" | "failed";
 
@@ -78,9 +91,14 @@ export interface MasteringJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the input came from, when it came from the library. */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished master (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, MasteringJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getMasteringJob(id: string): MasteringJob | undefined {
   return jobs.get(id);
@@ -147,7 +165,7 @@ async function measureOutputLufs(outputPath: string): Promise<number | null> {
 /* ── Background worker ──────────────────────────────────────────────── */
 
 /** Exported for tests. */
-export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, originalName: string): Promise<void> {
+export async function runMasteringJob(job: MasteringJob, uploadedPath: string, originalName: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "mastering-"));
   const ext = (originalName.split(".").pop() ?? "wav").toLowerCase().replace(/[^a-z0-9]/g, "") || "wav";
   const inputPath = join(workDir, `input.${ext}`);
@@ -156,7 +174,7 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Pass 1 — measure the processed mix.
     const measurement = await measureLoudness(inputPath, job.preset);
@@ -182,6 +200,19 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
     job.wavRef = wavRef;
     job.mp3Ref = mp3Ref;
 
+    /* Linkage (DE-6): the finished master lands in the caller's song
+       library (the MP3 is the library's playable copy), chained to the
+       library song it started from when the input was one. A
+       library-write failure never fails a delivered job. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Master"),
+      audioUrl: job.mp3Url,
+      audioPath: mp3Ref,
+      source: "master",
+      parentSongId: job.sourceSongId,
+    });
+
     job.status = "done";
   } catch (err) {
     job.status = "failed";
@@ -197,6 +228,7 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -214,7 +246,8 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
  * refunded automatically.
  */
 router.post("/mastering", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
-  const preset = resolveMasteringPreset(req.body?.preset);
+  const parsed = masteringSchema.safeParse(req.body ?? {});
+  const preset = parsed.success ? resolveMasteringPreset(parsed.data.preset) : null;
   if (!preset) {
     res.status(400).json({
       error: "INVALID_PRESET",
@@ -275,11 +308,13 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     error: null,
     creditsCharged: MASTERING_CREDIT_COST,
     createdAt: Date.now(),
+    sourceSongId: parsed.success ? parsed.data.sourceSongId ?? null : null,
+    librarySongId: null,
   };
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runMasteringJob(job, req.file.buffer, req.file.originalname);
+  void runMasteringJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,
@@ -317,6 +352,7 @@ router.get("/mastering/:jobId", requireAuth, (req: Request, res: Response) => {
     },
     wavUrl: job.wavUrl,
     mp3Url: job.mp3Url,
+    songId: job.librarySongId,
     error: job.error,
     creditsCharged: job.creditsCharged,
   });

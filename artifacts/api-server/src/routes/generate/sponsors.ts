@@ -9,6 +9,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Money rules (standing pricing rule: AI/compute burns credits, pure UI is free):
@@ -749,6 +750,32 @@ export const fundSchema = z.object({
   amountCents: z.number().int().min(100).max(100000000),
 });
 
+/**
+ * Deterministic Stripe idempotency key for a sponsor escrow funding.
+ * The intent is the durable funding act itself — the deal, its
+ * accepted application, and the agreed amount: concurrent or retried
+ * fund calls for that act reuse the original session instead of
+ * minting a second payable one. A deal funds exactly once (its
+ * escrow state machine refuses later attempts), so the intent never
+ * needs to advance past a completion.
+ */
+export function buildSponsorEscrowCheckoutKey(args: {
+  brandUserId: string;
+  dealId: string;
+  acceptedApplicationId: string;
+  amountCents: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.brandUserId,
+    rail: "sponsor-escrow",
+    purchaseIntent: {
+      dealId: args.dealId,
+      acceptedApplicationId: args.acceptedApplicationId,
+      amountCents: args.amountCents,
+    },
+  });
+}
+
 /* POST /api/sponsors/deals/:id/fund — brand funds the escrow.
    With STRIPE_SECRET_KEY configured: returns a real Stripe Checkout URL.
    Without it: sandbox mode — returns a mock session the frontend can
@@ -808,10 +835,15 @@ router.post("/sponsors/deals/:id/fund", publicApiLimiter, requireAuth, async (re
       return;
     }
 
-    const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
+    const stripe = createGuardedStripeClient();
     const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
     const baseUrl = domain ? `https://${domain}` : "http://localhost";
+    const idempotencyKey = buildSponsorEscrowCheckoutKey({
+      brandUserId: req.userId!,
+      dealId,
+      acceptedApplicationId: deal.accepted_application_id,
+      amountCents,
+    });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -836,7 +868,7 @@ router.post("/sponsors/deals/:id/fund", publicApiLimiter, requireAuth, async (re
       },
       success_url: `${baseUrl}/sponsors/${dealId}?funded=1`,
       cancel_url: `${baseUrl}/sponsors/${dealId}?funded=0`,
-    });
+    }, { idempotencyKey });
     await db.execute(sql`
       UPDATE sponsor_deals SET stripe_session_id = ${session.id} WHERE id = ${dealId}
     `);

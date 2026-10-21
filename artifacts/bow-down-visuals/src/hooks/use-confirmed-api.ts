@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCreditCost } from "@/lib/credit-costs";
+import { toast } from "@/hooks/use-toast";
 
 /**
  * A fetch-compatible function that may return null when the user
@@ -39,7 +40,7 @@ export function useConfirmedApi() {
       if (!skipConfirm) {
         const registered = getCreditCost(endpoint);
         const cost = overrideCost ?? registered?.cost;
-        const feature = overrideFeature ?? registered?.feature ?? "AI Feature";
+        const feature = overrideFeature ?? registered?.feature ?? "Feature";
 
         if (cost && cost > 0) {
           const confirmed = await confirmSpend({ cost, feature });
@@ -56,7 +57,24 @@ export function useConfirmedApi() {
         if (token) headers.set("Authorization", `Bearer ${token}`);
       }
 
-      return fetch(endpoint, { ...fetchOptions, headers });
+      const response = await fetch(endpoint, { ...fetchOptions, headers });
+
+      /* Post-spend delta: show what was spent after a successful confirmed call.
+         Only for calls that went through confirmation (cost > 0). */
+      if (!skipConfirm && response.ok) {
+        const registered = getCreditCost(endpoint);
+        const cost = overrideCost ?? registered?.cost;
+        const feature = overrideFeature ?? registered?.feature ?? "Feature";
+        if (cost && cost > 0) {
+          toast({
+            title: `${cost.toLocaleString("en-US")} Visual Bucs spent`,
+            description: feature,
+            duration: 3000,
+          });
+        }
+      }
+
+      return response;
     },
     [confirmSpend, getAccessToken]
   );

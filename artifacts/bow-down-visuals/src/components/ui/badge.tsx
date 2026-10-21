@@ -14,7 +14,7 @@ const badgeVariants = cva(
         default:
           // @replit shadow-xs instead of shadow, no hover because we use hover-elevate
           // Premium: gold gradient pill with inner highlight
-          "border-[hsl(45_90%_55%/0.4)] bg-[linear-gradient(180deg,hsl(45_95%_50%/0.22),hsl(45_95%_50%/0.1))] text-[hsl(45_95%_68%)] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.15),0_4px_14px_-6px_hsl(45_95%_50%/0.5)]",
+          "border-[hsl(45_90%_55%/0.4)] bg-[linear-gradient(180deg,hsl(45_95%_50%/0.22),hsl(45_95%_50%/0.1))] text-[#e8c86a] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.15),0_4px_14px_-6px_hsl(45_95%_50%/0.5)]",
         secondary:
           // @replit no hover because we use hover-elevate
           "border-white/[0.12] bg-white/[0.05] text-secondary-foreground shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08)]",

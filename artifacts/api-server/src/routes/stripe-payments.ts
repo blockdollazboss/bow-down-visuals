@@ -3,8 +3,12 @@ import Stripe from "stripe";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { publicApiLimiter } from "../lib/rate-limit";
-import { addCreditsToProfile } from "../lib/supabase-admin";
-import { isPaymentAlreadyRecorded, recordStripePayment, getPaymentHistory } from "../lib/payment-record";
+import { fulfillCreditPurchase } from "../lib/payment-record";
+import { countCompletedCreditPurchases, getPaymentHistory } from "../lib/payment-record";
+import {
+  buildCheckoutSessionIdempotencyKey,
+  createGuardedStripeClient,
+} from "../lib/stripe-client";
 
 const router = Router();
 
@@ -16,9 +20,7 @@ const PACK_MAP: Record<string, { envKey: string; credits: number; label: string 
 };
 
 function getStripe(): Stripe {
-  const key = process.env["STRIPE_SECRET_KEY"];
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key);
+  return createGuardedStripeClient();
 }
 
 function getBaseUrl(req?: import("express").Request): string {
@@ -63,7 +65,7 @@ router.get("/stripe-status", requireAuth, publicApiLimiter, async (_req, res) =>
 
   if (secretKey) {
     try {
-      const stripe = new Stripe(secretKey);
+      const stripe = createGuardedStripeClient(secretKey);
       await stripe.paymentMethods.list({ limit: 1 });
       status.stripeReachable = true;
     } catch (err: unknown) {
@@ -101,6 +103,30 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Purchase sequence for the session idempotency key. Before the
+     grant is recorded, a double-submit still sees this same count and
+     Stripe reuses the original session; after the grant lands, the
+     count advances and a genuinely new purchase gets a fresh key. If
+     the sequence can't be read, fail closed rather than mint a session
+     whose duplicate cannot be recognized. */
+  let completedPurchaseCount: number;
+  try {
+    completedPurchaseCount = await countCompletedCreditPurchases(req.userId!, packInfo.label);
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "create-checkout-session: purchase sequence read failed");
+    res.status(500).json({ error: "Could not start checkout safely. Please try again." });
+    return;
+  }
+  const idempotencyKey = buildCheckoutSessionIdempotencyKey({
+    memberId: req.userId!,
+    rail: "credit-pack",
+    purchaseIntent: {
+      priceId,
+      credits: packInfo.credits,
+      completedPurchaseCount,
+    },
+  });
+
   try {
     const baseUrl = getBaseUrl(req);
     logger.info({ userId: req.userId, pack: packInfo.label, priceId, baseUrl }, "Creating checkout session");
@@ -115,7 +141,7 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
         credit_pack: packInfo.label,
         credits_amount: String(packInfo.credits),
       },
-    });
+    }, { idempotencyKey });
 
     logger.info({ userId: req.userId, pack: packInfo.label }, "Checkout session created");
     res.json({ url: session.url });
@@ -189,43 +215,40 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
 
   logger.info({ creditsToAdd }, "checkout/verify: credits_amount found");
 
-  // ── IDEMPOTENCY CHECK ─────────────────────────────────────────────────────
+  /* ── Grant via insert-first claiming (P0-9) ─────────────────────────────
+     The old check-then-insert raced with the Stripe webhook: both could
+     pass isPaymentAlreadyRecorded and double-grant. fulfillCreditPurchase()
+     claims atomically — only the winner grants. */
   try {
-    const alreadyProcessed = await isPaymentAlreadyRecorded(sessionId);
-    if (alreadyProcessed) {
-      logger.info({ sessionId, userId: req.userId }, "checkout/verify: duplicate payment ignored — already recorded");
-      // Return success with current info so the dashboard banner shows correctly
+    const result = await fulfillCreditPurchase({
+      idempotencyKey: sessionId,
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      userId: req.userId!,
+      creditPack: metaPack,
+      creditsAmount: creditsToAdd,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+    });
+
+    if (result.outcome === "duplicate") {
+      logger.info({ sessionId, userId: req.userId }, "checkout/verify: duplicate payment — already completed");
       res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
       return;
     }
-  } catch (err: unknown) {
-    const msg = (err as { message?: string })?.message ?? "unknown";
-    logger.error({ err, msg, sessionId }, "checkout/verify: idempotency check failed — proceeding");
-  }
-  // ─────────────────────────────────────────────────────────────────────────
+    if (result.outcome === "inflight") {
+      logger.warn({ sessionId, userId: req.userId }, "checkout/verify: grant in flight elsewhere");
+      res.status(409).json({ error: "Payment is being processed. Please wait a moment and refresh." });
+      return;
+    }
 
-  try {
-    const { oldCredits, newCredits, created } = await addCreditsToProfile(req.userId!, creditsToAdd);
     logger.info(
-      { userId: req.userId, creditsToAdd, oldCredits, newCredits, pack: metaPack, sessionId, created },
+      { userId: req.userId, creditsToAdd, pack: metaPack, sessionId, newCredits: result.newCredits },
       "checkout/verify: credits applied successfully"
     );
-
-    // Record payment to prevent future duplicates
-    await recordStripePayment({
-      stripeSessionId:      sessionId,
-      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
-      userId:               req.userId!,
-      creditPack:           metaPack,
-      creditsAmount:        creditsToAdd,
-      amountTotal:          session.amount_total,
-      currency:             session.currency,
-    });
-
-    res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: metaPack });
+    res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
-    logger.error({ err, msg, userId: req.userId }, "checkout/verify: credit update failed");
+    logger.error({ err, msg, userId: req.userId }, "checkout/verify: credit grant failed");
     res.status(500).json({ error: `Credits verified but could not be applied: ${msg}` });
   }
 });

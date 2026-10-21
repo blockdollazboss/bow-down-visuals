@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─────────────────── Bowing shark hero ─────────────────── */
 /* Canvas sprite scrubber. The shark-king clip was keyed out with an AI
@@ -25,6 +26,7 @@ const PER_SHEET = 36; // 6×6 grid
 const FS = 600; // frame size in px
 
 export function HeroLogo3D() {
+  const isLight = useIsLightTheme();
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const posterRef = useRef<HTMLImageElement | null>(null);
@@ -36,6 +38,13 @@ export function HeroLogo3D() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    if (isLight) {
+      // Light theme has no bow sprite sheets: clear any stale dark frame left
+      // on the canvas by the previous theme run and show the light poster.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (posterRef.current) posterRef.current.style.display = "";
+    }
 
     const base = import.meta.env.BASE_URL;
     const sheets: (HTMLImageElement | null)[] = new Array(SHEETS).fill(null);
@@ -72,7 +81,9 @@ export function HeroLogo3D() {
       Math.min(FRAMES - 1, Math.max(0, Math.round((t / BOW_END) * (FRAMES - 1))));
 
     // Preload sprite sheets; draw the standing frame the moment sheet 0 lands.
+    // Light theme has no sheets yet — the cream-robed poster shows instead.
     for (let s = 0; s < SHEETS; s++) {
+      if (isLight) break;
       const img = new Image();
       img.decoding = "async";
       img.onload = () => {
@@ -165,18 +176,18 @@ export function HeroLogo3D() {
       if (w.__bdvHero && typeof prevHook === "undefined") delete w.__bdvHero;
       else w.__bdvHero = prevHook;
     };
-  }, []);
+  }, [isLight]);
 
   const base = import.meta.env.BASE_URL;
 
   return (
-    <div ref={sectionRef} className="relative w-[480px] max-w-full aspect-square">
+    <div ref={sectionRef} className="relative w-full max-w-[480px] aspect-square">
       {/* Standing-shark poster: instant paint + fallback if sprites fail.
           Hidden the moment the canvas paints so it never ghosts behind
           bowed frames. */}
       <img
         ref={posterRef}
-        src={`${base}hero-bow-poster.webp`}
+        src={isLight ? `${base}hero-bow-poster-light.webp` : `${base}hero-bow-poster.webp`}
         alt=""
         aria-hidden
         fetchPriority="high"

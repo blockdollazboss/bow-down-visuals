@@ -1,13 +1,15 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "crypto";
-import { promises as fs } from "fs";
+import { promises as fs, createWriteStream } from "fs";
+import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import multer from "multer";
 import { z } from "zod";
-import OpenAI, { toFile } from "openai";
+import OpenAI from "openai";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -22,12 +24,20 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
+import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Pricing ─────────────────────────────────────────────────────────────
-   3 credits per AI analysis (Whisper transcription + GPT-6 highlight
+   3 credits per AI analysis (Timed transcription + GPT-6 highlight
    detection — real provider spend on every run), 2 credits per rendered
    vertical clip (server-side ffmpeg encode + storage). Both
    env-overridable without a deploy. */
@@ -79,10 +89,11 @@ const cutClipSchema = z.object({
 const cutBodySchema = z.object({
   videoRef: z.string().min(1).max(2000),
   clips: z.array(cutClipSchema).min(1).max(5),
+  attribution: attributionOptIn(),
 });
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: VOD_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -102,19 +113,33 @@ export function formatTimestamp(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 
+/** Options for the optional attribution tag burn. */
+export interface ClipCutAttributionOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+}
+
 /** Build ffmpeg args that cut [startSec, endSec) and reframe to 720x1280 vertical. */
 export function buildClipCutArgs(
   inputPath: string,
   outputPath: string,
   startSec: number,
   endSec: number,
+  opts: ClipCutAttributionOpts = {},
 ): string[] {
   const dur = Math.max(1, endSec - startSec);
+  let vf = "crop=ih*9/16:ih,scale=720:1280:flags=lanczos";
+  // Virality: optional gold "Made with Bow Down Visuals" tag, bottom-center.
+  if (opts.attribution && opts.attributionFontfile) {
+    vf += `,${attributionDrawtext(opts.attributionFontfile, 720)}`;
+  }
   return [
     "-ss", String(startSec),
     "-t", String(dur),
     "-i", inputPath,
-    "-vf", "crop=ih*9/16:ih,scale=720:1280:flags=lanczos",
+    "-vf", vf,
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "23",
@@ -149,12 +174,29 @@ interface TranscriptSegment {
 
 /**
  * Transcribe a video buffer with Whisper. Audio is extracted with ffmpeg
- * first (mono 16kHz keeps chunks small); audio larger than Whisper's limit
+ * first (mono 16kHz keeps chunks small); audio larger than the transcription limit
  * is split into sequential chunks and timestamps are offset back.
  * Exported for tests (pure-ish orchestration; network calls mocked).
  */
-export async function transcribeVideoBuffer(
-  buffer: Buffer,
+
+/** 2026-10-12 OOM fix: stream a remote video to a temp file instead of
+ *  buffering it in RAM. Caller owns the file and must unlink it. */
+async function downloadUrlToTempFile(url: string, prefix: string): Promise<string> {
+  const resp = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+  if (!resp.body) throw new Error("fetch returned no body");
+  const dest = join(tmpdir(), `${prefix}-${randomUUID()}.mp4`);
+  try {
+    await pipeline(resp.body as Parameters<typeof pipeline>[0], createWriteStream(dest));
+  } catch (err) {
+    await fs.unlink(dest).catch(() => {});
+    throw err;
+  }
+  return dest;
+}
+
+export async function transcribeVideoFile(
+  videoPath: string,
   originalName: string,
   transcribeFn?: (audio: { buffer: Buffer; name: string }) => Promise<{ segments: TranscriptSegment[] }>,
 ): Promise<{ segments: TranscriptSegment[]; durationSec: number }> {
@@ -162,7 +204,7 @@ export async function transcribeVideoBuffer(
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
   try {
-    await fs.writeFile(inputPath, buffer);
+    await fs.copyFile(videoPath, inputPath); // 2026-10-12 OOM fix: disk-to-disk, never a RAM Buffer
     const durationSec = (await probeDurationSec(inputPath)) ?? 0;
 
     // Extract compact mono audio for transcription.
@@ -175,7 +217,7 @@ export async function transcribeVideoBuffer(
     ], { timeout: 300_000 });
     const audioStat = await fs.stat(audioPath);
 
-    // Split oversized audio into sequential chunks under Whisper's limit.
+    // Split oversized audio into sequential chunks under the transcription limit.
     const chunkPaths: Array<{ path: string; offsetSec: number }> = [];
     if (audioStat.size <= WHISPER_MAX_BYTES) {
       chunkPaths.push({ path: audioPath, offsetSec: 0 });
@@ -197,12 +239,13 @@ export async function transcribeVideoBuffer(
     }
 
     const transcribe = transcribeFn ?? (async ({ buffer: b, name }) => {
-      const file = await toFile(b, name, { type: "audio/mpeg" });
-      const out = await getOpenAI().audio.transcriptions.create(
-        { file, model: "whisper-1", response_format: "verbose_json", timestamp_granularities: ["segment"] },
-        { signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS) },
-      );
-      const segs = ((out as unknown as { segments?: Array<{ start: number; end: number; text: string }> }).segments ?? [])
+      const out = await transcribeAudioTimed({
+        buffer: b,
+        filename: name,
+        mimeType: "audio/mpeg",
+        signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+      });
+      const segs = (out.segments ?? [])
         .map((s) => ({ start: s.start, end: s.end, text: (s.text ?? "").trim() }))
         .filter((s) => s.text.length > 0);
       return { segments: segs };
@@ -342,10 +385,10 @@ router.post(
     }
     const { videoUrl, clipLength, maxClips, vibe } = parsed.data;
 
-    let videoBuffer: Buffer | null = null;
+    let videoPath: string | null = null;
     let originalName = "vod.mp4";
     if (req.file) {
-      videoBuffer = req.file.buffer;
+      videoPath = req.file.path;
       originalName = req.file.originalname || originalName;
     } else if (videoUrl) {
       // SSRF guard — only our own Supabase storage, same as /transcribe-url.
@@ -364,14 +407,13 @@ router.post(
         return;
       }
       try {
-        const resp = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
-        if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
-        const ab = await resp.arrayBuffer();
-        if (ab.byteLength > VOD_MAX_BYTES) {
+        videoPath = await downloadUrlToTempFile(videoUrl, "streamer-dl");
+        const { size } = await fs.stat(videoPath);
+        if (size > VOD_MAX_BYTES) {
+          await fs.unlink(videoPath).catch(() => {});
           res.status(413).json({ error: "FILE_TOO_LARGE", message: "This video exceeds the 80 MB limit." });
           return;
         }
-        videoBuffer = Buffer.from(ab);
       } catch (err) {
         logger.error({ err }, "[streamer-clips] failed to fetch videoUrl");
         res.status(502).json({ error: "Could not download the video URL." });
@@ -380,6 +422,13 @@ router.post(
     } else {
       res.status(400).json({ error: "Upload a video file or provide videoUrl." });
       return;
+    }
+
+    // 2026-10-12 OOM fix: remove the temp/upload file when the response
+    // closes — covers every exit this handler can take from here on.
+    if (videoPath) {
+      const p = videoPath;
+      res.once("close", () => { void fs.unlink(p).catch(() => {}); });
     }
 
     const balance = req.userCredits ?? 0;
@@ -425,10 +474,10 @@ router.post(
       // Store the source VOD so the cut step can fetch it later.
       const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
       const objectName = `streamer-clips/${req.userId}/${Date.now()}-${randomUUID()}.${ext}`;
-      const videoRef = await uploadMediaToSupabaseStorage(objectName, videoBuffer, "video/mp4");
+      const videoRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, videoPath, "video/mp4");
       const signedUrl = await refreshSupabaseStorageUrl(videoRef);
 
-      const { segments, durationSec } = await transcribeVideoBuffer(videoBuffer, originalName);
+      const { segments, durationSec } = await transcribeVideoFile(videoPath, originalName);
       if (segments.length === 0) {
         await refundAndFail(422, "NO_SPEECH", "No speech detected in this video — highlights need audio with talking.");
         return;
@@ -478,9 +527,12 @@ interface CutJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the cut clips (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const cutJobs = new Map<string, CutJob>();
+attachJobMapTtl(cutJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 export function __clearStreamerClipJobs(): void {
   cutJobs.clear();
 }
@@ -492,6 +544,8 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "clipcut-"));
   try {
     job.status = "processing";
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
     const signedUrl = await refreshSupabaseStorageUrl(videoRef);
     const resp = await fetch(signedUrl, { signal: AbortSignal.timeout(300_000) });
     if (!resp.ok) throw new Error(`Could not download source video (${resp.status})`);
@@ -502,7 +556,10 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
       const outputPath = join(workDir, `clip-${i}.mp4`);
       await execFileAsync(
         "ffmpeg",
-        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec),
+        buildClipCutArgs(inputPath, outputPath, clip.startSec, clip.endSec, {
+          attribution: job.attribution,
+          attributionFontfile,
+        }),
         { timeout: 600_000 },
       );
       const outBuffer = await fs.readFile(outputPath);
@@ -543,7 +600,7 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     });
     return;
   }
-  const { videoRef, clips } = parsed.data;
+  const { videoRef, clips, attribution } = parsed.data;
   for (const c of clips) {
     const dur = c.endSec - c.startSec;
     if (!(dur >= 5 && dur <= 90) || !Number.isFinite(c.startSec)) {
@@ -597,6 +654,7 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     error: null,
     creditsCharged: cost,
     createdAt: Date.now(),
+    attribution,
   };
   cutJobs.set(job.id, job);
   // Server-owned: runs detached from the request/tab lifecycle.

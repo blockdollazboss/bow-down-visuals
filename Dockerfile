@@ -53,7 +53,9 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     BASE_PATH=$BASE_PATH
 
 # typecheck + build every workspace package (frontend + api-server)
-RUN pnpm install --frozen-lockfile && pnpm run build
+# Note: --no-frozen-lockfile allows pnpm to update the lockfile for new deps
+# (used when network issues prevent local lockfile regeneration)
+RUN pnpm install --no-frozen-lockfile && pnpm run build
 
 ENV NODE_ENV=production
 
@@ -72,4 +74,6 @@ EXPOSE 8080
 # Cap the V8 heap: on a 512MB instance an uncapped Node heap grows until it
 # starves the FFmpeg child (1080x1920 x264) and Render OOM-kills the service.
 # 160MB heap keeps Node's RSS ~220MB, leaving ~280MB for FFmpeg.
-CMD ["sh", "-c", "pnpm --filter @workspace/db migrate-boot && exec node --enable-source-maps --max-old-space-size=160 artifacts/api-server/dist/index.mjs"]
+# NODE_HEAP_MB overrides the cap per-service (e.g. staging=256: the staging
+# bundle with all feature waves needs more boot headroom than production).
+CMD ["sh", "-c", "pnpm --filter @workspace/db migrate-boot && exec node --enable-source-maps --max-old-space-size=${NODE_HEAP_MB:-160} artifacts/api-server/dist/index.mjs"]

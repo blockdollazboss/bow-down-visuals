@@ -244,6 +244,189 @@ describe("scheduler-jobs", () => {
     const n = await publishDueScheduledPosts(deps);
     expect(n).toBe(0);
   });
+
+  it("fires an image post through the image publishers — on the terminal attempt TikTok fails with the reason, the rest still deliver and the post settles posted", async () => {
+    const calls = { igImage: 0, fbPhoto: 0, igVideo: 0, fbVideo: 0, tt: 0 };
+    const { deps, updates } = makeDeps({
+      publishers: {
+        instagramImage: async (input) => {
+          calls.igImage += 1;
+          expect(input.imageUrl).toBe("https://cdn.example.com/cover.jpg");
+          expect(input.caption).toContain("https://bowdownvisuals.com/presave/golden-hour");
+          return { mediaId: "ig-img-1", permalink: "https://ig/p/img1" };
+        },
+        facebookPhoto: async (input) => {
+          calls.fbPhoto += 1;
+          expect(input.imageUrl).toBe("https://cdn.example.com/cover.jpg");
+          return { photoId: "fb-photo-1", permalink: "https://fb/photo/1" };
+        },
+        instagram: async () => { calls.igVideo += 1; return { mediaId: "ig-vid", permalink: null }; },
+        facebook: async () => { calls.fbVideo += 1; return { videoId: "fb-vid", permalink: "" }; },
+        tiktok: async () => { calls.tt += 1; return { publishId: "tt-1" }; },
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      /* Terminal attempt — earlier attempts retry failed platforms
+         (the house settle rule); the per-platform results and the
+         partial-success settle are what this test pins down. */
+      attempts: SCHEDULER_MAX_ATTEMPTS,
+      caption: "Golden Hour drops Friday — pre-save it now: https://bowdownvisuals.com/presave/golden-hour",
+      platforms: ["instagram", "tiktok", "facebook"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt", facebook: "acct-fb" },
+    });
+    await fireScheduledPost(post, deps);
+    expect(calls.igImage).toBe(1);
+    expect(calls.fbPhoto).toBe(1);
+    /* the video publishers and the TikTok upload are never touched */
+    expect(calls.igVideo).toBe(0);
+    expect(calls.fbVideo).toBe(0);
+    expect(calls.tt).toBe(0);
+    const terminal = updates.find((u) => u.patch.status === "posted");
+    expect(terminal).toBeDefined();
+    const byPlatform = new Map(terminal!.patch.results!.map((r) => [r.platform, r]));
+    expect(byPlatform.get("instagram")!.status).toBe("posted");
+    expect(byPlatform.get("facebook")!.status).toBe("posted");
+    expect(byPlatform.get("facebook")!.mediaId).toBe("fb-photo-1");
+    const tt = byPlatform.get("tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.error).toMatch(/TikTok posts need a video/);
+  });
+
+  it("an image post aimed only at TikTok fails terminally and refunds — nothing posted anywhere", async () => {
+    const { deps, updates, refunds } = makeDeps({
+      publishers: {
+        instagramImage: async () => ({ mediaId: "ig-img", permalink: null }),
+        facebookPhoto: async () => ({ photoId: "fb-photo", permalink: "" }),
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: SCHEDULER_MAX_ATTEMPTS,
+      platforms: ["tiktok"] as SchedulerPlatform[],
+      account_ids: { tiktok: "acct-tt" },
+    });
+    await fireScheduledPost(post, deps);
+    const terminal = updates.find((u) => u.patch.status === "failed");
+    expect(terminal).toBeDefined();
+    expect(refunds).toEqual([{ userId: "user-1", amount: 1 }]);
+  });
+});
+
+describe("Stack-30 C4 — platform × media-type incompatibility is permanent", () => {
+  it("an image post settles on the FIRST attempt: TikTok's permanent failure doesn't hold the post open for retries", async () => {
+    const { deps, updates, refunds } = makeDeps({
+      publishers: {
+        instagramImage: async () => ({ mediaId: "ig-img-1", permalink: "https://ig/p/img1" }),
+        facebookPhoto: async () => ({ photoId: "fb-photo-1", permalink: "https://fb/photo/1" }),
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1, // first attempt — the old code sent this back for two more futile passes
+      platforms: ["instagram", "tiktok", "facebook"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt", facebook: "acct-fb" },
+    });
+    await fireScheduledPost(post, deps);
+    /* No retry update at all — the post settled terminally. */
+    expect(updates.find((u) => u.patch.status === "scheduled")).toBeUndefined();
+    const terminal = updates.find((u) => u.patch.status === "posted");
+    expect(terminal).toBeDefined();
+    const byPlatform = new Map(terminal!.patch.results!.map((r) => [r.platform, r]));
+    expect(byPlatform.get("instagram")!.status).toBe("posted");
+    expect(byPlatform.get("facebook")!.status).toBe("posted");
+    const tt = byPlatform.get("tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBe(true);
+    expect(tt.error).toMatch(/TikTok posts need a video/);
+    expect(terminal!.patch.last_error).toContain("tiktok");
+    /* Partial success — delivered somewhere — is not refunded. */
+    expect(refunds).toHaveLength(0);
+  });
+
+  it("an image post aimed only at TikTok fails and refunds on the first attempt, not the third", async () => {
+    const { deps, updates, refunds } = makeDeps();
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1,
+      platforms: ["tiktok"] as SchedulerPlatform[],
+      account_ids: { tiktok: "acct-tt" },
+    });
+    await fireScheduledPost(post, deps);
+    expect(updates.find((u) => u.patch.status === "scheduled")).toBeUndefined();
+    const terminal = updates.find((u) => u.patch.status === "failed");
+    expect(terminal).toBeDefined();
+    expect(terminal!.patch.results![0]!.permanent).toBe(true);
+    expect(refunds).toEqual([{ userId: "user-1", amount: 1 }]);
+  });
+
+  it("a permanent failure is never re-fired on a retry pass driven by another platform's transient failure", async () => {
+    let igDown = true;
+    const ctx = makeDeps({
+      publishers: {
+        instagramImage: async () => {
+          if (igDown) throw new Error("Meta exploded");
+          return { mediaId: "ig-img-1", permalink: null };
+        },
+      },
+    });
+    const post = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 1,
+      platforms: ["instagram", "tiktok"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt" },
+    });
+    await fireScheduledPost(post, ctx.deps);
+    /* Pass 1: Instagram's transient failure holds the post open… */
+    const retry = ctx.updates.find((u) => u.patch.status === "scheduled");
+    expect(retry).toBeDefined();
+    expect(ctx.attemptCalls.failed).toBe(2); // instagram + tiktok each recorded one failed attempt
+
+    /* Pass 2 (the retry tick): the claimed row carries pass 1's
+       results; Instagram now delivers. */
+    igDown = false;
+    const retryPost = makePost({
+      media_url: "https://cdn.example.com/cover.jpg",
+      media_type: "image",
+      attempts: 2,
+      platforms: ["instagram", "tiktok"] as SchedulerPlatform[],
+      account_ids: { instagram: "acct-ig", tiktok: "acct-tt" },
+      results: retry!.patch.results!,
+    });
+    await fireScheduledPost(retryPost, ctx.deps);
+    /* TikTok was NOT re-fired (no second failed attempt recorded for
+       it) and its stored permanent failure carried into the settle. */
+    expect(ctx.attemptCalls.failed).toBe(2);
+    const terminal = ctx.updates.filter((u) => u.patch.status === "posted").at(-1);
+    expect(terminal).toBeDefined();
+    const byPlatform = new Map(terminal!.patch.results!.map((r) => [r.platform, r]));
+    expect(byPlatform.get("instagram")!.status).toBe("posted");
+    const tt = byPlatform.get("tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBe(true);
+    expect(tt.error).toMatch(/TikTok posts need a video/);
+  });
+
+  it("a transient TikTok VIDEO failure is not classified permanent and still retries", async () => {
+    const failing = makeDeps({
+      publishers: {
+        tiktok: async () => { throw new Error("network down"); },
+      },
+    });
+    const post = makePost({ attempts: 1, platforms: ["tiktok"] as SchedulerPlatform[], account_ids: { tiktok: "acct-tt" } });
+    await fireScheduledPost(post, failing.deps);
+    const retry = failing.updates.find((u) => u.patch.status === "scheduled");
+    expect(retry).toBeDefined();
+    const tt = retry!.patch.results!.find((r) => r.platform === "tiktok")!;
+    expect(tt.status).toBe("failed");
+    expect(tt.permanent).toBeUndefined();
+    expect(failing.refunds).toHaveLength(0);
+  });
 });
 
 describe("normalizePost / fullCaption", () => {
@@ -313,6 +496,29 @@ describe("scheduledPostSchema", () => {
   it("rejects empty mediaUrl", () => {
     const r = scheduledPostSchema.safeParse({ ...base, mediaUrl: "" });
     expect(r.success).toBe(false);
+  });
+
+  it("accepts a release announcement composed through the existing fields — cover art as an image post, the link in the caption", () => {
+    const caption =
+      "🎵 Golden Hour by Thy Cheat Code drops Friday — pre-save it now: https://bowdownvisuals.com/presave/golden-hour Made with Bow Down Visuals";
+    const r = scheduledPostSchema.safeParse({
+      ...base,
+      mediaUrl: "https://cdn.example.com/cover.jpg",
+      mediaType: "image",
+      caption,
+      scheduledAt: new Date(Date.now() + 3600_000).toISOString(),
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.mediaType).toBe("image");
+      expect(r.data.caption).toContain("/presave/golden-hour");
+    }
+  });
+
+  it("defaults mediaType to video when a handoff doesn't say", () => {
+    const r = scheduledPostSchema.safeParse({ ...base });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.mediaType).toBe("video");
   });
 });
 

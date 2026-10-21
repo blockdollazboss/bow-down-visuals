@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { STAR_RANKS } from "@/lib/creator-level";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { DraggableWidget } from "@/components/draggable-widget";
@@ -11,6 +12,7 @@ import { DraggableWidget } from "@/components/draggable-widget";
  */
 export function FloatingAdminPanel() {
   const { profile, getAccessToken, refreshProfile } = useAuth();
+  const isLight = useIsLightTheme();
   const [open, setOpen] = useState(false);
 
   /* Only the site owner sees this. */
@@ -24,7 +26,7 @@ export function FloatingAdminPanel() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="h-11 w-11 rounded-full border border-primary/40 bg-black/90 text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors"
+          className={`h-11 w-11 rounded-full border border-primary/40 ${isLight ? "bg-[#FBF6E9]" : "bg-[#171208]/90"} text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors`}
           title="Admin quick actions"
           data-testid="floating-admin-toggle"
         >
@@ -34,7 +36,7 @@ export function FloatingAdminPanel() {
 
       {open && (
         <div
-          className="fixed z-[9998] right-4 bottom-36 w-64 rounded-2xl border border-primary/40 bg-black/95 shadow-[0_0_24px_rgba(218,165,32,0.4)] backdrop-blur p-3 max-h-[70vh] overflow-y-auto"
+          className={`fixed z-[9998] right-4 bottom-36 w-64 rounded-2xl border ${isLight ? "border-[#C9A84C]/60 bg-[#FBF6E9]/95" : "border-primary/40 bg-[#171208]/95"} shadow-[0_0_24px_rgba(218,165,32,0.4)] backdrop-blur p-3 max-h-[70vh] overflow-y-auto`}
           data-testid="floating-admin-panel"
         >
           <div className="flex items-center justify-between mb-2">
@@ -67,6 +69,7 @@ function AdminTools({
   getAccessToken: () => Promise<string | null>;
   refreshProfile: () => Promise<void>;
 }) {
+  const isLight = useIsLightTheme();
   const [tierEmail, setTierEmail] = useState("");
   const [tierValue, setTierValue] = useState("6");
   const [tierBusy, setTierBusy] = useState(false);
@@ -150,12 +153,14 @@ function AdminTools({
     }
   }
 
-  const inputCls =
-    "w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50";
+  const inputCls = isLight
+    ? "w-full rounded-lg bg-white border border-[#C9A84C]/40 px-2 py-1.5 text-xs text-[#2A1E07] outline-none focus:border-[#C9A84C]"
+    : "w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50";
   const btnCls =
     "rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-black hover:opacity-90 disabled:opacity-40 shrink-0";
-  const labelCls =
-    "text-[9px] font-black text-white/40 uppercase tracking-wide mb-1";
+  const labelCls = isLight
+    ? "text-[9px] font-black text-[#8A7A56] uppercase tracking-wide mb-1"
+    : "text-[9px] font-black text-white/40 uppercase tracking-wide mb-1";
 
   return (
     <div className="space-y-3">
@@ -173,7 +178,7 @@ function AdminTools({
           <select
             value={tierValue}
             onChange={(e) => setTierValue(e.target.value)}
-            className="flex-1 min-w-0 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none"
+            className={`flex-1 min-w-0 rounded-lg px-2 py-1.5 text-xs outline-none ${isLight ? "bg-white border border-[#C9A84C]/40 text-[#2A1E07]" : "bg-black/40 border border-white/10 text-white"}`}
             style={{ colorScheme: "dark" }}
           >
             {([1, 2, 3, 4, 5, 6] as const).map((t) => (
@@ -434,6 +439,7 @@ function BowRaceControls({
   btnCls: string;
   labelCls: string;
 }) {
+  const isLight = useIsLightTheme();
   const [loaded, setLoaded] = useState(false);
   const [reward, setReward] = useState("50");
   const [enabled, setEnabled] = useState(true);
@@ -594,7 +600,7 @@ function BowRaceControls({
     <>
     <div>
       <p className={labelCls}>Bow race</p>
-      <div className="flex items-center justify-between mb-1.5 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+      <div className={`flex items-center justify-between mb-1.5 rounded-lg px-3 py-2 ${isLight ? "bg-[#F7ECD2] border border-[#C9A84C]/40" : "bg-white/[0.04] border border-white/10"}`}>
         <span className="text-xs text-white/50 font-semibold">Live bow count</span>
         <span className="text-sm font-black text-[#C9A84C]">
           {(liveCount ?? 0).toLocaleString()}
@@ -616,7 +622,7 @@ function BowRaceControls({
           type="button"
           onClick={() => setEnabled((v) => !v)}
           className={`rounded-lg px-3 py-1.5 text-xs font-black shrink-0 ${
-            enabled ? "bg-green-600 text-white" : "bg-white/10 text-white/50"
+            enabled ? "bg-green-600 text-white" : isLight ? "bg-[#EFE3C2] text-[#6B5B36]" : "bg-white/10 text-white/50"
           }`}
         >
           {enabled ? "ON" : "OFF"}
@@ -637,7 +643,7 @@ function BowRaceControls({
       <button
         type="button"
         onClick={() => setTestPopup(true)}
-        className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:border-white/40 transition-colors ml-1"
+        className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ml-1 ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36] hover:text-[#2A1E07] hover:border-[#C9A84C]" : "border-white/20 text-white/70 hover:text-white hover:border-white/40"}`}
         title="Preview the winner popup (no Visual Bucs granted, no race state changed)"
       >
         Test winner popup
@@ -670,6 +676,7 @@ function JackpotCreator({
   btnCls: string;
   labelCls: string;
 }) {
+  const isLight = useIsLightTheme();
   const [name, setName] = useState("");
   const [sequence, setSequence] = useState<string[]>([]);
   const [endsAt, setEndsAt] = useState("");
@@ -732,7 +739,7 @@ function JackpotCreator({
             key={d}
             type="button"
             onClick={() => pushDir(d)}
-            className="rounded-lg bg-white/10 py-1.5 text-sm text-white hover:bg-primary/30 transition-colors"
+            className={`rounded-lg py-1.5 text-sm transition-colors ${isLight ? "bg-[#F7ECD2] text-[#2A1E07] hover:bg-[#C9A84C]/30" : "bg-white/10 text-white hover:bg-primary/30"}`}
           >
             {dirArrow[d]}
           </button>

@@ -10,8 +10,17 @@ import {
   refundCredits,
   OutOfCreditsError,
 } from "../../lib/credits";
-import { db, playlistPitchesTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import {
+  db,
+  playlistPitchesTable,
+  pitchDeadlinesTable,
+  distributionReleasesTable,
+  creatorProfilesTable,
+  presaveFollowsTable,
+  presaveSharesTable,
+  releaseLinkClicksTable,
+} from "@workspace/db";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 /* Pitch statuses — defined locally (not imported from @workspace/db) so the
    module evaluates cleanly in worktree test environments where the symlinked
@@ -570,6 +579,492 @@ router.delete("/playlist-pitch/tracker/:id", requireAuth, async (req, res) => {
     .returning({ id: playlistPitchesTable.id });
   if (!row) {
     res.status(404).json({ error: "Pitch not found." });
+    return;
+  }
+  res.json({ deleted: row.id });
+});
+
+/* ── Pitch packet from the release record (free — pure data) ───────────────
+   Gap G7: until now the pitch kit was filled in by hand. The packet is
+   assembled at read time from rows the house already keeps — the
+   creator's distribution release record, their creator profile, and the
+   release's real presave / smartlink stats. REAL DATA ONLY: a field the
+   record doesn't hold comes back null/empty AND is named in `missing` —
+   never filled with plausible text. (The release's presave_slug lives
+   outside the drizzle schema — raw-SQL only in distribution.ts — so the
+   packet links the artist-pasted streaming URLs + profile instead of
+   guessing a smartlink URL.) */
+
+export interface ReleaseRecordForPacket {
+  id: string;
+  title: string;
+  artist_name: string;
+  release_date: string | null;
+  platforms: string[] | null;
+  audio_url: string | null;
+  artwork_url: string | null;
+  metadata: Record<string, unknown> | null;
+  status: string;
+  presave_headline: string | null;
+  presave_platform_links: Record<string, string> | null;
+  presave_bonus_url: string | null;
+}
+
+export interface ProfileRecordForPacket {
+  displayName: string;
+  slug: string;
+  bio: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  followerCount: number;
+  totalPlays: number;
+  socialLinks: Record<string, string> | null;
+}
+
+export interface ReleaseStatsForPacket {
+  presaves: number;
+  shares: number;
+  linkViews: number;
+  linkClicks: number;
+}
+
+export interface PitchPacket {
+  releaseId: string;
+  artist: {
+    name: string;
+    profileSlug: string | null;
+    profileUrl: string | null;
+    bio: string | null;
+    avatarUrl: string | null;
+    followerCount: number | null;
+    totalPlays: number | null;
+    socialLinks: Record<string, string>;
+  };
+  release: {
+    title: string;
+    artistName: string;
+    releaseDate: string | null;
+    status: string;
+    platforms: string[];
+  };
+  track: { title: string; audioUrl: string | null };
+  genre: string[];
+  description: string | null;
+  links: {
+    streaming: Record<string, string>;
+    audioUrl: string | null;
+    profileUrl: string | null;
+  };
+  stats: ReleaseStatsForPacket;
+  pressAssets: {
+    artworkUrl: string | null;
+    headline: string | null;
+    bonusUrl: string | null;
+    bannerUrl: string | null;
+    avatarUrl: string | null;
+  };
+  /* Dotted keys of promised fields the record does not hold. The UI
+     renders each as "not on the record yet" — the honesty contract. */
+  missing: string[];
+}
+
+function nonEmpty(v: unknown): string | null {
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+}
+
+export function buildPitchPacket(input: {
+  release: ReleaseRecordForPacket;
+  profile: ProfileRecordForPacket | null;
+  stats: ReleaseStatsForPacket;
+}): PitchPacket {
+  const { release, profile, stats } = input;
+  const missing: string[] = [];
+
+  const meta = release.metadata ?? {};
+  const genre = cleanStrArr(meta["genreTags"], 10);
+  if (genre.length === 0) missing.push("genre");
+  const description = nonEmpty(meta["description"]);
+  if (!description) missing.push("description");
+  if (!release.release_date) missing.push("releaseDate");
+  if (!release.audio_url) missing.push("trackAudio");
+
+  const streaming: Record<string, string> = {};
+  for (const [k, v] of Object.entries(release.presave_platform_links ?? {})) {
+    const url = nonEmpty(v);
+    if (url) streaming[k] = url;
+  }
+  if (Object.keys(streaming).length === 0) missing.push("streamingLinks");
+  if (!release.artwork_url) missing.push("artwork");
+  if (!release.presave_headline) missing.push("headline");
+
+  const profileUrl = profile ? `/artist/${profile.slug}` : null;
+  if (!profile) missing.push("artistProfile");
+  else if (!nonEmpty(profile.bio)) missing.push("artistBio");
+
+  const socialLinks: Record<string, string> = {};
+  for (const [k, v] of Object.entries(profile?.socialLinks ?? {})) {
+    const url = nonEmpty(v);
+    if (url) socialLinks[k] = url;
+  }
+
+  return {
+    releaseId: release.id,
+    artist: {
+      name: profile?.displayName || release.artist_name,
+      profileSlug: profile?.slug ?? null,
+      profileUrl,
+      bio: profile ? nonEmpty(profile.bio) : null,
+      avatarUrl: profile?.avatarUrl ?? null,
+      followerCount: profile?.followerCount ?? null,
+      totalPlays: profile?.totalPlays ?? null,
+      socialLinks,
+    },
+    release: {
+      title: release.title,
+      artistName: release.artist_name,
+      releaseDate: release.release_date,
+      status: release.status,
+      platforms: Array.isArray(release.platforms) ? release.platforms : [],
+    },
+    track: { title: release.title, audioUrl: release.audio_url },
+    genre,
+    description,
+    links: {
+      streaming,
+      audioUrl: release.audio_url,
+      profileUrl,
+    },
+    stats,
+    pressAssets: {
+      artworkUrl: release.artwork_url,
+      headline: release.presave_headline,
+      bonusUrl: release.presave_bonus_url,
+      bannerUrl: profile?.bannerUrl ?? null,
+      avatarUrl: profile?.avatarUrl ?? null,
+    },
+    missing,
+  };
+}
+
+/* The creator's own releases, for the packet + deadline pickers. */
+router.get("/playlist-pitch/releases", requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(distributionReleasesTable)
+    .where(eq(distributionReleasesTable.user_id, req.userId!))
+    .orderBy(desc(distributionReleasesTable.created_at))
+    .limit(100);
+  res.json({
+    releases: rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      artistName: r.artist_name,
+      releaseDate: r.release_date,
+      status: r.status,
+    })),
+  });
+});
+
+router.get("/playlist-pitch/packet/:releaseId", requireAuth, async (req, res) => {
+  const releaseId = req.params["releaseId"] as string;
+  const [release] = await db
+    .select()
+    .from(distributionReleasesTable)
+    .where(
+      and(
+        eq(distributionReleasesTable.id, releaseId),
+        eq(distributionReleasesTable.user_id, req.userId!),
+      ),
+    )
+    .limit(1);
+  if (!release) {
+    res.status(404).json({ error: "Release not found." });
+    return;
+  }
+
+  const [profile] = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, req.userId!))
+    .limit(1);
+
+  const follows = await db
+    .select({ id: presaveFollowsTable.id })
+    .from(presaveFollowsTable)
+    .where(eq(presaveFollowsTable.releaseId, releaseId));
+  const shares = await db
+    .select({ id: presaveSharesTable.id })
+    .from(presaveSharesTable)
+    .where(eq(presaveSharesTable.releaseId, releaseId));
+  const linkRows = await db
+    .select({ kind: releaseLinkClicksTable.kind })
+    .from(releaseLinkClicksTable)
+    .where(eq(releaseLinkClicksTable.releaseId, releaseId));
+
+  const packet = buildPitchPacket({
+    release,
+    profile: profile ?? null,
+    stats: {
+      presaves: follows.length,
+      shares: shares.length,
+      linkViews: linkRows.filter((r) => r.kind === "view").length,
+      linkClicks: linkRows.filter((r) => r.kind === "click").length,
+    },
+  });
+  res.json({ packet });
+});
+
+/* ── Submission deadlines (free — in-app state only, migration 0199) ──────
+   The pitch-window workflow: drafted → sent → followed_up → answered.
+   Nothing here sends email or notifications — it is the creator's own
+   board of what's due, visible in one place with what's due next. */
+
+/* Deadline statuses — defined locally (not imported from @workspace/db)
+   for the same worktree-test reason as PITCH_STATUSES above. Values
+   match lib/db/src/schema/playlist-pitch.ts exactly. */
+export const PITCH_DEADLINE_STATUSES = ["drafted", "sent", "followed_up", "answered"] as const;
+export type PitchDeadlineStatus = (typeof PITCH_DEADLINE_STATUSES)[number];
+
+export interface DeadlineApiRow {
+  id: string;
+  pitchId: string | null;
+  releaseId: string | null;
+  curatorName: string | null;
+  playlistName: string;
+  deadlineAt: string;
+  status: string;
+  notes: string | null;
+  overdue: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+function deadlineTime(v: unknown): number {
+  const t = v instanceof Date ? v.getTime() : new Date(v as string).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+function toIsoOrNull(v: unknown): string | null {
+  if (v == null) return null;
+  const d = v instanceof Date ? v : new Date(v as string);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
+
+/* Sort + summarize a creator's deadlines: soonest first, `dueNext` is
+   the earliest still-open one (an overdue open deadline outranks a
+   future one — it is the most urgent), answered rows never count. */
+export function summarizeDeadlines(
+  rows: Array<typeof pitchDeadlinesTable.$inferSelect>,
+  now: Date,
+): { deadlines: DeadlineApiRow[]; dueNext: DeadlineApiRow | null; overdueCount: number } {
+  const deadlines: DeadlineApiRow[] = rows
+    .map((row) => {
+      const overdue =
+        row.status !== "answered" && deadlineTime(row.deadline_at) < now.getTime();
+      return {
+        id: row.id,
+        pitchId: row.pitch_id,
+        releaseId: row.release_id,
+        curatorName: row.curator_name,
+        playlistName: row.playlist_name,
+        deadlineAt: toIsoOrNull(row.deadline_at) ?? new Date(0).toISOString(),
+        status: row.status,
+        notes: row.notes,
+        overdue,
+        createdAt: toIsoOrNull(row.created_at),
+        updatedAt: toIsoOrNull(row.updated_at),
+      };
+    })
+    .sort((a, b) => deadlineTime(a.deadlineAt) - deadlineTime(b.deadlineAt));
+  const open = deadlines.filter((d) => d.status !== "answered");
+  return {
+    deadlines,
+    dueNext: open[0] ?? null,
+    overdueCount: open.filter((d) => d.overdue).length,
+  };
+}
+
+const deadlineCreateSchema = z.object({
+  playlistName: z.string().min(1, "Playlist name is required.").max(200),
+  curatorName: z.string().max(200).optional().default(""),
+  deadlineAt: z.string().min(1, "Deadline date is required.").max(50),
+  status: z.enum(PITCH_DEADLINE_STATUSES).optional().default("drafted"),
+  notes: z.string().max(1000).optional().default(""),
+  pitchId: z.string().min(1).max(100).optional(),
+  releaseId: z.string().min(1).max(100).optional(),
+});
+
+const deadlineUpdateSchema = z.object({
+  playlistName: z.string().min(1).max(200).optional(),
+  curatorName: z.string().max(200).optional(),
+  deadlineAt: z.string().min(1).max(50).optional(),
+  status: z.enum(PITCH_DEADLINE_STATUSES).optional(),
+  notes: z.string().max(1000).optional(),
+  pitchId: z.string().min(1).max(100).nullable().optional(),
+  releaseId: z.string().min(1).max(100).nullable().optional(),
+});
+
+function parseDeadlineDate(raw: string): Date | null {
+  const d = new Date(raw);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+/* A linked pitch/release must be the creator's own — a stranger's id is
+   a 404, never a silent attach and never a leak. */
+async function ownsPitch(userId: string, pitchId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: playlistPitchesTable.id })
+    .from(playlistPitchesTable)
+    .where(
+      and(
+        eq(playlistPitchesTable.id, pitchId),
+        eq(playlistPitchesTable.user_id, userId),
+      ),
+    )
+    .limit(1);
+  return !!row;
+}
+
+async function ownsRelease(userId: string, releaseId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: distributionReleasesTable.id })
+    .from(distributionReleasesTable)
+    .where(
+      and(
+        eq(distributionReleasesTable.id, releaseId),
+        eq(distributionReleasesTable.user_id, userId),
+      ),
+    )
+    .limit(1);
+  return !!row;
+}
+
+router.get("/playlist-pitch/deadlines", requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(pitchDeadlinesTable)
+    .where(eq(pitchDeadlinesTable.user_id, req.userId!))
+    .orderBy(asc(pitchDeadlinesTable.deadline_at))
+    .limit(200);
+  res.json(summarizeDeadlines(rows, new Date()));
+});
+
+router.post("/playlist-pitch/deadlines", requireAuth, async (req, res) => {
+  const parsed = deadlineCreateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid deadline.",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+  const d = parsed.data;
+  const when = parseDeadlineDate(d.deadlineAt);
+  if (!when) {
+    res.status(400).json({ error: "Deadline date is not a valid date." });
+    return;
+  }
+  if (d.pitchId && !(await ownsPitch(req.userId!, d.pitchId))) {
+    res.status(404).json({ error: "Pitch not found." });
+    return;
+  }
+  if (d.releaseId && !(await ownsRelease(req.userId!, d.releaseId))) {
+    res.status(404).json({ error: "Release not found." });
+    return;
+  }
+  const [row] = await db
+    .insert(pitchDeadlinesTable)
+    .values({
+      user_id: req.userId!,
+      pitch_id: d.pitchId ?? null,
+      release_id: d.releaseId ?? null,
+      curator_name: d.curatorName.trim() || null,
+      playlist_name: d.playlistName.trim(),
+      deadline_at: when,
+      status: d.status,
+      notes: d.notes.trim() || null,
+    })
+    .returning();
+  const { deadlines } = summarizeDeadlines([row!], new Date());
+  res.status(201).json({ deadline: deadlines[0] });
+});
+
+router.patch("/playlist-pitch/deadlines/:id", requireAuth, async (req, res) => {
+  const parsed = deadlineUpdateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid deadline update.",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+  const d = parsed.data;
+  const updates: Partial<typeof pitchDeadlinesTable.$inferInsert> = {
+    updated_at: new Date(),
+  };
+  if (d.playlistName !== undefined) updates.playlist_name = d.playlistName.trim();
+  if (d.curatorName !== undefined) updates.curator_name = d.curatorName.trim() || null;
+  if (d.notes !== undefined) updates.notes = d.notes.trim() || null;
+  if (d.status !== undefined) updates.status = d.status;
+  if (d.deadlineAt !== undefined) {
+    const when = parseDeadlineDate(d.deadlineAt);
+    if (!when) {
+      res.status(400).json({ error: "Deadline date is not a valid date." });
+      return;
+    }
+    updates.deadline_at = when;
+  }
+  if (d.pitchId !== undefined) {
+    if (d.pitchId !== null && !(await ownsPitch(req.userId!, d.pitchId))) {
+      res.status(404).json({ error: "Pitch not found." });
+      return;
+    }
+    updates.pitch_id = d.pitchId;
+  }
+  if (d.releaseId !== undefined) {
+    if (d.releaseId !== null && !(await ownsRelease(req.userId!, d.releaseId))) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    updates.release_id = d.releaseId;
+  }
+
+  const [row] = await db
+    .update(pitchDeadlinesTable)
+    .set(updates)
+    .where(
+      and(
+        eq(pitchDeadlinesTable.id, req.params["id"] as string),
+        eq(pitchDeadlinesTable.user_id, req.userId!),
+      ),
+    )
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "Deadline not found." });
+    return;
+  }
+  const { deadlines } = summarizeDeadlines([row], new Date());
+  res.json({ deadline: deadlines[0] });
+});
+
+router.delete("/playlist-pitch/deadlines/:id", requireAuth, async (req, res) => {
+  const [row] = await db
+    .delete(pitchDeadlinesTable)
+    .where(
+      and(
+        eq(pitchDeadlinesTable.id, req.params["id"] as string),
+        eq(pitchDeadlinesTable.user_id, req.userId!),
+      ),
+    )
+    .returning({ id: pitchDeadlinesTable.id });
+  if (!row) {
+    res.status(404).json({ error: "Deadline not found." });
     return;
   }
   res.json({ deleted: row.id });

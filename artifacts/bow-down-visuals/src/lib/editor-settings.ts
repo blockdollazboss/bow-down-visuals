@@ -1,4 +1,10 @@
 import type { SceneData } from "@/lib/scene-parser";
+import type { FxStep } from "@/lib/arrangement";
+import { normalizeStemFxChain } from "@/lib/stem-fx-chain";
+import { sanitizeLanes, type TimelineLanes } from "@/lib/timeline-lanes";
+import { defaultDuckingSettings, type DuckingSettings } from "@/lib/ducking";
+export type { DuckingSettings } from "@/lib/ducking";
+export type { TimelineLanes } from "@/lib/timeline-lanes";
 import { DEFAULT_CAPTION_FONT_ID } from "@/lib/fonts";
 
 /* ─────────────────────────────────────────────────────────────
@@ -19,7 +25,7 @@ export type VideoFormat = "9:16" | "16:9" | "1:1" | "4:5";
 export type FitMode    = "fill" | "fit" | "blur";
 export type Intensity = "low" | "medium" | "high";
 export type ExportQuality = "draft" | "final";
-export type ExportResolution = "720p" | "1080p";
+export type ExportResolution = "720p" | "1080p" | "4k";
 
 export type AutoEditPresetId =
   | "drill"
@@ -427,6 +433,26 @@ export const TRANSITIONS = [
   "Slide",
   "Spin",
   "Blur Dissolve",
+  "Zoom Blur",
+  "Film Burn",
+  "RGB Split",
+  "Morph",
+  "Page Peel",
+  "Cube Rotate",
+  "Ripple",
+  "Shatter",
+  "Iris In",
+  "Iris Out",
+  "Cross Zoom",
+  "Slide Mosaic",
+  "Chromatic Aberration",
+  "Lens Distortion",
+  "Water Drop",
+  "Paint Splash",
+  "Pixelize",
+  "Circle Open",
+  "Circle Close",
+  "Radial Wipe",
 ] as const;
 
 export const EFFECTS = [
@@ -442,6 +468,15 @@ export const EFFECTS = [
   "Camera Shake",
   "Slow Zoom",
   "Speed Ramp",
+  "Duotone",
+  "Sepia+",
+  "Infrared-look",
+  "Night Vision",
+  "Comic / Halftone",
+  "Emboss",
+  "Edge Detect Glow",
+  "Film Grain+",
+  "Chromatic Aberration",
 ] as const;
 
 /** Color-grade presets (a subset of the Effects catalog applied as a look). */
@@ -466,6 +501,20 @@ export const OVERLAYS = [
   "Light Leaks",
   "Animated Waveform",
   "Logo / Watermark",
+  "Snow",
+  "Confetti",
+  "Fireworks",
+  "God Rays",
+  "Anamorphic Flares",
+  "Bokeh",
+  "Scan Lines",
+  "Hologram",
+  "Kaleidoscope",
+  "Mirror",
+  "Neon Frame",
+  "VHS Tracking",
+  "Datamosh-lite",
+  "Tilt-Shift",
 ] as const;
 
 export const CAPTION_FONT_SIZES = ["Small", "Medium", "Large", "XL"] as const;
@@ -508,6 +557,9 @@ export interface OverlayItem {
   color: string;
   /** CSS color for text overlay text. */
   textColor: string;
+  /** Optional CSS animation shorthand for motion graphics (e.g. "mg-kinetic-slam 1.2s cubic-bezier(.2,.9,.3,1.2) both").
+   *  Keyframes live in index.css (mg-*). Applied by OverlayLayer. */
+  motionCss?: string;
 }
 
 export interface TransitionItem {
@@ -582,10 +634,108 @@ export interface ClipEdit {
    *  Positive = video starts later (fix mouth moving too early).
    *  Negative = video starts earlier (fix mouth moving too late). */
   lipSyncOffsetSeconds: number;
+  /** Keyframed animation (CapCut-style). Empty = no animation. */
+  keyframes: Keyframe[];
   /** Pro video tools (color correction, chroma key, speed, reverse, rotate/flip,
    *  crop) — the "Pro Tools" tab. Every field maps to an FFmpeg filter for export
    *  via buildProToolsFilterChain() (server: pro-tools-ffmpeg.ts). */
   proTools: ProToolsSettings;
+}
+
+/* ── Keyframes (CapCut-style animation) ──────────────────────────────── */
+
+/** A single keyframe: transform values at a specific time. */
+export interface Keyframe {
+  id: string;
+  /** Seconds, relative to clip start. */
+  time: number;
+  /** X position 0-1 (0 = left, 1 = right). */
+  x: number;
+  /** Y position 0-1 (0 = top, 1 = bottom). */
+  y: number;
+  /** Scale 0.1-3 (1 = normal). */
+  scale: number;
+  /** Rotation in degrees (-180 to 180). */
+  rotation: number;
+  /** Opacity 0-1. */
+  opacity: number;
+  /** Bézier easing handles for the segment STARTING at this keyframe
+   *  (Stack 5 #8): control points in unit space (x: time fraction,
+   *  y: value fraction). Absent = the legacy smoothstep easing. */
+  easeOutCp?: { x: number; y: number };
+  easeInCp?: { x: number; y: number };
+}
+
+/** Interpolated transform values at a given time. */
+export interface KeyframeTransform {
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+}
+
+/** Get the interpolated transform at time t (seconds) from keyframes. */
+export function keyframeAt(keyframes: Keyframe[], t: number): KeyframeTransform {
+  const neutral: KeyframeTransform = { x: 0.5, y: 0.5, scale: 1, rotation: 0, opacity: 1 };
+  if (keyframes.length === 0) return neutral;
+  const sorted = [...keyframes].sort((a, b) => a.time - b.time);
+  if (t <= sorted[0]!.time) {
+    const k = sorted[0]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  if (t >= sorted[sorted.length - 1]!.time) {
+    const k = sorted[sorted.length - 1]!;
+    return { x: k.x, y: k.y, scale: k.scale, rotation: k.rotation, opacity: k.opacity };
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (t >= a.time && t <= b.time) {
+      const f = (t - a.time) / (b.time - a.time || 1);
+      const e = easedKeyframeFraction(a, b, f);
+      return {
+        x: a.x + (b.x - a.x) * e,
+        y: a.y + (b.y - a.y) * e,
+        scale: a.scale + (b.scale - a.scale) * e,
+        rotation: a.rotation + (b.rotation - a.rotation) * e,
+        opacity: a.opacity + (b.opacity - a.opacity) * e,
+      };
+    }
+  }
+  return neutral;
+}
+
+/** Cubic bézier easing solve — mirror of lib/motion-pro.ts cubicBezierY and
+ *  the server copy in pro-tools-ffmpeg.ts (all three must agree so preview
+ *  and export show the same curve). */
+export function cubicBezierYEased(
+  cp1: { x: number; y: number }, cp2: { x: number; y: number }, x: number,
+): number {
+  const cx = Math.min(1, Math.max(0, x));
+  if (cx === 0 || cx === 1) return cx;
+  const bx = (t: number) => 3 * (1 - t) ** 2 * t * cp1.x + 3 * (1 - t) * t ** 2 * cp2.x + t ** 3;
+  const by = (t: number) => 3 * (1 - t) ** 2 * t * cp1.y + 3 * (1 - t) * t ** 2 * cp2.y + t ** 3;
+  let t = cx;
+  for (let i = 0; i < 8; i++) {
+    const err = bx(t) - cx;
+    if (Math.abs(err) < 1e-5) return by(t);
+    const d = 3 * (1 - t) ** 2 * cp1.x + 6 * (1 - t) * t * (cp2.x - cp1.x) + 3 * t ** 2 * (1 - cp2.x);
+    if (Math.abs(d) < 1e-6) break;
+    t = Math.min(1, Math.max(0, t - err / d));
+  }
+  let lo = 0, hi = 1;
+  t = cx;
+  for (let i = 0; i < 20; i++) {
+    if (bx(t) < cx) lo = t; else hi = t;
+    t = (lo + hi) / 2;
+  }
+  return by(t);
+}
+
+/** Segment easing: bézier handles when set, legacy smoothstep otherwise. */
+export function easedKeyframeFraction(a: Keyframe, b: Keyframe, f: number): number {
+  if (!a.easeOutCp && !b.easeInCp) return f * f * (3 - 2 * f);
+  return cubicBezierYEased(a.easeOutCp ?? { x: 0.33, y: 0 }, b.easeInCp ?? { x: 0.67, y: 1 }, Math.min(1, Math.max(0, f)));
 }
 
 /* ── Pro video tools ─────────────────────────────────────────────────── */
@@ -636,13 +786,43 @@ export interface CropSettings {
   h: number;
 }
 
+/** One point on a colour curve: input level (x) → output level (y), 0..1. */
+export interface CurvePoint { x: number; y: number; }
+
+/** RGB + HSL colour curves (Stack 5 #2), per clip, beside the sliders.
+ *  Export composition order (server pro-tools-ffmpeg.ts, documented there):
+ *  sliders (eq/colorbalance/vibrance) FIRST, then RGB curves exactly via the
+ *  ffmpeg curves filter, then the HSL approximation (L→master curve,
+ *  S→saturation sampled at mid-tones, H→hue shift sampled at mid-tones). */
+export interface ColorCurves {
+  rgb: { all: CurvePoint[]; r: CurvePoint[]; g: CurvePoint[]; b: CurvePoint[] };
+  hsl: { h: CurvePoint[]; s: CurvePoint[]; l: CurvePoint[] };
+}
+
+export function defaultColorCurves(): ColorCurves {
+  const id = (): CurvePoint[] => [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  return { rgb: { all: id(), r: id(), g: id(), b: id() }, hsl: { h: id(), s: id(), l: id() } };
+}
+
 export interface ProToolsSettings {
   colorCorrection: ColorCorrectionSettings;
+  /** Colour curves (Stack 5 #2). null = identity (no curve pass). */
+  curves: ColorCurves | null;
+  /** Custom speed-ramp segments (Stack 5 #4). null = use speedCurve/speed. */
+  speedSegments: SpeedSegment[] | null;
+  /** Drawn custom speed curve (Wave 3 #18): the creator's own points,
+   *  drawn on the graph in SpeedSegmentsPanel. null = no drawn curve.
+   *  When set, speedSegments holds the segments the curve exports as
+   *  (derived by segmentsFromCustomCurve in lib/motion-pro.ts); picking a
+   *  preset/flat speed or hand-editing segments clears this to null. */
+  customSpeedCurve: SpeedCurvePoint[] | null;
   /** Grade preset used as a starting point (null = manual only). */
   colorGradePreset: string | null;
   chromaKey: ChromaKeySettings;
   /** Playback speed 0.25..4 (1 = normal). */
   speed: number;
+  /** Optional speed curve (CapCut-style variable speed). Null = flat speed. */
+  speedCurve: SpeedCurvePoint[] | null;
   reverse: boolean;
   rotation: 0 | 90 | 180 | 270;
   flipH: boolean;
@@ -659,6 +839,108 @@ export const SPEED_PRESETS = [
   { label: "2× Hyper", value: 2 },
   { label: "4× Timelapse", value: 4 },
 ] as const;
+
+/** One custom speed-ramp segment (Stack 5 #4): a slice of the clip played
+ *  at a constant speed. Segments tile the clip (see normalizeSpeedSegments
+ *  in lib/motion-pro.ts); presets remain the starting points that fill them. */
+export interface SpeedSegment {
+  id: string;
+  /** Normalized start 0..1 across the clip. */
+  startT: number;
+  /** Normalized end 0..1 across the clip (> startT). */
+  endT: number;
+  /** Playback speed for this segment, 0.25..4. */
+  speed: number;
+}
+
+/** A point on a speed curve: time (0-1 normalized across the clip) → speed multiplier. */
+export interface SpeedCurvePoint {
+  /** Normalized time 0-1 across the clip duration. */
+  t: number;
+  /** Speed multiplier at this point (0.25-4). */
+  speed: number;
+}
+
+/** Preset speed curves (CapCut-style). Points are normalized 0-1. */
+export const SPEED_CURVE_PRESETS: { id: string; label: string; blurb: string; points: SpeedCurvePoint[] }[] = [
+  {
+    id: "flat",
+    label: "Constant",
+    blurb: "Steady speed throughout",
+    points: [{ t: 0, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "ramp-up",
+    label: "Ramp Up",
+    blurb: "Slow start, explosive finish",
+    points: [{ t: 0, speed: 0.5 }, { t: 0.5, speed: 1 }, { t: 1, speed: 2 }],
+  },
+  {
+    id: "ramp-down",
+    label: "Ramp Down",
+    blurb: "Fast start, dreamy landing",
+    points: [{ t: 0, speed: 2 }, { t: 0.5, speed: 1 }, { t: 1, speed: 0.5 }],
+  },
+  {
+    id: "punch",
+    label: "Slow-mo Punch",
+    blurb: "Normal, freeze moment, back to action",
+    points: [{ t: 0, speed: 1 }, { t: 0.35, speed: 1 }, { t: 0.5, speed: 0.25 }, { t: 0.65, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "wave",
+    label: "Wave",
+    blurb: "Breathe in, breathe out",
+    points: [{ t: 0, speed: 1 }, { t: 0.25, speed: 1.5 }, { t: 0.5, speed: 0.75 }, { t: 0.75, speed: 1.5 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "bullet-time",
+    label: "Bullet Time",
+    blurb: "Matrix-style slow-mo dive",
+    points: [{ t: 0, speed: 1 }, { t: 0.3, speed: 0.3 }, { t: 0.7, speed: 0.3 }, { t: 1, speed: 1.5 }],
+  },
+  {
+    id: "hyper-lapse",
+    label: "Hyper Lapse",
+    blurb: "Speed through the boring parts",
+    points: [{ t: 0, speed: 1 }, { t: 0.2, speed: 3 }, { t: 0.8, speed: 3 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "heartbeat",
+    label: "Heartbeat",
+    blurb: "Pulsing rhythm — lub-dub",
+    points: [{ t: 0, speed: 1 }, { t: 0.15, speed: 0.5 }, { t: 0.3, speed: 1 }, { t: 0.45, speed: 0.5 }, { t: 0.6, speed: 1 }, { t: 0.75, speed: 0.5 }, { t: 0.9, speed: 1 }, { t: 1, speed: 1 }],
+  },
+  {
+    id: "crescendo",
+    label: "Crescendo",
+    blurb: "Building intensity to climax",
+    points: [{ t: 0, speed: 0.75 }, { t: 0.25, speed: 1 }, { t: 0.5, speed: 1.25 }, { t: 0.75, speed: 1.75 }, { t: 1, speed: 2.5 }],
+  },
+  {
+    id: "flashback",
+    label: "Flashback",
+    blurb: "Dreamy memory sequence",
+    points: [{ t: 0, speed: 0.5 }, { t: 0.5, speed: 0.5 }, { t: 0.6, speed: 1.5 }, { t: 1, speed: 0.5 }],
+  },
+];
+
+/** Interpolate speed at normalized time t (0-1) along a curve. */
+export function speedAt(curve: SpeedCurvePoint[], t: number): number {
+  if (curve.length === 0) return 1;
+  const clamped = Math.min(1, Math.max(0, t));
+  const sorted = [...curve].sort((a, b) => a.t - b.t);
+  if (clamped <= sorted[0]!.t) return sorted[0]!.speed;
+  if (clamped >= sorted[sorted.length - 1]!.t) return sorted[sorted.length - 1]!.speed;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!, b = sorted[i + 1]!;
+    if (clamped >= a.t && clamped <= b.t) {
+      const f = (clamped - a.t) / (b.t - a.t || 1);
+      return a.speed + (b.speed - a.speed) * f;
+    }
+  }
+  return 1;
+}
 
 /** Crop aspect presets for the Smart Reframe one-tap button. */
 export const CROP_ASPECTS: { label: string; value: CropAspect; ratio: number | null }[] = [
@@ -957,6 +1239,11 @@ export interface AudioStem {
   /** Alignment offset on the timeline, in seconds (plan only). */
   startTime: number;
   effects: StemEffects;
+  /** Parametric FX chain (Wave 3 #16) — parametric EQ bands, compressor,
+   *  saturation, reverb, delay in the user's order. When non-empty it
+   *  REPLACES the preset `effects` above in both the preview engine and
+   *  the server render; empty = presets apply, as before. */
+  fxChain: FxStep[];
 }
 
 export interface AiMixOptions {
@@ -1030,9 +1317,12 @@ export type MasterPlayerSnapPosition =
  *  1152px) instead of capping at 800px — the old cap left large empty gutters
  *  on desktop. The vertical-band clamp in the player still keeps it inside the
  *  toolbar↔timeline space, so portrait formats can't overflow the viewport. */
-export const MASTER_PLAYER_DEFAULT_WIDTH = 640;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
-export const MASTER_PLAYER_MAX_WIDTH = 1152;
+export const MASTER_PLAYER_MAX_WIDTH = 1440;
+/* Default = fill the available band (capped by MAX_WIDTH and the fit math).
+   The fit function clamps to what actually fits, so a MAX default means
+   "grow to fill" until the user drags to resize (their size is then saved). */
+export const MASTER_PLAYER_DEFAULT_WIDTH = MASTER_PLAYER_MAX_WIDTH;
 /** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
  *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
  *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
@@ -1139,6 +1429,20 @@ export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
   "Dust":              25,
   "Animated Waveform": 45,
   "Logo / Watermark":  65,
+  "Snow":              30,
+  "Confetti":          40,
+  "Fireworks":         40,
+  "God Rays":          30,
+  "Anamorphic Flares": 30,
+  "Bokeh":             30,
+  "Scan Lines":        25,
+  "Hologram":          35,
+  "Kaleidoscope":      35,
+  "Mirror":            30,
+  "Neon Frame":        30,
+  "VHS Tracking":      35,
+  "Datamosh-lite":     35,
+  "Tilt-Shift":        30,
 };
 
 /** A production bible: the locked creative source of truth for a music video / film project. */
@@ -1214,6 +1518,29 @@ export function defaultPreProduction(): PreProductionState {
   };
 }
 
+/** A single video chapter marker: title + time window in seconds. */
+export interface VideoChapter {
+  title: string;
+  startSec: number;
+  endSec: number;
+}
+
+/** Sanitize a stored chapter list: valid titles and finite, ascending times. */
+export function sanitizeVideoChapters(value: unknown): VideoChapter[] {
+  if (!Array.isArray(value)) return [];
+  const cleaned: VideoChapter[] = [];
+  for (const c of value) {
+    if (!c || typeof c !== "object") continue;
+    const title = typeof (c as VideoChapter).title === "string" ? (c as VideoChapter).title.trim().slice(0, 80) : "";
+    const startSec = Number((c as VideoChapter).startSec);
+    const endSec = Number((c as VideoChapter).endSec);
+    if (!title || !Number.isFinite(startSec) || !Number.isFinite(endSec) || startSec < 0 || !(endSec > startSec)) continue;
+    cleaned.push({ title, startSec: Math.round(startSec * 10) / 10, endSec: Math.round(endSec * 10) / 10 });
+  }
+  cleaned.sort((a, b) => a.startSec - b.startSec);
+  return cleaned;
+}
+
 export interface EditorSettings {
   mode: "auto" | "manual";
   /**
@@ -1222,6 +1549,9 @@ export interface EditorSettings {
    * any point on the timeline via ClipEdit.manualStartSec.
    */
   timelineLayout: "auto" | "manual";
+  /** Timeline loop-playback region: when enabled, playback wraps from endSec back to startSec.
+   *  Set via Shift+drag on the waveform track; edge handles adjust, double-click clears. */
+  timelineLoop: { enabled: boolean; startSec: number; endSec: number };
   /** Last snapped position of the floating master player — one of 12 fixed screen anchors. There is no docked/inline mode; the player always floats. */
   masterPlayerSnapPosition: MasterPlayerSnapPosition;
   /** Current width (px) of the floating master player; height is derived from the export aspect ratio. */
@@ -1242,6 +1572,8 @@ export interface EditorSettings {
   /** Per-clip edits keyed by scene id. */
   clips: Record<string, ClipEdit>;
   captions: CaptionSettings;
+  /** Video chapter markers (auto-generated or manual). Persist per project. */
+  chapters: VideoChapter[];
   effects: string[];
   /** Legacy overlay type names (chips UI). */
   overlays: string[];
@@ -1273,6 +1605,13 @@ export interface EditorSettings {
   soloPreviewOverlay: string | null;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
+  /** True multi-track lanes (Stack 5 #1). null = not migrated yet — the
+   *  editor derives lanes from overlayItems + captions.lines on first open
+   *  (migrateLegacyToLanes) and from then on lanes are the source the
+   *  export payload is projected from. */
+  lanes: TimelineLanes | null;
+  /** Audio ducking on the music lane (Stack 5 #5): song ducks under voice. */
+  audioDucking: DuckingSettings;
   /** Structured transition data (fromSceneId → toSceneId). */
   transitions: TransitionItem[];
   audio: AudioSettings;
@@ -1325,9 +1664,13 @@ export function defaultCrop(): CropSettings {
 export function defaultProTools(): ProToolsSettings {
   return {
     colorCorrection: defaultColorCorrection(),
+    curves: null,
+    speedSegments: null,
+    customSpeedCurve: null,
     colorGradePreset: null,
     chromaKey: defaultChromaKey(),
     speed: 1,
+    speedCurve: null,
     reverse: false,
     rotation: 0,
     flipH: false,
@@ -1354,6 +1697,16 @@ export const GRADE_PRESET_CORRECTIONS: Record<string, ColorCorrectionSettings> =
   "Cinematic Contrast":{ ...defaultColorCorrection(), contrast: 40, saturation: -10, brightness: -8, highlights: -10, shadows: -10 },
 };
 
+/** True when any curve point leaves the identity diagonal. */
+export function colorCurvesActive(curves: ColorCurves | null | undefined): boolean {
+  if (!curves) return false;
+  const channels = [
+    curves.rgb.all, curves.rgb.r, curves.rgb.g, curves.rgb.b,
+    curves.hsl.h, curves.hsl.s, curves.hsl.l,
+  ];
+  return channels.some((pts) => Array.isArray(pts) && pts.some((p) => Math.abs(p.y - p.x) > 0.005));
+}
+
 /** True when any pro-tool differs from its neutral default (i.e. export must run the filter pass). */
 export function proToolsActive(pt: ProToolsSettings | null | undefined): boolean {
   if (!pt) return false;
@@ -1364,6 +1717,8 @@ export function proToolsActive(pt: ProToolsSettings | null | undefined): boolean
     cc.shadows !== 0 || cc.vibrance !== 0 || cc.exposure !== 0;
   return (
     ccActive ||
+    (pt.curves != null && colorCurvesActive(pt.curves)) ||
+    (Array.isArray(pt.speedSegments) && pt.speedSegments.length > 0) ||
     pt.chromaKey.enabled ||
     pt.speed !== 1 ||
     pt.reverse ||
@@ -1398,6 +1753,7 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncTimingMismatch: false,
     lipSyncOffsetSeconds: 0,
     manualStartSec: null,
+    keyframes: [],
     proTools: defaultProTools(),
   };
 }
@@ -1418,6 +1774,7 @@ export function defaultEditorSettings(): EditorSettings {
   return {
     mode: "auto",
     timelineLayout: "auto",
+    timelineLoop: { enabled: false, startSec: 0, endSec: 0 },
     masterPlayerSnapPosition: "bottom-left",
     masterPlayerSize: MASTER_PLAYER_DEFAULT_WIDTH,
     masterPlayerMinimized: false,
@@ -1437,6 +1794,7 @@ export function defaultEditorSettings(): EditorSettings {
     },
     autoEditPlan: null,
     clips: {},
+    chapters: [],
     captions: {
       enabled: true,
       mode: "none",
@@ -1473,7 +1831,7 @@ export function defaultEditorSettings(): EditorSettings {
     overlayQualityMode: "music-video",
     watermarkType: "logo",
     watermarkPosition: "bottom-right",
-    watermarkSize: "medium",
+    watermarkSize: "small",
     watermarkMargin: 16,
     watermarkShowOnPreview: true,
     watermarkIncludeInExport: true,
@@ -1481,6 +1839,8 @@ export function defaultEditorSettings(): EditorSettings {
     overlayProtectFace: true,
     soloPreviewOverlay: null,
     overlayItems: [],
+    lanes: null,
+    audioDucking: defaultDuckingSettings(),
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 }, fitMode: "fill" as FitMode },
@@ -1690,6 +2050,7 @@ export function normalizeStem(s: Partial<AudioStem>): AudioStem {
     trimEnd: s.trimEnd ?? 0,
     startTime: s.startTime ?? 0,
     effects: { ...defaultStemEffects(), ...(s.effects ?? {}) },
+    fxChain: normalizeStemFxChain(s.fxChain),
   };
 }
 
@@ -1754,6 +2115,13 @@ export function normalizeEditorSettings(
     ...base,
     ...stored,
     timelineLayout: stored.timelineLayout === "manual" ? "manual" : "auto",
+    timelineLoop: (() => {
+      const l = stored.timelineLoop as { enabled?: boolean; startSec?: number; endSec?: number } | undefined;
+      if (!l || typeof l.startSec !== "number" || typeof l.endSec !== "number" || l.endSec <= l.startSec) {
+        return { enabled: false, startSec: 0, endSec: 0 };
+      }
+      return { enabled: l.enabled === true, startSec: Math.max(0, l.startSec), endSec: Math.max(0, l.endSec) };
+    })(),
     /* No more docked mode — every project (including old ones with masterPlayerFloating: false)
        now opens with the player floating, snapped to its saved (or default) corner. */
     masterPlayerSnapPosition: MASTER_PLAYER_SNAP_POSITIONS.includes(stored.masterPlayerSnapPosition as MasterPlayerSnapPosition)
@@ -1772,6 +2140,7 @@ export function normalizeEditorSettings(
     autoEdit: { ...base.autoEdit, ...(stored.autoEdit ?? {}) },
     autoEditPlan: stored.autoEditPlan ?? null,
     clips: stored.clips ?? {},
+    chapters: sanitizeVideoChapters(stored.chapters),
     captions: { ...base.captions, ...(stored.captions ?? {}) },
     effects: stored.effects ?? [],
     overlays: stored.overlays ?? [],
@@ -1781,7 +2150,7 @@ export function normalizeEditorSettings(
     overlayQualityMode: (stored.overlayQualityMode && ["off", "subtle", "visible", "music-video", "heavy"].includes(stored.overlayQualityMode)) ? stored.overlayQualityMode : "music-video",
     watermarkType: (stored.watermarkType && ["logo", "text", "none"].includes(stored.watermarkType)) ? stored.watermarkType : "logo",
     watermarkPosition: (stored.watermarkPosition && ["bottom-right", "bottom-left", "top-right", "top-left"].includes(stored.watermarkPosition)) ? stored.watermarkPosition : "bottom-right",
-    watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "medium",
+    watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "small",
     watermarkMargin: typeof stored.watermarkMargin === "number" ? stored.watermarkMargin : 16,
     watermarkShowOnPreview: typeof stored.watermarkShowOnPreview === "boolean" ? stored.watermarkShowOnPreview : true,
     watermarkIncludeInExport: typeof stored.watermarkIncludeInExport === "boolean" ? stored.watermarkIncludeInExport : true,
@@ -1789,6 +2158,8 @@ export function normalizeEditorSettings(
     overlayProtectFace: typeof stored.overlayProtectFace === "boolean" ? stored.overlayProtectFace : true,
     soloPreviewOverlay: typeof stored.soloPreviewOverlay === "string" ? stored.soloPreviewOverlay : null,
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
+    lanes: sanitizeLanes((stored as Partial<EditorSettings>).lanes),
+    audioDucking: { ...defaultDuckingSettings(), ...((stored as Partial<EditorSettings>).audioDucking ?? {}) },
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },

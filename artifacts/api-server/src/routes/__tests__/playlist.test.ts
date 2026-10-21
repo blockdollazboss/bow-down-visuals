@@ -5,10 +5,10 @@
  *   POST   /api/playlist/upload
  *   DELETE /api/playlist/:name
  *
- * Storage is fully mocked (no Supabase, no network): the bucket self-heal
- * REST call is intercepted at global fetch, and the storage client is a
- * vi mock. requireAuth is mocked like the other route tests; requireAdmin
- * is replaced with a controllable stand-in so both branches are exercised.
+ * Storage is fully mocked (no R2, no network): the r2-client module is a
+ * vi mock backed by testState. requireAuth is mocked like the other route
+ * tests; requireAdmin is replaced with a controllable stand-in so both
+ * branches are exercised.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -41,28 +41,22 @@ vi.mock("../admin", () => ({
   },
 }));
 
-vi.mock("../../lib/supabase-admin", () => ({
-  getSupabaseAdmin: () => ({
-    storage: {
-      from: (_bucket: string) => ({
-        list: vi.fn(async () => ({
-          data: testState.files.map((name) => ({ name })),
-          error: null,
-        })),
-        upload: vi.fn(async (name: string, body: Buffer) => {
-          testState.uploaded.push({ name, bytes: body.length });
-          return { data: { path: name }, error: null };
-        }),
-        remove: vi.fn(async (names: string[]) => {
-          testState.removed.push(...names);
-          return { data: null, error: null };
-        }),
-        getPublicUrl: (path: string) => ({
-          data: { publicUrl: `https://cdn.example.com/playlist/${path}` },
-        }),
-      }),
-    },
+vi.mock("../../lib/r2-client", () => ({
+  /* The playlist route is R2-backed (2026-10-09 migration). Keys arrive
+     with the "playlist/" prefix; the test state tracks bare track names. */
+  r2List: vi.fn(async (prefix: string) =>
+    testState.files.map((name) => `${prefix}${name}`),
+  ),
+  r2Upload: vi.fn(async (key: string, body: Buffer) => {
+    testState.uploaded.push({
+      name: key.replace(/^playlist\//, ""),
+      bytes: body.length,
+    });
   }),
+  r2Delete: vi.fn(async (key: string) => {
+    testState.removed.push(key.replace(/^playlist\//, ""));
+  }),
+  r2PublicUrl: vi.fn((key: string) => `https://cdn.example.com/${key}`),
 }));
 
 import router from "../playlist";

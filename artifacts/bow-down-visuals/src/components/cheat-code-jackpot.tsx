@@ -12,6 +12,8 @@ import {
  type JackpotStatus,
 } from "@/components/cheat-code-jackpot-logic";
 import { DraggableWidget } from "@/components/draggable-widget";
+import { useLocation } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /**
  * Cheat Code Jackpot — the site-wide monthly prize event.
@@ -144,6 +146,13 @@ async function fetchStatus(): Promise<JackpotStatus> {
 
 export function CheatCodeJackpot() {
  const { user, getAccessToken, refreshProfile } = useAuth();
+ const [location] = useLocation();
+ const isLight = useIsLightTheme();
+ /* The video editor is a focused studio surface — the jackpot promo banner
+  * and D-pad FAB don't belong there. */
+ const inEditor = location.startsWith("/video-editor");
+ /* D-pad hidden on auth pages — user directive 2026-10-10 */
+ const onAuthPage = location.startsWith("/login") || location.startsWith("/signup");
  const [status, setStatus] = useState<JackpotStatus | null>(null);
  const [dismissed, setDismissed] = useState(
  () =>
@@ -399,20 +408,30 @@ export function CheatCodeJackpot() {
  return (
  <>
  {/* ── Status banner ─────────────────────────────────────────── */}
- {showBanner && bannerBody && (
+ {showBanner && bannerBody && !inEditor && (
  <div
  role="status"
  className={cn(
- "sticky top-0 z-[60] border-b",
+ "relative z-[60] border-b overflow-hidden",
  bannerBody.accent
- ? "border-[#C9A84C]/60 bg-black/95"
- : "border-white/10 bg-[#0a0a0a]/95",
+ ? isLight ? "border-[#C9A84C]/60 bg-[#F7F1E3]" : "border-[#C9A84C]/60 bg-black"
+ : isLight ? "border-[#c9a84c]/25 bg-[#F7F1E3]" : "border-white/10 bg-[#0a0a0a]",
  )}
  >
- <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
- <span aria-hidden="true" className="shrink-0 leading-none">
+ {/* Banner image background — theme-aware: golden palace on light, dark palace on dark */}
  <img
- src="/thy-cheat-code-8bit.webp"
+   className="absolute inset-0 h-full w-full object-cover opacity-40"
+   src={isLight ? "/images/shark-king-final-banner-light-v1.webp" : "/images/shark-king-final-banner-dark-v1.webp"}
+   alt=""
+   aria-hidden="true"
+   draggable={false}
+ />
+ <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+ <span aria-hidden="true" className="shrink-0 leading-none">
+ {/* Light theme: transparent sprite — the webp has a baked black
+     background that reads as a black stamp on the cream banner. */}
+ <img
+ src={isLight ? "/images/thy-cheat-code-8bit-transparent.png" : "/thy-cheat-code-8bit.webp"}
  alt=""
  width={40}
  height={40}
@@ -422,10 +441,10 @@ export function CheatCodeJackpot() {
  />
  </span>
  <div className="min-w-0 flex-1">
- <p className="pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] text-[#F5DE8E] uppercase">
+ <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#F5DE8E]"}`}>
  {bannerBody.title}
  </p>
- <p className="truncate text-[11px] sm:text-xs text-white/50">
+ <p className={`truncate text-[11px] sm:text-xs ${isLight ? "font-medium text-[#6B5310]" : "text-white/50"}`}>
  {bannerBody.sub}
  </p>
  </div>
@@ -436,7 +455,8 @@ export function CheatCodeJackpot() {
  className={cn(
  "pixel-display shrink-0 rounded-none border-2 border-[#C9A84C]",
  "bg-[#C9A84C]/15 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]",
- "text-[#F5DE8E] hover:bg-[#C9A84C]/30 transition-colors",
+ isLight ? "text-[#7A5A12] hover:bg-[#C9A84C]/30" : "text-[#F5DE8E] hover:bg-[#C9A84C]/30",
+ "transition-colors",
  )}
  >
  Enter code
@@ -446,7 +466,7 @@ export function CheatCodeJackpot() {
  type="button"
  onClick={dismissBanner}
  aria-label="Dismiss jackpot banner"
- className="shrink-0 px-2 text-lg leading-none text-white/40 hover:text-white/80"
+ className={`shrink-0 px-2 text-lg leading-none ${isLight ? "text-[#7A5A12]/70 hover:text-[#7A5A12]" : "text-white/40 hover:text-white/80"}`}
  >
  ×
  </button>
@@ -455,7 +475,7 @@ export function CheatCodeJackpot() {
  )}
 
  {/* ── D-pad FAB (mobile / touch entry) — draggable, snaps to grid ── */}
- {phase === "live" && (
+ {phase === "live" && !inEditor && !onAuthPage && (
  <DraggableWidget id="jackpot-dpad" defaultAnchor={{ x: 0.94, y: 0.08 }}>
  <button
  type="button"

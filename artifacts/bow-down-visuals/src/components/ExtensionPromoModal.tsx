@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Puzzle, Download, Smartphone } from "lucide-react";
 import { Link } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
  shouldShowPromoModal,
  markPromoModalShown,
@@ -17,6 +18,9 @@ import {
  "Don't show me this again" = permanent opt-out of all extension promos. */
 
 export default function ExtensionPromoModal() {
+ const isLight = useIsLightTheme();
+ const accentTx = isLight ? "text-[#7A5A12]" : "text-[#e8c86a]";
+ const boxCls = isLight ? "border-[#C9A84C]/30 bg-white/50" : "border-white/10 bg-white/[0.03]";
  const [open, setOpen] = useState(false);
  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
  const [pwaDone, setPwaDone] = useState(false);
@@ -60,25 +64,25 @@ export default function ExtensionPromoModal() {
  onClick={close}
  >
  <div
- className="relative w-full max-w-md overflow-hidden rounded-3xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#171206] to-black p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.25)]"
+ className={`relative w-full max-w-md overflow-hidden rounded-3xl border p-7 text-center shadow-[0_0_60px_rgba(201,168,76,0.25)] ${isLight ? "border-[#C9A84C]/50 bg-gradient-to-b from-[#FBF6E9] to-[#F4E7C3]" : "border-[#C9A84C]/40 bg-gradient-to-b from-[#171206] to-[#0d0a04]"}`}
  onClick={(e) => e.stopPropagation()}
  >
  <button
  type="button"
  onClick={close}
  aria-label="Close"
- className="absolute top-3 right-3 rounded-full p-1.5 text-white/40 hover:text-white transition"
+ className={`absolute top-3 right-3 rounded-full p-1.5 transition ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white"}`}
  >
  <X className="h-4 w-4" />
  </button>
 
- <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#e8c86a]">
+ <p className={`text-[11px] font-bold uppercase tracking-[0.25em] ${accentTx}`}>
  Thy Cheat Code reminds you
  </p>
- <h2 className="mt-2 text-2xl font-semibold text-white">
- Take the cheat code <span className="text-[#e8c86a]">with you.</span>
+ <h2 className={`mt-2 text-2xl font-semibold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+ Take the cheat code <span className={accentTx}>with you.</span>
  </h2>
- <p className="mt-2 text-sm text-white/55">
+ <p className={`mt-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
  AI chat, every site tool, daily bonuses and one-click saving — in your
  browser and on your home screen.
  </p>
@@ -102,18 +106,18 @@ export default function ExtensionPromoModal() {
  <button
  type="button"
  onClick={installApp}
- className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-semibold text-white hover:bg-white/5 transition"
+ className={`flex w-full items-center justify-center gap-2 rounded-xl border px-6 py-3.5 font-semibold transition ${isLight ? "border-[#C9A84C]/50 text-[#2A1E07] hover:bg-[#C9A84C]/10" : "border-white/20 text-white hover:bg-white/5"}`}
  >
- <Smartphone className="h-5 w-5 text-[#e8c86a]" />
+ <Smartphone className={`h-5 w-5 ${accentTx}`} />
  Install the site as a Chrome app
  </button>
  ) : (
- <div className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3.5 text-left">
- <p className="flex items-center gap-2 text-sm font-semibold text-white">
- <Smartphone className="h-4 w-4 text-[#e8c86a]" /> Install as a Chrome app
+ <div className={`rounded-xl border px-5 py-3.5 text-left ${boxCls}`}>
+ <p className={`flex items-center gap-2 text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+ <Smartphone className={`h-4 w-4 ${accentTx}`} /> Install as a Chrome app
  </p>
- <p className="mt-1 text-xs text-white/50">
- Chrome menu <span className="text-white">⋮</span> → “Save and share” → “Install page as app”.
+ <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+ Chrome menu <span className={isLight ? "text-[#2A1E07]" : "text-white"}>⋮</span> → “Save and share” → “Install page as app”.
  {typeof navigator !== "undefined" && /iPhone|iPad/i.test(navigator.userAgent)
  ? " On iPhone: Share → Add to Home Screen."
  : ""}
@@ -122,14 +126,14 @@ export default function ExtensionPromoModal() {
  )
  )}
  {(pwaDone || isInstalled) && (
- <p className="text-sm text-[#e8c86a]">✓ App installed — nice.</p>
+ <p className={`text-sm ${accentTx}`}>✓ App installed — nice.</p>
  )}
 
- <div className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-left">
- <p className="text-xs font-bold uppercase tracking-wider text-[#e8c86a]">
+ <div className={`rounded-xl border px-5 py-3 text-left ${boxCls}`}>
+ <p className={`text-xs font-bold uppercase tracking-wider ${accentTx}`}>
  Install in 30 seconds:
  </p>
- <ol className="mt-1.5 space-y-1 text-xs text-white/60">
+ <ol className={`mt-1.5 space-y-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
  <li>1. Download the .zip above</li>
  <li>2. Unzip it anywhere</li>
  <li>3. Chrome → chrome://extensions → Developer mode ON</li>
@@ -137,7 +141,7 @@ export default function ExtensionPromoModal() {
  </ol>
  </div>
 
- <Link href="/extension" onClick={close} className="block text-sm text-[#e8c86a] hover:underline">
+ <Link href="/extension" onClick={close} className={`block text-sm hover:underline ${accentTx}`}>
  <Download className="mr-1 inline h-3.5 w-3.5" />
  Full guide &amp; details
  </Link>
@@ -146,7 +150,7 @@ export default function ExtensionPromoModal() {
  <button
  type="button"
  onClick={stopAll}
- className="mt-5 text-xs text-white/30 underline hover:text-white/60 transition"
+ className={`mt-5 text-xs underline transition ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/30 hover:text-white/60"}`}
  >
  Don't show me this again
  </button>

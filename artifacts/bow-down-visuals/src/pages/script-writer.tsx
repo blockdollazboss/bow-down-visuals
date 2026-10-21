@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useState, useEffect } from "react";
 import {
   ScrollText, Loader2, Copy, Check, AlertTriangle,
   MonitorPlay, Music2, Smartphone, Sparkles, Clock, Zap,
-  Eye, Clapperboard, Megaphone, FileText,
+  Eye, Clapperboard, Megaphone, FileText, X, Mic, CalendarDays,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { TeleprompterPlayer } from "@/components/TeleprompterPlayer";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import type { HubAsset } from "@/lib/hub-project";
+import { useTranslation } from "react-i18next";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
    High-retention video scripts: platform-optimized hooks, timestamped beats
@@ -43,34 +49,39 @@ interface ScriptResult {
   creditsRemaining: number;
 }
 
-const PLATFORMS: Array<{ id: Platform; label: string; blurb: string; icon: typeof MonitorPlay }> = [
-  { id: "youtube", label: "YouTube", blurb: "Search-friendly, chapters, mid-roll pacing", icon: MonitorPlay },
-  { id: "tiktok", label: "TikTok", blurb: "Vertical energy, comment-bait", icon: Music2 },
-  { id: "reels", label: "Reels", blurb: "Aesthetic-first, save/share triggers", icon: Smartphone },
+const PLATFORMS: Array<{ id: Platform; labelKey: string; blurbKey: string; icon: typeof MonitorPlay }> = [
+  { id: "youtube", labelKey: "scriptWriter.platformYoutube", blurbKey: "scriptWriter.platformYoutubeBlurb", icon: MonitorPlay },
+  { id: "tiktok", labelKey: "scriptWriter.platformTiktok", blurbKey: "scriptWriter.platformTiktokBlurb", icon: Music2 },
+  { id: "reels", labelKey: "scriptWriter.platformReels", blurbKey: "scriptWriter.platformReelsBlurb", icon: Smartphone },
 ];
 
-const LENGTHS: Array<{ id: Length; label: string; blurb: string }> = [
-  { id: "short", label: "Under 60s", blurb: "One tight idea" },
-  { id: "medium", label: "1–3 min", blurb: "A clear arc" },
-  { id: "long", label: "3–10 min", blurb: "Chapters + re-hooks" },
-  { id: "deep", label: "10+ min", blurb: "Documentary depth" },
+const LENGTHS: Array<{ id: Length; labelKey: string; blurbKey: string }> = [
+  { id: "short", labelKey: "scriptWriter.lengthShort", blurbKey: "scriptWriter.lengthShortBlurb" },
+  { id: "medium", labelKey: "scriptWriter.lengthMedium", blurbKey: "scriptWriter.lengthMediumBlurb" },
+  { id: "long", labelKey: "scriptWriter.lengthLong", blurbKey: "scriptWriter.lengthLongBlurb" },
+  { id: "deep", labelKey: "scriptWriter.lengthDeep", blurbKey: "scriptWriter.lengthDeepBlurb" },
 ];
 
-const TONES: Array<{ id: Tone; label: string; blurb: string }> = [
-  { id: "educational", label: "Educational", blurb: "Teach like an expert" },
-  { id: "entertaining", label: "Entertaining", blurb: "High energy, funny" },
-  { id: "inspirational", label: "Inspirational", blurb: "Story-driven, emotional" },
-  { id: "controversial", label: "Controversial", blurb: "Bold takes, spicy" },
+const TONES: Array<{ id: Tone; labelKey: string; blurbKey: string }> = [
+  { id: "educational", labelKey: "scriptWriter.toneEducational", blurbKey: "scriptWriter.toneEducationalBlurb" },
+  { id: "entertaining", labelKey: "scriptWriter.toneEntertaining", blurbKey: "scriptWriter.toneEntertainingBlurb" },
+  { id: "inspirational", labelKey: "scriptWriter.toneInspirational", blurbKey: "scriptWriter.toneInspirationalBlurb" },
+  { id: "controversial", labelKey: "scriptWriter.toneControversial", blurbKey: "scriptWriter.toneControversialBlurb" },
 ];
 
-const CREDIT_COST = 2;
+/* x100 Visual Bucs — matches the /api/script-writer charge + registry. */
+const CREDIT_COST = 200;
 const PICK =
   "rounded-xl border px-4 py-3 text-left transition-all cursor-pointer";
-const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(251,191,36,0.15)]";
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
-  const { addAsset } = useHubProject();
+  const isLight = useIsLightTheme();
+  const pickActive = isLight
+    ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]"
+    : "border-amber-400 bg-amber-400/[0.16] shadow-[0_0_0_1px_rgba(251,191,36,0.65),0_0_22px_rgba(251,191,36,0.20)]";
+  const { t } = useTranslation();
+  const { addAsset, latestOfKind, project } = useHubProject();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [platform, setPlatform] = useState<Platform>("youtube");
@@ -85,6 +96,37 @@ export default function ScriptWriter() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
+  const [teleprompterOpen, setTeleprompterOpen] = useState(false);
+  /* Deep-link handoff from the Content Intelligence plan review:
+     ?topic= & ?audience= prefill the form, ?platform= picks the platform,
+     ?hook= shows the winning hook as a suggested opening line. */
+  const [hookHint, setHookHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const topicParam = params.get("topic")?.trim().slice(0, 300);
+      const audienceParam = params.get("audience")?.trim().slice(0, 200);
+      const hookParam = params.get("hook")?.trim().slice(0, 600);
+      const platformParam = (params.get("platform") ?? "").toLowerCase();
+      if (topicParam) setTopic(topicParam);
+      if (audienceParam) setAudience(audienceParam);
+      if (hookParam) setHookHint(hookParam);
+      if (["youtube", "tiktok", "reels"].includes(platformParam)) {
+        setPlatform(platformParam as Platform);
+      }
+      /* No deep-link topic? Fall back to the hub project - the song/video the
+         user is already working on - so the topic is never retyped. */
+      if (!topicParam) {
+        const hubScript = latestOfKind("script");
+        const fallback = hubScript?.meta?.text?.slice(0, 120) || project.name;
+        if (fallback && fallback !== "Untitled Project") setTopic(fallback);
+      }
+    } catch {
+      /* non-browser or malformed URL - ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function copyText(key: string, text: string) {
     try {
@@ -103,11 +145,12 @@ export default function ScriptWriter() {
     setOutOfCredits(false);
     setResult(null);
     setShowTeleprompter(false);
+    setTeleprompterOpen(false);
     try {
       const res = await confirmedFetch("/api/script-writer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideCost: CREDIT_COST, // matches backend + registry (200 VB)
         overrideFeature: "Script Writer",
         body: JSON.stringify({
           platform,
@@ -125,106 +168,134 @@ export default function ScriptWriter() {
         return;
       }
       if (!res.ok || !data.beats?.length) {
-        throw new Error(data.error || "The studio hiccupped — try again.");
+        throw new Error(data.error || t("scriptWriter.errorGenerationFailed"));
       }
       setResult(data);
       if (data.teleprompter) {
         addAsset({
           kind: "script",
           url: `data:text/plain;charset=utf-8,${encodeURIComponent(data.teleprompter)}`,
-          label: data.title || `Script — ${topic.trim().slice(0, 40)}`,
+          label: data.title || t("scriptWriter.scriptAssetLabel", { topic: topic.trim().slice(0, 40) }),
           detail: data.hook ? data.hook.slice(0, 80) : undefined,
           meta: { text: data.teleprompter, hook: data.hook || "" },
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : t("scriptWriter.errorGeneric"));
     } finally {
       setGenerating(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30">
             <ScrollText className="w-6 h-6 text-amber-300" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            AI <span className="text-amber-300">Script Writer</span>
+            {t("scriptWriter.titlePrefix")} <span className="text-amber-300">{t("scriptWriter.titleHighlight")}</span>
           </h1>
         </div>
         <p className="text-white/55 max-w-2xl mb-8">
-          High-retention scripts with scroll-stopping hooks, timestamped beats,
-          visual cues, B-roll ideas, and retention triggers every 30 seconds.
-          Pick your platform, set the vibe, get a shoot-ready script.
+          {t("scriptWriter.pageDescription")}
         </p>
 
+        {/* Spine: hooks / lyrics saved to the project land here — one tap
+            prefills the topic so the script builds on the project's hook. */}
+        <ProjectFlowBar
+          kinds={["script"]}
+          actionLabel={t("hubSpine.flowBar.useSongInVideo")}
+          onPick={(asset: HubAsset) => {
+            const topicText = asset.meta?.["topic"] ?? asset.meta?.["title"] ?? asset.label;
+            if (topicText && !topic.trim()) setTopic(topicText.slice(0, 300));
+          }}
+        />
+
         {/* ── Controls ── */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
+        <section className={`rounded-2xl border p-6 mb-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          {hookHint && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                  {t("scriptWriter.hookHintLabel")}
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-relaxed text-white">“{hookHint}”</p>
+                <p className="mt-1 text-xs text-white/45">{t("scriptWriter.hookHintBlurb")}</p>
+              </div>
+              <button
+                onClick={() => setHookHint(null)}
+                aria-label={t("scriptWriter.dismiss")}
+                className="shrink-0 rounded-lg p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
           <label className="block text-sm font-semibold text-white/70 mb-2">
-            What&apos;s the video about?
+            {t("scriptWriter.topicLabel")}
           </label>
           <input
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. How I produced my first beat in one night"
+            placeholder={t("scriptWriter.topicPlaceholder")}
             maxLength={300}
             className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60 mb-6"
           />
 
           <div className="grid md:grid-cols-3 gap-6 mb-6">
             <div data-min-stars="2">
-              <p className="text-sm font-semibold text-white/70 mb-2">Platform</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.platformLabel")}</p>
               <div className="flex flex-col gap-2">
                 {PLATFORMS.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setPlatform(p.id)}
-                    className={`${PICK} ${platform === p.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    className={`${PICK} ${platform === p.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <p.icon className="w-4 h-4 text-amber-300" />
-                      {p.label}
+                      {t(p.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{p.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(p.blurbKey)}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div data-min-stars="3">
-              <p className="text-sm font-semibold text-white/70 mb-2">Length</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.lengthLabel")}</p>
               <div className="flex flex-col gap-2">
                 {LENGTHS.map((l) => (
                   <button
                     key={l.id}
                     onClick={() => setLength(l.id)}
-                    className={`${PICK} ${length === l.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    className={`${PICK} ${length === l.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Clock className="w-4 h-4 text-amber-300" />
-                      {l.label}
+                      {t(l.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{l.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(l.blurbKey)}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div data-min-stars="3">
-              <p className="text-sm font-semibold text-white/70 mb-2">Tone</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">{t("scriptWriter.toneLabel")}</p>
               <div className="flex flex-col gap-2">
-                {TONES.map((t) => (
+                {TONES.map((tn) => (
                   <button
-                    key={t.id}
-                    onClick={() => setTone(t.id)}
-                    className={`${PICK} ${tone === t.id ? PICK_ACTIVE : PICK_IDLE}`}
+                    key={tn.id}
+                    onClick={() => setTone(tn.id)}
+                    className={`${PICK} ${tone === tn.id ? pickActive : PICK_IDLE}`}
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <Zap className="w-4 h-4 text-amber-300" />
-                      {t.label}
+                      {t(tn.labelKey)}
                     </span>
-                    <span className="block text-xs text-white/45 mt-0.5">{t.blurb}</span>
+                    <span className="block text-xs text-white/45 mt-0.5">{t(tn.blurbKey)}</span>
                   </button>
                 ))}
               </div>
@@ -234,24 +305,24 @@ export default function ScriptWriter() {
           <div data-min-stars="3" className="grid md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-semibold text-white/70 mb-2">
-                Audience <span className="text-white/30 font-normal">(optional)</span>
+                {t("scriptWriter.audienceLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
               <input
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
-                placeholder="e.g. bedroom producers"
+                placeholder={t("scriptWriter.audiencePlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60"
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-white/70 mb-2">
-                CTA goal <span className="text-white/30 font-normal">(optional)</span>
+                {t("scriptWriter.ctaGoalLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
               <input
                 value={ctaGoal}
                 onChange={(e) => setCtaGoal(e.target.value)}
-                placeholder="e.g. join my Discord"
+                placeholder={t("scriptWriter.ctaGoalPlaceholder")}
                 maxLength={200}
                 className="w-full rounded-xl bg-black/60 border border-white/15 px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60"
               />
@@ -261,22 +332,22 @@ export default function ScriptWriter() {
           <button
             onClick={generate}
             disabled={!topic.trim() || generating || !user}
-            className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-8 py-3.5 font-bold text-black hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={`w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 font-bold transition-all disabled:cursor-not-allowed ${(!topic.trim() || !user) && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-r from-amber-400 to-yellow-500 text-black hover:brightness-110"}`}
           >
             {generating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Writing your script…
+                {t("scriptWriter.generatingLabel")}
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Write my script · {CREDIT_COST} Visual Bucs
+                {t("scriptWriter.writeScriptButton", { cost: CREDIT_COST })}
               </>
             )}
           </button>
           {!user && (
-            <p className="text-sm text-white/40 mt-2">Sign in to write scripts.</p>
+            <p className="text-sm text-white/40 mt-2">{t("scriptWriter.signInPrompt")}</p>
           )}
         </section>
 
@@ -300,14 +371,14 @@ export default function ScriptWriter() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold mb-1">
-                      Suggested title
+                      {t("scriptWriter.suggestedTitle")}
                     </p>
                     <h2 className="text-xl font-bold">{result.title}</h2>
                   </div>
                   <button
                     onClick={() => copyText("title", result.title)}
                     className="p-2 rounded-lg border border-white/10 hover:border-amber-400/50 transition-colors"
-                    aria-label="Copy title"
+                    aria-label={t("scriptWriter.copyTitleLabel")}
                   >
                     {copied === "title" ? (
                       <Check className="w-4 h-4 text-green-400" />
@@ -319,15 +390,15 @@ export default function ScriptWriter() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" /> The hook — first 3 seconds
+                  <Zap className="w-3.5 h-3.5" /> {t("scriptWriter.hookLabel")}
                 </p>
                 <button
                   onClick={() => copyText("hook", result.hook)}
                   className="p-2 rounded-lg border border-white/10 hover:border-amber-400/50 transition-colors"
-                  aria-label="Copy hook"
+                  aria-label={t("scriptWriter.copyHookLabel")}
                 >
                   {copied === "hook" ? (
                     <Check className="w-4 h-4 text-green-400" />
@@ -344,19 +415,19 @@ export default function ScriptWriter() {
             <div>
               <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <Clapperboard className="w-5 h-5 text-amber-300" />
-                The script — {result.beats.length} beats
+                {t("scriptWriter.scriptBeatsTitle", { count: result.beats.length })}
               </h3>
               <div className="space-y-3">
                 {result.beats.map((beat, i) => (
                   <div
                     key={i}
-                    className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+                    className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-xs font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/25 rounded-md px-2 py-0.5">
                         {beat.timestamp}
                       </span>
-                      <span className="text-xs text-white/35">Beat {i + 1}</span>
+                      <span className="text-xs text-white/35">{t("scriptWriter.beatLabel", { n: i + 1 })}</span>
                     </div>
                     <p className="text-white/90 leading-relaxed mb-2">{beat.spoken}</p>
                     <div className="grid sm:grid-cols-2 gap-2 text-xs">
@@ -364,7 +435,7 @@ export default function ScriptWriter() {
                         <p className="flex gap-1.5 text-white/50">
                           <Eye className="w-3.5 h-3.5 shrink-0 mt-0.5 text-white/35" />
                           <span>
-                            <span className="font-semibold text-white/65">On screen: </span>
+                            <span className="font-semibold text-white/65">{t("scriptWriter.onScreenLabel")} </span>
                             {beat.visualCue}
                           </span>
                         </p>
@@ -373,7 +444,7 @@ export default function ScriptWriter() {
                         <p className="flex gap-1.5 text-white/50">
                           <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5 text-white/35" />
                           <span>
-                            <span className="font-semibold text-white/65">B-roll: </span>
+                            <span className="font-semibold text-white/65">{t("scriptWriter.bRollLabel")} </span>
                             {beat.broll}
                           </span>
                         </p>
@@ -388,7 +459,7 @@ export default function ScriptWriter() {
               <div>
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-300" />
-                  Retention beats
+                  {t("scriptWriter.retentionBeatsTitle")}
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {result.retentionBeats.map((r, i) => (
@@ -416,24 +487,30 @@ export default function ScriptWriter() {
             )}
 
             {result.cta && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-xs uppercase tracking-wider text-amber-300/80 font-semibold mb-1 flex items-center gap-1.5">
-                  <Megaphone className="w-3.5 h-3.5" /> Call to action
+                  <Megaphone className="w-3.5 h-3.5" /> {t("scriptWriter.ctaTitle")}
                 </p>
                 <p className="text-white/90">&ldquo;{result.cta}&rdquo;</p>
               </div>
             )}
 
             {result.teleprompter && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold">Teleprompter</h3>
+              <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <h3 className="text-lg font-bold">{t("scriptWriter.teleprompterTitle")}</h3>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setTeleprompterOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-3 py-1.5 hover:brightness-110 transition-all"
+                    >
+                      {t("scriptWriter.teleprompterLaunch")}
+                    </button>
                     <button
                       onClick={() => setShowTeleprompter((s) => !s)}
                       className="text-sm rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
                     >
-                      {showTeleprompter ? "Hide" : "Show"}
+                      {showTeleprompter ? t("scriptWriter.hideLabel") : t("scriptWriter.showLabel")}
                     </button>
                     <button
                       onClick={() => copyText("teleprompter", result.teleprompter)}
@@ -444,8 +521,25 @@ export default function ScriptWriter() {
                       ) : (
                         <Copy className="w-4 h-4" />
                       )}
-                      Copy script
+                      {t("scriptWriter.copyScriptButton")}
                     </button>
+                    <button
+                      onClick={() => {
+                        try {
+                          localStorage.setItem("bdv_sponsor_read_handoff", JSON.stringify({ script: result.teleprompter }));
+                        } catch { /* storage unavailable */ }
+                        window.location.href = "/voiceover";
+                      }}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
+                    >
+                      <Mic className="w-4 h-4" /> {t("scriptWriter.sendToVoiceover", { defaultValue: "Voiceover" })}
+                    </button>
+                    <Link
+                      href="/scheduler"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
+                    >
+                      <CalendarDays className="h-4 w-4" /> {t("scriptWriter.sendToScheduler", { defaultValue: "Scheduler" })}
+                    </Link>
                   </div>
                 </div>
                 {showTeleprompter && (
@@ -457,9 +551,16 @@ export default function ScriptWriter() {
             )}
 
             <p className="text-xs text-white/35 text-center">
-              {result.creditsUsed} Visual Bucs used · {result.creditsRemaining} remaining
+              {t("scriptWriter.creditsFooter", { used: result.creditsUsed, remaining: result.creditsRemaining })}
             </p>
           </section>
+        )}
+
+        {teleprompterOpen && result?.teleprompter && (
+          <TeleprompterPlayer
+            script={result.teleprompter}
+            onClose={() => setTeleprompterOpen(false)}
+          />
         )}
       </main>
 

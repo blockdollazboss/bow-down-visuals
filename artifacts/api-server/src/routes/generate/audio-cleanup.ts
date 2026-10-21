@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -12,6 +13,9 @@ import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
+import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -29,7 +33,7 @@ const MODE_LABELS: Record<AudioCleanupMode, string> = {
 };
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: AUDIO_CLEANUP_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.originalname)) {
@@ -38,6 +42,13 @@ const upload = multer({
       cb(new Error("Only audio files are allowed (MP3, WAV, M4A)"));
     }
   },
+});
+
+const audioCleanupSchema = z.object({
+  mode: z.enum(["voice", "music", "denoise"]),
+  /** When the input was picked from the caller's song library, its id —
+   *  the finished output's library row points back at it (parent chain). */
+  sourceSongId: z.string().max(64).optional(),
 });
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
@@ -128,9 +139,14 @@ export interface AudioCleanupJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Library song the input came from, when it came from the library. */
+  sourceSongId: string | null;
+  /** Library row recorded for the finished output (DE-6 round-trip). */
+  librarySongId: string | null;
 }
 
 const jobs = new Map<string, AudioCleanupJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getAudioCleanupJob(id: string): AudioCleanupJob | undefined {
   return jobs.get(id);
@@ -157,7 +173,7 @@ async function measureRmsDb(filePath: string): Promise<number | null> {
 /** Exported for tests. */
 export async function runAudioCleanupJob(
   job: AudioCleanupJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
 ): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "audio-cleanup-"));
@@ -167,7 +183,7 @@ export async function runAudioCleanupJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Baseline loudness for the noise-reduction estimate.
     const rmsBefore = await measureRmsDb(inputPath);
@@ -186,9 +202,23 @@ export async function runAudioCleanupJob(
     const ref = await uploadMediaToSupabaseStorage(objectName, outBuffer, "audio/mpeg");
     const url = await refreshSupabaseStorageUrl(ref);
 
-    job.status = "done";
     job.outputUrl = url;
     job.outputRef = ref;
+
+    /* Linkage (DE-6): the finished cleanup lands in the caller's song
+       library, chained to the library song it started from when the
+       input was one. A library-write failure never fails a delivered
+       job — recordLibrarySong logs and returns null. */
+    job.librarySongId = await recordLibrarySong({
+      userId: job.userId,
+      title: librarySongTitle(job.sourceName, "Cleaned"),
+      audioUrl: url,
+      audioPath: ref,
+      source: "cleanup",
+      parentSongId: job.sourceSongId,
+    });
+
+    job.status = "done";
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Audio cleanup failed";
@@ -203,6 +233,7 @@ export async function runAudioCleanupJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -220,15 +251,16 @@ export async function runAudioCleanupJob(
  * background job → poll GET /api/audio-cleanup/:jobId → download
  * result. Failed jobs are refunded automatically.
  */
-router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
-  const mode = (req.body?.mode as string) ?? "";
-  if (!(MODES as string[]).includes(mode)) {
+router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
+  const parsed = audioCleanupSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
     res.status(400).json({
-      error: "INVALID_MODE",
-      message: "Mode must be one of: voice, music, denoise.",
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
     return;
   }
+  const { mode } = parsed.data;
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
@@ -246,7 +278,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, AUDIO_CLEANUP_CREDIT_COST, {
-      action: `Audio Cleanup (${MODE_LABELS[mode as AudioCleanupMode]})`,
+      action: `Audio Cleanup (${MODE_LABELS[mode]})`,
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
@@ -267,7 +299,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
     id: randomUUID(),
     userId: req.userId!,
     status: "queued",
-    mode: mode as AudioCleanupMode,
+    mode,
     sourceName: req.file.originalname,
     outputUrl: null,
     outputRef: null,
@@ -275,11 +307,13 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
     error: null,
     creditsCharged: AUDIO_CLEANUP_CREDIT_COST,
     createdAt: Date.now(),
+    sourceSongId: parsed.data.sourceSongId ?? null,
+    librarySongId: null,
   };
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runAudioCleanupJob(job, req.file.buffer, req.file.originalname);
+  void runAudioCleanupJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,
@@ -297,7 +331,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
  * (a signed, reviewable URL for the cleaned audio retained in
  * Supabase storage).
  */
-router.get("/api/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {
@@ -310,6 +344,7 @@ router.get("/api/audio-cleanup/:jobId", requireAuth, (req: Request, res: Respons
     mode: job.mode,
     sourceName: job.sourceName,
     outputUrl: job.outputUrl,
+    songId: job.librarySongId,
     noiseReductionDb: job.noiseReductionDb,
     error: job.error,
     createdAt: job.createdAt,

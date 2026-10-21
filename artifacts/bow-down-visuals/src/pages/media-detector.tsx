@@ -1,4 +1,6 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ScanSearch, Loader2, UploadCloud, Link2, X, Plus,
   Bot, UserCheck, HelpCircle, ChevronRight, ShieldAlert,
@@ -7,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── AI Media Detector ──────────────────────────────────────────────────
    Upload an image, video, or audio file (or paste a URL) → GPT-6 Sol
@@ -17,7 +20,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    audio is assessed from technical metadata. Framed honestly: AI-assisted
    assessment, not a definitive forensic verdict. */
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const FRAME_COUNT = 3;
 
@@ -121,10 +124,10 @@ function readAudioMetadata(file: File): Promise<{ durationSec?: number }> {
 
 function verdictMeta(v: Verdict) {
   if (v === "likely_ai")
-    return { label: "Likely AI-Generated", icon: Bot, ring: "border-fuchsia-400/50 bg-fuchsia-400/10", text: "text-fuchsia-300", bar: "bg-fuchsia-400" };
+    return { labelKey: "mediaDetector.verdictAi", icon: Bot, ring: "border-fuchsia-400/50 bg-fuchsia-400/10", text: "text-fuchsia-300", bar: "bg-fuchsia-400" };
   if (v === "likely_human")
-    return { label: "Likely Human-Created", icon: UserCheck, ring: "border-emerald-400/50 bg-emerald-400/10", text: "text-emerald-300", bar: "bg-emerald-400" };
-  return { label: "Uncertain", icon: HelpCircle, ring: "border-amber-400/50 bg-amber-400/10", text: "text-amber-300", bar: "bg-amber-400" };
+    return { labelKey: "mediaDetector.verdictHuman", icon: UserCheck, ring: "border-emerald-400/50 bg-emerald-400/10", text: "text-emerald-300", bar: "bg-emerald-400" };
+  return { labelKey: "mediaDetector.verdictUncertain", icon: HelpCircle, ring: "border-amber-400/50 bg-amber-400/10", text: "text-amber-300", bar: "bg-amber-400" };
 }
 function severityBadge(s: string) {
   if (s === "high") return "bg-red-500/20 text-red-300 border-red-500/40";
@@ -141,6 +144,9 @@ let idCounter = 0;
 const nextId = () => `q${Date.now()}_${idCounter++}`;
 
 export default function MediaDetector() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Media Detector", "Detect AI-generated media — check images, audio and video for synthetic fingerprints.");
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -148,13 +154,15 @@ export default function MediaDetector() {
   const [dragOver, setDragOver] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [skipNotice, setSkipNotice] = useState<string | null>(null);
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const items: QueueItem[] = [];
+    let skipped = 0;
     for (const file of Array.from(files)) {
       const kind = kindOf(file);
-      if (!kind) continue;
-      if (file.size > MAX_FILE_BYTES) continue;
+      if (!kind) { skipped++; continue; }
+      if (file.size > MAX_FILE_BYTES) { skipped++; continue; }
       items.push({
         id: nextId(),
         file,
@@ -164,7 +172,8 @@ export default function MediaDetector() {
       });
     }
     if (items.length) setQueue((q) => [...q, ...items]);
-  }, []);
+    setSkipNotice(skipped > 0 ? t("mediaDetector.filesSkipped", { count: skipped }) : null);
+  }, [t]);
 
   const addUrl = useCallback(() => {
     const url = urlInput.trim();
@@ -237,13 +246,13 @@ export default function MediaDetector() {
       if (!res.ok || !data.detection) {
         const msg =
           data.error === "out_of_credits"
-            ? "Out of Visual Bucs."
-            : data.message || "Detection failed. Try again.";
+            ? t("mediaDetector.errorOutOfCredits")
+            : data.message || t("mediaDetector.errorDetectionFailed");
         return { ...item, status: "error", error: msg };
       }
       return { ...item, status: "done", detection: data.detection as Detection, disclaimer: data.disclaimer };
     } catch (e) {
-      return { ...item, status: "error", error: e instanceof Error ? e.message : "Detection failed." };
+      return { ...item, status: "error", error: e instanceof Error ? e.message : t("mediaDetector.errorDetectionFailedShort") };
     }
   }
 
@@ -277,15 +286,14 @@ export default function MediaDetector() {
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300 text-xs font-bold uppercase tracking-widest mb-4">
-            <ScanSearch className="h-3.5 w-3.5" /> AI Media Detector
+            <ScanSearch className="h-3.5 w-3.5" /> {t("mediaDetector.badge")}
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-3">
-            Real or <span className="text-amber-400">AI?</span> Know for sure.
+            {t("mediaDetector.titleStart")} <span className="text-amber-400">{t("mediaDetector.titleAi")}</span> {t("mediaDetector.titleEnd")}
           </h1>
           <p className="text-white/50 max-w-2xl mx-auto">
-            Upload an image, video, or audio file — or paste a link — and get a forensic
-            AI assessment: verdict, confidence score, and the exact tells it found.
-            <span className="text-amber-300/80 font-semibold"> {CREDIT_COST} Visual Bucs per check.</span>
+            {t("mediaDetector.subtitle")}
+            <span className="text-amber-300/80 font-semibold"> {t("mediaDetector.costPerCheck", { cost: CREDIT_COST })}</span>
           </p>
         </div>
 
@@ -296,12 +304,12 @@ export default function MediaDetector() {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); }}
           onClick={() => fileRef.current?.click()}
           className={`rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors mb-4 ${
-            dragOver ? "border-amber-400/70 bg-amber-400/5" : "border-white/15 bg-white/[0.02] hover:border-amber-400/40"
+            dragOver ? "border-amber-400/70 bg-amber-400/10" : isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/80" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-amber-400/40"
           }`}
         >
           <UploadCloud className="h-10 w-10 mx-auto mb-3 text-amber-400/80" />
-          <p className="font-bold text-lg">Drop files here or click to upload</p>
-          <p className="text-white/40 text-sm mt-1">Images, video, audio — up to 25MB each. Batch supported.</p>
+          <p className="font-bold text-lg">{t("mediaDetector.dropHint")}</p>
+          <p className="text-white/40 text-sm mt-1">{t("mediaDetector.fileTypes")}</p>
           <input
             ref={fileRef}
             type="file"
@@ -312,6 +320,10 @@ export default function MediaDetector() {
           />
         </div>
 
+        {skipNotice && (
+          <p className="text-sm text-red-300 mb-4">{skipNotice}</p>
+        )}
+
         {/* URL paste */}
         <div className="flex gap-2 mb-8">
           <div className="relative flex-1">
@@ -320,7 +332,7 @@ export default function MediaDetector() {
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addUrl(); }}
-              placeholder="…or paste an image URL"
+              placeholder={t("mediaDetector.urlPlaceholder")}
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
             />
           </div>
@@ -329,7 +341,7 @@ export default function MediaDetector() {
             onClick={addUrl}
             className="px-5 py-3 rounded-xl bg-amber-400 text-black text-sm font-black hover:bg-amber-300 transition-colors flex items-center gap-1.5"
           >
-            <Plus className="h-4 w-4" /> Add
+            <Plus className="h-4 w-4" /> {t("mediaDetector.add")}
           </button>
         </div>
 
@@ -337,7 +349,7 @@ export default function MediaDetector() {
         {queue.length > 0 && (
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-white/50">
-              {queue.length} file{queue.length === 1 ? "" : "s"} · {doneCount} checked
+              {t("mediaDetector.queueStatus", { count: queue.length, done: doneCount })}
             </p>
             <div className="flex gap-2">
               <button
@@ -345,7 +357,7 @@ export default function MediaDetector() {
                 onClick={() => setQueue([])}
                 className="px-4 py-2 rounded-full text-sm font-bold border border-white/15 text-white/60 hover:text-white transition-colors"
               >
-                Clear all
+                {t("mediaDetector.clearAll")}
               </button>
               <button
                 type="button"
@@ -354,7 +366,7 @@ export default function MediaDetector() {
                 className="px-5 py-2 rounded-full text-sm font-black bg-amber-400 text-black hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 {batchRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
-                Check all ({queuedCount * CREDIT_COST} Visual Bucs)
+                {t("mediaDetector.checkAll", { cost: queuedCount * CREDIT_COST })}
               </button>
             </div>
           </div>
@@ -365,7 +377,7 @@ export default function MediaDetector() {
           {queue.map((item) => {
             const KindIcon = kindIcon(item.kind);
             return (
-              <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div key={item.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex items-start gap-4">
                   {item.previewUrl ? (
                     <img src={item.previewUrl} alt="" className="w-20 h-20 rounded-xl object-cover border border-white/10 shrink-0" />
@@ -384,7 +396,7 @@ export default function MediaDetector() {
                         type="button"
                         onClick={() => removeItem(item.id)}
                         className="ml-auto text-white/30 hover:text-white transition-colors"
-                        aria-label="Remove"
+                        aria-label={t("mediaDetector.remove")}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -396,13 +408,13 @@ export default function MediaDetector() {
                         onClick={() => analyzeItem(item.id)}
                         className="mt-2 px-4 py-2 rounded-full text-sm font-black bg-amber-400 text-black hover:bg-amber-300 transition-colors inline-flex items-center gap-1.5"
                       >
-                        <ScanSearch className="h-4 w-4" /> Analyze · {CREDIT_COST} Visual Bucs
+                        <ScanSearch className="h-4 w-4" /> {t("mediaDetector.analyze", { cost: CREDIT_COST })}
                       </button>
                     )}
                     {item.status === "analyzing" && (
                       <p className="mt-2 text-sm text-amber-300/80 flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {item.kind === "video" ? "Extracting frames, then analyzing…" : "Analyzing for AI tells…"}
+                        {item.kind === "video" ? t("mediaDetector.analyzingVideo") : t("mediaDetector.analyzing")}
                       </p>
                     )}
                     {item.status === "error" && (
@@ -413,7 +425,7 @@ export default function MediaDetector() {
                           onClick={() => analyzeItem(item.id)}
                           className="ml-2 underline underline-offset-2 hover:text-red-200"
                         >
-                          Retry
+                          {t("mediaDetector.retry")}
                         </button>
                       </p>
                     )}
@@ -435,8 +447,8 @@ export default function MediaDetector() {
         {queue.length === 0 && (
           <div className="text-center py-16 text-white/25">
             <ScanSearch className="h-12 w-12 mx-auto mb-4 opacity-40" />
-            <p className="font-bold">Nothing to check yet</p>
-            <p className="text-sm mt-1">Upload a file or paste a URL to run your first detection.</p>
+            <p className="font-bold">{t("mediaDetector.emptyTitle")}</p>
+            <p className="text-sm mt-1">{t("mediaDetector.emptySubtitle")}</p>
           </div>
         )}
 
@@ -448,6 +460,7 @@ export default function MediaDetector() {
 }
 
 function DetectionResult({ detection }: { detection: Detection }) {
+  const { t } = useTranslation();
   const meta = verdictMeta(detection.verdict);
   const Icon = meta.icon;
   const conf = Math.max(0, Math.min(100, Math.round(detection.confidence)));
@@ -457,7 +470,7 @@ function DetectionResult({ detection }: { detection: Detection }) {
         <div className="flex items-center gap-3 mb-2">
           <Icon className={`h-6 w-6 ${meta.text}`} />
           <div className="flex-1">
-            <p className={`font-black ${meta.text}`}>{meta.label}</p>
+            <p className={`font-black ${meta.text}`}>{t(meta.labelKey)}</p>
             <div className="mt-1.5 h-2 rounded-full bg-black/40 overflow-hidden">
               <div className={`h-full rounded-full ${meta.bar}`} style={{ width: `${conf}%` }} />
             </div>
@@ -478,7 +491,7 @@ function DetectionResult({ detection }: { detection: Detection }) {
       {detection.signals && detection.signals.length > 0 && (
         <div className="mt-3">
           <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-2 flex items-center gap-1">
-            Detected signals <ChevronRight className="h-3 w-3" />
+            {t("mediaDetector.detectedSignals")} <ChevronRight className="h-3 w-3" />
           </p>
           <div className="space-y-2">
             {detection.signals.map((s, i) => (
@@ -493,7 +506,7 @@ function DetectionResult({ detection }: { detection: Detection }) {
                       ? "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/40"
                       : "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
                   }`}>
-                    {s.supportsAi ? "points to AI" : "points to human"}
+                    {s.supportsAi ? t("mediaDetector.pointsToAi") : t("mediaDetector.pointsToHuman")}
                   </span>
                 </div>
                 <p className="text-sm text-white/60">{s.description}</p>

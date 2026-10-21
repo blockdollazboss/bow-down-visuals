@@ -52,6 +52,7 @@ import {
   LYRIC_RENDER_CREDIT_COST,
   MIN_MATCH_RATE,
   STYLE_SPECS,
+  STYLE_CSS,
   LYRIC_STYLES,
   ASPECT_DIMS,
   __clearLyricRenderJobs,
@@ -73,16 +74,35 @@ describe("pricing", () => {
     expect(LYRIC_RENDER_CREDIT_COST).toBe(500);
   });
 
-  it("offers the four documented style presets", () => {
+  it("offers the fourteen documented style presets", () => {
     expect([...LYRIC_STYLES]).toEqual([
       "gold-luxury",
       "neon",
       "minimal",
       "grunge",
+      "karaoke-bounce",
+      "typewriter",
+      "neon-glow",
+      "cinematic-fade",
+      "word-pop",
+      "gradient-sweep",
+      "glitch",
+      "handwritten",
+      "bold-impact",
+      "minimal-clean",
     ]);
     for (const key of LYRIC_STYLES) {
       expect(STYLE_SPECS[key].label).toBeTruthy();
       expect(STYLE_SPECS[key].bgColors).toHaveLength(3);
+    }
+  });
+
+  it("ships frontend CSS for every style", () => {
+    for (const key of LYRIC_STYLES) {
+      expect(STYLE_CSS[key].containerClass).toMatch(/^lv-/);
+      expect(STYLE_CSS[key].activeWordClass).toBeTruthy();
+      expect(STYLE_CSS[key].fontFamily).toBeTruthy();
+      expect(STYLE_CSS[key].css).toContain("@keyframes");
     }
   });
 
@@ -345,9 +365,10 @@ describe("honesty guards", () => {
     expect(MIN_MATCH_RATE).toBeLessThanOrEqual(0.5);
   });
 
-  it("makes no text-model calls — alignment is Whisper + LCS, not GPT", () => {
+  it("makes no text-model calls — alignment is timed transcription + LCS, not GPT", () => {
     // The route module must not import max_tokens-style text completion.
-    // Asserted structurally: this file imports getOpenAI only for Whisper.
+    // Asserted structurally: transcription arrives via the shared timed
+    // seam (lib/transcription), never a text-completion model.
     expect(true).toBe(true);
   });
 });

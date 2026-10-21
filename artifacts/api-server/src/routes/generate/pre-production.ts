@@ -1,13 +1,18 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
+import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
-import { db, preproductionPacksTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { db, preproductionPacksTable, artistVaultsTable, locationsTable } from "@workspace/db";
+import { eq, and, desc, isNull } from "drizzle-orm";
+import { readBrandKit } from "../../lib/brand-record";
+import { assembleShotReferenceSet } from "../../lib/pack-reference-assembly";
 import type {
   PackBible,
   PackShot,
@@ -20,6 +25,10 @@ const router = Router();
 
 const TEXT_CREDIT_COST = 100;
 const IMAGE_CREDIT_COST = 200;
+
+/** Image model (env-overridable, same constant as the sunburst fleet).
+ *  gpt-image-1 was retired by OpenAI on 2026-10-23 — never re-hardcode it. */
+const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
 
 interface VaultInput {
   artistType?: string | null;
@@ -36,15 +45,15 @@ interface VaultInput {
 }
 
 interface BibleInput {
-  concept: string;
-  visualStyle: string;
-  colorPalette: string;
-  locations: string;
-  wardrobe: string;
-  propsNeeded: string;
-  cast: string;
-  mood: string;
-  doNotChange: string;
+  concept?: string;
+  visualStyle?: string;
+  colorPalette?: string;
+  locations?: string;
+  wardrobe?: string;
+  propsNeeded?: string;
+  cast?: string;
+  mood?: string;
+  doNotChange?: string;
 }
 
 function buildVaultContext(vault: VaultInput | null | undefined): string {
@@ -65,7 +74,7 @@ function buildVaultContext(vault: VaultInput | null | undefined): string {
 
 function buildBibleContext(bible: BibleInput | null | undefined): string {
   if (!bible) return "";
-  const has = (v: string) => v && v.trim().length > 0;
+  const has = (v: string | null | undefined) => !!v && v.trim().length > 0;
   const lines: string[] = ["\nPRODUCTION BIBLE (locked creative source of truth — every asset must match):"];
   if (has(bible.concept)) lines.push(`- Concept: ${bible.concept}`);
   if (has(bible.visualStyle)) lines.push(`- Visual style: ${bible.visualStyle}`);
@@ -87,12 +96,90 @@ function outOfCredits(res: any, required: number) {
   });
 }
 
+/* ── Request-body schemas ────────────────────────────────────────────── */
+/** .passthrough(): clients also send vaultId/id alongside the vault fields. */
+const vaultInputSchema = z.object({
+  artistType: z.string().nullish(),
+  artistDescription: z.string().nullish(),
+  visualStyle: z.string().nullish(),
+  hair: z.string().nullish(),
+  tattoos: z.string().nullish(),
+  jewelry: z.string().nullish(),
+  clothingStyle: z.string().nullish(),
+  brandColors: z.string().nullish(),
+  doNotChangeRules: z.string().nullish(),
+  consistencyPrompt: z.string().nullish(),
+  referenceImageUrl: z.string().nullish(),
+}).passthrough();
+
+const bibleInputSchema = z.object({
+  concept: z.string().optional(),
+  visualStyle: z.string().optional(),
+  colorPalette: z.string().optional(),
+  locations: z.string().optional(),
+  wardrobe: z.string().optional(),
+  propsNeeded: z.string().optional(),
+  cast: z.string().optional(),
+  mood: z.string().optional(),
+  doNotChange: z.string().optional(),
+}).passthrough();
+
+const bibleRouteSchema = z.object({
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  artistName: z.string().optional(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const storyboardRouteSchema = z.object({
+  songTitle: z.string().optional(),
+  bible: bibleInputSchema.nullish(),
+  shotCount: z.number().optional(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const preProductionImageSchema = z.object({
+  kind: z.enum(["startframe", "endframe", "asset"]),
+  category: z.string().optional(),
+  prompt: z.string().optional(),
+  shotDescription: z.string().optional(),
+  cameraAngle: z.string().optional(),
+  bible: bibleInputSchema.nullish(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const preProductionPackSchema = z.object({
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  artistName: z.string().optional(),
+  artistVault: vaultInputSchema.nullish(),
+  artistVaultId: z.string().nullish(),
+  projectId: z.string().nullish(),
+  shotCount: z.number().optional(),
+  propCount: z.number().optional(),
+  ratio: z.string().default("720:1280"),
+});
+
+const packFinalizeSchema = z.object({
+  props: z.array(z.any()).optional(),
+  assets: z.array(z.any()).optional(),
+  propNameRefs: z.record(z.string(), z.array(z.string())).optional(),
+});
+
+function invalidBody(res: any, error: z.ZodError): void {
+  res.status(400).json({
+    error: "Invalid request.",
+    details: error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+  });
+}
+
 /* ── Generate a production bible ─────────────────────────────────────────── */
 router.post("/pre-production/bible", requireAuth, async (req, res) => {
-  const { songTitle, genre, mood, artistName, artistVault } = req.body as {
-    songTitle?: string; genre?: string; mood?: string; artistName?: string;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = bibleRouteSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { songTitle, genre, mood, artistName, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
@@ -149,10 +236,9 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 
 /* ── Generate a storyboard shot list from the bible ──────────────────────── */
 router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
-  const { songTitle, bible, shotCount, artistVault } = req.body as {
-    songTitle?: string; bible?: BibleInput | null; shotCount?: number;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = storyboardRouteSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { songTitle, bible, shotCount, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
@@ -208,15 +294,9 @@ async function fetchReferenceImageBuffer(url: string): Promise<Buffer | null> {
 }
 
 router.post("/pre-production/image", requireAuth, async (req, res) => {
-  const { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault } = req.body as {
-    kind: "startframe" | "endframe" | "asset";
-    category?: string;
-    prompt?: string;
-    shotDescription?: string;
-    cameraAngle?: string;
-    bible?: BibleInput | null;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = preProductionImageSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < IMAGE_CREDIT_COST) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
@@ -244,7 +324,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       const lockedPrompt =
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size: "1536x1024",
@@ -253,7 +333,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       b64 = editResp.data?.[0]?.b64_json;
     } else {
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: IMAGE_MODEL,
         prompt: imagePrompt,
         size: "1536x1024",
         n: 1,
@@ -313,7 +393,7 @@ interface PackRequestBody {
 
 async function generateBibleJson(prompt: string): Promise<PackBible> {
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     max_tokens: 2000,
     response_format: { type: "json_object" },
@@ -323,7 +403,7 @@ async function generateBibleJson(prompt: string): Promise<PackBible> {
 
 async function generateStoryboardJson(prompt: string): Promise<PackShot[]> {
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     max_tokens: 3000,
     response_format: { type: "json_object" },
@@ -333,10 +413,12 @@ async function generateStoryboardJson(prompt: string): Promise<PackShot[]> {
 }
 
 router.post("/pre-production/pack", requireAuth, async (req, res) => {
+  const bodyParse = preProductionPackSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
   const {
     songTitle, genre, mood, artistName, artistVault, artistVaultId,
     projectId, shotCount, propCount, ratio,
-  } = req.body as PackRequestBody;
+  } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PACK_TEXT_CREDIT_COST) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
@@ -383,7 +465,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
 
     /* 3 — Hero props + per-shot ingredients (one call). */
     const planCompletion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [{ role: "user", content:
 `You are the pre-production department for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
@@ -404,7 +486,8 @@ Do two jobs and return ONLY valid JSON (no markdown, no commentary):
   "continuityNotes": "one line reminding the generator what must stay identical to other shots",
   "model": "seedance2_5",
   "durationSec": <clamp the shot's duration to 3-30>,
-  "ratio": "${outRatio}"
+  "ratio": "${outRatio}",
+  "look": { "genre": "<one of: ${LOOK_RAIL_KEYS.genre.join(" | ")}>", "era": "<one of: ${LOOK_RAIL_KEYS.era.join(" | ")}>", "lens": "<one of: ${LOOK_RAIL_KEYS.lens.join(" | ")}>", "lighting": "<one of: ${LOOK_RAIL_KEYS.lighting.join(" | ")}>", "emotion": "<one of: ${LOOK_RAIL_KEYS.emotion.join(" | ")}>" } — the shot's structured Director's Look; keep it consistent with the bible and the shot, vary it only when the story does. Omit a rail rather than forcing a bad fit.
 }
 
 Return: { "props": [...], "ingredients": [...] }` }],
@@ -418,16 +501,26 @@ Return: { "props": [...], "ingredients": [...] }` }],
       shots: Array.isArray(p.shots) ? p.shots.map(Number) : [],
       assetImageUrl: null,
     }));
-    const ingredients: PackIngredients[] = (plan.ingredients ?? []).map((g: any) => ({
-      shotNumber: Number(g.shotNumber ?? 0),
-      prompt: String(g.prompt ?? ""),
-      negativePrompt: String(g.negativePrompt ?? ""),
-      referenceAssetUrls: [],
-      continuityNotes: String(g.continuityNotes ?? ""),
-      model: g.model === "gen4.5" ? "gen4.5" : "seedance2_5",
-      durationSec: Math.min(Math.max(Number(g.durationSec ?? 5) || 5, 3), 30),
-      ratio: String(g.ratio || outRatio),
-    }));
+    const ingredients: PackIngredients[] = (plan.ingredients ?? []).map((g: any) => {
+      /* Look picks are validated against the rail vocabularies — the plan's
+         raw keys are never trusted into the locked pack. */
+      const look = normalizeLookPicks(g.look);
+      return {
+        shotNumber: Number(g.shotNumber ?? 0),
+        prompt: String(g.prompt ?? ""),
+        negativePrompt: String(g.negativePrompt ?? ""),
+        referenceAssetUrls: [],
+        endFrameImageUrl:
+          typeof g.endFrameImageUrl === "string" && /^https:\/\//i.test(g.endFrameImageUrl)
+            ? g.endFrameImageUrl
+            : null,
+        continuityNotes: String(g.continuityNotes ?? ""),
+        model: g.model === "gen4.5" ? "gen4.5" : "seedance2_5",
+        durationSec: Math.min(Math.max(Number(g.durationSec ?? 5) || 5, 3), 30),
+        ratio: String(g.ratio || outRatio),
+        ...(Object.keys(look).length > 0 ? { look } : {}),
+      };
+    });
     // Stash the prop-name references; finalize resolves them to asset URLs.
     const propNameRefs: Record<number, string[]> = {};
     for (const g of plan.ingredients ?? []) {
@@ -471,11 +564,9 @@ Return: { "props": [...], "ingredients": [...] }` }],
 /* ── Finalize: attach prop/asset images and lock everything in ───────────── */
 router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
-  const { props, assets, propNameRefs } = req.body as {
-    props?: PackProp[];
-    assets?: PackAsset[];
-    propNameRefs?: Record<number, string[]>;
-  };
+  const bodyParse = packFinalizeSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { props, assets, propNameRefs } = bodyParse.data;
 
   const rows = await db
     .select()
@@ -486,29 +577,111 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
   if (!pack) { res.status(404).json({ error: "Pack not found." }); return; }
   if (pack.status === "locked") { res.status(409).json({ error: "Pack is already locked in." }); return; }
 
-  const finalProps = (props ?? []).map((p) => ({
+  /* Mirror-on-save (2026-10-13 law): prop/asset images are re-hosted into
+     permanent storage before they're locked into the pack — the client
+     posts back the image endpoint's 1-day signed URL, which must never be
+     what the DB keeps. Ingredients' referenceAssetUrls derive from the
+     prop URLs below, so mirroring here covers them too. */
+  const finalProps = await Promise.all((props ?? []).map(async (p) => ({
     name: String(p.name ?? "Prop"),
     description: String(p.description ?? ""),
     shots: Array.isArray(p.shots) ? p.shots.map(Number) : [],
-    assetImageUrl: p.assetImageUrl ?? null,
-  }));
+    assetImageUrl: p.assetImageUrl
+      ? ((await mirrorExternalMediaUrl(p.assetImageUrl, { kind: "image", ownerKey: req.userId! })) ?? p.assetImageUrl)
+      : null,
+  })));
   const urlByName = new Map(finalProps.map((p) => [p.name.toLowerCase(), p.assetImageUrl].filter(Boolean) as [string, string | null]));
   // Resolve referenceAssetUrls from the prop names the ingredients recorded.
   const nameRefs: Record<number, string[]> = propNameRefs ?? {};
-  const ingredients: PackIngredients[] = ((pack.ingredients as PackIngredients[] | null) ?? []).map((g) => ({
-    ...g,
-    referenceAssetUrls: (nameRefs[g.shotNumber] ?? [])
-      .map((n) => urlByName.get(String(n).toLowerCase()))
-      .filter((u): u is string => !!u),
-  }));
-  const finalAssets: PackAsset[] = (assets ?? []).map((a) => ({
+
+  /* ── Reference-set assembly (Turbo Reference Casting) ──────────────────
+     Every source is loaded with an owner-scoped query: the pack's Artist
+     Vault only counts when it belongs to the caller, the locations are
+     the caller's own library, the brand kit is the caller's own record.
+     Another member's material is never loaded, so it can never enter a
+     set. Assembly itself (matching + gap flags) is the pure
+     lib/pack-reference-assembly module. */
+  let assemblyVault: { artistName: string; referenceImageUrl: string | null } | null = null;
+  if (pack.artist_vault_id) {
+    const vrows = await db
+      .select({
+        artist_name: artistVaultsTable.artist_name,
+        reference_image_url: artistVaultsTable.reference_image_url,
+      })
+      .from(artistVaultsTable)
+      .where(
+        and(
+          eq(artistVaultsTable.id, pack.artist_vault_id),
+          eq(artistVaultsTable.user_id, req.userId!),
+          isNull(artistVaultsTable.deleted_at),
+        ),
+      )
+      .limit(1);
+    if (vrows[0]) {
+      assemblyVault = {
+        artistName: vrows[0].artist_name,
+        referenceImageUrl: vrows[0].reference_image_url,
+      };
+    }
+  }
+  const locationRows = await db
+    .select({
+      label: locationsTable.label,
+      image_url: locationsTable.image_url,
+      image_path: locationsTable.image_path,
+    })
+    .from(locationsTable)
+    .where(eq(locationsTable.user_id, req.userId!))
+    .limit(50);
+  const brandKit = await readBrandKit(req.userId!).catch(() => null);
+  const assemblySources = {
+    vault: assemblyVault,
+    assets: [] as PackAsset[], // filled below, once finalAssets exist
+    locations: locationRows.map((l) => ({
+      label: l.label,
+      imageUrl: l.image_path ?? l.image_url,
+    })),
+    brandLogoUrl: brandKit?.logoUrl ?? null,
+    bibleLocations: (pack.bible as PackBible | null)?.locations ?? null,
+  };
+  const storyboardByNumber = new Map(
+    ((pack.storyboard as PackShot[] | null) ?? []).map((s) => [s.shotNumber, s]),
+  );
+  const finalAssets: PackAsset[] = await Promise.all((assets ?? []).map(async (a) => ({
     id: a.id || randomUUID(),
     category: a.category || "Other",
     label: String(a.label ?? "Asset"),
     prompt: String(a.prompt ?? ""),
-    imageUrl: a.imageUrl ?? null,
+    imageUrl: a.imageUrl
+      ? ((await mirrorExternalMediaUrl(a.imageUrl, { kind: "image", ownerKey: req.userId! })) ?? a.imageUrl)
+      : null,
     createdAt: a.createdAt || new Date().toISOString(),
-  }));
+  })));
+
+  assemblySources.assets = finalAssets;
+  const ingredients: PackIngredients[] = ((pack.ingredients as PackIngredients[] | null) ?? []).map((g) => {
+    const fromNames = (nameRefs[g.shotNumber] ?? [])
+      .map((n) => urlByName.get(String(n).toLowerCase()))
+      .filter((u): u is string => !!u);
+    const assembly = assembleShotReferenceSet({
+      shotNumber: g.shotNumber,
+      shotDescription: storyboardByNumber.get(g.shotNumber)?.description ?? "",
+      props: finalProps,
+      namedPropRefs: (nameRefs[g.shotNumber] ?? []).map(String),
+      sources: assemblySources,
+    });
+    /* referenceAssetUrls stays the union it always was, extended with the
+       set's product plates so legacy readers see the same images. */
+    const productUrls = assembly.referenceSet
+      .filter((r) => r.role === "product")
+      .map((r) => r.url);
+    return {
+      ...g,
+      referenceAssetUrls: [...new Set([...fromNames, ...productUrls])],
+      referenceSet: assembly.referenceSet,
+      referenceGaps: assembly.referenceGaps,
+    };
+  });
 
   const [updated] = await db
     .update(preproductionPacksTable)
@@ -523,7 +696,8 @@ router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) =
     .where(and(eq(preproductionPacksTable.id, id), eq(preproductionPacksTable.user_id, req.userId!)))
     .returning();
 
-  res.json({ pack: updated });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ pack: await refreshSupabaseStorageUrlsDeep(updated) });
 });
 
 /* ── List + fetch packs ──────────────────────────────────────────────────── */
@@ -538,7 +712,8 @@ router.get("/pre-production/packs", requireAuth, async (req, res) => {
     .where(where)
     .orderBy(desc(preproductionPacksTable.created_at))
     .limit(20);
-  res.json({ packs });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ packs: await refreshSupabaseStorageUrlsDeep(packs) });
 });
 
 router.get("/pre-production/pack/:id", requireAuth, async (req, res) => {
@@ -549,7 +724,8 @@ router.get("/pre-production/pack/:id", requireAuth, async (req, res) => {
     .where(and(eq(preproductionPacksTable.id, id), eq(preproductionPacksTable.user_id, req.userId!)))
     .limit(1);
   if (!rows[0]) { res.status(404).json({ error: "Pack not found." }); return; }
-  res.json({ pack: rows[0] });
+  /* Stored image values are storage refs — re-sign fresh on every read. */
+  res.json({ pack: await refreshSupabaseStorageUrlsDeep(rows[0]) });
 });
 
 /** Load a locked pack for scene generation. Throws on missing/unowned/unlocked. */
@@ -562,7 +738,9 @@ export async function getLockedPack(userId: string, packId: string) {
   const pack = rows[0];
   if (!pack) throw Object.assign(new Error("Pre-production pack not found."), { status: 404 });
   if (pack.status !== "locked") throw Object.assign(new Error("Pre-production pack is not locked in yet."), { status: 409 });
-  return pack;
+  /* Consumers feed the pack's image URLs to providers — hand them fresh
+     signed URLs, never the stored refs. */
+  return await refreshSupabaseStorageUrlsDeep(pack);
 }
 
 export default router;

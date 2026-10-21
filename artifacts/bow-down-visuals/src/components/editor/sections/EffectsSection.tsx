@@ -1,14 +1,23 @@
-import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw } from "lucide-react";
+import { useRef, useState } from "react";
+import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw, Palette, Scissors, Loader2 } from "lucide-react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { CostBadge } from "@/components/CostBadge";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS, OVERLAY_DEFAULT_INTENSITY,
   getClipEdit,
   type EditorSettings, type ClipEdit,
 } from "@/lib/editor-settings";
-import { STRENGTH_PRESETS } from "@/components/ActiveOverlayEffects";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
+import { STRENGTH_PRESETS, VISUAL_EFFECTS } from "@/components/ActiveOverlayEffects";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
+import { CinematicFxCard } from "@/components/editor/sections/CinematicFxCard";
+import { LutImportSection } from "@/components/editor/sections/LutImportSection";
+import { ColorGradeSection } from "@/components/editor/sections/ColorGradeSection";
+import { BrowseLibraryButton } from "@/pages/library";
 
 interface EffectsSectionProps {
   scenes: SceneData[];
@@ -25,6 +34,12 @@ interface EffectsSectionProps {
   /** Template-curated galleries (empty/undefined = show all) */
   visibleEffects?: string[];
   visibleColorGrades?: string[];
+  /** Handoff: replace a scene's clip URL with a burned render. */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
+  /** Handoff: jump to the Captions tab. */
+  onGoToCaptions?: () => void;
+  /** Handoff: jump to the Export tab (multi-ratio). Optional videoUrl pre-loads the multi-ratio card. */
+  onGoToExport?: (videoUrl?: string) => void;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
@@ -67,7 +82,50 @@ function IntensityRow({
   );
 }
 
-export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades, onReplaceClipVideo, onGoToCaptions, onGoToExport }: EffectsSectionProps) {
+  const isLight = useIsLightTheme();
+  const { confirmedFetch } = useConfirmedApi();
+  const [bgRemovalScene, setBgRemovalScene] = useState<string>("");
+  const [bgRemoving, setBgRemoving] = useState(false);
+  const [bgRemovalError, setBgRemovalError] = useState("");
+
+  async function handleRemoveBackground() {
+    if (!bgRemovalScene || bgRemoving) return;
+    const scene = scenes.find((s) => s.id === bgRemovalScene);
+    const videoUrl = scene?.demoClipUrl;
+    if (!videoUrl) {
+      setBgRemovalError("Selected scene has no video to process.");
+      return;
+    }
+    setBgRemovalError("");
+    setBgRemoving(true);
+    try {
+      const res = await confirmedFetch("/api/video-background-removal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl }),
+        overrideCost: 500,
+        overrideFeature: "Video Background Removal",
+      });
+      if (!res) { setBgRemoving(false); return; } // user cancelled
+      const data = await res.json();
+      if (!res.ok) {
+        setBgRemovalError(data.message || data.error || "Background removal failed.");
+      } else if (data.url && onReplaceClipVideo) {
+        onReplaceClipVideo(bgRemovalScene, data.url);
+      } else {
+        setBgRemovalError("No output URL returned.");
+      }
+    } catch (e) {
+      setBgRemovalError(e instanceof Error ? e.message : "Background removal failed.");
+    } finally {
+      setBgRemoving(false);
+    }
+  }
+  const [showLutImport, setShowLutImport] = useState(false);
+  const lutRef = useRef<HTMLDivElement>(null);
+  const [showColorGrade, setShowColorGrade] = useState(false);
+  const gradeRef = useRef<HTMLDivElement>(null);
   /* Template-curated galleries (empty/undefined = show all) */
   const shownEffects = visibleEffects && visibleEffects.length > 0
     ? (EFFECTS as readonly string[]).filter((fx) => visibleEffects.includes(fx))
@@ -98,6 +156,31 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
 
   return (
     <div className="space-y-5">
+      {/* ── One-click effect chains ── */}
+      <EditorCard title="One-Click Looks" subtitle="Tap for a complete cinematic look" icon={<Wand2 className="h-4 w-4" />}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {[
+            { label: "🎬 Cinematic", effects: ["Cinematic Bars", "Teal & Orange", "Film Grain"] },
+            { label: "🎵 Music Video", effects: ["Vibrant Pop", "Glow", "Slow Zoom"] },
+            { label: "📼 Vintage", effects: ["VHS", "Warm Grade", "Film Grain"] },
+            { label: "🌙 Dark Moody", effects: ["Moody Desaturated", "Vignette", "Dark Drill"] },
+            { label: "💎 Luxury", effects: ["Luxury Gold", "Glow", "Cinematic Bars"] },
+            { label: "⚡ Neon Nights", effects: ["Neon Glow", "Street Night", "Vignette"] },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => setSettings({ ...settings, effects: preset.effects })}
+              className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-center"
+            >
+              <span className="text-sm font-semibold">{preset.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-center">
+          <BrowseLibraryButton tab="presets" tool="video" />
+        </div>
+      </EditorCard>
+
       {/* ── Auto AI Edit ── */}
       <AutoAiEditSection
         scenes={scenes}
@@ -129,6 +212,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         </div>
       </EditorCard>
 
+      {/* ── True Cinematic FX — real burned renders (CapCut parity) ── */}
+      <CinematicFxCard
+        scenes={scenes}
+        onReplaceClipVideo={onReplaceClipVideo}
+        onGoToCaptions={onGoToCaptions}
+        onGoToExport={onGoToExport}
+      />
+
       {/* ── Color Grade ── */}
       <EditorCard title="Color Grade" subtitle="Pick a cinematic look — one at a time" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
@@ -154,7 +245,53 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             );
           })}
         </div>
+        {/* Chain: color-grade presets -> import your own LUT */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowLutImport(true);
+            requestAnimationFrame(() => lutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+          }}
+          className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:brightness-125 transition-colors"
+        >
+          <Palette className="h-3.5 w-3.5" />
+          …or import your own LUT (.cube / .3dl)
+        </button>
       </EditorCard>
+
+      {/* ── LUT Import — docks inside the Color panel, extends color-grade ── */}
+      {showLutImport && (
+        <div ref={lutRef} className="scroll-mt-4">
+          <LutImportSection
+            scenes={scenes}
+            onReplaceClipVideo={onReplaceClipVideo}
+            onGoToCaptions={onGoToCaptions}
+            onGoToExport={onGoToExport}
+          />
+        </div>
+      )}
+
+      {/* ── Pro color grade — one-tap AI presets, auto-grade, manual wheels ── */}
+      <button
+        type="button"
+        onClick={() => {
+          setShowColorGrade((v) => !v);
+          requestAnimationFrame(() => gradeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }}
+        className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#C9A84C] hover:brightness-125 transition-colors"
+      >
+        <Wand2 className="h-3.5 w-3.5" />
+        …or burn a real grade into a clip (AI presets · auto-grade · wheels)
+      </button>
+      {showColorGrade && (
+        <div ref={gradeRef} className="scroll-mt-4">
+          <ColorGradeSection
+            scenes={scenes}
+            onReplaceClipVideo={onReplaceClipVideo}
+            onGoToExport={onGoToExport}
+          />
+        </div>
+      )}
 
       {/* ── Overlays ── */}
       <EditorCard
@@ -189,8 +326,10 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         <div className="flex flex-wrap gap-2 mb-3">
           {OVERLAYS.map((ov) => {
             const active = settings.overlays.includes(ov);
-            // Particle overlays (Smoke, Rain, Sparks, Dust) are preview-only — the export pipeline doesn't burn them in yet.
-            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust"].includes(ov);
+            // Particle overlays (Smoke, Rain, Sparks, Dust, Snow, Confetti,
+            // Fireworks, Bokeh) are preview-only — the export pipeline doesn't
+            // burn them in yet.
+            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust", "Snow", "Confetti", "Fireworks", "Bokeh"].includes(ov);
             return (
               <Chip
                 key={ov}
@@ -208,7 +347,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
               >
                 {ov}
                 {previewOnly && (
-                  <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wide text-white/40 bg-white/[0.06] rounded px-1 py-0.5">
+                  <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wide text-white/40 bg-white/5 rounded px-1 py-0.5">
                     Preview
                   </span>
                 )}
@@ -302,7 +441,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 {/* Visual preview on a mid-grey swatch so transparency is obvious */}
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
                   style={{ background: "linear-gradient(135deg,#2a2a2a 50%,#1a1a1a 50%)" }}>
-                  <img src={`${import.meta.env.BASE_URL}bdv-watermark.webp`} alt="Bow Down Visuals watermark"
+                  <img src={getDefaultWatermarkUrl(isLight)} alt="Bow Down Visuals watermark"
                     className="h-8 w-auto"
                     style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }} />
                   <span className="text-[10px] text-white/40 leading-tight">Transparent PNG — no background</span>
@@ -334,7 +473,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                   value={settings.watermarkText ?? "Bow Down Visuals"}
                   onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
                   placeholder="Bow Down Visuals"
-                  className="w-full bg-white/[0.04] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
                 />
               </div>
             )}
@@ -392,7 +531,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button type="button"
                   onClick={() => setSettings({ ...settings, watermarkShowOnPreview: !(settings.watermarkShowOnPreview ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.watermarkShowOnPreview ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.watermarkShowOnPreview ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.watermarkShowOnPreview ?? true) ? "On" : "Off"}
                 </button>
@@ -402,7 +541,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button type="button"
                   onClick={() => setSettings({ ...settings, watermarkIncludeInExport: !(settings.watermarkIncludeInExport ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.watermarkIncludeInExport ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.watermarkIncludeInExport ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.watermarkIncludeInExport ?? true) ? "On" : "Off"}
                 </button>
@@ -429,7 +568,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         )}
 
         {/* ── Overlay Strength mode ── */}
-        {settings.overlays.filter((o) => ["Rain","Smoke","Sparks","Dust","Light Leaks","Lens Flare","Animated Waveform"].includes(o)).length > 0 && (
+        {settings.overlays.filter((o) => VISUAL_EFFECTS.includes(o)).length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/[0.06]">
             <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Overlay Strength</label>
             <div className="flex gap-1.5 flex-wrap">
@@ -437,10 +576,9 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <button key={mode} type="button"
                   onClick={() => {
                     const preset = STRENGTH_PRESETS[mode] ?? {};
-                    const VISUAL = ["Light Leaks","Lens Flare","Smoke","Rain","Sparks","Dust","Animated Waveform"];
                     const newIntensity = { ...settings.overlayIntensity };
                     for (const ov of settings.overlays) {
-                      if (VISUAL.includes(ov)) {
+                      if (VISUAL_EFFECTS.includes(ov)) {
                         newIntensity[ov] = mode === "off" ? 0 : (preset[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 25);
                       }
                     }
@@ -455,31 +593,31 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/22 mt-1">Sets intensity of all active visual overlays instantly.</p>
+            <p className="text-[10px] text-white/25 mt-1">Sets intensity of all active visual overlays instantly.</p>
           </div>
         )}
 
         {/* ── Safe areas ── */}
         {settings.overlays.length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/[0.06]">
-            <p className="text-[10px] font-black text-white/28 uppercase tracking-wide mb-2">Safe Areas</p>
+            <p className="text-[10px] font-black text-white/30 uppercase tracking-wide mb-2">Safe Areas</p>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/42">Protect captions area</span>
+                <span className="text-[10px] text-white/40">Protect captions area</span>
                 <button type="button"
                   onClick={() => setSettings({ ...settings, overlayProtectCaptions: !(settings.overlayProtectCaptions ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.overlayProtectCaptions ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.overlayProtectCaptions ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.overlayProtectCaptions ?? true) ? "On" : "Off"}
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/42">Protect face / center</span>
+                <span className="text-[10px] text-white/40">Protect face / center</span>
                 <button type="button"
                   onClick={() => setSettings({ ...settings, overlayProtectFace: !(settings.overlayProtectFace ?? true) })}
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    (settings.overlayProtectFace ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                    (settings.overlayProtectFace ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/30"
                   }`}>
                   {(settings.overlayProtectFace ?? true) ? "On" : "Off"}
                 </button>
@@ -490,15 +628,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
 
         {/* ── Overlay Debug ── */}
         {settings.overlays.length > 0 && (() => {
-          const VISUAL = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
-          const activeVisual = settings.overlays.filter((o) => VISUAL.includes(o));
+          const activeVisual = settings.overlays.filter((o) => VISUAL_EFFECTS.includes(o));
           const qm = settings.overlayQualityMode ?? "music-video";
           const rows: [string, string, "ok" | "warn" | "neutral"][] = [
             ["overlay strength mode",  qm === "music-video" ? "Music Video" : qm.charAt(0).toUpperCase() + qm.slice(1), qm === "off" ? "warn" : "ok"],
             ["selected overlays",       settings.overlays.join(", ") || "none", settings.overlays.length > 0 ? "ok" : "warn"],
             ["active overlay count",    String(settings.overlays.length), "neutral"],
             ["solo preview",            settings.soloPreviewOverlay ?? "none", settings.soloPreviewOverlay ? "warn" : "neutral"],
-            ...(VISUAL.map((ov): [string, string, "ok" | "warn" | "neutral"] => {
+            ...(VISUAL_EFFECTS.map((ov): [string, string, "ok" | "warn" | "neutral"] => {
               const active = settings.overlays.includes(ov);
               const pct = active ? (settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20) : 0;
               return [
@@ -526,6 +663,46 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             </div>
           );
         })()}
+      </EditorCard>
+
+      {/* ── Background Removal — one-click AI (chroma-key) ── */}
+      <EditorCard
+        title="Remove Background"
+        subtitle="One-click AI background removal — works best with solid backgrounds"
+        icon={<Scissors className="h-4 w-4" />}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-white/50">
+            Select a scene, and AI will remove the background (outputs with alpha channel for overlays).
+            <CostBadge cost={500} className="ml-2" />
+          </p>
+          <div className="flex gap-2">
+            <select
+              value={bgRemovalScene}
+              onChange={(e) => setBgRemovalScene(e.target.value)}
+              className="flex-1 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2 text-sm text-white"
+            >
+              <option value="">Select a scene…</option>
+              {scenes.map((s, i) => (
+                <option key={s.id} value={s.id}>
+                  Scene {i + 1}{s.demoClipUrl ? "" : " (no video)"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleRemoveBackground}
+              disabled={!bgRemovalScene || bgRemoving}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-black text-black hover:brightness-110 disabled:opacity-40 transition-all"
+            >
+              {bgRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+              {bgRemoving ? "Removing…" : "Remove"}
+            </button>
+          </div>
+          {bgRemovalError && (
+            <p className="text-xs text-red-400">{bgRemovalError}</p>
+          )}
+        </div>
       </EditorCard>
 
       {/* ── Transitions ── */}
@@ -560,7 +737,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             {onTestTransition && (
               <button
                 onClick={onTestTransition}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 bg-white/5 hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
                 data-testid="btn-test-transition"
               >
                 Test Transition

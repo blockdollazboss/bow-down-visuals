@@ -13,6 +13,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -204,6 +205,7 @@ export interface MediaImportJob {
 }
 
 const jobs = new Map<string, MediaImportJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getMediaImportJob(id: string): MediaImportJob | undefined {
   return jobs.get(id);
@@ -388,7 +390,7 @@ const importSchema = z.object({
  * Legal framing (also in the UI): this is for the user's OWN content,
  * backups, and royalty-free material — not a piracy tool.
  */
-router.post("/api/media-import", requireAuth, async (req, res) => {
+router.post("/media-import", requireAuth, async (req, res) => {
   const parsed = importSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -471,7 +473,7 @@ router.post("/api/media-import", requireAuth, async (req, res) => {
  *
  * Poll this until status is "done" or "failed".
  */
-router.get("/api/media-import/:jobId", requireAuth, (req, res) => {
+router.get("/media-import/:jobId", requireAuth, (req, res) => {
   const rawId = req.params.jobId;
   const jobId = Array.isArray(rawId) ? rawId[0] : rawId;
   const job = getMediaImportJob(jobId ?? "");

@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -23,13 +24,20 @@ import {
   SubjectBadge,
   type SubjectType,
 } from "@/components/ArtistVaultSelector";
-import { getSupabase } from "@/lib/supabase";
+import { r2UploadFile, r2Remove, storageKeyFromUrl } from "@/lib/r2-storage";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
+import {
+  DEEP_VOICE_PRESET,
+  BRIGHT_VOICE_PRESET,
+  type StoredCharacterVoiceProfile,
+} from "@/lib/world/character-voice";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { CHARACTER_THEMES, getCharacterTheme } from "@/lib/character-themes";
+import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { downloadImage } from "@/lib/download-image";
 import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
+import CartoonStudio from "@/pages/cartoon-studio";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -60,6 +68,8 @@ interface ArtistVaultRecord {
   voice_id: string | null;
   voice_name: string | null;
   voice_preview_url: string | null;
+  /* World voice-shaping profile (0142) — null = no set voice. */
+  voice_profile: StoredCharacterVoiceProfile | null;
   is_active: boolean;
   created_at: string;
 }
@@ -181,6 +191,8 @@ function ConsistencyModal({
 }: {
   vault: ArtistVaultRecord; onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [mode, setMode] = useState<DetailLevel>("video_safe");
   const prompt = generateConsistencyPrompt(vault, mode);
   const [copied, setCopied] = useState(false);
@@ -218,8 +230,8 @@ function ConsistencyModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label="Close dialog" tabIndex={-1} />
-      <div className="relative w-full max-w-xl rounded-2xl border border-primary/30 bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label={t("artistVault.closeDialog")} tabIndex={-1} />
+      <div className={`relative w-full max-w-xl rounded-2xl border p-6 md:p-8 shadow-2xl my-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-primary/30 bg-[#0a0a0a]"}`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -227,7 +239,7 @@ function ConsistencyModal({
               <Lock className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white">Character Consistency Lock</h3>
+              <h3 className="text-lg font-black text-white">{t("artistVault.consistencyTitle")}</h3>
               <p className="text-xs text-white/40">{vault.artist_name}</p>
             </div>
           </div>
@@ -238,7 +250,7 @@ function ConsistencyModal({
 
         {/* Character Detail Level toggle */}
         <div data-min-stars="5" className="mb-5">
-          <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Character Detail Level</p>
+          <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("artistVault.detailLevelTitle")}</p>
           <div className="flex gap-2">
             <button
               type="button"
@@ -249,31 +261,31 @@ function ConsistencyModal({
                   : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
               }`}
             >
-              <Video className="h-4 w-4" /> Video Safe
+              <Video className="h-4 w-4" /> {t("artistVault.videoSafe")}
             </button>
             <button
               type="button"
               onClick={() => setMode("high_detail")}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                 mode === "high_detail"
-                  ? "border-white/30 bg-white/[0.07] text-white"
+                  ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                   : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
               }`}
             >
-              <Film className="h-4 w-4" /> High Detail
+              <Film className="h-4 w-4" /> {t("artistVault.highDetail")}
             </button>
           </div>
           <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
             {mode === "video_safe"
-              ? "Recommended for Runway video clips. Cleaner jewelry, simpler tattoos, more realistic motion."
-              : "Best for thumbnails, cover art, and still images. Full tattoo and jewelry detail."}
+              ? t("artistVault.videoSafeBlurb")
+              : t("artistVault.highDetailBlurb")}
           </p>
         </div>
 
         {/* Warning note */}
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 mb-5">
           <p className="text-xs text-amber-400/80 leading-relaxed">
-            ⚠️ Tiny jewelry, tattoos, and text may vary in AI video. For best realism, use <strong>Video Safe</strong> mode for clips and <strong>High Detail</strong> mode for still images.
+            {t("artistVault.warnPrefix")} <strong>{t("artistVault.videoSafe")}</strong> {t("artistVault.modalWarnMiddle")} <strong>{t("artistVault.highDetail")}</strong> {t("artistVault.modalWarnSuffix")}
           </p>
         </div>
 
@@ -292,7 +304,7 @@ function ConsistencyModal({
           data-min-stars="4"
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 transition-all mb-3"
         >
-          <Zap className="h-4 w-4" /> Improve Video Realism
+          <Zap className="h-4 w-4" /> {t("artistVault.improveRealism")}
         </button>
 
         {/* Copy + Apply buttons */}
@@ -307,9 +319,9 @@ function ConsistencyModal({
             }`}
           >
             {copied ? (
-              <><CheckCircle2 className="h-4 w-4" /> Copied!</>
+              <><CheckCircle2 className="h-4 w-4" /> {t("artistVault.copied")}</>
             ) : (
-              <><Copy className="h-4 w-4" /> Copy Prompt</>
+              <><Copy className="h-4 w-4" /> {t("artistVault.copyPrompt")}</>
             )}
           </button>
           <button
@@ -322,15 +334,15 @@ function ConsistencyModal({
             }`}
           >
             {applied ? (
-              <><CheckCircle2 className="h-4 w-4" /> Applied!</>
+              <><CheckCircle2 className="h-4 w-4" /> {t("artistVault.applied")}</>
             ) : (
-              <><Sparkles className="h-4 w-4" /> Apply To All Video Prompts</>
+              <><Sparkles className="h-4 w-4" /> {t("artistVault.applyToAll")}</>
             )}
           </button>
         </div>
         {applied && (
           <p className="text-[11px] text-green-400/60 text-center mt-3">
-            ✓ Character consistency rules will be included in your video scene prompts.
+            {t("artistVault.appliedNote")}
           </p>
         )}
       </div>
@@ -355,13 +367,14 @@ function StyledSelect({
   name: string; placeholder: string; options: string[];
   value: string; onChange: (v: string) => void;
 }) {
+  const isLight = useIsLightTheme();
   return (
     <div className="relative">
       <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selectClass} style={{ colorScheme: "dark" }}>
-        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
+        <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => (
-          <option key={o} value={o} style={{ background: "#111" }}>{o}</option>
+          <option key={o} value={o} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{o}</option>
         ))}
       </select>
       <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
@@ -369,11 +382,11 @@ function StyledSelect({
   );
 }
 
-function FieldWrapper({ label, hint, children }: {
-  label: string; hint?: string; children: React.ReactNode;
+function FieldWrapper({ label, hint, children, id }: {
+  label: string; hint?: string; children: React.ReactNode; id?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 scroll-mt-24" id={id}>
       <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{label}</Label>
       {hint && <p className="text-xs text-white/30 -mt-1">{hint}</p>}
       {children}
@@ -407,6 +420,7 @@ function LockedVoiceSection({ vault, onChanged }: {
   vault: ArtistVaultRecord;
   onChanged: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -425,35 +439,47 @@ function LockedVoiceSection({ vault, onChanged }: {
 
   async function handleCloneFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const valid = Array.from(files).filter((f) => f.size <= 25 * 1024 * 1024);
+    if (valid.length === 0) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "Those recordings are over 25 MB each — pick smaller files." }));
+      return;
+    }
     setBusy(true);
     setError(null);
+    if (valid.length < files.length) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "Recordings over 25 MB were skipped." }));
+    }
     try {
       const form = new FormData();
-      Array.from(files).slice(0, 3).forEach((f) => form.append("files", f));
+      valid.slice(0, 3).forEach((f) => form.append("files", f));
       const res = await fetch(`/api/artist-vaults/${vault.id}/voice/clone`, {
         method: "POST",
         headers: await authHeaders(),
         body: form,
       });
       const data = await res.json().catch(() => ({} as { error?: string }));
-      if (!res.ok) throw new Error(data.error || "Voice cloning failed.");
+      if (!res.ok) throw new Error(data.error || t("artistVault.voiceCloneFailed"));
       setPickerOpen(false);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Voice cloning failed.");
+      setError(e instanceof Error ? e.message : t("artistVault.voiceCloneFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function handleFromSong(fileOrId: File | string) {
+    if (fileOrId instanceof File && fileOrId.size > 25 * 1024 * 1024) {
+      setError(t("artistVault.cloneFilesTooLarge", { defaultValue: "That song is over 25 MB — pick a smaller file." }));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       let res: Response;
       const headers = await authHeaders();
       if (typeof fileOrId === "string") {
-        setStage("Stripping the song to its vocals…");
+        setStage(t("artistVault.strippingVocals"));
         res = await fetch(`/api/artist-vaults/${vault.id}/voice/from-song`, {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
@@ -462,21 +488,21 @@ function LockedVoiceSection({ vault, onChanged }: {
       } else {
         const form = new FormData();
         form.append("song", fileOrId);
-        setStage("Uploading the song…");
+        setStage(t("artistVault.uploadingSong"));
         res = await fetch(`/api/artist-vaults/${vault.id}/voice/from-song`, {
           method: "POST",
           headers,
           body: form,
         });
       }
-      setStage("Cloning the vocals into a voice…");
+      setStage(t("artistVault.cloningVocals"));
       const data = await res.json().catch(() => ({} as { error?: string }));
-      if (!res.ok) throw new Error(data.error || "Could not build a voice from this song.");
+      if (!res.ok) throw new Error(data.error || t("artistVault.voiceFromSongFailed"));
       setSongPickerOpen(false);
       setStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not build a voice from this song.");
+      setError(e instanceof Error ? e.message : t("artistVault.voiceFromSongFailed"));
     } finally {
       setBusy(false);
       setStage(null);
@@ -489,11 +515,11 @@ function LockedVoiceSection({ vault, onChanged }: {
     try {
       const res = await fetch("/api/songs", { headers: await authHeaders() });
       const data = await res.json().catch(() => ({} as { error?: string; songs?: { id: string; title: string }[] }));
-      if (!res.ok) throw new Error(data.error || "Could not load songs.");
+      if (!res.ok) throw new Error(data.error || t("artistVault.loadSongsFailed"));
       setSongs(data.songs ?? []);
       setSongPickerOpen((v) => !v);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load songs.");
+      setError(e instanceof Error ? e.message : t("artistVault.loadSongsFailed"));
     } finally {
       setLoadingSongs(false);
     }
@@ -504,11 +530,11 @@ function LockedVoiceSection({ vault, onChanged }: {
     try {
       const res = await fetch("/api/voices", { headers: await authHeaders() });
       const data = await res.json().catch(() => ({} as { error?: string; voices?: VoiceOption[] }));
-      if (!res.ok) throw new Error(data.error || "Could not load voices.");
+      if (!res.ok) throw new Error(data.error || t("artistVault.loadVoicesFailed"));
       setVoices(data.voices ?? []);
       setPickerOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load voices.");
+      setError(e instanceof Error ? e.message : t("artistVault.loadVoicesFailed"));
     } finally {
       setLoadingVoices(false);
     }
@@ -527,11 +553,11 @@ function LockedVoiceSection({ vault, onChanged }: {
           voicePreviewUrl: v.preview_url,
         }),
       });
-      if (!res.ok) throw new Error("Could not lock this voice.");
+      if (!res.ok) throw new Error(t("artistVault.lockVoiceFailed"));
       setPickerOpen(false);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not lock this voice.");
+      setError(e instanceof Error ? e.message : t("artistVault.lockVoiceFailed"));
     } finally {
       setBusy(false);
     }
@@ -545,10 +571,10 @@ function LockedVoiceSection({ vault, onChanged }: {
         method: "DELETE",
         headers: await authHeaders(),
       });
-      if (!res.ok) throw new Error("Could not remove the voice.");
+      if (!res.ok) throw new Error(t("artistVault.removeVoiceFailed"));
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove the voice.");
+      setError(e instanceof Error ? e.message : t("artistVault.removeVoiceFailed"));
     } finally {
       setBusy(false);
     }
@@ -558,16 +584,16 @@ function LockedVoiceSection({ vault, onChanged }: {
     <div data-min-stars="4" className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Lock className="h-4 w-4 text-primary" />
-        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Locked Voice</p>
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("artistVault.lockedVoice")}</p>
       </div>
       <p className="text-xs text-white/40 mb-3">
-        Every song made for {vault.artist_name} sings in this voice. Same voice, every time.
+        {t("artistVault.lockedVoiceBlurb", { name: vault.artist_name })}
       </p>
 
       {vault.voice_id ? (
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white truncate">{vault.voice_name ?? "Locked voice"}</p>
+            <p className="text-sm font-bold text-white truncate">{vault.voice_name ?? t("artistVault.lockedVoiceFallback")}</p>
             {vault.voice_preview_url && (
               <audio controls src={vault.voice_preview_url} className="mt-2 h-8 w-full max-w-xs" />
             )}
@@ -578,7 +604,7 @@ function LockedVoiceSection({ vault, onChanged }: {
             onClick={removeVoice}
             disabled={busy}
             className="text-white/50 hover:text-red-400 shrink-0"
-            title="Remove locked voice"
+            title={t("artistVault.removeVoiceTitle")}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
           </Button>
@@ -590,7 +616,7 @@ function LockedVoiceSection({ vault, onChanged }: {
             className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Clone from recording
+            {t("artistVault.cloneFromRecording")}
             <input
               type="file"
               accept="audio/*"
@@ -608,14 +634,14 @@ function LockedVoiceSection({ vault, onChanged }: {
             className="rounded-xl border-white/15 text-white/80 h-[38px] px-4"
           >
             {loadingVoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Choose a voice
+            {t("artistVault.chooseVoice")}
           </Button>
           <label
             className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
-            title="Upload a song — the site strips it to its vocals and clones them"
+            title={t("artistVault.fromSongTitle")}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            From a song
+            {t("artistVault.fromSong")}
             <input
               type="file"
               accept="audio/*"
@@ -636,14 +662,17 @@ function LockedVoiceSection({ vault, onChanged }: {
             className="rounded-xl border-white/15 text-white/80 h-[38px] px-4"
           >
             {loadingSongs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            From my songs
+            {t("artistVault.fromMySongs")}
           </Button>
         </div>
+        <p className="mt-3 text-xs text-white/40">
+          {t("artistVault.cloneHint", { credits: 200 })}
+        </p>
         <p className="mt-3 flex items-start gap-2 text-xs text-primary/80">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            <span className="font-semibold">From a song needs clear, prominent lead vocals.</span>{" "}
-            Heavy effects, buried or doubled vocals, and instrumental-heavy tracks may fail or clone poorly.
+            <span className="font-semibold">{t("artistVault.songTipBold")}</span>{" "}
+            {t("artistVault.songTipRest")}
           </span>
         </p>
         </>
@@ -653,15 +682,14 @@ function LockedVoiceSection({ vault, onChanged }: {
       {busy && stage && (
         <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
           <Loader2 className="h-3 w-3 animate-spin" />
-          {stage} This can take a few minutes — vocal isolation is heavy work.
+          {stage} {t("artistVault.stageSuffix")}
         </p>
       )}
 
       {songPickerOpen && !vault.voice_id && (
         <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
           <p className="px-3 py-2 text-xs text-white/40">
-            Pick a song — its vocals get stripped and cloned into the locked voice (200 Visual Bucs).
-            Best with clear lead vocals; heavy effects or buried vocals may fail.
+            {t("artistVault.songPickerHint", { credits: 200 })}
           </p>
           {songs.map((s) => (
             <button
@@ -674,7 +702,7 @@ function LockedVoiceSection({ vault, onChanged }: {
             </button>
           ))}
           {songs.length === 0 && (
-            <p className="px-3 py-4 text-sm text-white/40">No songs yet — upload one on the Songs page first.</p>
+            <p className="px-3 py-4 text-sm text-white/40">{t("artistVault.noSongsYet")}</p>
           )}
         </div>
       )}
@@ -699,7 +727,7 @@ function LockedVoiceSection({ vault, onChanged }: {
             </div>
           ))}
           {voices.length === 0 && (
-            <p className="px-3 py-4 text-sm text-white/40">No voices found.</p>
+            <p className="px-3 py-4 text-sm text-white/40">{t("artistVault.noVoicesFound")}</p>
           )}
         </div>
       )}
@@ -707,7 +735,7 @@ function LockedVoiceSection({ vault, onChanged }: {
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       {!vault.voice_id && (
         <p className="mt-2 text-[11px] text-white/30">
-          Tip: upload 30+ seconds of clean singing or talking for the best clone.
+          {t("artistVault.voiceTip")}
         </p>
       )}
     </div>
@@ -723,6 +751,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
   vault: ArtistVaultRecord;
   onChanged: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
@@ -745,10 +774,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
       const data = await res.json().catch(() => ({} as { status?: string; error?: string }));
       if (data.status === "SUCCEEDED") return;
       if (data.status === "FAILED" || data.status === "CANCELLED") {
-        throw new Error(data.error || "Video generation failed. No Visual Bucs were charged.");
+        throw new Error(data.error || t("artistVault.videoGenFailed"));
       }
     }
-    throw new Error("Still processing — check back shortly. No Visual Bucs charged yet.");
+    throw new Error(t("artistVault.videoStillProcessing"));
   }
 
   async function handleGenerate() {
@@ -756,19 +785,19 @@ function ReferenceVideoSection({ vault, onChanged }: {
     setBusy(true);
     setError(null);
     try {
-      setStage("Submitting the living-portrait job…");
+      setStage(t("artistVault.submittingJob"));
       const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video`, {
         method: "POST",
         headers: await authHeaders(),
       });
       const data = await res.json().catch(() => ({} as { taskId?: string; error?: string; message?: string }));
-      if (!res.ok) throw new Error(data.message || data.error || "Could not start video generation.");
-      setStage("Animating your character… this takes a few minutes.");
+      if (!res.ok) throw new Error(data.message || data.error || t("artistVault.videoStartFailed"));
+      setStage(t("artistVault.animatingCharacter"));
       await pollTask(data.taskId!);
       setStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Video generation failed.");
+      setError(e instanceof Error ? e.message : t("artistVault.videoGenFailedGeneric"));
     } finally {
       setBusy(false);
       setStage(null);
@@ -783,10 +812,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
         method: "DELETE",
         headers: await authHeaders(),
       });
-      if (!res.ok) throw new Error("Could not remove the video.");
+      if (!res.ok) throw new Error(t("artistVault.videoRemoveFailed"));
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove the video.");
+      setError(e instanceof Error ? e.message : t("artistVault.videoRemoveFailed"));
     } finally {
       setBusy(false);
     }
@@ -796,13 +825,13 @@ function ReferenceVideoSection({ vault, onChanged }: {
     setLoopBusy(true);
     setError(null);
     try {
-      setLoopStage("Smoothing the loop seam…");
+      setLoopStage(t("artistVault.smoothingLoop"));
       const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video/loop`, {
         method: "POST",
         headers: await authHeaders(),
       });
       const data = await res.json().catch(() => ({} as { taskId?: string; error?: string }));
-      if (!res.ok) throw new Error(data.error || "Could not start the loop job.");
+      if (!res.ok) throw new Error(data.error || t("artistVault.loopStartFailed"));
       // Poll — FFmpeg takes ~30s; charged only on success.
       for (let i = 0; i < 100; i++) {
         await new Promise((r) => setTimeout(r, 3000));
@@ -811,12 +840,12 @@ function ReferenceVideoSection({ vault, onChanged }: {
         });
         const pdata = await pres.json().catch(() => ({} as { status?: string; error?: string }));
         if (pdata.status === "succeeded") break;
-        if (pdata.status === "failed") throw new Error(pdata.error || "Loop processing failed. No credits were charged.");
+        if (pdata.status === "failed") throw new Error(pdata.error || t("artistVault.loopFailed"));
       }
       setLoopStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Loop failed.");
+      setError(e instanceof Error ? e.message : t("artistVault.loopFailedGeneric"));
     } finally {
       setLoopBusy(false);
       setLoopStage(null);
@@ -829,10 +858,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
     <div data-min-stars="4" className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Video className="h-4 w-4 text-primary" />
-        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Reference Video</p>
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">{t("artistVault.referenceVideo")}</p>
       </div>
       <p className="text-xs text-white/40 mb-3">
-        A living portrait of {vault.artist_name}. Wherever you pick this character, the video plays automatically instead of the still photo.
+        {t("artistVault.referenceVideoBlurb", { name: vault.artist_name })}
       </p>
 
       {vault.reference_video_url ? (
@@ -847,20 +876,20 @@ function ReferenceVideoSection({ vault, onChanged }: {
             className="w-36 rounded-xl border border-white/10 object-cover aspect-[9/16]"
           />
           <div className="flex-1">
-            <p className="text-sm font-bold text-white mb-1">Living portrait active</p>
+            <p className="text-sm font-bold text-white mb-1">{t("artistVault.portraitActive")}</p>
             <p className="text-xs text-white/40 mb-3">
-              Character pickers across the site will autoplay this video.
+              {t("artistVault.portraitHint")}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 onClick={() => { void handleMakeLoop(); }}
                 disabled={busy || loopBusy}
-                title="Blend the last frames into the first so the video loops without a visible jump"
+                title={t("artistVault.loopTitle")}
                 className="gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold"
               >
                 {loopBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Repeat className="h-4 w-4" />}
-                Make it loop — {LOOP_VIDEO_CREDITS} credits
+                {t("artistVault.makeLoop", { credits: LOOP_VIDEO_CREDITS })}
               </Button>
               <Button
                 variant="ghost"
@@ -870,7 +899,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
                 className="text-white/50 hover:text-red-400 gap-2"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Remove video
+                {t("artistVault.removeVideo")}
               </Button>
             </div>
             {loopBusy && loopStage && (
@@ -882,10 +911,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
         </div>
       ) : confirming ? (
         <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
-          <p className="text-sm font-bold text-white mb-1">Generate a living portrait?</p>
+          <p className="text-sm font-bold text-white mb-1">{t("artistVault.generatePortraitTitle")}</p>
           <p className="text-xs text-white/50 mb-3">
-            AI animates {vault.artist_name}'s reference photo into a 5-second portrait video.{" "}
-            <span className="text-primary font-semibold">{REF_VIDEO_CREDITS} Visual Bucs</span> are charged only if it succeeds.
+            {t("artistVault.generatePortraitBlurbPrefix", { name: vault.artist_name })}{" "}
+            <span className="text-primary font-semibold">{t("artistVault.creditsCount", { credits: REF_VIDEO_CREDITS })}</span> {t("artistVault.generatePortraitBlurbSuffix")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -895,10 +924,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
               className="gold-glow font-bold gap-2"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              Generate — {REF_VIDEO_CREDITS} Visual Bucs
+              {t("artistVault.generatePortraitButton", { credits: REF_VIDEO_CREDITS })}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy} className="text-white/50">
-              Cancel
+              {t("artistVault.cancel")}
             </Button>
           </div>
         </div>
@@ -908,14 +937,14 @@ function ReferenceVideoSection({ vault, onChanged }: {
             size="sm"
             onClick={() => setConfirming(true)}
             disabled={busy || !hasPhoto}
-            title={hasPhoto ? "Generate a 5-second living portrait" : "Save an Artist Photo first — the video is generated from it"}
+            title={hasPhoto ? t("artistVault.generatePortraitTitle2") : t("artistVault.savePhotoFirst")}
             className="gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
-            Generate living portrait
+            {t("artistVault.generatePortrait")}
           </Button>
           {!hasPhoto && (
-            <p className="mt-2 text-[11px] text-white/30">Save an Artist Photo first — the video is generated from it.</p>
+            <p className="mt-2 text-[11px] text-white/30">{t("artistVault.savePhotoFirst")}</p>
           )}
           {busy && stage && (
             <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
@@ -949,6 +978,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   refreshKey: number;
   onGenerateOutfit: () => void;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken, user } = useAuth();
   const [outfits, setOutfits] = useState<WardrobeOutfit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -970,10 +1000,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load wardrobe");
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.wardrobeLoadFailed"));
       setOutfits(data.outfits ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load wardrobe");
+      setError(err instanceof Error ? err.message : t("artistVault.wardrobeLoadFailed"));
     } finally {
       setLoading(false);
     }
@@ -985,11 +1015,11 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
 
   const addOutfit = async (outfitLabel: string, url: string, path: string | null) => {
     if (wardrobeFull) {
-      setError(`Each artist can save up to ${MAX_OUTFITS} outfits — remove one to add another.`);
+      setError(t("artistVault.wardrobeFull", { max: MAX_OUTFITS }));
       return;
     }
     if (!outfitLabel.trim() || !/^https?:\/\//i.test(url.trim())) {
-      setError("Give the outfit a name and a valid image URL.");
+      setError(t("artistVault.outfitNameRequired"));
       return;
     }
     setBusy(true);
@@ -1002,13 +1032,13 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         body: JSON.stringify({ label: outfitLabel.trim(), image_url: url.trim(), image_path: path }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to add outfit");
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.outfitAddFailed"));
       setLabel("");
       setImageUrl("");
       setShowAdd(false);
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add outfit");
+      setError(err instanceof Error ? err.message : t("artistVault.outfitAddFailed"));
     } finally {
       setBusy(false);
     }
@@ -1016,20 +1046,20 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
 
   const uploadOutfitImage = async (file: File, outfitLabel: string) => {
     if (!user) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("artistVault.imageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
-      const sb = getSupabase();
+      const token = await getAccessToken().catch(() => null);
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const filePath = `${user.id}/${vaultId}/wardrobe/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await sb.storage
-        .from("artist-references")
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
-      await addOutfit(outfitLabel.trim() || "Custom Outfit", publicUrl, filePath);
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
+      await addOutfit(outfitLabel.trim() || t("artistVault.customOutfit"), publicUrl, filePath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -1044,10 +1074,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ is_default: true }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to set default");
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.setDefaultFailed"));
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to set default");
+      setError(err instanceof Error ? err.message : t("artistVault.setDefaultFailed"));
     }
   };
 
@@ -1061,11 +1091,11 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ label: editLabel.trim() }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to rename");
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.renameFailed"));
       setEditingId(null);
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to rename");
+      setError(err instanceof Error ? err.message : t("artistVault.renameFailed"));
     }
   };
 
@@ -1077,10 +1107,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to remove");
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.removeOutfitFailed"));
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove");
+      setError(err instanceof Error ? err.message : t("artistVault.removeOutfitFailed"));
     }
   };
 
@@ -1088,10 +1118,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
     <div data-min-stars="3" className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-white/30 uppercase tracking-wider">👔 Wardrobe</p>
+          <p className="text-xs font-bold text-white/30 uppercase tracking-wider">{t("artistVault.wardrobeTitle")}</p>
           {wardrobeFull && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/25">
-              {outfits.length} of {MAX_OUTFITS} outfits
+              {t("artistVault.outfitCount", { count: outfits.length, max: MAX_OUTFITS })}
             </span>
           )}
         </div>
@@ -1101,17 +1131,17 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
               type="button"
               onClick={onGenerateOutfit}
               disabled={!hasReferencePhoto}
-              title={hasReferencePhoto ? "Generate a new outfit with your locked identity — face stays the same" : "Save an Artist Photo first to unlock outfit generation"}
+              title={hasReferencePhoto ? t("artistVault.genOutfitTitle") : t("artistVault.savePhotoForOutfit")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:brightness-110 transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
-              <Camera className="h-3.5 w-3.5" /> Generate outfit
+              <Camera className="h-3.5 w-3.5" /> {t("artistVault.generateOutfit")}
             </button>
             <button
               type="button"
               onClick={() => setShowAdd((v) => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
             >
-              <Plus className="h-3.5 w-3.5" /> Add outfit
+              <Plus className="h-3.5 w-3.5" /> {t("artistVault.addOutfit")}
             </button>
           </div>
         )}
@@ -1122,14 +1152,14 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Outfit name — e.g. Gold Ceremonial Robe"
+            placeholder={t("artistVault.outfitNamePlaceholder")}
             className="bg-white/[0.04] border-white/[0.10] text-white text-sm"
           />
           <div className="flex gap-2">
             <Input
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Image URL (https://…)"
+              placeholder={t("artistVault.imageUrlPlaceholder")}
               className="bg-white/[0.04] border-white/[0.10] text-white text-sm flex-1"
             />
             <Button
@@ -1138,16 +1168,16 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
               onClick={() => addOutfit(label, imageUrl, null)}
               className="shrink-0 font-bold rounded-lg"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("artistVault.addButton")}
             </Button>
           </div>
           <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${uploading ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
-            {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</> : <><Upload className="h-3.5 w-3.5" /> Upload image</>}
+            {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("artistVault.uploading")}</> : <><Upload className="h-3.5 w-3.5" /> {t("artistVault.uploadImage")}</>}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
-              aria-label="Upload outfit image"
+              aria-label={t("artistVault.uploadOutfitImageAria")}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) uploadOutfitImage(file, label);
@@ -1159,10 +1189,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
       )}
 
       {loading ? (
-        <p className="text-sm text-white/40 py-4 text-center">Loading wardrobe…</p>
+        <p className="text-sm text-white/40 py-4 text-center">{t("artistVault.loadingWardrobe")}</p>
       ) : outfits.length === 0 ? (
         <p className="text-sm text-white/40 py-4 text-center">
-          No outfits yet. Generate one with AI or add your own — then pick it when creating scenes.
+          {t("artistVault.noOutfits")}
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1172,7 +1202,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                 <img src={o.image_url} alt={o.label} className="h-full w-full object-cover object-top" loading="lazy" />
                 {o.is_default && (
                   <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-primary">
-                    Default
+                    {t("artistVault.defaultBadge")}
                   </span>
                 )}
               </div>
@@ -1186,19 +1216,19 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                       className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
                       autoFocus
                     />
-                    <button type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title="Save name">
+                    <button type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title={t("artistVault.saveNameTitle")}>
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-1.5">
-                    <p className="text-xs font-bold text-white truncate" title={o.label}>{o.label}</p>
+                    <p className="min-w-0 text-xs font-bold text-white truncate" title={o.label}>{o.label}</p>
                     <button
                       type="button"
                       onClick={() => { setEditingId(o.id); setEditLabel(o.label); }}
                       className="text-white/30 hover:text-white shrink-0 transition-colors"
-                      title="Rename outfit"
-                      aria-label="Rename outfit"
+                      title={t("artistVault.renameOutfit")}
+                      aria-label={t("artistVault.renameOutfit")}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -1211,14 +1241,14 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                       onClick={() => setDefault(o.id)}
                       className="flex-1 px-2 py-1 rounded-lg text-[11px] font-bold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors"
                     >
-                      Set default
+                      {t("artistVault.setDefault")}
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => removeOutfit(o.id)}
-                    title="Removes from wardrobe only — the image file is kept"
-                    aria-label="Remove outfit from wardrobe"
+                    title={t("artistVault.removeOutfitTitle")}
+                    aria-label={t("artistVault.removeOutfitAria")}
                     className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1232,8 +1262,400 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
 
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       {!hasReferencePhoto && (
-        <p className="mt-2 text-[11px] text-white/30">Save an Artist Photo to unlock AI outfit generation.</p>
+        <p className="mt-2 text-[11px] text-white/30">{t("artistVault.savePhotoForOutfit")}</p>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────── IDENTITY SET ───────────────────────
+   Higgsfield G4, honest near-term form: the character holds a SET of
+   labeled photos of the same character (angle / expression / wardrobe).
+   At generation time the server picks the best-matching photo per shot
+   and shows the pick + why in Scene Studio (overridable, never silent).
+   No training is involved — this is disciplined reference selection.
+   Only the creator's own photos belong here; an AI-generated portrait
+   may be added only with the generated label on, and it is badged. */
+
+interface IdentityPhoto {
+  id: string;
+  image_url: string;
+  image_path: string | null;
+  angle: string;
+  expression: string;
+  wardrobe: string | null;
+  source: string;
+}
+
+interface IdentityCoverageItem {
+  key: string;
+  label: string;
+  covered: boolean;
+  missingMessage: string;
+}
+
+interface IdentityCoverage {
+  items: IdentityCoverageItem[];
+  coveredCount: number;
+  totalCount: number;
+  missingMessages: string[];
+  summary: string;
+}
+
+/** Must match MAX_IDENTITY_PHOTOS_PER_VAULT in the identity API route. */
+const MAX_IDENTITY_PHOTOS = 12;
+
+const IDENTITY_ANGLE_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "front", labelKey: "artistVault.identityAngleFront" },
+  { value: "three_quarter_left", labelKey: "artistVault.identityAngleThreeQuarterLeft" },
+  { value: "three_quarter_right", labelKey: "artistVault.identityAngleThreeQuarterRight" },
+  { value: "left_profile", labelKey: "artistVault.identityAngleLeftProfile" },
+  { value: "right_profile", labelKey: "artistVault.identityAngleRightProfile" },
+  { value: "back", labelKey: "artistVault.identityAngleBack" },
+  { value: "full_body", labelKey: "artistVault.identityAngleFullBody" },
+  { value: "close_up", labelKey: "artistVault.identityAngleCloseUp" },
+];
+
+const IDENTITY_EXPRESSION_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "neutral", labelKey: "artistVault.identityExpressionNeutral" },
+  { value: "smile", labelKey: "artistVault.identityExpressionSmile" },
+  { value: "laughing", labelKey: "artistVault.identityExpressionLaughing" },
+  { value: "serious", labelKey: "artistVault.identityExpressionSerious" },
+  { value: "intense", labelKey: "artistVault.identityExpressionIntense" },
+  { value: "singing", labelKey: "artistVault.identityExpressionSinging" },
+  { value: "sad", labelKey: "artistVault.identityExpressionSad" },
+  { value: "surprised", labelKey: "artistVault.identityExpressionSurprised" },
+];
+
+const identitySelectClass =
+  "w-full rounded-lg border border-white/[0.10] bg-white/[0.04] px-2 py-1.5 text-xs text-white focus:border-primary/50 focus:outline-none";
+
+function IdentitySetSection({ vaultId, mainPhotoUrl }: {
+  vaultId: string;
+  mainPhotoUrl: string | null;
+}) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const { getAccessToken, user } = useAuth();
+  const [photos, setPhotos] = useState<IdentityPhoto[]>([]);
+  const [coverage, setCoverage] = useState<IdentityCoverage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [angle, setAngle] = useState("front");
+  const [expression, setExpression] = useState("neutral");
+  const [wardrobe, setWardrobe] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [isGenerated, setIsGenerated] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const fetchPhotos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityLoadFailed"));
+      setPhotos(data.photos ?? []);
+      setCoverage(data.coverage ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityLoadFailed"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPhotos(); }, [vaultId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setFull = photos.length >= MAX_IDENTITY_PHOTOS;
+
+  const addPhoto = async (url: string, path: string | null) => {
+    if (setFull) {
+      setError(t("artistVault.identityFull", { max: MAX_IDENTITY_PHOTOS }));
+      return;
+    }
+    if (!/^https?:\/\//i.test(url.trim())) {
+      setError(t("artistVault.identityUrlRequired"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          image_url: url.trim(),
+          image_path: path,
+          angle,
+          expression,
+          wardrobe: wardrobe.trim() || null,
+          source: isGenerated ? "generated" : "upload",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityAddFailed"));
+      setImageUrl("");
+      setWardrobe("");
+      setIsGenerated(false);
+      setShowAdd(false);
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityAddFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadPhoto = async (file: File) => {
+    if (!user) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("artistVault.imageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken().catch(() => null);
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const filePath = `${user.id}/${vaultId}/identity/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
+      await addPhoto(publicUrl, filePath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const updatePhoto = async (id: string, patch: Partial<Pick<IdentityPhoto, "angle" | "expression" | "wardrobe">>) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityUpdateFailed"));
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityUpdateFailed"));
+    }
+  };
+
+  const removePhoto = async (id: string) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityRemoveFailed"));
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityRemoveFailed"));
+    }
+  };
+
+  const optionBg = isLight ? "#FAF6ED" : "#111";
+
+  return (
+    <div data-min-stars="4" className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-bold text-white/30 uppercase tracking-wider">{t("artistVault.identityTitle")}</p>
+        {(setFull || photos.length > 0) && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/25">
+            {t("artistVault.identityCount", { count: photos.length, max: MAX_IDENTITY_PHOTOS })}
+          </span>
+        )}
+        {!setFull && (
+          <button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> {t("artistVault.identityAdd")}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-white/40 mb-3">{t("artistVault.identityBlurb")}</p>
+
+      {coverage && photos.length + (mainPhotoUrl ? 1 : 0) > 0 && (
+        <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3">
+          <p className="text-xs font-semibold text-white/70 mb-2">{coverage.summary}</p>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {coverage.items.map((item) => (
+              <span
+                key={item.key}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  item.covered
+                    ? "text-green-300 bg-green-500/10 border-green-500/30"
+                    : "text-white/35 bg-white/[0.03] border-white/[0.10]"
+                }`}
+              >
+                {item.covered ? "✓ " : ""}{item.label}
+              </span>
+            ))}
+          </div>
+          {coverage.missingMessages.length > 0 && (
+            <ul className="space-y-1">
+              {coverage.missingMessages.map((m) => (
+                <li key={m} className="text-[11px] text-amber-200/70 flex gap-1.5">
+                  <span aria-hidden>•</span><span>{m}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {showAdd && !setFull && (
+        <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select value={angle} onChange={(e) => setAngle(e.target.value)} className={identitySelectClass} style={{ colorScheme: "dark" }} aria-label={t("artistVault.identityAngleFront")}>
+              {IDENTITY_ANGLE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+              ))}
+            </select>
+            <select value={expression} onChange={(e) => setExpression(e.target.value)} className={identitySelectClass} style={{ colorScheme: "dark" }} aria-label={t("artistVault.identityExpressionNeutral")}>
+              {IDENTITY_EXPRESSION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+              ))}
+            </select>
+          </div>
+          <Input
+            value={wardrobe}
+            onChange={(e) => setWardrobe(e.target.value)}
+            placeholder={t("artistVault.identityWardrobePlaceholder")}
+            className="bg-white/[0.04] border-white/[0.10] text-white text-sm"
+          />
+          <label className="flex items-center gap-2 text-xs text-white/60 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isGenerated}
+              onChange={(e) => setIsGenerated(e.target.checked)}
+              className="h-3.5 w-3.5 accent-amber-400"
+            />
+            {t("artistVault.identityGeneratedLabel")}
+          </label>
+          <div className="flex gap-2">
+            <Input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder={t("artistVault.imageUrlPlaceholder")}
+              className="bg-white/[0.04] border-white/[0.10] text-white text-sm flex-1"
+            />
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => addPhoto(imageUrl, null)}
+              className="shrink-0 font-bold rounded-lg"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("artistVault.addButton")}
+            </Button>
+          </div>
+          <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${uploading ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
+            {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("artistVault.uploading")}</> : <><Upload className="h-3.5 w-3.5" /> {t("artistVault.uploadImage")}</>}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              aria-label={t("artistVault.identityUploadAria")}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadPhoto(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-white/40 py-4 text-center">{t("artistVault.identityLoading")}</p>
+      ) : photos.length === 0 && !mainPhotoUrl ? (
+        <p className="text-sm text-white/40 py-4 text-center">{t("artistVault.identityEmpty")}</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {mainPhotoUrl && (
+            <div className="rounded-xl overflow-hidden border border-primary/30 bg-black/40">
+              <div className="relative aspect-square bg-white/[0.03]">
+                <img src={mainPhotoUrl} alt={t("artistVault.identityMainBadge")} className="h-full w-full object-cover object-top" loading="lazy" />
+                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-primary">
+                  {t("artistVault.identityMainBadge")}
+                </span>
+              </div>
+              <div className="p-2.5">
+                <p className="text-[11px] text-white/45">{t("artistVault.identityMainCaption")}</p>
+              </div>
+            </div>
+          )}
+          {photos.map((p) => (
+            <div key={p.id} className="rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+              <div className="relative aspect-square bg-white/[0.03]">
+                <img src={p.image_url} alt={t(IDENTITY_ANGLE_OPTIONS.find((o) => o.value === p.angle)?.labelKey ?? "artistVault.identityAngleFront")} className="h-full w-full object-cover object-top" loading="lazy" />
+                {p.source === "generated" && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-amber-400">
+                    {t("artistVault.identityGeneratedBadge")}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(p.id)}
+                  title={t("artistVault.identityRemoveTitle")}
+                  aria-label={t("artistVault.identityRemoveAria")}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-red-400/70 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="p-2.5 space-y-1.5">
+                <select
+                  value={p.angle}
+                  onChange={(e) => updatePhoto(p.id, { angle: e.target.value })}
+                  className={identitySelectClass}
+                  style={{ colorScheme: "dark" }}
+                  aria-label={t("artistVault.identityAngleFront")}
+                >
+                  {IDENTITY_ANGLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+                  ))}
+                </select>
+                <select
+                  value={p.expression}
+                  onChange={(e) => updatePhoto(p.id, { expression: e.target.value })}
+                  className={identitySelectClass}
+                  style={{ colorScheme: "dark" }}
+                  aria-label={t("artistVault.identityExpressionNeutral")}
+                >
+                  {IDENTITY_EXPRESSION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+                  ))}
+                </select>
+                <Input
+                  defaultValue={p.wardrobe ?? ""}
+                  placeholder={t("artistVault.identityWardrobePlaceholder")}
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim() || null;
+                    if (v !== (p.wardrobe ?? null)) updatePhoto(p.id, { wardrobe: v });
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -1243,10 +1665,12 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
   onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
   wardrobeRefreshKey: number; onGenerateOutfit: () => void;
 }) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label="Close dialog" tabIndex={-1} />
-      <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label={t("artistVault.closeDialog")} tabIndex={-1} />
+      <div className={`relative w-full max-w-2xl rounded-2xl border p-6 md:p-8 shadow-2xl my-auto ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/[0.08] bg-[#0a0a0a]"}`}>
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0">
@@ -1276,7 +1700,7 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
               </div>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
+          <button onClick={onClose} aria-label={t("artistVault.closeButton")} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1288,27 +1712,27 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <DetailRow label="Voice Style" value={vault.voice_style} />
-          <DetailRow label="Personality" value={vault.personality} />
-          <DetailRow label="Hair" value={vault.hair} />
-          <DetailRow label="Tattoos" value={vault.tattoos} />
-          <DetailRow label="Jewelry" value={vault.jewelry} />
-          <DetailRow label="Clothing Style" value={vault.clothing_style} />
-          <DetailRow label="Brand Colors" value={vault.brand_colors} />
-          <DetailRow label="Visual Style" value={vault.visual_style} />
-          <DetailRow label="Theme" value={getCharacterTheme(vault.theme_id).name} />
+          <DetailRow label={t("artistVault.detailVoiceStyle")} value={vault.voice_style} />
+          <DetailRow label={t("artistVault.detailPersonality")} value={vault.personality} />
+          <DetailRow label={t("artistVault.detailHair")} value={vault.hair} />
+          <DetailRow label={t("artistVault.detailTattoos")} value={vault.tattoos} />
+          <DetailRow label={t("artistVault.detailJewelry")} value={vault.jewelry} />
+          <DetailRow label={t("artistVault.detailClothing")} value={vault.clothing_style} />
+          <DetailRow label={t("artistVault.detailBrandColors")} value={vault.brand_colors} />
+          <DetailRow label={t("artistVault.detailVisualStyle")} value={vault.visual_style} />
+          <DetailRow label={t("artistVault.detailTheme")} value={getCharacterTheme(vault.theme_id).name} />
         </div>
 
         {vault.do_not_change_rules && (
           <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 mb-3">
-            <p className="text-xs text-red-400/80 uppercase tracking-wider font-semibold mb-1">⛔ Do Not Change Rules</p>
+            <p className="text-xs text-red-400/80 uppercase tracking-wider font-semibold mb-1">{t("artistVault.doNotChangeTitle")}</p>
             <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.do_not_change_rules}</p>
           </div>
         )}
 
         {vault.special_style_rules && (
           <div className="rounded-xl bg-primary/[0.05] border border-primary/20 p-4 mb-3">
-            <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold mb-1">🎨 Special Style Rules</p>
+            <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold mb-1">{t("artistVault.specialStyleTitle")}</p>
             <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.special_style_rules}</p>
           </div>
         )}
@@ -1326,6 +1750,11 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
           onGenerateOutfit={onGenerateOutfit}
         />
 
+        <IdentitySetSection
+          vaultId={vault.id}
+          mainPhotoUrl={vault.reference_image_url}
+        />
+
         <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
           <Button
             onClick={onSetActive}
@@ -1335,24 +1764,24 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
                 : "border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08]"
             }`}
           >
-            {isActive ? <><CheckCircle2 className="h-4 w-4" /> Active Artist</> : <><User className="h-4 w-4" /> Set As Active Artist</>}
+            {isActive ? <><CheckCircle2 className="h-4 w-4" /> {t("artistVault.activeArtist")}</> : <><User className="h-4 w-4" /> {t("artistVault.setAsActive")}</>}
           </Button>
           <Button onClick={onLock} className="flex-1 gap-2 border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold rounded-xl">
-            <Lock className="h-4 w-4" /> Lock Character Consistency
+            <Lock className="h-4 w-4" /> {t("artistVault.lockConsistency")}
           </Button>
           <Button onClick={onEdit} className="flex-1 gold-glow font-bold rounded-xl gap-2">
-            <Pencil className="h-4 w-4" /> Edit Profile
+            <Pencil className="h-4 w-4" /> {t("artistVault.editProfile")}
           </Button>
           {vault.reference_image_url && (
             <Button
               onClick={() => downloadImage(vault.reference_image_url!, `${vault.artist_name}-character-sheet.png`)}
               className="flex-1 gap-2 border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] font-bold rounded-xl"
             >
-              <Download className="h-4 w-4" /> Download Sheet
+              <Download className="h-4 w-4" /> {t("artistVault.downloadSheet")}
             </Button>
           )}
           <Button onClick={onClose} variant="ghost" className="text-white/40 hover:text-white rounded-xl px-6">
-            Close
+            {t("artistVault.close")}
           </Button>
         </div>
       </div>
@@ -1370,55 +1799,93 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
   onShare: () => void;
   isActive: boolean;
 }) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const [imgFailed, setImgFailed] = useState(false);
+  const photoUrl = vault.reference_image_url && !imgFailed ? vault.reference_image_url : null;
+  const hasMedia = !!(photoUrl || vault.reference_video_url);
   const G = (o: number) => `rgba(201,168,76,${o})`;
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  /* Character's own theme color — name labels shine in the matching color. */
+  const vTheme = getCharacterTheme(vault.theme_id);
+  const TC = vTheme.primary;
 
   return (
     <>
-    {lightboxOpen && vault.reference_image_url && (
+    {lightboxOpen && photoUrl && (
       <PhotoLightbox
-        photoUrl={vault.reference_image_url}
+        photoUrl={photoUrl}
         artistName={vault.artist_name}
         onClose={() => setLightboxOpen(false)}
       />
     )}
     <div style={{
       borderRadius: 20,
-      border: isActive ? `2px solid ${G(0.55)}` : "1px solid rgba(255,255,255,0.07)",
+      border: isActive ? `2px solid ${G(0.55)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.07)",
       boxShadow: isActive ? `0 0 50px ${G(0.15)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
       overflow: "hidden",
       transition: "all 0.2s ease",
-      background: isActive ? "#0d0900" : "#0a0a0a",
+      background: isLight ? (isActive ? "#F7ECD2" : "#FCF7EA") : isActive ? "#0d0900" : "#0a0a0a",
     }}>
       {/* Full-photo top section — click to enlarge */}
       <div
-        onClick={() => vault.reference_image_url && setLightboxOpen(true)}
+        onClick={() => photoUrl && setLightboxOpen(true)}
         style={{
-        height: 220,
-        background: vault.reference_image_url
-          ? `url(${vault.reference_image_url}) top center/cover no-repeat`
-          : isActive
-            ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
-            : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+        height: 300,
+        background: isLight
+            ? isActive
+              ? "linear-gradient(135deg, #F1E3BC 0%, #EFE6D0 100%)"
+              : "linear-gradient(135deg, #F7F1E3 0%, #EFE6D0 100%)"
+            : isActive
+              ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
+              : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
-        cursor: vault.reference_image_url ? "zoom-in" : "default",
+        cursor: photoUrl ? "zoom-in" : "default",
       }}>
-        {/* Initials avatar (no photo) */}
-        {!vault.reference_image_url && (
+        {photoUrl && (
+          <img
+            src={photoUrl}
+            alt=""
+            aria-hidden
+            draggable={false}
+            onError={() => setImgFailed(true)}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
+          />
+        )}
+        {/* Living portrait video — when there's no still photo but a video exists.
+            Anchored top so the subject's head stays in frame. */}
+        {!photoUrl && vault.reference_video_url && (
+          <video
+            src={vault.reference_video_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            ref={(v) => { if (v) v.muted = true; }}
+            onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+        {/* Initials avatar (no photo or video) */}
+        {!photoUrl && !vault.reference_video_url && (
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <div style={{
               width: 72, height: 72, borderRadius: "50%",
-              background: isActive ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
+              background: isActive ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : isLight ? "rgba(201,168,76,0.12)" : "rgba(255,255,255,0.06)",
               border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: isActive ? `0 0 28px ${G(0.3)}` : "none",
             }}>
-              <span style={{ fontFamily: "Georgia, serif", fontSize: 24, fontWeight: 900, color: isActive ? GOLD : "rgba(255,255,255,0.4)" }}>{initials}</span>
+              <span style={{ fontFamily: "Georgia, serif", fontSize: 24, fontWeight: 900, color: isLight ? (isActive ? "#7A5A12" : "#8A7A56") : isActive ? GOLD : "rgba(255,255,255,0.4)" }}>{initials}</span>
             </div>
           </div>
         )}
@@ -1433,25 +1900,25 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             backdropFilter: "blur(8px)",
           }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
-            <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>ACTIVE</span>
+            <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>{t("artistVault.activeBadge")}</span>
           </div>
         )}
 
         {/* Name strip at very bottom of photo */}
         <div style={{
-          position: "absolute", left: 0, right: 0, bottom: 0,
-          background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
+          position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2,
+          background: !hasMedia && isLight ? "linear-gradient(to bottom, transparent 0%, rgba(247,236,210,0.97) 100%)" : "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
           padding: "36px 14px 12px",
         }}>
           <p style={{
             fontFamily: "Georgia, serif",
             fontSize: isActive ? 16 : 14,
-            fontWeight: 900, color: "#fff",
+            fontWeight: 900, color: TC,
             letterSpacing: isActive ? "0.04em" : "0",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+            textShadow: !hasMedia && isLight ? "none" : "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
-            <p style={{ fontSize: 9.5, color: isActive ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <p style={{ fontSize: 9.5, color: !hasMedia && isLight && !isActive ? "#8A7A56" : isActive ? themeAlpha(TC, 0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
             </p>
         </div>
@@ -1473,16 +1940,16 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             width: "100%",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "8px 0", borderRadius: 10,
-            border: isActive ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.1)",
-            background: isActive ? G(0.1) : "rgba(255,255,255,0.03)",
-            color: isActive ? GOLD : "rgba(255,255,255,0.5)",
+            border: isActive ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.35)" : "1px solid rgba(255,255,255,0.1)",
+            background: isActive ? G(0.1) : isLight ? "#F7ECD2" : "rgba(255,255,255,0.03)",
+            color: isActive ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.5)",
             fontSize: 11.5, fontWeight: 800,
             cursor: "pointer", letterSpacing: "0.04em",
             boxShadow: isActive ? `0 0 12px ${G(0.1)}` : "none",
           }}>
             {isActive
-              ? <><CheckCircle2 className="h-3.5 w-3.5" /> Active Artist</>
-              : <><User className="h-3.5 w-3.5" /> Set As Active Artist</>}
+              ? <><CheckCircle2 className="h-3.5 w-3.5" /> {t("artistVault.activeArtist")}</>
+              : <><User className="h-3.5 w-3.5" /> {t("artistVault.setAsActive")}</>}
           </button>
 
           {/* Lock Consistency */}
@@ -1490,43 +1957,43 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             width: "100%",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             padding: "8px 0", borderRadius: 10,
-            border: `1px solid ${G(0.25)}`,
-            background: G(0.06),
-            color: GOLD, fontSize: 11.5, fontWeight: 800,
+            border: `1px solid ${G(isLight ? 0.45 : 0.25)}`,
+            background: G(isLight ? 0.12 : 0.06),
+            color: isLight ? "#7A5A12" : GOLD, fontSize: 11.5, fontWeight: 800,
             cursor: "pointer", letterSpacing: "0.04em",
           }}>
-            <Lock className="h-3.5 w-3.5" /> Lock Character Consistency
+            <Lock className="h-3.5 w-3.5" /> {t("artistVault.lockConsistency")}
           </button>
 
           {/* Row actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {[
-              { label: "Open", icon: <Eye className="h-3.5 w-3.5" />, fn: onOpen },
-              { label: "Edit", icon: <Pencil className="h-3.5 w-3.5" />, fn: onEdit },
+              { label: t("artistVault.openButton"), icon: <Eye className="h-3.5 w-3.5" />, fn: onOpen },
+              { label: t("artistVault.editButton"), icon: <Pencil className="h-3.5 w-3.5" />, fn: onEdit },
             ].map(({ label, icon, fn }) => (
               <button key={label} onClick={fn} style={{
                 display: "flex", alignItems: "center", gap: 5,
                 padding: "6px 12px", borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.03)",
-                color: "rgba(255,255,255,0.55)",
+                border: isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                background: isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
+                color: isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}>{icon} {label}</button>
             ))}
-            <button onClick={onShare} title={vault.team_id ? "Shared with team — click to unshare" : "Share with team"} style={{
+            <button onClick={onShare} title={vault.team_id ? t("artistVault.unshareTitle") : t("artistVault.shareTitle")} style={{
               display: "flex", alignItems: "center", gap: 5,
               padding: "6px 12px", borderRadius: 8,
-              border: vault.team_id ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.08)",
-              background: vault.team_id ? G(0.1) : "rgba(255,255,255,0.03)",
-              color: vault.team_id ? GOLD : "rgba(255,255,255,0.55)",
+              border: vault.team_id ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
+              background: vault.team_id ? G(0.1) : isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
+              color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
               fontSize: 11, fontWeight: 600, cursor: "pointer",
-            }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? "Shared" : "Share"}</button>
+            }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
             <button onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
               background: "transparent",
-              color: "rgba(255,255,255,0.3)",
+              color: isLight ? "rgba(122,90,18,0.55)" : "rgba(255,255,255,0.3)",
               cursor: "pointer", marginLeft: "auto",
             }}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
@@ -1540,7 +2007,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
-  usePageTitle("Creator Vault", "Your creative identity — artist profiles, photos, voice, and brand assets in one vault.");
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  usePageTitle(t("artistVault.pageTitle"), t("artistVault.pageDescription"));
   const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
@@ -1553,6 +2022,10 @@ export default function ArtistVault() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoPath, setPhotoPath] = useState<string | null>(null);
+  /* World voice (0142, G4): the character's voice-shaping profile for
+     the palace hall. null = no set voice (sounds like its speaker). */
+  const [voiceProfile, setVoiceProfile] = useState<StoredCharacterVoiceProfile | null>(null);
+  const [voiceAdvancedOpen, setVoiceAdvancedOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -1560,6 +2033,12 @@ export default function ArtistVault() {
   const [wardrobeGenVaultId, setWardrobeGenVaultId] = useState<string | null>(null);
   const [wardrobeRefreshKey, setWardrobeRefreshKey] = useState(0);
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
+  const [tab, setTab] = useState<"vault" | "characters">(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      return q === "characters" ? q : "vault";
+    } catch { return "vault"; }
+  });
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
@@ -1601,37 +2080,25 @@ export default function ArtistVault() {
     if (!user) return;
     const MAX_MB = 10;
     if (file.size > MAX_MB * 1024 * 1024) {
-      setPhotoError(`Image must be under ${MAX_MB}MB.`);
+      setPhotoError(t("artistVault.imageTooLarge", { max: MAX_MB }));
       return;
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setPhotoError("Allowed types: JPG, JPEG, PNG, WebP.");
+      setPhotoError(t("artistVault.allowedTypes"));
       return;
     }
     setUploadingPhoto(true);
     setPhotoError(null);
     try {
-      const sb = getSupabase();
+      const token = await getAccessToken().catch(() => null);
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const artistFolder = editId ?? "new";
       const filePath = `${user.id}/${artistFolder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await sb.storage
-        .from(PHOTO_BUCKET)
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-      if (uploadError) {
-        const msg = uploadError.message ?? "";
-        if (msg.toLowerCase().includes("bucket") && msg.toLowerCase().includes("not found")) {
-          throw new Error(`Artist image bucket missing. Create Supabase bucket ${PHOTO_BUCKET}.`);
-        }
-        throw uploadError;
-      }
-      const { data: { publicUrl } } = sb.storage
-        .from(PHOTO_BUCKET)
-        .getPublicUrl(filePath);
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
       setPhotoUrl(publicUrl);
       setPhotoPath(filePath);
     } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setPhotoError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
     } finally {
       setUploadingPhoto(false);
     }
@@ -1653,6 +2120,8 @@ export default function ArtistVault() {
     reset();
     setPhotoUrl(null);
     setPhotoPath(null);
+    setVoiceProfile(null);
+    setVoiceAdvancedOpen(false);
     setPhotoError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1676,6 +2145,8 @@ export default function ArtistVault() {
     setValue("specialStyleRules", vault.special_style_rules ?? "");
     setPhotoUrl(vault.reference_image_url ?? null);
     setPhotoPath(vault.reference_image_path ?? null);
+    setVoiceProfile(vault.voice_profile ?? null);
+    setVoiceAdvancedOpen(false);
     setPhotoError(null);
     setOpenVault(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1713,6 +2184,7 @@ export default function ArtistVault() {
         voice_id: null,
         voice_name: null,
         voice_preview_url: null,
+        voice_profile: voiceProfile,
         is_active: false,
         created_at: "",
       };
@@ -1736,6 +2208,9 @@ export default function ArtistVault() {
         referenceImageUrl: partialVault.reference_image_url,
         referenceImagePath: partialVault.reference_image_path,
         consistencyPrompt: consistency,
+        /* World voice profile (0142): always sent with the form so a
+           preset change or a clear actually persists. */
+        voiceProfile: voiceProfile,
       };
       const url = editId ? `/api/artist-vaults/${editId}` : "/api/artist-vaults";
       const method = editId ? "PUT" : "POST";
@@ -1749,7 +2224,7 @@ export default function ArtistVault() {
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? "Save failed");
+        throw new Error(err.error ?? t("artistVault.saveFailedShort"));
       }
       await fetchVaults();
       setSaveSuccess(true);
@@ -1759,25 +2234,22 @@ export default function ArtistVault() {
       setPhotoError(null);
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : "Save failed. Please try again.");
+      setApiError(err instanceof Error ? err.message : t("artistVault.saveFailed"));
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteVault(id: string) {
-    if (!window.confirm("Delete this artist profile? This cannot be undone.")) return;
+    if (!window.confirm(t("artistVault.deleteConfirm"))) return;
     try {
       const token = await getAccessToken();
       const vault = vaults.find((v) => v.id === id);
       if (vault?.reference_image_url) {
         try {
-          const sb = getSupabase();
-          const pathToRemove = vault.reference_image_path ?? (() => {
-            const u = new URL(vault.reference_image_url!);
-            return u.pathname.split("/artist-references/")[1] ?? null;
-          })();
-          if (pathToRemove) await sb.storage.from("artist-references").remove([pathToRemove]);
+          const token = await getAccessToken().catch(() => null);
+          const pathToRemove = vault.reference_image_path ?? storageKeyFromUrl(vault.reference_image_url);
+          if (pathToRemove) await r2Remove(pathToRemove, token);
         } catch { /* best-effort */ }
       }
       await fetch(`/api/artist-vaults/${id}`, {
@@ -1795,7 +2267,7 @@ export default function ArtistVault() {
     const vault = vaults.find((v) => v.id === id);
     if (!vault) return;
     const sharing = !vault.team_id;
-    if (sharing && !window.confirm("Share this vault with your team? All team members will be able to use it.")) return;
+    if (sharing && !window.confirm(t("artistVault.shareConfirm"))) return;
     try {
       const token = await getAccessToken();
       const res = await fetch(`/api/artist-vaults/${id}/share`, {
@@ -1808,7 +2280,7 @@ export default function ArtistVault() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || "Could not update sharing.");
+        alert(d.error || t("artistVault.shareUpdateFailed"));
         return;
       }
       const data = await res.json().catch(() => ({}));
@@ -1821,8 +2293,12 @@ export default function ArtistVault() {
   return (
     <div className="min-h-screen bg-black text-white lux-page">
 
+      {/* ── Cinematic ambient background ── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[480px] bg-[#C9A84C]/[0.07] rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -left-40 w-[500px] h-[500px] bg-amber-700/[0.05] rounded-full blur-[110px]" />
+        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-yellow-600/[0.05] rounded-full blur-[110px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
       </div>
 
       {openVault && (
@@ -1870,7 +2346,7 @@ export default function ArtistVault() {
                 await fetch(`/api/artist-vaults/${vid}/outfits`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-                  body: JSON.stringify({ label: "Photo Shoot Look", image_url: url, image_path: path }),
+                  body: JSON.stringify({ label: t("artistVault.photoShootLook"), image_url: url, image_path: path }),
                 });
                 setWardrobeRefreshKey((k) => k + 1);
               } catch {
@@ -1906,34 +2382,81 @@ export default function ArtistVault() {
 
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Dashboard
+          {t("artistVault.backToDashboard")}
         </Link>
 
         {/* Page header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Archive className="h-5 w-5 text-white" />
+        <div className="mb-10 relative">
+          {/* Giant watermark */}
+          <Archive className="absolute -right-4 -top-8 h-36 w-36 text-[#C9A84C]/[0.06] rotate-12 pointer-events-none hidden sm:block" aria-hidden="true" />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] flex items-center justify-center shadow-[0_0_28px_rgba(201,168,76,0.35)]">
+              <Archive className="h-5 w-5 text-black" />
             </div>
-            <Badge className="bg-white/5 text-white/40 border-white/10 text-xs font-bold tracking-wide">Free</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">{t("artistVault.freeBadge")}</Badge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">Artist Profiles</h1>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">
+            <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">{t("artistVault.profilesTitle")}</span>
+          </h1>
           <p className="text-white/50 text-lg max-w-2xl">
-            Save your artist's look, style, colors, and brand once — then load it on any tool to keep all your visuals consistent.
+            {t("artistVault.profilesSubtitle")}
           </p>
+          {/* Attribute quick-jumps — tap to jump straight to that form section */}
           <div className="flex flex-wrap gap-2 mt-5">
-            {["Artist Description", "Visual Style", "Hair & Tattoos", "Jewelry", "Clothing", "Brand Colors", "Do Not Change Rules", "Special Style Rules"].map((t) => (
-              <span key={t} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full">{t}</span>
+            {[
+              { label: t("artistVault.tagArtistDescription"), target: "field-artist-description" },
+              { label: t("artistVault.tagVisualStyle"), target: "field-visual-style" },
+              { label: t("artistVault.tagHairTattoos"), target: "field-hair" },
+              { label: t("artistVault.tagJewelry"), target: "field-jewelry" },
+              { label: t("artistVault.tagClothing"), target: "field-clothing" },
+              { label: t("artistVault.tagBrandColors"), target: "field-brand-colors" },
+              { label: t("artistVault.tagDoNotChange"), target: "field-do-not-change" },
+              { label: t("artistVault.tagSpecialStyle"), target: "field-special-style" },
+            ].map(({ label, target }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+              >
+                {label}
+              </button>
             ))}
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {([
+            { key: "vault", label: t("artistVault.tabVault", { defaultValue: "Vault" }) },
+            { key: "characters", label: t("artistVault.tabCharacters", { defaultValue: "Characters" }) },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                tab === key
+                  ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
+                  : "text-white/50 hover:text-white/80 border border-white/10"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "characters" ? (
+          <CartoonStudio initialTab="characters" />
+        ) : (
+        <>
 
         {/* Status banners */}
         {saveSuccess && (
           <div className="mb-6 flex items-center gap-3 p-4 rounded-xl border border-primary/25 bg-primary/5">
             <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
             <p className="text-sm font-bold text-white">
-              Artist profile {isEditing ? "updated" : "saved"} successfully!
+              {t("artistVault.profileSaved", { action: isEditing ? t("artistVault.savedActionUpdated") : t("artistVault.savedActionSaved") })}
             </p>
             <button onClick={() => setSaveSuccess(false)} className="ml-auto text-white/30 hover:text-white transition-colors">
               <X className="h-4 w-4" />
@@ -1946,21 +2469,82 @@ export default function ArtistVault() {
           </div>
         )}
 
+        {/* Saved Profiles Grid */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-black text-white">{t("artistVault.savedProfiles")}</h2>
+              <p className="text-sm text-white/40 mt-1">
+                {loadingVaults
+                  ? t("artistVault.loading")
+                  : vaults.length === 0
+                    ? t("artistVault.noProfilesYet")
+                    : t("artistVault.profileCount", { count: vaults.length })}
+              </p>
+            </div>
+            {vaults.length > 0 && (
+              <button
+                onClick={startNew}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:border-primary/30 hover:bg-primary/5 transition-colors"
+              >
+                <Plus className="h-4 w-4" /> {t("artistVault.newProfileButton")}
+              </button>
+            )}
+          </div>
+
+          {loadingVaults ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+            </div>
+          ) : vaults.length === 0 ? (
+            <div className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.04] to-transparent p-10 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center mx-auto mb-4">
+                <Archive className="h-7 w-7 text-primary" />
+              </div>
+              <p className="text-white font-bold mb-1">{t("artistVault.emptyProfilesTitle", { defaultValue: "Your vault is empty" })}</p>
+              <p className="text-white/40 text-sm mb-5 max-w-sm mx-auto">{t("artistVault.emptyProfiles")}</p>
+              <button
+                type="button"
+                onClick={() => document.getElementById("new-artist-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black text-sm font-bold hover:brightness-110 transition"
+              >
+                <Plus className="h-4 w-4" /> {t("artistVault.newProfileButton")}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lux-stagger">
+              {vaults.map((vault) => (
+                <VaultCard
+                  key={vault.id}
+                  vault={vault}
+                  onOpen={() => setOpenVault(vault)}
+                  onEdit={() => startEdit(vault)}
+                  onDelete={() => deleteVault(vault.id)}
+                  onLock={() => setConsistencyVault(vault)}
+                  onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
+                  onShare={() => shareVault(vault.id)}
+                  isActive={activeArtist?.id === vault.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Form card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+        <div id="new-artist-form" className={`rounded-2xl border overflow-hidden scroll-mt-24 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/50" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05] bg-white/[0.01]">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Archive className="h-3.5 w-3.5 text-primary" />
               </div>
               <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
-                {isEditing ? "Edit Artist Profile" : "New Artist Profile"}
+                {isEditing ? t("artistVault.editProfileTitle") : t("artistVault.newProfileTitle")}
               </span>
             </div>
             {isEditing && (
               <button onClick={startNew}
                 className="text-xs text-white/30 hover:text-white transition-colors flex items-center gap-1.5">
-                <Plus className="h-3.5 w-3.5" /> New Profile
+                <Plus className="h-3.5 w-3.5" /> {t("artistVault.newProfileButton")}
               </button>
             )}
           </div>
@@ -1968,16 +2552,16 @@ export default function ArtistVault() {
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
 
             {/* Row 1: Artist Name */}
-            <FieldWrapper label="Artist Name">
+            <FieldWrapper label={t("artistVault.fieldArtistName")}>
               <Input
                 {...register("artistName", { required: true })}
-                placeholder="Your stage name"
+                placeholder={t("artistVault.stageNamePlaceholder")}
                 className={inputClass}
               />
             </FieldWrapper>
 
             {/* Subject Type */}
-            <FieldWrapper label="Subject Type" hint="What kind of subject is this profile for?">
+            <FieldWrapper label={t("artistVault.fieldSubjectType")} hint={t("artistVault.fieldSubjectTypeHint")}>
               <div data-min-stars="2" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {(Object.keys(SUBJECT_TYPE_META) as SubjectType[]).map((t) => {
                   const meta = SUBJECT_TYPE_META[t];
@@ -1990,8 +2574,12 @@ export default function ArtistVault() {
                       onClick={() => setValue("artistType", t)}
                       className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
                         active
-                          ? `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
-                          : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
+                          ? isLight
+                            ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#7A5A12] ring-2 ring-[#C9A84C]/40 scale-[1.02]"
+                            : `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
+                          : isLight
+                            ? "border-[#C9A84C]/25 bg-white/60 hover:border-[#C9A84C]/50"
+                            : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
                       }`}
                     >
                       <span className="flex items-center gap-2">
@@ -2006,20 +2594,20 @@ export default function ArtistVault() {
             </FieldWrapper>
 
             {/* Personality */}
-            <FieldWrapper label="Personality" hint="Describe your artist's energy, attitude, story, and vibe">
+            <FieldWrapper label={t("artistVault.fieldPersonality")} hint={t("artistVault.fieldPersonalityHint")}>
               <Textarea
                 {...register("personality")}
-                placeholder="e.g. Young Black artist from Atlanta, street-meets-luxury sound, raw emotion with commercial appeal. Known for cinematic visuals and hard-hitting bars. Started with nothing, now building a legacy..."
+                placeholder={t("artistVault.personalityPlaceholder")}
                 className={textareaClass}
                 style={{ minHeight: "120px" }}
               />
             </FieldWrapper>
 
             {/* Artist Description */}
-            <FieldWrapper label="Artist Description" hint="A short public-facing bio for this artist">
+            <FieldWrapper id="field-artist-description" label={t("artistVault.fieldArtistDescription")} hint={t("artistVault.fieldArtistDescriptionHint")}>
               <Textarea
                 {...register("artistDescription")}
-                placeholder="e.g. TRGDY TRBLZ is a genre-bending hip-hop artist known for cinematic visuals, luxury streetwear aesthetics, and a signature gold chain. Every video feels like a short film."
+                placeholder={t("artistVault.descriptionPlaceholder")}
                 className={textareaClass}
                 style={{ minHeight: "90px" }}
               />
@@ -2027,42 +2615,42 @@ export default function ArtistVault() {
 
             {/* Row 2: Genre + Visual Style */}
             <div data-min-stars="2" className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Music Genre">
-                <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
+              <FieldWrapper label={t("artistVault.fieldGenre")}>
+                <StyledSelect name="genre" placeholder={t("artistVault.selectGenre")} options={GENRES}
                   value={watched.genre} onChange={(v) => setValue("genre", v)} />
               </FieldWrapper>
-              <FieldWrapper label="Visual Style">
-                <StyledSelect name="visualStyle" placeholder="Select visual style..." options={VISUAL_STYLES}
+              <FieldWrapper id="field-visual-style" label={t("artistVault.fieldVisualStyle")}>
+                <StyledSelect name="visualStyle" placeholder={t("artistVault.selectVisualStyle")} options={VISUAL_STYLES}
                   value={watched.visualStyle} onChange={(v) => setValue("visualStyle", v)} />
               </FieldWrapper>
             </div>
 
             {/* Appearance section */}
             <div data-min-stars="3">
-              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Appearance & Wardrobe</p>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">{t("artistVault.appearanceSection")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Hair" hint="Color, length, style, any signature looks">
-                  <Input {...register("hair")} placeholder="e.g. long dreads, black with gold tips..." className={inputClass} />
+                <FieldWrapper id="field-hair" label={t("artistVault.fieldHair")} hint={t("artistVault.fieldHairHint")}>
+                  <Input {...register("hair")} placeholder={t("artistVault.hairPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label="Tattoos" hint="Notable tattoos — placement and description">
-                  <Input {...register("tattoos")} placeholder="e.g. neck tattoos, full left sleeve, chest piece..." className={inputClass} />
+                <FieldWrapper label={t("artistVault.fieldTattoos")} hint={t("artistVault.fieldTattoosHint")}>
+                  <Input {...register("tattoos")} placeholder={t("artistVault.tattoosPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label="Jewelry" hint="Chains, rings, watches — your signature pieces">
-                  <Input {...register("jewelry")} placeholder="e.g. gold chain cross pendant, diamond studs, AP watch..." className={inputClass} />
+                <FieldWrapper id="field-jewelry" label={t("artistVault.fieldJewelry")} hint={t("artistVault.fieldJewelryHint")}>
+                  <Input {...register("jewelry")} placeholder={t("artistVault.jewelryPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label="Clothing Style" hint="Your signature wardrobe aesthetic">
-                  <Input {...register("clothingStyle")} placeholder="e.g. all black designer fits, vintage streetwear, no labels..." className={inputClass} />
+                <FieldWrapper id="field-clothing" label={t("artistVault.fieldClothing")} hint={t("artistVault.fieldClothingHint")}>
+                  <Input {...register("clothingStyle")} placeholder={t("artistVault.clothingPlaceholder")} className={inputClass} />
                 </FieldWrapper>
               </div>
             </div>
 
             {/* Brand section */}
             <div data-min-stars="2">
-              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Brand Identity</p>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">{t("artistVault.brandSection")}</p>
               {/* Character theme picker — their colors, their identity */}
               <div className="mb-5">
-                <Label className="text-sm font-semibold text-white/80 mb-1 block">Character Theme</Label>
-                <p className="text-xs text-white/35 mb-3">Their signature color identity — shows up everywhere this character appears.</p>
+                <Label className="text-sm font-semibold text-white/80 mb-1 block">{t("artistVault.characterTheme")}</Label>
+                <p className="text-xs text-white/35 mb-3">{t("artistVault.characterThemeHint")}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                   {CHARACTER_THEMES.map((theme) => {
                     const selected = (watched.themeId || "gold-royalty") === theme.id;
@@ -2094,24 +2682,93 @@ export default function ArtistVault() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Brand Colors" hint="Your signature color palette">
-                  <Input {...register("brandColors")} placeholder="e.g. black, gold, and deep red..." className={inputClass} />
+                <FieldWrapper id="field-brand-colors" label={t("artistVault.fieldBrandColors")} hint={t("artistVault.fieldBrandColorsHint")}>
+                  <Input {...register("brandColors")} placeholder={t("artistVault.brandColorsPlaceholder")} className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label="Voice Style" hint="How your artist sounds — tone, delivery, energy">
-                  <Input {...register("voiceStyle")} placeholder="e.g. deep baritone, melodic trap, aggressive delivery..." className={inputClass} />
+                <FieldWrapper label={t("artistVault.fieldVoiceStyle")} hint={t("artistVault.fieldVoiceStyleHint")}>
+                  <Input {...register("voiceStyle")} placeholder={t("artistVault.voiceStylePlaceholder")} className={inputClass} />
                 </FieldWrapper>
               </div>
             </div>
 
+            {/* World voice (0142, G4): the character's voice in the hall */}
+            <div>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-1">{t("artistVault.worldVoiceSection")}</p>
+              <p className="text-xs text-white/40 mb-4">{t("artistVault.worldVoiceHint")}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    { key: "deep", label: t("artistVault.voicePresetDeep"), preset: DEEP_VOICE_PRESET },
+                    { key: "natural", label: t("artistVault.voicePresetNatural"), preset: null },
+                    { key: "bright", label: t("artistVault.voicePresetBright"), preset: BRIGHT_VOICE_PRESET },
+                  ] as const
+                ).map(({ key, label, preset }) => {
+                  const active =
+                    preset === null
+                      ? voiceProfile === null
+                      : voiceProfile !== null && JSON.stringify(voiceProfile) === JSON.stringify(preset);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setVoiceProfile(preset ? { ...preset, eq: preset.eq.map((b) => ({ ...b })) } : null)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${active ? "bg-primary text-black" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setVoiceAdvancedOpen((v) => !v)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10] transition-colors"
+                >
+                  {t("artistVault.voiceAdvanced")}
+                </button>
+              </div>
+              {voiceAdvancedOpen && (
+                <div className="mt-4 space-y-4 max-w-md">
+                  {(
+                    [
+                      { key: "pitchSemitones", label: t("artistVault.voicePitch"), min: -12, max: 12, step: 0.5, format: (v: number) => `${v > 0 ? "+" : ""}${v}` },
+                      { key: "formantRatio", label: t("artistVault.voiceFormant"), min: 0.5, max: 2, step: 0.05, format: (v: number) => v.toFixed(2) },
+                      { key: "formantGainDb", label: t("artistVault.voiceBody"), min: 0, max: 6, step: 0.25, format: (v: number) => `${v} dB` },
+                    ] as const
+                  ).map(({ key, label, min, max, step, format }) => {
+                    const current = voiceProfile ?? { pitchSemitones: 0, formantRatio: 1, formantGainDb: 0, eq: [] };
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs text-white/50">{label}</Label>
+                          <span className="text-xs text-white/40">{format(current[key])}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={min}
+                          max={max}
+                          step={step}
+                          value={current[key]}
+                          onChange={(e) =>
+                            setVoiceProfile({ ...current, eq: current.eq.map((b) => ({ ...b })), [key]: Number(e.target.value) })
+                          }
+                          className="w-full accent-[#C9A84C]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Artist Photo Upload */}
             <div>
-              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Artist Photo</p>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">{t("artistVault.artistPhotoSection")}</p>
               <div className="flex items-start gap-5">
                 {/* Preview */}
                 <div className="shrink-0">
                   {photoUrl ? (
                     <div className="relative h-24 w-24 rounded-xl overflow-hidden border border-white/[0.12]">
-                      <img src={photoUrl} alt="Artist" className="h-full w-full object-cover" />
+                      <img src={photoUrl} alt={t("artistVault.artistPhotoAlt")} className="h-full w-full object-cover" />
                     </div>
                   ) : (
                     <div className="h-24 w-24 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
@@ -2121,19 +2778,19 @@ export default function ArtistVault() {
                 </div>
                 {/* Controls */}
                 <div className="flex-1 space-y-2">
-                  <p className="text-xs text-white/40">Upload a front-facing photo. Used as your visual reference across all AI tools. Max 10MB (JPG, PNG, WebP).</p>
+                  <p className="text-xs text-white/40">{t("artistVault.photoHint")}</p>
                   <div className="flex flex-wrap gap-2">
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-primary/60 focus-within:outline-none ${uploadingPhoto ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
                       {uploadingPhoto ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                        <><Loader2 className="h-4 w-4 animate-spin" /> {t("artistVault.uploading")}</>
                       ) : (
-                        <><Upload className="h-4 w-4" /> {photoUrl ? "Replace Photo" : "Upload Photo"}</>
+                        <><Upload className="h-4 w-4" /> {photoUrl ? t("artistVault.replacePhoto") : t("artistVault.uploadPhoto")}</>
                       )}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         className="sr-only"
-                        aria-label={photoUrl ? "Replace reference photo" : "Upload reference photo"}
+                        aria-label={photoUrl ? t("artistVault.replacePhotoAria") : t("artistVault.uploadPhotoAria")}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) uploadPhoto(file);
@@ -2147,7 +2804,7 @@ export default function ArtistVault() {
                         onClick={removePhoto}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-400/70 hover:text-red-400 bg-red-500/[0.04] hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 transition-colors"
                       >
-                        <X className="h-4 w-4" /> Remove
+                        <X className="h-4 w-4" /> {t("artistVault.removePhoto")}
                       </button>
                     )}
                     <button
@@ -2156,16 +2813,16 @@ export default function ArtistVault() {
                       data-testid="btn-generate-artist-image"
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors"
                     >
-                      <Sparkles className="h-4 w-4" /> Generate with AI
+                      <Sparkles className="h-4 w-4" /> {t("artistVault.generateWithAI")}
                     </button>
                     <button
                       type="button"
                       onClick={() => { setGenModalMode("photoshoot"); setShowGenModal(true); }}
                       data-testid="btn-artist-photo-shoot"
-                      title={photoUrl ? "Photo shoot with your locked identity — change outfits, keep the face" : "Save an Artist Photo first to unlock photo shoots"}
+                      title={photoUrl ? t("artistVault.photoShootTitle") : t("artistVault.savePhotoForShoot")}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-black bg-primary hover:brightness-110 transition-all gold-glow"
                     >
-                      <Camera className="h-4 w-4" /> Photo Shoot
+                      <Camera className="h-4 w-4" /> {t("artistVault.photoShoot")}
                     </button>
                   </div>
                   {photoError && <p className="text-xs text-red-400">{photoError}</p>}
@@ -2175,10 +2832,10 @@ export default function ArtistVault() {
 
             {/* Do Not Change Rules */}
             <div data-min-stars="4" className="rounded-xl border border-red-500/15 bg-red-500/[0.03] p-5">
-              <FieldWrapper label="⛔ Do Not Change Rules" hint="Hard rules the AI must NEVER violate for this artist">
+              <FieldWrapper id="field-do-not-change" label={t("artistVault.doNotChangeTitle")} hint={t("artistVault.doNotChangeHint")}>
                 <Textarea
                   {...register("doNotChangeRules")}
-                  placeholder="e.g. Never show the artist without jewelry. Never use cartoon or anime visual style. Do not use pastel or pink colors. Never generate the artist without their signature chain. Never make lyrics sound too soft or pop..."
+                  placeholder={t("artistVault.doNotChangePlaceholder")}
                   className={textareaClass}
                   style={{ minHeight: "110px" }}
                 />
@@ -2187,10 +2844,10 @@ export default function ArtistVault() {
 
             {/* Special Style Rules */}
             <div data-min-stars="4" className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
-              <FieldWrapper label="🎨 Special Style Rules" hint="Extra style directives applied on top of everything else when generating for this artist">
+              <FieldWrapper id="field-special-style" label={t("artistVault.specialStyleTitle")} hint={t("artistVault.specialStyleHint")}>
                 <Textarea
                   {...register("specialStyleRules")}
-                  placeholder="e.g. Always add subtle film grain. Keep lighting warm and golden. Favor slow push-in camera moves. Grade everything teal-and-orange."
+                  placeholder={t("artistVault.specialStylePlaceholder")}
                   className={textareaClass}
                   style={{ minHeight: "90px" }}
                 />
@@ -2200,9 +2857,9 @@ export default function ArtistVault() {
             {/* Character Detail Level */}
             <div data-min-stars="5" className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-4">
               <div>
-                <p className="text-sm font-bold text-white/70 uppercase tracking-wider mb-1">Character Detail Level</p>
+                <p className="text-sm font-bold text-white/70 uppercase tracking-wider mb-1">{t("artistVault.detailLevelTitle")}</p>
                 <p className="text-xs text-white/35">
-                  Controls how tattoos and jewelry are described in AI prompts. Use Video Safe for Runway clips to avoid distorted ink and melted chains.
+                  {t("artistVault.detailLevelHint")}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -2216,25 +2873,25 @@ export default function ArtistVault() {
                   }`}
                 >
                   <Video className="h-4 w-4" />
-                  <span>Video Safe</span>
-                  {detailLevel === "video_safe" && <span className="text-[10px] opacity-70">(default)</span>}
+                  <span>{t("artistVault.videoSafe")}</span>
+                  {detailLevel === "video_safe" && <span className="text-[10px] opacity-70">{t("artistVault.defaultTag")}</span>}
                 </button>
                 <button
                   type="button"
                   onClick={() => setDetailLevel("high_detail")}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
                     detailLevel === "high_detail"
-                      ? "border-white/30 bg-white/[0.07] text-white"
+                      ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                       : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
                   }`}
                 >
                   <Film className="h-4 w-4" />
-                  <span>High Detail Still Image</span>
+                  <span>{t("artistVault.highDetailStill")}</span>
                 </button>
               </div>
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
                 <p className="text-[11px] text-amber-400/80 leading-relaxed">
-                  ⚠️ Tiny jewelry, tattoos, and text may vary in AI video. For best realism, use <strong>Video Safe</strong> for clips and <strong>High Detail</strong> for thumbnails and still images.
+                  {t("artistVault.warnPrefix")} <strong>{t("artistVault.videoSafe")}</strong> {t("artistVault.formWarnMiddle")} <strong>{t("artistVault.highDetail")}</strong> {t("artistVault.formWarnSuffix")}
                 </p>
               </div>
             </div>
@@ -2249,11 +2906,11 @@ export default function ArtistVault() {
                 style={{ height: "52px" }}
               >
                 {saving ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Saving...</>
+                  <><Loader2 className="h-5 w-5 animate-spin" /> {t("artistVault.saving")}</>
                 ) : isEditing ? (
-                  <><Save className="h-5 w-5" /> Update Artist Profile</>
+                  <><Save className="h-5 w-5" /> {t("artistVault.updateProfile")}</>
                 ) : (
-                  <><Save className="h-5 w-5" /> Save Artist Profile</>
+                  <><Save className="h-5 w-5" /> {t("artistVault.saveProfile")}</>
                 )}
               </Button>
               {isEditing && (
@@ -2265,65 +2922,17 @@ export default function ArtistVault() {
                   className="font-bold text-base px-6 rounded-xl text-white/40 hover:text-white"
                   style={{ height: "52px" }}
                 >
-                  Cancel
+                  {t("artistVault.cancel")}
                 </Button>
               )}
-              <p className="w-full text-white/25 text-xs">Free — no Visual Bucs required</p>
+              <p className="w-full text-white/25 text-xs">{t("artistVault.freeNote")}</p>
             </div>
 
           </form>
         </div>
 
-        {/* Saved Profiles Grid */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-black text-white">Saved Profiles</h2>
-              <p className="text-sm text-white/40 mt-1">
-                {loadingVaults
-                  ? "Loading..."
-                  : vaults.length === 0
-                    ? "No profiles saved yet"
-                    : `${vaults.length} profile${vaults.length !== 1 ? "s" : ""}`}
-              </p>
-            </div>
-            {vaults.length > 0 && (
-              <button
-                onClick={startNew}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:border-primary/30 hover:bg-primary/5 transition-colors"
-              >
-                <Plus className="h-4 w-4" /> New Profile
-              </button>
-            )}
-          </div>
-
-          {loadingVaults ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-white/30" />
-            </div>
-          ) : vaults.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] p-10 text-center">
-              <Archive className="h-10 w-10 text-white/15 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">Fill out the form above to save your first artist profile.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lux-stagger">
-              {vaults.map((vault) => (
-                <VaultCard
-                  key={vault.id}
-                  vault={vault}
-                  onOpen={() => setOpenVault(vault)}
-                  onEdit={() => startEdit(vault)}
-                  onDelete={() => deleteVault(vault.id)}
-                  onLock={() => setConsistencyVault(vault)}
-                  onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
-                  onShare={() => shareVault(vault.id)}
-                  isActive={activeArtist?.id === vault.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
       </div>
     </div>

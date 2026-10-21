@@ -6,12 +6,14 @@ import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -100,6 +102,13 @@ const upload = multer({
   },
 });
 
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const watermarkRemovalSchema = z.object({
+  preset: z.string().optional(),
+  custom: z.string().optional(),
+});
+
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
 export type WatermarkJobStatus = "queued" | "processing" | "done" | "failed";
@@ -119,6 +128,7 @@ export interface WatermarkJob {
 }
 
 const jobs = new Map<string, WatermarkJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getWatermarkJob(id: string): WatermarkJob | undefined {
   return jobs.get(id);
@@ -214,12 +224,14 @@ export async function runWatermarkJob(job: WatermarkJob, inputBuffer: Buffer, or
  * poll GET /api/watermark-removal/:jobId → download/stream result.
  * Failed jobs are refunded automatically.
  */
-router.post("/api/watermark-removal", requireAuth, upload.single("video"), async (req, res) => {
+router.post("/watermark-removal", requireAuth, upload.single("video"), async (req, res) => {
+  const parsed = watermarkRemovalSchema.safeParse(req.body ?? {});
+  const body = parsed.success ? parsed.data : {};
   let custom: unknown = null;
-  if (typeof req.body?.custom === "string") {
-    try { custom = JSON.parse(req.body.custom); } catch { custom = null; }
+  if (typeof body.custom === "string") {
+    try { custom = JSON.parse(body.custom); } catch { custom = null; }
   }
-  const preset = (req.body?.preset as string) ?? "";
+  const preset = body.preset ?? "";
   const region = resolveRegion(preset, custom);
   if (!region) {
     res.status(400).json({
@@ -295,7 +307,7 @@ router.post("/api/watermark-removal", requireAuth, upload.single("video"), async
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL
  * for the cleaned video retained in Supabase storage).
  */
-router.get("/api/watermark-removal/:jobId", requireAuth, (req, res) => {
+router.get("/watermark-removal/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

@@ -6,6 +6,9 @@
  * constant, and the automatic refund when a job fails.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { promises as fsp } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(),
@@ -71,6 +74,18 @@ function makeJob(overrides: Partial<MasteringJob> = {}): MasteringJob {
     createdAt: Date.now(),
     ...overrides,
   };
+}
+
+/**
+ * runMasteringJob takes a disk path since the 2026-10-12 OOM fix (uploads
+ * are disk-backed, never RAM Buffers) — write the fake upload to a real
+ * temp file, exactly what multer's disk storage hands the route.
+ */
+async function fakeUploadPath(contents = "fake-audio"): Promise<string> {
+  const dir = await fsp.mkdtemp(join(tmpdir(), "mastering-test-"));
+  const p = join(dir, "upload.wav");
+  await fsp.writeFile(p, contents);
+  return p;
 }
 
 const SAMPLE_MEASUREMENT: LoudnormMeasurement = {
@@ -228,7 +243,7 @@ describe("runMasteringJob — refund on failure", () => {
   it("refunds the 4 credits when loudness analysis fails", async () => {
     mockExecFileImpl(() => ({ err: new Error("ffmpeg not found") }));
     const job = makeJob();
-    await runMasteringJob(job, Buffer.from("fake-audio"), "mix.wav");
+    await runMasteringJob(job, await fakeUploadPath(), "mix.wav");
     expect(job.status).toBe("failed");
     expect(job.error).toContain("loudness");
     expect(mockRefund).toHaveBeenCalledTimes(1);
@@ -250,7 +265,7 @@ describe("runMasteringJob — refund on failure", () => {
       return { err: null };
     });
     const job = makeJob({ preset: "club" });
-    await runMasteringJob(job, Buffer.from("fake-audio"), "mix.wav");
+    await runMasteringJob(job, await fakeUploadPath(), "mix.wav");
     expect(job.inputLufs).toBeCloseTo(-19.4);
     expect(job.inputTruePeak).toBeCloseTo(-2.1);
     expect(job.inputLra).toBeCloseTo(8.3);

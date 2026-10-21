@@ -3,11 +3,14 @@ import { Link } from "wouter";
 import {
   Scale, Sparkles, Loader2, FileText, MessageCircleQuestion, CheckCircle2,
   Copy, Plus, Trash2, ShieldCheck, Clock3, BadgeDollarSign, ArrowRight,
-  ChevronDown, AlertTriangle, ListChecks,
+  ChevronDown, AlertTriangle, ListChecks, Download, Flag,
 } from "lucide-react";
+import { submitDmcaReport, type DmcaReportForm } from "@/lib/dmca-report";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useTranslation } from "react-i18next";
 
 /* ─── Copyright Filing Assistant ────────────────────────────────────────────
    AI-powered guided page for U.S. copyright registration prep (content creators).
@@ -89,8 +92,156 @@ function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/* ── DMCA takedown report ────────────────────────────────────────────────────
+   The public intake (POST /api/dmca/report) has been live since the admin
+   DMCA bench landed, but this page never called it — the endpoint was
+   reachable only by direct API call. This section is the missing door:
+   the form rides lib/dmca-report (its payload mirrors the server's
+   contract) and shows success ONLY on the server's 201 confirmation.
+   Public by design — a rights holder reporting infringement may not have
+   an account, so the form never asks for sign-in. */
+
+const EMPTY_DMCA_FORM: DmcaReportForm = {
+  reporterName: "",
+  reporterEmail: "",
+  reporterOrg: "",
+  infringingUrlsText: "",
+  originalUrlsText: "",
+  description: "",
+  agreed: false,
+};
+
+function TakedownReportSection({ isLight }: { isLight: boolean }) {
+  const [form, setForm] = useState<DmcaReportForm>(EMPTY_DMCA_FORM);
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+
+  const set = (patch: Partial<DmcaReportForm>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  async function fileReport() {
+    if (status === "submitting") return;
+    setStatus("submitting");
+    setError(null);
+    const result = await submitDmcaReport(form);
+    if (result.status === "success") {
+      setReportId(result.id);
+      setStatus("success");
+    } else {
+      setError(result.error);
+      setStatus("error");
+    }
+  }
+
+  function fileAnother() {
+    setForm(EMPTY_DMCA_FORM);
+    setReportId(null);
+    setError(null);
+    setStatus("idle");
+  }
+
+  return (
+    <section className="mt-12 rounded-3xl border border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f]">
+          <Flag className="h-6 w-6 text-black" aria-hidden="true" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black">Report copyright infringement</h2>
+          <p className="text-sm text-white/50">
+            Someone using your work without permission? File a DMCA takedown report — it goes straight to our review team. No account needed.
+          </p>
+        </div>
+      </div>
+
+      {status === "success" ? (
+        <div className={`mt-6 rounded-2xl border p-6 text-center ${isLight ? "border-emerald-500/40 bg-emerald-500/10" : "border-emerald-500/30 bg-emerald-500/[0.07]"}`}>
+          <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-400" aria-hidden="true" />
+          <h3 className="mt-3 text-lg font-black text-white">Report filed — thank you.</h3>
+          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-white/60">
+            Your report is in the review queue and the team has been alerted. If they need anything else,
+            they&apos;ll reach you at the email you gave.
+            {reportId ? <> Reference: <span className="font-bold text-white">{reportId}</span></> : null}
+          </p>
+          <button
+            onClick={fileAnother}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-primary"
+          >
+            File another report
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass} htmlFor="dmca-name">Your full name *</label>
+              <input id="dmca-name" className={inputClass} value={form.reporterName} onChange={(e) => set({ reporterName: e.target.value })} placeholder="Legal name of the copyright owner or agent" maxLength={120} autoComplete="name" />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="dmca-email">Your email *</label>
+              <input id="dmca-email" type="email" className={inputClass} value={form.reporterEmail} onChange={(e) => set({ reporterEmail: e.target.value })} placeholder="Where the review team can reach you" maxLength={200} autoComplete="email" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-org">Organization / company (optional)</label>
+              <input id="dmca-org" className={inputClass} value={form.reporterOrg} onChange={(e) => set({ reporterOrg: e.target.value })} placeholder="Label, publisher, or company you represent — if any" maxLength={200} autoComplete="organization" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-infringing">Links to the infringing content *</label>
+              <textarea id="dmca-infringing" className={`${inputClass} min-h-[76px] resize-y`} value={form.infringingUrlsText} onChange={(e) => set({ infringingUrlsText: e.target.value })} placeholder={"One link per line — the pages on Bow Down Visuals using your work.\nhttps://bowdownvisuals.com/track/..."} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-original">Links to your original work (optional)</label>
+              <textarea id="dmca-original" className={`${inputClass} min-h-[60px] resize-y`} value={form.originalUrlsText} onChange={(e) => set({ originalUrlsText: e.target.value })} placeholder={"One link per line — where your work originally lives.\nhttps://..."} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="dmca-description">What happened? *</label>
+              <textarea id="dmca-description" className={`${inputClass} min-h-[96px] resize-y`} value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Name the work and how it's being used without permission — at least a sentence or two." maxLength={5000} />
+            </div>
+          </div>
+
+          <label className="mt-5 flex cursor-pointer items-start gap-2.5 text-sm leading-relaxed text-white/70">
+            <input
+              type="checkbox"
+              checked={form.agreed}
+              onChange={(e) => set({ agreed: e.target.checked })}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#d4af37]"
+            />
+            <span>
+              I have a good-faith belief that the use of the material described above is not authorized by the
+              copyright owner, its agent, or the law. I agree — <span className="text-white">under penalty of perjury</span> —
+              that the information in this report is accurate and that I am the copyright owner or authorized to act on their behalf.
+            </span>
+          </label>
+
+          {status === "error" && error && (
+            <p className={`mx-auto mt-5 max-w-xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm ${isLight ? "text-red-700" : "text-red-300"}`}>{error}</p>
+          )}
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={fileReport}
+              disabled={status === "submitting"}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+            >
+              {status === "submitting" ? <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" /> : <Flag className="h-6 w-6" aria-hidden="true" />}
+              {status === "submitting" ? "Filing your report…" : "File takedown report"}
+            </button>
+            <p className="mt-2.5 text-xs text-white/35">
+              Reports are reviewed by a person, not a bot. Filing a false report has legal consequences — only report work you own or represent.
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function CopyrightAssistant() {
-  usePageTitle("Copyright Assistant", "Protect your music — guided copyright registration help for creators.");
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const cardCls = isLight ? "border-[#C9A84C]/35 bg-[#F7ECD2]/80" : "border-white/10 bg-white/[0.03]";
+  const darkPanelCls = isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9]" : "border-white/10 bg-black/50";
+  usePageTitle(t("copyright.metaTitle"), t("copyright.metaDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* ── free guided form ── */
@@ -277,9 +428,13 @@ export default function CopyrightAssistant() {
 
   const statusBadge = (s: RegStatus) =>
     s === "filed"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      ? isLight
+        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
       : s === "prepared"
-        ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+        ? isLight
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-700"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-300"
         : "border-white/15 bg-white/[0.04] text-white/50";
 
   return (
@@ -288,17 +443,14 @@ export default function CopyrightAssistant() {
         {/* ── HERO ── */}
         <div className="text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
-            <Scale className="h-4 w-4" aria-hidden="true" /> Protect the catalog
-          </div>
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-            Copyright <span className="bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] bg-clip-text text-transparent">Filing Assistant</span>
+            <Scale className="h-4 w-4" aria-hidden="true" />{t("copyright.protect_the_catalog")}</div>
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("copyright.copyright")}{" "}<span className="bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] bg-clip-text text-transparent">{t("copyright.filing_assistant")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/60">
             You own your music the second you create it — registration is what lets you{" "}
-            <span className="text-white">enforce</span> it. Our AI drafts your application
+            <span className="text-white">{t("copyright.enforce")}</span> it. Our AI drafts your application
             description and filing notes, then hands you a checklist to file at{" "}
-            <span className="text-white">copyright.gov</span> in minutes.
-          </p>
+            <span className="text-white">copyright.gov</span>{" "}{t("copyright.in_minutes")}</p>
         </div>
 
         {/* ── EXPLAINER ── */}
@@ -320,7 +472,7 @@ export default function CopyrightAssistant() {
               body: "$65 Standard Application or $45 Single Application online. Standard processing: ~1–4 months. Confirm fees at copyright.gov.",
             },
           ].map((c) => (
-            <div key={c.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div key={c.title} className={`rounded-2xl border p-5 ${cardCls}`}>
               <c.icon className="mb-3 h-6 w-6 text-primary" aria-hidden="true" />
               <h3 className="font-bold text-white">{c.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-white/55">{c.body}</p>
@@ -335,22 +487,20 @@ export default function CopyrightAssistant() {
               <Sparkles className="h-6 w-6 text-black" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-2xl font-black">AI Filing Assistant</h2>
-              <p className="text-sm text-white/50">
-                Fill in your work details — free. AI writes your formal application description + filing notes.
-              </p>
+              <h2 className="text-2xl font-black">{t("copyright.ai_filing_assistant")}</h2>
+              <p className="text-sm text-white/50">{t("copyright.fill_in_your_work_details_free_a")}</p>
             </div>
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div data-min-stars="2">
-              <label className={labelClass}>Work type</label>
+              <label className={labelClass}>{t("copyright.work_type")}</label>
               <div className="flex flex-wrap gap-2">
                 {WORK_TYPE_OPTS.map((o) => (
                   <button
                     key={o.key}
                     type="button"
-                    title={o.hint}
+                    title={t(`copyright.workType.${o.key}.hint`, { defaultValue: o.hint })}
                     onClick={() => setWorkType(o.key)}
                     className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
                       workType === o.key
@@ -358,35 +508,33 @@ export default function CopyrightAssistant() {
                         : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25"
                     }`}
                   >
-                    {o.label}
+                    {t(`copyright.workType.${o.key}.label`, { defaultValue: o.label })}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <label className={labelClass} htmlFor="cr-title">Work title</label>
-              <input id="cr-title" className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Midnight Crown" maxLength={200} />
+              <label className={labelClass} htmlFor="cr-title">{t("copyright.work_title")}</label>
+              <input id="cr-title" className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("copyright.e_g_midnight_crown")} maxLength={200} />
             </div>
             <div>
-              <label className={labelClass} htmlFor="cr-authors">Author(s) / claimant(s)</label>
-              <input id="cr-authors" className={inputClass} value={authors} onChange={(e) => setAuthors(e.target.value)} placeholder="Legal names, comma-separated" maxLength={500} />
+              <label className={labelClass} htmlFor="cr-authors">{t("copyright.author_s_claimant_s")}</label>
+              <input id="cr-authors" className={inputClass} value={authors} onChange={(e) => setAuthors(e.target.value)} placeholder={t("copyright.legal_names_comma_separated")} maxLength={500} />
             </div>
             <div data-min-stars="3">
-              <label className={labelClass} htmlFor="cr-created">Year / date of creation</label>
-              <input id="cr-created" className={inputClass} value={creationDate} onChange={(e) => setCreationDate(e.target.value)} placeholder="e.g. 2026" maxLength={20} />
+              <label className={labelClass} htmlFor="cr-created">{t("copyright.year_date_of_creation")}</label>
+              <input id="cr-created" className={inputClass} value={creationDate} onChange={(e) => setCreationDate(e.target.value)} placeholder={t("copyright.e_g_2026")} maxLength={20} />
             </div>
             <div data-min-stars="3" className="flex items-end gap-4">
               <label className="flex cursor-pointer items-center gap-2.5 text-sm text-white/70">
-                <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 accent-[#d4af37]" />
-                Already published / released
-              </label>
+                <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 accent-[#d4af37]" />{t("copyright.already_published_released")}</label>
               {published && (
-                <input className={inputClass} value={publishedDate} onChange={(e) => setPublishedDate(e.target.value)} placeholder="Release date" maxLength={20} />
+                <input className={inputClass} value={publishedDate} onChange={(e) => setPublishedDate(e.target.value)} placeholder={t("copyright.release_date")} maxLength={20} />
               )}
             </div>
             <div data-min-stars="3" className="sm:col-span-2">
-              <label className={labelClass} htmlFor="cr-notes">Anything else the AI should know (optional)</label>
-              <textarea id="cr-notes" className={`${inputClass} min-h-[72px] resize-y`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Co-writers, samples used, AI tools involved in production…" maxLength={1000} />
+              <label className={labelClass} htmlFor="cr-notes">{t("copyright.anything_else_the_ai_should_know")}</label>
+              <textarea id="cr-notes" className={`${inputClass} min-h-[72px] resize-y`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("copyright.co_writers_samples_used_ai_tools")} maxLength={1000} />
             </div>
           </div>
 
@@ -402,30 +550,42 @@ export default function CopyrightAssistant() {
               </button>
             ) : (
               <Link href="/login" className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black">
-                <Sparkles className="h-6 w-6" aria-hidden="true" /> Sign in to generate your draft <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                <Sparkles className="h-6 w-6" aria-hidden="true" />{t("copyright.sign_in_to_generate_your_draft")}<ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">{DRAFT_CREDIT_COST} Visual Buc per draft · powered by Thy Cheat Code</p>
             {draftOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {draftError && !draftOutOfCredits && (
-              <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{draftError}</p>
+              <p className={`mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm ${isLight ? "text-red-700" : "text-red-300"}`}>{draftError}</p>
             )}
           </div>
 
           {draft && (
             <div id="draft-result" className="mt-8 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/50 p-5">
-                <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><FileText className="h-5 w-5" aria-hidden="true" /> Description of work</h3>
+              <div className={`rounded-2xl border p-5 ${darkPanelCls}`}>
+                <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><FileText className="h-5 w-5" aria-hidden="true" />{t("copyright.description_of_work")}</h3>
                 <p className="text-sm leading-relaxed text-white/75">{draft.description}</p>
                 <button
                   onClick={() => navigator.clipboard.writeText(draft.description).catch(() => {})}
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition hover:text-primary"
                 >
-                  <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy description
-                </button>
+                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />{t("copyright.copy_description")}</button>
+                <button
+                  onClick={() => {
+                    const text = [`COPYRIGHT FILING DRAFT — Bow Down Visuals`, "", "DESCRIPTION OF WORK:", draft.description, "", "FILING NOTES:", ...draft.filingNotes.map((n) => `• ${n}`)].join("\n");
+                    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "copyright-filing-draft.txt";
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+                  }}
+                  className="ml-4 mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition hover:text-primary"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />{t("copyright.download_draft", { defaultValue: "Download draft" })}</button>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/50 p-5">
-                <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><ListChecks className="h-5 w-5" aria-hidden="true" /> Filing notes</h3>
+              <div className={`rounded-2xl border p-5 ${darkPanelCls}`}>
+                <h3 className="mb-2 flex items-center gap-2 font-bold text-primary"><ListChecks className="h-5 w-5" aria-hidden="true" />{t("copyright.filing_notes")}</h3>
                 <ul className="space-y-2 text-sm leading-relaxed text-white/75">
                   {draft.filingNotes.map((n, i) => (
                     <li key={i} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />{n}</li>
@@ -437,9 +597,9 @@ export default function CopyrightAssistant() {
         </section>
 
         {/* ── FILING CHECKLIST ── */}
-        <section className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+        <section className={`mt-10 rounded-3xl border p-6 sm:p-8 ${cardCls}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-black">Your filing checklist</h2>
+            <h2 className="text-2xl font-black">{t("copyright.your_filing_checklist")}</h2>
             <button
               onClick={copyChecklist}
               className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
@@ -447,7 +607,7 @@ export default function CopyrightAssistant() {
               <Copy className="h-4 w-4" aria-hidden="true" /> {copied ? "Copied!" : "Copy checklist"}
             </button>
           </div>
-          <p className="mt-1 text-sm text-white/50">Take this to <span className="text-white">copyright.gov/eco</span> — we prepare everything, you file (v1).</p>
+          <p className="mt-1 text-sm text-white/50">{t("copyright.take_this_to")}{" "}<span className="text-white">copyright.gov/eco</span>{" "}{t("copyright.we_prepare_everything_you_file_v")}</p>
           <ol className="mt-4 space-y-3">
             {checklist.map((s, i) => (
               <li key={i} className="flex gap-3 text-sm leading-relaxed text-white/70">
@@ -461,22 +621,19 @@ export default function CopyrightAssistant() {
             disabled={!title.trim()}
             className="mt-5 inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-primary disabled:opacity-40"
           >
-            <Plus className="h-4 w-4" aria-hidden="true" /> Track this work below
-          </button>
+            <Plus className="h-4 w-4" aria-hidden="true" />{t("copyright.track_this_work_below")}</button>
         </section>
 
         {/* ── TRACKER ── */}
         <section className="mt-10">
-          <h2 className="text-2xl font-black">My registrations</h2>
-          <p className="mt-1 text-sm text-white/50">Tap a status to advance it: draft → prepared → filed.</p>
+          <h2 className="text-2xl font-black">{t("copyright.my_registrations")}</h2>
+          <p className="mt-1 text-sm text-white/50">{t("copyright.tap_a_status_to_advance_it_draft")}</p>
           {regs.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-white/40">
-              Nothing tracked yet — fill in the form above and hit "Track this work".
-            </p>
+            <p className="mt-4 rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-white/40">{t("copyright.nothing_tracked_yet_fill_in_the")}</p>
           ) : (
             <div className="mt-4 space-y-2.5">
               {regs.map((r) => (
-                <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div key={r.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${cardCls}`}>
                   <div className="min-w-0">
                     <p className="truncate font-bold text-white">{r.title}</p>
                     <p className="text-xs text-white/40">{r.workType} · added {new Date(r.createdAt).toLocaleDateString()}</p>
@@ -484,14 +641,14 @@ export default function CopyrightAssistant() {
                   <div className="flex shrink-0 items-center gap-2">
                     <button
                       onClick={() => cycleStatus(r.id)}
-                      title="Tap to advance status"
+                      title={t("copyright.tap_to_advance_status")}
                       className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider transition ${statusBadge(r.status)}`}
                     >
                       {r.status}
                     </button>
                     <button
                       onClick={() => setRegs((prev) => prev.filter((x) => x.id !== r.id))}
-                      title="Remove"
+                      title={t("copyright.remove")}
                       className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-red-300"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -510,26 +667,23 @@ export default function CopyrightAssistant() {
               <MessageCircleQuestion className="h-6 w-6 text-black" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-2xl font-black">Ask about copyright</h2>
-              <p className="text-sm text-white/50">GPT-6 answers your registration questions — fees, timelines, disputes, AI works.</p>
+              <h2 className="text-2xl font-black">{t("copyright.ask_about_copyright")}</h2>
+              <p className="text-sm text-white/50">{t("copyright.gpt_6_answers_your_registration")}</p>
             </div>
           </div>
 
-          <div className="mt-5 max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/50 p-4">
+          <div className={`mt-5 max-h-96 space-y-3 overflow-y-auto rounded-2xl border p-4 ${darkPanelCls}`}>
             {qaMessages.length === 0 && (
-              <p className="text-center text-sm text-white/35">
-                Try: "Should I register my song before or after I release it?" or "What happens if someone steals my beat?"
-              </p>
+              <p className="text-center text-sm text-white/35">{t("copyright.try_should_i_register_my_song_be")}</p>
             )}
             {qaMessages.map((m, i) => (
-              <div key={i} className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "ml-auto bg-primary/20 text-white" : "bg-white/[0.05] text-white/80"}`}>
+              <div key={i} className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "ml-auto bg-primary/20 text-white" : isLight ? "bg-[#C9A84C]/10 text-white/80" : "bg-white/[0.05] text-white/80"}`}>
                 {m.content}
               </div>
             ))}
             {qaLoading && (
               <div className="flex items-center gap-2 text-sm text-white/40">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Thinking…
-              </div>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("copyright.thinking")}</div>
             )}
           </div>
 
@@ -547,9 +701,7 @@ export default function CopyrightAssistant() {
               onClick={askQuestion}
               disabled={!user || qaLoading || !question.trim()}
               className="shrink-0 rounded-xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-5 py-3 text-sm font-black text-black transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
-            >
-              Ask
-            </button>
+            >{t("copyright.ask")}</button>
           </div>
           <p className="mt-2 text-xs text-white/35">{ASK_CREDIT_COST} Visual Buc per answer · powered by Thy Cheat Code</p>
           {qaOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -560,7 +712,7 @@ export default function CopyrightAssistant() {
 
         {/* ── FAQ ── */}
         <section className="mt-12">
-          <h2 className="text-2xl font-black">Common questions</h2>
+          <h2 className="text-2xl font-black">{t("copyright.common_questions")}</h2>
           <div className="mt-4 space-y-2.5">
             {FAQ.map((f, i) => (
               <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -576,6 +728,9 @@ export default function CopyrightAssistant() {
             ))}
           </div>
         </section>
+
+        {/* ── DMCA TAKEDOWN REPORT ── */}
+        <TakedownReportSection isLight={isLight} />
 
         {/* ── DISCLAIMER ── */}
         <div className="mt-10 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-5">

@@ -1,5 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
+import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { resolveCreatorTier } from "./require-tier";
+import {
+  meetsTier,
+  tierFromLegacyPlan,
+  tierFromPlanTier,
+  legacyPlanNameForTier,
+  type CreatorTier,
+} from "../lib/platform-fees";
 
 declare global {
   namespace Express {
@@ -31,6 +40,21 @@ export async function createSessionSupabase(accessToken: string): Promise<Supaba
   });
 }
 
+/**
+ * Effective plan for req.userPlan, expressed in the legacy plan-name
+ * vocabulary its consumers parse. profiles.plan is written exactly once
+ * ("free", by the first-run insert below) and never updated again — the
+ * live tier sources are profiles.plan_tier (the 1–6 ladder) and the
+ * creator subscription (creator_subscriptions.tier). Derive from those:
+ * max(subscription tier, ladder tier, legacy column) so nobody loses
+ * access they bought. resolveCreatorTier never throws; on any lookup
+ * failure the legacy candidate stands.
+ */
+async function deriveEffectivePlan(userId: string, legacyTier: CreatorTier): Promise<string> {
+  const { tier } = await resolveCreatorTier(userId, legacyPlanNameForTier(legacyTier));
+  return legacyPlanNameForTier(tier);
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers["authorization"];
   if (!authHeader?.startsWith("Bearer ")) {
@@ -56,10 +80,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const userClient = await createSessionSupabase(token);
   req.userSupabase = userClient;
 
-  // Fetch profile with credits and plan.
+  // Fetch profile with credits and plan sources (plan_tier is the live
+  // ladder; the plan column itself is write-once "free" — see
+  // deriveEffectivePlan).
   const { data: profile, error: profileError } = await userClient
     .from("profiles")
-    .select("id, credits, plan")
+    .select("id, credits, plan, plan_tier")
     .eq("id", user.id)
     .single();
 
@@ -69,7 +95,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   if (profile) {
     req.userCredits = profile.credits;
-    req.userPlan = profile.plan ?? "free";
+    const byLegacy = tierFromLegacyPlan(profile.plan);
+    const byPlanTier = tierFromPlanTier(profile.plan_tier);
+    const legacyTier = meetsTier(byPlanTier, byLegacy) ? byPlanTier : byLegacy;
+    req.userPlan = await deriveEffectivePlan(user.id, legacyTier);
   } else {
     // Profile doesn't exist yet — create it.
     const { data: newProfile, error: insertError } = await userClient
@@ -89,7 +118,18 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.userCredits = newProfile?.credits ?? 300;
+    // Genuinely free: this branch is the account's first authed contact
+    // (it creates the profile row), so no ladder tier or subscription
+    // can exist yet.
     req.userPlan = "free";
+
+    if (newProfile) {
+      // Brand-new account (this branch runs exactly once per user — when
+      // their profile row is first provisioned). The Tom move: Thy Cheat
+      // Code becomes their first friend, both directions. Idempotent and
+      // never throws, so auth can't fail over it.
+      await ensureKingsWelcome(user.id);
+    }
   }
 
   next();

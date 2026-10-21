@@ -8,9 +8,9 @@ export interface PackSizeOption {
 }
 
 export const PACK_SIZE_OPTIONS: PackSizeOption[] = [
-  { size: 10, credits: 5, label: "10 samples" },
-  { size: 25, credits: 12, label: "25 samples" },
-  { size: 50, credits: 20, label: "50 samples" },
+  { size: 10, credits: 500, label: "10 samples" },
+  { size: 25, credits: 1200, label: "25 samples" },
+  { size: 50, credits: 2000, label: "50 samples" },
 ];
 
 export function creditsForSize(size: number): number {

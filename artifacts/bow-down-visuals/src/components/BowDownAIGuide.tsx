@@ -262,6 +262,10 @@ function PlaylistTracks() {
 
   const handleFile = useCallback(
     async (file: File) => {
+      if (file.size > 25 * 1024 * 1024) {
+        setError("That track is over 25 MB — pick a smaller file.");
+        return;
+      }
       setUploading(true);
       setError(null);
       try {
@@ -313,7 +317,7 @@ function PlaylistTracks() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+      <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">
         Playlist
         {loaded && tracks.length > 0 && (
           <span className="text-yellow-400/60"> · {tracks.length}</span>
@@ -474,14 +478,20 @@ function saveOpen(v: boolean) {
 function ThemePlayerRow() {
   const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
   const loaded      = status === "ready" || status === "playing";
-  const unavailable = status === "missing" || status === "error";
+  const missing     = status === "missing";
+  const failed      = status === "error";
+  const unavailable = missing || failed;
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-1.5">
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : unavailable ? "bg-red-400/60" : "bg-yellow-400/60"}`} />
+      <p className="text-[10px] font-black text-white/60 uppercase tracking-widest flex items-center gap-1.5">
+        <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : failed ? "bg-red-400/60" : missing ? "bg-[#C9A84C]/70" : "bg-yellow-400/60"}`} />
         Theme Song
-        {unavailable && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— not found</span>}
+        {/* "missing" = no theme song chosen yet (an expected state, not a
+            failure) — it used to render a red "— not found" that read like
+            a site error to every visitor. Red is reserved for real errors. */}
+        {missing && <span className="text-[#C9A84C]/80 font-normal normal-case tracking-normal ml-1">— coming soon</span>}
+        {failed && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
       </p>
       {!unavailable && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
@@ -792,7 +802,7 @@ export function BowDownAIGuide() {
         {/* ── Expanded panel ── */}
         {open && (
           <div
-            className="flex flex-col rounded-2xl border shadow-2xl overflow-hidden"
+            className="flex flex-col rounded-2xl border shadow-2xl overflow-hidden bdv-playlist-widget"
             style={{
               background:     "rgba(6,6,6,0.96)",
               backdropFilter: "blur(20px)",
@@ -863,7 +873,7 @@ export function BowDownAIGuide() {
 
             <button
               onClick={toggleOpen}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl bdv-mini-player"
               style={{
                 background:     "rgba(6,6,6,0.92)",
                 border:         "1px solid rgba(218,165,32,0.28)",

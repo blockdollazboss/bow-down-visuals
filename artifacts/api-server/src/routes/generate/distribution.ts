@@ -1,5 +1,5 @@
 import { Router, raw as expressRaw, type Request, type Response } from "express";
-import { randomUUID, createHmac, timingSafeEqual } from "crypto";
+import { randomUUID, createHmac, timingSafeEqual, randomInt } from "crypto";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -9,11 +9,20 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): client-supplied release audio/artwork
+   is re-hosted into permanent storage at save time (song-library audio is
+   already permanent and passes through untouched); reads deep-refresh. */
 import {
   getAggregator,
   type AggregatorReleasePayload,
   type PlatformDeliveryStatus,
 } from "../../lib/distribution-aggregator";
+import { parseSpotifyItem } from "../../lib/distribution-legacy";
+import { fanOutToFollowers } from "../../lib/notify-fanout";
 
 const router = Router();
 
@@ -126,6 +135,58 @@ export function isValidIsrc(v: string | undefined | null): boolean {
   return /^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(v.toUpperCase().replace(/[-\s]/g, ""));
 }
 
+/* ─── Release Metadata Manager: barcode helpers ────────────────────────────
+   The "generate barcode" helper mints a valid-format UPC-A (12 digits with a
+   correct GS1 check digit) that is explicitly labeled INTERNAL — a real,
+   store-recognized UPC can only come from a distribution partner. The digits
+   are random, never registered with GS1, and must never be presented to a
+   store as an official UPC. */
+
+/** GS1 check digit for the first 11 digits of a UPC-A. */
+export function upcACheckDigit(first11: string): string {
+  const digits = first11.split("").map((d) => Number(d));
+  const oddSum = digits.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0);
+  const evenSum = digits.filter((_, i) => i % 2 === 1).reduce((a, b) => a + b, 0);
+  const total = oddSum * 3 + evenSum;
+  return String((10 - (total % 10)) % 10);
+}
+
+/** GS1 check digit for the first 12 digits of an EAN-13. */
+export function ean13CheckDigit(first12: string): string {
+  const digits = first12.split("").map((d) => Number(d));
+  const evenSum = digits.filter((_, i) => i % 2 === 1).reduce((a, b) => a + b, 0);
+  const oddSum = digits.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0);
+  const total = oddSum + evenSum * 3;
+  return String((10 - (total % 10)) % 10);
+}
+
+/** Mint a valid-format UPC-A placeholder. Prefixed 09 (unassigned GS1 range)
+    so it can never collide with a real registered barcode. */
+export function generateInternalBarcode(): string {
+  let body = "09";
+  for (let i = 0; i < 9; i++) body += String(randomInt(0, 10));
+  return body + upcACheckDigit(body);
+}
+
+/** Validate a manually-entered UPC-A or EAN-13 (digits + correct check digit). */
+export function isValidUpc(v: string | undefined | null): boolean {
+  if (!v) return true; // optional
+  const digits = v.replace(/[-\s]/g, "");
+  if (!/^\d+$/.test(digits)) return false;
+  if (digits.length === 12) return upcACheckDigit(digits.slice(0, 11)) === digits[11];
+  if (digits.length === 13) return ean13CheckDigit(digits.slice(0, 12)) === digits[12];
+  return false;
+}
+
+export const UPC_KINDS = ["internal", "official"] as const;
+export const TERRITORY_MODES = ["worldwide", "include", "exclude"] as const;
+
+const territoryCodes = z
+  .array(z.string().regex(/^[A-Z]{2}$/, "Territory codes must be ISO 3166-1 alpha-2 (e.g. US).").max(2))
+  .max(300)
+  .optional()
+  .default([]);
+
 export const createReleaseSchema = z.object({
   title: z.string().min(1, "Release title is required.").max(200),
   artistName: z.string().min(1, "Artist name is required.").max(120),
@@ -137,6 +198,10 @@ export const createReleaseSchema = z.object({
   /* Optional link into the user's song library — server verifies ownership
      and prefills audioUrl from the song when none is given. */
   songId: z.string().uuid("Song id must be a valid UUID.").optional(),
+  /* The song's lyrics (0142, DE-9): stored on the linked songs row and
+     mirrored into the release metadata; the wizard no longer treats
+     lyrics as release-only scratch. */
+  lyrics: z.string().max(10000).optional(),
   /* Release-level track listing. single → exactly 1, EP → 2–6, album → 7–30. */
   tracks: z.array(trackSchema).max(30).optional().default([]),
   isrc: z.string().max(20).optional().transform((v) => (v ? v.toUpperCase().replace(/[-\s]/g, "") : v)),
@@ -145,8 +210,24 @@ export const createReleaseSchema = z.object({
   /* The creator must actively declare clean vs explicit — never defaulted silently. */
   explicitDeclared: z.boolean().optional().default(false),
   upc: z.string().max(20).optional().default(""),
+  /* 'internal' = placeholder minted by the barcode helper; 'official' = a
+     real UPC assigned via a distribution partner. Honesty: the UI must say
+     so, and generated barcodes are always stored as internal. */
+  upcKind: z.enum(UPC_KINDS).optional().default("internal"),
   label: z.string().max(120).optional().default(""),
+  /* Custom label name / imprint (DistroKid-style). */
+  labelImprint: z.string().max(120).optional().default(""),
   copyrightLine: z.string().max(200).optional().default(""),
+  /* © and ℗ lines, separately editable; UI auto-suggests from label + year. */
+  copyrightCLine: z.string().max(200).optional().default(""),
+  copyrightPLine: z.string().max(200).optional().default(""),
+  /* Subgenre alongside the primary genre. */
+  subgenre: z.string().max(80).optional().default(""),
+  /* Original (first) release date and preorder on-sale date. */
+  originalReleaseDate: z.string().max(20).optional().default(""),
+  preorderDate: z.string().max(20).optional().default(""),
+  territoriesMode: z.enum(TERRITORY_MODES).optional().default("worldwide"),
+  territories: territoryCodes,
   metadata: z.record(z.string(), z.unknown()).optional(),
   strategy: z.record(z.string(), z.unknown()).optional(),
 });
@@ -209,14 +290,31 @@ interface ReleaseRow {
   explicit: boolean | null;
   explicit_declared: boolean | null;
   upc: string | null;
+  upc_kind: string | null;
   label: string | null;
+  label_imprint: string | null;
   copyright_line: string | null;
+  copyright_c_line: string | null;
+  copyright_p_line: string | null;
+  subgenre: string | null;
+  original_release_date: string | null;
+  preorder_date: string | null;
+  territories_mode: string | null;
+  territories: string[] | null;
   song_id: string | null;
   tracks: Array<{ title: string; isrc?: string }> | null;
   aggregator: string | null;
   aggregator_release_id: string | null;
   platform_statuses: Array<{ platform: string; status: string; detail?: string; updatedAt: string }> | null;
   presave_slug: string | null;
+  presave_headline?: string | null;
+  presave_platform_links?: Record<string, string> | null;
+  presave_bonus_url?: string | null;
+  /* Retargeting pixels (migration 0187) */
+  meta_pixel_id?: string | null;
+  tiktok_pixel_id?: string | null;
+  google_tag_id?: string | null;
+  split_share_slug: string | null;
 }
 
 export interface ChecklistItem {
@@ -226,11 +324,19 @@ export interface ChecklistItem {
   hint: string;
 }
 
+/* Canonical collaborator roles for a split agreement (DistroKid parity). */
+export const SPLIT_ROLES = ["artist", "producer", "writer", "featured"] as const;
+export type SplitRole = (typeof SPLIT_ROLES)[number];
+
 export interface RoyaltySplit {
   id?: string;
   name: string;
   role?: string;
+  email?: string | null;
+  inviteStatus?: string;
   share: number;
+  agreementVersion?: number;
+  effectiveFrom?: string;
 }
 
 const RELEASE_COLUMNS = sql`
@@ -238,8 +344,10 @@ const RELEASE_COLUMNS = sql`
   audio_url, artwork_url, metadata, strategy, status,
   credits_charged, created_at, updated_at,
   release_type, isrc, genre, explicit, explicit_declared,
-  upc, label, copyright_line, song_id, tracks,
-  aggregator, aggregator_release_id, platform_statuses, presave_slug
+  upc, upc_kind, label, label_imprint, copyright_line, copyright_c_line, copyright_p_line,
+  subgenre, original_release_date, preorder_date, territories_mode, territories,
+  song_id, tracks,
+  aggregator, aggregator_release_id, platform_statuses, presave_slug, split_share_slug
 `;
 
 function rowToRelease(row: ReleaseRow, splits: RoyaltySplit[] = []) {
@@ -266,14 +374,28 @@ function rowToRelease(row: ReleaseRow, splits: RoyaltySplit[] = []) {
     explicit: row.explicit ?? false,
     explicitDeclared: row.explicit_declared ?? false,
     upc: row.upc,
+    upcKind: (["internal", "official"] as const).includes(row.upc_kind as "internal")
+      ? (row.upc_kind as "internal" | "official")
+      : "internal",
     label: row.label,
+    labelImprint: row.label_imprint,
     copyrightLine: row.copyright_line,
+    copyrightCLine: row.copyright_c_line,
+    copyrightPLine: row.copyright_p_line,
+    subgenre: row.subgenre,
+    originalReleaseDate: row.original_release_date,
+    preorderDate: row.preorder_date,
+    territoriesMode: (["worldwide", "include", "exclude"] as const).includes(row.territories_mode as "worldwide")
+      ? (row.territories_mode as "worldwide" | "include" | "exclude")
+      : "worldwide",
+    territories: row.territories ?? [],
     songId: row.song_id,
     tracks: row.tracks ?? [],
     aggregator: row.aggregator ?? "none",
     aggregatorReleaseId: row.aggregator_release_id,
     platformStatuses: row.platform_statuses ?? [],
     presaveSlug: row.presave_slug,
+    splitShareSlug: row.split_share_slug,
     royaltySplits: splits,
     checklist: buildChecklist(row),
   };
@@ -575,17 +697,33 @@ router.post("/distribution/strategy", publicApiLimiter, requireAuth, async (req,
 });
 
 /* Load royalty splits for a release (newest table — may not exist in old test DDLs). */
+/* Load the ACTIVE royalty splits for a release (the newest agreement
+   version — older versions stay in the ledger as history). */
 async function loadSplits(releaseId: string, userId: string): Promise<RoyaltySplit[]> {
   try {
     const result = await db.execute(sql`
-      SELECT id, payee_name, role, share_pct
+      SELECT id, payee_name, role, payee_email, invite_status, share_pct,
+             agreement_version, effective_from
       FROM distribution_royalty_splits
-      WHERE release_id = ${releaseId} AND user_id = ${userId}
+      WHERE release_id = ${releaseId} AND user_id = ${userId} AND superseded_at IS NULL
       ORDER BY share_pct DESC
     `);
-    return (result.rows as Array<{ id: string; payee_name: string; role: string | null; share_pct: string }>).map(
-      (r) => ({ id: r.id, name: r.payee_name, role: r.role ?? undefined, share: Number(r.share_pct) }),
-    );
+    return (
+      result.rows as Array<{
+        id: string; payee_name: string; role: string | null; payee_email: string | null;
+        invite_status: string | null; share_pct: string; agreement_version: number | null;
+        effective_from: string | null;
+      }>
+    ).map((r) => ({
+      id: r.id,
+      name: r.payee_name,
+      role: r.role ?? undefined,
+      email: r.payee_email ?? null,
+      inviteStatus: r.invite_status ?? "not_invited",
+      share: Number(r.share_pct),
+      agreementVersion: Number(r.agreement_version ?? 1),
+      effectiveFrom: r.effective_from ?? undefined,
+    }));
   } catch {
     /* Table missing (older installs) — splits are optional. */
     return [];
@@ -615,43 +753,80 @@ router.post("/distribution/releases", requireAuth, async (req, res) => {
       return;
     }
   }
+  if (d.upc && !isValidUpc(d.upc)) {
+    res.status(400).json({ error: "That UPC/EAN looks invalid — 12-digit UPC-A or 13-digit EAN with a valid check digit." });
+    return;
+  }
   try {
     /* Song-library link: verify ownership, prefill audio when not given. */
     let audioUrl = d.audioUrl?.trim() || null;
     let songId: string | null = null;
+    let songMeta: { genre: string | null; isrc: string | null; lyrics: string | null; cover_art_url: string | null } | null = null;
     if (d.songId) {
       const songResult = await db.execute(sql`
-        SELECT id, audio_url FROM songs WHERE id = ${d.songId} AND user_id = ${req.userId!} LIMIT 1
+        SELECT id, audio_url, genre, isrc, lyrics, cover_art_url FROM songs WHERE id = ${d.songId} AND user_id = ${req.userId!} LIMIT 1
       `);
-      const song = songResult.rows[0] as unknown as { id: string; audio_url: string } | undefined;
+      const song = songResult.rows[0] as unknown as {
+        id: string; audio_url: string;
+        genre: string | null; isrc: string | null; lyrics: string | null; cover_art_url: string | null;
+      } | undefined;
       if (!song) {
         res.status(400).json({ error: "That song isn't in your library." });
         return;
       }
       songId = song.id;
+      songMeta = { genre: song.genre, isrc: song.isrc, lyrics: song.lyrics, cover_art_url: song.cover_art_url };
       if (!audioUrl) audioUrl = song.audio_url;
     }
+    if (audioUrl) {
+      audioUrl = (await mirrorExternalMediaUrl(audioUrl, { kind: "audio", ownerKey: req.userId! })) ?? audioUrl;
+    }
+    /* Release metadata lives on the song (0142, DE-9): values the wizard
+       supplied win; anything left blank is prefilled from the song. */
+    const genre = d.genre?.trim() || songMeta?.genre || null;
+    const isrc = d.isrc || songMeta?.isrc || null;
+    const lyrics = d.lyrics?.trim() || songMeta?.lyrics || null;
+    const artworkInput = d.artworkUrl?.trim() || songMeta?.cover_art_url || "";
+    const artworkUrl = artworkInput
+      ? ((await mirrorExternalMediaUrl(artworkInput, { kind: "image", ownerKey: req.userId! })) ?? artworkInput)
+      : null;
+    const metadata: Record<string, unknown> = {
+      ...(d.metadata ?? {}),
+      ...(lyrics ? { lyrics } : {}),
+    };
     const id = randomUUID();
     const result = await db.execute(sql`
       INSERT INTO distribution_releases
         (id, user_id, title, artist_name, release_type, release_date, platforms,
          audio_url, artwork_url, song_id, tracks, isrc, genre, explicit,
-         explicit_declared, upc, label, copyright_line,
+         explicit_declared, upc, upc_kind, label, label_imprint, copyright_line,
+         copyright_c_line, copyright_p_line, subgenre, original_release_date,
+         preorder_date, territories_mode, territories,
          metadata, strategy, status, credits_charged)
       VALUES (
         ${id}, ${req.userId!}, ${d.title.trim()}, ${d.artistName.trim()}, ${d.releaseType},
         ${d.releaseDate?.trim() || null}, ${JSON.stringify(d.platforms ?? [])}::jsonb,
-        ${audioUrl}, ${d.artworkUrl?.trim() || null}, ${songId},
+        ${audioUrl}, ${artworkUrl}, ${songId},
         ${JSON.stringify(d.tracks ?? [])}::jsonb,
-        ${d.isrc || null}, ${d.genre?.trim() || null}, ${d.explicit}, ${d.explicitDeclared},
-        ${d.upc?.trim() || null}, ${d.label?.trim() || null}, ${d.copyrightLine?.trim() || null},
-        ${d.metadata ? JSON.stringify(d.metadata) : null}::jsonb,
+        ${isrc}, ${genre}, ${d.explicit}, ${d.explicitDeclared},
+        ${d.upc?.trim() || null}, ${d.upcKind ?? "internal"},
+        ${d.label?.trim() || null}, ${d.labelImprint?.trim() || null},
+        ${d.copyrightLine?.trim() || null}, ${d.copyrightCLine?.trim() || null},
+        ${d.copyrightPLine?.trim() || null}, ${d.subgenre?.trim() || null},
+        ${d.originalReleaseDate?.trim() || null}, ${d.preorderDate?.trim() || null},
+        ${d.territoriesMode ?? "worldwide"}, ${JSON.stringify(d.territories ?? [])}::jsonb,
+        ${Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null}::jsonb,
         ${d.strategy ? JSON.stringify(d.strategy) : null}::jsonb,
         'draft', 0
       )
       RETURNING ${RELEASE_COLUMNS}
     `);
-    res.status(201).json({ release: rowToRelease(result.rows[0] as unknown as ReleaseRow) });
+    /* Write the final metadata back to the song so the NEXT release (and
+       every other surface) reads it from the song, not from scratch. */
+    if (songId) {
+      await syncSongReleaseMetadata(req.userId!, songId, { genre, isrc, lyrics, coverArtUrl: artworkUrl });
+    }
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(result.rows[0] as unknown as ReleaseRow) }));
   } catch (err) {
     logger.error({ err }, "[distribution] create release failed");
     res.status(500).json({ error: "Couldn't save the release — try again." });
@@ -668,12 +843,44 @@ router.get("/distribution/releases", requireAuth, async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 200
     `);
-    res.json({ releases: (result.rows as unknown as ReleaseRow[]).map((r) => rowToRelease(r)) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ releases: (result.rows as unknown as ReleaseRow[]).map((r) => rowToRelease(r)) }));
   } catch (err) {
     logger.error({ err }, "[distribution] list releases failed");
     res.status(500).json({ error: "Couldn't load releases — try again." });
   }
 });
+
+/* ── Song-library metadata sync (0142, DE-9) ──────────────────────────────
+   The songs row is the ONE place release metadata lives (migration 0142
+   added lyrics / genre / isrc / cover_art_url to songs). Creating or
+   updating a release linked to a library song writes the metadata back
+   to the song, and creating a release prefills from whatever the song
+   already knows — the wizard stops re-collecting it per release.
+   Non-empty values only: a blank release field never erases what the
+   song knows. Best-effort: a sync failure never fails the release. */
+interface SongReleaseMetadata {
+  genre?: string | null;
+  isrc?: string | null;
+  lyrics?: string | null;
+  coverArtUrl?: string | null;
+}
+
+async function syncSongReleaseMetadata(userId: string, songId: string, fields: SongReleaseMetadata): Promise<void> {
+  const sets = [];
+  if (fields.genre?.trim()) sets.push(sql`genre = ${fields.genre.trim()}`);
+  if (fields.isrc?.trim()) sets.push(sql`isrc = ${fields.isrc.trim()}`);
+  if (fields.lyrics?.trim()) sets.push(sql`lyrics = ${fields.lyrics.trim()}`);
+  if (fields.coverArtUrl?.trim()) sets.push(sql`cover_art_url = ${fields.coverArtUrl.trim()}`);
+  if (sets.length === 0) return;
+  try {
+    await db.execute(sql`
+      UPDATE songs SET ${sql.join(sets, sql`, `)}
+      WHERE id = ${songId} AND user_id = ${userId}
+    `);
+  } catch (err) {
+    logger.warn({ err, songId }, "[distribution] song metadata sync failed (release unaffected)");
+  }
+}
 
 function releaseId(req: Request): string {
   const id = req.params.id;
@@ -699,7 +906,7 @@ router.get("/distribution/releases/:id", requireAuth, async (req, res) => {
       return;
     }
     const splits = await loadSplits(row.id, req.userId!);
-    res.json({ release: rowToRelease(row, splits) });
+    res.json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(row, splits) }));
   } catch (err) {
     logger.error({ err }, "[distribution] get release failed");
     res.status(500).json({ error: "Couldn't load the release — try again." });
@@ -732,6 +939,16 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Release ISRC looks invalid — 12 characters, e.g. USABC2412345." });
       return;
     }
+    if (d.upc !== undefined && d.upc && !isValidUpc(d.upc)) {
+      res.status(400).json({ error: "That UPC/EAN looks invalid — 12-digit UPC-A or 13-digit EAN with a valid check digit." });
+      return;
+    }
+    if (d.audioUrl) {
+      d.audioUrl = (await mirrorExternalMediaUrl(d.audioUrl.trim(), { kind: "audio", ownerKey: req.userId! })) ?? d.audioUrl;
+    }
+    if (d.artworkUrl) {
+      d.artworkUrl = (await mirrorExternalMediaUrl(d.artworkUrl.trim(), { kind: "image", ownerKey: req.userId! })) ?? d.artworkUrl;
+    }
     /* Merge over the existing row, then write every column explicitly —
        keeps one static query shape (pg-mem-safe) instead of dynamic SETs. */
     const merged = {
@@ -749,9 +966,28 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       explicit_declared:
         d.explicitDeclared !== undefined ? d.explicitDeclared : (existing.explicit_declared ?? false),
       upc: d.upc !== undefined ? d.upc.trim() || null : existing.upc,
+      upc_kind: d.upcKind !== undefined ? d.upcKind : (existing.upc_kind ?? "internal"),
       label: d.label !== undefined ? d.label.trim() || null : existing.label,
+      label_imprint: d.labelImprint !== undefined ? d.labelImprint.trim() || null : existing.label_imprint,
       copyright_line: d.copyrightLine !== undefined ? d.copyrightLine.trim() || null : existing.copyright_line,
-      metadata: d.metadata !== undefined ? d.metadata : existing.metadata,
+      copyright_c_line:
+        d.copyrightCLine !== undefined ? d.copyrightCLine.trim() || null : existing.copyright_c_line,
+      copyright_p_line:
+        d.copyrightPLine !== undefined ? d.copyrightPLine.trim() || null : existing.copyright_p_line,
+      subgenre: d.subgenre !== undefined ? d.subgenre.trim() || null : existing.subgenre,
+      original_release_date:
+        d.originalReleaseDate !== undefined ? d.originalReleaseDate.trim() || null : existing.original_release_date,
+      preorder_date: d.preorderDate !== undefined ? d.preorderDate.trim() || null : existing.preorder_date,
+      territories_mode:
+        d.territoriesMode !== undefined ? d.territoriesMode : (existing.territories_mode ?? "worldwide"),
+      territories: d.territories !== undefined ? d.territories : (existing.territories ?? []),
+      metadata: (() => {
+        let m = d.metadata !== undefined ? d.metadata : existing.metadata;
+        if (d.lyrics !== undefined && d.lyrics.trim()) {
+          m = { ...(m ?? {}), lyrics: d.lyrics.trim() };
+        }
+        return m;
+      })(),
       strategy: d.strategy !== undefined ? d.strategy : existing.strategy,
     };
     const result = await db.execute(sql`
@@ -769,8 +1005,17 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
           explicit = ${merged.explicit},
           explicit_declared = ${merged.explicit_declared},
           upc = ${merged.upc},
+          upc_kind = ${merged.upc_kind},
           label = ${merged.label},
+          label_imprint = ${merged.label_imprint},
           copyright_line = ${merged.copyright_line},
+          copyright_c_line = ${merged.copyright_c_line},
+          copyright_p_line = ${merged.copyright_p_line},
+          subgenre = ${merged.subgenre},
+          original_release_date = ${merged.original_release_date},
+          preorder_date = ${merged.preorder_date},
+          territories_mode = ${merged.territories_mode},
+          territories = ${JSON.stringify(merged.territories)}::jsonb,
           metadata = ${merged.metadata ? JSON.stringify(merged.metadata) : null}::jsonb,
           strategy = ${merged.strategy ? JSON.stringify(merged.strategy) : null}::jsonb,
           updated_at = now()
@@ -778,7 +1023,17 @@ router.patch("/distribution/releases/:id", requireAuth, async (req, res) => {
       RETURNING ${RELEASE_COLUMNS}
     `);
     const row = result.rows[0] as unknown as ReleaseRow;
-    res.json({ release: rowToRelease(row) });
+    /* Keep the linked song's metadata in step (0142, DE-9). */
+    if (existing.song_id) {
+      const metaLyrics = (merged.metadata as Record<string, unknown> | null)?.["lyrics"];
+      await syncSongReleaseMetadata(req.userId!, existing.song_id, {
+        genre: merged.genre,
+        isrc: merged.isrc,
+        lyrics: typeof metaLyrics === "string" ? metaLyrics : null,
+        coverArtUrl: merged.artwork_url,
+      });
+    }
+    res.json(await refreshSupabaseStorageUrlsDeep({ release: rowToRelease(row) }));
   } catch (err) {
     logger.error({ err }, "[distribution] update release failed");
     res.status(500).json({ error: "Couldn't update the release — try again." });
@@ -870,7 +1125,7 @@ export async function resumeActiveDeliveries(): Promise<void> {
         const row = await getOwnedReleaseUnsafe(r.id);
         if (row) {
           try {
-            const sub = await aggregator.submitRelease(buildAggregatorPayload(row));
+            const sub = await aggregator.submitRelease(await buildAggregatorPayload(row));
             await db.execute(sql`
               UPDATE distribution_releases
               SET aggregator_release_id = ${sub.aggregatorReleaseId}, updated_at = now()
@@ -898,11 +1153,15 @@ async function getOwnedReleaseUnsafe(id: string): Promise<ReleaseRow | null> {
   return (result.rows[0] as unknown as ReleaseRow) ?? null;
 }
 
-function buildAggregatorPayload(row: ReleaseRow): AggregatorReleasePayload {
+async function buildAggregatorPayload(row: ReleaseRow): Promise<AggregatorReleasePayload> {
+  /* The aggregator fetches these URLs server-side — resolve stored refs
+     (mirror-on-save) to fresh signed URLs at submission time. */
+  const audioUrl = row.audio_url ? await refreshSupabaseStorageUrl(row.audio_url) : "";
+  const artworkUrl = row.artwork_url ? await refreshSupabaseStorageUrl(row.artwork_url) : "";
   const tracks = (row.tracks ?? []).map((t) => ({
     title: t.title,
     isrc: t.isrc,
-    audioUrl: row.audio_url ?? "",
+    audioUrl,
     explicit: row.explicit ?? false,
   }));
   return {
@@ -919,10 +1178,137 @@ function buildAggregatorPayload(row: ReleaseRow): AggregatorReleasePayload {
     copyrightLine: row.copyright_line ?? undefined,
     upc: row.upc ?? undefined,
     isrc: row.isrc ?? undefined,
-    tracks: tracks.length > 0 ? tracks : [{ title: row.title, audioUrl: row.audio_url ?? "", explicit: row.explicit ?? false }],
-    artworkUrl: row.artwork_url ?? "",
+    tracks: tracks.length > 0 ? tracks : [{ title: row.title, audioUrl, explicit: row.explicit ?? false }],
+    artworkUrl,
     platforms: row.platforms ?? [],
   };
+}
+
+/* ─── Generate internal barcode (FREE) ─────────────────────────────────────
+   POST /api/distribution/releases/:id/generate-barcode
+   Mints a valid-format UPC-A placeholder for the release's internal catalog
+   ID. Stored with upc_kind='internal' and the UI must label it
+   "Internal catalog ID — official UPC assigned when distributed via
+   partner." A real, store-recognized UPC only comes from a distribution
+   partner. Refuses to overwrite an official UPC. Drafts only. */
+router.post("/distribution/releases/:id/generate-barcode", requireAuth, async (req, res) => {
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    if (existing.status !== "draft") {
+      res.status(409).json({ error: "This release is already packaged — create a new release to change it." });
+      return;
+    }
+    if (existing.upc && existing.upc_kind === "official") {
+      res.status(409).json({
+        error: "This release already has an official UPC assigned via a partner — it can't be replaced by a placeholder.",
+      });
+      return;
+    }
+    const barcode = generateInternalBarcode();
+    const result = await db.execute(sql`
+      UPDATE distribution_releases
+      SET upc = ${barcode}, upc_kind = 'internal', updated_at = now()
+      WHERE id = ${releaseId(req)}
+      RETURNING ${RELEASE_COLUMNS}
+    `);
+    res.json({
+      release: rowToRelease(result.rows[0] as unknown as ReleaseRow),
+      barcode,
+      kind: "internal",
+      notice:
+        "Internal catalog ID minted — this is a placeholder, not a store-recognized UPC. " +
+        "Your official UPC is assigned when the release is distributed via a partner.",
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] generate-barcode failed");
+    res.status(500).json({ error: "Couldn't generate the barcode — try again." });
+  }
+});
+
+/* ─── Release announcement (linkage) ─────────────────────────────────────
+   A submitted release announces itself — before this, submit touched
+   only distribution_releases: the release never appeared on the
+   creator's profile and no follower ever heard about it, even though
+   POST /notify's release fan-out existed for exactly this.
+
+   On the draft → packaged transition (the ONLY way this runs — submit
+   409s on a non-draft, so the announcement is exactly-once by
+   construction):
+   1. The released work appears on the creator's public profile as a
+      published profile track — the profile catalog row the public
+      page's top_tracks reads and /publish/track writes. It is
+      projected FROM the release record, whose song_id already points
+      at the one library song (release creation verifies the songs
+      row and pre-fills audio from it): no parallel song record is
+      invented. Keyed on (profile, audio_url) — a row that already
+      carries this audio is refreshed + published, never duplicated.
+      Release-level audio only: tracks[] carry titles, not audio, so
+      an EP/album announces with its lead audio, like the release
+      itself presents it.
+   2. Every follower gets the release notification through the
+      POST /notify fan-out contract (lib/notify-fanout), linking to
+      the track's own page.
+
+   Awaited but NON-FATAL: credits are charged and the release is
+   packaged before this runs, so an announcement failure is logged —
+   never a failed (or worse, rolled-back) submission. */
+async function announceRelease(row: ReleaseRow, ownerUserId: string): Promise<void> {
+  try {
+    const profileRes = await db.execute(sql`
+      SELECT id, slug FROM creator_profiles WHERE user_id = ${ownerUserId} LIMIT 1
+    `);
+    const profile = profileRes.rows[0] as { id: string; slug: string } | undefined;
+    if (!profile) return; // No creator profile yet — nowhere to announce.
+
+    let trackId: string | null = null;
+    if (row.audio_url) {
+      const existingRes = await db.execute(sql`
+        SELECT id FROM profile_tracks
+        WHERE profile_id = ${profile.id} AND audio_url = ${row.audio_url}
+        LIMIT 1
+      `);
+      const existingTrack = existingRes.rows[0] as { id: string } | undefined;
+      if (existingTrack) {
+        trackId = existingTrack.id;
+        await db.execute(sql`
+          UPDATE profile_tracks
+          SET title = ${row.title},
+              artwork_url = ${row.artwork_url},
+              genre = ${row.genre},
+              isrc = ${row.isrc},
+              is_published = true
+          WHERE id = ${trackId}
+        `);
+      } else {
+        const inserted = await db.execute(sql`
+          INSERT INTO profile_tracks
+            (profile_id, title, audio_url, artwork_url, genre, isrc, is_published)
+          VALUES (${profile.id}, ${row.title}, ${row.audio_url}, ${row.artwork_url},
+                  ${row.genre}, ${row.isrc}, true)
+          RETURNING id
+        `);
+        trackId = (inserted.rows[0] as { id: string } | undefined)?.id ?? null;
+      }
+    }
+
+    await fanOutToFollowers({
+      profileId: profile.id,
+      ownerUserId,
+      kind: "release",
+      title: `${row.artist_name} — new release: ${row.title}`.slice(0, 140),
+      body: `"${row.title}" is out now. Tap to listen on their page.`.slice(0, 500),
+      link: trackId ? `/track/${trackId}` : `/artist/${profile.slug}`,
+    });
+  } catch (err) {
+    logger.error(
+      { err, releaseId: row.id },
+      "[distribution] release announcement failed — release stays packaged",
+    );
+  }
 }
 
 /* ─── Submit for distribution (paid) ───────────────────────────────────────
@@ -990,7 +1376,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
     const aggregator = getAggregator();
     let aggregatorReleaseId: string;
     try {
-      const sub = await aggregator.submitRelease(buildAggregatorPayload(existing));
+      const sub = await aggregator.submitRelease(await buildAggregatorPayload(existing));
       aggregatorReleaseId = sub.aggregatorReleaseId;
     } catch (err) {
       try {
@@ -1031,6 +1417,12 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
 
     activeDeliveries.set(row.id, { aggregatorReleaseId });
     ensureDeliveryPoller();
+
+    /* Announce: profile presence + follower fan-out. Awaited so the
+       announcement is real before we answer, non-fatal by design
+       (announceRelease never throws — the release is already paid
+       and packaged at this point). */
+    await announceRelease(row, req.userId!);
 
     res.json({
       release: rowToRelease(row),
@@ -1105,21 +1497,49 @@ router.get("/distribution/releases/:id/platforms", requireAuth, async (req, res)
 });
 
 /* ─── Royalty splits (free) ─────────────────────────────────────────────────
-   PUT /api/distribution/releases/:id/splits { splits: [{ name, role?, share }] }
-   Shares must sum to exactly 100. Informational only — payouts are a future
-   integration; the UI says so. */
+   PUT /api/distribution/releases/:id/splits { splits: [{ name, role?, email?, share }] }
+   Shares must sum to exactly 100. Versioned ledger: saving supersedes the
+   previous agreement version instead of deleting it, so edits apply to
+   FUTURE earnings only (DistroKid behavior) — the version effective on a
+   money entry's date is the one applied to that income.
+   Splits are accounting-only: actual automatic store payouts require a
+   distribution partnership we don't have, and the UI says so. */
+const SPLIT_ROLE_VALUES = ["artist", "producer", "writer", "featured"] as const;
+const splitRoleSchema = z
+  .preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().toLowerCase().pipe(z.enum(SPLIT_ROLE_VALUES)).optional(),
+  )
+  .optional();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const splitsSchema = z.object({
   splits: z
     .array(
       z.object({
-        name: z.string().min(1, "Payee name is required.").max(120),
-        role: z.string().max(80).optional().default(""),
+        name: z.string().trim().min(1, "Payee name is required.").max(120),
+        role: splitRoleSchema,
+        email: z
+          .string()
+          .trim()
+          .max(254)
+          .refine((s) => s === "" || EMAIL_RE.test(s), "That email doesn't look valid.")
+          .optional()
+          .default(""),
         share: z.number().positive("Share must be positive.").max(100),
       }),
     )
     .min(1, "Add at least one payee.")
     .max(20),
 });
+
+async function nextAgreementVersion(releaseId: string, userId: string): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COALESCE(MAX(agreement_version), 0) + 1 AS v
+    FROM distribution_royalty_splits
+    WHERE release_id = ${releaseId} AND user_id = ${userId}
+  `);
+  return Number((result.rows[0] as { v: string | number } | undefined)?.v ?? 1);
+}
 
 router.put("/distribution/releases/:id/splits", requireAuth, async (req, res) => {
   const parsed = splitsSchema.safeParse(req.body ?? {});
@@ -1143,21 +1563,211 @@ router.put("/distribution/releases/:id/splits", requireAuth, async (req, res) =>
       res.status(404).json({ error: "Release not found." });
       return;
     }
+    /* Versioned save: the old agreement becomes history, the new one takes
+       effect now. Past earnings keep their old splits; future earnings use
+       this version. */
+    const version = await nextAgreementVersion(releaseId(req), req.userId!);
     await db.execute(sql`
-      DELETE FROM distribution_royalty_splits
-      WHERE release_id = ${releaseId(req)} AND user_id = ${req.userId!}
+      UPDATE distribution_royalty_splits
+      SET superseded_at = now()
+      WHERE release_id = ${releaseId(req)} AND user_id = ${req.userId!} AND superseded_at IS NULL
     `);
     for (const s of parsed.data.splits) {
       await db.execute(sql`
-        INSERT INTO distribution_royalty_splits (id, release_id, user_id, payee_name, role, share_pct)
-        VALUES (${randomUUID()}, ${releaseId(req)}, ${req.userId!}, ${s.name.trim()}, ${s.role?.trim() || null}, ${s.share})
+        INSERT INTO distribution_royalty_splits
+          (id, release_id, user_id, payee_name, role, payee_email, invite_status,
+           share_pct, agreement_version, effective_from)
+        VALUES (${randomUUID()}, ${releaseId(req)}, ${req.userId!}, ${s.name.trim()},
+          ${s.role ?? null}, ${s.email.trim() || null}, 'not_invited',
+          ${s.share}, ${version}, now())
       `);
     }
     const splits = await loadSplits(releaseId(req), req.userId!);
-    res.json({ splits });
+    res.json({ splits, agreementVersion: version });
   } catch (err) {
     logger.error({ err }, "[distribution] save splits failed");
     res.status(500).json({ error: "Couldn't save royalty splits — try again." });
+  }
+});
+
+/* ─── Split agreement share link ───────────────────────────────────────────
+   POST /api/distribution/releases/:id/splits/share-link — mint (idempotently)
+   a public slug for the split agreement summary. The frontend appends
+   ?ref=CODE to the shared URL so collaborators land on your referral link. */
+router.post("/distribution/releases/:id/splits/share-link", requireAuth, async (req, res) => {
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    if (existing.split_share_slug) {
+      res.json({ slug: existing.split_share_slug, url: `${APP_PUBLIC_URL}/splits/${existing.split_share_slug}` });
+      return;
+    }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = randomInt(0, 0xffffffffff).toString(16).padStart(10, "0");
+      try {
+        await db.execute(sql`
+          UPDATE distribution_releases
+          SET split_share_slug = ${slug}, updated_at = now()
+          WHERE id = ${releaseId(req)} AND user_id = ${req.userId!}
+        `);
+        res.json({ slug, url: `${APP_PUBLIC_URL}/splits/${slug}` });
+        return;
+      } catch (err) {
+        /* Slug collision — astronomically unlikely; retry. */
+        if ((err as { code?: string })?.code !== "23505") throw err;
+      }
+    }
+    res.status(500).json({ error: "Couldn't mint a share link — try again." });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split share-link failed");
+    res.status(500).json({ error: "Couldn't mint a share link — try again." });
+  }
+});
+
+/* GET /api/distribution/splits/:slug — PUBLIC split agreement summary.
+   No auth: this page is meant to be shared with collaborators. Shows only
+   the agreement (names, roles, shares) — never emails, invite tokens, or
+   the creator's account info. */
+router.get("/distribution/splits/:slug", async (req, res, next) => {
+  const slug = (req.params.slug ?? "").trim();
+  if (!/^[a-f0-9]{10}$/.test(slug)) {
+    /* Not a split-share slug — fall through instead of 404ing: a
+       literal sibling route mounted after this router owns that path
+       (GET /distribution/splits/statements in distribution-legacy).
+       Only a well-formed slug that matches no release earns the
+       "not found" below. */
+    next();
+    return;
+  }
+  try {
+    const releaseResult = await db.execute(sql`
+      SELECT id, title, artist_name
+      FROM distribution_releases
+      WHERE split_share_slug = ${slug}
+      LIMIT 1
+    `);
+    const release = releaseResult.rows[0] as
+      | { id: string; title: string; artist_name: string }
+      | undefined;
+    if (!release) {
+      res.status(404).json({ error: "Split agreement not found." });
+      return;
+    }
+    const splitsResult = await db.execute(sql`
+      SELECT payee_name, role, share_pct, agreement_version, effective_from
+      FROM distribution_royalty_splits
+      WHERE release_id = ${release.id} AND superseded_at IS NULL
+      ORDER BY share_pct DESC
+    `);
+    const splits = (splitsResult.rows as Array<{
+      payee_name: string; role: string | null; share_pct: string;
+      agreement_version: number | null; effective_from: string | null;
+    }>).map((r) => ({
+      name: r.payee_name,
+      role: r.role,
+      share: Number(r.share_pct),
+    }));
+    res.json({
+      title: release.title,
+      artistName: release.artist_name,
+      splits,
+      agreementVersion: splitsResult.rows.length
+        ? Number((splitsResult.rows[0] as { agreement_version: number | null }).agreement_version ?? 1)
+        : 0,
+      effectiveFrom: splitsResult.rows.length
+        ? (splitsResult.rows[0] as { effective_from: string | null }).effective_from
+        : null,
+      disclaimer:
+        "Split accounting for this release's logged income. Automatic payouts " +
+        "directly from stores need a distribution partner — these shares are " +
+        "the agreed accounting for earnings the creator logs.",
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split summary failed");
+    res.status(500).json({ error: "Couldn't load the split agreement — try again." });
+  }
+});
+
+/* ─── Split invites ─────────────────────────────────────────────────────────
+   POST /api/distribution/releases/:id/splits/invite { splitId } —
+   records the invite on the split row and emails the collaborator when an
+   email provider is configured. Without one, the invite is still recorded
+   and the UI falls back to sharing the agreement link. */
+
+router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req, res) => {
+  const parsed = z.object({ splitId: z.string().uuid() }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "splitId is required." });
+    return;
+  }
+  try {
+    const existing = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!existing) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const check = await db.execute(sql`
+      SELECT id, payee_name, payee_email
+      FROM distribution_royalty_splits
+      WHERE id = ${parsed.data.splitId}
+        AND release_id = ${releaseId(req)}
+        AND user_id = ${req.userId!}
+        AND superseded_at IS NULL
+      LIMIT 1
+    `);
+    const split = check.rows[0] as
+      | { id: string; payee_name: string; payee_email: string | null }
+      | undefined;
+    if (!split) {
+      res.status(404).json({ error: "Collaborator not found." });
+      return;
+    }
+    if (!split.payee_email) {
+      res.status(400).json({ error: "Add an email for this collaborator before inviting them." });
+      return;
+    }
+    const inviteToken = randomUUID();
+    await db.execute(sql`
+      UPDATE distribution_royalty_splits
+      SET invite_status = 'invited', invite_token = ${inviteToken}
+      WHERE id = ${split.id}
+    `);
+
+    /* ── Invite email — best-effort, fail-open. The invite is recorded
+       regardless; without a provider the UI shares the agreement link. ── */
+    let emailSent = false;
+    if (isEmailConfigured() && split.payee_email) {
+      const releaseTitle = (existing as { title?: string } | null)?.title ?? "a release";
+      const html = emailShell(
+        "You've got a revenue split 💰",
+        `<p style="margin:0 0 12px;"><strong style="color:#d4af37;">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
+<a href="${baseUrlForEmail()}/distribution?splitInvite=${escapeHtml(inviteToken)}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Review my split</a>`
+      );
+      const result = await sendEmail({
+        to: split.payee_email,
+        subject: `Revenue split invite — "${releaseTitle}"`,
+        html,
+      });
+      emailSent = result.sent;
+    }
+
+    if (!emailSent) {
+      res.json({
+        recorded: true,
+        emailSent: false,
+        inviteToken,
+        note: "No email provider is configured — share your split agreement link instead.",
+      });
+      return;
+    }
+    res.json({ recorded: true, emailSent: true, inviteToken });
+  } catch (err) {
+    logger.error({ err }, "[distribution] split invite failed");
+    res.status(500).json({ error: "Couldn't record the invite — try again." });
   }
 });
 
@@ -1203,11 +1813,48 @@ router.post("/distribution/releases/:id/presave", requireAuth, async (req, res) 
   }
 });
 
+/* ─── Presave tracklist preview (wave 3 #15) ─────────────────────────────
+   The landing page may preview the release's tracklist: ONLY metadata
+   the release owner made part of the release — titles, in the owner's
+   order, plus a duration when the stored track record carries one
+   (the release editor writes { title, isrc? } today, so durations are
+   normally absent — never invented). Everything else on a stored track
+   record (ISRC, any audio reference, editor internals) is stripped
+   here: unreleased audio is never exposed early, in any field. */
+export interface PresaveTracklistEntry {
+  position: number;
+  title: string;
+  durationSeconds: number | null;
+}
+
+export function buildPresaveTracklist(
+  tracks: ReadonlyArray<Record<string, unknown>> | null | undefined,
+): PresaveTracklistEntry[] {
+  const out: PresaveTracklistEntry[] = [];
+  for (const raw of tracks ?? []) {
+    if (!raw || typeof raw !== "object") continue;
+    const title = typeof raw["title"] === "string" ? raw["title"].trim() : "";
+    if (!title) continue;
+    let durationSeconds: number | null = null;
+    for (const key of ["durationSeconds", "duration_seconds", "duration"] as const) {
+      const v = raw[key];
+      if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+        durationSeconds = Math.round(v);
+        break;
+      }
+    }
+    out.push({ position: out.length + 1, title, durationSeconds });
+  }
+  return out;
+}
+
 router.get("/distribution/presave/:slug", async (req, res) => {
   try {
     const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
     const result = await db.execute(sql`
-      SELECT ${RELEASE_COLUMNS}
+      SELECT ${RELEASE_COLUMNS},
+             presave_headline, presave_platform_links, presave_bonus_url,
+             meta_pixel_id, tiktok_pixel_id, google_tag_id
       FROM distribution_releases
       WHERE presave_slug = ${slug ?? ""}
       LIMIT 1
@@ -1217,21 +1864,624 @@ router.get("/distribution/presave/:slug", async (req, res) => {
       res.status(404).json({ error: "Pre-save link not found." });
       return;
     }
+    /* Fan counts in a separate query — pg-mem (unit tests) can't run the
+       correlated-subquery form, and this is trivially correct on Postgres. */
+    let followerCount = 0;
+    let shareCount = 0;
+    try {
+      const counts = await db.execute(sql`
+        SELECT (SELECT COUNT(*) FROM presave_follows WHERE release_id = ${row.id}) AS follower_count,
+               (SELECT COUNT(*) FROM presave_shares WHERE release_id = ${row.id}) AS share_count
+      `);
+      const c = counts.rows[0] as unknown as { follower_count?: unknown; share_count?: unknown } | undefined;
+      followerCount = Number(c?.follower_count ?? 0);
+      shareCount = Number(c?.share_count ?? 0);
+    } catch {
+      /* counts are best-effort — the page still renders */
+    }
+    /* Refresh the hero artwork at this response boundary — a stored
+       r2:// / supabase:// ref is not a renderable URL on the public page
+       (buildAggregatorPayload refreshes singularly; the other release
+       payloads are Deep-wrapped; this handler bypassed both). */
+    const artworkUrl = row.artwork_url
+      ? await refreshSupabaseStorageUrl(row.artwork_url)
+      : row.artwork_url;
+    /* ── Stack 11 #1: the landing PERSISTS after release day as the
+       release's all-content smartlink. Landing extras (video / store /
+       socials) ride in their own table; a missing table on an older
+       install degrades to the presave-only page, never an error. ── */
+    let landing = { videoUrl: null as string | null, storeUrl: null as string | null, socialLinks: {} as Record<string, string> };
+    try {
+      const lr = await db.execute(sql`
+        SELECT video_url, store_url, social_links FROM release_landing_content WHERE release_id = ${row.id} LIMIT 1
+      `);
+      const lrow = lr.rows[0] as unknown as { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | undefined;
+      if (lrow) landing = { videoUrl: lrow.video_url, storeUrl: lrow.store_url, socialLinks: lrow.social_links ?? {} };
+    } catch { /* landing extras are additive */ }
+    const releaseTargetMs = row.release_date
+      ? (/^\d{4}-\d{2}-\d{2}$/.test(row.release_date.trim())
+          ? new Date(`${row.release_date.trim()}T00:00:00Z`).getTime()
+          : new Date(row.release_date).getTime())
+      : NaN;
+    const released = Number.isFinite(releaseTargetMs) && Date.now() >= releaseTargetMs;
+    /* ── Stack 11 #2: account pre-save is offered only where the platform
+       API can really save — a parseable Spotify track/album link. ── */
+    const spotifyItem = parseSpotifyItem(((row.presave_platform_links ?? {}) as Record<string, string>)["spotify"]);
+    /* How many fans completed a REAL account save (confirmed by the
+       platform API) — reported separately from follows, never blended. */
+    let accountSaveCount = 0;
+    try {
+      const ac = await db.execute(sql`SELECT COUNT(*) AS c FROM presave_account_actions WHERE release_id = ${row.id} AND status = 'saved'`);
+      accountSaveCount = Number((ac.rows[0] as { c: string | number }).c ?? 0);
+    } catch { /* additive */ }
     res.json({
       presave: {
         title: row.title,
         artistName: row.artist_name,
-        artworkUrl: row.artwork_url,
+        artworkUrl,
         releaseDate: row.release_date,
         releaseType: row.release_type ?? "single",
         genre: row.genre,
         platforms: row.platforms ?? [],
         aggregatorLive: getAggregator().live,
+        /* ── HyperFollow upgrades (migration 0082) ── */
+        headline: row.presave_headline ?? null,
+        platformLinks: (row.presave_platform_links ?? {}) as Record<string, string>,
+        bonusUrl: row.presave_bonus_url ?? null,
+        /* ── Wave 3 #15: tracklist preview — titles/order/durations
+           only, no audio, no ISRC (buildPresaveTracklist strips). ── */
+        tracklist: buildPresaveTracklist(
+          (row.tracks ?? []) as unknown as Array<Record<string, unknown>>,
+        ),
+        followerCount,
+        shareCount,
+        /* ── Stack 11: persistent smartlink + account pre-save ── */
+        released,
+        persistsAfterRelease: true,
+        landing,
+        /* ── Retargeting pixels (migration 0187): the creator's own
+           ad-platform IDs for this release. The landing fires exactly
+           these on view; all null = nothing extra fires. ── */
+        pixels: {
+          metaPixelId: row.meta_pixel_id ?? null,
+          tiktokPixelId: row.tiktok_pixel_id ?? null,
+          googleTagId: row.google_tag_id ?? null,
+        },
+        accountPresave: spotifyItem
+          ? { platform: "spotify", supported: true, itemKind: spotifyItem.kind, actionLabel: "Save on Spotify", accountSaveCount }
+          : { platform: "spotify", supported: false, reason: "No Spotify track or album link on this release yet — email pre-save is the action.", actionLabel: null, accountSaveCount },
       },
     });
   } catch (err) {
     logger.error({ err }, "[distribution] presave lookup failed");
     res.status(500).json({ error: "Couldn't load the pre-save page — try again." });
+  }
+});
+
+/* ─── Pre-save upgrades (HyperFollow parity, migration 0082) ────────────
+   POST /api/distribution/presave/:slug/follow (public) — fan pre-saves /
+   joins the notify list: stored on the release AND subscribed to the
+   artist's email list (auto-provisioned from the artist name when needed).
+   POST /api/distribution/presave/:slug/share (public) — records a share
+   action; returns the bonus content URL when the artist set one (share to
+   unlock).
+   PATCH /api/distribution/releases/:id/presave-settings (auth) — artist
+   sets headline, platform URLs, bonus URL. Free.
+   GET /api/distribution/releases/:id/presave-stats (auth) — follower/share
+   counts + recent follows for the artist dashboard. Free. */
+
+const followBodySchema = z.object({
+  email: z.string().email("Enter a valid email address.").max(254),
+  name: z.string().max(120).optional().default(""),
+  platform: z.string().max(60).optional().default(""),
+});
+
+const shareBodySchema = z.object({
+  channel: z.string().max(40).optional().default(""),
+});
+
+/* Slug → release id + artist (public, minimal fields). */
+async function getPublicReleaseBySlug(
+  slug: string,
+): Promise<{ id: string; userId: string; artistName: string; bonusUrl: string | null } | null> {
+  const result = await db.execute(sql`
+    SELECT id, user_id, artist_name, presave_bonus_url
+    FROM distribution_releases
+    WHERE presave_slug = ${slug}
+    LIMIT 1
+  `);
+  const row = result.rows[0] as
+    | { id: string; user_id: string; artist_name: string; presave_bonus_url: string | null }
+    | undefined;
+  if (!row) return null;
+  return { id: row.id, userId: row.user_id, artistName: row.artist_name, bonusUrl: row.presave_bonus_url };
+}
+
+function slugifyHandle(base: string): string {
+  const clean = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 34);
+  return clean || "fans";
+}
+
+/* Ensure the artist has an email list — reuse their oldest list, or create
+   one named after the artist on first fan signup. */
+async function ensureArtistList(userId: string, artistName: string): Promise<{ id: string; handle: string }> {
+  const existing = await db.execute(sql`
+    SELECT id, handle FROM email_lists
+    WHERE user_id = ${userId}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; handle: string } | undefined;
+  if (row) return { id: row.id, handle: row.handle };
+
+  const base = `${slugifyHandle(artistName)}-fans`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const handle = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const taken = await db.execute(sql`SELECT id FROM email_lists WHERE handle = ${handle} LIMIT 1`);
+    if (taken.rows.length > 0) continue;
+    const created = await db.execute(sql`
+      INSERT INTO email_lists (user_id, name, handle, description)
+      VALUES (${userId}, ${`${artistName} fans`}, ${handle}, ${"Fans from pre-save pages."})
+      RETURNING id, handle
+    `);
+    const createdRow = created.rows[0] as { id: string; handle: string };
+    return { id: createdRow.id, handle: createdRow.handle };
+  }
+  throw new Error("handle_unavailable");
+}
+
+async function subscribeEmailListFan(listId: string, email: string, name: string): Promise<void> {
+  const existing = await db.execute(sql`
+    SELECT id, unsubscribed_at FROM email_subscribers
+    WHERE list_id = ${listId} AND email = ${email}
+    LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; unsubscribed_at: string | null } | undefined;
+  if (!row) {
+    await db.execute(sql`
+      INSERT INTO email_subscribers (list_id, email, name, source, confirmed)
+      VALUES (${listId}, ${email}, ${name || null}, ${"presave"}, ${true})
+    `);
+    return;
+  }
+  await db.execute(sql`
+    UPDATE email_subscribers
+    SET unsubscribed_at = NULL, name = COALESCE(NULLIF(${name}, ''), name), source = ${"presave"}
+    WHERE id = ${row.id}
+  `);
+}
+
+router.post("/distribution/presave/:slug/follow", publicApiLimiter, async (req, res) => {
+  try {
+    const parsed = followBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Enter a valid email address.", code: "invalid_email" });
+      return;
+    }
+    const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+    const release = await getPublicReleaseBySlug(slug ?? "");
+    if (!release) {
+      res.status(404).json({ error: "Pre-save link not found." });
+      return;
+    }
+    const email = parsed.data.email.trim().toLowerCase();
+    const name = parsed.data.name.trim();
+    const platform = parsed.data.platform.trim().toLowerCase();
+
+    /* Idempotent follow: re-following updates the name/platform. */
+    const followed = await db.execute(sql`
+      INSERT INTO presave_follows (release_id, email, name, platform, source)
+      VALUES (${release.id}, ${email}, ${name || null}, ${platform || null}, ${"presave"})
+      ON CONFLICT (release_id, email) DO UPDATE SET
+        name = COALESCE(NULLIF(EXCLUDED.name, ''), presave_follows.name),
+        platform = COALESCE(NULLIF(EXCLUDED.platform, ''), presave_follows.platform)
+      RETURNING (xmax = 0) AS inserted
+    `);
+    const followedRow = followed.rows[0] as { inserted: boolean } | undefined;
+
+    /* Also join the artist's email list — this is the fan-list handoff. */
+    try {
+      const list = await ensureArtistList(release.userId, release.artistName);
+      await subscribeEmailListFan(list.id, email, name);
+    } catch (err) {
+      logger.warn({ err }, "[distribution] presave email-list subscribe failed (non-fatal)");
+    }
+
+    const count = await db.execute(sql`
+      SELECT COUNT(*) AS c FROM presave_follows WHERE release_id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      alreadyFollowing: followedRow ? !followedRow.inserted : false,
+      followerCount: Number((count.rows[0] as { c: string | number }).c ?? 0),
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave follow failed");
+    res.status(500).json({ error: "Couldn't save your pre-save — try again." });
+  }
+});
+
+router.post("/distribution/presave/:slug/share", publicApiLimiter, async (req, res) => {
+  try {
+    const parsed = shareBodySchema.safeParse(req.body ?? {});
+    const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+    const release = await getPublicReleaseBySlug(slug ?? "");
+    if (!release) {
+      res.status(404).json({ error: "Pre-save link not found." });
+      return;
+    }
+    await db.execute(sql`
+      INSERT INTO presave_shares (release_id, channel)
+      VALUES (${release.id}, ${parsed.success ? parsed.data.channel.trim().toLowerCase() || null : null})
+    `);
+    const count = await db.execute(sql`
+      SELECT COUNT(*) AS c FROM presave_shares WHERE release_id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      shareCount: Number((count.rows[0] as { c: string | number }).c ?? 0),
+      /* Share-to-unlock: bonus content revealed after the fan shares. */
+      bonusUrl: release.bonusUrl,
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave share failed");
+    res.status(500).json({ error: "Couldn't record your share — try again." });
+  }
+});
+
+/* ─── Release smartlink analytics + retargeting pixels (migration 0187) ──
+   Competitor gap G2 — Linkfire / Feature.fm's core paid value: the
+   release smartlink recorded follows and shares but never a landing
+   view or an outbound click, and creators couldn't attach their own
+   ad pixels. Events land in release_link_clicks with the bio_link_clicks
+   field discipline (link key + title snapshot, referrer, created_at),
+   plus kind ('view' | 'click'), the arrival channel label, and a coarse
+   CDN geo country. No IPs, no fingerprints.
+   POST /api/distribution/presave/:slug/view  (public) — a landing view.
+   POST /api/distribution/presave/:slug/click (public) — an outbound tap.
+   The click client names the link by kind + key only; the server
+   resolves it against the release's real links, so a key that isn't on
+   the page is refused and records nothing. */
+
+export const PIXEL_ID_PATTERNS = {
+  meta: /^\d{6,20}$/,
+  tiktok: /^[A-Za-z0-9]{10,32}$/,
+  google: /^(?:G|AW|GT|UA)-[A-Za-z0-9-]{4,24}$/,
+} as const;
+export type PixelKind = keyof typeof PIXEL_ID_PATTERNS;
+const PIXEL_LABELS: Record<PixelKind, string> = {
+  meta: "Meta Pixel",
+  tiktok: "TikTok Pixel",
+  google: "Google tag",
+};
+
+/* undefined = leave as-is · "" = clear · anything else must match the
+   platform's published ID shape or the save is refused honestly — a
+   bad ID stored silently would fire nothing and lie by omission. */
+export function cleanPixelId(
+  kind: PixelKind,
+  raw: string | undefined,
+  current: string | null,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (raw === undefined) return { ok: true, value: current };
+  const v = raw.trim();
+  if (!v) return { ok: true, value: null };
+  if (!PIXEL_ID_PATTERNS[kind].test(v)) {
+    return { ok: false, error: `That ${PIXEL_LABELS[kind]} ID doesn't look right — double-check it and try again.` };
+  }
+  return { ok: true, value: v };
+}
+
+function cleanChannel(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40);
+  return v || null;
+}
+
+/* Coarse geography only: the CDN's country header, validated to an ISO
+   code ('XX'/unknown is dropped). The fan's IP is never read or stored. */
+function requestCountry(req: Request): string | null {
+  const raw = (req.get("cf-ipcountry") ?? req.get("x-vercel-ip-country") ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(raw) && raw !== "XX" ? raw : null;
+}
+
+interface SmartlinkTarget { linkKey: string; linkTitle: string }
+async function resolveSmartlinkTarget(
+  release: { id: string; platformLinks: Record<string, string>; bonusUrl: string | null },
+  kind: string,
+  key: string,
+): Promise<SmartlinkTarget | null> {
+  if (kind === "platform") {
+    if (!PRESAVE_LINK_PLATFORMS.has(key) || !release.platformLinks[key]) return null;
+    return { linkKey: key, linkTitle: (PLATFORM_LABEL as Record<string, string>)[key] ?? key };
+  }
+  if (kind === "bonus") {
+    return release.bonusUrl ? { linkKey: "bonus", linkTitle: "Bonus content" } : null;
+  }
+  /* video / store / social ride the landing-content extras table. */
+  let landing: { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | null = null;
+  try {
+    const lr = await db.execute(sql`
+      SELECT video_url, store_url, social_links FROM release_landing_content WHERE release_id = ${release.id} LIMIT 1
+    `);
+    landing = (lr.rows[0] as { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | undefined) ?? null;
+  } catch { /* extras table absent on older installs — target stays unresolved */ }
+  if (!landing) return null;
+  if (kind === "video") return landing.video_url ? { linkKey: "video", linkTitle: "Video" } : null;
+  if (kind === "store") return landing.store_url ? { linkKey: "store", linkTitle: "Store" } : null;
+  if (kind === "social") {
+    const socials = landing.social_links ?? {};
+    if (!key || !socials[key]) return null;
+    return { linkKey: `social:${key}`, linkTitle: key === "x" ? "X" : key.charAt(0).toUpperCase() + key.slice(1) };
+  }
+  return null;
+}
+
+const linkEventSchema = z.object({
+  channel: z.string().max(120).optional().default(""),
+});
+
+const linkClickSchema = z.object({
+  kind: z.enum(["platform", "video", "store", "social", "bonus"]).optional().default("platform"),
+  key: z.string().max(60).optional().default(""),
+  channel: z.string().max(120).optional().default(""),
+});
+
+async function recordLinkEvent(
+  req: Request,
+  releaseId: string,
+  ownerId: string,
+  kind: "view" | "click",
+  target: SmartlinkTarget | null,
+  channelRaw: string,
+): Promise<void> {
+  await db.execute(sql`
+    INSERT INTO release_link_clicks (id, release_id, user_id, kind, link_key, link_title, channel, referrer, country)
+    VALUES (${randomUUID()}, ${releaseId}, ${ownerId}, ${kind}, ${target?.linkKey ?? ""}, ${target?.linkTitle ?? ""},
+            ${cleanChannel(channelRaw)}, ${req.get("referer") ?? req.get("referrer") ?? null}, ${requestCountry(req)})
+  `);
+}
+
+router.post("/distribution/presave/:slug/view", publicApiLimiter, async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const release = await getPublicReleaseBySlug(slug ?? "");
+  if (!release) {
+    res.status(404).json({ error: "Pre-save link not found." });
+    return;
+  }
+  const parsed = linkEventSchema.safeParse(req.body ?? {});
+  try {
+    await recordLinkEvent(req, release.id, release.userId, "view", null, parsed.success ? parsed.data.channel : "");
+  } catch (err) {
+    /* Analytics must never break the fan's page — the bio-click rule. */
+    logger.error({ err }, "[distribution] smartlink view track failed");
+  }
+  res.json({ ok: true });
+});
+
+router.post("/distribution/presave/:slug/click", publicApiLimiter, async (req, res) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const release = await getPublicReleaseBySlug(slug ?? "");
+  if (!release) {
+    res.status(404).json({ error: "Pre-save link not found." });
+    return;
+  }
+  const parsed = linkClickSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid click data." });
+    return;
+  }
+  try {
+    const full = await db.execute(sql`
+      SELECT presave_platform_links FROM distribution_releases WHERE id = ${release.id} LIMIT 1
+    `);
+    const row = (full.rows[0] ?? {}) as { presave_platform_links?: Record<string, string> | null };
+    const target = await resolveSmartlinkTarget(
+      { id: release.id, platformLinks: row.presave_platform_links ?? {}, bonusUrl: release.bonusUrl },
+      parsed.data.kind,
+      parsed.data.key.trim().toLowerCase(),
+    );
+    if (!target) {
+      res.status(400).json({ error: "That link isn't on this release page." });
+      return;
+    }
+    await recordLinkEvent(req, release.id, release.userId, "click", target, parsed.data.channel);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "[distribution] smartlink click track failed");
+    res.json({ ok: true });
+  }
+});
+
+const presaveSettingsSchema = z.object({
+  headline: z.string().max(140).optional(),
+  platformLinks: z.record(z.string(), z.string().max(500)).optional(),
+  bonusUrl: z.string().max(500).optional(),
+  /* Retargeting pixels (migration 0187) — the creator's own IDs. */
+  metaPixelId: z.string().max(64).optional(),
+  tiktokPixelId: z.string().max(64).optional(),
+  googleTagId: z.string().max(64).optional(),
+});
+
+const PRESAVE_LINK_PLATFORMS = new Set([
+  "spotify", "apple_music", "youtube_music", "tiktok",
+  "amazon_music", "deezer", "tidal",
+]);
+
+function cleanUrl(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (!/^https?:\/\//i.test(v)) return null;
+  return v;
+}
+
+router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (req, res) => {
+  try {
+    const release = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!release) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const parsed = presaveSettingsSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid pre-save settings." });
+      return;
+    }
+    const { headline, platformLinks, bonusUrl, metaPixelId, tiktokPixelId, googleTagId } = parsed.data;
+
+    /* Keep only known platform keys with real http(s) URLs. */
+    const links: Record<string, string> = {};
+    if (platformLinks) {
+      for (const [key, value] of Object.entries(platformLinks)) {
+        const clean = cleanUrl(value);
+        if (clean && PRESAVE_LINK_PLATFORMS.has(key)) links[key] = clean;
+      }
+    }
+
+    const current = await db.execute(sql`
+      SELECT presave_headline, presave_platform_links, presave_bonus_url,
+             meta_pixel_id, tiktok_pixel_id, google_tag_id
+      FROM distribution_releases WHERE id = ${release.id}
+    `);
+    const cur = (current.rows[0] ?? {}) as {
+      presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+      meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
+    };
+    const currentLinks = (cur.presave_platform_links ?? {}) as Record<string, string>;
+    const merged = platformLinks ? links : currentLinks;
+    const nextHeadline = headline !== undefined ? headline.trim() || null : (cur.presave_headline ?? null);
+    const nextBonus = bonusUrl !== undefined ? cleanUrl(bonusUrl) : (cur.presave_bonus_url ?? null);
+
+    /* Retargeting pixels: invalid IDs are refused, never stored bent. */
+    const metaPx = cleanPixelId("meta", metaPixelId, cur.meta_pixel_id ?? null);
+    if (!metaPx.ok) { res.status(400).json({ error: metaPx.error }); return; }
+    const tiktokPx = cleanPixelId("tiktok", tiktokPixelId, cur.tiktok_pixel_id ?? null);
+    if (!tiktokPx.ok) { res.status(400).json({ error: tiktokPx.error }); return; }
+    const googlePx = cleanPixelId("google", googleTagId, cur.google_tag_id ?? null);
+    if (!googlePx.ok) { res.status(400).json({ error: googlePx.error }); return; }
+
+    await db.execute(sql`
+      UPDATE distribution_releases
+      SET presave_headline = ${nextHeadline},
+          presave_platform_links = ${JSON.stringify(merged)}::jsonb,
+          presave_bonus_url = ${nextBonus},
+          meta_pixel_id = ${metaPx.value},
+          tiktok_pixel_id = ${tiktokPx.value},
+          google_tag_id = ${googlePx.value},
+          updated_at = now()
+      WHERE id = ${release.id}
+    `);
+    res.json({
+      ok: true,
+      settings: {
+        headline: nextHeadline,
+        platformLinks: merged,
+        bonusUrl: nextBonus,
+        pixels: { metaPixelId: metaPx.value, tiktokPixelId: tiktokPx.value, googleTagId: googlePx.value },
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave settings save failed");
+    res.status(500).json({ error: "Couldn't save pre-save settings — try again." });
+  }
+});
+
+router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, res) => {
+  try {
+    const release = await getOwnedRelease(releaseId(req), req.userId!);
+    if (!release) {
+      res.status(404).json({ error: "Release not found." });
+      return;
+    }
+    const [followCount, shareCount, recent, settingsRow] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) AS c FROM presave_follows WHERE release_id = ${release.id}`),
+      db.execute(sql`SELECT COUNT(*) AS c FROM presave_shares WHERE release_id = ${release.id}`),
+      db.execute(sql`
+        SELECT email, name, platform, created_at
+        FROM presave_follows
+        WHERE release_id = ${release.id}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `),
+      db.execute(sql`
+        SELECT presave_headline, presave_platform_links, presave_bonus_url,
+               meta_pixel_id, tiktok_pixel_id, google_tag_id
+        FROM distribution_releases
+        WHERE id = ${release.id}
+        LIMIT 1
+      `),
+    ]);
+    const s = (settingsRow.rows[0] ?? {}) as {
+      presave_headline?: string | null; presave_platform_links?: Record<string, string> | null; presave_bonus_url?: string | null;
+      meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
+    };
+    /* Smartlink analytics (migration 0187): views + outbound clicks with
+       per-link / per-channel / per-country splits, bio-dashboard style.
+       A pre-0187 install has no events table — answer null (not
+       collected) rather than dressing an absence up as zeros. */
+    let linkAnalytics: {
+      views: number; clicks: number; clicksLast7d: number;
+      perLink: Array<{ linkKey: string; linkTitle: string; clicks: number }>;
+      perChannel: Array<{ channel: string; clicks: number }>;
+      perCountry: Array<{ country: string; clicks: number }>;
+    } | null = null;
+    try {
+      const [totals, perLinkRows, perChannelRows, perCountryRows, recentRows] = await Promise.all([
+        db.execute(sql`SELECT kind, COUNT(*) AS c FROM release_link_clicks WHERE release_id = ${release.id} GROUP BY kind`),
+        db.execute(sql`
+          SELECT link_key, link_title, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click'
+          GROUP BY link_key, link_title ORDER BY c DESC LIMIT 50`),
+        db.execute(sql`
+          SELECT channel, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND channel IS NOT NULL
+          GROUP BY channel ORDER BY c DESC LIMIT 20`),
+        db.execute(sql`
+          SELECT country, COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND country IS NOT NULL
+          GROUP BY country ORDER BY c DESC LIMIT 50`),
+        db.execute(sql`
+          SELECT COUNT(*) AS c FROM release_link_clicks
+          WHERE release_id = ${release.id} AND kind = 'click' AND created_at > NOW() - INTERVAL '7 days'`),
+      ]);
+      const totalsMap = new Map((totals.rows as Array<{ kind: string; c: string | number }>).map((r) => [r.kind, Number(r.c ?? 0)]));
+      linkAnalytics = {
+        views: totalsMap.get("view") ?? 0,
+        clicks: totalsMap.get("click") ?? 0,
+        clicksLast7d: Number((recentRows.rows[0] as { c?: string | number } | undefined)?.c ?? 0),
+        perLink: (perLinkRows.rows as Array<{ link_key: string; link_title: string; c: string | number }>)
+          .map((r) => ({ linkKey: r.link_key, linkTitle: r.link_title, clicks: Number(r.c ?? 0) })),
+        perChannel: (perChannelRows.rows as Array<{ channel: string; c: string | number }>)
+          .map((r) => ({ channel: r.channel, clicks: Number(r.c ?? 0) })),
+        perCountry: (perCountryRows.rows as Array<{ country: string; c: string | number }>)
+          .map((r) => ({ country: r.country, clicks: Number(r.c ?? 0) })),
+      };
+    } catch { linkAnalytics = null; }
+    res.json({
+      settings: {
+        headline: s.presave_headline ?? null,
+        platformLinks: s.presave_platform_links ?? {},
+        bonusUrl: s.presave_bonus_url ?? null,
+        pixels: {
+          metaPixelId: s.meta_pixel_id ?? null,
+          tiktokPixelId: s.tiktok_pixel_id ?? null,
+          googleTagId: s.google_tag_id ?? null,
+        },
+      },
+      linkAnalytics,
+      followers: Number((followCount.rows[0] as { c: string | number }).c ?? 0),
+      shares: Number((shareCount.rows[0] as { c: string | number }).c ?? 0),
+      recentFollows: recent.rows as Array<{
+        email: string; name: string | null; platform: string | null; created_at: string;
+      }>,
+    });
+  } catch (err) {
+    logger.error({ err }, "[distribution] presave stats failed");
+    res.status(500).json({ error: "Couldn't load pre-save stats — try again." });
   }
 });
 

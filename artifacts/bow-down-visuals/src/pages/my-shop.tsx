@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
-  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck,
+  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
+  AlertTriangle, RotateCcw, Pause, Play, Tag,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
+import { useTranslation } from "react-i18next";
 
 /* ─── My Shop — the customer storefront builder ──────────────────────────
    Your own shop on the Bow Down Visuals platform. Shop/product CRUD is
@@ -35,6 +39,10 @@ interface Product {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /* Owner-rail field (migration 0176): 'paused' products are unlisted
+     for buyers but stay fully visible here so the seller can resume
+     them. Buyer reads never carry this. */
+  status: "active" | "paused";
 }
 
 const inputClass =
@@ -47,10 +55,23 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:pointer-events-none";
 
 export default function MyShop() {
+  usePageTitle("My Shop", "Your own storefront on Bow Down Visuals — sell products with AI-written descriptions, images, and your own domain.");
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
+  /* Shops-list load failures are NOT "no shops yet" — they get their
+     own error state with a retry, scoped to the shops list. The empty
+     state renders ONLY for a successful load with zero shops. */
+  const [shopsLoadError, setShopsLoadError] = useState(false);
+  const [shopsRetryNonce, setShopsRetryNonce] = useState(0);
   const [activeShop, setActiveShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  /* Product-list load failures are NOT "no products yet" — they get
+     their own error state with a retry, scoped to the products list
+     only. The empty state renders ONLY for a successful load with
+     zero products. */
+  const [productsLoadError, setProductsLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -81,6 +102,7 @@ export default function MyShop() {
   const [pDesc, setPDesc] = useState("");
   const [pImageUrl, setPImageUrl] = useState("");
   const [pSaving, setPSaving] = useState(false);
+  const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
   const [aiImageLoading, setAiImageLoading] = useState<"standard" | "premium" | null>(null);
   const [imageStyleHint, setImageStyleHint] = useState("");
@@ -109,14 +131,17 @@ export default function MyShop() {
   async function loadShops() {
     setLoading(true);
     setError(null);
+    setShopsLoadError(false);
     try {
       const res = await authed("/api/shops/mine");
       const data = (await res.json().catch(() => ({}))) as { shops?: Shop[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't load your shops.");
+      if (!res.ok) throw new Error(data.error || t("myShop.loadShopsFailed"));
       setShops(data.shops ?? []);
       if (data.shops?.length && !activeShop) selectShop(data.shops[0]!);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load your shops.");
+    } catch {
+      /* List-load failure gets the scoped error state below, not the
+         shared mutation error banner — and never the fake-empty box. */
+      setShopsLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -133,13 +158,19 @@ export default function MyShop() {
   }
 
   async function loadProducts(shop: Shop) {
+    setProductsLoadError(false);
     try {
-      /* Products come from the public storefront endpoint for the shop's handle. */
-      const pub = await fetch(`/api/shops/handle/${shop.handle}`);
+      /* Products come from the owner rail (authed, shop-id scoped):
+         it returns ALL of the seller's products with their pause
+         state. The public handle read hides paused products by
+         design (Stack-4 #6), so it can no longer feed this view —
+         it would blind the seller to their own paused stock. */
+      const pub = await authed(`/api/shops/${shop.id}/products`);
       const data = (await pub.json().catch(() => ({}))) as { products?: Product[] };
+      if (!pub.ok) throw new Error("products load failed");
       setProducts(data.products ?? []);
     } catch {
-      setProducts([]);
+      setProductsLoadError(true);
     }
   }
 
@@ -147,7 +178,7 @@ export default function MyShop() {
     if (user) loadShops();
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, shopsRetryNonce]);
 
   async function createShop() {
     if (creating || !newName.trim() || !newHandle.trim()) return;
@@ -159,13 +190,13 @@ export default function MyShop() {
         body: JSON.stringify({ name: newName.trim(), handle: newHandle.trim(), tagline: newTagline.trim() }),
       });
       const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't create the shop.");
+      if (!res.ok) throw new Error(data.error || t("myShop.createShopFailed"));
       setShops((s) => [data.shop!, ...s]);
       setShowCreate(false);
       setNewName(""); setNewHandle(""); setNewTagline("");
       selectShop(data.shop!);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't create the shop.");
+      setError(err instanceof Error ? err.message : t("myShop.createShopFailed"));
     } finally {
       setCreating(false);
     }
@@ -187,28 +218,28 @@ export default function MyShop() {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't save the shop.");
+      if (!res.ok) throw new Error(data.error || t("myShop.saveShopFailed"));
       setActiveShop(data.shop!);
       setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
       setSavedTick(true);
       setTimeout(() => setSavedTick(false), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the shop.");
+      setError(err instanceof Error ? err.message : t("myShop.saveShopFailed"));
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteShop() {
-    if (!activeShop || !window.confirm(`Delete "${activeShop.name}" and all its products? This can't be undone.`)) return;
+    if (!activeShop || !window.confirm(t("myShop.deleteShopConfirm", { name: activeShop.name }))) return;
     try {
       const res = await authed(`/api/shops/${activeShop.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Couldn't delete the shop.");
+      if (!res.ok) throw new Error(t("myShop.deleteShopFailed"));
       setShops((s) => s.filter((x) => x.id !== activeShop.id));
       setActiveShop(null);
       setProducts([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete the shop.");
+      setError(err instanceof Error ? err.message : t("myShop.deleteShopFailed"));
     }
   }
 
@@ -229,11 +260,11 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { description?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.description) throw new Error(data.message || data.error || "Description generation failed.");
+      if (!res.ok || !data.description) throw new Error(data.message || data.error || t("myShop.descriptionFailed"));
       setEditDescription(data.description);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Description generation failed.");
+      setError(err instanceof Error ? err.message : t("myShop.descriptionFailed"));
     } finally {
       setAiShopDescLoading(false);
     }
@@ -255,11 +286,34 @@ export default function MyShop() {
     setShowProductForm(true);
   }
 
+  async function togglePauseProduct(p: Product) {
+    if (!activeShop || pauseTogglingId) return;
+    const next = p.status === "paused" ? "active" : "paused";
+    setPauseTogglingId(p.id);
+    setError(null);
+    try {
+      const res = await authed(`/api/shops/${activeShop.id}/products/${p.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: next }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string };
+      if (!res.ok) throw new Error(data.error || t("myShop.togglePauseFailed"));
+      /* The row changes ONLY from the server's confirmed response —
+         the delete discipline: a failed flip shows the error and
+         leaves the list exactly as it was. */
+      setProducts((ps) => ps.map((x) => (x.id === p.id ? data.product! : x)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("myShop.togglePauseFailed"));
+    } finally {
+      setPauseTogglingId(null);
+    }
+  }
+
   async function saveProduct() {
     if (!activeShop || pSaving) return;
     const cents = dollarsToCents(pPrice);
-    if (!pName.trim()) { setError("Give the product a name."); return; }
-    if (cents === null) { setError("Enter a valid price (e.g. 19.99)."); return; }
+    if (!pName.trim()) { setError(t("myShop.productNameRequired")); return; }
+    if (cents === null) { setError(t("myShop.validPriceRequired")); return; }
     setPSaving(true);
     setError(null);
     try {
@@ -274,32 +328,32 @@ export default function MyShop() {
         : `/api/shops/${activeShop.id}/products`;
       const res = await authed(url, { method: editingProduct ? "PATCH" : "POST", body: JSON.stringify(body) });
       const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't save the product.");
+      if (!res.ok) throw new Error(data.error || t("myShop.saveProductFailed"));
       setProducts((ps) =>
         editingProduct ? ps.map((x) => (x.id === editingProduct.id ? data.product! : x)) : [...ps, data.product!]
       );
       setShowProductForm(false);
       setShops((s) => s.map((x) => (x.id === activeShop.id ? { ...x, product_count: (x.product_count ?? 0) + (editingProduct ? 0 : 1) } : x)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the product.");
+      setError(err instanceof Error ? err.message : t("myShop.saveProductFailed"));
     } finally {
       setPSaving(false);
     }
   }
 
   async function deleteProduct(p: Product) {
-    if (!activeShop || !window.confirm(`Remove "${p.name}" from the shop?`)) return;
+    if (!activeShop || !window.confirm(t("myShop.deleteProductConfirm", { name: p.name }))) return;
     try {
       const res = await authed(`/api/shops/${activeShop.id}/products/${p.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Couldn't delete the product.");
+      if (!res.ok) throw new Error(t("myShop.deleteProductFailed"));
       setProducts((ps) => ps.filter((x) => x.id !== p.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete the product.");
+      setError(err instanceof Error ? err.message : t("myShop.deleteProductFailed"));
     }
   }
 
   async function generateProductDescription() {
-    if (aiProdDescLoading || !pName.trim()) { if (!pName.trim()) setError("Name the product first."); return; }
+    if (aiProdDescLoading || !pName.trim()) { if (!pName.trim()) setError(t("myShop.nameProductFirst")); return; }
     setAiProdDescLoading(true);
     setError(null);
     setOutOfCredits(false);
@@ -310,18 +364,18 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { description?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.description) throw new Error(data.message || data.error || "Description generation failed.");
+      if (!res.ok || !data.description) throw new Error(data.message || data.error || t("myShop.descriptionFailed"));
       setPDesc(data.description);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Description generation failed.");
+      setError(err instanceof Error ? err.message : t("myShop.descriptionFailed"));
     } finally {
       setAiProdDescLoading(false);
     }
   }
 
   async function generateProductImage(tier: "standard" | "premium") {
-    if (aiImageLoading || !pName.trim()) { if (!pName.trim()) setError("Name the product first."); return; }
+    if (aiImageLoading || !pName.trim()) { if (!pName.trim()) setError(t("myShop.nameProductFirst")); return; }
     setAiImageLoading(tier);
     setError(null);
     setOutOfCredits(false);
@@ -332,11 +386,11 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Image generation failed.");
+      if (!res.ok || !data.url) throw new Error(data.message || data.error || t("myShop.imageFailed"));
       setPImageUrl(data.url);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image generation failed.");
+      setError(err instanceof Error ? err.message : t("myShop.imageFailed"));
     } finally {
       setAiImageLoading(null);
     }
@@ -347,9 +401,9 @@ export default function MyShop() {
       <div className="min-h-screen bg-black text-white">
         <main className="max-w-3xl mx-auto px-5 py-24 text-center">
           <Store className="w-12 h-12 mx-auto text-amber-400/80" />
-          <h1 className="mt-6 text-4xl font-black tracking-tight">Your own storefront</h1>
-          <p className="mt-4 text-white/55">Sign in to build your shop on the Bow Down Visuals platform.</p>
-          <Link href="/login" className={`${goldBtn} mt-8`}>Sign In</Link>
+          <h1 className="mt-6 text-4xl font-black tracking-tight">{t("myShop.ownStorefront")}</h1>
+          <p className="mt-4 text-white/55">{t("myShop.signInPrompt")}</p>
+          <Link href="/login" className={`${goldBtn} mt-8`}>{t("myShop.signIn")}</Link>
         </main>
 
       </div>
@@ -361,17 +415,32 @@ export default function MyShop() {
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-400/80">Customer Shops</p>
-            <h1 className="mt-2 text-3xl md:text-5xl font-black tracking-tight">My Shop</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-400/80">{t("myShop.customerShops")}</p>
+            <h1 className="mt-2 text-3xl md:text-5xl font-black tracking-tight">{t("myShop.heading")}</h1>
             <p className="mt-2 text-white/55 max-w-xl text-sm md:text-base">
-              Your own storefront on the platform — live at <span className="text-amber-300 font-mono text-sm">/shop/your-handle</span> the
-              moment you create it. Building is free; the AI writer and AI images cost Visual Bucs.
+              {t("myShop.subheading")}
             </p>
           </div>
           <button className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
-            <Plus className="w-4 h-4" /> New Shop <span className="text-[11px] font-semibold opacity-70">free</span>
+            <Plus className="w-4 h-4" /> {t("myShop.newShop")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
           </button>
         </div>
+
+        {/* Music & digital sales live in the Store Dashboard (the /music-sales
+            surface) — dock the handoff here so sellers can reach it from
+            their shop instead of hunting for the URL. */}
+        <Link href="/music-sales" className="group mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/25 bg-gradient-to-r from-amber-400/[0.08] to-transparent px-5 py-4 transition hover:border-amber-400/50">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
+            <TrendingUp className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-white">{t("myShop.salesBannerTitle", { defaultValue: "Selling music or digital products?" })}</span>
+            <span className="block text-xs text-white/50">{t("myShop.salesBannerBody", { defaultValue: "Track every sale, order and payout in your Music Sales dashboard." })}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-300 transition group-hover:translate-x-0.5">
+            {t("myShop.salesBannerCta", { defaultValue: "View sales" })} <ArrowLeft className="h-4 w-4 rotate-180" />
+          </span>
+        </Link>
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
@@ -380,37 +449,52 @@ export default function MyShop() {
 
         {showCreate && (
           <div className="mt-6 rounded-2xl border border-amber-400/25 bg-gradient-to-b from-amber-400/[0.06] to-transparent p-6">
-            <h2 className="text-lg font-bold">Create your shop</h2>
+            <h2 className="text-lg font-bold">{t("myShop.createYourShop")}</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
-                <label className="text-xs font-semibold text-white/50">Shop name</label>
-                <input className={`${inputClass} mt-1`} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Shark King Supply" maxLength={80} />
+                <label className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
+                <input className={`${inputClass} mt-1`} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("myShop.shopNamePlaceholder")} maxLength={80} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/50">Handle (your /shop/ URL)</label>
-                <input className={`${inputClass} mt-1 font-mono`} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="shark-king-supply" maxLength={30} />
+                <label className="text-xs font-semibold text-white/50">{t("myShop.handleLabel")}</label>
+                <input className={`${inputClass} mt-1 font-mono`} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder={t("myShop.handlePlaceholder")} maxLength={30} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/50">Tagline</label>
-                <input className={`${inputClass} mt-1`} value={newTagline} onChange={(e) => setNewTagline(e.target.value)} placeholder="Luxury merch for the bold" maxLength={140} />
+                <label className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
+                <input className={`${inputClass} mt-1`} value={newTagline} onChange={(e) => setNewTagline(e.target.value)} placeholder={t("myShop.taglinePlaceholder")} maxLength={140} />
               </div>
             </div>
             <div className="mt-4 flex gap-3">
               <button className={goldBtn} onClick={createShop} disabled={creating}>
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />} Create Shop
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />} {t("myShop.createShop")}
               </button>
-              <button className={ghostBtn} onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className={ghostBtn} onClick={() => setShowCreate(false)}>{t("myShop.cancel")}</button>
             </div>
           </div>
         )}
 
         {loading ? (
           <div className="mt-16 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
+        ) : shopsLoadError ? (
+          <div className={`mt-16 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your shops.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — your shops are safe, this page just couldn't load them.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShopsRetryNonce((n) => n + 1)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+            >
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
         ) : shops.length === 0 && !showCreate ? (
           <div className="mt-16 rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
             <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
-            <h2 className="mt-4 text-xl font-bold">No shops yet</h2>
-            <p className="mt-2 text-sm text-white/50">Create your first shop — it goes live instantly at your /shop/ URL.</p>
+            <h2 className="mt-4 text-xl font-bold">{t("myShop.noShops")}</h2>
+            <p className="mt-2 text-sm text-white/50">{t("myShop.noShopsHint")}</p>
           </div>
         ) : (
           <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
@@ -428,7 +512,7 @@ export default function MyShop() {
                 >
                   <div className="font-bold text-sm">{s.name}</div>
                   <div className="text-xs text-white/40 font-mono">/shop/{s.handle}</div>
-                  <div className="text-xs text-white/40 mt-1">{s.product_count ?? 0} products</div>
+                  <div className="text-xs text-white/40 mt-1">{t("myShop.productCount", { count: s.product_count ?? 0 })}</div>
                 </button>
               ))}
             </aside>
@@ -437,12 +521,29 @@ export default function MyShop() {
             {activeShop && (
               <div className="space-y-8">
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold">Shop details</h2>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h2 className="text-lg font-bold">{t("myShop.shopDetails")}</h2>
                     <div className="flex items-center gap-2">
                       <Link href={`/shop/${activeShop.handle}`} className={ghostBtn}>
-                        <ExternalLink className="w-4 h-4" /> View live
+                        <ExternalLink className="w-4 h-4" /> {t("myShop.viewLive")}
                       </Link>
+                      <button
+                        className={ghostBtn}
+                        onClick={async () => {
+                          const url = `${window.location.origin}/shop/${activeShop.handle}`;
+                          const shareData = {
+                            title: `${activeShop.name} — shop`,
+                            text: `Check out my shop: ${activeShop.name} 🛍️ Powered by Bow Down Visuals`,
+                            url,
+                          };
+                          try {
+                            if (navigator.share) await navigator.share(shareData);
+                            else await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                          } catch { /* user dismissed */ }
+                        }}
+                      >
+                        <Share2 className="w-4 h-4" /> {t("myShop.shareShop", { defaultValue: "Share" })}
+                      </button>
                       <button className={ghostBtn} onClick={deleteShop}>
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
@@ -450,51 +551,51 @@ export default function MyShop() {
                   </div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-xs font-semibold text-white/50">Shop name</label>
+                      <label className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
                       <input className={`${inputClass} mt-1`} value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-white/50">Tagline</label>
+                      <label className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
                       <input className={`${inputClass} mt-1`} value={editTagline} onChange={(e) => setEditTagline(e.target.value)} maxLength={140} />
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-white/50">About blurb</label>
+                      <label className="text-xs font-semibold text-white/50">{t("myShop.aboutBlurb")}</label>
                       <div className="flex items-center gap-2">
                         <input
                           className="rounded-lg border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-white placeholder:text-white/25 outline-none w-40"
-                          value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Niche (optional)" maxLength={120}
+                          value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("myShop.nichePlaceholder")} maxLength={120}
                         />
                         <button className={ghostBtn} onClick={generateShopDescription} disabled={aiShopDescLoading}>
                           {aiShopDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                          <span className="text-xs">AI write · 100 Visual Bucs</span>
+                          <span className="text-xs">{t("myShop.aiWrite100")}</span>
                         </button>
                       </div>
                     </div>
-                    <textarea className={`${inputClass} mt-1 min-h-[90px]`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} placeholder="Tell shoppers what your shop is about…" />
+                    <textarea className={`${inputClass} mt-1 min-h-[90px]`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} placeholder={t("myShop.aboutPlaceholder")} />
                   </div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Banner color</label>
+                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.bannerColor")}</label>
                       <div className="mt-1 flex items-center gap-2">
                         <input type="color" value={editBannerColor} onChange={(e) => setEditBannerColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
                         <span className="font-mono text-xs text-white/50">{editBannerColor}</span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Accent color</label>
+                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.accentColor")}</label>
                       <div className="mt-1 flex items-center gap-2">
                         <input type="color" value={editAccentColor} onChange={(e) => setEditAccentColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
                         <span className="font-mono text-xs text-white/50">{editAccentColor}</span>
-                        <button className="text-xs text-white/40 underline" onClick={() => setEditAccentColor("#d4af37")}>reset gold</button>
+                        <button className="text-xs text-white/40 underline" onClick={() => setEditAccentColor("#d4af37")}>{t("myShop.resetGold")}</button>
                       </div>
                     </div>
                   </div>
                   <div className="mt-5 flex items-center gap-3">
                     <button className={goldBtn} onClick={saveShop} disabled={saving}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedTick ? <Check className="w-4 h-4" /> : null}
-                      {savedTick ? "Saved" : "Save changes"} <span className="text-[11px] font-semibold opacity-70">free</span>
+                      {savedTick ? t("myShop.saved") : t("myShop.saveChanges")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
                     </button>
                   </div>
 
@@ -504,101 +605,131 @@ export default function MyShop() {
                 {/* products */}
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold">Products <span className="text-white/40 text-sm font-normal">({products.length})</span></h2>
+                    <h2 className="text-lg font-bold">{t("myShop.products")} <span className="text-white/40 text-sm font-normal">({products.length})</span></h2>
                     <button className={goldBtn} onClick={openNewProduct}>
-                      <Plus className="w-4 h-4" /> Add product <span className="text-[11px] font-semibold opacity-70">free</span>
+                      <Plus className="w-4 h-4" /> {t("myShop.addProduct")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
                     </button>
                   </div>
 
                   {showProductForm && (
-                    <div className="mt-4 rounded-xl border border-amber-400/25 bg-black/40 p-5">
+                    <div className={`mt-4 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40" : "border-amber-400/25 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-sm">{editingProduct ? "Edit product" : "New product"}</h3>
+                        <h3 className="font-bold text-sm">{editingProduct ? t("myShop.editProduct") : t("myShop.newProduct")}</h3>
                         <button className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
                       </div>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
-                          <label className="text-xs font-semibold text-white/50">Product name</label>
-                          <input className={`${inputClass} mt-1`} value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Gold Chain Tee" maxLength={120} />
+                          <label className="text-xs font-semibold text-white/50">{t("myShop.productNameLabel")}</label>
+                          <input className={`${inputClass} mt-1`} value={pName} onChange={(e) => setPName(e.target.value)} placeholder={t("myShop.productNamePlaceholder")} maxLength={120} />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-white/50">Price (USD)</label>
-                          <input className={`${inputClass} mt-1`} value={pPrice} onChange={(e) => setPPrice(e.target.value)} placeholder="29.99" inputMode="decimal" />
+                          <label className="text-xs font-semibold text-white/50">{t("myShop.priceLabel")}</label>
+                          <input className={`${inputClass} mt-1`} value={pPrice} onChange={(e) => setPPrice(e.target.value)} placeholder={t("myShop.pricePlaceholder")} inputMode="decimal" />
                         </div>
                       </div>
                       <div className="mt-4">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-white/50">Description</label>
+                          <label className="text-xs font-semibold text-white/50">{t("myShop.descriptionLabel")}</label>
                           <button className={ghostBtn} onClick={generateProductDescription} disabled={aiProdDescLoading}>
                             {aiProdDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                            <span className="text-xs">AI write · 100 Visual Bucs</span>
+                            <span className="text-xs">{t("myShop.aiWrite100")}</span>
                           </button>
                         </div>
-                        <textarea className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder="What makes it great…" />
+                        <textarea className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder={t("myShop.productDescPlaceholder")} />
                       </div>
                       <div className="mt-4">
-                        <label className="text-xs font-semibold text-white/50">Product image</label>
+                        <label className="text-xs font-semibold text-white/50">{t("myShop.productImageLabel")}</label>
                         {pImageUrl ? (
                           <div className="mt-1 flex items-center gap-3">
-                            <img src={pImageUrl} alt="Product" className="h-16 w-16 rounded-lg object-cover border border-white/15" />
-                            <button className="text-xs text-white/40 underline" onClick={() => setPImageUrl("")}>remove</button>
+                            <img src={pImageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="Product" className="h-16 w-16 rounded-lg object-cover border border-white/15" />
+                            <button className="text-xs text-white/40 underline" onClick={() => setPImageUrl("")}>{t("myShop.removeImage")}</button>
                           </div>
                         ) : (
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <input
                               className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
                               value={imageStyleHint} onChange={(e) => setImageStyleHint(e.target.value)}
-                              placeholder="Style hint for AI (optional): streetwear flat-lay…"
+                              placeholder={t("myShop.styleHintPlaceholder")}
                               maxLength={300}
                             />
                             <button className={ghostBtn} onClick={() => generateProductImage("standard")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "standard" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">AI image · 100 Visual Bucs</span>
+                              <span className="text-xs">{t("myShop.aiImage100")}</span>
                             </button>
                             <button className={ghostBtn} onClick={() => generateProductImage("premium")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "premium" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">Premium · 200 Visual Bucs</span>
+                              <span className="text-xs">{t("myShop.premium200")}</span>
                             </button>
                           </div>
                         )}
                         <input
                           className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
                           value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
-                          placeholder="…or paste an image URL"
+                          placeholder={t("myShop.imageUrlPlaceholder")}
                         />
                       </div>
                       <div className="mt-4 flex gap-3">
                         <button className={goldBtn} onClick={saveProduct} disabled={pSaving}>
                           {pSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                          {editingProduct ? "Save product" : "Add product"}
+                          {editingProduct ? t("myShop.saveProduct") : t("myShop.addProduct")}
                         </button>
-                        <button className={ghostBtn} onClick={() => setShowProductForm(false)}>Cancel</button>
+                        <button className={ghostBtn} onClick={() => setShowProductForm(false)}>{t("myShop.cancel")}</button>
                       </div>
                     </div>
                   )}
 
-                  {products.length === 0 && !showProductForm ? (
-                    <p className="mt-6 text-sm text-white/40 text-center py-8">No products yet — add your first one above.</p>
+                  {productsLoadError ? (
+                    <div className={`mt-6 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                      <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                      <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your products.</p>
+                      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                        Something went wrong on our end — your products are safe, this shop just couldn't load them.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { if (activeShop) loadProducts(activeShop); }}
+                        className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                      >
+                        <RotateCcw className="h-4 w-4" /> Try again
+                      </button>
+                    </div>
+                  ) : products.length === 0 && !showProductForm ? (
+                    <p className="mt-6 text-sm text-white/40 text-center py-8">{t("myShop.noProducts")}</p>
                   ) : (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {products.map((p) => (
-                        <div key={p.id} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
+                        <div key={p.id} className={`flex gap-3 rounded-xl border p-3 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                           {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-white/10 shrink-0" />
+                            <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-16 w-16 rounded-lg object-cover border border-white/10 shrink-0" />
                           ) : (
                             <div className="h-16 w-16 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0">
                               <ShoppingBag className="w-6 h-6 text-white/25" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm truncate">{p.name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-bold text-sm truncate">{p.name}</div>
+                              {p.status === "paused" && (
+                                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                                  {t("myShop.pausedBadge")}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-amber-300 text-sm font-bold">{centsToDisplay(p.price_cents)}</div>
                             <div className="mt-1.5 flex gap-2">
                               <button className="text-xs text-white/50 hover:text-white flex items-center gap-1" onClick={() => openEditProduct(p)}>
-                                <Pencil className="w-3 h-3" /> Edit
+                                <Pencil className="w-3 h-3" /> {t("myShop.edit")}
+                              </button>
+                              <button
+                                className="text-xs text-white/50 hover:text-white flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                                onClick={() => togglePauseProduct(p)}
+                                disabled={pauseTogglingId === p.id}
+                              >
+                                {p.status === "paused" ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                                {p.status === "paused" ? t("myShop.unpause") : t("myShop.pause")}
                               </button>
                               <button className="text-xs text-red-400/70 hover:text-red-400 flex items-center gap-1" onClick={() => deleteProduct(p)}>
-                                <Trash2 className="w-3 h-3" /> Remove
+                                <Trash2 className="w-3 h-3" /> {t("myShop.remove")}
                               </button>
                             </div>
                           </div>
@@ -608,6 +739,8 @@ export default function MyShop() {
                   )}
                 </section>
 
+                <DiscountCodesCard shop={activeShop} authed={authed} />
+
                 <AnalyticsCard shopId={activeShop.id} authed={authed} />
               </div>
             )}
@@ -615,11 +748,187 @@ export default function MyShop() {
         )}
 
         <Link href="/dashboard" className="mt-10 inline-flex items-center gap-2 text-sm text-white/40 hover:text-white">
-          <ArrowLeft className="w-4 h-4" /> Back to dashboard
+          <ArrowLeft className="w-4 h-4" /> {t("myShop.backToDashboard")}
         </Link>
       </main>
 
     </div>
+  );
+}
+
+/* ─── DiscountCodesCard — shop discount codes (0190) ─────────────────────
+   Parity with the profile store's discount system: the owner manages
+   codes against /api/shops/:id/discounts (owner-scoped server-side);
+   checkout validates + applies them and counts a use only when a sale
+   actually records. */
+interface ShopDiscountRow {
+  id: string;
+  code: string;
+  percentOff: number;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+function DiscountCodesCard({
+  shop, authed,
+}: {
+  shop: Shop;
+  authed: (path: string, init?: RequestInit) => Promise<Response>;
+}) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const [codes, setCodes] = useState<ShopDiscountRow[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newPct, setNewPct] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts`);
+      const body = (await res.json().catch(() => ({}))) as { codes?: ShopDiscountRow[] };
+      if (!res.ok || !Array.isArray(body.codes)) throw new Error("load");
+      setCodes(body.codes);
+    } catch {
+      setLoadFailed(true);
+    }
+  }, [authed, shop.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create() {
+    const code = newCode.trim().toUpperCase();
+    const pct = Number.parseInt(newPct, 10);
+    if (!code || !Number.isInteger(pct) || pct < 1 || pct > 90) {
+      setErr(t("myShop.discountCreateFailed"));
+      return;
+    }
+    setCreating(true);
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts`, {
+        method: "POST",
+        body: JSON.stringify({ code, percentOff: pct }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) {
+        setErr(body.error === "CODE_TAKEN" ? t("myShop.discountTaken") : body.message || t("myShop.discountCreateFailed"));
+        return;
+      }
+      setNewCode("");
+      setNewPct("");
+      await load();
+    } catch {
+      setErr(t("myShop.discountCreateFailed"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function toggle(row: ShopDiscountRow) {
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts/${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !row.isActive }),
+      });
+      if (!res.ok) throw new Error("patch");
+      setCodes((prev) => (prev ?? []).map((c) => (c.id === row.id ? { ...c, isActive: !row.isActive } : c)));
+    } catch {
+      setErr(t("myShop.discountUpdateFailed"));
+    }
+  }
+
+  async function remove(row: ShopDiscountRow) {
+    if (!window.confirm(t("myShop.discountDeleteConfirm"))) return;
+    setErr("");
+    try {
+      const res = await authed(`/api/shops/${shop.id}/discounts/${row.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete");
+      setCodes((prev) => (prev ?? []).filter((c) => c.id !== row.id));
+    } catch {
+      setErr(t("myShop.discountDeleteFailed"));
+    }
+  }
+
+  const inputCls = "rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60";
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <h2 className="flex items-center gap-2 text-lg font-bold">
+        <Tag className="h-5 w-5 text-amber-300" /> {t("myShop.discountsTitle")}
+      </h2>
+      <p className="mt-1 text-xs text-white/45">{t("myShop.discountsHint")}</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input
+          value={newCode}
+          onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+          placeholder={t("myShop.discountCodePlaceholder")}
+          maxLength={32}
+          className={`${inputCls} w-56 uppercase`}
+        />
+        <input
+          value={newPct}
+          onChange={(e) => setNewPct(e.target.value.replace(/[^0-9]/g, ""))}
+          placeholder={t("myShop.discountPercentPlaceholder")}
+          inputMode="numeric"
+          className={`${inputCls} w-32`}
+        />
+        <button
+          onClick={create}
+          disabled={creating || !newCode.trim() || !newPct}
+          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+        >
+          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? t("myShop.discountCreating") : t("myShop.discountCreate")}
+        </button>
+      </div>
+      {err && <p className="mt-2 text-xs text-red-300">{err}</p>}
+
+      {loadFailed ? (
+        <p className="mt-4 text-sm text-red-300">{t("myShop.discountLoadFailed")}</p>
+      ) : codes === null ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-white/40">
+          <Loader2 className="h-4 w-4 animate-spin" /> …
+        </p>
+      ) : codes.length === 0 ? (
+        <p className="mt-4 text-sm text-white/40">{t("myShop.discountNone")}</p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {codes.map((c) => (
+            <div
+              key={c.id}
+              className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80" : "border-white/10 bg-black/40"}`}
+            >
+              <span className="font-mono text-sm font-bold tracking-wide text-amber-200">{c.code}</span>
+              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-300">−{c.percentOff}%</span>
+              <span className="text-xs text-white/45">
+                {t("myShop.discountUses", { used: c.usedCount })} · {c.maxUses < 0 ? t("myShop.discountUnlimited") : t("myShop.discountMaxUses", { max: c.maxUses })}
+              </span>
+              <span className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => toggle(c)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${c.isActive ? "bg-emerald-400/15 text-emerald-300" : "bg-white/[0.06] text-white/50"}`}
+                >
+                  {c.isActive ? t("myShop.discountActive") : t("myShop.discountOff")}
+                </button>
+                <button onClick={() => remove(c)} className="text-xs text-red-400/70 hover:text-red-400" aria-label={`Delete ${c.code}`}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -633,6 +942,8 @@ function DomainManager({
   authed: (path: string, init?: RequestInit) => Promise<Response>;
   onUpdate: (s: Shop) => void;
 }) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [domain, setDomain] = useState(shop.custom_domain ?? "");
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -647,10 +958,10 @@ function DomainManager({
         method: "POST", body: JSON.stringify({ domain: domain.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Couldn't attach that domain.");
+      if (!res.ok) throw new Error(data.error || t("myShop.domainAttachFailed"));
       setToken(data.verification.value);
       onUpdate({ ...shop, custom_domain: data.domain, domain_verified: false });
-    } catch (e) { setError(e instanceof Error ? e.message : "Attach failed."); }
+    } catch (e) { setError(e instanceof Error ? e.message : t("myShop.domainAttachFailedShort")); }
     finally { setBusy(false); }
   }
 
@@ -665,21 +976,21 @@ function DomainManager({
         setToken(null);
         onUpdate({ ...shop, domain_verified: true });
       } else {
-        setError(data.reason || "Not verified yet — DNS can take a few minutes to propagate.");
+        setError(data.reason || t("myShop.domainNotVerifiedYet"));
       }
-    } catch { setError("Verification check failed. Try again."); }
+    } catch { setError(t("myShop.domainVerifyFailed")); }
     finally { setVerifying(false); }
   }
 
   async function detach() {
-    if (!confirm("Disconnect this domain from your shop?")) return;
+    if (!confirm(t("myShop.domainDisconnectConfirm"))) return;
     setError(null);
     try {
       const res = await authed(`/api/storefronts/${shop.id}/domain`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Couldn't disconnect the domain.");
+      if (!res.ok) throw new Error(t("myShop.domainDisconnectFailed"));
       setToken(null); setDomain("");
       onUpdate({ ...shop, custom_domain: null, domain_verified: false });
-    } catch (e) { setError(e instanceof Error ? e.message : "Disconnect failed."); }
+    } catch (e) { setError(e instanceof Error ? e.message : t("myShop.domainDisconnectFailedShort")); }
   }
 
   function copyToken() {
@@ -688,13 +999,13 @@ function DomainManager({
   }
 
   return (
-    <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-5">
+    <div className={`mt-6 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
       <div className="flex items-center gap-2">
         <Globe className="w-5 h-5 text-amber-300" />
-        <div className="text-sm font-bold">Custom domain</div>
+        <div className="text-sm font-bold">{t("myShop.customDomain")}</div>
         {shop.domain_verified && shop.custom_domain && (
           <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-            <BadgeCheck className="w-3.5 h-3.5" /> Verified
+            <BadgeCheck className="w-3.5 h-3.5" /> {t("myShop.verified")}
           </span>
         )}
       </div>
@@ -704,55 +1015,55 @@ function DomainManager({
       {!shop.custom_domain ? (
         <div className="mt-3">
           <p className="text-xs text-white/45">
-            Point your own domain at your shop. You'll add one TXT record to prove ownership.
+            {t("myShop.domainHint")}
           </p>
           <div className="mt-2 flex gap-2">
             <input
               value={domain} onChange={(e) => setDomain(e.target.value)}
-              placeholder="shop.yourname.com"
+              placeholder={t("myShop.domainPlaceholder")}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
             />
             <button onClick={attach} disabled={busy || !domain.trim()} className={goldBtn}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Connect
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {t("myShop.connect")}
             </button>
           </div>
         </div>
       ) : shop.domain_verified ? (
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="font-mono text-sm text-emerald-300">{shop.custom_domain}</p>
-          <button onClick={detach} className="text-xs font-bold text-white/40 hover:text-red-300">Disconnect</button>
+          <button onClick={detach} className="text-xs font-bold text-white/40 hover:text-red-300">{t("myShop.disconnect")}</button>
         </div>
       ) : (
         <div className="mt-3 space-y-3 text-sm">
           <p className="font-mono text-xs text-white/70">
-            Add this TXT record at <span className="text-amber-300">bdv-verify.{shop.custom_domain}</span>:
+            {t("myShop.txtRecordPrefix")} <span className="text-amber-300">bdv-verify.{shop.custom_domain}</span>:
           </p>
-          <div className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-black/60 p-3">
+          <div className={`flex items-start justify-between gap-2 rounded-lg border p-3 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/60"}`}>
             <code className="break-all font-mono text-xs text-amber-300">{token ?? "••••••••"}</code>
             {token && (
-              <button onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title="Copy token">
+              <button onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title={t("myShop.copyToken")}>
                 {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
               </button>
             )}
           </div>
           {!token && (
-            <p className="text-xs text-white/40">Token issued when you connected — reconnect to get a fresh one.</p>
+            <p className="text-xs text-white/40">{t("myShop.tokenHint")}</p>
           )}
           <p className="text-xs text-white/45">
-            Also add a CNAME: host <span className="font-mono text-white/70">@</span> →{" "}
+            {t("myShop.cnamePrefix")} <span className="font-mono text-white/70">@</span> →{" "}
             <span className="font-mono text-white/70">cname.bowdownvisuals.com</span>
           </p>
           <div className="flex gap-2">
             <button onClick={verify} disabled={verifying} className={goldBtn}>
               {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
-              Verify domain
+              {t("myShop.verifyDomain")}
             </button>
-            <button onClick={detach} className={ghostBtn}>Cancel</button>
+            <button onClick={detach} className={ghostBtn}>{t("myShop.cancel")}</button>
           </div>
         </div>
       )}
       <p className="mt-3 text-xs text-white/40">
-        Live now at <span className="font-mono text-amber-300/90">/shop/{shop.handle}</span>
+        {t("myShop.liveAt")} <span className="font-mono text-amber-300/90">/shop/{shop.handle}</span>
       </p>
     </div>
   );
@@ -765,10 +1076,13 @@ function AnalyticsCard({
   shopId: string;
   authed: (path: string, init?: RequestInit) => Promise<Response>;
 }) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
   const [data, setData] = useState<{
-    totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number };
+    totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number; pending_orders?: number };
     dailyViews: Array<{ day: string; views: number }>;
-    sales: Array<{ id: string; product_name: string | null; amount_cents: number; platform_fee_cents: number; seller_net_cents: number; buyer_email: string | null; created_at: string }>;
+    sales: Array<{ id: string; product_name: string | null; amount_cents: number; platform_fee_cents: number; seller_net_cents: number; buyer_email: string | null; created_at: string; payment_status?: string | null; paid_at?: string | null }>;
+    pendingSales?: Array<{ id: string; product_name: string | null; amount_cents: number; seller_net_cents: number; created_at: string; payment_status?: string | null }>;
     platformFeePct: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -791,21 +1105,21 @@ function AnalyticsCard({
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-      <h2 className="text-lg font-bold">Analytics <span className="text-white/40 text-sm font-normal">free</span></h2>
+      <h2 className="text-lg font-bold">{t("myShop.analytics")} <span className="text-white/40 text-sm font-normal">{t("myShop.free")}</span></h2>
       {loading ? (
         <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-amber-400" /></div>
       ) : !data ? (
-        <p className="mt-3 text-sm text-white/40">Couldn't load analytics.</p>
+        <p className="mt-3 text-sm text-white/40">{t("myShop.analyticsFailed")}</p>
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: "Storefront views", value: String(data.totals.views) },
-              { label: "Sales", value: String(data.totals.sales) },
-              { label: "Gross revenue", value: centsToDisplay(data.totals.gross_cents) },
-              { label: "You keep (90%)", value: centsToDisplay(data.totals.seller_net_cents), gold: true },
+              { label: t("myShop.statViews"), value: String(data.totals.views) },
+              { label: t("myShop.statSales"), value: String(data.totals.sales) },
+              { label: t("myShop.statGross"), value: centsToDisplay(data.totals.gross_cents) },
+              { label: t("myShop.statYouKeep"), value: centsToDisplay(data.totals.seller_net_cents), gold: true },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-white/10 bg-black/40 p-4">
+              <div key={s.label} className={`rounded-xl border p-4 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                 <div className={`text-xl font-black ${s.gold ? "text-amber-300" : ""}`}>{s.value}</div>
                 <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{s.label}</div>
               </div>
@@ -814,12 +1128,12 @@ function AnalyticsCard({
 
           {data.dailyViews.length > 0 && (
             <div className="mt-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-white/40">Views — last 30 days</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-white/40">{t("myShop.views30Days")}</div>
               <div className="mt-2 flex h-20 items-end gap-1">
                 {data.dailyViews.map((d) => (
                   <div
                     key={d.day}
-                    title={`${d.day}: ${d.views} views`}
+                    title={t("myShop.dayViews", { day: d.day, views: d.views })}
                     className="flex-1 rounded-t bg-gradient-to-t from-amber-500/40 to-amber-300/80"
                     style={{ height: `${Math.max(4, (d.views / maxViews) * 100)}%` }}
                   />
@@ -830,29 +1144,67 @@ function AnalyticsCard({
 
           <div className="mt-5">
             <div className="text-xs font-bold uppercase tracking-wider text-white/40">
-              Recent sales <span className="normal-case font-normal">({data.platformFeePct}% platform fee on each)</span>
+              {t("myShop.recentSales")} <span className="normal-case font-normal">{t("myShop.platformFeeNote", { pct: data.platformFeePct })}</span>
             </div>
             {data.sales.length === 0 ? (
-              <p className="mt-2 text-sm text-white/40">No sales yet — share your storefront link.</p>
+              <p className="mt-2 text-sm text-white/40">{t("myShop.noSales")}</p>
             ) : (
               <div className="mt-2 space-y-2">
                 {data.sales.slice(0, 10).map((sale) => (
-                  <div key={sale.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm">
+                  <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                     <div className="min-w-0">
-                      <div className="truncate font-bold">{sale.product_name ?? "Product"}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</span>
+                        {/* The seller's win, only ever on a confirmed sale:
+                            this list is event_type='sale', which since the
+                            real checkout (0144) means payment confirmed. */}
+                        {sale.payment_status === "paid" && (
+                          <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                            {t("myShop.paidBadge", { defaultValue: "Paid" })}
+                          </span>
+                        )}
+                        {sale.payment_status === "no_payment_required" && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white/60">
+                            {t("myShop.freeOrderBadge", { defaultValue: "Free order" })}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-white/40">
-                        {new Date(sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
+                        {new Date(sale.paid_at ?? sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
-                      <div className="text-[11px] text-emerald-300">you keep {centsToDisplay(sale.seller_net_cents)}</div>
+                      <div className="text-[11px] text-emerald-300">{t("myShop.youKeepAmount", { amount: centsToDisplay(sale.seller_net_cents) })}</div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {(data.pendingSales?.length ?? 0) > 0 && (
+            <div className="mt-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-white/40">
+                {t("myShop.awaitingPayment", { defaultValue: "Awaiting payment" })}
+                <span className="normal-case font-normal"> {t("myShop.awaitingPaymentNote", { defaultValue: "— started at checkout, not paid yet. These are not sales until the payment confirms." })}</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {data.pendingSales!.slice(0, 10).map((sale) => (
+                  <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-2.5 text-sm opacity-75 ${isLight ? "bg-[#F7ECD2]/50 border-[#C9A84C]/30" : "border-white/15 bg-black/30"}`}>
+                    <div className="min-w-0">
+                      <div className="truncate font-bold">{sale.product_name ?? t("myShop.productFallback")}</div>
+                      <div className="text-[11px] text-white/40">{new Date(sale.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
+                      <div className="text-[11px] text-amber-300">{sale.payment_status === "expired" ? t("myShop.checkoutExpired", { defaultValue: "Checkout expired" }) : t("myShop.pendingBadge", { defaultValue: "Pending" })}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>

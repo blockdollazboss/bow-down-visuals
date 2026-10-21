@@ -1,15 +1,19 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Mic, Loader2, Play, Pause, Download, Clapperboard, Volume2,
   AlertTriangle, Sparkles, FileText, Timer,
 } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useHubProject } from "@/lib/hub-project";
+import { useTranslation } from "react-i18next";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
   EMOTIONS,
   estimateVoiceoverCost,
@@ -57,6 +61,9 @@ const pillClass = (active: boolean) =>
   }`;
 
 export default function VoiceoverStudio() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { activeArtist } = useActiveArtist();
   const { addAsset } = useHubProject();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -80,6 +87,31 @@ export default function VoiceoverStudio() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  /* Sponsor read handoff — the Sponsorship Outreach page's "Send to Voiceover
+     Pro" stores the read script here; prefill the script box on arrival. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv_sponsor_read_handoff");
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { script?: string; brandName?: string };
+      if (handoff && typeof handoff.script === "string" && handoff.script.trim()) {
+        setScript(handoff.script.trim());
+        setTimeout(() => {
+          document.getElementById("voiceover-script")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+      localStorage.removeItem("bdv_sponsor_read_handoff");
+    } catch {
+      /* bad payload — drop it and carry on */
+      try {
+        localStorage.removeItem("bdv_sponsor_read_handoff");
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const estimate = estimateVoiceoverCost(script);
 
   useEffect(() => {
@@ -94,7 +126,12 @@ export default function VoiceoverStudio() {
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
-        if (list.length > 0 && !voiceId) setVoiceId(list[0]!.voice_id);
+        /* Prefer the vault's cloned voice — the user cloned it for exactly this. */
+        const vaultVoice = activeArtist?.voice_id;
+        if (!voiceId) {
+          if (vaultVoice && list.some((v) => v.voice_id === vaultVoice)) setVoiceId(vaultVoice);
+          else if (list.length > 0) setVoiceId(list[0]!.voice_id);
+        }
       } catch {
         if (!cancelled) setVoices([]);
       } finally {
@@ -128,11 +165,11 @@ export default function VoiceoverStudio() {
   async function generate() {
     if (generating || !user) return;
     if (!script.trim()) {
-      setError("Paste your script first.");
+      setError(t("voiceover.scriptRequiredError"));
       return;
     }
     if (!voiceId) {
-      setError("Pick a voice first.");
+      setError(t("voiceover.voiceRequiredError"));
       return;
     }
     setGenerating(true);
@@ -155,7 +192,7 @@ export default function VoiceoverStudio() {
           speed,
         }),
         overrideCost: estimate.credits,
-        overrideFeature: "AI Voiceover",
+        overrideFeature: t("voiceover.confirmFeatureName"),
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
@@ -165,7 +202,7 @@ export default function VoiceoverStudio() {
         return;
       }
       if (!res.ok || !data.audioUrl) {
-        throw new Error(data.message || data.error || "Voiceover failed — try again.");
+        throw new Error(data.message || data.error || t("voiceover.generateFailedError"));
       }
       setResult(data);
       refreshProfile();
@@ -173,12 +210,13 @@ export default function VoiceoverStudio() {
         addAsset({
           kind: "song",
           url: data.audioUrl,
-          label: `Voiceover — ${script.trim().slice(0, 40) || "script"}`,
-          detail: `${data.wordCount ?? 0} words · ${data.format ?? "mp3"}`,
+          label: t("voiceover.assetLabel", { script: script.trim().slice(0, 40) || t("voiceover.scriptFallback") }),
+          detail: t("voiceover.assetDetail", { words: data.wordCount ?? 0, format: data.format ?? "mp3" }),
+          meta: voiceId ? { voiceover: "true", voiceId } : { voiceover: "true" },
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Voiceover failed — try again.");
+      setError(err instanceof Error ? err.message : t("voiceover.generateFailedError"));
     } finally {
       setGenerating(false);
     }
@@ -192,7 +230,7 @@ export default function VoiceoverStudio() {
       wordCount: result.wordCount ?? 0,
       createdAt: Date.now(),
     });
-    window.location.href = "/video-editor";
+    window.location.href = "/video-editor?tab=lip-sync";
   }
 
   const selectedVoice = voices.find((v) => v.voice_id === voiceId);
@@ -206,14 +244,13 @@ export default function VoiceoverStudio() {
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Mic className="h-3.5 w-3.5" />
-            AI Voiceover Studio
+            {t("voiceover.pageTitle")}
           </div>
           <h1 className="text-3xl font-bold sm:text-4xl">
-            Studio narration, <span className="text-primary">on demand</span>
+            {t("voiceover.heading")} <span className="text-primary">{t("voiceover.headingAccent")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
-            Paste your script, pick a voice and a direction — get broadcast-quality
-            voiceover audio ready to layer under your video. 200 Visual Bucs per minute.
+            {t("voiceover.pageDescription")}
           </p>
         </div>
 
@@ -225,7 +262,7 @@ export default function VoiceoverStudio() {
 
         <ProjectFlowBar
           kinds={["script"]}
-          actionLabel="Voice it"
+          actionLabel={t("voiceover.flowAction")}
           onPick={(asset) => {
             const text = asset.meta?.text || "";
             if (text) setScript(text);
@@ -233,7 +270,7 @@ export default function VoiceoverStudio() {
         />
 
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -243,16 +280,16 @@ export default function VoiceoverStudio() {
           {/* ── left: script + options ── */}
           <div className="space-y-6">
             {/* script editor */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                   <FileText className="h-4 w-4 text-primary" />
-                  Your script
+                  {t("voiceover.scriptTitle")}
                 </h2>
                 <div className="flex items-center gap-4 text-xs text-white/45">
                   <span className="flex items-center gap-1">
                     <FileText className="h-3.5 w-3.5" />
-                    {estimate.wordCount} words
+                    {t("voiceover.wordCount", { count: estimate.wordCount })}
                   </span>
                   <span className="flex items-center gap-1">
                     <Timer className="h-3.5 w-3.5" />
@@ -260,38 +297,37 @@ export default function VoiceoverStudio() {
                   </span>
                   <span className="flex items-center gap-1 text-primary">
                     <VisualBucsIcon className="h-3.5 w-3.5" />
-                    {estimate.credits} Visual Bucs
+                    {t("voiceover.creditsEstimate", { count: estimate.credits })}
                   </span>
                 </div>
               </div>
               <textarea
+                id="voiceover-script"
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
                 rows={10}
                 maxLength={18000}
-                placeholder="Paste your narration script here…
-
-Tip: write it the way you'd say it. Short sentences land better than long ones."
+                placeholder={t("voiceover.scriptPlaceholder")}
                 className={`${inputClass} resize-y leading-relaxed`}
               />
             </section>
 
             {/* voice picker */}
-            <section data-min-stars="2" className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section data-min-stars="2" className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Volume2 className="h-4 w-4 text-primary" />
-                Voice
+                {t("voiceover.voiceTitle")}
               </h2>
               {voicesLoading ? (
                 <div className="flex items-center gap-2 text-sm text-white/40">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading voices…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("voiceover.loadingVoices")}
                 </div>
               ) : voices.length === 0 ? (
                 <p className="text-sm text-white/40">
                   {user
-                    ? "Couldn't load voices — check your connection and refresh."
-                    : <Link href="/login" className="text-primary underline">Sign in</Link>}
-                  {" "}to browse the voice library.
+                    ? t("voiceover.voicesLoadFailed")
+                    : <Link href="/login" className="text-primary underline">{t("voiceover.signIn")}</Link>}
+                  {" "}{t("voiceover.signInBrowseVoices")}
                 </p>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -300,7 +336,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                       key={v.voice_id}
                       className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
                         voiceId === v.voice_id
-                          ? "border-primary/60 bg-primary/[0.07]"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/10 bg-black/40 hover:border-white/25"
                       }`}
                     >
@@ -317,7 +353,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                         <button
                           onClick={() => togglePreview(v)}
                           className="rounded-full border border-white/15 p-2 text-white/60 transition hover:border-primary/50 hover:text-primary"
-                          aria-label={`Preview ${v.name}`}
+                          aria-label={t("voiceover.previewVoice", { name: v.name })}
                         >
                           {previewing === v.voice_id ? (
                             <Pause className="h-3.5 w-3.5" />
@@ -333,10 +369,10 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
             </section>
 
             {/* emotion */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Sparkles className="h-4 w-4 text-primary" />
-                Direction
+                {t("voiceover.directionTitle")}
               </h2>
               <div data-min-stars="2" className="flex flex-wrap gap-2">
                 {EMOTIONS.map((e) => (
@@ -357,7 +393,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
               {/* speed */}
               <div data-min-stars="3" className="mt-4">
                 <label className="mb-1 flex justify-between text-xs text-white/50">
-                  <span>Speaking speed</span>
+                  <span>{t("voiceover.speakingSpeed")}</span>
                   <span className="text-white/70">{speed.toFixed(2)}×</span>
                 </label>
                 <input
@@ -383,7 +419,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                   </button>
                 ))}
                 <span className="self-center text-xs text-white/35">
-                  WAV is lossless — better for mixing under video.
+                  {t("voiceover.wavNote")}
                 </span>
               </div>
             </section>
@@ -397,43 +433,42 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
               {generating ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Directing your voiceover…
+                  {t("voiceover.generating")}
                 </>
               ) : (
                 <>
                   <Mic className="h-5 w-5" />
-                  Generate voiceover · {estimate.credits} Visual Bucs
+                  {t("voiceover.generateButton", { count: estimate.credits })}
                 </>
               )}
             </button>
             {!user && (
               <p className="text-center text-sm text-white/40">
-                <Link href="/login" className="text-primary underline">Sign in</Link> to generate voiceovers.
+                <Link href="/login" className="text-primary underline">{t("voiceover.signIn")}</Link> {t("voiceover.signInGenerate")}
               </p>
             )}
           </div>
 
           {/* ── right: result ── */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/70">
-                Your voiceover
+                {t("voiceover.resultTitle")}
               </h2>
               {!result ? (
                 <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
                   <Mic className="h-10 w-10 text-white/15" />
                   <p className="max-w-[220px] text-sm text-white/35">
-                    Your finished narration will appear here — ready to download
-                    or send to the video editor.
+                    {t("voiceover.resultEmpty")}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3 text-xs text-white/60">
-                    <div className="font-medium text-white">{selectedVoice?.name ?? "Voiceover"}</div>
+                    <div className="font-medium text-white">{selectedVoice?.name ?? t("voiceover.voiceoverFallback")}</div>
                     <div className="mt-1 capitalize">{result.emotion} · {result.format?.toUpperCase()}</div>
                     <div className="mt-1">
-                      {result.wordCount} words · ~{formatDuration(result.estimatedSeconds ?? 0)}
+                      {t("voiceover.resultMeta", { words: result.wordCount, time: formatDuration(result.estimatedSeconds ?? 0) })}
                     </div>
                   </div>
                   <audio
@@ -451,18 +486,26 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                       className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium transition hover:border-primary/50 hover:text-primary"
                     >
                       <Download className="h-4 w-4" />
-                      Download {result.format?.toUpperCase()}
+                      {t("voiceover.downloadFormat", { format: result.format?.toUpperCase() })}
                     </a>
+                    <PublishToProfileButton
+                      type="audio"
+                      category="other"
+                      audioUrl={result.audioPlayUrl ?? result.audioUrl}
+                      title="Voiceover"
+                      from="/voiceover"
+                      fromLabel="Voiceover"
+                    />
                     <button
                       onClick={sendToEditor}
                       className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
                     >
                       <Clapperboard className="h-4 w-4" />
-                      Use in video editor
+                      {t("voiceover.useInEditor")}
                     </button>
                   </div>
                   <p className="text-xs text-white/35">
-                    Used {result.creditsUsed} Visual Bucs · {result.creditsRemaining} remaining.
+                    {t("voiceover.creditsUsedNote", { used: result.creditsUsed, remaining: result.creditsRemaining })}
                   </p>
                 </div>
               )}

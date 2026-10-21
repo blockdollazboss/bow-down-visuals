@@ -293,7 +293,10 @@ async function tiktokAccessToken(
   return accessToken;
 }
 
-interface AccountRow {
+/* Exported for the social-proof lane (lib/social-proof.ts via
+   routes/social-proof.ts): the per-account live fetch — token handling,
+   TikTok refresh, honest-null stats — is shared, never duplicated. */
+export interface AccountRow {
   id: string;
   platform: string;
   username: string | null;
@@ -304,7 +307,7 @@ interface AccountRow {
   token_expires_at: Date | null;
 }
 
-async function overviewForAccount(
+export async function overviewForAccount(
   userId: string,
   account: AccountRow,
   fetchImpl: FetchImpl,

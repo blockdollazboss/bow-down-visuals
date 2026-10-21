@@ -25,6 +25,25 @@ export const distributionReleasesTable = pgTable("distribution_releases", {
   credits_charged: integer("credits_charged").notNull().default(0),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /* ── Pre-save page upgrades (HyperFollow parity, migration 0082) ───────
+     presave_headline: artist-written hero line on the public page.
+     presave_platform_links: { spotify: url, apple_music: url, ... } pasted
+       by the artist — rendered as tappable platform buttons.
+     presave_bonus_url: bonus content unlocked when a fan shares the page. */
+  presave_headline: text("presave_headline"),
+  presave_platform_links: jsonb("presave_platform_links")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
+  presave_bonus_url: text("presave_bonus_url"),
+  /* ── Retargeting pixels (migration 0187) ─────────────────────────────
+     The creator's own ad-platform pixel/tag IDs for this release's
+     smartlink landing. The public page fires exactly the configured
+     pixels on view; all three null = nothing fires. Validated
+     server-side on save. */
+  meta_pixel_id: text("meta_pixel_id"),
+  tiktok_pixel_id: text("tiktok_pixel_id"),
+  google_tag_id: text("google_tag_id"),
 });
 
 export type DistributionReleaseRow = typeof distributionReleasesTable.$inferSelect;

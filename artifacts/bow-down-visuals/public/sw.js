@@ -1,8 +1,17 @@
 /* Bow Down Visuals service worker.
- * Cache-first for static assets, network-first for API + navigations.
+ * Cache-first ONLY for hashed build assets (/assets/* — a new deploy means
+ * new URLs, so cache-first can never serve stale code) and for the vendored
+ * engine files (/engines/* — version-pinned WASM/models under stable names,
+ * served immutable by the API; cache-first stops repeat visits from
+ * re-downloading tens of MB). Everything else same-origin (public files
+ * with stable names: the extension zip, posters, opengraph, llms.txt,
+ * sitemap) is network-first with a cache fallback — those files are
+ * rebuilt under the SAME name, and cache-first would pin returning
+ * visitors to the old copy indefinitely.
+ * Network-first for API + navigations.
  * Bump CACHE_VERSION to force clients onto fresh assets after a deploy.
  */
-const CACHE_VERSION = "bdv-v2";
+const CACHE_VERSION = "bdv-v4";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
@@ -35,6 +44,52 @@ self.addEventListener("activate", (event) => {
           .map((k) => caches.delete(k))
       )
     )
+  );
+});
+
+/* ── Web push (Stack 2 go-live alerts) ──────────────────────────────────
+ * The server sends { title, body, link, kind } as JSON. A payload that
+ * doesn't parse still shows an honest generic alert — never a fake
+ * stream title. Clicking focuses an open tab on the link or opens it. */
+self.addEventListener("push", (event) => {
+  let data = { title: "Bow Down Visuals", body: "Someone you follow is live.", link: "/", kind: "live" };
+  try {
+    const parsed = event.data ? event.data.json() : null;
+    if (parsed && typeof parsed === "object") {
+      data = {
+        title: typeof parsed.title === "string" && parsed.title ? parsed.title : data.title,
+        body: typeof parsed.body === "string" ? parsed.body : data.body,
+        link: typeof parsed.link === "string" && parsed.link.startsWith("/") ? parsed.link : "/",
+        kind: typeof parsed.kind === "string" ? parsed.kind : "live",
+      };
+    }
+  } catch {
+    /* keep the honest generic alert */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: `bdv-${data.kind}`,
+      data: { link: data.link },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(link).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(link);
+    })
   );
 });
 
@@ -85,19 +140,48 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Same-origin static assets (hashed JS/CSS, images, audio, manifest, icons):
-  // cache-first, populate on miss.
+  // Hashed build assets (/assets/*): the filename carries a content hash,
+  // so a cached copy can never be stale — cache-first, populate on miss.
+  // Vendored engines (/engines/*) get the same treatment: version-pinned
+  // files under stable names, served with immutable cache headers.
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/engines/")) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((res) => {
+          // Only cache successful, basic (same-origin) responses.
+          if (res.ok && res.type === "basic") {
+            const copy = res.clone();
+            caches.open(STATIC_CACHE).then((c) => c.put(request, copy));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else same-origin (public files with stable names — the
+  // extension zip, poster/hero images, opengraph.jpg, llms.txt, icons):
+  // network-first so a rebuilt file reaches returning visitors immediately;
+  // fall back to the cached copy only when offline.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        // Only cache successful, basic (same-origin) responses.
+    fetch(request)
+      .then((res) => {
         if (res.ok && res.type === "basic") {
           const copy = res.clone();
           caches.open(STATIC_CACHE).then((c) => c.put(request, copy));
         }
         return res;
-      });
-    })
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          return new Response("Offline — Bow Down Visuals needs a connection to load.", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          });
+        })
+      )
   );
 });

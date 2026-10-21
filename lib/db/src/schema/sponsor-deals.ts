@@ -67,6 +67,12 @@ export const sponsorPayoutsTable = pgTable("sponsor_payouts", {
   netCents:      integer("net_cents").notNull(),
   status:        text("status").notNull().default("released"),
   stripeTransferId: text("stripe_transfer_id"),
+  /** Connect settlement (migration 0142, DE-14): the creator_payouts row
+      that paid this ledger line out. Null = not yet settled through the
+      Connect payout rail. A payout whose status is 'failed' does NOT
+      settle — pendingPayoutCents checks the linked payout's status. */
+  settledPayoutId: uuid("settled_payout_id"),
+  settledAt:     timestamp("settled_at", { withTimezone: true }),
   createdAt:     timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

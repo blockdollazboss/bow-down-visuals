@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Languages, Loader2, Upload, Play, Download, AlertTriangle, Check,
@@ -16,6 +17,8 @@ import {
   HONESTY_NOTE,
   type TranslateJobState,
 } from "@/lib/video-translator";
+import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's AI Video Translator ───────────────────────────────
    Upload a video → pick target languages → AI transcribes, translates,
@@ -35,9 +38,12 @@ const inputClass =
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed";
 
-export default function Translate() {
+export default function Translate({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
 
   /* step 1: video */
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -142,7 +148,7 @@ export default function Translate() {
       });
       const data = (await res.json().catch(() => ({}))) as Partial<TranslateJobState> & { error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not check translation status.");
+        setError(data.error ?? t("translate.statusCheckFailed"));
         stopPolling();
         setTranslating(false);
         return;
@@ -152,6 +158,14 @@ export default function Translate() {
         stopPolling();
         setTranslating(false);
         refreshProfile().catch(() => {});
+        /* Translated videos flow into the hub project — scheduler and the editor pick them up. */
+        if (data.status === "done") {
+          for (const o of (data as TranslateJobState).outputs ?? []) {
+            if (o.videoUrl) {
+              try { addAsset({ kind: "video", url: o.videoUrl, label: `Translated video (${o.label || o.language})`, detail: "Video translator" }); } catch { /* non-fatal */ }
+            }
+          }
+        }
       }
     } catch {
       /* transient — keep polling */
@@ -167,9 +181,9 @@ export default function Translate() {
 
   async function startTranslation() {
     if (translating || !user) return;
-    if (!videoFile) { setError("Upload a video first."); return; }
-    if (selectedLangs.length === 0) { setError("Pick at least one target language."); return; }
-    if (!voiceId) { setError("Pick a dubbing voice first."); return; }
+    if (!videoFile) { setError(t("translate.videoRequired")); return; }
+    if (selectedLangs.length === 0) { setError(t("translate.languageRequired")); return; }
+    if (!voiceId) { setError(t("translate.voiceRequired")); return; }
     setTranslating(true);
     setError(null);
     setOutOfCredits(false);
@@ -196,12 +210,12 @@ export default function Translate() {
       };
       if (res.status === 402) {
         setOutOfCredits(true);
-        setError(data.message ?? "You're out of Visual Bucs.");
+        setError(data.message ?? t("translate.outOfCreditsMessage"));
         setTranslating(false);
         return;
       }
       if (!res.ok || !data.jobId) {
-        setError(data.error ?? data.message ?? "Translation failed to start.");
+        setError(data.error ?? data.message ?? t("translate.startFailed"));
         setTranslating(false);
         return;
       }
@@ -211,7 +225,7 @@ export default function Translate() {
         pollJob(data.jobId!, token);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Translation failed to start.");
+      setError(e instanceof Error ? e.message : t("translate.startFailed"));
       setTranslating(false);
     }
   }
@@ -228,41 +242,35 @@ export default function Translate() {
   const failedOutputs = job?.outputs.filter((o) => !o.videoUrl && o.error) ?? [];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-10">
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-5xl px-4 pb-24 pt-10"}>
+        {/* Hero (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-300">
-            <Languages className="h-3.5 w-3.5" /> AI Video Translator
-          </div>
-          <h1 className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-4xl font-black text-transparent md:text-5xl">
-            Dub Your Videos Into Any Language
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/50">
-            Upload a video, pick your languages — AI transcribes, translates, and dubs it
-            with a voice-matched AI voice. Subtitles included free.
-          </p>
+            <Languages className="h-3.5 w-3.5" />{t("translate.badge")}</div>
+          <h1 className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-4xl font-black text-transparent md:text-5xl">{t("translate.pageTitle")}</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/50">{t("translate.pageSubtitle")}</p>
           <p className="mx-auto mt-2 flex max-w-2xl items-center justify-center gap-1.5 text-xs text-amber-300/80">
             <AlertTriangle className="h-3.5 w-3.5" /> {HONESTY_NOTE}
           </p>
         </div>
+        )}
 
         {!user ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center text-white/60">
-            Sign in to translate your videos.
-          </div>
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/60"}`}>{t("translate.signInPrompt")}</div>
         ) : (
           <>
             {/* ── Step 1: upload ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
-                <Upload className="h-5 w-5" /> 1. Upload your video
-              </h2>
+                <Upload className="h-5 w-5" />{t("translate.step1")}</h2>
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-6 py-10 transition hover:border-amber-400/40">
                 <Upload className="mb-2 h-8 w-8 text-amber-300/70" />
                 <span className="text-sm text-white/70">
-                  {videoFile ? videoFile.name : "Drop a video or click to browse"}
+                  {videoFile ? videoFile.name : t("translate.dropHint")}
                 </span>
-                <span className="mt-1 text-xs text-white/35">MP4/MOV/WebM up to 80 MB</span>
+                <span className="mt-1 text-xs text-white/35">{t("translate.fileLimits")}</span>
                 <input
                   type="file"
                   accept="video/*"
@@ -271,7 +279,7 @@ export default function Translate() {
                     const f = e.target.files?.[0];
                     if (f) {
                       if (f.size > TRANSLATOR_MAX_BYTES) {
-                        setError("That video exceeds the 80 MB upload limit.");
+                        setError(t("translate.fileTooLarge"));
                         return;
                       }
                       setError(null);
@@ -284,17 +292,16 @@ export default function Translate() {
                 <div className="mt-4 flex items-center gap-4">
                   <video src={videoPreviewUrl} className="h-24 rounded-lg border border-white/10" controls={false} />
                   <div className="text-sm text-white/60">
-                    Duration: <span className="font-semibold text-white">{formatDuration(durationSec)}</span>
+                    {t("translate.durationLabel")} <span className="font-semibold text-white">{formatDuration(durationSec)}</span>
                   </div>
                 </div>
               )}
             </section>
 
             {/* ── Step 2: languages ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
-                <Globe className="h-5 w-5" /> 2. Pick target languages
-                <span className="text-xs font-normal text-white/40">
+                <Globe className="h-5 w-5" />{t("translate.step2")}<span className="text-xs font-normal text-white/40">
                   ({selectedLangs.length}/{TRANSLATOR_MAX_LANGUAGES})
                 </span>
               </h2>
@@ -320,16 +327,14 @@ export default function Translate() {
             </section>
 
             {/* ── Step 3: voice ── */}
-            <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
-                <Mic2 className="h-5 w-5" /> 3. Pick the dubbing voice
-              </h2>
+                <Mic2 className="h-5 w-5" />{t("translate.step3")}</h2>
               {voicesLoading ? (
                 <div className="flex items-center gap-2 text-sm text-white/50">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading voices…
-                </div>
+                  <Loader2 className="h-4 w-4 animate-spin" />{t("translate.loadingVoices")}</div>
               ) : voices.length === 0 ? (
-                <p className="text-sm text-white/50">No voices available right now.</p>
+                <p className="text-sm text-white/50">{t("translate.noVoices")}</p>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {voices.slice(0, 8).map((v) => (
@@ -338,7 +343,7 @@ export default function Translate() {
                       onClick={() => setVoiceId(v.voice_id)}
                       className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm transition ${
                         voiceId === v.voice_id
-                          ? "border-amber-400/60 bg-amber-400/10 text-amber-100"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/10 bg-black/40 text-white/65 hover:border-white/25"
                       }`}
                     >
@@ -350,7 +355,7 @@ export default function Translate() {
                           onClick={(e) => { e.stopPropagation(); toggleVoicePreview(v); }}
                           onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); toggleVoicePreview(v); } }}
                           className="rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white"
-                          aria-label={`Preview ${v.name ?? "voice"}`}
+                          aria-label={t("translate.previewVoiceAria", { name: v.name ?? t("translate.voiceFallback") })}
                         >
                           {previewing === v.voice_id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -364,9 +369,7 @@ export default function Translate() {
                 </div>
               )}
               <audio id="translate-voice-preview" className="hidden" />
-              <p className="mt-3 text-xs text-white/35">
-                The same voice dubs every language, keeping your sound consistent worldwide.
-              </p>
+              <p className="mt-3 text-xs text-white/35">{t("translate.voiceNote")}</p>
             </section>
 
             {/* ── Cost + CTA ── */}
@@ -374,25 +377,23 @@ export default function Translate() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="text-sm text-white/65">
                   <div>
-                    <span className="font-semibold text-white">{estimate.billableMinutes} min</span>
+                    <span className="font-semibold text-white">{t("translate.billableMinutes", { n: estimate.billableMinutes })}</span>
                     {" × "}
-                    <span className="font-semibold text-white">{selectedLangs.length} language{selectedLangs.length === 1 ? "" : "s"}</span>
-                    {" × 500 Visual Bucs"}
+                    <span className="font-semibold text-white">{t("translate.languageCount", { n: selectedLangs.length })}</span>
+                    {t("translate.perMinuteCost")}
                   </div>
-                  <div className="mt-1 text-xs text-white/40">
-                    Subtitle files (SRT) for every language are free.
-                  </div>
+                  <div className="mt-1 text-xs text-white/40">{t("translate.srtFree")}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-black text-amber-300">{estimate.credits}</div>
-                  <div className="text-xs uppercase tracking-widest text-white/40">Visual Bucs</div>
+                  <div className="text-xs uppercase tracking-widest text-white/40">{t("translate.creditsLabel")}</div>
                 </div>
               </div>
               <button onClick={startTranslation} disabled={translating || !videoFile} className={`${goldBtn} mt-4 w-full`}>
                 {translating ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Translating…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" />{t("translate.translating")}</>
                 ) : (
-                  <><Languages className="h-4 w-4" /> Translate · {estimate.credits} Visual Bucs</>
+                  <><Languages className="h-4 w-4" /> {t("translate.translateButton", { credits: estimate.credits })}</>
                 )}
               </button>
               {error && (
@@ -405,7 +406,7 @@ export default function Translate() {
 
             {/* ── Job progress ── */}
             {(translating || job) && job && (
-              <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">
                   {job.status === "processing" || job.status === "queued" ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -415,10 +416,10 @@ export default function Translate() {
                     <AlertTriangle className="h-5 w-5 text-red-400" />
                   )}
                   {job.status === "done"
-                    ? "Your dubbed videos are ready"
+                    ? t("translate.jobDone")
                     : job.status === "failed"
-                      ? "Translation failed — Visual Bucs refunded"
-                      : "Dubbing in progress… feel free to close this tab"}
+                      ? t("translate.jobFailed")
+                      : t("translate.jobWorking")}
                 </h2>
                 {job.error && <p className="mb-4 text-sm text-red-300">{job.error}</p>}
 
@@ -429,14 +430,12 @@ export default function Translate() {
                         <span className="font-bold text-white">{out.label}</span>
                         {out.videoUrl ? (
                           <span className="flex items-center gap-1 text-xs text-green-400">
-                            <Check className="h-3.5 w-3.5" /> Done
-                          </span>
+                            <Check className="h-3.5 w-3.5" />{t("translate.outputDone")}</span>
                         ) : out.error ? (
-                          <span className="text-xs text-red-300">Failed</span>
+                          <span className="text-xs text-red-300">{t("translate.outputFailed")}</span>
                         ) : (
                           <span className="flex items-center gap-1 text-xs text-amber-300">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…
-                          </span>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />{t("translate.outputWorking")}</span>
                         )}
                       </div>
                       {out.videoUrl && (
@@ -452,8 +451,7 @@ export default function Translate() {
                             download={`dubbed-${out.language}.mp4`}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
                           >
-                            <Download className="h-3.5 w-3.5" /> Video
-                          </a>
+                            <Download className="h-3.5 w-3.5" />{t("translate.videoDownload")}</a>
                         )}
                         {out.srtUrl && (
                           <a
@@ -461,8 +459,7 @@ export default function Translate() {
                             download={`subtitles-${out.language}.srt`}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
                           >
-                            <FileText className="h-3.5 w-3.5" /> Subtitles (free)
-                          </a>
+                            <FileText className="h-3.5 w-3.5" />{t("translate.srtDownload")}</a>
                         )}
                       </div>
                     </div>
@@ -471,8 +468,7 @@ export default function Translate() {
 
                 {failedOutputs.length > 0 && doneOutputs.length > 0 && (
                   <p className="mt-4 text-xs text-white/45">
-                    {failedOutputs.length} language{failedOutputs.length === 1 ? "" : "s"} couldn't be
-                    dubbed — you were refunded for {failedOutputs.length === 1 ? "it" : "them"} automatically.
+                    {t("translate.partialFail", { count: failedOutputs.length })}
                   </p>
                 )}
 
@@ -481,8 +477,7 @@ export default function Translate() {
                     onClick={reset}
                     className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white"
                   >
-                    <RefreshCw className="h-4 w-4" /> Translate another video
-                  </button>
+                    <RefreshCw className="h-4 w-4" />{t("translate.translateAnother")}</button>
                 )}
               </section>
             )}

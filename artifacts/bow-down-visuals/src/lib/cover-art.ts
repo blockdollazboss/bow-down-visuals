@@ -68,13 +68,13 @@ export const COVER_ART_TIERS: CoverArtTier[] = [
   {
     key: "standard",
     label: "Standard",
-    credits: 2,
+    credits: 200,
     blurb: "Sharp, release-ready artwork",
   },
   {
     key: "premium",
     label: "Premium Detail",
-    credits: 3,
+    credits: 300,
     blurb: "Maximum detail & richness",
   },
 ];

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
@@ -6,10 +7,17 @@ import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
+import { chargeCredits } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+  burnAttributionIntoImage,
+} from "../../lib/attribution";
 
 const router = Router();
 
@@ -113,15 +121,32 @@ async function refundCredits(userId: string, amount: number): Promise<void> {
  * Charge-before-generate: credits are deducted up front and auto-refunded
  * if generation fails before any image succeeds.
  */
+/* ── Request validation ── */
+const thumbnailGeneratorSchema = z.object({
+  prompt: z.string().min(3, "A text prompt (3+ characters) is required.").max(2000),
+  stylePreset: z.string().max(100).optional(),
+  aspectRatio: z.enum(["16:9", "9:16"]).optional(),
+  overlayText: z.string().max(200).optional(),
+  /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
+  attribution: attributionOptIn(),
+});
+
 router.post(
   "/thumbnail-generator",
   requireAuth,
   upload.single("facePhoto"),
   async (req, res) => {
-    const { prompt, stylePreset, aspectRatio, overlayText } =
-      req.body as Partial<GenerateRequest>;
+    const parsed = thumbnailGeneratorSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Invalid thumbnail request.",
+        details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+      });
+      return;
+    }
+    const { prompt, stylePreset, aspectRatio, overlayText, attribution } = parsed.data;
 
-    if (!prompt || typeof prompt !== "string" || prompt.trim().length < 3) {
+    if (prompt.trim().length < 3) {
       res.status(400).json({ error: "A text prompt (3+ characters) is required." });
       return;
     }
@@ -144,12 +169,17 @@ router.post(
       return;
     }
 
-    /* Charge up front — refunded below if nothing generates. */
-    const creditsAfter = currentCredits - BATCH_CREDIT_COST;
-    await getSupabaseAdmin()
-      .from("profiles")
-      .update({ credits: creditsAfter })
-      .eq("id", req.userId!);
+    /* Charge up front — refunded below if nothing generates.
+       P0-23: strict ledger + idempotency via chargeCredits. */
+    const idempotencyKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
+      ? (req.body as { idempotencyKey: string }).idempotencyKey
+      : null;
+    const creditsAfter = await chargeCredits(
+      req.userId!,
+      BATCH_CREDIT_COST,
+      { action: "thumbnail_batch_generate" },
+      { idempotencyKey, personalOnly: true },
+    );
 
     const facePhotoBuffer = req.file?.buffer ?? null;
     const images: Array<{ url: string; variation: number }> = [];
@@ -194,9 +224,15 @@ router.post(
         }
 
         const objectName = `thumbnail-generator/${randomUUID()}.png`;
+        let imageBuffer: Buffer = Buffer.from(b64, "base64");
+        /* Virality: opt-in quiet corner credit burned post-generation (paid export → opt-in). */
+        if (attribution) {
+          const outW = ratio === "9:16" ? 1024 : 1536;
+          imageBuffer = await burnAttributionIntoImage(imageBuffer, outW);
+        }
         const storageRef = await uploadMediaToSupabaseStorage(
           objectName,
-          Buffer.from(b64, "base64"),
+          imageBuffer,
           "image/png",
         );
         const url = await refreshSupabaseStorageUrl(storageRef);
@@ -235,6 +271,7 @@ router.post(
 
     res.json({
       images,
+      attribution,
       creditsUsed: BATCH_CREDIT_COST,
       creditsRemaining: creditsAfter,
       aspectRatio: ratio,

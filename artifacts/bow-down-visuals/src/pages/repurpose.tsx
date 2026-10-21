@@ -1,11 +1,19 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Recycle, Loader2, Upload, Link2, Copy, Check, Download,
   AlertTriangle, RefreshCw, Clapperboard, Image as ImageIcon,
-  MessageSquareText, Share2, Sparkles, Film,
+  MessageSquareText, Share2, Sparkles, Film, Captions, Scissors,
+  Play, Clock, Flame, Search,
 } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { HighlightCutter } from "@/components/wave8/HighlightCutter";
+import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
+import { fetchVideo, resolveMedia } from "@/lib/streaming";
 import {
   PACK_CREDITS,
   REROLL_CREDITS,
@@ -15,6 +23,8 @@ import {
   PLATFORM_LABELS,
   type PlatformKey,
 } from "@/lib/repurpose";
+import { useTranslation } from "react-i18next";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Content Repurposer ─────────────────────────────────
    One video in, content calendar out: upload a video → AI transcribes it
@@ -89,8 +99,10 @@ interface JobResponse {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
-const cardClass =
-  "rounded-2xl border border-white/10 bg-white/[0.02] p-6";
+const cardClass = (isLight: boolean) =>
+  isLight
+    ? "rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] p-6"
+    : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
 
 function SectionHeader(props: { icon: typeof Film; step?: number; title: string; blurb?: string; right?: React.ReactNode }) {
   const Icon = props.icon;
@@ -113,8 +125,1093 @@ function SectionHeader(props: { icon: typeof Film; step?: number; title: string;
   );
 }
 
-export default function Repurpose() {
+/* ─── Stream VOD preset (merged from the Streamer Clip Maker page) ───────
+   Upload a stream VOD → Whisper transcribes it → GPT-6 finds the best
+   moments → server-side ffmpeg cuts them into vertical 9:16 clips.
+   3 credits per AI analysis, 2 credits per rendered clip. Viewing the
+   highlight list, selecting highlights, and copying timestamps are free.
+   Registry keys: /api/streamer-clips/analyze (3cr), /api/streamer-clips/cut
+   (2cr/clip via overrideCost). Wave 8's Stream Highlight Auto-Editor
+   (HighlightCutter) is preserved below as its own step. */
+
+type StreamVibeKey = "funny" | "hype" | "wholesome";
+
+interface StreamVibe {
+  key: StreamVibeKey;
+  label: string;
+  blurb: string;
+  icon: typeof Flame;
+}
+
+const CLIP_LENGTHS = [15, 30, 60];
+const ANALYZE_COST = 300;
+const CUT_COST_PER_CLIP = 200;
+
+interface StreamHighlight {
+  id: string;
+  startSec: number;
+  endSec: number;
+  title: string;
+  reason: string;
+  quote: string;
+}
+
+interface StreamAnalyzeResponse {
+  videoRef?: string;
+  videoUrl?: string;
+  durationSec?: number;
+  highlights?: StreamHighlight[];
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+interface StreamCutClip {
+  title: string;
+  startSec: number;
+  endSec: number;
+  outputUrl: string | null;
+  outputRef: string | null;
+}
+
+interface StreamCutJobResponse {
+  jobId?: string;
+  status?: "queued" | "processing" | "done" | "failed";
+  clips?: StreamCutClip[];
+  error?: string;
+  message?: string;
+}
+
+function StreamVodClips() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
+
+  const VIBES: StreamVibe[] = [
+    { key: "funny", label: t("clipMaker.vibeFunnyLabel"), blurb: t("clipMaker.vibeFunnyBlurb"), icon: Sparkles },
+    { key: "hype", label: t("clipMaker.vibeHypeLabel"), blurb: t("clipMaker.vibeHypeBlurb"), icon: Flame },
+    { key: "wholesome", label: t("clipMaker.vibeWholesomeLabel"), blurb: t("clipMaker.vibeWholesomeBlurb"), icon: Clapperboard },
+  ];
+
+  /* source + preferences */
+  const [file, setFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [clipLength, setClipLength] = useState(30);
+  const [maxClips, setMaxClips] = useState(5);
+  const [vibe, setVibe] = useState<StreamVibeKey>("hype");
+
+  /* analysis */
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<StreamAnalyzeResponse | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  /* cutting */
+  const [cutting, setCutting] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [job, setJob] = useState<StreamCutJobResponse | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  /* shared */
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, []);
+
+  /* Authenticated fetch that routes SPENDING calls through the credit
+     confirmation popup. Status/health polls must pass skipConfirm: true. */
+  async function authedFetch(
+    url: string,
+    init: RequestInit & { skipConfirm?: boolean; overrideCost?: number; overrideFeature?: string },
+  ) {
+    const token = await getAccessToken();
+    return confirmedFetch(url, {
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  }
+
+  function handlePaidFailure(res: Response, data: { error?: string }): boolean {
+    if (res.status === 402 || data.error === "out_of_credits") {
+      setOutOfCredits(true);
+      refreshProfile();
+      return true;
+    }
+    return false;
+  }
+
+  async function analyze() {
+    if (analyzing || !user) return;
+    if (!file && !videoUrl.trim()) {
+      setError(t("clipMaker.errorNoSource"));
+      return;
+    }
+    setAnalyzing(true);
+    setError(null);
+    setOutOfCredits(false);
+    setAnalysis(null);
+    setJob(null);
+    setJobId(null);
+    try {
+      let res: Response | null;
+      if (file) {
+        const form = new FormData();
+        form.append("video", file);
+        form.append("clipLength", String(clipLength));
+        form.append("maxClips", String(maxClips));
+        form.append("vibe", vibe);
+        res = await authedFetch("/api/streamer-clips/analyze", { method: "POST", body: form });
+      } else {
+        res = await authedFetch("/api/streamer-clips/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoUrl: videoUrl.trim(), clipLength, maxClips, vibe }),
+        });
+      }
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as StreamAnalyzeResponse;
+      if (handlePaidFailure(res, data)) return;
+      if (!res.ok || !Array.isArray(data.highlights) || data.highlights.length === 0) {
+        throw new Error(data.message || data.error || t("clipMaker.errorAnalysisFailed"));
+      }
+      setAnalysis(data);
+      setSelected(new Set(data.highlights.map((h) => h.id)));
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("clipMaker.errorAnalysisFailed"));
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  function toggleHighlight(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function copyTimestamps() {
+    if (!analysis?.highlights) return;
+    const picks = analysis.highlights.filter((h) => selected.has(h.id));
+    const text = buildTimestampExport(picks);
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => setError(t("clipMaker.errorCopyFailed")),
+    );
+  }
+
+  async function cutClips() {
+    if (cutting || !user || !analysis?.videoRef) return;
+    const picks = (analysis.highlights ?? []).filter((h) => selected.has(h.id));
+    if (picks.length === 0) {
+      setError(t("clipMaker.errorNoSelection"));
+      return;
+    }
+    setCutting(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const res = await authedFetch("/api/streamer-clips/cut", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoRef: analysis.videoRef,
+          clips: picks.map((h) => ({ startSec: h.startSec, endSec: h.endSec, title: h.title })),
+        }),
+        overrideCost: picks.length * CUT_COST_PER_CLIP,
+        overrideFeature: t("clipMaker.cutFeatureName"),
+      });
+      if (!res) { setCutting(false); return; } // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as StreamCutJobResponse;
+      if (handlePaidFailure(res, data)) return;
+      if (!res.ok || !data.jobId) {
+        throw new Error(data.message || data.error || t("clipMaker.errorCutStartFailed"));
+      }
+      setJobId(data.jobId);
+      refreshProfile();
+      pollJob(data.jobId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("clipMaker.errorCutFailed"));
+      setCutting(false);
+    }
+  }
+
+  async function pollJob(id: string) {
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    const tick = async () => {
+      try {
+        const res = await authedFetch(`/api/streamer-clips/cut/${id}`, { method: "GET", skipConfirm: true });
+        if (!res) return; // unreachable with skipConfirm, keeps TS happy
+        const data = (await res.json().catch(() => ({}))) as StreamCutJobResponse;
+        if (!res.ok) throw new Error(data.error || t("clipMaker.errorJobLookup"));
+        setJob(data);
+        if (data.status === "done" || data.status === "failed") {
+          if (pollRef.current) window.clearInterval(pollRef.current);
+          setCutting(false);
+          refreshProfile();
+          if (data.status === "failed") {
+            setError(data.error || t("clipMaker.errorCutRefunded"));
+          } else {
+            /* Cut clips flow into the hub project — editor, captions and scheduler pick them up. */
+            for (const c of data.clips ?? []) {
+              if (c.outputUrl) {
+                try {
+                  addAsset({ kind: "clip", url: c.outputUrl, label: c.title || "Clip", detail: `${formatClipTimestamp(c.startSec)}–${formatClipTimestamp(c.endSec)} · ${vibe}` });
+                } catch { /* hub unavailable — non-fatal */ }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (pollRef.current) window.clearInterval(pollRef.current);
+        setCutting(false);
+        setError(err instanceof Error ? err.message : t("clipMaker.errorJobLost"));
+      }
+    };
+    await tick();
+    pollRef.current = window.setInterval(tick, 5000);
+  }
+
+  const selectedCount = selected.size;
+  const cutCost = selectedCount * CUT_COST_PER_CLIP;
+  const highlights = analysis?.highlights ?? [];
+
+  return (
+    <div>
+      {!user && (
+        <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
+          {t("clipMaker.signInPrompt")}
+        </div>
+      )}
+
+      {/* Step 1 — source */}
+      <section className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">1</span>
+          {t("clipMaker.step1Title")}
+        </h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
+            <Upload className="h-6 w-6 text-primary" />
+            <span className="text-sm font-semibold">{file ? file.name : t("clipMaker.chooseFile")}</span>
+            <span className="text-xs text-white/40">{t("clipMaker.fileHint")}</span>
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+                setVideoUrl("");
+              }}
+            />
+          </label>
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-6 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
+              <Link2 className="h-4 w-4 text-primary" /> {t("clipMaker.orPasteUrl")}
+            </span>
+            <input
+              className={inputClass}
+              placeholder={t("clipMaker.urlPlaceholder")}
+              value={videoUrl}
+              onChange={(e) => {
+                setVideoUrl(e.target.value);
+                setFile(null);
+              }}
+            />
+            <span className="text-xs text-white/40">{t("clipMaker.urlHint")}</span>
+          </div>
+        </div>
+
+        {/* Preferences */}
+        <div className="mt-6 grid gap-5 sm:grid-cols-3">
+          <div data-min-stars="2">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("clipMaker.clipLength")}</div>
+            <div className="flex gap-2">
+              {CLIP_LENGTHS.map((len) => (
+                <button
+                  key={len}
+                  onClick={() => setClipLength(len)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                    clipLength === len
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {t("clipMaker.secondsLabel", { n: len })}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div data-min-stars="3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">
+              {t("clipMaker.maxClips")} · <span className="text-primary">{maxClips}</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={8}
+              value={maxClips}
+              onChange={(e) => setMaxClips(Number(e.target.value))}
+              className="w-full accent-amber-400"
+            />
+          </div>
+          <div data-min-stars="2">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("clipMaker.vibe")}</div>
+            <div className="flex gap-2">
+              {VIBES.map((v) => (
+                <button
+                  key={v.key}
+                  title={v.blurb}
+                  onClick={() => setVibe(v.key)}
+                  className={`flex-1 rounded-xl border px-2 py-2.5 text-xs font-bold transition ${
+                    vibe === v.key
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={analyze}
+          disabled={analyzing || !user}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-black text-black transition hover:brightness-110 disabled:opacity-40"
+        >
+          {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+          {analyzing ? t("clipMaker.analyzing") : t("clipMaker.findHighlights", { cost: ANALYZE_COST })}
+        </button>
+        <p className="mt-2 text-center text-xs text-white/40">
+          {t("clipMaker.analyzeNote", { vibe })}
+        </p>
+      </section>
+
+      {outOfCredits && (
+        <div className="mt-6">
+          <OutOfCredits />
+        </div>
+      )}
+      {error && (
+        <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Step 2 — highlights */}
+      {highlights.length > 0 && (
+        <section id="clip-results" className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">2</span>
+              {t("clipMaker.highlightsFound", { count: highlights.length })}
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelected(new Set(highlights.map((h) => h.id)))}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
+              >
+                {t("clipMaker.selectAll")}
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
+              >
+                {t("clipMaker.clear")}
+              </button>
+              <button
+                onClick={copyTimestamps}
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:border-white/25"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? t("clipMaker.copied") : t("clipMaker.copyTimestamps")}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {highlights.map((h) => {
+              const on = selected.has(h.id);
+              return (
+                <button
+                  key={h.id}
+                  onClick={() => toggleHighlight(h.id)}
+                  className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition ${
+                    on ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 opacity-70 hover:opacity-100" : "border-white/10 bg-black/40 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <span
+                    className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                      on ? "border-primary bg-primary text-black" : "border-white/25 text-transparent"
+                    }`}
+                  >
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 font-mono text-xs text-primary">
+                        <Clock className="h-3 w-3" />
+                        {formatClipTimestamp(h.startSec)}–{formatClipTimestamp(h.endSec)}
+                      </span>
+                      <span className="font-bold">{h.title}</span>
+                    </span>
+                    <span className="mt-1 block text-sm text-white/55">{h.reason}</span>
+                    {h.quote && (
+                      <span className="mt-1 block text-sm italic text-white/40">“{h.quote}”</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={cutClips}
+            disabled={cutting || selectedCount === 0 || !user}
+            className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-black transition disabled:cursor-not-allowed ${(selectedCount === 0 || !user) && !cutting ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
+          >
+            {cutting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Scissors className="h-5 w-5" />}
+            {cutting
+              ? t("clipMaker.cutting")
+              : selectedCount === 0
+                ? t("clipMaker.selectToCut")
+                : t("clipMaker.cutClips", { count: selectedCount, cost: cutCost })}
+          </button>
+          <p className="mt-2 text-center text-xs text-white/40">
+            {t("clipMaker.cutNote")}
+          </p>
+        </section>
+      )}
+
+      {/* Wave 8 — Stream Highlight Auto-Editor: scored reel plan from chat / transcript */}
+      <div className="mt-8">
+        <HighlightCutter />
+      </div>
+
+      {/* Step 3 — cut results */}
+      {(job || jobId) && (
+        <section className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-black text-primary">3</span>
+            {t("clipMaker.step3Title")}
+            {job?.status === "processing" || job?.status === "queued" ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : null}
+          </h2>
+          {(!job || job.status === "queued" || job.status === "processing") && (
+            <p className="mt-3 flex items-center gap-2 text-sm text-white/55">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              {t("clipMaker.cuttingBackground")}
+            </p>
+          )}
+          {job?.status === "done" && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {job.clips?.map((c, i) => (
+                <div key={i} className={`overflow-hidden rounded-xl border ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
+                  {c.outputUrl ? (
+                    <video src={c.outputUrl} controls playsInline className="aspect-[9/16] w-full bg-black" />
+                  ) : (
+                    <div className="flex aspect-[9/16] items-center justify-center text-white/30">
+                      <Play className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="truncate text-sm font-bold">{c.title}</div>
+                    <div className="font-mono text-xs text-white/40">{formatClipTimestamp(c.startSec)}–{formatClipTimestamp(c.endSec)}</div>
+                    {c.outputUrl && (
+                      <>
+                        <a
+                          href={c.outputUrl}
+                          download
+                          className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 px-3 py-2 text-xs font-bold text-primary transition hover:bg-primary/25"
+                        >
+                          <Download className="h-3.5 w-3.5" /> {t("clipMaker.downloadClip")}
+                        </a>
+                        <Link
+                          href={`/hooks?tab=styler&video=${encodeURIComponent(c.outputUrl)}`}
+                          className="mt-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+                        >
+                          <Captions className="h-3.5 w-3.5" /> {t("clipMaker.addCaptions", { defaultValue: "Add captions" })}
+                        </Link>
+                        <div className="mt-1.5">
+                          <PublishToProfileButton
+                            compact
+                            type="video"
+                            category="video"
+                            videoUrl={c.outputUrl}
+                            title={c.title}
+                            from="/repurpose"
+                            fromLabel="Repurpose"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {job?.status === "failed" && (
+            <p className="mt-3 text-sm text-red-300">
+              {t("clipMaker.cuttingFailedNote", { error: job.error ? `: ${job.error}` : "" })}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* How it works */}
+      <section className="mt-10 grid gap-4 sm:grid-cols-3">
+        {[
+          { icon: Upload, title: t("clipMaker.how1Title"), text: t("clipMaker.how1Text") },
+          { icon: Sparkles, title: t("clipMaker.how2Title"), text: t("clipMaker.how2Text", { lengths: CLIP_LENGTHS.join("/"), vibe }) },
+          { icon: Scissors, title: t("clipMaker.how3Title"), text: t("clipMaker.how3Text") },
+        ].map((s) => (
+          <div key={s.title} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <s.icon className="h-6 w-6 text-primary" />
+            <div className="mt-2 font-bold">{s.title}</div>
+            <div className="mt-1 text-sm text-white/55">{s.text}</div>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+/* ─── Smart Clips (general long-form → shorts) ──────────────────────────
+   Paste a long video → the AI reads its transcript and PROPOSES the best
+   moments, each with a score, a one-line reason, and the transcript
+   words it came from. The creator approves proposals and can trim each
+   start/end; ONLY the kept moments render, and only on the render
+   button — the AI never renders or publishes on its own. A free-text
+   box lets the creator describe the moment they want ("the part where
+   I explain pricing"). When a video has no speech to read, proposals
+   fall back to audio-energy picks and say so on every card.
+   Registry keys: /api/smart-clips/propose (free) → /api/smart-clips
+   (200 VB per rendered clip, overrideCost). */
+
+const SMART_CLIP_COST_PER_CLIP = 200;
+const SMART_CLIP_LENGTHS = [15, 30, 45, 60];
+const SMART_CLIP_COUNTS = [1, 2, 3, 4, 5];
+const SMART_CLIP_MIN_SEC = 5;
+const SMART_CLIP_MAX_SEC = 120;
+
+interface SmartClipProposal {
+  startTime: number;
+  endTime: number;
+  title: string;
+  score: number | null;
+  reason: string;
+  quote: string;
+  method: "semantic" | "energy";
+}
+
+interface SmartClipResult {
+  url: string;
+  storageRef: string;
+  startTime: number;
+  endTime: number;
+  title: string;
+  score: number | null;
+  reason: string;
+  quote: string;
+  method: "semantic" | "energy";
+}
+
+interface SmartClipsProposeResponse {
+  proposals?: SmartClipProposal[];
+  count?: number;
+  analysisMethod?: "semantic" | "mixed" | "energy";
+  durationSec?: number;
+  error?: string;
+  message?: string;
+}
+
+interface SmartClipsRenderResponse {
+  clips?: SmartClipResult[];
+  count?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+/** A proposal as the creator edits it: kept or not, with the start/end
+ *  kept as mm:ss text so trimming is typing, not sliders. */
+interface ProposalDraft extends SmartClipProposal {
+  keep: boolean;
+  startText: string;
+  endText: string;
+}
+
+/** Parse "mm:ss" (or bare seconds) the creator typed; null when unreadable. */
+function parseClipTimeText(text: string): number | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(":");
+  if (parts.length === 1) {
+    const n = Number(parts[0]);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  if (parts.length === 2) {
+    const m = Number(parts[0]);
+    const s = Number(parts[1]);
+    if (Number.isFinite(m) && Number.isFinite(s) && m >= 0 && s >= 0 && s < 60) {
+      return m * 60 + s;
+    }
+  }
+  return null;
+}
+
+/** The window a draft describes, or null when its times can't render. */
+function draftWindow(d: ProposalDraft): { start: number; end: number } | null {
+  const start = parseClipTimeText(d.startText);
+  const end = parseClipTimeText(d.endText);
+  if (start == null || end == null) return null;
+  const len = end - start;
+  if (len < SMART_CLIP_MIN_SEC || len > SMART_CLIP_MAX_SEC) return null;
+  return { start, end };
+}
+
+function SmartClipFinder() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { addAsset } = useHubProject();
+
+  const [videoUrl, setVideoUrl] = useState("");
+  const [query, setQuery] = useState("");
+  const [count, setCount] = useState(3);
+  const [durationSec, setDurationSec] = useState(45);
+  const [finding, setFinding] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [drafts, setDrafts] = useState<ProposalDraft[] | null>(null);
+  const [proposeMethod, setProposeMethod] = useState<"semantic" | "mixed" | "energy" | null>(null);
+  const [result, setResult] = useState<SmartClipsRenderResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
+
+  async function authedFetch(
+    url: string,
+    init: RequestInit & { overrideCost?: number; overrideFeature?: string },
+  ) {
+    const token = await getAccessToken();
+    return confirmedFetch(url, {
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  }
+
+  /* Step 1 — propose. Free and renders nothing: it only reads the video
+     and brings back moments for the creator to judge. */
+  async function findMoments() {
+    if (finding || !user) return;
+    if (!videoUrl.trim()) {
+      setError(t("smartClips.errorNoUrl"));
+      return;
+    }
+    setFinding(true);
+    setError(null);
+    setOutOfCredits(false);
+    setDrafts(null);
+    setResult(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/smart-clips/propose", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          videoUrl: videoUrl.trim(),
+          count,
+          durationSec,
+          ...(query.trim() ? { query: query.trim() } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as SmartClipsProposeResponse;
+      if (!res.ok) {
+        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+      }
+      const proposals = Array.isArray(data.proposals) ? data.proposals : [];
+      setProposeMethod(data.analysisMethod ?? null);
+      setDrafts(
+        proposals.map((p) => ({
+          ...p,
+          keep: true,
+          startText: formatClipTimestamp(p.startTime),
+          endText: formatClipTimestamp(p.endTime),
+        })),
+      );
+      setTimeout(() => {
+        document.getElementById("smart-clip-proposals")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  function updateDraft(i: number, patch: Partial<ProposalDraft>) {
+    setDrafts((prev) => (prev ? prev.map((d, j) => (j === i ? { ...d, ...patch } : d)) : prev));
+  }
+
+  const keptValid = (drafts ?? [])
+    .map((d) => ({ d, w: d.keep ? draftWindow(d) : null }))
+    .filter((x): x is { d: ProposalDraft; w: { start: number; end: number } } => x.w != null);
+
+  /* Step 2 — render. Only the kept, valid windows the creator settled
+     on are sent; the server renders exactly those and charges per clip. */
+  async function renderApproved() {
+    if (rendering || !user || keptValid.length === 0) return;
+    setRendering(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const res = await authedFetch("/api/smart-clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: videoUrl.trim(),
+          clips: keptValid.map(({ d, w }) => ({
+            startTime: Math.round(w.start * 10) / 10,
+            endTime: Math.round(w.end * 10) / 10,
+            title: d.title,
+            reason: d.reason,
+            quote: d.quote,
+            score: d.score,
+            method: d.method,
+          })),
+        }),
+        overrideCost: keptValid.length * SMART_CLIP_COST_PER_CLIP,
+        overrideFeature: t("smartClips.featureName"),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as SmartClipsRenderResponse;
+      if (res.status === 402 || data.error === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      if (!res.ok || !Array.isArray(data.clips) || data.clips.length === 0) {
+        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+      }
+      setResult(data);
+      refreshProfile();
+      /* Finished clips flow into the hub project like every other rail. */
+      for (const c of data.clips) {
+        try {
+          addAsset({
+            kind: "clip",
+            url: c.url,
+            label: c.title || "Smart Clip",
+            detail: `${formatClipTimestamp(c.startTime)}–${formatClipTimestamp(c.endTime)}`,
+          });
+        } catch { /* hub unavailable — non-fatal */ }
+      }
+      setTimeout(() => {
+        document.getElementById("smart-clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+    } finally {
+      setRendering(false);
+    }
+  }
+
+  const clips = result?.clips ?? [];
+
+  return (
+    <div>
+      {!user && (
+        <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
+          {t("smartClips.signInPrompt")}
+        </div>
+      )}
+      {outOfCredits && (
+        <div className="mx-auto mt-8 max-w-xl">
+          <OutOfCredits />
+        </div>
+      )}
+      {error && (
+        <div className="mx-auto mt-6 flex max-w-3xl items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <section className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Scissors className="h-5 w-5 text-primary" />
+          {t("smartClips.title")}
+        </h2>
+        <p className="mt-1 text-sm text-white/50">{t("smartClips.blurb")}</p>
+
+        <div className="mt-5 grid gap-4">
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
+              <Link2 className="h-4 w-4 text-primary" /> {t("smartClips.urlLabel")}
+            </span>
+            <input
+              className={inputClass}
+              placeholder={t("smartClips.urlPlaceholder")}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+            />
+            <span className="text-xs text-white/40">{t("smartClips.urlHint")}</span>
+          </div>
+          <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
+              <Search className="h-4 w-4 text-primary" /> {t("smartClips.searchLabel")}
+            </span>
+            <input
+              className={inputClass}
+              placeholder={t("smartClips.searchPlaceholder")}
+              value={query}
+              maxLength={300}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <span className="text-xs text-white/40">{t("smartClips.searchHint")}</span>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("smartClips.countLabel")}</div>
+            <div className="flex gap-2">
+              {SMART_CLIP_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCount(n)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                    count === n
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">{t("smartClips.lengthLabel")}</div>
+            <div className="flex gap-2">
+              {SMART_CLIP_LENGTHS.map((len) => (
+                <button
+                  key={len}
+                  onClick={() => setDurationSec(len)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                    durationSec === len
+                      ? "border-primary bg-primary/15 text-primary"
+                      : isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#6B5B36] hover:border-[#C9A84C]/50" : "border-white/10 bg-black/40 text-white/55 hover:border-white/25"
+                  }`}
+                >
+                  {t("smartClips.secondsLabel", { n: len })}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <button
+            onClick={findMoments}
+            disabled={finding || !user || !videoUrl.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {finding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            {finding ? t("smartClips.finding") : t("smartClips.findButton")}
+          </button>
+          <p className="text-xs text-white/40">{t("smartClips.findNote")}</p>
+        </div>
+      </section>
+
+      {drafts != null && (
+        <section id="smart-clip-proposals" className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Sparkles className="h-5 w-5 text-primary" />
+            {t("smartClips.proposalsTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-white/50">
+            {proposeMethod === "semantic"
+              ? t("smartClips.methodSemantic")
+              : proposeMethod === "mixed"
+                ? t("smartClips.methodMixed")
+                : t("smartClips.methodEnergy")}
+          </p>
+          <p className="mt-1 text-sm text-white/50">{t("smartClips.proposalsHint")}</p>
+
+          {drafts.length === 0 ? (
+            <p className="mt-5 text-sm text-white/60">{t("smartClips.errorNoProposals")}</p>
+          ) : (
+            <>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {drafts.map((d, i) => {
+                  const w = draftWindow(d);
+                  const invalid = d.keep && w == null;
+                  return (
+                    <div
+                      key={`${d.startTime}-${i}`}
+                      className={`rounded-2xl border p-4 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"} ${d.keep ? "" : "opacity-50"}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-bold leading-snug">{d.title}</div>
+                        {d.method === "semantic" && d.score != null && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-black text-primary">
+                            <Flame className="h-3.5 w-3.5" />
+                            {d.score}
+                          </span>
+                        )}
+                        {d.method === "energy" && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">
+                            {t("smartClips.energyPick")}
+                          </span>
+                        )}
+                      </div>
+                      {d.reason && <p className="mt-2 text-sm text-white/65">{d.reason}</p>}
+                      {d.quote && (
+                        <div className="mt-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wide text-white/40">{t("smartClips.quoteLabel")}</div>
+                          <p className="mt-0.5 text-sm italic text-white/55">“{d.quote}”</p>
+                        </div>
+                      )}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <span className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white/40">
+                            <Clock className="h-3 w-3" /> {t("smartClips.startLabel")}
+                          </span>
+                          <input
+                            className={`${inputClass} ${invalid ? "border-red-400/60" : ""}`}
+                            value={d.startText}
+                            onChange={(e) => updateDraft(i, { startText: e.target.value })}
+                            placeholder="00:00"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-white/40">{t("smartClips.endLabel")}</span>
+                          <input
+                            className={`${inputClass} ${invalid ? "border-red-400/60" : ""}`}
+                            value={d.endText}
+                            onChange={(e) => updateDraft(i, { endText: e.target.value })}
+                            placeholder="00:00"
+                          />
+                        </label>
+                      </div>
+                      {invalid && <p className="mt-2 text-xs text-red-300">{t("smartClips.invalidTime")}</p>}
+                      <button
+                        onClick={() => updateDraft(i, { keep: !d.keep })}
+                        className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                          d.keep
+                            ? "border-primary/60 bg-primary/15 text-primary"
+                            : "border-white/15 bg-white/5 text-white/60 hover:bg-white/10"
+                        }`}
+                      >
+                        <Check className="h-4 w-4" /> {t("smartClips.keepLabel")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <button
+                  onClick={renderApproved}
+                  disabled={rendering || keptValid.length === 0}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {rendering ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clapperboard className="h-5 w-5" />}
+                  {rendering ? t("smartClips.rendering") : t("smartClips.renderButton", { n: keptValid.length })}
+                </button>
+                <p className="text-xs text-white/40">
+                  {t("smartClips.renderCostNote", { per: SMART_CLIP_COST_PER_CLIP, total: keptValid.length * SMART_CLIP_COST_PER_CLIP })}
+                </p>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {result && clips.length > 0 && (
+        <section id="smart-clip-results" className={`mt-10 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Clapperboard className="h-5 w-5 text-primary" />
+            {t("smartClips.resultsTitle")}
+          </h2>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {clips.map((c, i) => (
+              <div key={`${c.storageRef}-${i}`} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                <video src={c.url} controls preload="metadata" className="aspect-[9/16] w-full bg-black object-cover" />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-bold leading-snug">{c.title}</div>
+                    {c.method === "semantic" && c.score != null && (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-black text-primary">
+                        <Flame className="h-3.5 w-3.5" />
+                        {c.score}
+                      </span>
+                    )}
+                    {c.method === "energy" && (
+                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">
+                        {t("smartClips.energyPick")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-white/45">
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatClipTimestamp(c.startTime)}–{formatClipTimestamp(c.endTime)}
+                  </div>
+                  {c.reason && <p className="mt-2 text-sm text-white/65">{c.reason}</p>}
+                  {c.quote && <p className="mt-1 text-sm italic text-white/45">“{c.quote}”</p>}
+                  <a
+                    href={c.url}
+                    download
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+                  >
+                    <Download className="h-4 w-4" /> {t("smartClips.download")}
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+
+export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken, refreshProfile } = useAuth();
+  const { addAsset } = useHubProject();
 
   /* source */
   const [file, setFile] = useState<File | null>(null);
@@ -136,6 +1233,77 @@ export default function Repurpose() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [platformTab, setPlatformTab] = useState<PlatformKey>("tiktok");
   const pollRef = useRef<number | null>(null);
+
+  /* ── Content Pack vs Stream VOD (merged Streamer Clip Maker) vs Smart Clips ── */
+  const [mode, setMode] = useState<"pack" | "stream" | "smart">("pack");
+
+  /* Deep-link: /repurpose?mode=stream jumps straight to the Stream VOD preset. */
+  useEffect(() => {
+    try {
+      const m = new URLSearchParams(window.location.search).get("mode");
+      if (m === "stream") setMode("stream");
+      if (m === "smart") setMode("smart");
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+  }, []);
+
+  /* Title of the video pre-loaded via the duet/stitch deep-link (shown by Step 1). */
+  const [duetTitle, setDuetTitle] = useState<string | null>(null);
+  /* Which deep-link loaded the base clip — the banner names the mode
+     the user actually picked (duet vs stitch). */
+  const [linkMode, setLinkMode] = useState<"duet" | "stitch">("duet");
+
+  /* Deep-link: ?duet=video:<id> (MediaLinkBar "Duet / Stitch") and
+     ?stitch=video:<id> (the Shorts rail) load that video as the base
+     clip. The id resolves through the streaming API into the same
+     videoUrl state the paste-a-URL input drives, so Analyze/Cut run
+     on it exactly like a pasted link. Both modes start from the loaded
+     base clip — duet builds beside it, stitch builds from it — and
+     linkMode keeps the chosen one named on screen. One-shot: the
+     params are stripped whether the load succeeds or not, so a
+     refresh never re-seeds over the user's edits. Unknown/unpublished
+     ids surface the shared error. */
+  useEffect(() => {
+    let alive = true;
+    try {
+      const search = new URLSearchParams(window.location.search);
+      const duet = search.get("duet");
+      const stitch = search.get("stitch");
+      const raw = duet ?? stitch;
+      if (!raw) return;
+      const m = /^video:(.+)$/.exec(raw.trim());
+      if (!m) return;
+      const mode = duet ? "duet" : "stitch";
+      void (async () => {
+        const found = await fetchVideo(m[1]);
+        if (!alive) return;
+        try {
+          const params = new URLSearchParams(window.location.search);
+          params.delete("duet");
+          params.delete("stitch");
+          window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
+        } catch {
+          /* non-browser — ignore */
+        }
+        const url = resolveMedia(found?.video?.video_url);
+        if (!url) {
+          setError(t("repurpose.error.duetLoadFailed", { defaultValue: "Couldn't load that video for duet/stitch — it may be private or removed." }));
+          return;
+        }
+        setFile(null);
+        setVideoUrl(url);
+        setLinkMode(mode);
+        setDuetTitle(found?.video?.title ?? "");
+      })();
+    } catch {
+      /* non-browser or malformed URL — ignore */
+    }
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -169,14 +1337,14 @@ export default function Repurpose() {
         setCopiedKey(key);
         setTimeout(() => setCopiedKey(null), 2000);
       },
-      () => setError("Couldn't copy to clipboard."),
+      () => setError(t("repurpose.error.copyFailed")),
     );
   }
 
   async function repurpose() {
     if (analyzing || !user) return;
     if (!file && !videoUrl.trim()) {
-      setError("Upload a video file or paste a video URL first.");
+      setError(t("repurpose.error.noSource"));
       return;
     }
     setAnalyzing(true);
@@ -201,7 +1369,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as AnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.analysis) {
-        throw new Error(data.message || data.error || "Repurposing failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.repurposeFailed"));
       }
       setAnalysis(data);
       refreshProfile();
@@ -210,7 +1378,7 @@ export default function Repurpose() {
         document.getElementById("repurpose-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Repurposing failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.repurposeFailed"));
     } finally {
       setAnalyzing(false);
     }
@@ -225,28 +1393,39 @@ export default function Repurpose() {
           thumbId ? authedFetch(`/api/repurpose/jobs/${thumbId}`, { method: "GET" }) : Promise.resolve(null),
         ]);
         const clipData = (await clipRes.json().catch(() => ({}))) as JobResponse;
-        if (!clipRes.ok) throw new Error(clipData.error || "Clip job lookup failed.");
+        if (!clipRes.ok) throw new Error(clipData.error || t("repurpose.error.clipJobFailed"));
         setClipJob(clipData);
         let thumbData: JobResponse | null = null;
         if (thumbRes) {
           thumbData = (await thumbRes.json().catch(() => ({}))) as JobResponse;
-          if (!thumbRes.ok) throw new Error(thumbData.error || "Thumbnail job lookup failed.");
+          if (!thumbRes.ok) throw new Error(thumbData.error || t("repurpose.error.thumbJobFailed"));
           setThumbJob(thumbData);
         }
         const clipDone = clipData.status === "done" || clipData.status === "failed";
         const thumbDone = !thumbId || !thumbData || thumbData.status === "done" || thumbData.status === "failed";
         if (clipDone && thumbDone) {
+          /* Finished clips + thumbnails flow into the hub project. */
+          for (const c of clipData.clips ?? []) {
+            if (c.outputUrl) {
+              try { addAsset({ kind: "clip", url: c.outputUrl, label: c.title || "Clip", detail: "Repurpose" }); } catch { /* non-fatal */ }
+            }
+          }
+          for (const th of thumbData?.thumbnails ?? []) {
+            if (th.imageUrl) {
+              try { addAsset({ kind: "thumbnail", url: th.imageUrl, label: th.prompt?.slice(0, 60) || "Thumbnail", detail: "Repurpose" }); } catch { /* non-fatal */ }
+            }
+          }
           if (pollRef.current) window.clearInterval(pollRef.current);
           refreshProfile();
           if (clipData.status === "failed") {
-            setError(clipData.error || "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.");
+            setError(clipData.error || t("repurpose.error.clipCuttingFailed"));
           } else if (thumbData && thumbData.status === "failed") {
-            setError("Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.");
+            setError(t("repurpose.error.thumbFailed"));
           }
         }
       } catch (err) {
         if (pollRef.current) window.clearInterval(pollRef.current);
-        setError(err instanceof Error ? err.message : "Lost track of the background jobs — refresh to check.");
+        setError(err instanceof Error ? err.message : t("repurpose.error.lostJobs"));
       }
     };
     await tick();
@@ -271,7 +1450,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as { kind?: string; result?: unknown; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || data.result == null) {
-        throw new Error(data.message || data.error || "Re-roll failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.rerollFailed"));
       }
       setAnalysis((prev) => {
         if (!prev?.analysis) return prev;
@@ -282,7 +1461,7 @@ export default function Repurpose() {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Re-roll failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.rerollFailed"));
     } finally {
       setRerolling(null);
     }
@@ -302,7 +1481,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as { imageUrl?: string; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.imageUrl) {
-        throw new Error(data.message || data.error || "Thumbnail re-roll failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.thumbRerollFailed"));
       }
       setThumbJob((prev) => {
         if (!prev?.thumbnails) return prev;
@@ -313,7 +1492,7 @@ export default function Repurpose() {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Thumbnail re-roll failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.thumbRerollFailed"));
     } finally {
       setRerollThumbIdx(null);
     }
@@ -330,27 +1509,73 @@ export default function Repurpose() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
-        {/* Hero */}
+    <div className={embedded ? "text-white" : "min-h-screen bg-black text-white"}>
+      <main className={embedded ? "" : "mx-auto max-w-5xl px-4 pb-24 pt-28"}>
+        {/* Hero (standalone page only; the shell provides it when embedded) */}
+        {!embedded && (
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Recycle className="h-3.5 w-3.5" />
-            Content Repurposer
+            {t("repurpose.badge")}
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-            One video in, <span className="text-primary">content calendar out</span>
+            {t("repurpose.titlePrefix")} <span className="text-primary">{t("repurpose.titleSuffix")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-white/55">
-            Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical
-            clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized
-            descriptions for TikTok, Reels, Shorts, and X.
+            {t("repurpose.hero")}
           </p>
         </div>
+        )}
+
+        {/* Mode toggle: 10-piece Content Pack vs Stream VOD clip cutter */}
+        <div className="mt-8 flex justify-center">
+          <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5" role="tablist" aria-label={t("repurpose.modeLabel", { defaultValue: "Repurpose mode" })}>
+            <button
+              role="tab"
+              aria-selected={mode === "pack"}
+              onClick={() => setMode("pack")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                mode === "pack" ? "bg-primary text-black" : "text-white/55 hover:text-white"
+              }`}
+            >
+              <Recycle className="h-4 w-4" />
+              {t("repurpose.modePack", { defaultValue: "Content Pack" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={mode === "stream"}
+              onClick={() => setMode("stream")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                mode === "stream" ? "bg-primary text-black" : "text-white/55 hover:text-white"
+              }`}
+            >
+              <Scissors className="h-4 w-4" />
+              {t("repurpose.modeStreamVod", { defaultValue: "Stream VOD" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={mode === "smart"}
+              onClick={() => setMode("smart")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                mode === "smart" ? "bg-primary text-black" : "text-white/55 hover:text-white"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("repurpose.modeSmart", { defaultValue: "Smart Clips" })}
+            </button>
+          </div>
+        </div>
+
+        {mode === "stream" ? (
+          <StreamVodClips />
+        ) : mode === "smart" ? (
+          <SmartClipFinder />
+        ) : (
+        <>
 
         {!user && (
           <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
-            Sign in to repurpose videos.
+            {t("repurpose.signInRequired")}
           </div>
         )}
 
@@ -368,13 +1593,13 @@ export default function Repurpose() {
         )}
 
         {/* Step 1 — source */}
-        <section className={`${cardClass} mt-10`}>
-          <SectionHeader icon={Upload} step={1} title="Drop your video" blurb="MP4, MOV, WebM · up to 80 MB" />
+        <section className={`${cardClass(isLight)} mt-10`}>
+          <SectionHeader icon={Upload} step={1} title={t("repurpose.step1.title")} blurb={t("repurpose.step1.blurb")} />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
+            <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/70" : "border-white/15 bg-black/40 hover:border-primary/50"}`}>
               <Upload className="h-6 w-6 text-primary" />
-              <span className="text-sm font-semibold">{file ? file.name : "Choose video file"}</span>
-              <span className="text-xs text-white/40">From your camera roll or exports</span>
+              <span className="text-sm font-semibold">{file ? file.name : t("repurpose.step1.chooseFile")}</span>
+              <span className="text-xs text-white/40">{t("repurpose.step1.fromCameraRoll")}</span>
               <input
                 type="file"
                 accept="video/*"
@@ -385,20 +1610,29 @@ export default function Repurpose() {
                 }}
               />
             </label>
-            <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-6">
+            <div className={`flex flex-col justify-center gap-2 rounded-xl border px-4 py-6 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
               <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
-                <Link2 className="h-4 w-4 text-primary" /> Or paste a video URL
+                <Link2 className="h-4 w-4 text-primary" /> {t("repurpose.step1.orPasteUrl")}
               </span>
               <input
                 className={inputClass}
-                placeholder="https://… (from your project storage)"
+                placeholder={t("repurpose.step1.urlPlaceholder")}
                 value={videoUrl}
                 onChange={(e) => {
                   setVideoUrl(e.target.value);
                   setFile(null);
                 }}
               />
-              <span className="text-xs text-white/40">URLs must come from your project storage.</span>
+              <span className="text-xs text-white/40">{t("repurpose.step1.urlNote")}</span>
+              {duetTitle !== null && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Scissors className="h-3.5 w-3.5 shrink-0" />
+                  {linkMode === "stitch"
+                    ? t("repurpose.stitchLoaded", { defaultValue: "Base clip loaded for stitch" })
+                    : t("repurpose.duetLoaded", { defaultValue: "Base clip loaded for duet / stitch" })}
+                  {duetTitle ? <span className="truncate font-normal text-white/50">· {duetTitle}</span> : null}
+                </span>
+              )}
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center gap-3">
@@ -408,11 +1642,10 @@ export default function Repurpose() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-              {analyzing ? "Building your pack…" : `Repurpose my video · ${PACK_CREDITS} credits`}
+              {analyzing ? t("repurpose.building") : t("repurpose.repurposeButton", { credits: PACK_CREDITS })}
             </button>
             <p className="text-xs text-white/40">
-              500 Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
-              Re-rolls are {REROLL_CREDITS} Visual Buc each. Copying and downloading are free.
+              {t("repurpose.costNote", { pack: PACK_CREDITS, reroll: REROLL_CREDITS })}
             </p>
           </div>
         </section>
@@ -421,7 +1654,7 @@ export default function Repurpose() {
         {a && (
           <div id="repurpose-results" className="mt-10 space-y-8">
             {/* Pack header */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black">{a.videoTitle}</h2>
@@ -429,7 +1662,7 @@ export default function Repurpose() {
                 </div>
                 <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-center">
                   <div className="text-2xl font-black text-primary">{progress.done}<span className="text-white/40">/{progress.total}</span></div>
-                  <div className="text-[11px] uppercase tracking-wider text-white/50">pack pieces ready</div>
+                  <div className="text-[11px] uppercase tracking-wider text-white/50">{t("repurpose.packReady")}</div>
                 </div>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
@@ -442,17 +1675,17 @@ export default function Repurpose() {
                 thumbJob?.status === "processing" || thumbJob?.status === "queued") && (
                 <p className="mt-3 flex items-center gap-2 text-sm text-white/50">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.
+                  {t("repurpose.renderingNote")}
                 </p>
               )}
             </section>
 
             {/* Clips */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={Clapperboard}
-                title="3 vertical clips"
-                blurb="Auto-cut 9:16 · ready for TikTok, Reels, Shorts"
+                title={t("repurpose.clips.title")}
+                blurb={t("repurpose.clips.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("moments")}
@@ -460,7 +1693,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "moments" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New moments · {REROLL_CREDITS}VB
+                    {t("repurpose.clips.newMoments", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -475,12 +1708,12 @@ export default function Repurpose() {
                           {clipJob?.status === "failed" ? (
                             <>
                               <AlertTriangle className="h-6 w-6 text-red-400" />
-                              <span className="text-xs text-red-200">Cut failed</span>
+                              <span className="text-xs text-red-200">{t("repurpose.clips.cutFailed")}</span>
                             </>
                           ) : (
                             <>
                               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <span className="text-xs text-white/50">Cutting…</span>
+                              <span className="text-xs text-white/50">{t("repurpose.clips.cutting")}</span>
                             </>
                           )}
                         </div>
@@ -492,13 +1725,21 @@ export default function Repurpose() {
                         {formatRepurposeTimestamp(clip.startSec)}–{formatRepurposeTimestamp(clip.endSec)}
                       </div>
                       {clip.outputUrl && (
-                        <a
-                          href={clip.outputUrl}
-                          download
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
-                        >
-                          <Download className="h-3.5 w-3.5" /> Download
-                        </a>
+                        <>
+                          <a
+                            href={clip.outputUrl}
+                            download
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
+                          >
+                            <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
+                          </a>
+                          <Link
+                            href={`/hooks?tab=styler&video=${encodeURIComponent(clip.outputUrl)}`}
+                            className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+                          >
+                            <Captions className="h-3.5 w-3.5" /> {t("repurpose.addCaptions", { defaultValue: "Add captions" })}
+                          </Link>
+                        </>
                       )}
                     </div>
                   </div>
@@ -517,11 +1758,11 @@ export default function Repurpose() {
             </section>
 
             {/* Thumbnails */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={ImageIcon}
-                title="3 AI thumbnails"
-                blurb="9:16 covers for your clips"
+                title={t("repurpose.thumbs.title")}
+                blurb={t("repurpose.thumbs.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("thumbnailPrompts")}
@@ -529,7 +1770,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "thumbnailPrompts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New concepts · {REROLL_CREDITS}VB
+                    {t("repurpose.thumbs.newConcepts", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -538,18 +1779,18 @@ export default function Repurpose() {
                   <div key={i} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
                     <div className="aspect-[9/16] bg-black/60">
                       {thumb.imageUrl ? (
-                        <img src={thumb.imageUrl} alt={`Thumbnail concept ${i + 1}`} className="h-full w-full object-cover" />
+                        <img src={thumb.imageUrl} alt={t("repurpose.thumbs.alt", { n: i + 1 })} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
                           {thumbJob?.status === "failed" ? (
                             <>
                               <AlertTriangle className="h-6 w-6 text-red-400" />
-                              <span className="text-xs text-red-200">Generation failed</span>
+                              <span className="text-xs text-red-200">{t("repurpose.thumbs.genFailed")}</span>
                             </>
                           ) : (
                             <>
                               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <span className="text-xs text-white/50">Painting…</span>
+                              <span className="text-xs text-white/50">{t("repurpose.thumbs.painting")}</span>
                             </>
                           )}
                         </div>
@@ -564,7 +1805,7 @@ export default function Repurpose() {
                             download
                             className="inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
                           >
-                            <Download className="h-3.5 w-3.5" /> Download
+                            <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
                           </a>
                         )}
                         <button
@@ -573,7 +1814,7 @@ export default function Repurpose() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                         >
                           {rerollThumbIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          Re-roll · {REROLL_CREDITS}VB
+                          {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                         </button>
                       </div>
                     </div>
@@ -583,11 +1824,11 @@ export default function Repurpose() {
             </section>
 
             {/* Captions */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={MessageSquareText}
-                title="5 caption + hashtag sets"
-                blurb="Ready to post — copy any set free"
+                title={t("repurpose.captions.title")}
+                blurb={t("repurpose.captions.blurb")}
                 right={
                   <div className="flex gap-2">
                     <button
@@ -595,7 +1836,7 @@ export default function Repurpose() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
                     >
                       {copiedKey === "all-captions" ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      Copy all
+                      {t("repurpose.copyAll")}
                     </button>
                     <button
                       onClick={() => rerollText("captions")}
@@ -603,7 +1844,7 @@ export default function Repurpose() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                     >
                       {rerolling === "captions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                      Re-roll · {REROLL_CREDITS}VB
+                      {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                     </button>
                   </div>
                 }
@@ -613,14 +1854,14 @@ export default function Repurpose() {
                   <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
                     <p className="whitespace-pre-line text-sm text-white/85">{c.caption}</p>
                     {c.hashtags.length > 0 && (
-                      <p className="mt-2 text-xs text-primary">{c.hashtags.map((t) => `#${t}`).join(" ")}</p>
+                      <p className="mt-2 text-xs text-primary">{c.hashtags.map((tag) => `#${tag}`).join(" ")}</p>
                     )}
                     <button
-                      onClick={() => copyText(`caption-${i}`, `${c.caption}\n${c.hashtags.map((t) => `#${t}`).join(" ")}`)}
+                      onClick={() => copyText(`caption-${i}`, `${c.caption}\n${c.hashtags.map((tag) => `#${tag}`).join(" ")}`)}
                       className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 transition hover:text-white"
                     >
                       {copiedKey === `caption-${i}` ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copiedKey === `caption-${i}` ? "Copied" : "Copy"}
+                      {copiedKey === `caption-${i}` ? t("repurpose.copied") : t("repurpose.copy")}
                     </button>
                   </div>
                 ))}
@@ -628,11 +1869,11 @@ export default function Repurpose() {
             </section>
 
             {/* Platform descriptions */}
-            <section className={cardClass}>
+            <section className={cardClass(isLight)}>
               <SectionHeader
                 icon={Share2}
-                title="Platform descriptions"
-                blurb="Tuned for each algorithm"
+                title={t("repurpose.platforms.title")}
+                blurb={t("repurpose.platforms.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("descriptions")}
@@ -640,7 +1881,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "descriptions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    Re-roll · {REROLL_CREDITS}VB
+                    {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -661,18 +1902,20 @@ export default function Repurpose() {
               </div>
               <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-4">
                 <p className="whitespace-pre-line text-sm text-white/85">
-                  {a.descriptions[platformTab] || "No description generated for this platform."}
+                  {a.descriptions[platformTab] || t("repurpose.platforms.noDesc")}
                 </p>
                 <button
                   onClick={() => copyText(`platform-${platformTab}`, a.descriptions[platformTab] ?? "")}
                   className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 transition hover:text-white"
                 >
                   {copiedKey === `platform-${platformTab}` ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedKey === `platform-${platformTab}` ? "Copied" : "Copy"}
+                  {copiedKey === `platform-${platformTab}` ? t("repurpose.copied") : t("repurpose.copy")}
                 </button>
               </div>
             </section>
           </div>
+        )}
+        </>
         )}
       </main>
 

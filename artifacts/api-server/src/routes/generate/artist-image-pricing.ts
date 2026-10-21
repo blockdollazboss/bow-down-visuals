@@ -3,7 +3,7 @@
  * Kept dependency-free so it can be unit-tested without the server.
  */
 
-export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.5-sunburst";
+export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.5-sunburst" | "nano-banana-2.1" | "ideogram-4.0";
 /** The three output shapes offered for artist images. */
 export type ArtistImageRatio = "1080:1920" | "1080:1080" | "1920:1080";
 
@@ -16,6 +16,18 @@ export const GEN4_IMAGE_TURBO_CREDIT_COST = 100;
  * OpenAI invoices and tune via ARTIST_IMAGE_SUNBURST_CREDITS.
  */
 export const GPT_IMAGE_25_SUNBURST_CREDIT_COST = 100;
+/**
+ * Credit price for Nano Banana 2.1 (Google Gemini image, default fast tier).
+ * Real-world cost is ~$0.034 per 1K image (~$0.05 at 2K), so 100 credits
+ * (~$0.50) holds a very healthy margin. Tune via ARTIST_IMAGE_NANO_CREDITS.
+ */
+export const NANO_BANANA_21_CREDIT_COST = 100;
+/**
+ * Credit price for Ideogram 4.0 (best in-image text rendering — thumbnails,
+ * posters, text-heavy creatives). Real-world cost is ~$0.04/image, so 100
+ * credits (~$0.50) holds a very healthy margin. Tune via ARTIST_IMAGE_IDEOGRAM_CREDITS.
+ */
+export const IDEOGRAM_40_CREDIT_COST = 100;
 
 export interface ArtistImagePlan {
   model: ArtistImageModel;
@@ -32,19 +44,31 @@ export function resolveArtistImagePlan(opts: {
   proCredits?: number;
   turboCredits?: number;
   sunburstCredits?: number;
+  nanoCredits?: number;
+  ideogramCredits?: number;
 }): ArtistImagePlan {
   const useTurbo = opts.model === "gen4_image_turbo";
   const useSunburst = opts.model === "gpt-image-2.5-sunburst";
-  const model: ArtistImageModel = useSunburst
-    ? "gpt-image-2.5-sunburst"
-    : useTurbo
-      ? "gen4_image_turbo"
-      : "gen4_image";
-  const creditCost = useSunburst
-    ? Number(opts.sunburstCredits) || GPT_IMAGE_25_SUNBURST_CREDIT_COST
-    : useTurbo
-      ? Number(opts.turboCredits) || GEN4_IMAGE_TURBO_CREDIT_COST
-      : Number(opts.proCredits) || GEN4_IMAGE_CREDIT_COST;
+  const useNano = opts.model === "nano-banana-2.1";
+  const useIdeogram = opts.model === "ideogram-4.0";
+  const model: ArtistImageModel = useIdeogram
+    ? "ideogram-4.0"
+    : useNano
+      ? "nano-banana-2.1"
+      : useSunburst
+        ? "gpt-image-2.5-sunburst"
+        : useTurbo
+          ? "gen4_image_turbo"
+          : "gen4_image";
+  const creditCost = useIdeogram
+    ? Number(opts.ideogramCredits) || IDEOGRAM_40_CREDIT_COST
+    : useNano
+      ? Number(opts.nanoCredits) || NANO_BANANA_21_CREDIT_COST
+      : useSunburst
+        ? Number(opts.sunburstCredits) || GPT_IMAGE_25_SUNBURST_CREDIT_COST
+        : useTurbo
+          ? Number(opts.turboCredits) || GEN4_IMAGE_TURBO_CREDIT_COST
+          : Number(opts.proCredits) || GEN4_IMAGE_CREDIT_COST;
   const ratio: ArtistImageRatio = (VALID_RATIOS as readonly string[]).includes(opts.ratio ?? "")
     ? (opts.ratio as ArtistImageRatio)
     : "1080:1920";

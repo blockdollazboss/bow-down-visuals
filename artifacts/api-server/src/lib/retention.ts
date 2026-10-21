@@ -1,0 +1,902 @@
+/* ─── Creation Streaks + Weekly Quests: shared server logic ────────────────
+   Two retention systems sharing the same creation-event hook:
+     • Creation Streaks — consecutive days the user CREATED something
+       (project save, song, thumbnail, video export). Milestone VB payouts.
+     • Weekly Quests — 3 fixed weekly quests, reset Monday (UTC).
+   Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
+   recordCreation() is fire-and-forget safe: it never throws. */
+
+import { db, creationStreaksTable, questProgressTable, retentionPrefsTable, notificationsTable, sharkDropsTable, hourlyCrateClaimsTable, dailyQuestProgressTable, kingMomentClaimsTable, worldTutorialProgressTable, retentionClaimRecordsTable } from "@workspace/db";
+import { eq, and, sql, desc, isNotNull } from "drizzle-orm";
+import { addCreditsAtomic } from "./supabase-admin";
+import { recordRetentionClaim } from "./claim-records";
+import {
+  advanceDailyQuestsForUser,
+  DAILY_QUEST_DEFS,
+  dailyQuestDayKey,
+  dailyTrioForDay,
+  type DailyQuestDef,
+} from "./daily-quests";
+import { logger } from "./logger";
+
+export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
+
+/* ── Streak milestones: day count → VB payout. Each claimable once. ────── */
+export const STREAK_MILESTONES = [
+  { days: 3,  reward: 100 },
+  { days: 7,  reward: 250 },
+  { days: 14, reward: 500 },
+  { days: 30, reward: 1000 },
+] as const;
+
+/* ── Weekly quests: fixed, simple set. Reset every Monday (UTC). ───────── */
+export interface QuestDef {
+  key: string;
+  /** Display name — mirrors the en locale quest titles
+   *  (retention.quest_*_title). The World room's witnessed-moment
+   *  broadcast (lib/world-room.ts) speaks this name from server
+   *  records, so it lives on the def, not in any client. */
+  name: string;
+  target: number;
+  reward: number;
+  kinds: CreationKind[];
+}
+/* Weekly quest pool is capped at 300 VB/week (owner-approved 2026-10-09).
+   Rebalanced 2026-10-11 per owner approval (option A: fit viral-sharer
+   inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300. */
+export const QUEST_DEFS: QuestDef[] = [
+  { key: "make-thumbnail", name: "Make a thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
+  { key: "generate-song",  name: "Generate a song",  target: 1, reward: 80,  kinds: ["song"] },
+  { key: "export-video",   name: "Export a video",   target: 1, reward: 120, kinds: ["export"] },
+  { key: "viral-sharer",   name: "Viral Sharer",     target: 3, reward: 60,  kinds: ["share"] },
+];
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Monday (UTC) of the current week as YYYY-MM-DD. New week ⇒ new quests. */
+export function currentWeekStart(): string {
+  const now = new Date();
+  const dayIdx = (now.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayIdx));
+  return monday.toISOString().slice(0, 10);
+}
+
+interface Prefs {
+  creationStreaksEnabled: boolean;
+  questsEnabled: boolean;
+  /* Added for Thy Daily Drop + While You Were Away digest. */
+  dailyDropEnabled: boolean;
+  awayDigestEnabled: boolean;
+  /* Login-streaks-with-teeth pack: owned here, consumed by sibling systems. */
+  loginStreaksEnabled: boolean;
+  shareToEarnEnabled: boolean;
+  contestsEnabled: boolean;
+  fomoFeedEnabled: boolean;
+}
+
+async function getPrefs(userId: string): Promise<Prefs> {
+  try {
+    const rows = await db
+      .select({
+        creationStreaksEnabled: retentionPrefsTable.creationStreaksEnabled,
+        questsEnabled: retentionPrefsTable.questsEnabled,
+        dailyDropEnabled: retentionPrefsTable.dailyDropEnabled,
+        awayDigestEnabled: retentionPrefsTable.awayDigestEnabled,
+        loginStreaksEnabled: retentionPrefsTable.loginStreaksEnabled,
+        shareToEarnEnabled: retentionPrefsTable.shareToEarnEnabled,
+        contestsEnabled: retentionPrefsTable.contestsEnabled,
+        fomoFeedEnabled: retentionPrefsTable.fomoFeedEnabled,
+      })
+      .from(retentionPrefsTable)
+      .where(eq(retentionPrefsTable.userId, userId))
+      .limit(1);
+    const row = rows[0];
+    return {
+      creationStreaksEnabled: row?.creationStreaksEnabled ?? true,
+      questsEnabled: row?.questsEnabled ?? true,
+      dailyDropEnabled: row?.dailyDropEnabled ?? true,
+      awayDigestEnabled: row?.awayDigestEnabled ?? true,
+      loginStreaksEnabled: row?.loginStreaksEnabled ?? true,
+      shareToEarnEnabled: row?.shareToEarnEnabled ?? true,
+      contestsEnabled: row?.contestsEnabled ?? true,
+      fomoFeedEnabled: row?.fomoFeedEnabled ?? true,
+    };
+  } catch (err) {
+    logger.warn({ err, userId }, "[retention] prefs read failed — defaulting to enabled");
+    return {
+      creationStreaksEnabled: true,
+      questsEnabled: true,
+      dailyDropEnabled: true,
+      awayDigestEnabled: true,
+      loginStreaksEnabled: true,
+      shareToEarnEnabled: true,
+      contestsEnabled: true,
+      fomoFeedEnabled: true,
+    };
+  }
+}
+
+/* ── STREAK TRACKING ───────────────────────────────────────────────────── */
+
+async function updateStreak(userId: string): Promise<void> {
+  const today = todayKey();
+  const rows = await db
+    .select()
+    .from(creationStreaksTable)
+    .where(eq(creationStreaksTable.userId, userId))
+    .limit(1);
+  const row = rows[0];
+
+  if (!row) {
+    await db.insert(creationStreaksTable).values({
+      userId,
+      currentStreak: 1,
+      longestStreak: 1,
+      lastCreationDate: today,
+      milestonesClaimed: [],
+    });
+    return;
+  }
+
+  const last = row.lastCreationDate; // YYYY-MM-DD or null
+  if (last === today) return; // already counted today
+
+  const yesterday = new Date(Date.UTC(
+    Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10))
+  ) - 86400000).toISOString().slice(0, 10);
+
+  const next = last === yesterday ? (row.currentStreak ?? 0) + 1 : 1;
+  const longest = Math.max(row.longestStreak ?? 0, next);
+
+  await db
+    .update(creationStreaksTable)
+    .set({ currentStreak: next, longestStreak: longest, lastCreationDate: today, updatedAt: new Date() })
+    .where(eq(creationStreaksTable.userId, userId));
+
+  /* DE-18: landing exactly on an unclaimed milestone day is a
+     one-time transition (the streak passes each count once, and a
+     claimed milestone is never re-reached unclaimed) — ring the
+     bell so the reward doesn't wait silently for a widget visit. */
+  const milestone = STREAK_MILESTONES.find((m) => m.days === next);
+  if (milestone && !((row.milestonesClaimed ?? []) as number[]).includes(milestone.days)) {
+    await notifyStreakMilestone(userId, milestone.days, milestone.reward);
+  }
+}
+
+/* ── QUEST TRACKING ────────────────────────────────────────────────────── */
+
+/* Quest display names — mirror the QuestsWidget's English titles
+   (retention.quest_*_title in locales/en.json); notification copy is
+   written server-side, in English, everywhere in the house. */
+const QUEST_TITLES: Record<string, string> = {
+  "make-thumbnail": "Make a thumbnail",
+  "generate-song": "Generate a song",
+  "export-video": "Export a video",
+  "viral-sharer": "Viral Sharer",
+};
+
+/** DE-18: the moment a quest flips to complete, ring the bell. The
+ *  reward still waits for the claim tap in the widget — but it no
+ *  longer sits there silently if the creator never opens the widget.
+ *  Best-effort: a failed insert never breaks the creation hook. */
+async function notifyQuestComplete(userId: string, def: QuestDef): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Quest complete 🏆",
+      body: `You finished “${QUEST_TITLES[def.key] ?? def.key}” — ${def.reward} Visual Bucs are waiting. Tap to claim.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, questKey: def.key }, "[retention] quest-complete notification failed");
+  }
+}
+
+/** DE-18, streak half: a milestone day reached is the same silent
+ *  wait as a completed quest — ring the same bell (the streak widget
+ *  with its claim button lives on the same dashboard surface). */
+async function notifyStreakMilestone(userId: string, days: number, reward: number): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Streak milestone 🔥",
+      body: `Your creation streak hit ${days} days — ${reward} Visual Bucs are waiting. Tap to claim.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, days }, "[retention] streak-milestone notification failed");
+  }
+}
+
+async function updateQuests(userId: string, kind: CreationKind): Promise<void> {
+  const weekStart = currentWeekStart();
+  const applicable = QUEST_DEFS.filter((q) => q.kinds.includes(kind));
+  /* Stack-30 C2: at most ONE quest-completion bell per updateQuests
+     call. A single event can finish several quests at once (every def
+     whose kinds include this kind flips false → true in this loop);
+     each used to ring its own bell for the same one action. The bell
+     now names the first quest this call finished — every finished
+     quest's reward still waits on the same /dashboard claim surface
+     the bell links to, and every quest's progress/completion is
+     recorded exactly as before. (Streak-milestone bells ring from
+     updateStreak, not here, and are not capped by this.) */
+  let bellRung = false;
+  for (const q of applicable) {
+    /* DE-18: read the row BEFORE the upsert so the completion flip
+       (false → true) is observable — the upsert alone can't say
+       whether THIS event finished the quest. */
+    const [prior] = await db
+      .select({ completed: questProgressTable.completed })
+      .from(questProgressTable)
+      .where(and(
+        eq(questProgressTable.userId, userId),
+        eq(questProgressTable.questKey, q.key),
+        eq(questProgressTable.weekStart, weekStart),
+      ))
+      .limit(1);
+    const [row] = await db
+      .insert(questProgressTable)
+      .values({
+        userId,
+        questKey: q.key,
+        weekStart,
+        progress: 1,
+        target: q.target,
+        completed: 1 >= q.target,
+      })
+      .onConflictDoUpdate({
+        target: [questProgressTable.userId, questProgressTable.questKey, questProgressTable.weekStart],
+        set: {
+          progress: sql`LEAST(${questProgressTable.progress} + 1, ${questProgressTable.target})`,
+          completed: sql`LEAST(${questProgressTable.progress} + 1, ${questProgressTable.target}) >= ${questProgressTable.target}`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({ completed: questProgressTable.completed });
+    if (!prior?.completed && row?.completed && !bellRung) {
+      bellRung = true;
+      await notifyQuestComplete(userId, q);
+    }
+  }
+}
+
+/** Ring 4: the Daily Quest Trio's completion bell — the weekly
+ *  bell's daily twin (DE-18's rule: a finished quest never waits
+ *  silently). The trio's rewards claim on the Quest Board (the
+ *  widget lives on /dashboard and in the Treasury alike); the bell
+ *  links where the weekly bell links. Best-effort, like its twin. */
+async function notifyDailyQuestComplete(userId: string, def: DailyQuestDef): Promise<void> {
+  try {
+    await db.insert(notificationsTable).values({
+      userId,
+      kind: "quest",
+      title: "Daily quest complete ☀️",
+      body: `You finished today's “${def.name}” — ${def.rewardVb} Visual Bucs and ${def.marks} marks are waiting on the Quest Board. Today's slate turns at the day-turn, so claim it today.`,
+      link: "/dashboard",
+    });
+  } catch (err) {
+    logger.warn({ err, userId, questKey: def.key }, "[retention] daily quest-complete notification failed");
+  }
+}
+
+/** Ring 4: advance the Daily Quest Trio on the same event the
+ *  weekly quests just read — the trio rides this hook (its defs
+ *  are day-scoped; lib/daily-quests owns the slate + the store).
+ *  At most ONE daily bell per hook call, the Stack-30 C2 rule the
+ *  weekly half follows: one action, one bell, however many quests
+ *  it finished. Never throws (the daily tracker swallows its own
+ *  failures; this wrapper is the second belt). */
+async function updateDailyQuests(userId: string, kind: CreationKind): Promise<void> {
+  try {
+    const flipped = await advanceDailyQuestsForUser(userId, kind);
+    if (flipped[0]) await notifyDailyQuestComplete(userId, flipped[0]);
+  } catch (err) {
+    logger.warn({ err, userId, kind }, "[retention] daily quest advance failed");
+  }
+}
+
+/* ── THE HOOK: call after any creation event ─────────────────────────────
+   Fire-and-forget: callers should .catch() it. Never throws. */
+export async function recordCreation(userId: string, kind: CreationKind): Promise<void> {
+  try {
+    const prefs = await getPrefs(userId);
+    if (prefs.creationStreaksEnabled) await updateStreak(userId);
+    if (prefs.questsEnabled) {
+      await updateQuests(userId, kind);
+      await updateDailyQuests(userId, kind);
+    }
+  } catch (err) {
+    logger.warn({ err, userId, kind }, "[retention] recordCreation failed");
+  }
+}
+
+/* ── SHARE HOOK: call after a share action (POST /api/shares) ────────────
+   Unlike recordCreation, a share is NOT a creation event: it never touches
+   creation streaks — it only advances the "viral-sharer" quest. Honors
+   quests_enabled and the share_to_earn_enabled toggle (owned by the
+   login-streaks sibling). Fire-and-forget: never throws. */
+export async function recordShareEvent(userId: string): Promise<void> {
+  try {
+    const prefs = await getPrefs(userId);
+    if (!prefs.questsEnabled) return;
+    if (!prefs.shareToEarnEnabled) return;
+    await updateQuests(userId, "share");
+    await updateDailyQuests(userId, "share");
+  } catch (err) {
+    logger.warn({ err, userId }, "[retention] recordShareEvent failed");
+  }
+}
+
+/** The quests on/off pref, read for the daily trio's routes
+ *  (lib/daily-quests' claim rail honors the same switch the
+ *  weekly claims honor — one switch for the whole quest house). */
+export async function getQuestsEnabled(userId: string): Promise<boolean> {
+  const prefs = await getPrefs(userId);
+  return prefs.questsEnabled;
+}
+
+/* ── READ API (used by routes) ─────────────────────────────────────────── */
+
+export interface MilestoneStatus {
+  days: number;
+  reward: number;
+  reached: boolean;
+  claimed: boolean;
+}
+
+export interface StreakStatus {
+  enabled: boolean;
+  currentStreak: number;
+  longestStreak: number;
+  lastCreationDate: string | null;
+  milestonesClaimed: number[];
+  milestones: MilestoneStatus[];
+  nextMilestone: { days: number; reward: number } | null;
+}
+
+export async function getStreakStatus(userId: string): Promise<StreakStatus> {
+  const prefs = await getPrefs(userId);
+  const rows = await db
+    .select()
+    .from(creationStreaksTable)
+    .where(eq(creationStreaksTable.userId, userId))
+    .limit(1);
+  const row = rows[0];
+  const current = row?.currentStreak ?? 0;
+  const claimed = (row?.milestonesClaimed ?? []) as number[];
+  const milestones: MilestoneStatus[] = STREAK_MILESTONES.map((m) => ({
+    days: m.days,
+    reward: m.reward,
+    reached: current >= m.days,
+    claimed: claimed.includes(m.days),
+  }));
+  return {
+    enabled: prefs.creationStreaksEnabled,
+    currentStreak: current,
+    longestStreak: row?.longestStreak ?? 0,
+    lastCreationDate: row?.lastCreationDate ?? null,
+    milestonesClaimed: claimed,
+    milestones,
+    nextMilestone: milestones.find((m) => !m.claimed) ?? null,
+  };
+}
+
+export interface QuestStatus {
+  key: string;
+  target: number;
+  reward: number;
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
+}
+
+export interface QuestsStatus {
+  enabled: boolean;
+  weekStart: string;
+  quests: QuestStatus[];
+}
+
+export async function getQuestsStatus(userId: string): Promise<QuestsStatus> {
+  const prefs = await getPrefs(userId);
+  const weekStart = currentWeekStart();
+  const rows = await db
+    .select()
+    .from(questProgressTable)
+    .where(
+      and(
+        eq(questProgressTable.userId, userId),
+        eq(questProgressTable.weekStart, weekStart),
+      )
+    );
+  const byKey = new Map(rows.map((r) => [r.questKey, r]));
+  return {
+    enabled: prefs.questsEnabled,
+    weekStart,
+    quests: QUEST_DEFS.map((q) => {
+      const r = byKey.get(q.key);
+      return {
+        key: q.key,
+        target: q.target,
+        reward: q.reward,
+        progress: r?.progress ?? 0,
+        completed: r?.completed ?? false,
+        claimed: r?.claimedAt != null,
+      };
+    }),
+  };
+}
+
+/* ── CLAIMS ────────────────────────────────────────────────────────────── */
+
+export async function claimStreakMilestone(
+  userId: string,
+  days: number
+): Promise<{ reward: number; currentStreak: number }> {
+  const milestone = STREAK_MILESTONES.find((m) => m.days === days);
+  if (!milestone) throw new Error("Unknown milestone");
+  const status = await getStreakStatus(userId);
+  if (!status.enabled) throw new Error("Creation streaks are disabled");
+  if (!status.milestones.find((m) => m.days === days)?.reached) {
+    throw new Error("Milestone not reached yet");
+  }
+  if (status.milestonesClaimed.includes(days)) throw new Error("Milestone already claimed");
+
+  // Mark claimed BEFORE payout so a retry can't double-pay. The append
+  // happens IN SQL (milestones_claimed || ARRAY[days]) under the NOT-@>
+  // guard — never write back a JS-computed array: a concurrent claim of a
+  // DIFFERENT milestone would read the same stale array, and the loser's
+  // write would erase the winner's claim marker, making the winner's
+  // milestone claimable (and payable) a second time.
+  const updated = await db
+    .update(creationStreaksTable)
+    .set({
+      milestonesClaimed: sql`${creationStreaksTable.milestonesClaimed} || ARRAY[${days}]::int[]`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(creationStreaksTable.userId, userId),
+        sql`NOT (${creationStreaksTable.milestonesClaimed} @> ARRAY[${days}]::int[])`
+      )
+    )
+    .returning({ userId: creationStreaksTable.userId });
+  if (updated.length === 0) throw new Error("Milestone already claimed");
+
+  try {
+    await addCreditsAtomic(userId, milestone.reward);
+  } catch (err) {
+    logger.error({ err, userId, days }, "[retention] CRITICAL: streak milestone marked claimed but VB payout failed");
+    throw new Error("Visual Bucs payout failed — contact support");
+  }
+  /* Per-claim record (migration 0165): the milestones_claimed
+     array keeps only WHICH milestone was claimed — this row stamps
+     when and how much paid, for the Treasury ledger. Written after
+     the payout lands; the failed payout above recorded nothing. */
+  await recordRetentionClaim({ userId, kind: "streak_milestone", refKey: String(days), amountVb: milestone.reward });
+  logger.info({ userId, days, reward: milestone.reward }, "[retention] streak milestone claimed");
+  return { reward: milestone.reward, currentStreak: status.currentStreak };
+}
+
+export async function claimQuestReward(
+  userId: string,
+  questKey: string
+): Promise<{ reward: number }> {
+  const def = QUEST_DEFS.find((q) => q.key === questKey);
+  if (!def) throw new Error("Unknown quest");
+  /* The Viral Sharer quest tracks with reward 0 until the owner approves
+     how it fits the 300 VB/week pool — refuse to pay anything invented. */
+  if (def.reward <= 0) throw new Error("This quest's reward is pending owner approval");
+  const status = await getQuestsStatus(userId);
+  if (!status.enabled) throw new Error("Quests are disabled");
+  const q = status.quests.find((s) => s.key === questKey);
+  if (!q?.completed) throw new Error("Quest not completed yet");
+  if (q.claimed) throw new Error("Quest reward already claimed");
+
+  // Conditional update: only when still unclaimed.
+  const updated = await db
+    .update(questProgressTable)
+    .set({ claimedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(questProgressTable.userId, userId),
+        eq(questProgressTable.questKey, questKey),
+        eq(questProgressTable.weekStart, status.weekStart),
+        sql`${questProgressTable.claimedAt} IS NULL`
+      )
+    )
+    .returning({ userId: questProgressTable.userId });
+  if (updated.length === 0) throw new Error("Quest reward already claimed");
+
+  try {
+    await addCreditsAtomic(userId, def.reward);
+  } catch (err) {
+    logger.error({ err, userId, questKey }, "[retention] CRITICAL: quest marked claimed but VB payout failed");
+    throw new Error("Visual Bucs payout failed — contact support");
+  }
+  logger.info({ userId, questKey, reward: def.reward }, "[retention] quest reward claimed");
+  return { reward: def.reward };
+}
+
+/* ── TREASURY HISTORY (World Ring 2, items 2.21 + 2.22; completed
+   by Ring 4 / stack-20 R2 item #13; last two sources closed by the
+   R2 follow-up, migration 0165) ───────────────────────────────
+   One read for the Treasury counter's trophy ledger + full quest
+   catalog: every claim the tables honestly record, plus quest
+   progress for past weeks (quest_progress carries a row per
+   user × quest × week, so past weeks are real data, not a
+   reconstruction). The ledger's sources, each a real per-claim
+   record with the amount stamped when it was paid:
+     - weekly quest rewards (quest_progress.claimed_at),
+     - Daily Quest Trio rewards (daily_quest_progress: reward_vb
+       recorded at claim time),
+     - the King's daily gifts (king_moment_claims.amount_vb),
+     - the "Your First 10 Minutes" tutorial reward
+       (world_tutorial_progress: reward_amount_vb + reward_claimed_at),
+     - shark drops (shark_drops.amount on claimed rows — personal,
+       stream and World drop-spectacle claims all land here),
+     - hourly crates (hourly_crate_claims.prize_credits),
+     - Daily Drop claims + creation-streak milestone claims
+       (retention_claim_records.amount_vb — one row per claim,
+       written by the claim path itself since migration 0165).
+   The catalog is BOTH slates — the weekly defs and the Daily Quest
+   Trio's whole pool with today's rotation marked — and each week
+   also carries the member's trio days (daily rows record their own
+   progress and, at claim, the exact VB + marks paid, so a past day
+   reads as it was, never re-derived).
+
+   What is still NOT here, deliberately: daily-drop and streak-
+   milestone claims from BEFORE migration 0165. Those kept no
+   per-claim row (the bonus system stored only
+   profiles.last_daily_claim, a single date; creation_streaks
+   records only WHICH milestone days were claimed, never when),
+   and no history is backfilled or invented for them — the
+   last-claim date still comes from /api/bonus/status, and past
+   milestones still read off the streak board. Only claims from
+   0165 forward carry rows here. */
+
+export interface TreasuryHistoryEntry {
+  kind: "quest" | "daily-quest" | "king-gift" | "tutorial" | "shark-drop" | "crate" | "daily-drop" | "streak-milestone";
+  /** Quest key for kinds "quest" and "daily-quest"; the milestone
+   *  day count (as text) for "streak-milestone"; null otherwise. */
+  key: string | null;
+  /** Visual Bucs paid — always the amount the source table recorded
+   *  (quest def reward, the daily row's stamped reward_vb, the
+   *  King's recorded gift, the tutorial's stamped reward, the drop
+   *  amount, the crate prize, the claim record's stamped amount_vb
+   *  for a Daily Drop or streak milestone). Never derived. */
+  amount: number;
+  /** ISO timestamp the claim landed. */
+  at: string;
+}
+
+/** One day of the member's Daily Quest Trio, as its progress row
+ *  recorded it. rewardVb / marks are the amounts the CLAIM stamped
+ *  on the row (null / 0 until claimed) — never re-derived from the
+ *  def, so a later def rebalance can't rewrite a past day. */
+export interface TreasuryHistoryDailyRow {
+  day: string;
+  key: string;
+  progress: number;
+  target: number;
+  completed: boolean;
+  claimed: boolean;
+  claimedAt: string | null;
+  rewardVb: number | null;
+  marks: number;
+}
+
+export interface TreasuryHistoryWeek {
+  weekStart: string;
+  quests: (QuestStatus & { claimedAt: string | null })[];
+  daily: TreasuryHistoryDailyRow[];
+}
+
+/** One Daily Quest Trio definition for the catalog: the def
+ *  verbatim, plus whether the rotation has it standing TODAY. */
+export interface TreasuryDailyCatalogQuest {
+  key: string;
+  name: string;
+  baseKey: string;
+  target: number;
+  rewardVb: number;
+  marks: number;
+  kinds: CreationKind[];
+  liveToday: boolean;
+}
+
+export interface TreasuryHistory {
+  catalog: { key: string; name: string; target: number; reward: number; kinds: CreationKind[] }[];
+  dailyCatalog: TreasuryDailyCatalogQuest[];
+  /** The palace day (YYYY-MM-DD, UTC) the catalog's liveToday
+   *  flags were computed against. */
+  today: string;
+  weeks: TreasuryHistoryWeek[];
+  entries: TreasuryHistoryEntry[];
+}
+
+const TREASURY_ENTRY_CAP = 50;
+const TREASURY_WEEK_CAP = 8;
+
+/** Monday (UTC) of the week containing a YYYY-MM-DD day key — the
+ *  quest pool's week anchor (lib/quest-pool's questPoolWeekStart
+ *  math, on a day key instead of a Date). */
+function weekStartOfDayKey(dayKey: string): string {
+  const [y, m, d] = dayKey.split("-").map((p) => Number(p));
+  const day = new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1));
+  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
+  day.setUTCDate(day.getUTCDate() - dow);
+  return day.toISOString().slice(0, 10);
+}
+
+export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {
+  const [questRows, dailyRows, dropRows, crateRows, dailyClaimRows, kingRows, tutorialRows, claimRecordRows] = await Promise.all([
+    db
+      .select()
+      .from(questProgressTable)
+      .where(eq(questProgressTable.userId, userId))
+      .orderBy(desc(questProgressTable.weekStart))
+      .limit(400),
+    db
+      .select()
+      .from(dailyQuestProgressTable)
+      .where(eq(dailyQuestProgressTable.userId, userId))
+      .orderBy(desc(dailyQuestProgressTable.dayDate))
+      .limit(400),
+    db
+      .select()
+      .from(sharkDropsTable)
+      .where(and(eq(sharkDropsTable.userId, userId), isNotNull(sharkDropsTable.claimedAt)))
+      .orderBy(desc(sharkDropsTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(hourlyCrateClaimsTable)
+      .where(eq(hourlyCrateClaimsTable.claimed_by, userId))
+      .orderBy(desc(hourlyCrateClaimsTable.claimed_at))
+      .limit(25),
+    db
+      .select()
+      .from(dailyQuestProgressTable)
+      .where(and(eq(dailyQuestProgressTable.userId, userId), isNotNull(dailyQuestProgressTable.claimedAt)))
+      .orderBy(desc(dailyQuestProgressTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(kingMomentClaimsTable)
+      .where(eq(kingMomentClaimsTable.userId, userId))
+      .orderBy(desc(kingMomentClaimsTable.claimedAt))
+      .limit(25),
+    db
+      .select()
+      .from(worldTutorialProgressTable)
+      .where(
+        and(
+          eq(worldTutorialProgressTable.userId, userId),
+          isNotNull(worldTutorialProgressTable.rewardClaimedAt),
+        ),
+      )
+      .limit(1),
+    db
+      .select()
+      .from(retentionClaimRecordsTable)
+      .where(eq(retentionClaimRecordsTable.userId, userId))
+      .orderBy(desc(retentionClaimRecordsTable.createdAt))
+      .limit(25),
+  ]);
+
+  /* Weeks: newest first, capped — each week carries the FULL def
+     set (a quest with no row that week reads as untouched, exactly
+     like getQuestsStatus reads the current week). The week set is
+     the UNION of the weeks the weekly rows name and the weeks the
+     member's daily trio days fall in, so a week lived only at day
+     size still stands here. */
+  const byWeek = new Map<string, Map<string, (typeof questRows)[number]>>();
+  for (const r of questRows) {
+    let m = byWeek.get(r.weekStart);
+    if (!m) {
+      m = new Map();
+      byWeek.set(r.weekStart, m);
+    }
+    m.set(r.questKey, r);
+  }
+  const dailyByWeek = new Map<string, TreasuryHistoryDailyRow[]>();
+  for (const r of dailyRows) {
+    const day = String(r.dayDate).slice(0, 10);
+    const weekStart = weekStartOfDayKey(day);
+    if (!byWeek.has(weekStart)) byWeek.set(weekStart, new Map());
+    let list = dailyByWeek.get(weekStart);
+    if (!list) {
+      list = [];
+      dailyByWeek.set(weekStart, list);
+    }
+    list.push({
+      day,
+      key: r.questKey,
+      progress: r.progress,
+      target: r.target,
+      completed: r.completed ?? false,
+      claimed: r.claimedAt != null,
+      claimedAt: r.claimedAt ? new Date(r.claimedAt).toISOString() : null,
+      rewardVb: r.rewardVb ?? null,
+      marks: r.marks ?? 0,
+    });
+  }
+  const weeks: TreasuryHistoryWeek[] = [...byWeek.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .slice(0, TREASURY_WEEK_CAP)
+    .map(([weekStart, byKey]) => ({
+      weekStart,
+      quests: QUEST_DEFS.map((q) => {
+        const r = byKey.get(q.key);
+        return {
+          key: q.key,
+          target: q.target,
+          reward: q.reward,
+          progress: r?.progress ?? 0,
+          completed: r?.completed ?? false,
+          claimed: r?.claimedAt != null,
+          claimedAt: r?.claimedAt ? new Date(r.claimedAt).toISOString() : null,
+        };
+      }),
+      daily: (dailyByWeek.get(weekStart) ?? []).sort((a, b) =>
+        a.day !== b.day ? (a.day < b.day ? 1 : -1) : a.key < b.key ? -1 : 1,
+      ),
+    }));
+
+  const entries: TreasuryHistoryEntry[] = [];
+  for (const r of questRows) {
+    if (!r.claimedAt) continue;
+    const def = QUEST_DEFS.find((q) => q.key === r.questKey);
+    if (!def) continue;
+    entries.push({ kind: "quest", key: r.questKey, amount: def.reward, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of dropRows) {
+    if (!r.claimedAt) continue;
+    entries.push({ kind: "shark-drop", key: null, amount: r.amount, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of crateRows) {
+    entries.push({ kind: "crate", key: null, amount: r.prize_credits, at: new Date(r.claimed_at).toISOString() });
+  }
+  for (const r of dailyClaimRows) {
+    /* rewardVb is stamped on the row at claim time; a claimed row
+       without it recorded nothing payable — never invent an amount. */
+    if (!r.claimedAt || r.rewardVb == null) continue;
+    entries.push({ kind: "daily-quest", key: r.questKey, amount: r.rewardVb, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of kingRows) {
+    entries.push({ kind: "king-gift", key: null, amount: r.amountVb, at: new Date(r.claimedAt).toISOString() });
+  }
+  for (const r of tutorialRows) {
+    if (!r.rewardClaimedAt || r.rewardAmountVb == null) continue;
+    entries.push({ kind: "tutorial", key: null, amount: r.rewardAmountVb, at: new Date(r.rewardClaimedAt).toISOString() });
+  }
+  for (const r of claimRecordRows) {
+    /* Per-claim records (migration 0165): the amount is the one the
+       claim stamped when it paid. A kind this read doesn't know is
+       skipped, never mislabeled. The streak entry's key carries the
+       milestone day count — which milestone it was. */
+    if (r.kind === "daily_drop") {
+      entries.push({ kind: "daily-drop", key: null, amount: r.amountVb, at: new Date(r.createdAt).toISOString() });
+    } else if (r.kind === "streak_milestone") {
+      entries.push({ kind: "streak-milestone", key: r.refKey, amount: r.amountVb, at: new Date(r.createdAt).toISOString() });
+    }
+  }
+  entries.sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  /* The catalogs are the server's OWN definitions, verbatim: the
+     weekly slate (QUEST_DEFS) and the Daily Quest Trio's whole
+     pool (DAILY_QUEST_DEFS) — every quest the palace runs, not
+     just the ones standing today. liveToday is the rotation's
+     answer for the palace day, computed by the same pure function
+     the board and the claimer deal from. */
+  const today = dailyQuestDayKey(new Date());
+  const liveKeys = new Set(dailyTrioForDay(today).map((d) => d.key));
+  return {
+    catalog: QUEST_DEFS.map((q) => ({ key: q.key, name: q.name, target: q.target, reward: q.reward, kinds: [...q.kinds] })),
+    dailyCatalog: DAILY_QUEST_DEFS.map((d) => ({
+      key: d.key,
+      name: d.name,
+      baseKey: d.baseKey,
+      target: d.target,
+      rewardVb: d.rewardVb,
+      marks: d.marks,
+      kinds: [...d.kinds],
+      liveToday: liveKeys.has(d.key),
+    })),
+    today,
+    weeks,
+    entries: entries.slice(0, TREASURY_ENTRY_CAP),
+  };
+}
+
+/* ── PREFS ─────────────────────────────────────────────────────────────── */
+
+export async function getRetentionPrefs(userId: string): Promise<{
+  creation_streaks_enabled: boolean;
+  quests_enabled: boolean;
+  daily_drop_enabled: boolean;
+  away_digest_enabled: boolean;
+  login_streaks_enabled: boolean;
+  share_to_earn_enabled: boolean;
+  contests_enabled: boolean;
+  fomo_feed_enabled: boolean;
+}> {
+  const prefs = await getPrefs(userId);
+  return {
+    creation_streaks_enabled: prefs.creationStreaksEnabled,
+    quests_enabled: prefs.questsEnabled,
+    daily_drop_enabled: prefs.dailyDropEnabled,
+    away_digest_enabled: prefs.awayDigestEnabled,
+    login_streaks_enabled: prefs.loginStreaksEnabled,
+    share_to_earn_enabled: prefs.shareToEarnEnabled,
+    contests_enabled: prefs.contestsEnabled,
+    fomo_feed_enabled: prefs.fomoFeedEnabled,
+  };
+}
+
+export async function setRetentionPrefs(
+  userId: string,
+  patch: {
+    creation_streaks_enabled?: boolean;
+    quests_enabled?: boolean;
+    daily_drop_enabled?: boolean;
+    away_digest_enabled?: boolean;
+    login_streaks_enabled?: boolean;
+    share_to_earn_enabled?: boolean;
+    contests_enabled?: boolean;
+    fomo_feed_enabled?: boolean;
+  }
+): Promise<{
+  creation_streaks_enabled: boolean;
+  quests_enabled: boolean;
+  daily_drop_enabled: boolean;
+  away_digest_enabled: boolean;
+  login_streaks_enabled: boolean;
+  share_to_earn_enabled: boolean;
+  contests_enabled: boolean;
+  fomo_feed_enabled: boolean;
+}> {
+  const current = await getPrefs(userId);
+  const next = {
+    creation_streaks_enabled: patch.creation_streaks_enabled ?? current.creationStreaksEnabled,
+    quests_enabled: patch.quests_enabled ?? current.questsEnabled,
+    daily_drop_enabled: patch.daily_drop_enabled ?? current.dailyDropEnabled,
+    away_digest_enabled: patch.away_digest_enabled ?? current.awayDigestEnabled,
+    login_streaks_enabled: patch.login_streaks_enabled ?? current.loginStreaksEnabled,
+    share_to_earn_enabled: patch.share_to_earn_enabled ?? current.shareToEarnEnabled,
+    contests_enabled: patch.contests_enabled ?? current.contestsEnabled,
+    fomo_feed_enabled: patch.fomo_feed_enabled ?? current.fomoFeedEnabled,
+  };
+  await db
+    .insert(retentionPrefsTable)
+    .values({
+      userId,
+      creationStreaksEnabled: next.creation_streaks_enabled,
+      questsEnabled: next.quests_enabled,
+      dailyDropEnabled: next.daily_drop_enabled,
+      awayDigestEnabled: next.away_digest_enabled,
+      loginStreaksEnabled: next.login_streaks_enabled,
+      shareToEarnEnabled: next.share_to_earn_enabled,
+      contestsEnabled: next.contests_enabled,
+      fomoFeedEnabled: next.fomo_feed_enabled,
+    })
+    .onConflictDoUpdate({
+      target: retentionPrefsTable.userId,
+      set: {
+        creationStreaksEnabled: next.creation_streaks_enabled,
+        questsEnabled: next.quests_enabled,
+        dailyDropEnabled: next.daily_drop_enabled,
+        awayDigestEnabled: next.away_digest_enabled,
+        loginStreaksEnabled: next.login_streaks_enabled,
+        shareToEarnEnabled: next.share_to_earn_enabled,
+        contestsEnabled: next.contests_enabled,
+        fomoFeedEnabled: next.fomo_feed_enabled,
+        updatedAt: new Date(),
+      },
+    });
+  return next;
+}

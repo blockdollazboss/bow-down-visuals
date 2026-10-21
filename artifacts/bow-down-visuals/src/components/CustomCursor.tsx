@@ -1,9 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { getCursorChoice, type CursorId } from "@/lib/cursor-settings";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Site-wide custom cursor ───
    Reads the visitor's saved choice from localStorage.
    Disabled on touch devices. Listens for changes. */
+
+/* Theme-aware cursor palette: deep bronze with dark outlines on light theme
+   (gold washes out on ivory), classic gold glow on dark. */
+export function useCursorPalette() {
+  const isLight = useIsLightTheme();
+  return isLight
+    ? {
+        fill: "#8a6d2b",
+        bright: "#b08d3e",
+        ink: "#3a2d0c",
+        edge: "#3a2d0c",
+        glow: "rgba(90,70,20,0.35)",
+        glowStrong: "rgba(90,70,20,0.55)",
+        text: "#7A5A12",
+      }
+    : {
+        fill: "#C9A84C",
+        bright: "#e8c86a",
+        ink: "#8a6d2b",
+        edge: "#e8c86a",
+        glow: "rgba(201,168,76,0.7)",
+        glowStrong: "rgba(201,168,76,0.9)",
+        text: "#e8c86a",
+      };
+}
 
 function useCursorState() {
   const [cursor, setCursor] = useState<CursorId>("shark-fin");
@@ -24,15 +50,66 @@ function useCursorState() {
   return { cursor, isTouch };
 }
 
+/* Smooth-follow cursor positioning: the cursor eases toward the pointer on
+   every animation frame instead of snapping 1:1, giving a buttery glide.
+   Respects prefers-reduced-motion (snaps directly, no easing). */
 function useMousePosition(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target = { x: 0, y: 0 };
+    const current = { x: 0, y: 0 };
+    let raf = 0;
+    let hasPosition = false;
+    let settled = true;
+
     const move = (e: MouseEvent) => {
-      if (ref.current) {
-        ref.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      target.x = e.clientX;
+      target.y = e.clientY;
+      if (!hasPosition) {
+        // Snap on first move so the cursor never glides in from a corner.
+        current.x = target.x;
+        current.y = target.y;
+        hasPosition = true;
+        if (ref.current) {
+          ref.current.style.transform = `translate(${target.x}px, ${target.y}px)`;
+        }
+        settled = true;
+        return;
       }
+      if (reduceMotion) {
+        current.x = target.x;
+        current.y = target.y;
+        if (ref.current) {
+          ref.current.style.transform = `translate(${target.x}px, ${target.y}px)`;
+        }
+        settled = true;
+        return;
+      }
+      settled = false;
     };
+
+    const tick = () => {
+      if (!settled) {
+        // Direct 1:1 tracking — no glide. Owner directive 2026-10-11:
+        // the cursor must be accurate, never easing behind the pointer.
+        current.x = target.x;
+        current.y = target.y;
+        settled = true;
+        if (ref.current) {
+          ref.current.style.transform = `translate(${current.x}px, ${current.y}px)`;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
     window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
+    raf = requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      cancelAnimationFrame(raf);
+    };
   }, [ref]);
 }
 
@@ -52,6 +129,7 @@ function useHoverState() {
 function SharkFin() {
   const ref = useRef<HTMLDivElement>(null);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   const [clicking, setClicking] = useState(false);
   useMousePosition(ref);
   useEffect(() => {
@@ -65,12 +143,12 @@ function SharkFin() {
     };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -12, marginTop: -12 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -8%" }}>
       <svg width={hovering ? 36 : 28} height={hovering ? 36 : 28} viewBox="0 0 24 24"
-        className="transition-all duration-150 drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]"
-        style={{ transform: clicking ? "scale(0.85) rotate(-10deg)" : "none" }}>
+        className="transition-all duration-150"
+        style={{ filter: `drop-shadow(0 0 8px ${p.glowStrong})`, transform: clicking ? "scale(0.85) rotate(-10deg)" : "none" }}>
         <path d="M12 2 C 8 8, 6 14, 4 20 L 12 17 L 20 20 C 18 14, 16 8, 12 2 Z"
-          fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          fill={p.fill} stroke={p.edge} strokeWidth="1" />
       </svg>
     </div>
   );
@@ -79,14 +157,15 @@ function SharkFin() {
 function Crown() {
   const ref = useRef<HTMLDivElement>(null);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -10 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       <svg width={hovering ? 36 : 28} height={hovering ? 28 : 22} viewBox="0 0 24 18"
         className="transition-all duration-150"
-        style={{ filter: hovering ? "drop-shadow(0 0 12px rgba(201,168,76,1))" : "drop-shadow(0 0 6px rgba(201,168,76,0.6))" }}>
-        <path d="M2 16 L 4 6 L 9 11 L 12 3 L 15 11 L 20 6 L 22 16 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-        <rect x="2" y="16" width="20" height="2" fill="#e8c86a" rx="1" />
+        style={{ filter: hovering ? `drop-shadow(0 0 12px ${p.glowStrong})` : `drop-shadow(0 0 6px ${p.glow})` }}>
+        <path d="M2 16 L 4 6 L 9 11 L 12 3 L 15 11 L 20 6 L 22 16 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+        <rect x="2" y="16" width="20" height="2" fill={p.bright} rx="1" />
       </svg>
     </div>
   );
@@ -96,6 +175,7 @@ function BucsCoin() {
   const ref = useRef<HTMLDivElement>(null);
   const [burst, setBurst] = useState(0);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setBurst((b) => b + 1);
@@ -103,7 +183,7 @@ function BucsCoin() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       {/* Gentle float + slow shine, no frantic spin */}
       <div className="animate-[float_3s_ease-in-out_infinite]">
         <img
@@ -114,14 +194,14 @@ function BucsCoin() {
             width: hovering ? 48 : 40,
             height: hovering ? 48 : 40,
             filter: hovering
-              ? "drop-shadow(0 0 16px rgba(232,200,106,1))"
-              : "drop-shadow(0 0 8px rgba(201,168,76,0.7))",
+              ? `drop-shadow(0 0 16px ${p.glowStrong}) brightness(0.94)`
+              : `drop-shadow(0 0 8px ${p.glow}) brightness(0.96)`,
           }}
           draggable={false}
         />
       </div>
       {burst > 0 && (
-        <span key={burst} className="absolute -top-3 left-1/2 -translate-x-1/2 text-[#e8c86a] text-base font-black animate-ping">+$</span>
+        <span key={burst} className="absolute -top-3 left-1/2 -translate-x-1/2 text-base font-black animate-ping" style={{ color: p.text }}>+$</span>
       )}
     </div>
   );
@@ -131,10 +211,12 @@ function GoldTrail() {
   const dotRef = useRef<HTMLDivElement>(null);
   const [trail, setTrail] = useState<{ x: number; y: number; id: number }[]>([]);
   const idRef = useRef(0);
+  const pal = useCursorPalette();
+  // Main dot glides via the shared smooth-follow hook; this listener only samples trail points.
+  useMousePosition(dotRef);
   useEffect(() => {
     let last = 0;
     const move = (e: MouseEvent) => {
-      if (dotRef.current) dotRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
       const now = Date.now();
       if (now - last > 30) {
         last = now;
@@ -149,11 +231,11 @@ function GoldTrail() {
   return (
     <>
       {trail.map((p) => (
-        <div key={p.id} className="fixed top-0 left-0 z-[9998] pointer-events-none w-2 h-2 rounded-full bg-[#e8c86a]/60"
-          style={{ transform: `translate(${p.x}px, ${p.y}px)`, marginLeft: -4, marginTop: -4 }} />
+        <div key={p.id} className="fixed top-0 left-0 z-[2147483646] pointer-events-none w-2 h-2 rounded-full"
+          style={{ transform: `translate(${p.x}px, ${p.y}px)`, marginLeft: -4, marginTop: -4, backgroundColor: pal.bright, opacity: 0.6 }} />
       ))}
-      <div ref={dotRef} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -4, marginTop: -4 }}>
-        <div className="w-2 h-2 rounded-full bg-[#C9A84C] shadow-[0_0_10px_rgba(201,168,76,1)]" />
+      <div ref={dotRef} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: pal.fill, boxShadow: `0 0 10px ${pal.glowStrong}` }} />
       </div>
     </>
   );
@@ -162,6 +244,7 @@ function GoldTrail() {
 function Lightning() {
   const ref = useRef<HTMLDivElement>(null);
   const [strike, setStrike] = useState(0);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setStrike((s) => s + 1);
@@ -169,12 +252,12 @@ function Lightning() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -10, marginTop: -14 }}>
-      <svg width="24" height="32" viewBox="0 0 24 32" className="drop-shadow-[0_0_10px_rgba(232,200,106,0.9)]">
-        <path d="M13 2 L 5 18 L 11 18 L 9 30 L 19 12 L 13 12 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="24" height="32" viewBox="0 0 24 32" style={{ filter: `drop-shadow(0 0 10px ${p.glowStrong})` }}>
+        <path d="M13 2 L 5 18 L 11 18 L 9 30 L 19 12 L 13 12 Z" fill={p.bright} stroke={p.fill} strokeWidth="1" />
       </svg>
       {strike > 0 && (
-        <span key={strike} className="absolute top-0 left-1/2 -translate-x-1/2 text-[#e8c86a] animate-ping">⚡</span>
+        <span key={strike} className="absolute top-0 left-1/2 -translate-x-1/2 animate-ping" style={{ color: p.text }}>⚡</span>
       )}
     </div>
   );
@@ -185,6 +268,7 @@ function PixelShark() {
   const [chomp, setChomp] = useState(0);
   const [bubbles, setBubbles] = useState<number[]>([]);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
 
   // Bubble trail — spawn a bubble every 400ms while moving
@@ -210,13 +294,15 @@ function PixelShark() {
   }, []);
 
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -24, marginTop: -24 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       {/* Bubble trail */}
       {bubbles.map((id) => (
         <span
           key={id}
-          className="absolute left-1/2 top-1/2 w-2 h-2 rounded-sm bg-[#e8c86a]/60"
+          className="absolute left-1/2 top-1/2 w-2 h-2 rounded-sm"
           style={{
+            backgroundColor: p.bright,
+            opacity: 0.6,
             animation: "bubble-float 1.2s ease-out forwards",
             imageRendering: "pixelated",
           }}
@@ -231,7 +317,7 @@ function PixelShark() {
           width: hovering ? 56 : 48,
           height: hovering ? 56 : 48,
           imageRendering: "pixelated",
-          filter: "drop-shadow(0 0 10px rgba(201,168,76,0.7))",
+          filter: `drop-shadow(0 0 10px ${p.glow}) brightness(0.96)`,
           animation: "shark-swim 2s ease-in-out infinite",
           transition: "width 0.15s, height 0.15s",
         }}
@@ -241,8 +327,9 @@ function PixelShark() {
       {chomp > 0 && (
         <span
           key={chomp}
-          className="absolute -top-6 left-1/2 -translate-x-1/2 text-[#e8c86a] font-black text-sm whitespace-nowrap"
+          className="absolute -top-6 left-1/2 -translate-x-1/2 font-black text-sm whitespace-nowrap"
           style={{
+            color: p.text,
             fontFamily: "monospace",
             textShadow: "2px 2px 0 #000",
             animation: "chomp-pop 0.5s ease-out forwards",
@@ -275,6 +362,7 @@ function PixelShark() {
 function Flame() {
   const ref = useRef<HTMLDivElement>(null);
   const [flare, setFlare] = useState(false);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setFlare(true);
@@ -287,17 +375,17 @@ function Flame() {
     };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -16 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       <svg width="28" height="36" viewBox="0 0 24 32"
         className="animate-[flicker_0.5s_ease-in-out_infinite]"
         style={{
           transform: flare ? "scale(1.3)" : "scale(1)",
-          filter: "drop-shadow(0 0 10px rgba(232,200,106,0.9))",
+          filter: `drop-shadow(0 0 10px ${p.glowStrong})`,
         }}>
         <path d="M12 2 C 8 10, 4 14, 4 22 C 4 28, 8 30, 12 30 C 16 30, 20 28, 20 22 C 20 14, 16 10, 12 2 Z"
-          fill="#e8c86a" stroke="#C9A84C" strokeWidth="1" />
+          fill={p.bright} stroke={p.edge} strokeWidth="1" />
         <path d="M12 12 C 10 16, 8 18, 8 23 C 8 26, 10 27, 12 27 C 14 27, 16 26, 16 23 C 16 18, 14 16, 12 12 Z"
-          fill="#C9A84C" opacity="0.8" />
+          fill={p.fill} opacity="0.8" />
       </svg>
     </div>
   );
@@ -306,18 +394,19 @@ function Flame() {
 function Diamond() {
   const ref = useRef<HTMLDivElement>(null);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -14 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       <svg width="32" height="28" viewBox="0 0 32 28"
         className="transition-all duration-150"
         style={{
           transform: hovering ? "scale(1.2) rotate(5deg)" : "scale(1)",
           filter: hovering
-            ? "drop-shadow(0 0 14px rgba(232,200,106,1))"
-            : "drop-shadow(0 0 8px rgba(201,168,76,0.7))",
+            ? `drop-shadow(0 0 14px ${p.glowStrong})`
+            : `drop-shadow(0 0 8px ${p.glow})`,
         }}>
-        <path d="M8 4 L 24 4 L 30 12 L 16 26 L 2 12 Z" fill="#e8c86a" stroke="#C9A84C" strokeWidth="1.5" />
+        <path d="M8 4 L 24 4 L 30 12 L 16 26 L 2 12 Z" fill={p.bright} stroke={p.edge} strokeWidth="1.5" />
         <path d="M8 4 L 12 12 L 16 4 M16 4 L 20 12 L 24 4 M2 12 L 30 12" stroke="#fff" strokeWidth="0.8" opacity="0.6" fill="none" />
       </svg>
     </div>
@@ -327,6 +416,7 @@ function Diamond() {
 function Star() {
   const ref = useRef<HTMLDivElement>(null);
   const [burst, setBurst] = useState(0);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setBurst((b) => b + 1);
@@ -334,15 +424,15 @@ function Star() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -18 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       <svg width="36" height="36" viewBox="0 0 24 24"
         className="animate-spin"
-        style={{ animationDuration: "4s", filter: "drop-shadow(0 0 10px rgba(201,168,76,0.8))" }}>
+        style={{ animationDuration: "4s", filter: `drop-shadow(0 0 10px ${p.glowStrong})` }}>
         <path d="M12 2 L 14.5 8.5 L 21 9 L 16 13.5 L 17.5 20 L 12 16.5 L 6.5 20 L 8 13.5 L 3 9 L 9.5 8.5 Z"
-          fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+          fill={p.fill} stroke={p.edge} strokeWidth="1" />
       </svg>
       {burst > 0 && (
-        <span key={burst} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#e8c86a] animate-ping">✦</span>
+        <span key={burst} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-ping" style={{ color: p.text }}>✦</span>
       )}
     </div>
   );
@@ -352,6 +442,7 @@ function MoneyBag() {
   const ref = useRef<HTMLDivElement>(null);
   const [rain, setRain] = useState(0);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setRain((r) => r + 1);
@@ -359,17 +450,17 @@ function MoneyBag() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
       <svg width={hovering ? 44 : 36} height={hovering ? 48 : 40} viewBox="0 0 36 40"
         className="transition-all duration-150"
-        style={{ filter: "drop-shadow(0 0 10px rgba(201,168,76,0.8))" }}>
-        <path d="M14 4 C 14 2, 22 2, 22 4 L 20 10 L 16 10 Z" fill="#8a6d2b" />
+        style={{ filter: `drop-shadow(0 0 10px ${p.glowStrong})` }}>
+        <path d="M14 4 C 14 2, 22 2, 22 4 L 20 10 L 16 10 Z" fill={p.ink} />
         <path d="M10 10 L 26 10 L 32 28 C 32 34, 26 38, 18 38 C 10 38, 4 34, 4 28 Z"
-          fill="#C9A84C" stroke="#e8c86a" strokeWidth="1.5" />
+          fill={p.fill} stroke={p.edge} strokeWidth="1.5" />
         <text x="18" y="28" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#000">$</text>
       </svg>
       {rain > 0 && (
-        <span key={rain} className="absolute -top-2 left-1/2 -translate-x-1/2 text-[#e8c86a] text-sm font-bold animate-bounce">$$$</span>
+        <span key={rain} className="absolute -top-2 left-1/2 -translate-x-1/2 text-sm font-bold animate-bounce" style={{ color: p.text }}>$$$</span>
       )}
     </div>
   );
@@ -379,6 +470,7 @@ function MoneyBag() {
 function GoldKey() {
   const ref = useRef<HTMLDivElement>(null);
   const [turn, setTurn] = useState(false);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setTurn(true);
@@ -388,10 +480,10 @@ function GoldKey() {
     return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -8, marginTop: -8 }}>
-      <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: turn ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s", filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <circle cx="10" cy="10" r="6" fill="none" stroke="#C9A84C" strokeWidth="3" />
-        <path d="M14 14 L 26 26 M22 22 L 26 18 M24 24 L 28 20" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: turn ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s", filter: `drop-shadow(0 0 8px ${p.glowStrong})` }}>
+        <circle cx="10" cy="10" r="6" fill="none" stroke={p.fill} strokeWidth="3" />
+        <path d="M14 14 L 26 26 M22 22 L 26 18 M24 24 L 28 20" stroke={p.fill} strokeWidth="3" strokeLinecap="round" />
       </svg>
     </div>
   );
@@ -400,14 +492,15 @@ function GoldKey() {
 function Trophy() {
   const ref = useRef<HTMLDivElement>(null);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
-      <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: hovering ? "drop-shadow(0 0 14px rgba(232,200,106,1))" : "drop-shadow(0 0 8px rgba(201,168,76,0.7))", transform: hovering ? "scale(1.15)" : "scale(1)", transition: "all 0.15s" }}>
-        <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-        <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke="#C9A84C" strokeWidth="2" />
-        <rect x="14" y="18" width="4" height="8" fill="#C9A84C" />
-        <rect x="10" y="26" width="12" height="4" rx="2" fill="#e8c86a" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: hovering ? `drop-shadow(0 0 14px ${p.glowStrong})` : `drop-shadow(0 0 8px ${p.glow})`, transform: hovering ? "scale(1.15)" : "scale(1)", transition: "all 0.15s" }}>
+        <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+        <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke={p.fill} strokeWidth="2" />
+        <rect x="14" y="18" width="4" height="8" fill={p.fill} />
+        <rect x="10" y="26" width="12" height="4" rx="2" fill={p.bright} />
       </svg>
     </div>
   );
@@ -416,6 +509,7 @@ function Trophy() {
 function Rocket() {
   const ref = useRef<HTMLDivElement>(null);
   const [launch, setLaunch] = useState(0);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setLaunch(l => l + 1);
@@ -423,11 +517,11 @@ function Rocket() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -18 }}>
-      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-        <circle cx="14" cy="12" r="3" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1" />
-        <path d="M8 24 L 4 30 L 10 28 M20 24 L 24 30 L 18 28" fill="#e8c86a" opacity="0.8" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: `drop-shadow(0 0 8px ${p.glowStrong})` }}>
+        <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+        <circle cx="14" cy="12" r="3" fill="#0a0a0a" stroke={p.edge} strokeWidth="1" />
+        <path d="M8 24 L 4 30 L 10 28 M20 24 L 24 30 L 18 28" fill={p.bright} opacity="0.8" />
       </svg>
       {launch > 0 && <span key={launch} className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-orange-400 animate-ping">🔥</span>}
     </div>
@@ -437,13 +531,14 @@ function Rocket() {
 function Crosshair() {
   const ref = useRef<HTMLDivElement>(null);
   const hovering = useHoverState();
+  const p = useCursorPalette();
   useMousePosition(ref);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
-      <svg width="40" height="40" viewBox="0 0 40 40" style={{ transform: hovering ? "scale(0.85)" : "scale(1)", transition: "transform 0.15s", filter: "drop-shadow(0 0 6px rgba(201,168,76,0.8))" }}>
-        <circle cx="20" cy="20" r="14" fill="none" stroke="#C9A84C" strokeWidth="2" />
-        <circle cx="20" cy="20" r="3" fill="#e8c86a" />
-        <path d="M20 2 L 20 10 M20 30 L 20 38 M2 20 L 10 20 M30 20 L 38 20" stroke="#C9A84C" strokeWidth="2" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="40" height="40" viewBox="0 0 40 40" style={{ transform: hovering ? "scale(0.85)" : "scale(1)", transition: "transform 0.15s", filter: `drop-shadow(0 0 6px ${p.glowStrong})` }}>
+        <circle cx="20" cy="20" r="14" fill="none" stroke={p.fill} strokeWidth="2" />
+        <circle cx="20" cy="20" r="3" fill={p.bright} />
+        <path d="M20 2 L 20 10 M20 30 L 20 38 M2 20 L 10 20 M30 20 L 38 20" stroke={p.fill} strokeWidth="2" />
       </svg>
     </div>
   );
@@ -452,6 +547,7 @@ function Crosshair() {
 function MusicNote() {
   const ref = useRef<HTMLDivElement>(null);
   const [play, setPlay] = useState(0);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setPlay(p => p + 1);
@@ -459,13 +555,13 @@ function MusicNote() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -12, marginTop: -16 }}>
-      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <path d="M10 28 C 10 32, 4 32, 4 28 C 4 24, 10 24, 10 28 M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
-        <ellipse cx="7" cy="28" rx="5" ry="4" fill="#C9A84C" />
-        <ellipse cx="21" cy="24" rx="5" ry="4" fill="#e8c86a" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: `drop-shadow(0 0 8px ${p.glowStrong})` }}>
+        <path d="M10 28 C 10 32, 4 32, 4 28 C 4 24, 10 24, 10 28 M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke={p.fill} strokeWidth="3" strokeLinecap="round" />
+        <ellipse cx="7" cy="28" rx="5" ry="4" fill={p.fill} />
+        <ellipse cx="21" cy="24" rx="5" ry="4" fill={p.bright} />
       </svg>
-      {play > 0 && <span key={play} className="absolute -top-2 -right-2 text-[#e8c86a] animate-ping">♪</span>}
+      {play > 0 && <span key={play} className="absolute -top-2 -right-2 animate-ping" style={{ color: p.text }}>♪</span>}
     </div>
   );
 }
@@ -473,6 +569,7 @@ function MusicNote() {
 function Gamepad() {
   const ref = useRef<HTMLDivElement>(null);
   const [rumble, setRumble] = useState(false);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setRumble(true);
@@ -482,9 +579,9 @@ function Gamepad() {
     return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -14 }}>
-      <svg width="40" height="28" viewBox="0 0 40 28" className={rumble ? "animate-bounce" : ""} style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="40" height="28" viewBox="0 0 40 28" className={rumble ? "animate-bounce" : ""} style={{ filter: `drop-shadow(0 0 8px ${p.glowStrong})` }}>
+        <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill={p.fill} stroke={p.edge} strokeWidth="1" />
         <circle cx="12" cy="12" r="2" fill="#0a0a0a" /><circle cx="28" cy="12" r="2" fill="#0a0a0a" />
         <path d="M18 10 L 22 10 M20 8 L 20 12" stroke="#0a0a0a" strokeWidth="1.5" />
       </svg>
@@ -496,6 +593,7 @@ function Gamepad() {
 function Camera() {
   const ref = useRef<HTMLDivElement>(null);
   const [flash, setFlash] = useState(0);
+  const p = useCursorPalette();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setFlash(f => f + 1);
@@ -503,11 +601,11 @@ function Camera() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -14 }}>
-      <svg width="36" height="28" viewBox="0 0 36 28" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <rect x="2" y="8" width="32" height="18" rx="4" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
-        <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1.5" />
-        <rect x="12" y="4" width="8" height="4" rx="1" fill="#8a6d2b" />
+    <div ref={ref} className="fixed top-0 left-0 z-[2147483647] pointer-events-none" style={{ translate: "-50% -50%" }}>
+      <svg width="36" height="28" viewBox="0 0 36 28" style={{ filter: `drop-shadow(0 0 8px ${p.glowStrong})` }}>
+        <rect x="2" y="8" width="32" height="18" rx="4" fill={p.fill} stroke={p.edge} strokeWidth="1" />
+        <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke={p.edge} strokeWidth="1.5" />
+        <rect x="12" y="4" width="8" height="4" rx="1" fill={p.ink} />
       </svg>
       {flash > 0 && <div key={flash} className="absolute inset-0 bg-white/80 rounded animate-ping" />}
     </div>
@@ -521,7 +619,10 @@ export function CustomCursor() {
   const [hideNative, setHideNative] = useState(false);
 
   useEffect(() => {
-    const shouldHide = !isTouch;
+    // In fullscreen, the custom cursor renders behind the fullscreen top layer —
+    // hiding the native cursor there leaves the user with NO cursor. Keep native.
+    const isFullscreen = !!document.fullscreenElement;
+    const shouldHide = !isTouch && !isFullscreen;
     setHideNative(shouldHide);
     if (shouldHide) {
       const style = document.createElement("style");
@@ -531,9 +632,34 @@ export function CustomCursor() {
       return () => {
         document.getElementById("bdv-custom-cursor-hide")?.remove();
       };
+    } else {
+      document.getElementById("bdv-custom-cursor-hide")?.remove();
     }
     return undefined;
   }, [cursor, isTouch]);
+
+  /* Re-evaluate when entering/exiting fullscreen. */
+  useEffect(() => {
+    const onFsChange = () => {
+      const isFs = !!document.fullscreenElement;
+      if (isFs) {
+        document.getElementById("bdv-custom-cursor-hide")?.remove();
+        setHideNative(false);
+      } else if (!isTouch) {
+        // Re-apply the hide when leaving fullscreen (non-touch only).
+        const existing = document.getElementById("bdv-custom-cursor-hide");
+        if (!existing) {
+          const style = document.createElement("style");
+          style.id = "bdv-custom-cursor-hide";
+          style.textContent = "* { cursor: none !important; }";
+          document.head.appendChild(style);
+        }
+        setHideNative(true);
+      }
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, [isTouch]);
 
   if (isTouch || !hideNative) return null;
 

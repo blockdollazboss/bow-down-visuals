@@ -2,10 +2,11 @@ import { Router } from "express";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, OutOfCreditsError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
+import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../lib/email";
 
 const router = Router();
 
@@ -142,6 +143,9 @@ router.get("/teams/:id", requireAuth, async (req, res) => {
       return;
     }
     const members = await db.select().from(teamMembersTable).where(eq(teamMembersTable.teamId, teamId));
+    // Privacy note (intentional): team members can see each other's emails,
+    // like Slack/Discord workspaces. Membership is consensual — you only see
+    // emails of teams you joined or were invited to.
     res.json({ team, members, myRole: membership.role });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: detail failed");
@@ -222,7 +226,32 @@ router.post("/teams/:id/invite", requireAuth, async (req, res) => {
       .insert(teamMembersTable)
       .values({ teamId, userId: inviteeId, email, role, status: "invited" })
       .returning();
-    res.json({ member });
+
+    /* ── Invite notification email — best-effort, fail-open. The invite is
+       recorded regardless; the invitee can also find it under their teams. */
+    let emailSent = false;
+    if (isEmailConfigured()) {
+      const [teamRow] = await db
+        .select({ name: teamsTable.name })
+        .from(teamsTable)
+        .where(eq(teamsTable.id, teamId))
+        .limit(1);
+      const teamName = teamRow?.name ?? "a team";
+      const html = emailShell(
+        `You're invited to "${escapeHtml(teamName)}" 👑`,
+        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:#d4af37;">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Sign in with <strong>${escapeHtml(email)}</strong> to accept — your pending invite is waiting under Teams.</p>
+<a href="${baseUrlForEmail()}/teams" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">View my invite</a>`
+      );
+      const result = await sendEmail({
+        to: email,
+        subject: `Team invite — "${teamName}" on Bow Down Visuals`,
+        html,
+      });
+      emailSent = result.sent;
+    }
+
+    res.json({ member, emailSent });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: invite failed");
     res.status(500).json({ error: "Failed to send invite." });
@@ -412,8 +441,16 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       }
     }
     // Deduct from personal Supabase balance first (throws 402 if short).
+    // P0-23: routed through chargeCredits for the strict ledger entry +
+    // idempotency. personalOnly: the fund source must be personal, never
+    // the team pool being funded.
     try {
-      await deductCredits(userId, amount);
+      await chargeCredits(
+        userId,
+        amount,
+        { action: "team_fund_debit" },
+        { idempotencyKey: idempotencyKey ? `team-fund-debit:${idempotencyKey}` : null, personalOnly: true },
+      );
     } catch (e) {
       if (e instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits" });

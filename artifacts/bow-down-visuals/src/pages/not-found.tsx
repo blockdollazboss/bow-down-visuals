@@ -1,13 +1,14 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, FolderOpen } from "lucide-react";
-import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
-  usePageTitle("Page Not Found", "This page doesn't exist — let's get you back to creating.");
-  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
-  const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
+  const { t } = useTranslation();
+  usePageTitle(t("notFound.pageTitle"), t("notFound.pageDescription"));
+  /* Shark portrait is theme-aware via ThemedSharkImage. */
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-black text-white px-5">
       {/* Ambient gold glow */}
@@ -16,27 +17,21 @@ export default function NotFound() {
       </div>
 
       <div className="relative z-10 text-center max-w-md mx-auto">
-        <img
-          ref={logoTilt}
-          src={`${import.meta.env.BASE_URL}logo-static.webp`}
-          alt="Bow Down Visuals"
-          className="h-24 w-auto mx-auto mb-8"
-        />
+        <ThemedSharkImage className="h-48 w-48 rounded-3xl object-cover mx-auto mb-8 border-2 border-primary/30 shadow-[0_0_60px_rgba(201,168,76,0.3)]" />
         <p className="text-primary text-sm font-bold tracking-[0.3em] uppercase mb-4">404</p>
-        <h1 className="text-4xl font-black text-white mb-3">Lost in the vault?</h1>
+        <h1 className="text-4xl font-black text-white mb-3">{t("notFound.heading")}</h1>
         <p className="text-white/50 leading-relaxed mb-8">
-          This page drifted off the map. The crown's still here, though —
-          let's get you back to the studio.
+          {t("notFound.description")}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/">
             <Button className="gold-glow font-bold gap-2">
-              <Home className="h-4 w-4" /> Back to Home
+              <Home className="h-4 w-4" /> {t("notFound.backToHome")}
             </Button>
           </Link>
           <Link href="/my-projects">
             <Button variant="outline" className="border-white/10 text-white/70 hover:text-white hover:bg-white/5 font-semibold gap-2">
-              <FolderOpen className="h-4 w-4" /> My Projects
+              <FolderOpen className="h-4 w-4" /> {t("notFound.myProjects")}
             </Button>
           </Link>
         </div>

@@ -1,6 +1,7 @@
 import { sql, eq } from "drizzle-orm";
 import { db, hourlyCrateClaimsTable } from "@workspace/db";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { recordRetentionClaim } from "./claim-records";
 import { logger } from "./logger";
 
 /* ── Daily login bonus + hourly jackpot wheel ─────────────────────────────
@@ -61,7 +62,8 @@ export async function ensureBonusColumns(): Promise<void> {
       ADD COLUMN IF NOT EXISTS bonus_credits_expires_at TIMESTAMPTZ NULL,
       ADD COLUMN IF NOT EXISTS daily_streak INTEGER NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS last_daily_claim DATE NULL,
-      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL;
+      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL,
+      ADD COLUMN IF NOT EXISTS streak_freezes INTEGER NOT NULL DEFAULT 0;
     CREATE TABLE IF NOT EXISTS wheel_spins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL,
@@ -87,6 +89,8 @@ export interface BonusProfile {
   dailyStreak: number;
   lastDailyClaim: string | null;
   lastWheelSpin: string | null;
+  /** Non-VB streak-freeze tokens banked on the profile (earned at 7-day milestone claims). */
+  streakFreezes: number;
 }
 
 export async function getBonusProfile(userId: string): Promise<BonusProfile> {
@@ -94,7 +98,7 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("profiles")
-    .select("bonus_credits, bonus_credits_expires_at, daily_streak, last_daily_claim, last_wheel_spin")
+    .select("bonus_credits, bonus_credits_expires_at, daily_streak, last_daily_claim, last_wheel_spin, streak_freezes")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(`Failed to read bonus profile: ${error.message}`);
@@ -104,6 +108,7 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
     dailyStreak: (data as any)?.daily_streak ?? 0,
     lastDailyClaim: (data as any)?.last_daily_claim ?? null,
     lastWheelSpin: (data as any)?.last_wheel_spin ?? null,
+    streakFreezes: (data as any)?.streak_freezes ?? 0,
   };
 }
 
@@ -113,7 +118,45 @@ export async function addBonusCredits(userId: string, amount: number): Promise<v
   await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const expiresAt = new Date(Date.now() + BONUS_EXPIRY_HOURS * 3600 * 1000).toISOString();
-  // Read-modify-write: add to existing bonus pool, refresh expiry.
+
+  // Atomic path: the increment_bonus_credits RPC (supabase/migrations/0063)
+  // increments the pool and refreshes expiry inside Postgres — no
+  // lost-update window when two grants land concurrently (daily claim +
+  // hourly crate). Mirrors addCreditsAtomic / migration 0062 for `credits`.
+  try {
+    const { data, error } = await admin.rpc("increment_bonus_credits", {
+      p_user_id: userId,
+      p_amount: amount,
+      p_expires_at: expiresAt,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.new_bonus_credits !== "number") {
+      throw new Error(`increment_bonus_credits returned unexpected shape: ${JSON.stringify(data)}`);
+    }
+    logger.info({ userId, amount }, "[bonus] granted bonus credits");
+    return;
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    const haystack = `${e?.code ?? ""} ${e?.message ?? ""}`;
+    // Function missing (migration 0063 not yet run in Supabase) — fall back
+    // to read-modify-write with a loud warning, like addCreditsAtomic (0062).
+    // Any other failure propagates: it is NOT masked by the fallback.
+    if (
+      !/function.*increment_bonus_credits.*does not exist/i.test(haystack) &&
+      !/PGRST202/i.test(haystack)
+    ) {
+      throw err instanceof Error
+        ? err
+        : new Error(`Failed to grant bonus credits: ${e?.message ?? "unknown error"}`);
+    }
+    logger.warn(
+      { userId, amount },
+      "addBonusCredits: increment_bonus_credits RPC missing (run supabase/migrations/0063) — falling back to read-modify-write",
+    );
+  }
+
+  // Read-modify-write fallback: add to existing bonus pool, refresh expiry.
   const { data: profile } = await admin
     .from("profiles")
     .select("bonus_credits")
@@ -143,12 +186,23 @@ export function utcYesterday(): string {
   return new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 }
 
+/** UTC date of the day before yesterday (two days ago). */
+export function utcDayBeforeYesterday(): string {
+  return new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+}
+
 export interface DailyClaimResult {
   claimed: boolean;
   reason?: "already_claimed";
   streak?: number;
   bonusGranted?: number;
   isStreakMilestone?: boolean;
+  /** True when a banked streak freeze was auto-consumed to save the streak. */
+  freezeUsed?: boolean;
+  /** True when this claim earned a new streak freeze (7-day milestone). */
+  freezesEarned?: boolean;
+  /** Freeze balance after this claim. */
+  streakFreezes?: number;
 }
 
 export async function claimDailyBonus(userId: string): Promise<DailyClaimResult> {
@@ -158,7 +212,7 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
 
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("daily_streak, last_daily_claim")
+    .select("daily_streak, last_daily_claim, streak_freezes")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(`Failed to read streak: ${error.message}`);
@@ -169,20 +223,85 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
   }
 
   const prevStreak = (profile as any)?.daily_streak ?? 0;
-  // Consecutive day → increment; otherwise reset to 1.
-  const newStreak = lastClaim === utcYesterday() ? prevStreak + 1 : 1;
+  const currentFreezes = (profile as any)?.streak_freezes ?? 0;
+
+  let newStreak: number;
+  let freezeUsed = false;
+  if (lastClaim === utcYesterday()) {
+    // Consecutive day → increment.
+    newStreak = prevStreak + 1;
+  } else if (lastClaim === utcDayBeforeYesterday() && currentFreezes > 0) {
+    // Exactly one day missed and a freeze is banked → auto-consume it to
+    // preserve the streak (Duolingo-style). Longer gaps reset regardless.
+    newStreak = prevStreak + 1;
+    freezeUsed = true;
+  } else {
+    newStreak = 1;
+  }
+
   const isMilestone = newStreak % 7 === 0;
   const bonus = isMilestone ? DAILY_BONUS_STREAK_7 : DAILY_BONUS_BASE;
 
-  const { error: updateErr } = await admin
+  // Streak freezes are non-VB tokens: +1 at every 7-day milestone claim.
+  const freezesEarned = isMilestone;
+  const newFreezes = currentFreezes - (freezeUsed ? 1 : 0) + (freezesEarned ? 1 : 0);
+
+  // Claim atomically: the UPDATE only lands while last_daily_claim is
+  // still not today. Concurrent claims serialize on the profile row —
+  // exactly one matches the predicate and proceeds to grant; the other
+  // updates zero rows. (The read-check above alone raced: two requests
+  // could both read yesterday's date and both grant.)
+  const { data: claimedRows, error: updateErr } = await admin
     .from("profiles")
-    .update({ daily_streak: newStreak, last_daily_claim: today })
-    .eq("id", userId);
+    .update({ daily_streak: newStreak, last_daily_claim: today, streak_freezes: newFreezes })
+    .eq("id", userId)
+    .or(`last_daily_claim.is.null,last_daily_claim.neq.${today}`)
+    .select("id");
   if (updateErr) throw new Error(`Failed to update streak: ${updateErr.message}`);
+  if (!claimedRows || claimedRows.length === 0) {
+    // Lost the race — or the profile row doesn't exist yet. A fresh
+    // re-read showing today's date means another claim won.
+    const { data: nowRow } = await admin
+      .from("profiles")
+      .select("last_daily_claim")
+      .eq("id", userId)
+      .maybeSingle();
+    if (nowRow && (nowRow as any).last_daily_claim === today) {
+      return { claimed: false, reason: "already_claimed" };
+    }
+    if (nowRow) throw new Error("Failed to update streak: claim matched no rows");
+    // No profile row at all (brand-new user): create it carrying the
+    // claim. The PK is the guard — a concurrent creator loses with a
+    // 23505 and is reported as already claimed.
+    const { error: insertErr } = await admin
+      .from("profiles")
+      .insert({ id: userId, daily_streak: newStreak, last_daily_claim: today, streak_freezes: newFreezes });
+    if (insertErr) {
+      if ((insertErr as { code?: string }).code === "23505") {
+        return { claimed: false, reason: "already_claimed" };
+      }
+      throw new Error(`Failed to update streak: ${insertErr.message}`);
+    }
+  }
 
   await addBonusCredits(userId, bonus);
-  logger.info({ userId, newStreak, bonus }, "[bonus] daily claim");
-  return { claimed: true, streak: newStreak, bonusGranted: bonus, isStreakMilestone: isMilestone };
+  /* Per-claim record (migration 0165): profiles.last_daily_claim
+     keeps only the claim DATE — this row stamps the amount paid,
+     for the Treasury ledger. It sits after the grant lands, at the
+     one point both claim paths (guard UPDATE / fresh-profile
+     INSERT) converge; the already-claimed returns above never
+     reach here, and a failed grant recorded nothing. */
+  await recordRetentionClaim({ userId, kind: "daily_drop", refKey: today, amountVb: bonus });
+  logger.info({ userId, newStreak, bonus, freezeUsed, freezesEarned }, "[bonus] daily claim");
+  return {
+    claimed: true,
+    streak: newStreak,
+    bonusGranted: bonus,
+    isStreakMilestone: isMilestone,
+    freezeUsed,
+    freezesEarned,
+    streakFreezes: newFreezes,
+  };
 }
 
 export interface WheelSpinResult {
@@ -276,6 +395,21 @@ export async function hourlyCrateStatus(): Promise<{ available: boolean; nextHou
   return { available: true, nextHourIn: secondsUntilNextHour() };
 }
 
+/**
+ * The cooldown the client should show for the crate, derived from the
+ * REAL claim state: the global hourly crate in hourly_crate_claims.
+ * Available → 0 (ready). Claimed → seconds until the next hour's crate.
+ *
+ * This replaces the old /bonus/status derivation from
+ * profiles.last_wheel_spin: the routed spin endpoint
+ * (POST /bonus/spin-wheel → claimHourlyCrate) never writes that column
+ * — its only writer, spinWheel(), is not routed — so the status said
+ * "ready" for the whole hour after a claim and the crate 429'd on tap.
+ */
+export function crateCooldownSeconds(crate: { available: boolean; nextHourIn: number }): number {
+  return crate.available ? 0 : crate.nextHourIn;
+}
+
 /** Weighted random segment selection. */
 export function pickWheelSegment(random: number = Math.random()): WheelSegment {
   const total = WHEEL_SEGMENTS.reduce((s, seg) => s + seg.weight, 0);
@@ -310,11 +444,42 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
   const segment = pickWheelSegment();
   const now = new Date().toISOString();
 
-  const { error: updateErr } = await admin
+  // Claim the spin atomically: the UPDATE only lands while the stored
+  // last_wheel_spin is still at/past the cooldown cutoff. Concurrent
+  // spins serialize on the profile row — exactly one proceeds to grant.
+  // (The read-check above alone raced: two requests could both read an
+  // old spin time and both pay out on a single cooldown.)
+  const cutoff = new Date(Date.now() - WHEEL_COOLDOWN_MINUTES * 60 * 1000).toISOString();
+  const { data: spinRows, error: updateErr } = await admin
     .from("profiles")
     .update({ last_wheel_spin: now })
-    .eq("id", userId);
+    .eq("id", userId)
+    .or(`last_wheel_spin.is.null,last_wheel_spin.lte.${cutoff}`)
+    .select("id");
   if (updateErr) throw new Error(`Failed to record spin: ${updateErr.message}`);
+  if (!spinRows || spinRows.length === 0) {
+    // Lost the race — or no profile row yet. Re-read to tell them apart.
+    const { data: nowRow } = await admin
+      .from("profiles")
+      .select("last_wheel_spin")
+      .eq("id", userId)
+      .maybeSingle();
+    if (nowRow) {
+      const fresh = (nowRow as any).last_wheel_spin as string | null;
+      return { spun: false, reason: "cooldown", cooldownSeconds: wheelCooldownSeconds(fresh) };
+    }
+    // Brand-new user with no profile row: create it carrying the stamp;
+    // the PK guards a concurrent creator (23505 → treat as cooldown).
+    const { error: insertErr } = await admin
+      .from("profiles")
+      .insert({ id: userId, last_wheel_spin: now });
+    if (insertErr) {
+      if ((insertErr as { code?: string }).code === "23505") {
+        return { spun: false, reason: "cooldown", cooldownSeconds: WHEEL_COOLDOWN_MINUTES * 60 };
+      }
+      throw new Error(`Failed to record spin: ${insertErr.message}`);
+    }
+  }
 
   await addBonusCredits(userId, segment.credits);
 

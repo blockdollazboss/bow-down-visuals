@@ -87,3 +87,48 @@ export async function addCreditsToProfile(
   logger.info({ userId, oldCredits, newCredits }, "addCreditsToProfile: credits updated successfully");
   return { oldCredits, newCredits, created: false };
 }
+
+/**
+ * Atomically add credits to a user's profile via the increment_credits RPC
+ * (UPDATE ... SET credits = credits + n inside Postgres). Eliminates the
+ * lost-update race in addCreditsToProfile()'s read-modify-write when two
+ * grants land concurrently (e.g. Stripe webhook racing dashboard verify).
+ *
+ * Falls back to addCreditsToProfile() if the RPC is missing (migration
+ * 0062 not yet run in Supabase) — logged as a warning so the gap is visible.
+ *
+ * Returns { oldCredits, newCredits, created }. Throws on failure.
+ */
+export async function addCreditsAtomic(
+  userId: string,
+  creditsToAdd: number,
+): Promise<{ oldCredits: number; newCredits: number; created: boolean }> {
+  const admin = getSupabaseAdmin();
+  try {
+    const { data, error } = await admin.rpc("increment_credits", {
+      p_user_id: userId,
+      p_amount: creditsToAdd,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.new_credits !== "number") {
+      throw new Error(`increment_credits returned unexpected shape: ${JSON.stringify(data)}`);
+    }
+    logger.info(
+      { userId, creditsToAdd, oldCredits: row.old_credits, newCredits: row.new_credits },
+      "addCreditsAtomic: credits incremented atomically via RPC",
+    );
+    return { oldCredits: row.old_credits ?? 0, newCredits: row.new_credits, created: false };
+  } catch (err) {
+    const msg = (err as { message?: string })?.message ?? "";
+    // Function missing (migration not run yet) — fall back with a loud warning.
+    if (/function.*increment_credits.*does not exist/i.test(msg) || /PGRST202/i.test(msg)) {
+      logger.warn(
+        { userId, creditsToAdd },
+        "addCreditsAtomic: increment_credits RPC missing (run supabase/migrations/0062) — falling back to read-modify-write",
+      );
+      return addCreditsToProfile(userId, creditsToAdd);
+    }
+    throw err;
+  }
+}

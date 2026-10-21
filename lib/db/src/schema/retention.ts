@@ -1,0 +1,151 @@
+import { pgTable, uuid, text, integer, boolean, timestamp, date, primaryKey, uniqueIndex, index } from "drizzle-orm/pg-core";
+
+/** Consecutive days the user created something (not just logged in). */
+export const creationStreaksTable = pgTable("creation_streaks", {
+  userId:            uuid("user_id").primaryKey(),
+  currentStreak:     integer("current_streak").notNull().default(0),
+  longestStreak:     integer("longest_streak").notNull().default(0),
+  lastCreationDate:  date("last_creation_date"),
+  milestonesClaimed: integer("milestones_claimed").array().notNull().default([]),
+  updatedAt:         timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export type CreationStreak = typeof creationStreaksTable.$inferSelect;
+
+/** Surprise Visual Bucs drops. Unclaimed drops expire after 48h. */
+export const sharkDropsTable = pgTable("shark_drops", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull(),
+  amount:    integer("amount").notNull(),
+  droppedAt: timestamp("dropped_at", { withTimezone: true }).defaultNow().notNull(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+export type SharkDrop = typeof sharkDropsTable.$inferSelect;
+
+/** Weekly quest progress per user. */
+export const questProgressTable = pgTable("quest_progress", {
+  userId:    uuid("user_id").notNull(),
+  questKey:  text("quest_key").notNull(),
+  weekStart: date("week_start").notNull(),
+  progress:  integer("progress").notNull().default(0),
+  target:    integer("target").notNull().default(1),
+  completed: boolean("completed").notNull().default(false),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.questKey, t.weekStart] })]);
+export type QuestProgress = typeof questProgressTable.$inferSelect;
+
+/** Daily Quest Trio progress per user (World Ring 4, migration
+ *  0150). One row per member × daily quest × palace day (the UTC
+ *  date): the trio's defs rotate by day (lib/daily-quests in the
+ *  API), so the day is the scope. Claims stamp reward_vb + marks
+ *  at claim time — the row records what was actually paid; the VB
+ *  draws from the shared weekly quest pool (lib/quest-pool counts
+ *  these rows as its fourth source). */
+export const dailyQuestProgressTable = pgTable("daily_quest_progress", {
+  userId:    uuid("user_id").notNull(),
+  questKey:  text("quest_key").notNull(),
+  dayDate:   date("day_date").notNull(),
+  progress:  integer("progress").notNull().default(0),
+  target:    integer("target").notNull().default(1),
+  completed: boolean("completed").notNull().default(false),
+  rewardVb:  integer("reward_vb"),
+  marks:     integer("marks").notNull().default(0),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.questKey, t.dayDate] })]);
+export type DailyQuestProgress = typeof dailyQuestProgressTable.$inferSelect;
+
+/** Which creator levels were already celebrated (fires once per level-up). */
+export const levelCelebrationsTable = pgTable("level_celebrations", {
+  userId:       uuid("user_id").notNull(),
+  level:        integer("level").notNull(),
+  celebratedAt: timestamp("celebrated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.level] })]);
+export type LevelCelebration = typeof levelCelebrationsTable.$inferSelect;
+
+/** Share-to-earn viral loop: one row per share action (native / X / WhatsApp /
+ * copy link) posted via POST /api/shares. Feeds the "Viral Sharer" weekly
+ * quest (quest_progress rows with quest_key = 'viral-sharer'). */
+export const shareEventsTable = pgTable("share_events", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  userId:      uuid("user_id").notNull(),
+  contentType: text("content_type").notNull(),
+  contentId:   text("content_id"),
+  channel:     text("channel").notNull(),
+  createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+// Indexes (user_id, created_at) live in migration 0117.
+export type ShareEvent = typeof shareEventsTable.$inferSelect;
+
+/** User-facing on/off for every retention system. */
+export const retentionPrefsTable = pgTable("retention_prefs", {
+  userId:                   uuid("user_id").primaryKey(),
+  dailyDropEnabled:         boolean("daily_drop_enabled").notNull().default(true),
+  creationStreaksEnabled:   boolean("creation_streaks_enabled").notNull().default(true),
+  sharkDropsEnabled:        boolean("shark_drops_enabled").notNull().default(true),
+  levelCelebrationsEnabled: boolean("level_celebrations_enabled").notNull().default(true),
+  leaderboardVisible:       boolean("leaderboard_visible").notNull().default(true),
+  awayDigestEnabled:        boolean("away_digest_enabled").notNull().default(true),
+  questsEnabled:            boolean("quests_enabled").notNull().default(true),
+  /* Login-streaks-with-teeth pack (2026-10-11): owned by prefs plumbing,
+     consumed by sibling systems. */
+  loginStreaksEnabled:      boolean("login_streaks_enabled").notNull().default(true),
+  shareToEarnEnabled:       boolean("share_to_earn_enabled").notNull().default(true),
+  contestsEnabled:          boolean("contests_enabled").notNull().default(true),
+  fomoFeedEnabled:          boolean("fomo_feed_enabled").notNull().default(true),
+  updatedAt:                timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export type RetentionPrefs = typeof retentionPrefsTable.$inferSelect;
+
+/** Last-seen tracking for "while you were away" digests. */
+export const userActivityTable = pgTable("user_activity", {
+  userId:     uuid("user_id").primaryKey(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:  timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export type UserActivity = typeof userActivityTable.$inferSelect;
+
+/** Daily Drop catalogue archives (STACK-20 R2 item #18, migration
+ *  0161). The drop catalogue itself is code — DAILY_DROPS in the
+ *  API's retention-drops routes, 30 curated template defs rotating
+ *  by UTC day. This table is only the member's own tidy-up state:
+ *  one row per drop key archived out of their active catalogue
+ *  list. Presence = archived; deleting the row un-archives.
+ *  Owner-scoped by construction — the routes only ever read and
+ *  write the caller's rows. */
+export const dailyDropArchivesTable = pgTable("daily_drop_archives", {
+  userId:     uuid("user_id").notNull(),
+  dropKey:    text("drop_key").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.dropKey] })]);
+export type DailyDropArchive = typeof dailyDropArchivesTable.$inferSelect;
+
+/** Per-claim records for the two retention awards that used to keep
+ *  no row (migration 0165, closing the Treasury ledger's documented
+ *  exclusion): Daily Drop bonus claims — whose only trace was
+ *  profiles.last_daily_claim, a single date — and creation-streak
+ *  milestone claims — creation_streaks.milestones_claimed records
+ *  WHICH milestones, never WHEN. One row per claim, written by the
+ *  claim path itself (lib/claim-records in the API) in the same
+ *  request, right after the award pays; a failed award writes
+ *  nothing. ref_key is the claim's own identity: the UTC day
+ *  (YYYY-MM-DD) for a daily drop, the milestone day count (as text)
+ *  for a streak milestone — the same identity each claim's own
+ *  guard enforces, so the unique (user_id, kind, ref_key) index
+ *  makes a replayed write a no-op. amount_vb is the amount the
+ *  award actually paid, stamped at claim time. Claims from before
+ *  0165 have no rows here and are NOT backfilled. */
+export const retentionClaimRecordsTable = pgTable("retention_claim_records", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  userId:    uuid("user_id").notNull(),
+  /** 'daily_drop' | 'streak_milestone' (CHECK in migration 0165). */
+  kind:      text("kind").notNull(),
+  refKey:    text("ref_key").notNull(),
+  amountVb:  integer("amount_vb").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("retention_claim_records_user_kind_ref_uidx").on(t.userId, t.kind, t.refKey),
+  index("retention_claim_records_user_created_idx").on(t.userId, t.createdAt),
+]);
+export type RetentionClaimRecord = typeof retentionClaimRecordsTable.$inferSelect;

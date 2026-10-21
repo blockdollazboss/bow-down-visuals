@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import type { HubProjectPayload } from "./hub-projects";
 
 /* ─── Hub project state ─────────────────────────────────────────────────────
    The heart of the One Unified Creation Hub: a single project ("Midnight
@@ -9,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
    a fast cache, and synced to the account (PUT /api/hub/project, debounced)
    when signed in — so the project follows the user across devices. */
 
-export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "other";
+export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "hum" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
 export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "podcast" | "release" | "grow" | "influencer" | "ai-influencer" | "ai-producer" | "clipper" | "monetize" | "learn" | "business";
@@ -35,6 +36,9 @@ export interface HubProject {
   concept: string;
   /** Template key the concept came from (for per-step preloaded hints). */
   templateKey: string | null;
+  /** "Made with Bow Down Visuals" credit toggle — project-level, default ON.
+      Flows into every export/share output from every tool in the project. */
+  attribution: boolean;
 }
 
 export type HubSyncStatus = "local" | "syncing" | "synced" | "error";
@@ -46,21 +50,38 @@ interface HubProjectContextValue {
   setProjectType: (type: HubProjectType) => void;
   setProjectConcept: (concept: string) => void;
   setTemplateKey: (key: string | null) => void;
+  /** "Made with Bow Down Visuals" credit toggle (default ON). */
+  setAttribution: (on: boolean) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
   removeAsset: (id: string) => void;
+  renameAsset: (id: string, label: string) => void;
   newProject: () => void;
+  /** Make a server payload (GET /api/hub/projects/:id) the active
+      project — the projects browser's "Open in the Hub" for any row,
+      not just the most recent. */
+  adoptProject: (payload: HubProjectPayload) => void;
   hasKind: (kind: HubAssetKind) => boolean;
   latestOfKind: (kind: HubAssetKind) => HubAsset | undefined;
   /** Step keys the user manually marked done/skipped (no-asset steps). Per project type. */
   stepDones: string[];
   markStepDone: (key: string) => void;
   clearStepDones: (type: HubProjectType) => void;
+  /** Creator's referral code (null when signed out / not loaded yet).
+      Shared outputs carry ?ref=CODE so they become earning loops. */
+  referralCode: string | null;
+  /** Clean share link for the project (or a specific asset): origin + ?ref=CODE.
+      Falls back to plain origin when no code is loaded yet. */
+  getShareLink: (assetLabel?: string) => string;
 }
 
 const HubProjectContext = createContext<HubProjectContextValue | null>(null);
 
 const STORAGE_KEY = "bdv-hub-project-v1";
 const DONES_KEY = "bdv-hub-step-dones-v1";
+
+/** The valid project types, for validating a server payload being
+    adopted (an unknown stored type degrades to "song"). */
+const HUB_PROJECT_TYPES: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"];
 
 function freshProject(): HubProject {
   return {
@@ -71,6 +92,7 @@ function freshProject(): HubProject {
     updatedAt: Date.now(),
     concept: "",
     templateKey: null,
+    attribution: true,
   };
 }
 
@@ -91,6 +113,7 @@ function loadProject(): HubProject {
       type: validTypes.includes(parsed.type) ? parsed.type : "song",
       concept: typeof parsed.concept === "string" ? parsed.concept : "",
       templateKey: typeof parsed.templateKey === "string" ? parsed.templateKey : null,
+      attribution: typeof parsed.attribution === "boolean" ? parsed.attribution : true,
     };
   } catch {
     return freshProject();
@@ -111,9 +134,49 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
   const [project, setProject] = useState<HubProject>(loadProject);
   const [dones, setDones] = useState<Record<string, string[]>>(loadDones);
   const [syncStatus, setSyncStatus] = useState<HubSyncStatus>("local");
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const { user, getAccessToken } = useAuth();
   const projectRef = useRef(project);
   const lastSyncedJson = useRef<string | null>(null);
+
+  /* Load the creator's referral code once per sign-in so shared project
+     outputs can carry ?ref=CODE — every share becomes an earning loop. */
+  useEffect(() => {
+    if (!user) {
+      setReferralCode(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/referrals/me", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { code?: string };
+        if (!cancelled && typeof data.code === "string" && data.code) {
+          setReferralCode(data.code);
+        }
+      } catch {
+        /* referral code is a nice-to-have — share links still work without it */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /** Clean, SEO-friendly share link for the project: site root carrying the
+      creator's referral code so every shared output is an earning loop. */
+  const getShareLink = useCallback(
+    (_assetLabel?: string) => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      return referralCode ? `${origin}/?ref=${encodeURIComponent(referralCode)}` : `${origin}/`;
+    },
+    [referralCode]
+  );
 
   useEffect(() => {
     projectRef.current = project;
@@ -132,6 +195,21 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     }
   }, [dones]);
 
+  /* The active character's vault id, read from the same device storage
+     the ActiveArtist context writes (this provider wraps that one, so
+     the hook isn't reachable from here). Null when no character is in
+     front of the camera. */
+  function activeArtistVaultId(): string | null {
+    try {
+      const raw = localStorage.getItem("bdv_active_artist");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { id?: unknown };
+      return typeof parsed?.id === "string" && /^[0-9a-f-]{36}$/i.test(parsed.id) ? parsed.id : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function pushProject(snapshot: HubProject, token: string | null) {
     const res = await fetch("/api/hub/project", {
       method: "PUT",
@@ -140,11 +218,18 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
+        /* 0142: the local project id is the upsert key — this local
+           project always maps to its own server row, and a fresh local
+           project starts a fresh row (multiple projects per user). */
+        clientRef: snapshot.id,
         name: snapshot.name,
         type: snapshot.type,
         assets: snapshot.assets,
         concept: snapshot.concept,
         templateKey: snapshot.templateKey,
+        attribution: snapshot.attribution,
+        /* The character this project is being made as (0142, G8). */
+        artistVaultId: activeArtistVaultId(),
         updatedAt: snapshot.updatedAt,
       }),
     });
@@ -167,19 +252,22 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         });
         if (!res.ok) throw new Error(`hub pull failed: ${res.status}`);
         const data = (await res.json()) as {
-          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; updatedAt: number } | null;
+          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; attribution?: boolean; clientRef?: string | null; updatedAt: number } | null;
         };
         if (cancelled) return;
         const local = projectRef.current;
         const server = data.project;
         if (server && server.updatedAt > local.updatedAt) {
           const adopted: HubProject = {
-            id: local.id,
+            /* Adopt the server's client ref too (0142): future saves
+               keep landing on the same server row, on any device. */
+            id: server.clientRef ?? local.id,
             name: server.name,
             type: ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
             assets: Array.isArray(server.assets) ? server.assets : [],
             concept: typeof server.concept === "string" ? server.concept : "",
             templateKey: typeof server.templateKey === "string" ? server.templateKey : null,
+            attribution: typeof server.attribution === "boolean" ? server.attribution : true,
             updatedAt: server.updatedAt,
           };
           lastSyncedJson.current = JSON.stringify(adopted);
@@ -238,6 +326,10 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject((p) => ({ ...p, templateKey: key, updatedAt: Date.now() }));
   }, []);
 
+  const setAttribution = useCallback((on: boolean) => {
+    setProject((p) => ({ ...p, attribution: on, updatedAt: Date.now() }));
+  }, []);
+
   const addAsset = useCallback((asset: Omit<HubAsset, "id" | "createdAt">) => {
     const full: HubAsset = {
       ...asset,
@@ -256,8 +348,44 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject((p) => ({ ...p, assets: p.assets.filter((a) => a.id !== id), updatedAt: Date.now() }));
   }, []);
 
+  const renameAsset = useCallback((id: string, label: string) => {
+    const trimmed = label.trim().slice(0, 120);
+    if (!trimmed) return;
+    setProject((p) => ({
+      ...p,
+      assets: p.assets.map((a) => (a.id === id ? { ...a, label: trimmed } : a)),
+      updatedAt: Date.now(),
+    }));
+  }, []);
+
   const newProject = useCallback(() => {
     setProject(freshProject());
+  }, []);
+
+  /* Adopt a server payload as the active project (wave-2 #3 — opening
+     an older project from the projects browser). Mirrors the initial
+     pull's adoption: the server's client ref becomes the local id so
+     future saves keep landing on THIS row; a legacy row without one
+     adopts under its server row id, which the save rail's client-ref
+     claim binds on first write. The adopted state IS the server's
+     state, so it is marked synced — the debounced push must not echo
+     it straight back. */
+  const adoptProject = useCallback((payload: HubProjectPayload) => {
+    const adopted: HubProject = {
+      id: payload.clientRef ?? payload.id,
+      name: payload.name,
+      type: HUB_PROJECT_TYPES.includes(payload.type as HubProjectType)
+        ? (payload.type as HubProjectType)
+        : "song",
+      assets: payload.assets,
+      concept: payload.concept,
+      templateKey: payload.templateKey,
+      attribution: payload.attribution,
+      updatedAt: payload.updatedAt,
+    };
+    lastSyncedJson.current = JSON.stringify(adopted);
+    setProject(adopted);
+    setSyncStatus("synced");
   }, []);
 
   const markStepDone = useCallback((key: string) => {
@@ -287,16 +415,21 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       setProjectType,
       setProjectConcept,
       setTemplateKey,
+      setAttribution,
       addAsset,
       removeAsset,
+      renameAsset,
       newProject,
+      adoptProject,
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
       stepDones: dones[project.type] ?? [],
       markStepDone,
       clearStepDones,
+      referralCode,
+      getShareLink,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones]);
+  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, renameAsset, newProject, adoptProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -315,14 +448,19 @@ export function useHubProject(): HubProjectContextValue {
       setProjectType: () => {},
       setProjectConcept: () => {},
       setTemplateKey: () => {},
+      setAttribution: () => {},
       addAsset: noopAsset,
       removeAsset: () => {},
+      renameAsset: () => {},
       newProject: () => {},
+      adoptProject: () => {},
       hasKind: () => false,
       latestOfKind: () => undefined,
       stepDones: [],
       markStepDone: () => {},
       clearStepDones: () => {},
+      referralCode: null,
+      getShareLink: () => (typeof window !== "undefined" ? window.location.origin + "/" : "/"),
     };
   }
   return ctx;

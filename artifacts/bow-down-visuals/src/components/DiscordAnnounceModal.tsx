@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X, Loader2, Send, CheckCircle2, Bell, BellOff, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 
 /* Announce-to-Discord composer. Opens from FinalVideoExport after a
@@ -19,6 +20,7 @@ interface Props {
 export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Props) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const isLight = useIsLightTheme();
   const [title, setTitle] = useState(videoTitle || "Fresh heat just dropped 🔥");
   const [mentionEveryone, setMentionEveryone] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -79,7 +81,7 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
       <div className="w-full max-w-md rounded-2xl border border-amber-400/25 bg-[#0a0a0a] p-6 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-black">
-            <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">
+            <span className={isLight ? "bg-gradient-to-r from-[#7A5A12] via-[#C9A84C] to-[#7A5A12] bg-clip-text text-transparent" : "bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent"}>
               Announce to Discord
             </span>
           </h3>

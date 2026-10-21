@@ -178,9 +178,9 @@ export function AutoClipSection({
     if (!hasContent || isRunning) return;
     const ranges = pickClipRanges(readyScenes, projectDurationSec, clipCount, effectiveClipLen);
     if (ranges.length === 0) return;
-    // One confirmation for the whole batch (4 credits per clip export)
+    // One confirmation for the whole batch (400 Visual Bucs per clip export)
     const okToSpend = await confirmSpend({
-      cost: ranges.length * 4,
+      cost: ranges.length * 400,
       feature: `Auto Clip ${ranges.length} Promo Clip${ranges.length !== 1 ? "s" : ""}`,
       details: "Renders vertical promo clips through the full export pipeline.",
     });

@@ -6,22 +6,31 @@ import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
+import { QRLoginButton } from "@/components/QRLogin";
+import { PasskeyLoginButton } from "@/components/Passkey";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
+import { mediaUrl } from "@/lib/media-cdn";
+import { postLoginPath } from "@/lib/auth-next";
+import { safeNextPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
-const schema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
 export default function Login() {
-  usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
+  const { t } = useTranslation();
+  // Theme-aware video: light theme gets the sign-in action video, dark gets the drone video
+  const isLight = useIsLightTheme();
+  const schema = z.object({
+    email: z.string().email(t("auth.invalidEmail")),
+    password: z.string().min(6, t("auth.passwordMinLength")),
+  });
+  usePageTitle(t("auth.pageTitle"), t("auth.pageDescription"));
   const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +42,36 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  /* Session-expiry notice: the self-healing session guard lands here with
+   * ?session=expired after clearing a dead session. Show a friendly banner
+   * once, then clean the param so a refresh doesn't re-show it. */
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("session") === "expired") {
+        setSessionExpired(true);
+        params.delete("session");
+        const clean = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
+        window.history.replaceState({}, "", clean);
+      }
+    } catch {
+      /* ignore — notice is a nicety, never a blocker */
+    }
+  }, []);
+
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
 
+  /* Post-login destination: a valid ?next= (sent by the pre-save and
+     unlock pages) wins; everyone else lands on the default. This also
+     covers the QR/passkey buttons — they reload the page on success,
+     and this effect is what fires once the session lands. */
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/choose-artist");
+      setLocation(postLoginPath(window.location.search));
     }
   }, [authLoading, user, setLocation]);
 
@@ -53,7 +84,7 @@ export default function Login() {
       setError(error);
       setLoading(false);
     } else {
-      setLocation("/choose-artist");
+      setLocation(postLoginPath(window.location.search));
     }
   }
 
@@ -78,18 +109,33 @@ export default function Login() {
     setResetError(null);
     try {
       const client = getSupabase();
-      const { error } = await client.auth.resetPasswordForEmail(email);
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        /* Land on our reset page so the user can actually set the new
+         * password — without this the recovery link drops them on the site
+         * root with no way to finish the reset. */
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       if (error) {
         setResetError(error.message);
       } else {
         setResetSent(true);
       }
     } catch (err) {
-      setResetError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setResetError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
     } finally {
       setResetLoading(false);
     }
   }
+
+  /* The "Sign up free" link carries a valid ?next= across, so a guest
+   * bounced from a locked page who creates an account instead of
+   * signing in still lands where they were headed — signup honors
+   * the same return path from there (audit §4.2, signup parity). */
+  const signupHref = (() => {
+    if (typeof window === "undefined") return "/signup";
+    const next = safeNextPath(window.location.search);
+    return next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
+  })();
 
   const bgVideoRef = useRef<HTMLVideoElement>(null);
   const scrubTarget = useRef<number | null>(null);
@@ -126,15 +172,29 @@ export default function Login() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Drone video background — scrub through with your mouse, full brightness */}
+      {/* Session-expiry notice from the self-healing session guard */}
+      {sessionExpired && (
+        <div className="relative z-20 mx-auto mt-4 max-w-md px-4 animate-[fadeSlideIn_0.5s_ease-out_both]">
+          <p className={`rounded-xl border px-4 py-3 text-center text-sm font-medium backdrop-blur-xl ${
+            isLight
+              ? "border-[#c9a84c]/50 bg-[#FDFBF5]/90 text-[#6b5320]"
+              : "border-[#c9a84c]/40 bg-[#171208]/70 text-[#e8c86a]"
+          }`}>
+            Your session expired — please sign in again.
+          </p>
+        </div>
+      )}
+      {/* Drone video background — scrub through with your mouse, full brightness.
+          Theme-aware: light gets the sign-in action video, dark gets the drone footage. */}
       <video
         ref={bgVideoRef}
-        src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+        key={isLight ? "light" : "dark"}
+        src={mediaUrl(isLight ? "videos/signin-light-action.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"
         disablePictureInPicture
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />
@@ -143,7 +203,7 @@ export default function Login() {
       <main className="flex-1 relative z-10" aria-hidden />
 
       {/* Bottom sign-in toolbar */}
-      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-[#171208]/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-4xl">
           {(error || form.formState.errors.email || form.formState.errors.password) && !resetMode && (
             <p className="mb-2 text-center text-xs text-destructive">
@@ -153,13 +213,13 @@ export default function Login() {
           {resetMode ? (
             resetSent ? (
               <div className="flex items-center justify-center gap-3 text-sm">
-                <p className="text-white/80">Check your email for a reset link.</p>
+                <p className="text-white/80">{t("auth.resetLinkSent")}</p>
                 <button
                   type="button"
                   onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
                   className="text-[#c9a84c] hover:underline font-medium"
                 >
-                  Back to sign in
+                  {t("auth.backToSignIn")}
                 </button>
               </div>
             ) : (
@@ -167,24 +227,24 @@ export default function Login() {
                 <Input
                   data-testid="input-reset-email"
                   type="email"
-                  aria-label="Email"
-                  placeholder="you@example.com"
-                  className="h-9 w-56 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  aria-label={t("auth.email")}
+                  placeholder={t("auth.emailPlaceholder")}
+                  className={`h-9 w-56 text-sm focus:border-[#c9a84c]/60 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   value={resetEmail}
                   onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
                 />
                 {resetError && <span className="text-xs text-destructive">{resetError}</span>}
                 <Button data-testid="btn-reset-password" type="submit" className="h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> : "Send Reset Link"}
+                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.sending")}</> : t("auth.sendResetLink")}
                 </Button>
                 <button type="button" onClick={() => setResetMode(false)} className="text-xs text-white/50 hover:text-white hover:underline font-medium">
-                  Back to sign in
+                  {t("auth.backToSignIn")}
                 </button>
               </form>
             )
           ) : (
             <>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap md:flex-nowrap">
                 {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
                 <div className="relative h-11 w-28 shrink-0">
                   <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
@@ -196,27 +256,29 @@ export default function Login() {
                   loadingProvider={socialLoading}
                   mode="signin"
                 />
+                <QRLoginButton onSuccess={() => window.location.reload()} />
+                <PasskeyLoginButton onSuccess={() => window.location.reload()} />
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"
                   type="email"
-                  aria-label="Email"
-                  placeholder="Email"
+                  aria-label={t("auth.email")}
+                  placeholder={t("auth.email")}
                   autoComplete="email"
-                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("email")}
                 />
                 <Input
                   data-testid="input-password"
                   type="password"
-                  aria-label="Password"
-                  placeholder="Password"
+                  aria-label={t("auth.password")}
+                  placeholder={t("auth.password")}
                   autoComplete="current-password"
-                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("password")}
                 />
                 <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
-                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.signingIn")}</> : t("auth.signInButton")}
                 </Button>
               </form>
               <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45">
@@ -225,13 +287,13 @@ export default function Login() {
                   onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
                   className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
                 >
-                  Forgot password?
+                  {t("auth.forgotPassword")}
                 </button>
                 <span aria-hidden className="text-white/20">·</span>
                 <span>
-                  Don't have an account?{" "}
-                  <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
-                    Sign up free
+                  {t("auth.noAccount")}{" "}
+                  <Link href={signupHref} className="text-[#c9a84c] hover:underline font-medium">
+                    {t("auth.signUpFree")}
                   </Link>
                 </span>
               </div>

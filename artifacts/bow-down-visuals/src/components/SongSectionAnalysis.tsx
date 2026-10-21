@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import type { SongStructure } from "@/lib/song-structure";
 import { Clock, Zap, Play, BarChart2 } from "lucide-react";
 
@@ -24,8 +25,9 @@ interface Props {
 }
 
 export function SongSectionAnalysis({ analysis, compact = false }: Props) {
+  const isLight = useIsLightTheme();
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden" data-testid="song-section-analysis">
+    <div className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="song-section-analysis">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.05] bg-white/[0.01]">
         <div className="h-7 w-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">

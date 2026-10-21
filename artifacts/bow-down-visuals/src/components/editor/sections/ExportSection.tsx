@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
+import { getDefaultWatermarkUrl } from "@/lib/watermark";
+import { buildSchedulerHref } from "@/lib/scheduler-handoff";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket } from "lucide-react";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
+import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
@@ -17,7 +22,10 @@ import {
   type ExportRangeMode,
   type AudioVideoSyncMode,
 } from "@/lib/editor-settings";
+import { resolveLanes, lanesToOverlayItems } from "@/lib/timeline-lanes";
+import { buildExportDucking } from "@/lib/ducking";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   hasRenderedVideoAudioExport,
@@ -50,6 +58,10 @@ interface ExportSectionProps {
   projectDurationSec?: number;
   /** Simple mode: hide advanced export controls (range, watermark, debug, audio options). */
   isSimple?: boolean;
+  /** Project/song title — prefills caption handoffs in the multi-ratio card. */
+  topic?: string;
+  /** Graded clip URL handed off from the LUT Import card — pre-loads the multi-ratio card. */
+  handoffVideoUrl?: string | null;
 }
 
 /* ── Export range helpers ──────────────────────────────── */
@@ -143,12 +155,12 @@ function RangeSlider({
       />
       {/* start thumb */}
       <div
-        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/60 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
         style={{ left: `${startPct}%` }}
       />
       {/* end thumb */}
       <div
-        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/60 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
         style={{ left: `${endPct}%` }}
       />
     </div>
@@ -199,6 +211,7 @@ const AUDIO_SOURCE_OPTIONS: AudioSourceOption[] = [
 const RESOLUTION_OPTIONS: { value: ExportResolution; label: string }[] = [
   { value: "720p", label: "720p" },
   { value: "1080p", label: "1080p" },
+  { value: "4k", label: "4K Masterpiece" },
 ];
 function isSourceAvailable(
   source: VideoAudioSource,
@@ -212,11 +225,13 @@ function isSourceAvailable(
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
-  onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false,
+  onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false, topic,
+  handoffVideoUrl = null,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
   const { getAccessToken, profile } = useAuth();
+  const isLight = useIsLightTheme();
 
   /* ── Watermark gate: only monthly subscribers can remove it.
      Free users always export with the watermark.
@@ -231,6 +246,10 @@ export function ExportSection({
   const [wmUploading, setWmUploading] = useState(false);
   const [wmError, setWmError] = useState<string | null>(null);
   const wmInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Finished export URL — captured from FinalVideoExport so the
+     multi-ratio card can render straight from the finished video. ── */
+  const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
 
   /* ── Audio reachability probe ── */
   const [audioReachable,  setAudioReachable ] = useState<boolean | null>(null);
@@ -367,11 +386,11 @@ export function ExportSection({
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-black text-white group-hover:text-primary transition-colors">
-              Auto AI Edit Whole Video {settings.aiEdit?.applied ? "✓ Applied" : "→ Effects Tab"}
+              Turbo Edit Whole Video {settings.aiEdit?.applied ? "✓ Applied" : "→ Effects Tab"}
             </p>
             <p className="text-[10px] text-white/35 mt-0.5">
               {settings.aiEdit?.applied
-                ? `AI edit is active — style: ${settings.aiEdit.style}`
+                ? `Edit is active — style: ${settings.aiEdit.style}`
                 : "Let AI plan transitions, effects, color grade & caption style before export"}
             </p>
           </div>
@@ -400,7 +419,7 @@ export function ExportSection({
                       ? "border-primary/50 bg-primary/10"
                       : avail
                       ? "border-white/10 bg-white/[0.03] hover:border-white/20"
-                      : "border-white/[0.12] bg-white/[0.02] opacity-60 hover:border-white/12"
+                      : "border-white/10 bg-white/[0.02] opacity-60 hover:border-white/10"
                   }`}
                 >
                   <span className={`shrink-0 ${active ? "text-primary" : avail ? "text-white/50" : "text-white/45"}`}>
@@ -514,7 +533,7 @@ export function ExportSection({
           </p>
 
           {/* Song start point — nudges where in the track playback begins */}
-          <div className="mt-4 pt-3 border-t border-white/[0.12] space-y-2">
+          <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
             <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">
               Song start point
             </label>
@@ -532,7 +551,7 @@ export function ExportSection({
                   setStartSecInput(fmtTimecode(v));
                 }}
                 placeholder="00:00.000"
-                className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
               />
               <button
                 type="button"
@@ -554,14 +573,14 @@ export function ExportSection({
                     setVideoAudio({ startSec: 0 });
                     setStartSecInput(fmtTimecode(0));
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-white/50 text-[10px] font-bold transition-colors shrink-0"
+                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/50 text-[10px] font-bold transition-colors shrink-0"
                 >
                   Reset
                 </button>
               )}
             </div>
             {va.startSec > 0 && (
-              <p className="text-[11px] text-cyan-300/80 leading-relaxed">
+              <p className={`text-[11px] leading-relaxed ${isLight ? "text-cyan-800" : "text-cyan-300/80"}`}>
                 Playback (preview + export) will begin {fmtTimecode(va.startSec)} into the track.
               </p>
             )}
@@ -607,6 +626,33 @@ export function ExportSection({
               />
             </Field>
           )}
+          {/* ── Platform presets: one tap sets format + resolution ── */}
+          <div>
+            <p className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Platform presets</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { name: "YouTube", format: "16:9", resolution: "1080p", desc: "1920×1080 landscape" },
+                { name: "TikTok", format: "9:16", resolution: "1080p", desc: "1080×1920 vertical" },
+                { name: "Reels / Shorts", format: "9:16", resolution: "1080p", desc: "1080×1920 vertical" },
+                { name: "Instagram", format: "4:5", resolution: "1080p", desc: "1080×1350 portrait" },
+              ].map((p) => {
+                const active = (settings.export.format ?? "9:16") === p.format;
+                return (
+                  <button key={p.name} type="button"
+                    onClick={() => setExport({ format: p.format as typeof settings.export.format, resolution: p.resolution as typeof settings.export.resolution })}
+                    title={`${p.name}: ${p.desc}`}
+                    className={`px-2 py-2 rounded-lg text-left border transition-colors ${
+                      active
+                        ? "border-[#C9A84C]/50 bg-[#C9A84C]/10"
+                        : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                    }`}>
+                    <span className={`block text-[11px] font-black ${active ? "text-[#C9A84C]" : "text-white/80"}`}>{p.name}</span>
+                    <span className="block text-[9px] text-white/40 font-mono">{p.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </EditorCard>
 
@@ -661,7 +707,7 @@ export function ExportSection({
               ) : (
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03]">
                   <img
-                    src={`${import.meta.env.BASE_URL}bdv-watermark.webp`}
+                    src={getDefaultWatermarkUrl(isLight)}
                     alt="Bow Down Visuals watermark"
                     className="h-10 w-auto max-w-[120px] object-contain"
                   />
@@ -688,7 +734,7 @@ export function ExportSection({
                   type="button"
                   onClick={() => wmInputRef.current?.click()}
                   disabled={wmUploading}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06] text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/5 text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
                 >
                   {wmUploading
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -732,13 +778,13 @@ export function ExportSection({
           ] as [string, boolean, string][]).map(([label, ok, value]) => (
             <div key={label} className="flex items-center justify-between gap-2 text-[11px]">
               <span className="text-white/50 font-mono">{label}:</span>
-              <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400/70" : "text-white/45"}`}>
+              <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400" : "text-white/45"}`}>
                 {value}
               </span>
             </div>
           ))}
           {!resolvedAudioUrl && (
-            <p className="text-[11px] text-amber-400/70 pt-1 border-t border-white/[0.12] leading-relaxed">
+            <p className="text-[11px] text-amber-400 pt-1 border-t border-white/10 leading-relaxed">
               {!rawProjectAudioUrl && ms.stems.length === 0
                 ? "No audio saved to project. Upload your song in the Music tab, then return here."
                 : !rawProjectAudioUrl && ms.stems.length > 0
@@ -793,7 +839,7 @@ export function ExportSection({
                       setCustomStartInput(fmtTimecode(v));
                     }}
                     placeholder="00:00.000"
-                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
                   />
                   <button
                     type="button"
@@ -824,7 +870,7 @@ export function ExportSection({
                       setCustomEndInput(fmtTimecode(v));
                     }}
                     placeholder="00:10.000"
-                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/5"
                   />
                   <button
                     type="button"
@@ -895,10 +941,10 @@ export function ExportSection({
 
           {/* Range status debug */}
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-white/[0.12] bg-white/[0.03]">
+            <div className="px-3 py-1.5 border-b border-white/10 bg-white/[0.03]">
               <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Range Status</p>
             </div>
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-white/5">
               {([
                 ["export range mode",         null,          rangeMode],
                 ["start time",               startValid,     fmtTimecode(resolved.startSec)],
@@ -963,10 +1009,19 @@ export function ExportSection({
           return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
         })}
         clipProTools={scenes.filter(isExportSelected).map((s) => {
-          const pt = getClipEdit(settings, s.id).proTools;
-          return proToolsActive(pt) ? pt : null;
+          const clip = getClipEdit(settings, s.id);
+          const pt = clip.proTools;
+          // Keyframes ride inside the pro-tools payload (server reads
+          // proTools.keyframes) — before Stack 5 they were never sent, so
+          // keyframed clips silently exported without their animation.
+          const withKeyframes = clip.keyframes?.length
+            ? { ...pt, keyframes: clip.keyframes }
+            : pt;
+          return proToolsActive(pt) || clip.keyframes?.length ? withKeyframes : null;
         })}
-        overlayItems={settings.overlayItems}
+        overlayItems={lanesToOverlayItems(resolveLanes({ lanes: settings.lanes, overlayItems: settings.overlayItems, captionLines: settings.captions.lines }))}
+        adjustmentItems={resolveLanes({ lanes: settings.lanes, overlayItems: settings.overlayItems, captionLines: settings.captions.lines }).adjustmentLane.items.map((it) => ({ startSec: it.startSec, endSec: it.endSec, colorCorrection: it.colorCorrection, effects: it.effects }))}
+        ducking={buildExportDucking(settings.audioDucking)}
         timelineLayout={settings.timelineLayout}
         clipEdits={settings.clips}
         audioDurationSec={settings.musicStudio.videoAudio.duration}
@@ -975,7 +1030,65 @@ export function ExportSection({
         overlays={settings.overlays}
         overlayIntensity={settings.overlayIntensity}
         fitMode={settings.export.fitMode ?? "fill"}
+        isSubscriber={isSubscriber}
+        onExportComplete={(record) => setFinalVideoUrl(record.final_video_url ?? null)}
       />
+
+      {/* ── Export for all platforms: one-click multi-ratio export ── */}
+      <MultiRatioExportCard videoUrl={finalVideoUrl ?? handoffVideoUrl} topic={topic} />
+
+      {/* ── Publish to my profile: finished export → /publish prefilled ── */}
+      {finalVideoUrl && (
+        <PublishToProfileButton
+          type="video"
+          category="video"
+          videoUrl={finalVideoUrl}
+          title={topic || "My video"}
+          from="/video-editor"
+          fromLabel="Visual Vibes"
+        />
+      )}
+
+      {/* ── Enter a live challenge: export → publish → auto-entered ── */}
+      {finalVideoUrl && (
+        <ChallengeEnterStrip
+          videoUrl={finalVideoUrl}
+          title={topic || "My video"}
+          from="/video-editor"
+          fromLabel="Visual Vibes"
+        />
+      )}
+
+      {/* ── Post-export handoffs: carry the project into Promote + Money ── */}
+      {finalVideoUrl && (() => {
+        // Scheduler deep-link protocol (lib/scheduler-handoff): opens the
+        // composer prefilled with this video + caption.
+        const schedulerHref = buildSchedulerHref({
+          caption: topic || "My video",
+          media: finalVideoUrl,
+        });
+        const coverUrl = scenes.find((s) => s.thumbnailUrl)?.thumbnailUrl ?? "";
+        const distributeHref = `/distribute?title=${encodeURIComponent(topic || "My video")}${coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : ""}`;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href={schedulerHref}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-5 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <CalendarClock className="h-4 w-4" /> Post it — schedule this video
+            </a>
+            <a
+              href={distributeHref}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/[0.06] px-5 py-3.5 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
+            >
+              <Rocket className="h-4 w-4" /> Distribute — release this video
+            </a>
+          </div>
+        );
+      })()}
+
+      {/* ── Extract audio from the finished video ── */}
+      <ExtractAudioCard videoUrl={finalVideoUrl} />
 
       {/* ── Auto-Clip: vertical promo clips from the same timeline ── */}
       <AutoClipSection
@@ -1089,7 +1202,7 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
                   <span className={`text-sm font-bold block ${active ? "text-primary" : "text-white/80"}`}>
                     {opt.label}
                     {opt.comingSoon && (
-                      <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-amber-400/80 border border-amber-400/30 px-1.5 py-0.5 rounded-full align-middle">
+                      <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-400/30 px-1.5 py-0.5 rounded-full align-middle">
                         coming soon
                       </span>
                     )}

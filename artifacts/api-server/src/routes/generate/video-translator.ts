@@ -40,11 +40,18 @@ import {
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
-import { toFile } from "openai/uploads";
+import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import {
+  attributionOptIn,
+  resolveAttributionFont,
+  attributionDrawtext,
+} from "../../lib/attribution";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -198,9 +205,12 @@ export interface TranslateJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the dubbed videos (paid export → opt-in). */
+  attribution?: boolean;
 }
 
 const jobs = new Map<string, TranslateJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getTranslateJob(id: string): TranslateJob | undefined {
   return jobs.get(id);
@@ -218,7 +228,7 @@ function elevenKey(): string | undefined {
 }
 
 function ttsModel(): string {
-  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_multilingual_v2";
+  return process.env["ELEVENLABS_TTS_MODEL"] || "eleven_v4";
 }
 
 async function probeDurationSec(inputPath: string): Promise<number | null> {
@@ -243,25 +253,16 @@ async function extractAudio(inputPath: string, audioPath: string): Promise<void>
   );
 }
 
-interface WhisperVerboseJson {
-  text?: string;
-  duration?: number;
-  segments?: { start: number; end: number; text: string }[];
-}
-
 async function transcribeAudio(
   audioBuffer: Buffer,
   filename: string,
 ): Promise<TranscriptSegment[]> {
-  const audioFile = await toFile(audioBuffer, filename, { type: "audio/mpeg" });
-  const result = (await getOpenAI().audio.transcriptions.create(
-    {
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-    },
-    { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
-  )) as unknown as WhisperVerboseJson;
+  const result = await transcribeAudioTimed({
+    buffer: audioBuffer,
+    filename,
+    mimeType: "audio/mpeg",
+    signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
+  });
   return (result.segments ?? [])
     .filter((s) => s.text && s.text.trim().length > 0)
     .map((s) => ({ start: s.start, end: s.end, text: s.text.trim() }));
@@ -325,34 +326,62 @@ async function synthesizeSpeech(
   return buf;
 }
 
+/** ffprobe: read the width of the first video stream (for the attribution tag sizing). */
+async function probeVideoWidth(inputPath: string): Promise<number | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", inputPath],
+      { timeout: 30_000 },
+    );
+    const w = parseInt(stdout.trim(), 10);
+    return Number.isFinite(w) && w > 0 ? w : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface MuxDubbedOpts {
+  /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
+  attribution?: boolean;
+  /** Resolved fontfile for the attribution tag; falls back to no tag when null. */
+  attributionFontfile?: string | null;
+  /** Output video width in px for tag sizing; probed per job when omitted. */
+  outputWidth?: number;
+}
+
 async function muxDubbedVideo(
   videoPath: string,
   dubbedAudioPath: string,
   outputPath: string,
+  opts: MuxDubbedOpts = {},
 ): Promise<void> {
-  await execFileAsync(
-    "ffmpeg",
-    [
-      "-y",
-      "-i", videoPath,
-      "-i", dubbedAudioPath,
-      "-map", "0:v:0",
-      "-map", "1:a:0",
-      "-c:v", "copy",
-      "-c:a", "aac",
-      "-b:a", "192k",
-      "-shortest",
-      outputPath,
-    ],
-    { timeout: 600_000 },
-  );
+  const args: string[] = [
+    "-y",
+    "-i", videoPath,
+    "-i", dubbedAudioPath,
+    "-map", "0:v:0",
+    "-map", "1:a:0",
+  ];
+  if (opts.attribution && opts.attributionFontfile) {
+    // The tag needs a filter pass, so the video stream is re-encoded
+    // (otherwise it stays a straight -c:v copy).
+    args.push(
+      "-vf", attributionDrawtext(opts.attributionFontfile, opts.outputWidth ?? 1280),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+    );
+  } else {
+    args.push("-c:v", "copy");
+  }
+  args.push("-c:a", "aac", "-b:a", "192k", "-shortest", outputPath);
+  await execFileAsync("ffmpeg", args, { timeout: 600_000 });
 }
 
 /* ── Background worker ───────────────────────────────────────────────── */
 
 export async function runTranslateJob(
   job: TranslateJob,
-  inputBuffer: Buffer,
+  uploadedPath: string,
   originalName: string,
   voiceId: string,
 ): Promise<void> {
@@ -362,7 +391,7 @@ export async function runTranslateJob(
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     const durationSec = await probeDurationSec(inputPath);
     job.durationSec = durationSec;
@@ -377,6 +406,13 @@ export async function runTranslateJob(
     if (segments.length === 0) {
       throw new Error("No speech detected in this video — nothing to translate.");
     }
+
+    // Virality: resolve the attribution font once for the burn (opt-in; paid export).
+    const attributionFontfile = job.attribution ? await resolveAttributionFont() : null;
+    const attributionWidth =
+      job.attribution && attributionFontfile
+        ? (await probeVideoWidth(inputPath)) ?? undefined
+        : undefined;
 
     // 3–6. Per language: translate → TTS → mux → SRT → upload
     for (const langCode of job.languages) {
@@ -409,7 +445,11 @@ export async function runTranslateJob(
 
         // Mux under original video
         const outPath = join(workDir, `dubbed-${langCode}.mp4`);
-        await muxDubbedVideo(inputPath, dubbedPath, outPath);
+        await muxDubbedVideo(inputPath, dubbedPath, outPath, {
+          attribution: job.attribution,
+          attributionFontfile,
+          outputWidth: attributionWidth,
+        });
         const outBuffer = await fs.readFile(outPath);
         const videoRef = await uploadMediaToSupabaseStorage(
           `translate/${job.userId}/${job.id}-${langCode}.mp4`,
@@ -453,13 +493,14 @@ export async function runTranslateJob(
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
 /* ── Upload ──────────────────────────────────────────────────────────── */
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_TRANSLATOR_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) cb(null, true);
@@ -476,6 +517,7 @@ const translateSchema = z.object({
     .max(6, "Maximum 6 languages per job."),
   voiceId: z.string().min(1, "Voice is required.").max(100),
   durationSec: z.number().min(1).max(3600).optional(),
+  attribution: attributionOptIn(),
 });
 
 /**
@@ -533,7 +575,7 @@ router.post(
       return;
     }
 
-    const { languages, voiceId, durationSec } = parsed.data;
+    const { languages, voiceId, durationSec, attribution } = parsed.data;
     const unknown = languages.filter((l) => !isSupportedLanguage(l));
     if (unknown.length > 0) {
       res.status(400).json({ error: `Unsupported language(s): ${unknown.join(", ")}` });
@@ -596,16 +638,18 @@ router.post(
       error: null,
       creditsCharged: estimate.credits,
       createdAt: Date.now(),
+      attribution,
     };
     jobs.set(job.id, job);
 
     // Server-owned: runs detached from the request/tab lifecycle.
-    void runTranslateJob(job, req.file.buffer, req.file.originalname, voiceId);
+    void runTranslateJob(job, req.file.path, req.file.originalname, voiceId);
 
     res.status(202).json({
       jobId: job.id,
       status: job.status,
       languages: uniqueLangs,
+      attribution,
       creditsCharged: estimate.credits,
       creditsRemaining,
     });

@@ -18,7 +18,7 @@ export const DISTRIBUTION_PLATFORMS = [
 export type DistributionPlatformKey = (typeof DISTRIBUTION_PLATFORMS)[number]["key"];
 
 /** Pricing shown in the UI — mirrors the backend env-overridable defaults. */
-export const DISTRIBUTION_AI_CREDIT_COST = 1;
+export const DISTRIBUTION_AI_CREDIT_COST = 100;
 export const DISTRIBUTION_PACKAGING_CREDITS = 10;
 
 export function platformLabel(key: string): string {
@@ -88,9 +88,27 @@ export function platformStatusLabel(status: string): string {
 
 /* ── Royalty splits ───────────────────────────────────────────────────── */
 export interface RoyaltySplit {
+  id?: string;
   name: string;
   role?: string;
+  email?: string | null;
+  inviteStatus?: string;
   share: number;
+  agreementVersion?: number;
+  effectiveFrom?: string;
+}
+
+/** Canonical collaborator roles for a split agreement (DistroKid parity). */
+export const SPLIT_ROLES = ["artist", "producer", "writer", "featured"] as const;
+
+export function roleLabel(role: string | undefined | null): string {
+  switch ((role ?? "").toLowerCase()) {
+    case "artist": return "Artist";
+    case "producer": return "Producer";
+    case "writer": return "Writer";
+    case "featured": return "Featured";
+    default: return role?.trim() || "Collaborator";
+  }
 }
 
 /** Shares must total exactly 100 (within floating-point tolerance). */

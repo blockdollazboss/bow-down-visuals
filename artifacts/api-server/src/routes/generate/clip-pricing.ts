@@ -3,10 +3,10 @@
  * Kept dependency-free so it can be unit-tested without the server.
  */
 
-export type ClipModel = "gen4.5" | "seedance2_5";
+export type ClipModel = "gen4.5" | "seedance2_5" | "veo3_1";
 export type ClipResolution = "720p" | "1080p";
-/** The four Seedance 2.5 ratios this route ever requests. */
-export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
+/** The six Seedance 2.5 ratios this route ever requests (incl. 480p drafts). */
+export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920" | "854:480" | "480:854";
 export const GEN45_CREDIT_COST = 400;
 /* Resolution-aware Seedance 2.5 site-credit rates (credits per output second).
    Grounded in the Runway Dev API rate card (docs.dev.runwayml.com/guides/pricing):
@@ -18,6 +18,13 @@ export const GEN45_CREDIT_COST = 400;
    1080p retails $3.00/sec = ~4.4x margin. */
 export const SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT = 300;
 export const SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT = 600;
+/* Draft mode: cheap 480p preview for iterating on a shot before committing to
+   a full-res render. Mirrors Runway's own draft rate card (20 credits/sec for
+   draft vs 30/sec at 720p and 68/sec at 1080p): draft is 2/3 the 720p rate,
+   so 200/sec keeps the same ~5x margin as the 720p tier. The enhance step is
+   just a re-submission at 1080p with the draft's seed, charged at the 1080p
+   rate — no separate enhance tier needed. */
+export const SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT = 200;
 /** Legacy flat fallback (pre-resolution-aware pricing). Kept exported so old
     imports keep compiling; do not use for new code. */
 export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 150;
@@ -35,10 +42,49 @@ export const SEEDANCE_PRICING_APPROVED = true; // flipped 2026-09-25 after expli
 /** Bump when the proposed rates change, so an approval is tied to a version. */
 export const SEEDANCE_PRICING_VERSION = "2026-09-25-resolution-aware";
 
+/* ── Veo 3.1 (Google) — cinematic clips with native audio ───────────────────
+   Provider cost is $0.40/sec at 720p (Standard). At ~$0.50 per site credit,
+   400/sec retails $2.00/sec = 5.0x margin. Clips are fixed 8s (Veo's max and
+   the only length allowed with reference images), so one clip = 3200 credits.
+   Same GEMINI_API_KEY as Nano Banana — no separate credential. */
+export const VEO_CREDITS_PER_SEC_DEFAULT = 400;
+export const VEO_CLIP_DURATION_SEC = 8;
+/* Explicit approval gate (same pattern as Seedance): the Veo price is a
+   PROPOSAL until the user approves it. Flip to true only after explicit user
+   approval, in a reviewed commit — never as a drive-by. */
+export const VEO_PRICING_APPROVED = false;
+export const VEO_PRICING_VERSION = "2026-10-11-veo3_1";
+
+/* ── End-frame (last-frame) keyframe support, per model ────────────────────
+   Grounded in the provider request builders vendored in this tree:
+   - gen4.5 (@runwayml/sdk ImageToVideoCreateParams.Gen4_5): PromptImage
+     `position` is 'first' ONLY — the model takes no last frame.
+   - seedance2_5 (same SDK, Seedance2_5.PromptImage): `position` is
+     'first' | 'last' — keyframe mode (positioned entries cannot be mixed
+     with unpositioned reference images).
+   - veo3_1 (lib/veo-client, Gemini predictLongRunning): the instance
+     accepts a `lastFrame` next to the first-frame `image` — Veo 3.1's
+     first/last-frame interpolation. A lone last frame is never accepted.
+   The Scene Studio UI hides the end-frame control for unsupported models
+   and the server never sends them the parameter. */
+export const CLIP_END_FRAME_SUPPORT: Record<ClipModel, boolean> = {
+  "gen4.5": false,
+  seedance2_5: true,
+  veo3_1: true,
+};
+
+export function modelSupportsEndFrame(model: ClipModel): boolean {
+  return CLIP_END_FRAME_SUPPORT[model] === true;
+}
+
 export interface ClipPlan {
   model: ClipModel;
   useSeedance: boolean;
-  /** Resolved clip length in seconds (5 for gen4.5, clamped 3–30 for seedance). */
+  /** True for the Google Veo 3.1 path. */
+  useVeo: boolean;
+  /** True when this plan is a cheap 480p draft preview. */
+  isDraft: boolean;
+  /** Resolved clip length in seconds (5 for gen4.5, clamped 3–30 for seedance, fixed 8 for Veo). */
   durationSec: number;
   /** Site credits charged on success. */
   creditCost: number;
@@ -46,6 +92,8 @@ export interface ClipPlan {
   seedanceRatio: SeedanceRatio;
   /** False until the user approves the Seedance price (explicit gate). */
   pricingApproved: boolean;
+  /** False until the user approves the Veo price (explicit gate). */
+  veoPricingApproved: boolean;
 }
 
 export function resolveClipPlan(opts: {
@@ -55,29 +103,44 @@ export function resolveClipPlan(opts: {
   ratio?: string;
   creditsPerSec720p?: number;
   creditsPerSec1080p?: number;
+  creditsPerSecDraft?: number;
+  creditsPerSecVeo?: number;
+  /** Draft mode: cheap 480p preview. Only valid for seedance2_5. */
+  draft?: boolean;
 }): ClipPlan {
   const useSeedance = opts.model === "seedance2_5";
+  const useVeo = opts.model === "veo3_1";
+  const isDraft = useSeedance && opts.draft === true;
   const landscape = opts.ratio === "1280:720";
-  const hiRes = opts.resolution === "1080p";
-  const creditsPerSec = hiRes
+  const hiRes = opts.resolution === "1080p" && !isDraft;
+  const creditsPerSec = useVeo
+    ? Number(opts.creditsPerSecVeo) || VEO_CREDITS_PER_SEC_DEFAULT
+    : isDraft
+    ? Number(opts.creditsPerSecDraft) || SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT
+    : hiRes
     ? Number(opts.creditsPerSec1080p) || SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT
     : Number(opts.creditsPerSec720p) || SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT;
-  const durationSec = useSeedance
+  const durationSec = useVeo
+    ? VEO_CLIP_DURATION_SEC
+    : useSeedance
     ? Math.min(
         SEEDANCE_MAX_DURATION_SEC,
         Math.max(SEEDANCE_MIN_DURATION_SEC, Math.round(Number(opts.durationSec) || 5)),
       )
     : 5;
-  const creditCost = useSeedance ? Math.ceil(durationSec * creditsPerSec) : GEN45_CREDIT_COST;
+  const creditCost = useVeo || useSeedance ? Math.ceil(durationSec * creditsPerSec) : GEN45_CREDIT_COST;
   const seedanceRatio: SeedanceRatio = landscape
-    ? hiRes ? "1920:1080" : "1280:720"
-    : hiRes ? "1080:1920" : "720:1280";
+    ? isDraft ? "854:480" : hiRes ? "1920:1080" : "1280:720"
+    : isDraft ? "480:854" : hiRes ? "1080:1920" : "720:1280";
   return {
-    model: useSeedance ? "seedance2_5" : "gen4.5",
+    model: useVeo ? "veo3_1" : useSeedance ? "seedance2_5" : "gen4.5",
     useSeedance,
+    useVeo,
+    isDraft,
     durationSec,
     creditCost,
     seedanceRatio,
     pricingApproved: SEEDANCE_PRICING_APPROVED,
+    veoPricingApproved: VEO_PRICING_APPROVED,
   };
 }

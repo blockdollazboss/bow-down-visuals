@@ -9,6 +9,17 @@ interface SaveGenerationParams {
   prompt?: string | null;
   creditsSpent?: number;
   metadata?: Record<string, unknown> | null;
+  /** The Creative Vault character the work was made as (0142, G8). */
+  artistVaultId?: string | null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Validate an untrusted artistVaultId from a request body: a UUID or
+    nothing. A bad value must never break a generation — it just means
+    "no character recorded". */
+export function asVaultId(value: unknown): string | null {
+  return typeof value === "string" && UUID_RE.test(value) ? value : null;
 }
 
 /**
@@ -26,6 +37,7 @@ export async function saveGeneration(params: SaveGenerationParams): Promise<void
       prompt: params.prompt ?? null,
       credits_spent: params.creditsSpent ?? 0,
       metadata: params.metadata ?? null,
+      artist_vault_id: asVaultId(params.artistVaultId),
     });
   } catch (err) {
     // Log but don't throw — history should never break the user's generation.

@@ -36,6 +36,7 @@ export function FogCanvas({
   className = "",
   ceilingFrac = 1,
   buoyancy = BUOYANCY,
+  waterMode = false,
 }: {
   className?: string;
   /** Fraction of the container height (from the bottom) that particles may
@@ -44,6 +45,8 @@ export function FogCanvas({
   ceilingFrac?: number;
   /** Upward drift in px/s² (negative). Smaller magnitude = fog stays lower. */
   buoyancy?: number;
+  /** Water mode: aqua-tinted mist instead of smoke (light theme). */
+  waterMode?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -143,7 +146,13 @@ export function FogCanvas({
       // Textures carry true alpha (black baked out, edges feathered) and are
       // cache-busted (?v=2), so screen blending is safe: transparent areas
       // add nothing, overlaps re-brighten into a luminous bank.
+      // Water mode: aqua tint for a misty water look (light theme).
       ctx.globalCompositeOperation = "screen";
+      if (waterMode) {
+        ctx.filter = "hue-rotate(190deg) saturate(2) brightness(1.2)";
+      } else {
+        ctx.filter = "none";
+      }
 
       for (const p of parts) {
         if (!reduce) {

@@ -12,8 +12,11 @@ import {
   type AudioExportKind,
   type ExportStemInput,
   type ExportStemEffects,
+  type ExportFxStep,
+  type ExportAutomation,
   type MasterBusSettings,
 } from "../lib/audioExport";
+import { r2Upload, r2PublicUrl } from "../lib/r2-client";
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -76,6 +79,13 @@ interface RawStem {
   trimEnd?: unknown;
   durationSec?: unknown;
   effects?: unknown;
+  /* Stack 6 arrangement fields. */
+  startTime?: unknown;
+  fadeInSec?: unknown;
+  fadeOutSec?: unknown;
+  fxChain?: unknown;
+  automation?: unknown;
+  duck?: unknown;
 }
 
 interface RawStemEffects {
@@ -101,6 +111,178 @@ function parseStemEffects(raw: unknown): ExportStemEffects | undefined {
     saturation:    typeof r.saturation === "string"  ? r.saturation  : "off",
     deEsser:       r.deEsser === true,
     noiseReduction: r.noiseReduction === true,
+  };
+}
+
+/* ── Stack 6 arrangement payload parsing (clamped, defensive) ─────────── */
+const FX_STEP_TYPES = new Set(["eq", "compressor", "saturation", "reverb", "delay"]);
+
+function clampNum(v: unknown, lo: number, hi: number, dflt: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+}
+
+/* ── FX chain honesty gate (Wave 3 #16) ──────────────────────────────────
+ * parseFxChain below is a defensive clamp: it silently drops what it
+ * cannot use. That is the right last-resort behavior for the render
+ * graph, but it must never decide what a client MEANT: a stem that
+ * arrives with a malformed chain would otherwise fall back to the
+ * legacy preset chain and render something the user did not ask for,
+ * with no sign anything went wrong. So both export routes run this
+ * strict structural validation first — a chain that is present but
+ * malformed fails the request with `invalid_fx_chain`. In-range
+ * numbers are NOT errors (parseFxChain clamps them); structural
+ * problems are: not an array, too many steps, a step that is not an
+ * object, an unknown step type, malformed bands, or a parameter
+ * value that is not a finite number. */
+const FX_MAX_STEPS = 12;
+const FX_MAX_BANDS = 5;
+const FX_NUMERIC_FIELDS = [
+  "thresholdDb", "ratio", "attackMs", "releaseMs",
+  "drive", "mix", "timeMs", "feedback",
+] as const;
+
+export function validateFxChain(raw: unknown): string | null {
+  if (raw === undefined) return null;
+  if (!Array.isArray(raw)) return "the FX chain must be a list of steps";
+  if (raw.length > FX_MAX_STEPS) return `the FX chain has too many steps (max ${FX_MAX_STEPS})`;
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return "an FX chain step is not an object";
+    const r = item as Record<string, unknown>;
+    if (typeof r["type"] !== "string" || !FX_STEP_TYPES.has(r["type"])) {
+      return `an FX chain step has an unknown type (${String(r["type"])})`;
+    }
+    if (r["bands"] !== undefined) {
+      if (!Array.isArray(r["bands"])) return "an EQ step's bands must be a list";
+      if (r["bands"].length > FX_MAX_BANDS) return `an EQ step has too many bands (max ${FX_MAX_BANDS})`;
+      for (const b of r["bands"]) {
+        if (!b || typeof b !== "object") return "an EQ band is not an object";
+        const bb = b as Record<string, unknown>;
+        for (const f of ["freq", "gain", "q"] as const) {
+          if (bb[f] !== undefined && (typeof bb[f] !== "number" || !Number.isFinite(bb[f]))) {
+            return `an EQ band's ${f} must be a number`;
+          }
+        }
+      }
+    }
+    for (const f of FX_NUMERIC_FIELDS) {
+      if (r[f] !== undefined && (typeof r[f] !== "number" || !Number.isFinite(r[f] as number))) {
+        return `an FX step's ${f} must be a number`;
+      }
+    }
+  }
+  return null;
+}
+
+/** First FX-chain error across a request's stems, naming the stem. */
+export function findStemFxChainError(stems: RawStem[]): string | null {
+  for (const s of stems) {
+    if (!s || s.fxChain === undefined) continue;
+    const err = validateFxChain(s.fxChain);
+    if (err) return `Stem "${String(s.name ?? "Stem")}": ${err}.`;
+  }
+  return null;
+}
+
+export function parseFxChain(raw: unknown): ExportFxStep[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const steps: ExportFxStep[] = [];
+  for (const item of raw.slice(0, 12)) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r["type"] !== "string" || !FX_STEP_TYPES.has(r["type"])) continue;
+    const step: ExportFxStep = {
+      type: r["type"] as ExportFxStep["type"],
+      enabled: r["enabled"] !== false,
+    };
+    if (Array.isArray(r["bands"])) {
+      step.bands = r["bands"].slice(0, 5).map((b) => {
+        const bb = (b ?? {}) as Record<string, unknown>;
+        return {
+          freq: clampNum(bb["freq"], 20, 20000, 1000),
+          gain: clampNum(bb["gain"], -24, 24, 0),
+          q: clampNum(bb["q"], 0.3, 12, 1),
+        };
+      });
+    }
+    if (r["thresholdDb"] !== undefined) step.thresholdDb = clampNum(r["thresholdDb"], -60, 0, -18);
+    if (r["ratio"] !== undefined) step.ratio = clampNum(r["ratio"], 1, 20, 3);
+    if (r["attackMs"] !== undefined) step.attackMs = clampNum(r["attackMs"], 0.1, 500, 10);
+    if (r["releaseMs"] !== undefined) step.releaseMs = clampNum(r["releaseMs"], 10, 1000, 150);
+    if (r["drive"] !== undefined) step.drive = clampNum(r["drive"], 1, 3, 1.5);
+    if (r["mix"] !== undefined) step.mix = clampNum(r["mix"], 0, 100, 20);
+    if (r["timeMs"] !== undefined) step.timeMs = clampNum(r["timeMs"], 10, 2000, 250);
+    if (r["feedback"] !== undefined) step.feedback = clampNum(r["feedback"], 0, 80, 30);
+    steps.push(step);
+  }
+  return steps.length > 0 ? steps : undefined;
+}
+
+function parseAutomationLane(raw: unknown, lo: number, hi: number) {
+  if (!Array.isArray(raw)) return undefined;
+  const pts = raw
+    .slice(0, 200)
+    .filter((p) => p && typeof p === "object")
+    .map((p) => {
+      const pp = p as Record<string, unknown>;
+      return { time: clampNum(pp["time"], 0, 86400, 0), value: clampNum(pp["value"], lo, hi, lo) };
+    });
+  return pts.length > 0 ? pts : undefined;
+}
+
+export function parseAutomation(raw: unknown): ExportAutomation | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: ExportAutomation = {};
+  const volume = parseAutomationLane(r["volume"], 0, 150);
+  const pan = parseAutomationLane(r["pan"], -100, 100);
+  const reverbMix = parseAutomationLane(r["reverbMix"], 0, 100);
+  if (volume) out.volume = volume;
+  if (pan) out.pan = pan;
+  if (reverbMix) out.reverbMix = reverbMix;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function parseDuck(raw: unknown): ExportStemInput["duck"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r["sourceStemIds"])) return undefined;
+  const sourceStemIds = r["sourceStemIds"]
+    .filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 128)
+    .slice(0, 64);
+  if (sourceStemIds.length === 0) return undefined;
+  return {
+    sourceStemIds,
+    amount: clampNum(r["amount"], 0, 100, 60),
+    sensitivity: clampNum(r["sensitivity"], 0, 100, 50),
+  };
+}
+
+/** Shared stem-payload → ExportStemInput mapping for /music/export and
+ *  /music/preview-render (previously two hand-kept copies). */
+export function parseStemInput(s: RawStem): ExportStemInput {
+  const fxChain = parseFxChain(s.fxChain);
+  const automation = parseAutomation(s.automation);
+  const duck = parseDuck(s.duck);
+  return {
+    id: String(s.id ?? ""),
+    name: String(s.name ?? "Stem"),
+    type: String(s.type ?? ""),
+    url: String(s.url),
+    volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
+    muted: !!s.muted,
+    solo: !!s.solo,
+    pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
+    trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
+    trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
+    ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
+    ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
+    ...(Number.isFinite(Number(s.startTime)) ? { startTime: Math.max(0, Number(s.startTime)) } : {}),
+    ...(Number.isFinite(Number(s.fadeInSec)) ? { fadeInSec: Math.max(0, Math.min(5, Number(s.fadeInSec))) } : {}),
+    ...(Number.isFinite(Number(s.fadeOutSec)) ? { fadeOutSec: Math.max(0, Math.min(5, Number(s.fadeOutSec))) } : {}),
+    ...(fxChain ? { fxChain } : {}),
+    ...(automation ? { automation } : {}),
+    ...(duck ? { duck } : {}),
   };
 }
 
@@ -150,22 +332,15 @@ router.post("/music/export", requireAuth, async (req, res) => {
     return;
   }
 
+  const fxChainError = findStemFxChainError(stems);
+  if (fxChainError) {
+    res.status(400).json({ error: fxChainError, code: "invalid_fx_chain" });
+    return;
+  }
+
   const cleanStems: ExportStemInput[] = stems
     .filter((s) => s && typeof s.url === "string" && s.url.startsWith("http"))
-    .map((s) => ({
-      id: String(s.id ?? ""),
-      name: String(s.name ?? "Stem"),
-      type: String(s.type ?? ""),
-      url: String(s.url),
-      volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
-      muted: !!s.muted,
-      solo: !!s.solo,
-      pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
-      trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
-      trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
-      ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
-      ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
-    }));
+    .map((s) => parseStemInput(s));
 
   if (cleanStems.length > MAX_STEMS) {
     res.status(400).json({ error: `Too many stems (max ${MAX_STEMS}).`, code: "too_many_stems" });
@@ -255,21 +430,20 @@ async function processMixExportJob(
     });
 
     const path = `${params.userId}/exports/${Date.now()}-${params.kind}.${ext}`;
-    const { error: upErr } = await params.sb.storage.from(BUCKET).upload(path, buffer, {
-      contentType,
-      upsert: true,
-    });
-    if (upErr) {
+    const r2Key = `audio-stems/${path}`;
+    try {
+      await r2Upload(r2Key, buffer, contentType);
+    } catch (upErr) {
       params.log.error({ err: upErr }, "Audio export upload failed");
       update({ status: "failed", error: "Could not save the exported file.", code: "export_failed" });
       return;
     }
-    const { data } = params.sb.storage.from(BUCKET).getPublicUrl(path);
+    const exportUrl = r2PublicUrl(r2Key);
 
     update({
       status: "done",
       result: {
-        url: data.publicUrl,
+        url: exportUrl,
         format: params.format,
         kind: params.kind,
         exportType: params.exportType,
@@ -315,22 +489,15 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
     return;
   }
 
+  const fxChainError = findStemFxChainError(stems);
+  if (fxChainError) {
+    res.status(400).json({ error: fxChainError, code: "invalid_fx_chain" });
+    return;
+  }
+
   const cleanStems: ExportStemInput[] = stems
     .filter((s) => s && typeof s.url === "string" && s.url.startsWith("http"))
-    .map((s) => ({
-      id: String(s.id ?? ""),
-      name: String(s.name ?? "Stem"),
-      type: String(s.type ?? ""),
-      url: String(s.url),
-      volume: Number.isFinite(Number(s.volume)) ? Number(s.volume) : 100,
-      muted: !!s.muted,
-      solo: !!s.solo,
-      pan: Number.isFinite(Number(s.pan)) ? Number(s.pan) : 0,
-      trimStart: Number.isFinite(Number(s.trimStart)) ? Number(s.trimStart) : 0,
-      trimEnd: Number.isFinite(Number(s.trimEnd)) ? Number(s.trimEnd) : 0,
-      ...(Number.isFinite(Number(s.durationSec)) ? { durationSec: Number(s.durationSec) } : {}),
-      ...(parseStemEffects(s.effects) ? { effects: parseStemEffects(s.effects)! } : {}),
-    }));
+    .map((s) => parseStemInput(s));
 
   if (cleanStems.length > MAX_STEMS) {
     res.status(400).json({ error: `Too many stems (max ${MAX_STEMS}).`, code: "too_many_stems" });

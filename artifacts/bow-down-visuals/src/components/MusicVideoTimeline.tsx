@@ -25,6 +25,7 @@
     import { Button } from "@/components/ui/button";
     import type { SceneData } from "@/lib/scene-parser";
     import { useAuth } from "@/contexts/AuthContext";
+    import { useActiveArtist } from "@/contexts/ActiveArtistContext";
     import { useToast } from "@/hooks/use-toast";
     import { useConfirmedApi } from "@/hooks/use-confirmed-api";
     import { OutOfCredits } from "@/components/OutOfCredits";
@@ -125,6 +126,9 @@
       const { getAccessToken, refreshProfile } = useAuth();
       const { toast } = useToast();
       const { confirmedFetch } = useConfirmedApi();
+      /* The character in front of the camera — clips record who they
+         were made as (0142, G8). */
+      const { activeArtist } = useActiveArtist();
 
       const [isPolling, setIsPolling] = useState(false);
       const [taskId, setTaskId] = useState<string | null>(null);
@@ -172,6 +176,7 @@
               prompt: scene.aiVideoPrompt || null,
               finalPrompt: promptUsedRef.current || null,
               runwayJobId: jobId,
+              artistVaultId: activeArtist?.id ?? null,
               videoUrl: clipUrl,
               status: "completed",
             }),
@@ -218,7 +223,7 @@
             };
 
             if (IS_DEV) {
-              console.log("[Runway] poll:", data.status, data.progress ?? "");
+              if (IS_DEV) console.log("[Runway] poll:", data.status, data.progress ?? "");
             }
 
             if (data.status === "succeeded" && data.url) {
@@ -240,7 +245,7 @@
             } else if (data.status === "failed" || data.status === "cancelled") {
               stopPolling();
               setIsPolling(false);
-              setError(data.error ?? "Runway returned a failure with no message");
+              setError(data.error ?? "Scene clip generation returned a failure with no message");
               onUpdateRef.current({ generationStatus: "failed" });
               onGeneratingEndRef.current();
 
@@ -252,7 +257,7 @@
             stopPolling();
             setIsPolling(false);
             setError(
-              e instanceof Error ? e.message : "Network error while polling Runway",
+              e instanceof Error ? e.message : "Network error while polling the scene clip",
             );
             onUpdateRef.current({ generationStatus: "failed" });
             onGeneratingEndRef.current();
@@ -314,7 +319,7 @@
           };
 
           if (!res.ok || !data.taskId) {
-            throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+            throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
           }
 
           if (IS_DEV) console.log("[Runway] task:", data.taskId);
@@ -323,7 +328,7 @@
           startPolling(data.taskId);
         } catch (e) {
           const msg =
-            e instanceof Error ? e.message : "Failed to start Runway generation";
+            e instanceof Error ? e.message : "Failed to start scene clip generation";
 
           setIsPolling(false);
 
@@ -369,7 +374,7 @@
         <div className="mt-4 space-y-3 border-t border-white/[0.04] pt-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">
-              Runway
+              Scene Clip
             </span>
 
             <span
@@ -421,7 +426,7 @@
               <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-primary/80">
-                  Generating Runway clip…
+                  Generating scene clip…
                 </p>
                 <p className="text-[11px] text-white/30 mt-0.5">
                   This takes 30–90 seconds
@@ -464,7 +469,7 @@
                       {!scene.demoClipUrl ? "No generated video yet" : "Clip link expired"}
                     </p>
                     <p className="text-[11px] text-yellow-300/60 mt-0.5">
-                      Click "Generate AI Clip" below to launch your rendering engine pipeline.
+                      Click "Generate Clip" below to launch your rendering engine pipeline.
                     </p>
                   </div>
                 </div>
@@ -508,7 +513,7 @@
                   data-testid="btn-generate-runway-clip"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Generate AI Clip
+                  Generate Clip
                   {!hasPrompt && (
                     <span className="text-primary/50 font-normal">
                       (using scene info)
@@ -671,7 +676,7 @@
           if (!improvedPrompt) return; // user cancelled
           onUpdate({ aiVideoPrompt: improvedPrompt });
           setEditedPrompt(improvedPrompt);
-          toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
+          toast({ title: "Prompt improved!", description: "Your Video Prompt has been enhanced." });
         } catch {
           toast({ title: "Could not improve prompt", variant: "destructive" });
         } finally {
@@ -743,7 +748,7 @@
               <button
                 onClick={handleImprovePrompt}
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors inline-flex items-center gap-1 shrink-0"
-                title="This scene's AI Video Prompt is short or generic — click to improve it"
+                title="This scene's Video Prompt is short or generic — click to improve it"
                 data-testid={`badge-weak-prompt-${index}`}
               >
                 <AlertTriangle className="h-2.5 w-2.5" /> Weak Prompt
@@ -832,7 +837,7 @@
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-primary/50 uppercase tracking-widest">
-                  AI Video Prompt
+                  Video Prompt
                 </span>
 
                 <div className="flex items-center gap-1">
@@ -1094,7 +1099,7 @@
             title: fail === 0 ? "All prompts improved!" : `Improved ${ok} of ${targets.length} scenes`,
             description:
               fail === 0
-                ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} for Runway.`
+                ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} .`
                 : `${fail} scene${fail !== 1 ? "s" : ""} could not be improved — retry those individually.`,
             variant: fail === 0 ? undefined : "destructive",
           });
@@ -1141,7 +1146,7 @@
               if ("demoClipUrl" in patch && patch.demoClipUrl) {
                 toast({
                   title: "Clip saved!",
-                  description: "Your Runway clip has been saved to this project.",
+                  description: "Your scene clip has been saved to this project.",
                 });
               }
             } catch {
@@ -1265,7 +1270,7 @@
               </div>
 
               <p className="text-xs text-white/35 mt-1">
-                Arrange scenes, generate Runway clips, approve shots, then save your timeline.
+                Arrange scenes, generate scene clips, approve shots, then save your timeline.
               </p>
             </div>
 

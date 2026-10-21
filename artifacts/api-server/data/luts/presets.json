@@ -1,0 +1,68 @@
+{
+  "presets": [
+    {
+      "id": "teal-orange",
+      "name": "Teal & Orange",
+      "description": "Hollywood blockbuster grade — warm skin tones, teal shadows",
+      "file": "/api/lut/presets/teal-orange.cube",
+      "swatches": [
+        "#fa000b",
+        "#ff8002",
+        "#ffff00",
+        "#04ff02",
+        "#08ffff",
+        "#0000ff",
+        "#fe00ff",
+        "#8c6a53"
+      ]
+    },
+    {
+      "id": "moody",
+      "name": "Moody",
+      "description": "Faded film noir — lifted blacks, muted color, crushed highlights",
+      "file": "/api/lut/presets/moody.cube",
+      "swatches": [
+        "#ad2929",
+        "#cd8b49",
+        "#ecec68",
+        "#48cc48",
+        "#55d8d8",
+        "#151599",
+        "#b935b9",
+        "#817060"
+      ]
+    },
+    {
+      "id": "vibrant",
+      "name": "Vibrant",
+      "description": "Punchy saturation and contrast — pops on every feed",
+      "file": "/api/lut/presets/vibrant.cube",
+      "swatches": [
+        "#ff0000",
+        "#ff7200",
+        "#ffff00",
+        "#00ff00",
+        "#00ffff",
+        "#0000ff",
+        "#ff00ff",
+        "#9d6530"
+      ]
+    },
+    {
+      "id": "noir",
+      "name": "Noir",
+      "description": "High-contrast black & white — pure drama",
+      "file": "/api/lut/presets/noir.cube",
+      "swatches": [
+        "#383838",
+        "#9b9b9b",
+        "#fefefe",
+        "#999999",
+        "#bfbfbf",
+        "#000000",
+        "#5e5e5e",
+        "#696969"
+      ]
+    }
+  ]
+}

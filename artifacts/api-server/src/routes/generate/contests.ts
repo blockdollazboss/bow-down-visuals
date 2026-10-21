@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { randomUUID, createHash } from "crypto";
 import { z } from "zod";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql, isNull } from "drizzle-orm";
 import { db, contestsTable, contestEntriesTable } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, LedgerWriteError } from "../../lib/credits";
@@ -9,6 +9,7 @@ import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
+  refreshSupabaseStorageUrlsDeep,
   normalizeToStorageRef,
 } from "../../lib/objectStorage";
 
@@ -232,7 +233,7 @@ router.get("/contests", requireAuth, async (req, res) => {
       return { ...toContestJson(c), entryCount: count };
     }),
   );
-  res.json({ contests: withCounts });
+  res.json({ contests: await refreshSupabaseStorageUrlsDeep(withCounts) });
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -264,7 +265,7 @@ router.post("/contests", requireAuth, async (req, res) => {
       status: b.status,
     })
     .returning();
-  res.status(201).json({ contest: toContestJson(row!) });
+  res.status(201).json({ contest: await refreshSupabaseStorageUrlsDeep(toContestJson(row!)) });
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -288,11 +289,11 @@ router.get("/contests/:id", requireAuth, async (req, res) => {
     byMethod[e.entry_method] = (byMethod[e.entry_method] ?? 0) + 1;
     if (e.is_verified) verified += 1;
   }
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     contest: toContestJson(contest),
     entries,
     stats: { total: entries.length, verified, byMethod },
-  });
+  }));
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -320,26 +321,38 @@ router.post("/contests/:id/entries", requireAuth, async (req, res) => {
     res.status(400).json({ error: `This contest does not accept "${entryMethod}" entries` });
     return;
   }
-  const existing = await db
-    .select({
-      handle: contestEntriesTable.handle,
-      entry_method: contestEntriesTable.entry_method,
-    })
-    .from(contestEntriesTable)
-    .where(eq(contestEntriesTable.contest_id, contest.id));
-  if (isDuplicateEntry(existing, handle, entryMethod)) {
+  // Duplicate check + insert run in one transaction under a per-contest
+  // advisory lock: the check alone raced (two concurrent adds of the same
+  // handle + method could both pass it and both insert — a double entry
+  // with double draw odds). The lock serializes entry adds per contest;
+  // it is released automatically at transaction end.
+  const row = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${contest.id}))`);
+    const existing = await tx
+      .select({
+        handle: contestEntriesTable.handle,
+        entry_method: contestEntriesTable.entry_method,
+      })
+      .from(contestEntriesTable)
+      .where(eq(contestEntriesTable.contest_id, contest.id));
+    if (isDuplicateEntry(existing, handle, entryMethod)) {
+      return null;
+    }
+    const [inserted] = await tx
+      .insert(contestEntriesTable)
+      .values({
+        contest_id: contest.id,
+        handle: handle.trim(),
+        email: email ?? null,
+        entry_method: entryMethod,
+      })
+      .returning();
+    return inserted ?? null;
+  });
+  if (!row) {
     res.status(409).json({ error: "This handle already entered via this method" });
     return;
   }
-  const [row] = await db
-    .insert(contestEntriesTable)
-    .values({
-      contest_id: contest.id,
-      handle: handle.trim(),
-      email: email ?? null,
-      entry_method: entryMethod,
-    })
-    .returning();
   res.status(201).json({ entry: row });
 });
 
@@ -390,6 +403,15 @@ router.post("/contests/:id/draw", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Contest not found" });
     return;
   }
+  // One draw per contest, ever. A re-draw would re-roll the winner with a
+  // fresh seed and OVERWRITE the stored audit — destroying the
+  // provably-fair trail and letting the creator re-roll until a favored
+  // entry wins. The conditional UPDATE below is the atomic backstop for
+  // concurrent draws; this check is the fast path.
+  if (contest.winner_entry_id) {
+    res.status(409).json({ error: "A winner has already been drawn for this contest" });
+    return;
+  }
   const entries = await db
     .select()
     .from(contestEntriesTable)
@@ -428,13 +450,23 @@ router.post("/contests/:id/draw", requireAuth, async (req, res) => {
       status: "ended",
       updated_at: new Date(),
     })
-    .where(eq(contestsTable.id, contest.id))
+    .where(
+      and(
+        eq(contestsTable.id, contest.id),
+        isNull(contestsTable.winner_entry_id),
+      ),
+    )
     .returning();
-  res.json({
-    contest: toContestJson(updated!),
+  if (!updated) {
+    // Lost a concurrent draw — the first draw's winner and audit stand.
+    res.status(409).json({ error: "A winner has already been drawn for this contest" });
+    return;
+  }
+  res.json(await refreshSupabaseStorageUrlsDeep({
+    contest: toContestJson(updated),
     winner,
     audit,
-  });
+  }));
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -536,9 +568,11 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
         "image/png",
       );
       const url = await refreshSupabaseStorageUrl(storageRef);
+      /* Mirror-on-save (2026-10-13 law): persist the permanent storage
+         ref, not the 24h signed URL — presenters re-sign per read. */
       await db
         .update(contestsTable)
-        .set({ announcement_image_url: url, updated_at: new Date() })
+        .set({ announcement_image_url: storageRef, updated_at: new Date() })
         .where(eq(contestsTable.id, contest.id));
       res.json({
         url,

@@ -1,0 +1,5 @@
+Vendored copy of @mediapipe/selfie_segmentation 0.1.1675465747
+(MediaPipe Selfie Segmentation solution — JS, WASM binaries and models).
+Copyright Google LLC. Licensed under the Apache License, Version 2.0.
+Served same-origin and lazy-loaded only by the Go Live studio so a
+creator's broadcast never depends on a third-party CDN.

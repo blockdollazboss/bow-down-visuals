@@ -105,6 +105,27 @@ async function graphFacebookGet<T>(
   return body as T;
 }
 
+/** Same contract as graphFacebookGet, but a form POST (Page photos etc.). */
+async function graphFacebookPost<T>(
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchImpl,
+): Promise<T> {
+  const res = await fetchImpl(`${GRAPH_FB}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+  });
+  const body = (await res.json().catch(() => ({}))) as MetaErrorBody & T;
+  if (!res.ok || body.error) {
+    const code = body.error?.code;
+    const msg = body.error?.message ?? `HTTP ${res.status}`;
+    logger.warn({ path, metaCode: code }, "[social-meta] Facebook Graph API error");
+    throw new MetaApiError(userMessageForFacebook(code, msg), code, `HTTP ${res.status}`);
+  }
+  return body as T;
+}
+
 export interface MetaOAuthConfig {
   appId: string; // Instagram app ID (from the Meta app's Instagram product)
   appSecret: string; // Instagram app secret
@@ -365,6 +386,39 @@ export async function publishReelToInstagram(
   return { mediaId, permalink };
 }
 
+export interface PublishImageInput {
+  igUserId: string;
+  accessToken: string;
+  imageUrl: string;
+  caption: string;
+}
+
+/** Image post: container (image_url, no media_type — a plain image
+ *  container is the Graph default) → poll → publish → permalink. Same
+ *  flow as the reel, minus transcoding: the first poll normally comes
+ *  back FINISHED. Used by the scheduler for media_type="image" posts
+ *  (e.g. a release announcement carrying its cover art). */
+export async function publishImageToInstagram(
+  input: PublishImageInput,
+  fetchImpl: FetchImpl = defaultFetch,
+  sleep?: (ms: number) => Promise<void>,
+): Promise<{ mediaId: string; permalink: string }> {
+  const container = await graphPost<{ id?: string }>(
+    `/${input.igUserId}/media`,
+    {
+      image_url: input.imageUrl,
+      caption: input.caption,
+      access_token: input.accessToken
+    },
+    fetchImpl,
+  );
+  if (!container.id) throw new MetaApiError("Instagram didn't create the upload. Please try again.");
+  await pollContainerUntilFinished(container.id, input.accessToken, fetchImpl, sleep);
+  const mediaId = await publishContainer(input.igUserId, input.accessToken, container.id, fetchImpl);
+  const permalink = await fetchPermalink(mediaId, input.accessToken, fetchImpl);
+  return { mediaId, permalink };
+}
+
 /* ── Facebook Pages video publishing ─────────────────────────────────────
    POST https://graph-video.facebook.com/v21.0/{page-id}/videos
    with file_url + description (verified against Meta docs, Sept 2026).
@@ -527,4 +581,37 @@ export async function publishVideoToPage(
     .then((r) => r.permalink_url ?? "")
     .catch(() => "");
   return { videoId, permalink };
+}
+
+/** Photo post to a Page: POST /{page-id}/photos with url + message and
+ *  published=true — the POST *is* the publish (no container, no poll).
+ *  Returns the feed post's id when Meta gives one (post_id), else the
+ *  photo id; the permalink is read off the post when it exists. Used by
+ *  the scheduler for media_type="image" posts. */
+export async function publishPhotoToPage(
+  input: { pageId: string; accessToken: string; imageUrl: string; caption: string },
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<{ photoId: string; permalink: string }> {
+  const created = await graphFacebookPost<{ id?: string; post_id?: string }>(
+    `/${input.pageId}/photos`,
+    {
+      url: input.imageUrl,
+      message: input.caption,
+      published: "true",
+      access_token: input.accessToken
+    },
+    fetchImpl,
+  );
+  if (!created.id) throw new MetaApiError("Facebook didn't accept the photo. Please try again.");
+  let permalink = "";
+  if (created.post_id) {
+    permalink = await graphFacebookGet<{ permalink_url?: string }>(
+      `/${created.post_id}`,
+      { fields: "permalink_url", access_token: input.accessToken },
+      fetchImpl,
+    )
+      .then((r) => r.permalink_url ?? "")
+      .catch(() => "");
+  }
+  return { photoId: created.post_id ?? created.id, permalink };
 }

@@ -20,12 +20,26 @@ export interface PackBible {
   doNotChange: string;
 }
 
+/** Director's Look Rails picks for a pack shot — the same genre / era /
+ *  lens / lighting / emotion keys as Scene Studio's scene.look
+ *  (lib/scene-look.ts on both sides of the wire; keys validated server-side
+ *  by normalizeLookPicks, never trusted raw). */
+export interface PackLookPicks {
+  genre?: string;
+  era?: string;
+  lens?: string;
+  lighting?: string;
+  emotion?: string;
+}
+
 /** One locked storyboard shot. */
 export interface PackShot {
   shotNumber: number;
   description: string;
   cameraAngle: string;
   durationSec: number;
+  /** Structured look picks for this shot, when the plan set them. */
+  look?: PackLookPicks;
 }
 
 /** A hero prop, locked in with its reference asset image. */
@@ -38,6 +52,21 @@ export interface PackProp {
   assetImageUrl: string | null;
 }
 
+/** One image in a shot's locked REFERENCE SET — a labeled visual the
+    video model should match, with the role it plays in the shot.
+    Assembled at pack lock (finalize) from the creator's OWN Artist
+    Vault, pack assets/props, locations library, and brand kit; the
+    creator sees the set (and its gaps) before any generation runs. */
+export interface PackReference {
+  role: "character" | "location" | "product" | "style";
+  /** Image URL or storage ref (re-signed on every pack read). */
+  url: string;
+  /** Human label, e.g. the vault artist's name or the prop's name. */
+  label: string;
+  /** Where the reference came from. */
+  source: "artist_vault" | "pack_asset" | "pack_prop" | "location_library" | "brand_kit";
+}
+
 /** The locked generation recipe for one shot — everything the scene
     generator needs, decided up front. */
 export interface PackIngredients {
@@ -48,12 +77,27 @@ export interface PackIngredients {
   negativePrompt: string;
   /** Locked reference asset URLs (prop/location/wardrobe plates). */
   referenceAssetUrls: string[];
+  /** Optional locked end-frame (last-frame) keyframe image for this shot —
+   *  the visual the generated clip must land on. Rides the pack like every
+   *  other ingredient; the clip route only forwards it to models whose API
+   *  accepts a last frame (see CLIP_END_FRAME_SUPPORT in clip-pricing.ts). */
+  endFrameImageUrl?: string | null;
+  /** The shot's locked reference SET (character/location/product/style),
+   *  assembled at finalize from the creator's own vault + brand kit.
+   *  Absent on packs locked before reference sets existed. */
+  referenceSet?: PackReference[];
+  /** Plain-language reference gaps found at lock time (e.g. "No location
+   *  reference for this scene") — surfaced to the creator, never hidden. */
+  referenceGaps?: string[];
   /** Locked continuity reminders injected into every generation. */
   continuityNotes: string;
   /** Suggested model settings, locked in. */
   model: "gen4.5" | "seedance2_5";
   durationSec: number;
   ratio: string;
+  /** Locked Director's Look picks — woven into the shot's prompt by the
+   *  shared composer when the clip is generated from this pack. */
+  look?: PackLookPicks;
 }
 
 /** A generated production asset (prop plate, location plate, wardrobe...). */

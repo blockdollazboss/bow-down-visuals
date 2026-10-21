@@ -6,6 +6,12 @@ import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { nfcCardStyleByKey } from "@workspace/db";
 import { generateNfcQrSvg, nfcProfileUrl } from "../lib/nfc-qr";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): the card avatar is re-hosted into
+   permanent storage at save time; reads re-sign the stored ref fresh —
+   a tapped card can never show a dead avatar. */
 
 const router = Router();
 
@@ -194,7 +200,13 @@ router.get("/nfc-cards/profile/:slug", async (req: Request, res: Response) => {
     .update({ tap_count: (profile.tap_count ?? 0) + 1, updated_at: new Date().toISOString() })
     .eq("slug", param(req, "slug"))
     .then(() => undefined, () => undefined);
-  res.json({ ok: true, profile });
+  res.json({
+    ok: true,
+    profile: {
+      ...profile,
+      avatar_url: profile.avatar_url ? await refreshSupabaseStorageUrl(profile.avatar_url) : profile.avatar_url,
+    },
+  });
 });
 
 /* PUT /api/nfc-cards/profile/:slug — owner edits their digital card. */
@@ -214,6 +226,11 @@ router.put("/nfc-cards/profile/:slug", requireAuth, async (req: Request, res: Re
     res.status(404).json({ ok: false, error: "Card not found" });
     return;
   }
+  if (parsed.data.avatarUrl) {
+    parsed.data.avatarUrl =
+      (await mirrorExternalMediaUrl(parsed.data.avatarUrl, { kind: "image", ownerKey: req.userId! })) ??
+      parsed.data.avatarUrl;
+  }
   const { data, error } = await supabase
     .from("nfc_profiles")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
@@ -224,7 +241,12 @@ router.put("/nfc-cards/profile/:slug", requireAuth, async (req: Request, res: Re
     res.status(500).json({ ok: false, error: "Update failed" });
     return;
   }
-  res.json({ ok: true, profile: data });
+  res.json({
+    ok: true,
+    profile: data
+      ? { ...data, avatar_url: data.avatar_url ? await refreshSupabaseStorageUrl(data.avatar_url) : data.avatar_url }
+      : data,
+  });
 });
 
 /* GET /api/nfc-cards/my-profiles — buyer's cards. */
@@ -278,6 +300,7 @@ router.get("/nfc-cards/orders", requireAuth, async (req: Request, res: Response)
     .eq("user_id", req.userId!)
     .order("created_at", { ascending: false });
   if (error) {
+    console.error("[nfc-cards] orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -295,6 +318,7 @@ router.get("/nfc-cards/admin/orders", requireAuth, requireAdmin, async (_req: Re
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
+    console.error("[nfc-cards] admin orders failed", error);
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
@@ -306,11 +330,12 @@ router.get("/nfc-cards/admin/orders.csv", requireAuth, requireAdmin, async (_req
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("nfc_order_cards")
-    .select("card_index, nfc_card_orders!inner(id, card_style, full_name, email, shipping_address, status, created_at), nfc_profiles!inner(slug)")
+    .select("card_index, nfc_card_orders!inner(id, card_style, full_name, email, phone, shipping_address, status, created_at), nfc_profiles!inner(slug)")
     .eq("nfc_card_orders.status", "received")
     .order("created_at", { ascending: true, referencedTable: "nfc_card_orders" })
     .limit(5000);
   if (error) {
+    console.error("[nfc-cards] admin orders.csv failed", error);
     res.status(500).json({ ok: false, error: "Failed to export orders" });
     return;
   }
@@ -321,14 +346,14 @@ router.get("/nfc-cards/admin/orders.csv", requireAuth, requireAdmin, async (_req
     const slug = ((c.nfc_profiles ?? {}) as { slug?: string }).slug ?? "";
     return [
       o.id, `${o.id}-card-${(c.card_index as number) + 1}`,
-      o.card_style, o.full_name, o.email,
+      o.card_style, o.full_name, o.email, o.phone,
       addr.street, addr.city, addr.state, addr.zip, addr.country,
       slug ? nfcProfileUrl(slug) : "",
       slug ? `${nfcProfileUrl(slug).replace(/\/c\//, "/api/nfc-cards/qr/")}.svg` : "",
       o.status, o.created_at,
     ].map(esc).join(",");
   });
-  const header = "order_id,card_id,card_style,full_name,email,street,city,state,zip,country,nfc_url,qr_svg_url,status,created_at";
+  const header = "order_id,card_id,card_style,full_name,email,phone,street,city,state,zip,country,nfc_url,qr_svg_url,status,created_at";
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=nfc-card-orders.csv");
   res.send([header, ...rows].join("\n"));

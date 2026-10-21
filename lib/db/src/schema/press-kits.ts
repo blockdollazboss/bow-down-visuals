@@ -18,6 +18,26 @@ export interface PressKitQuote {
   source: string;
 }
 
+export interface PressKitRelease {
+  id: string;
+  headline: string;
+  /** Full formatted release text (headline, dateline, lede, body, boilerplate, contact). */
+  body: string;
+  announcementType: string;
+  /** 280-char social version. */
+  social: string;
+  createdAt: string;
+}
+
+export const pressKitReleaseSchema = z.object({
+  id: z.string().min(1).max(64),
+  headline: z.string().min(1).max(200),
+  body: z.string().min(1).max(20000),
+  announcementType: z.string().min(1).max(40),
+  social: z.string().min(1).max(320),
+  createdAt: z.string().min(1).max(40),
+});
+
 export const pressKitTrackSchema = z.object({
   title: z.string().min(1).max(120),
   url: z.string().url().max(500),
@@ -27,6 +47,85 @@ export const pressKitQuoteSchema = z.object({
   quote: z.string().min(1).max(500),
   source: z.string().min(1).max(120),
 });
+
+/* ── Page layout ─────────────────────────────────────────────────────────
+   Which of the public page's sections show, and in what order. The
+   public page (/press/:handle) renders exactly six content sections
+   under its fixed hero header — bio, achievements, press quotes, top
+   tracks, photos, booking & contact — and these keys are those six, in
+   the order the page has always rendered them. A kit's saved layout is
+   the ordered list of { key, visible } entries; NULL (every kit saved
+   before layout editing existed) means the default below: all six
+   sections, visible, in canonical order — the historical render. */
+export const PRESS_KIT_SECTION_KEYS = [
+  "bio",
+  "achievements",
+  "press_quotes",
+  "top_tracks",
+  "photos",
+  "contact",
+] as const;
+
+export type PressKitSectionKey = (typeof PRESS_KIT_SECTION_KEYS)[number];
+
+export interface PressKitLayoutEntry {
+  key: PressKitSectionKey;
+  visible: boolean;
+}
+
+export type PressKitLayout = PressKitLayoutEntry[];
+
+export const pressKitSectionKeySchema = z.enum(PRESS_KIT_SECTION_KEYS);
+
+export const pressKitLayoutSchema = z
+  .array(
+    z.object({
+      key: pressKitSectionKeySchema,
+      visible: z.boolean(),
+    }),
+  )
+  .max(PRESS_KIT_SECTION_KEYS.length)
+  .superRefine((entries, ctx) => {
+    const seen = new Set<string>();
+    entries.forEach((entry, i) => {
+      if (seen.has(entry.key)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [i, "key"],
+          message: `Duplicate press-kit section: ${entry.key}`,
+        });
+      }
+      seen.add(entry.key);
+    });
+  });
+
+export const DEFAULT_PRESS_KIT_LAYOUT: PressKitLayout = PRESS_KIT_SECTION_KEYS.map(
+  (key) => ({ key, visible: true }),
+);
+
+/** Normalize any stored layout into the full ordered section list the
+    public page renders by: saved entries keep their saved order and
+    visibility; sections a saved layout never mentions append in
+    canonical order, visible; unknown and duplicate keys drop out.
+    NULL / non-array → the default layout, byte-for-byte the render
+    every kit had before layout editing existed. */
+export function resolvePressKitLayout(layout: unknown): PressKitLayout {
+  if (!Array.isArray(layout)) return DEFAULT_PRESS_KIT_LAYOUT.map((e) => ({ ...e }));
+  const out: PressKitLayout = [];
+  const seen = new Set<string>();
+  for (const raw of layout) {
+    if (!raw || typeof raw !== "object") continue;
+    const { key, visible } = raw as { key?: unknown; visible?: unknown };
+    if (typeof key !== "string" || seen.has(key)) continue;
+    if (!(PRESS_KIT_SECTION_KEYS as readonly string[]).includes(key)) continue;
+    seen.add(key);
+    out.push({ key: key as PressKitSectionKey, visible: visible !== false });
+  }
+  for (const key of PRESS_KIT_SECTION_KEYS) {
+    if (!seen.has(key)) out.push({ key, visible: true });
+  }
+  return out;
+}
 
 export const pressKitsTable = pgTable("press_kits", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -51,6 +150,11 @@ export const pressKitsTable = pgTable("press_kits", {
   /** Photo URLs pulled from the artist vault gallery. */
   photo_urls: jsonb("photo_urls").$type<string[]>().default([]),
   top_tracks: jsonb("top_tracks").$type<PressKitTrack[]>().default([]),
+  /** Saved press releases (from the Press Release Generator panel). */
+  press_releases: jsonb("press_releases").$type<PressKitRelease[]>().default([]),
+  /** Public-page layout: ordered { key, visible } over the six sections
+      (see PRESS_KIT_SECTION_KEYS). NULL = the default layout. */
+  layout: jsonb("layout").$type<PressKitLayout | null>(),
   /** Artist vault this kit was built from (bio source + photos). */
   artist_vault_id: uuid("artist_vault_id"),
   is_public: boolean("is_public").notNull().default(true),

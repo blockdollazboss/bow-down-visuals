@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { getSupabase } from "@/lib/supabase";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { r2List } from "@/lib/r2-storage";
 import {
   ARTIST_IMAGE_MODELS,
   ARTIST_IMAGE_RATIOS,
@@ -11,6 +13,7 @@ import {
   SHOOT_BACKGROUNDS,
   composePhotoShootBrief,
 } from "./generate-artist-image";
+import { SCENE_PACKS } from "./photo/photo-shoot-scenes";
 import type { ArtistImageModel, ArtistImageRatio } from "./generate-artist-image";
 
 export type ArtistImageModalMode = "generate" | "photoshoot";
@@ -31,11 +34,13 @@ interface Props {
 interface RecentImage { name: string; url: string; path: string }
 
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const isShoot = mode === "photoshoot";
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [model, setModel] = useState<ArtistImageModel>("gpt-image-2.5-sunburst");
+  const [model, setModel] = useState<ArtistImageModel>("nano-banana-2.1");
   const [ratio, setRatio] = useState<ArtistImageRatio>("1080:1920");
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -78,19 +83,13 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   async function loadRecent() {
     if (!userId) return;
     try {
-      const sb = getSupabase();
-      const { data, error: listErr } = await sb.storage
-        .from("artist-references")
-        .list(`${userId}/generated`, { limit: 12, sortBy: { column: "created_at", order: "desc" } });
-      if (listErr || !data) return;
+      const token = await getAccessToken();
+      const files = await r2List(`${userId}/generated`, token);
       setRecent(
-        data
+        files
           .filter((f) => /\.(jpe?g|png|webp)$/i.test(f.name))
-          .map((f) => {
-            const p = `${userId}/generated/${f.name}`;
-            const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(p);
-            return { name: f.name, url: publicUrl, path: p };
-          }),
+          .slice(0, 12)
+          .map((f) => ({ name: f.name, url: f.url, path: f.path })),
       );
     } catch { /* best-effort */ }
   }
@@ -240,6 +239,22 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {/* Photo Shoot: wardrobe / pose / backdrop presets */}
         {isShoot && (
           <>
+            {/* Curated scene packs — one tap sets wardrobe + pose + backdrop */}
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Scene packs</p>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {SCENE_PACKS.map((pack) => (
+                <button
+                  key={pack.id}
+                  type="button"
+                  disabled={generating}
+                  title={t(pack.blurbKey, { defaultValue: pack.blurb })}
+                  onClick={() => applyShootChange({ poseId: pack.poseId, outfit: pack.outfit, background: pack.background })}
+                  className={chipClass(poseId === pack.poseId && outfit === pack.outfit && background === pack.background)}
+                >
+                  {t(pack.nameKey, { defaultValue: pack.name })}
+                </button>
+              ))}
+            </div>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Wardrobe</p>
             <div className="flex gap-2 flex-wrap mb-2">
               {SHOOT_OUTFITS.map((o) => (
@@ -318,7 +333,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {isShoot ? (
           <p className="mt-4 text-xs text-white/50 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5">
             <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-            Identity lock on — your Artist Photo is the face reference. Turbo · 200 Visual Bucs per shoot.
+            Identity lock on — your Artist Photo is the face reference. Turbo · 100 Visual Bucs per shoot.
           </p>
         ) : (
           <>
@@ -383,7 +398,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
             disabled={generating || !prompt.trim() || (isShoot && !hasReferencePhoto)}
             data-testid="btn-generate-artist-image"
             title={isShoot && !hasReferencePhoto ? "Save an Artist Photo first" : undefined}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition-all disabled:opacity-50 gold-glow"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed ${(!prompt.trim() || (isShoot && !hasReferencePhoto)) && !generating ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110 gold-glow"}`}
           >
             {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating…{progress !== null ? ` ${Math.round(progress * 100)}%` : ""}</>) : (<><Sparkles className="h-4 w-4" /> Generate · {effectiveCredits} Visual Bucs</>)}
           </button>

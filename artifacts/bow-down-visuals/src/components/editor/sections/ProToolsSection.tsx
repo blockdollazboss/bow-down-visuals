@@ -12,6 +12,8 @@ import {
   proToolsActive,
   GRADE_PRESET_CORRECTIONS,
   SPEED_PRESETS,
+  SPEED_CURVE_PRESETS,
+  speedAt,
   CROP_ASPECTS,
   type ClipEdit,
   type EditorSettings,
@@ -26,6 +28,13 @@ import {
   samplePixelHex,
 } from "@/lib/pro-tools-preview";
 import { EditorCard, Collapsible, Chip } from "@/components/editor/controls";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { MotionTrackCard } from "./MotionTrackCard";
+import { ColorCurvesPanel } from "./ColorCurvesPanel";
+import { SpeedSegmentsPanel } from "./SpeedSegmentsPanel";
+import { MaskCard } from "./MaskCard";
+import { FillerRemoverCard } from "./FillerRemoverCard";
+import { TranscriptCutCard } from "./TranscriptCutCard";
 import { useToast } from "@/hooks/use-toast";
 
 /* ── Pro Tools tab ───────────────────────────────────────────────────────
@@ -99,20 +108,27 @@ export function ProToolsSection({
   settings,
   setSettings,
   videoRef,
+  onReplaceClipVideo,
 }: {
   scenes: SceneData[];
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
   /** Master player video element — used to capture the current frame for AI analysis. */
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  /** Replaces a scene's clip URL (e.g. with an AI slow-mo render). */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
 }) {
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
+  const isLight = useIsLightTheme();
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [grading, setGrading] = useState(false);
   const [keying, setKeying] = useState(false);
   const [look, setLook] = useState("");
   const [eyedropperOn, setEyedropperOn] = useState(false);
+  const [slowFactor, setSlowFactor] = useState<2 | 4 | 8>(4);
+  const [slowBusy, setSlowBusy] = useState(false);
+  const [slowResult, setSlowResult] = useState<string | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const clips = useMemo(() => scenes.filter((s) => s.demoClipUrl), [scenes]);
@@ -157,13 +173,13 @@ export function ProToolsSection({
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const body = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        toast({ title: "Out of Visual Bucs", description: "Top up to use AI Auto-Grade.", variant: "destructive" });
+        toast({ title: "Out of Visual Bucs", description: "Top up to use Auto-Grade.", variant: "destructive" });
         return;
       }
       if (!res.ok || !body.correction) throw new Error(body.error ?? "Auto-grade failed");
       patchColor(body.correction);
       toast({
-        title: "✨ AI Auto-Grade applied",
+        title: "✨ Auto-Grade applied",
         description: body.usedVision
           ? "Vision AI analyzed your frame and set the correction."
           : "AI set the correction from your look description (frame analysis unavailable).",
@@ -245,6 +261,43 @@ export function ProToolsSection({
     toast({ title: "Pro Tools reset", description: "All tools back to neutral for this clip." });
   }
 
+  /* ── AI Slow Motion (server-side optical-flow frame interpolation) ── */
+  async function handleSlowMotion() {
+    if (!activeScene?.demoClipUrl) {
+      toast({ title: "No clip", description: "Add a video clip to this scene first.", variant: "destructive" });
+      return;
+    }
+    setSlowBusy(true);
+    setSlowResult(null);
+    try {
+      const res = await confirmedFetch("/api/slow-motion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: activeScene.demoClipUrl, slowFactor }),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        toast({ title: "Out of Visual Bucs", description: "Top up to use AI Slow Motion.", variant: "destructive" });
+        return;
+      }
+      if (!res.ok || !body.url) throw new Error(body.error ?? "Slow motion render failed");
+      setSlowResult(body.url as string);
+      toast({
+        title: `✨ ${slowFactor}× slow-mo ready`,
+        description: "Optical-flow interpolation rendered server-side — use it in the editor or download it.",
+      });
+    } catch (err) {
+      toast({
+        title: "Slow motion failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSlowBusy(false);
+    }
+  }
+
   if (!activeScene) {
     return (
       <EditorCard title="Pro Tools" subtitle="Color, keying, speed, geometry" icon={<SlidersHorizontal className="h-4 w-4" />}>
@@ -264,7 +317,7 @@ export function ProToolsSection({
           onChange={(e) => setSceneId(e.target.value)}
           data-testid="pro-tools-scene-picker"
           className="bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors"
-          style={{ colorScheme: "dark" }}
+          style={{ colorScheme: isLight ? "light" : "dark" }}
         >
           {clips.map((s, i) => (
             <option key={s.id} value={s.id}>Scene {i + 1}</option>
@@ -292,7 +345,7 @@ export function ProToolsSection({
           <div className="flex flex-wrap items-center gap-2">
             <AiButton onClick={handleAutoGrade} loading={grading} testId="pro-ai-auto-grade"
               title="100 Visual Bucs — AI analyzes the frame and sets every slider">
-              AI Auto-Grade · 100 Visual Bucs
+              Auto-Grade · 100 Visual Bucs
             </AiButton>
             <button
               type="button" onClick={handleAutoLevels}
@@ -330,6 +383,11 @@ export function ProToolsSection({
               )}
             </div>
           </div>
+          <ColorCurvesPanel
+            curves={pt.curves ?? null}
+            onChange={(curves) => patchProTools({ curves })}
+            videoRef={videoRef}
+          />
           <Collapsible title={`Advanced — manual sliders${ccActive ? " ●" : ""}`}>
             <div className="space-y-1">
               {SLIDERS.map(({ key, label }) => (
@@ -441,12 +499,40 @@ export function ProToolsSection({
         <div className="space-y-4">
           <div className="flex flex-wrap gap-1.5">
             {SPEED_PRESETS.map((p) => (
-              <Chip key={p.value} active={pt.speed === p.value}
-                onClick={() => patchProTools({ speed: p.value })}>
+              <Chip key={p.value} active={pt.speed === p.value && !pt.speedCurve}
+                onClick={() => patchProTools({ speed: p.value, speedCurve: null, speedSegments: null, customSpeedCurve: null })}>
                 {p.label}
               </Chip>
             ))}
           </div>
+          {/* Speed curves (CapCut-style variable speed) */}
+          <div>
+            <p className="text-[11px] font-bold text-white/60 mb-1.5">Speed curves</p>
+            <div className="flex flex-wrap gap-1.5">
+              {SPEED_CURVE_PRESETS.filter((c) => c.id !== "flat").map((c) => {
+                const active = pt.speedCurve != null &&
+                  JSON.stringify(pt.speedCurve) === JSON.stringify(c.points);
+                return (
+                  <Chip key={c.id} active={active}
+                    onClick={() => patchProTools({
+                      speedCurve: active ? null : [...c.points],
+                      speed: 1,
+                      speedSegments: null,
+                      customSpeedCurve: null,
+                    })}
+                    title={c.blurb}>
+                    {c.label}
+                  </Chip>
+                );
+              })}
+            </div>
+            {pt.speedCurve && (
+              <p className="text-[11px] text-white/40 mt-1.5">
+                Curve active — speed varies across the clip. Tap again to return to constant speed.
+              </p>
+            )}
+          </div>
+          <SpeedSegmentsPanel pt={pt} patchProTools={patchProTools} />
           <Collapsible title={`Advanced — precise speed & reverse${pt.speed !== 1 || pt.reverse ? " ●" : ""}`}>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -471,6 +557,59 @@ export function ProToolsSection({
               </label>
             </div>
           </Collapsible>
+          {/* Slow Mo — AI optical-flow frame interpolation (300 Visual Bucs) */}
+          <div className="pt-3 border-t border-white/5" data-testid="pro-slow-mo">
+            <p className="text-[11px] font-bold text-white/60 mb-1.5">
+              ✨ Slow Mo — AI optical flow
+              <span className="font-normal text-white/35"> · 300 Visual Bucs</span>
+            </p>
+            <p className="text-[11px] text-white/40 mb-2">
+              True frame interpolation — buttery {slowFactor}× slow-mo, not choppy speed changes.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {([2, 4, 8] as const).map((f) => (
+                <Chip key={f} active={slowFactor === f}
+                  onClick={() => setSlowFactor(f)}
+                  data-testid={`pro-slow-mo-factor-${f}`}>
+                  {f}× slow
+                </Chip>
+              ))}
+            </div>
+            <AiButton onClick={handleSlowMotion} loading={slowBusy} testId="pro-slow-mo-generate"
+              title="Render smooth optical-flow slow motion server-side">
+              Generate {slowFactor}× slow-mo
+            </AiButton>
+            {slowResult && (
+              <div className="mt-3 rounded-xl border border-[#C9A84C]/30 bg-white/[0.02] p-2.5">
+                <video src={slowResult} controls playsInline
+                  className="w-full max-h-44 object-contain rounded-lg bg-black" />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeScene && onReplaceClipVideo) {
+                        onReplaceClipVideo(activeScene.id, slowResult);
+                        toast({ title: "Added to editor", description: "The slow-mo clip replaced the scene's video." });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black
+                      bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black hover:from-[#e0bc58] hover:to-[#a5853a]"
+                    data-testid="pro-slow-mo-use-in-editor"
+                  >
+                    Use in editor
+                  </button>
+                  <a
+                    href={slowResult} download={`slow-mo-${slowFactor}x.mp4`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold
+                      border border-white/15 text-white/70 hover:text-white hover:border-white/30"
+                    data-testid="pro-slow-mo-download"
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </EditorCard>
 
@@ -570,6 +709,19 @@ export function ProToolsSection({
           </Collapsible>
         </div>
       </EditorCard>
+
+      {/* ── 6. Mask (shape / reveal effects, server-side ffmpeg) ── */}
+      <MaskCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 7. Motion Track ── */}
+      <MotionTrackCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 8. AI Filler-Word Remover (Descript-style: cut ums/ahs + dead air) ── */}
+      <FillerRemoverCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
+
+      {/* ── 9. Transcript Word Editor (Wave 3 #17: cut any words/ranges by
+             editing the transcript; AI suggestions never cut on their own) ── */}
+      <TranscriptCutCard scene={activeScene} onReplaceClipVideo={onReplaceClipVideo} />
     </div>
   );
 }

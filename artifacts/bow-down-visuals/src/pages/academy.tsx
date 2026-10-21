@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
  GraduationCap, Sparkles, Loader2, ArrowRight, ArrowLeft, Clock,
  CheckCircle2, Circle, Play, MessageCircleQuestion, Send, Lightbulb,
- CalendarDays, Target, BookOpen, ChevronRight, Zap,
+ CalendarDays, Target, BookOpen, ChevronRight, Zap, Mic, TrendingUp,
+ Coins, Palette, Workflow, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -13,7 +14,13 @@ import {
  type AcademyCourse,
  type AcademyLevel,
 } from "@/lib/academy-courses";
+import { useTranslation } from "react-i18next";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
+import Guides from "@/pages/guides";
+import TutorialsPanel from "@/components/TutorialsPanel";
+
+type AcademyTab = "academy" | "tutorials" | "guides";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
  The education hub for creators: a free-to-browse course catalog with
@@ -23,7 +30,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
  - "Ask the coach" Q&A per course (1 credit/answer)
  Progress is tracked in localStorage for v1. */
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 const PROGRESS_KEY = "academy-progress-v1";
 const LESSON_CACHE_KEY = "academy-lessons-v1";
 
@@ -82,10 +89,21 @@ function saveJson(key: string, value: unknown) {
  }
 }
 
-const LEVEL_META: Record<AcademyLevel, { label: string; cls: string }> = {
- beginner: { label: "Beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
- intermediate: { label: "Intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
- advanced: { label: "Advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
+const LEVEL_META: Record<AcademyLevel, { labelKey: string; cls: string; clsLight: string }> = {
+ beginner: { labelKey: "academy.levels.beginner", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300", clsLight: "border-emerald-600/40 bg-emerald-500/15 text-emerald-700" },
+ intermediate: { labelKey: "academy.levels.intermediate", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300", clsLight: "border-amber-600/40 bg-amber-500/15 text-amber-700" },
+ advanced: { labelKey: "academy.levels.advanced", cls: "border-red-500/40 bg-red-500/10 text-red-300", clsLight: "border-red-600/40 bg-red-500/15 text-red-700" },
+};
+
+/* ─── Course catalog visuals: per-category gradient banner + watermark icon ──
+   Mirrors the ProjectCard TYPE_GRADIENTS pattern from my-projects.tsx. */
+const COURSE_VISUALS: Record<string, { gradient: string; iconColor: string; Icon: LucideIcon; labelKey: string }> = {
+ "video-production": { gradient: "from-amber-500/30 via-amber-600/10 to-black/40",   iconColor: "text-amber-400",  Icon: Mic,        labelKey: "academy.catProduction" },
+ "tiktok-growth":    { gradient: "from-green-500/30 via-emerald-600/10 to-black/40", iconColor: "text-green-400",  Icon: TrendingUp, labelKey: "academy.catGrowth" },
+ "youtube-shorts":   { gradient: "from-green-500/30 via-emerald-600/10 to-black/40", iconColor: "text-green-400",  Icon: TrendingUp, labelKey: "academy.catGrowth" },
+ "monetization":     { gradient: "from-yellow-500/30 via-primary/10 to-black/40",     iconColor: "text-primary",   Icon: Coins,      labelKey: "academy.catMonetization" },
+ "branding":         { gradient: "from-purple-500/30 via-violet-600/10 to-black/40", iconColor: "text-purple-400", Icon: Palette,    labelKey: "academy.catBranding" },
+ "content-systems":  { gradient: "from-amber-500/30 via-amber-600/10 to-black/40",   iconColor: "text-amber-400",  Icon: Workflow,   labelKey: "academy.catProduction" },
 };
 
 const PLATFORM_OPTS = [
@@ -96,10 +114,10 @@ const PLATFORM_OPTS = [
  { key: "x", label: "X" },
 ];
 
-const LEVEL_OPTS: { key: AcademyLevel; label: string; blurb: string }[] = [
- { key: "beginner", label: "Beginner", blurb: "Just starting out" },
- { key: "intermediate", label: "Intermediate", blurb: "Posting already, want growth" },
- { key: "advanced", label: "Advanced", blurb: "Scaling like a studio" },
+const LEVEL_OPTS: { key: AcademyLevel; blurbKey: string }[] = [
+ { key: "beginner", blurbKey: "academy.levelBlurbs.beginner" },
+ { key: "intermediate", blurbKey: "academy.levelBlurbs.intermediate" },
+ { key: "advanced", blurbKey: "academy.levelBlurbs.advanced" },
 ];
 
 const inputClass =
@@ -119,13 +137,15 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
  throw new Error("__OUT_OF_CREDITS__");
  }
  if (!res.ok) {
- throw new Error(data.message || data.error || "Request failed — try again.");
+ throw new Error(data.message || data.error || "__REQUEST_FAILED__");
  }
  return data;
 }
 
-export default function CreatorAcademy() {
- usePageTitle("Creator Academy", "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.");
+function AcademyMain() {
+ const isLight = useIsLightTheme();
+ const { t } = useTranslation();
+ usePageTitle(t("academy.pageTitle"), t("academy.pageDescription"));
  const { user, getAccessToken, refreshProfile } = useAuth();
 
  /* navigation: catalog → course detail */
@@ -169,8 +189,10 @@ export default function CreatorAcademy() {
  function handleError(err: unknown) {
  if (err instanceof Error && err.message === "__OUT_OF_CREDITS__") {
  handleOutOfCredits();
+ } else if (err instanceof Error && err.message === "__REQUEST_FAILED__") {
+ setError(t("academy.errorRequestFailed"));
  } else {
- setError(err instanceof Error ? err.message : "Something went wrong — try again.");
+ setError(err instanceof Error ? err.message : t("academy.errorGeneric"));
  }
  }
 
@@ -182,11 +204,11 @@ export default function CreatorAcademy() {
  async function buildLearningPath() {
  if (pathLoading || !user) return;
  if (goals.trim().length < 4) {
- setError("Tell the academy your goal first — that's what your path is built on.");
+ setError(t("academy.errorGoalFirst"));
  return;
  }
  if (platforms.length === 0) {
- setError("Pick at least one platform.");
+ setError(t("academy.errorPickPlatform"));
  return;
  }
  setPathLoading(true);
@@ -202,7 +224,7 @@ export default function CreatorAcademy() {
  hoursPerWeek: Math.max(1, Math.min(80, parseInt(hours, 10) || 5)),
  }, token);
  if (!data.path || data.path.length === 0 || !data.firstStep) {
- throw new Error("Learning path came back empty — try again.");
+ throw new Error(t("academy.errorPathEmpty"));
  }
  setLearningPath(data);
  refreshProfile();
@@ -232,7 +254,7 @@ export default function CreatorAcademy() {
  lessonId,
  }, token);
  if (!data.lesson || !data.lesson.sections?.length) {
- throw new Error("Lesson came back empty — try again.");
+ throw new Error(t("academy.errorLessonEmpty"));
  }
  setLessonCache((prev) => ({ ...prev, [key]: data.lesson }));
  refreshProfile();
@@ -255,7 +277,7 @@ export default function CreatorAcademy() {
  if (coachLoading || !user) return;
  const question = coachInput.trim();
  if (question.length < 4) {
- setError("Ask a real question — the coach needs something to work with.");
+ setError(t("academy.errorAskQuestion"));
  return;
  }
  setCoachLoading(true);
@@ -270,7 +292,7 @@ export default function CreatorAcademy() {
  courseId: course.id,
  question: question.slice(0, 1000),
  }, token);
- if (!data.answer) throw new Error("The coach came back empty — try again.");
+ if (!data.answer) throw new Error(t("academy.errorCoachEmpty"));
  setCoachThreads((prev) => ({
  ...prev,
  [course.id]: [...(prev[course.id] ?? []), { role: "coach", text: data.answer }],
@@ -295,7 +317,7 @@ export default function CreatorAcademy() {
  }, [progress]);
 
  return (
- <div className="min-h-screen bg-black text-white">
+ <div className="bg-black text-white">
 
  <main className="relative mx-auto max-w-5xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}
@@ -328,62 +350,60 @@ export default function CreatorAcademy() {
  <>
  {/* hero */}
  <div className="relative text-center">
- <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <GraduationCap className="h-3 w-3" aria-hidden="true" /> The creator education hub
+ <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-primary">
+ <GraduationCap className="h-3 w-3" aria-hidden="true" /> {t("academy.heroEyebrow")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Creator <span className="text-primary">Academy</span>
+ {t("academy.heroTitleStart")} <span className="text-primary">{t("academy.heroTitleAccent")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- Courses on production, growth, monetization, and branding —
- taught by AI, personalized to your goals. Browse free,
- learn for 100 Visual Bucs a lesson.
+ {t("academy.heroSubtitle")}
  </p>
  </div>
 
  {/* ── AI LEARNING PATH ─────────────────────────────────── */}
- <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI learning path · {CREDIT_COST} Visual Buc
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.pathBadge", { credits: CREDIT_COST })}
  </p>
- <h2 className="mt-2 font-display text-2xl font-black">Your personalized course path</h2>
+ <h2 className="mt-2 font-display text-2xl font-black">{t("academy.pathTitle")}</h2>
  <p className="mt-1.5 text-sm text-white/50">
- Tell the academy where you're headed — it builds your curriculum from the catalog.
+ {t("academy.pathDescription")}
  </p>
 
- <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">Your goal</p>
+ <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.goalLabel")}</p>
  <input
  value={goals}
  onChange={(e) => setGoals(e.target.value)}
  maxLength={500}
- placeholder="e.g. Grow my music channel to 100k subscribers this year"
+ placeholder={t("academy.goalPlaceholder")}
  className={inputClass}
  />
 
  <div className="mt-5 grid gap-5 sm:grid-cols-2">
  <div>
- <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Niche</p>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.nicheLabel")}</p>
  <input
  value={niche}
  onChange={(e) => setNiche(e.target.value)}
  maxLength={120}
- placeholder="Music"
+ placeholder={t("academy.nichePlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
- <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Hours per week</p>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.hoursLabel")}</p>
  <input
  value={hours}
  onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
  inputMode="numeric"
- placeholder="5"
+ placeholder={t("academy.hoursPlaceholder")}
  className={inputClass}
  />
  </div>
  </div>
 
- <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Your level</p>
+ <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.levelLabel")}</p>
  <div data-min-stars="2" className="grid gap-2.5 sm:grid-cols-3">
  {LEVEL_OPTS.map((l) => {
  const selected = level === l.key;
@@ -397,14 +417,14 @@ export default function CreatorAcademy() {
  : "border-white/10 bg-white/[0.03] hover:border-primary/40"
  }`}
  >
- <span className={`block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{l.label}</span>
- <span className="block text-[11px] text-white/35">{l.blurb}</span>
+ <span className={`block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{t(LEVEL_META[l.key].labelKey)}</span>
+ <span className="block text-[11px] text-white/35">{t(l.blurbKey)}</span>
  </button>
  );
  })}
  </div>
 
- <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Platforms</p>
+ <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.platformsLabel")}</p>
  <div className="flex flex-wrap gap-2">
  {PLATFORM_OPTS.map((p) => {
  const selected = platforms.includes(p.key);
@@ -436,7 +456,7 @@ export default function CreatorAcademy() {
  ) : (
  <Sparkles className="h-6 w-6" aria-hidden="true" />
  )}
- {pathLoading ? "Building your path…" : "Build my learning path"}
+ {pathLoading ? t("academy.buildingPath") : t("academy.buildPath")}
  </button>
  ) : (
  <Link
@@ -444,11 +464,11 @@ export default function CreatorAcademy() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Sparkles className="h-6 w-6" aria-hidden="true" />
- Sign in to build your path
+ {t("academy.signInToBuild")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
- <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} Visual Buc per path · powered by Thy Cheat Code</p>
+ <p className="mt-2.5 text-xs text-white/35">{t("academy.pathCostNote", { credits: CREDIT_COST })}</p>
  </div>
 
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -462,7 +482,7 @@ export default function CreatorAcademy() {
  {learningPath && (
  <div id="learning-path-results" className="mt-8 border-t border-white/10 pt-8">
  <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Target className="h-3.5 w-3.5" aria-hidden="true" /> Your path
+ <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.yourPath")}
  </p>
  <div className="grid gap-3">
  {learningPath.path.map((item) => (
@@ -486,12 +506,12 @@ export default function CreatorAcademy() {
  {learningPath.weeklyPlan.length > 0 && (
  <>
  <p className="mb-3 mt-7 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Your next 4 weeks
+ <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.next4Weeks")}
  </p>
  <div className="grid gap-2.5 sm:grid-cols-2">
  {learningPath.weeklyPlan.map((w, i) => (
  <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Week {i + 1}</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.week", { n: i + 1 })}</p>
  <p className="mt-1 text-sm leading-relaxed text-white/85">{w}</p>
  </div>
  ))}
@@ -501,7 +521,7 @@ export default function CreatorAcademy() {
 
  <div className="mt-6 rounded-2xl border border-primary/40 bg-primary/[0.08] p-5">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
- <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Your first step
+ <Zap className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.firstStep")}
  </p>
  <p className="mt-2 text-[15px] font-semibold leading-relaxed text-white">{learningPath.firstStep}</p>
  </div>
@@ -512,50 +532,65 @@ export default function CreatorAcademy() {
  {/* ── COURSE CATALOG ───────────────────────────────────── */}
  <div className="relative mt-12">
  <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> Course catalog · free to browse
+ <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.catalogBadge")}
  </p>
- <h2 className="font-display text-2xl font-black">Pick your course</h2>
+ <h2 className="font-display text-2xl font-black">{t("academy.catalogTitle")}</h2>
  <div className="mt-5 grid gap-4 sm:grid-cols-2">
  {ACADEMY_COURSES.map((course) => {
  const prog = courseProgress[course.id] ?? { done: 0, total: course.lessons.length };
  const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
  const badge = LEVEL_META[course.level];
+ const visuals = COURSE_VISUALS[course.id] ?? COURSE_VISUALS["video-production"];
+ const { Icon: CatIcon } = visuals;
  return (
  <button
  key={course.id}
  onClick={() => { setSelectedCourseId(course.id); setActiveLessonKey(null); setError(null); window.scrollTo({ top: 0 }); }}
- className="group rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-left transition hover:border-primary/50 hover:bg-primary/[0.05]"
+ className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70 hover:shadow-[0_16px_48px_rgba(122,90,18,0.25)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/50 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]"}`}
  >
- <div className="flex items-start justify-between gap-3">
- <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>
- {badge.label}
+ {/* ── Visual header: per-category gradient banner + watermark icon ── */}
+ <div className={`relative h-24 overflow-hidden bg-gradient-to-br md:h-28 ${visuals.gradient}`}>
+ <div className="absolute -bottom-7 -right-4 text-white/[0.08] [&>svg]:h-24 [&>svg]:w-24 md:[&>svg]:h-28 md:[&>svg]:w-28">
+ <CatIcon aria-hidden="true" />
+ </div>
+ <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+ <span className={`absolute bottom-3 left-4 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${visuals.iconColor}`}>
+ <CatIcon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(visuals.labelKey)}
  </span>
+ <span className={`absolute right-4 top-3 rounded-full border px-3 py-1 text-[11px] font-bold backdrop-blur-sm ${isLight ? badge.clsLight : badge.cls}`}>
+ {t(badge.labelKey)}
+ </span>
+ </div>
+ <div className="p-6">
+ <div className="flex items-start justify-between gap-3">
  <span className="flex items-center gap-1 text-[11px] text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
  </span>
  </div>
- <h3 className="mt-3 font-display text-xl font-black text-white group-hover:text-primary">
+ <h3 className="mt-1 font-display text-xl font-black text-white group-hover:text-primary">
  {course.title}
  </h3>
  <p className="mt-1 text-sm font-semibold text-primary/70">{course.tagline}</p>
  <p className="mt-2 text-sm leading-relaxed text-white/50">{course.description}</p>
  {prog.done > 0 && (
  <div className="mt-4">
- <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+ <div className={`h-1.5 overflow-hidden rounded-full ${isLight ? "bg-[#C9A84C]/25" : "bg-white/10"}`}>
  <div
  className="h-full rounded-full bg-gradient-to-r from-primary to-[#f5d67b]"
  style={{ width: `${pct}%` }}
  />
  </div>
  <p className="mt-1.5 text-[11px] text-white/40">
- {prog.done}/{prog.total} lessons complete
+ {t("academy.lessonsComplete", { done: prog.done, total: prog.total })}
  </p>
  </div>
  )}
  <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-primary">
- {prog.done > 0 ? "Continue" : "Start course"}
+ {prog.done > 0 ? t("academy.continueCourse") : t("academy.startCourse")}
  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
  </p>
+ </div>
  </button>
  );
  })}
@@ -594,11 +629,13 @@ interface CourseDetailProps {
 }
 
 function CourseDetail(props: CourseDetailProps) {
+ const isLight = useIsLightTheme();
  const {
  course, progress, lessonCache, activeLesson, activeLessonKey, lessonLoading,
  coachThreads, coachInput, coachLoading, user, error, outOfCredits,
  onBack, onOpenLesson, onCloseLesson, onToggleDone, onCoachInput, onAskCoach,
  } = props;
+ const { t } = useTranslation();
  const badge = LEVEL_META[course.level];
  const doneCount = course.lessons.filter((l) => progress[l.id]).length;
 
@@ -608,17 +645,17 @@ function CourseDetail(props: CourseDetailProps) {
  onClick={onBack}
  className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white/50 transition hover:text-primary"
  >
- <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All courses
+ <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("academy.allCourses")}
  </button>
 
  <div className="flex flex-wrap items-center gap-3">
- <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>{badge.label}</span>
+ <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${isLight ? badge.clsLight : badge.cls}`}>{t(badge.labelKey)}</span>
  <span className="flex items-center gap-1 text-xs text-white/35">
  <Clock className="h-3 w-3" aria-hidden="true" /> {course.duration}
  </span>
  {doneCount > 0 && (
  <span className="text-xs font-semibold text-primary">
- {doneCount}/{course.lessons.length} complete
+ {t("academy.courseComplete", { done: doneCount, total: course.lessons.length })}
  </span>
  )}
  </div>
@@ -629,14 +666,14 @@ function CourseDetail(props: CourseDetailProps) {
 
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
- <p className="mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+ <p className={`mt-4 max-w-md rounded-xl border px-4 py-3 text-sm ${isLight ? "border-red-600/30 bg-red-500/10 text-red-700" : "border-red-500/30 bg-red-500/10 text-red-300"}`}>
  {error}
  </p>
  )}
 
  {/* lessons */}
  <p className="mb-4 mt-10 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Play className="h-3.5 w-3.5" aria-hidden="true" /> Lessons · AI-taught, {CREDIT_COST} Visual Buc each
+ <Play className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.lessonsHeader", { credits: CREDIT_COST })}
  </p>
  <div className="grid gap-3">
  {course.lessons.map((lesson, i) => {
@@ -648,13 +685,13 @@ function CourseDetail(props: CourseDetailProps) {
  <div
  key={lesson.id}
  className={`overflow-hidden rounded-2xl border transition ${
- isActive ? "border-primary/60 bg-primary/[0.05]" : "border-white/10 bg-white/[0.03]"
+ isActive ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]") : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"
  }`}
  >
  <div className="flex items-center gap-3.5 p-4">
  <button
  onClick={() => onToggleDone(lesson.id, !done)}
- aria-label={done ? `Mark ${lesson.title} incomplete` : `Mark ${lesson.title} complete`}
+ aria-label={done ? t("academy.markIncomplete", { title: lesson.title }) : t("academy.markComplete", { title: lesson.title })}
  className="shrink-0"
  >
  {done
@@ -668,7 +705,7 @@ function CourseDetail(props: CourseDetailProps) {
  </p>
  <p className="mt-0.5 truncate text-sm text-white/45">{lesson.summary}</p>
  </button>
- <span className="hidden shrink-0 text-[11px] text-white/35 sm:block">{lesson.minutes} min</span>
+ <span className="hidden shrink-0 text-[11px] text-white/35 sm:block">{t("academy.lessonMinutes", { minutes: lesson.minutes })}</span>
  <button
  onClick={() => onOpenLesson(lesson.id)}
  className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
@@ -677,7 +714,7 @@ function CourseDetail(props: CourseDetailProps) {
  : "bg-primary text-black hover:brightness-110"
  }`}
  >
- {cached ? "Read" : `Learn · ${CREDIT_COST}VB`}
+ {cached ? t("academy.readLesson") : t("academy.learnLesson", { credits: CREDIT_COST })}
  </button>
  </div>
 
@@ -686,7 +723,7 @@ function CourseDetail(props: CourseDetailProps) {
  {lessonLoading && !activeLesson ? (
  <p className="flex items-center gap-2 text-sm text-white/50">
  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
- The instructor is preparing your lesson…
+ {t("academy.preparingLesson")}
  </p>
  ) : activeLesson ? (
  <div>
@@ -697,9 +734,9 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
  ))}
  {activeLesson.takeaways.length > 0 && (
- <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+ <div className={`mt-6 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
- <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> Key takeaways
+ <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.keyTakeaways")}
  </p>
  <ul className="mt-2.5 space-y-1.5">
  {activeLesson.takeaways.map((t, ti) => (
@@ -713,7 +750,7 @@ function CourseDetail(props: CourseDetailProps) {
  )}
  <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/[0.08] p-4">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
- <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Do it today
+ <Zap className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.doItToday")}
  </p>
  <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-white">
  {activeLesson.actionStep}
@@ -724,7 +761,7 @@ function CourseDetail(props: CourseDetailProps) {
  onClick={onCloseLesson}
  className="text-sm font-semibold text-white/40 transition hover:text-white"
  >
- Close lesson
+ {t("academy.closeLesson")}
  </button>
  {!done && (
  <button
@@ -732,15 +769,15 @@ function CourseDetail(props: CourseDetailProps) {
  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
  >
  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
- Mark complete
+ {t("academy.markCompleteBtn")}
  </button>
  )}
  </div>
  </div>
  ) : !user ? (
  <p className="text-sm text-white/50">
- <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
- {" "}to generate this AI lesson ({CREDIT_COST} Visual Buc).
+ <Link href="/login" className="font-semibold text-primary hover:underline">{t("academy.signIn")}</Link>
+ {" "}{t("academy.signInToGenerate", { credits: CREDIT_COST })}.
  </p>
  ) : null}
  </div>
@@ -751,13 +788,13 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
 
  {/* ask the coach */}
- <div className="mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
+ <div className={`${isLight ? "mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> Ask the coach · {CREDIT_COST} Visual Buc per answer
+ <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> {t("academy.coachHeader", { credits: CREDIT_COST })}
  </p>
- <h3 className="mt-2 font-display text-xl font-black">Stuck on {course.title}?</h3>
+ <h3 className="mt-2 font-display text-xl font-black">{t("academy.stuckOn", { title: course.title })}</h3>
  <p className="mt-1 text-sm text-white/50">
- Ask anything about this course — the AI instructor answers in plain, practical terms.
+ {t("academy.coachDescription")}
  </p>
 
  <div className="mt-5 space-y-3">
@@ -771,14 +808,14 @@ function CourseDetail(props: CourseDetailProps) {
  }`}
  >
  {m.role === "coach" && (
- <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">Coach</p>
+ <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">{t("academy.coachRole")}</p>
  )}
  <p className="whitespace-pre-wrap">{m.text}</p>
  </div>
  ))}
  {coachLoading && (
  <p className="flex items-center gap-2 text-sm text-white/40">
- <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> The coach is thinking…
+ <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("academy.coachThinking")}
  </p>
  )}
  </div>
@@ -789,14 +826,14 @@ function CourseDetail(props: CourseDetailProps) {
  onChange={(e) => onCoachInput(e.target.value)}
  onKeyDown={(e) => { if (e.key === "Enter") onAskCoach(); }}
  maxLength={1000}
- placeholder={`Ask about ${course.title.toLowerCase()}…`}
+ placeholder={t("academy.askPlaceholder", { title: course.title.toLowerCase() })}
  disabled={coachLoading}
  className={inputClass}
  />
  <button
  onClick={onAskCoach}
  disabled={coachLoading || !coachInput.trim()}
- aria-label="Ask the coach"
+ aria-label={t("academy.askCoachAria")}
  className="flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 text-black transition hover:brightness-110 disabled:opacity-40"
  >
  {coachLoading ? (
@@ -808,11 +845,73 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
  {!user && (
  <p className="mt-3 text-sm text-white/40">
- <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
- {" "}to ask the coach.
+ <Link href="/login" className="font-semibold text-primary hover:underline">{t("academy.signIn")}</Link>
+ {" "}{t("academy.signInToAsk")}.
  </p>
  )}
  </div>
  </div>
  );
+}
+
+/* ─── Tabbed wrapper ─── */
+/* Phase 2 bookmark shim: Copyright, LLC Guide and Community Manager
+   are real routes now — old /academy?tab= bookmarks land there. */
+const MOVED_ACADEMY_TABS: Record<string, string> = {
+  copyright: "/copyright",
+  llc: "/llc-guide",
+  community: "/community",
+};
+
+export default function CreatorAcademy() {
+  const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const dest = MOVED_ACADEMY_TABS[params.get("tab") ?? ""];
+      if (dest) {
+        params.delete("tab");
+        const qs = params.toString();
+        setLocation(qs ? `${dest}?${qs}` : dest, { replace: true });
+      }
+    } catch { /* non-browser — ignore */ }
+  }, [setLocation]);
+  const [tab, setTab] = useState<AcademyTab>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (q === "guides" || q === "tutorials") return q;
+    } catch { /* non-browser — ignore */ }
+    return "academy";
+  });
+
+  const TABS: Array<{ key: AcademyTab; label: string }> = [
+    { key: "academy", label: t("academy.tabAcademy", { defaultValue: "Academy" }) },
+    { key: "tutorials", label: t("academy.tabTutorials", { defaultValue: "How-To Videos" }) },
+    { key: "guides", label: t("academy.tabGuides", { defaultValue: "Guides" }) },
+  ];
+
+  return (
+    <div className="bg-black text-white">
+      <div className="mx-auto max-w-5xl px-4 pt-8">
+        <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                tab === key
+                  ? "bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black"
+                  : "text-white/50 hover:text-white/80 border border-white/10 hover:border-white/25"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "academy" ? <AcademyMain /> : tab === "tutorials" ? <TutorialsPanel /> : <Guides />}
+    </div>
+  );
 }

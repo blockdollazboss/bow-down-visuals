@@ -1,13 +1,15 @@
 import { Router } from "express";
+import { z } from "zod";
 import express from "express";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { mkdtemp, writeFile, rm } from "fs/promises";
-import { existsSync, statSync, readFileSync } from "fs";
+import { mkdtemp, writeFile, rm, mkdir, unlink } from "fs/promises";
+import { existsSync, statSync, readFileSync, createReadStream } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeExpensiveAiLimiter } from "../lib/rate-limit";
 import { objectStorageClient } from "../lib/objectStorage";
 import {
   PROVIDER_LIMIT_SEC,
@@ -28,10 +30,18 @@ import {
 } from "../lib/sync-labs";
 import type { UrlType } from "../lib/sync-labs";
 import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+} from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordLipSyncHistory } from "../lib/payment-record";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { logger } from "../lib/logger";
 import {
   createExportJob,
@@ -352,10 +362,56 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
    POST /lip-sync/preview
    Trims audio to the scene's exact time range, then submits to Sync Labs.
 ────────────────────────────────────────────────────────────────────────── */
-router.post("/lip-sync/preview", requireAuth, async (req, res) => {
+/* ── Request validation schemas ── */
+const lipSyncPreviewSchema = z.object({
+  clipUrl: z.string().min(1, "clipUrl is required.").max(2048),
+  audioUrl: z.string().min(1, "audioUrl is required.").max(2048),
+  sceneStartSec: z.number().finite().min(0).max(86400),
+  sceneEndSec: z.number().finite().min(0).max(86400),
+  audioSourceType: z.string().max(50).optional(),
+  strength: z.string().max(50).optional(),
+  preserveFaceIdentity: z.boolean().optional(),
+  preserveArtistLook: z.boolean().optional(),
+  projectId: z.string().max(100).optional(),
+  sceneId: z.string().max(100).optional(),
+  /* The Creative Vault character this lip-sync is made as (0142, G8). */
+  artistVaultId: z.string().uuid().optional(),
+});
+
+const lipSyncSceneTestSchema = z.object({
+  clipUrl: z.string().min(1, "clipUrl is required.").max(2048),
+  audioUrl: z.string().min(1, "audioUrl is required.").max(2048),
+  sceneStartSec: z.coerce.number().finite().min(0).max(86400).optional().default(0),
+  sceneEndSec: z.coerce.number().finite().min(0).max(86400).optional().default(0),
+  videoOffsetSec: z.coerce.number().finite().min(-3600).max(3600).optional().default(0),
+});
+
+const lipSyncRunAllSchema = z.object({
+  projectId: z.string().min(1, "projectId is required.").max(100),
+});
+
+function invalidBody(res: import("express").Response, issues: { field: string; message: string }[]) {
+  res.status(400).json({ error: "Invalid request body.", details: issues });
+}
+
+/* Charged server-side at the price the UI has always displayed for lip
+   sync (frontend registry: "/api/lip-sync" → 300 Visual Bucs, which the
+   confirm dialog resolves for /lip-sync/preview by prefix match). Until
+   the owner's 2026-10-14 ruling this route enqueued paid Sync.so jobs
+   for free. The charge lands after every free pre-flight check and
+   immediately before the durable job is enqueued; if the enqueue
+   itself fails, the charge is refunded with a ledger trace. */
+const LIP_SYNC_PREVIEW_CREDIT_COST = 300;
+
+router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req, res) => {
   /* Validate inputs synchronously, then fire-and-forget background processing.
      The HTTP response completes in < 1 s so the Replit proxy never times out. */
   try {
+    const parsed = lipSyncPreviewSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
     const {
       clipUrl,
       audioUrl,
@@ -367,18 +423,8 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       preserveArtistLook,
       projectId,
       sceneId,
-    } = (req.body ?? {}) as {
-      clipUrl?: string;
-      audioUrl?: string;
-      sceneStartSec?: number;
-      sceneEndSec?: number;
-      audioSourceType?: string;
-      strength?: string;
-      preserveFaceIdentity?: boolean;
-      preserveArtistLook?: boolean;
-      projectId?: string;
-      sceneId?: string;
-    };
+      artistVaultId,
+    } = parsed.data;
 
     void audioSourceType;
     void strength;
@@ -471,23 +517,78 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       return;
     }
 
+    /* ── Charge the displayed price BEFORE enqueueing ──────────────────
+       Balance fast-fail mirrors POST /lip-sync/run-all in this file
+       (skipped in dev); chargeCredits re-reads fresh and is
+       authoritative. The idempotency key is stable per (user, endpoint,
+       request-intent), so a double-tap or retry of the same scene
+       preview can't double-charge — a suppressed replay still enqueues
+       below, so a client that lost the first response is never left
+       charged with no job to poll. */
+    const isDev = process.env["NODE_ENV"] === "development";
+    if (!isDev && (req.userCredits ?? 0) < LIP_SYNC_PREVIEW_CREDIT_COST) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+        required: LIP_SYNC_PREVIEW_CREDIT_COST,
+      });
+      return;
+    }
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "lip-sync-preview",
+      userId,
+      (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey,
+      { projectId: projectId ?? null, sceneId: sceneId ?? null, clipUrl, audioUrl, sceneStartSec, sceneEndSec },
+    );
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        action: "Lip Sync",
+      }, { idempotencyKey });
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+          required: LIP_SYNC_PREVIEW_CREDIT_COST,
+        });
+        return;
+      }
+      if (err instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+        return;
+      }
+      throw err;
+    }
+
     /* ── Enqueue a durable server-owned job and return immediately ─────────
        The job row survives restarts and the background poller drives it
        through Sync.so's 25–40 minute runs — the tab can close right after
        this response. The client keeps polling GET /api/lip-sync/job/:id
        as before until status becomes "done" or "failed".                */
-    const job = await createLipSyncJob({
-      userId,
-      projectId: projectId ?? null,
-      sceneId: sceneId ?? null,
-      params: {
-        clipUrl,
-        audioUrl,
-        sceneStartSec,
-        sceneEndSec,
-        provider: getLipSyncProviderName(),
-      },
-    });
+    let job;
+    try {
+      job = await createLipSyncJob({
+        userId,
+        projectId: projectId ?? null,
+        sceneId: sceneId ?? null,
+        artistVaultId: artistVaultId ?? null,
+        params: {
+          clipUrl,
+          audioUrl,
+          sceneStartSec,
+          sceneEndSec,
+          provider: getLipSyncProviderName(),
+        },
+      });
+    } catch (enqueueErr) {
+      /* The job never entered the queue — refund the charge with a
+         ledger trace, then let the outer catch produce its usual 502. */
+      await refundCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        action: "Lip Sync — Refund (enqueue failed)",
+      }).catch(() => {});
+      throw enqueueErr;
+    }
     const jobId = job.id;
 
     // Wake the poller so the submit starts within seconds, not on the next tick.
@@ -504,7 +605,7 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       "[lip-sync] job queued — returning immediately",
     );
 
-    res.json({ jobId, status: "queued" });
+    res.json({ jobId, status: "queued", creditsRemaining: creditsAfter });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lip sync failed";
     req.log.error({ err }, "[lip-sync] preview route error");
@@ -630,7 +731,11 @@ interface SceneTestJob {
 }
 
 const sceneTestJobs = new Map<string, SceneTestJob>();
-const sceneTestBuffers = new Map<string, Buffer>(); // fallback in-memory download
+/* 2026-10-12 OOM fix: the fallback download used to pin whole rendered
+   clips in RAM (Map<string, Buffer>) for up to 2h. It now spills to a
+   temp file on disk; the Map holds only the file path. */
+const sceneTestBuffers = new Map<string, string>(); // jobId -> fallback file path
+const SCENE_TEST_FALLBACK_DIR = join(tmpdir(), "scene-test-fallback");
 
 setInterval(
   () => {
@@ -638,7 +743,9 @@ setInterval(
     for (const [id, job] of sceneTestJobs) {
       if (new Date(job.createdAt).getTime() < cutoff) {
         sceneTestJobs.delete(id);
+        const fallbackPath = sceneTestBuffers.get(id);
         sceneTestBuffers.delete(id);
+        if (fallbackPath) void unlink(fallbackPath).catch(() => {});
       }
     }
   },
@@ -866,9 +973,12 @@ async function processSceneTestJob(
         "DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — using fallback download";
     }
 
-    /* ── 7: Fallback — serve via in-memory download route ───────────────── */
+    /* ── 7: Fallback — serve via on-disk download route ────────────────── */
     if (!signedUrl) {
-      sceneTestBuffers.set(jobId, fileBuffer);
+      await mkdir(SCENE_TEST_FALLBACK_DIR, { recursive: true });
+      const fallbackPath = join(SCENE_TEST_FALLBACK_DIR, `${jobId}.mp4`);
+      await writeFile(fallbackPath, fileBuffer);
+      sceneTestBuffers.set(jobId, fallbackPath);
       const fallbackUrl = `/api/lip-sync-tests/${jobId}/download`;
       dbg({ storageMethod: "fallback-download", resultUrl: fallbackUrl });
       update({
@@ -904,28 +1014,28 @@ async function processSceneTestJob(
 
 /* ──────────────────────────────────────────────────────────────────────────
    GET /api/lip-sync-tests/:testId/download
-   Fallback download route — serves the rendered MP4 from memory when
-   Replit object-storage signing fails.  No auth required; the UUID testId
-   is unguessable and acts as the bearer token.
+   Fallback download route — streams the rendered MP4 from a temp file
+   when Replit object-storage signing fails.  No auth required; the UUID
+   testId is unguessable and acts as the bearer token.
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync-tests/:testId/download", (req, res) => {
   const paramId = req.params["testId"];
   const testId = Array.isArray(paramId) ? (paramId[0] ?? "") : (paramId ?? "");
-  const buf = sceneTestBuffers.get(testId);
-  if (!buf) {
+  const fallbackPath = sceneTestBuffers.get(testId);
+  if (!fallbackPath || !existsSync(fallbackPath)) {
     res
       .status(404)
       .json({ error: "Test file not found or expired", code: "not_found" });
     return;
   }
   res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Length", String(buf.length));
+  res.setHeader("Content-Length", String(statSync(fallbackPath).size));
   res.setHeader(
     "Content-Disposition",
     `attachment; filename="scene-test-${testId.slice(0, 8)}.mp4"`,
   );
   res.setHeader("Cache-Control", "private, max-age=7200");
-  res.end(buf);
+  createReadStream(fallbackPath).pipe(res);
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -934,29 +1044,28 @@ router.get("/lip-sync-tests/:testId/download", (req, res) => {
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
   try {
-    const body = (req.body ?? {}) as {
-      clipUrl?: unknown;
-      audioUrl?: unknown;
-      sceneStartSec?: unknown;
-      sceneEndSec?: unknown;
-      videoOffsetSec?: unknown;
-    };
+    const parsed = lipSyncSceneTestSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
+    const { clipUrl, audioUrl } = parsed.data;
 
-    if (!body.clipUrl || typeof body.clipUrl !== "string") {
+    if (!clipUrl) {
       res
         .status(400)
         .json({ error: "clipUrl is required", code: "missing_clip" });
       return;
     }
-    if (!body.audioUrl || typeof body.audioUrl !== "string") {
+    if (!audioUrl) {
       res
         .status(400)
         .json({ error: "audioUrl is required", code: "missing_audio" });
       return;
     }
-    const sceneStartSec = Number(body.sceneStartSec ?? 0);
-    const sceneEndSec = Number(body.sceneEndSec ?? 0);
-    const videoOffsetSec = Number(body.videoOffsetSec ?? 0);
+    const sceneStartSec = parsed.data.sceneStartSec;
+    const sceneEndSec = parsed.data.sceneEndSec;
+    const videoOffsetSec = parsed.data.videoOffsetSec;
 
     if (
       !Number.isFinite(sceneStartSec) ||
@@ -1007,14 +1116,14 @@ router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
         sceneStartSec,
         sceneEndSec,
         videoOffsetSec,
-        clipUrl: body.clipUrl.slice(0, 80),
+        clipUrl: clipUrl.slice(0, 80),
       },
       "[scene-test] job queued",
     );
 
     void processSceneTestJob(jobId, {
-      clipUrl: body.clipUrl,
-      audioUrl: body.audioUrl,
+      clipUrl: clipUrl,
+      audioUrl: audioUrl,
       sceneStartSec,
       sceneEndSec,
       videoOffsetSec,
@@ -1163,7 +1272,8 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
   }
   /* Provider-direct recovery: our poller may have given up while Sync.so is
      still working. Check the provider job directly before failing the scene. */
-  const syncId = (await getLipSyncJob(subJobId))?.providerJobId;
+  const jobRow = await getLipSyncJob(subJobId);
+  const syncId = jobRow?.providerJobId;
   const apiKey = getLipSyncApiKey();
   if (syncId && apiKey) {
     const recoverUntil = Date.now() + 10 * 60 * 1000;
@@ -1173,8 +1283,16 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
         const pj = await syncLabsStatus(syncId, apiKey);
         const st = normalizeProviderStatus(pj);
         if (st === "completed" && pj.outputUrl) {
-          await completeLipSyncJob(subJobId, pj.outputUrl);
-          return pj.outputUrl;
+          /* Mirror-on-save (2026-10-13 law): never persist the provider's
+             raw CDN URL — re-host first, exactly like the job-poller's
+             completion path. */
+          const storedUrl =
+            (await mirrorExternalMediaUrl(pj.outputUrl, {
+              kind: "video",
+              ownerKey: jobRow?.userId ?? subJobId,
+            })) ?? pj.outputUrl;
+          await completeLipSyncJob(subJobId, storedUrl);
+          return storedUrl;
         }
         if (st === "failed")
           throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
@@ -1462,8 +1580,13 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
   try {
-    const { projectId } = (req.body ?? {}) as { projectId?: string };
-    if (!projectId || typeof projectId !== "string" || !projectId.trim()) {
+    const parsed = lipSyncRunAllSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      invalidBody(res, parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+      return;
+    }
+    const { projectId } = parsed.data;
+    if (!projectId.trim()) {
       res
         .status(400)
         .json({ error: "projectId is required.", code: "missing_project_id" });

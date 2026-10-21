@@ -12,6 +12,9 @@ export const generationsTable = pgTable("generations", {
   prompt: text("prompt"),
   credits_spent: integer("credits_spent").notNull().default(0),
   metadata: jsonb("metadata"),
+  /** The Creative Vault character this was made as (migration 0142, G8).
+      Nullable: generations made without a character pick stay null. */
+  artist_vault_id: uuid("artist_vault_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   /* Soft delete: never permanently lose user data. */
   deleted_at: timestamp("deleted_at", { withTimezone: true }),

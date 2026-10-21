@@ -8,14 +8,15 @@ import {
   refundCredits,
   OutOfCreditsError,
 } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { r2Upload } from "../../lib/r2-client";
 import { logger } from "../../lib/logger";
+import { attributionOptIn, burnAttributionIntoImage } from "../../lib/attribution";
 
 const router = Router();
 
 /* ─── Pricing ───────────────────────────────────────────────────────────────
-   2 credits standard / 3 credits premium — in line with site image pricing
-   (Pro 2cr, Turbo 1cr, Sunburst 1-2cr). Env-overridable without a deploy. */
+   200 Visual Bucs standard / 300 premium — in line with site image
+   pricing. Env-overridable without a deploy. */
 export const COVER_ART_STANDARD_CREDITS =
   Number(process.env["COVER_ART_STANDARD_CREDITS"]) || 200;
 export const COVER_ART_PREMIUM_CREDITS =
@@ -113,6 +114,8 @@ export const coverArtSchema = z.object({
     })
     .default("1:1"),
   tier: z.enum(["standard", "premium"]).default("standard"),
+  /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
+  attribution: attributionOptIn(),
 });
 export type CoverArtInput = z.infer<typeof coverArtSchema>;
 
@@ -194,22 +197,48 @@ export function buildCoverImagePrompt(input: CoverArtInput, art: ArtDirection): 
   ).slice(0, 4000);
 }
 
+/* ─── Reusable image generation (lyric-stories + friends) ─────────────────
+   Standalone wrapper around the same GPT Image pipeline this route uses, so
+   other routes can generate artwork without duplicating provider code. */
+export interface CoverImageJob {
+  prompt: string;
+  ratio: "1:1" | "16:9" | "9:16";
+  tier: "standard" | "premium";
+}
+
+export async function generateCoverImageBuffer(job: CoverImageJob): Promise<Buffer> {
+  const imageResp = await getOpenAI().images.generate({
+    model: IMAGE_MODEL,
+    prompt: job.prompt,
+    size: resolveCoverArtSize(job.ratio),
+    quality: job.tier === "premium" ? "high" : "medium",
+    n: 1,
+  });
+  const b64 = imageResp.data?.[0]?.b64_json;
+  if (!b64) throw new Error("Image generation returned no image data.");
+  return Buffer.from(b64, "base64");
+}
+
+export async function storeGeneratedArtwork(
+  userId: string,
+  buffer: Buffer,
+  prefix = "cover-art",
+): Promise<{ url: string; path: string }> {
+  const filePath = `${userId}/${prefix}/${randomUUID()}.png`;
+  const publicUrl = await r2Upload(filePath, buffer, "image/png");
+  return { url: publicUrl, path: filePath };
+}
+
 /* ─── Storage ─────────────────────────────────────────────────────────────── */
 async function uploadCoverArt(userId: string, buffer: Buffer): Promise<{ url: string; path: string }> {
   const filePath = `${userId}/cover-art/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(COVER_ART_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(COVER_ART_BUCKET).getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buffer, "image/png");
   return { url: publicUrl, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/cover-art
-   Paid: 2 credits standard / 3 credits premium. Auth required.
+   Paid: 200 Visual Bucs standard / 300 premium. Auth required.
    1. Validate input.
    2. Credit pre-check (402 when short).
    3. Charge BEFORE generation.
@@ -295,7 +324,14 @@ router.post("/cover-art", requireAuth, async (req, res) => {
     /* Step 3 — persist to the user's library. */
     let stored: { url: string; path: string };
     try {
-      stored = await uploadCoverArt(req.userId!, Buffer.from(b64, "base64"));
+      let artBuffer: Buffer = Buffer.from(b64, "base64");
+      /* Virality: opt-in quiet corner credit burned post-generation (paid export → opt-in). */
+      if (input.attribution) {
+        const sizeStr = resolveCoverArtSize(input.aspectRatio);
+        const outW = parseInt(sizeStr.split("x")[0] ?? "1024", 10) || 1024;
+        artBuffer = await burnAttributionIntoImage(artBuffer, outW);
+      }
+      stored = await uploadCoverArt(req.userId!, artBuffer);
     } catch (upErr) {
       await refundAndFail(500, "Could not save your cover art — Visual Bucs refunded.", {
         userId: req.userId,
@@ -311,6 +347,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
     res.json({
       url: stored.url,
       path: stored.path,
+      attribution: input.attribution,
       artDirection,
       typography: artDirection.typography,
       creditsUsed: creditCost,

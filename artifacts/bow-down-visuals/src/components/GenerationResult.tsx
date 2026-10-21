@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle } from "lucide-react";
+import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle, AudioWaveform } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useHubProject } from "@/lib/hub-project";
 
 interface Section {
@@ -380,6 +382,35 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
                 <p className="text-xs font-black text-emerald-300">Audio ready</p>
               </div>
               <audio controls src={generatedAudioUrl} className="w-full" data-testid="audio-generated-preview" />
+              <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex-1 min-w-[120px]" data-testid="btn-result-share-audio">
+                  <ShareMenu
+                    getToken={getAccessToken}
+                    shareUrl={generatedAudioUrl}
+                    text={projectTitle}
+                    contentType="song"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px] flex" data-testid="btn-result-showcase-audio">
+                  <PublishToShowcase
+                    mediaType="song"
+                    mediaUrl={generatedAudioUrl}
+                    defaultTitle={projectTitle}
+                  />
+                </div>
+                {/* Handoff: a finished song flows into Audio Studio to be
+                    mastered/polished — the studio's established deep-link
+                    protocol (?tab=master&audioUrl=) pre-loads the track,
+                    the same mechanism the Vocal Polish handoff uses. */}
+                <a
+                  href={`/audio-studio?tab=master&audioUrl=${encodeURIComponent(generatedAudioUrl)}`}
+                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 bg-primary/[0.06] px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-all"
+                  data-testid="btn-result-open-audio-studio"
+                >
+                  <AudioWaveform className="h-3.5 w-3.5 shrink-0" />
+                  Open in Audio Studio
+                </a>
+              </div>
             </div>
           )}
         </div>

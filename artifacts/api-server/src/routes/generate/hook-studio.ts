@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -60,6 +60,20 @@ const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSch
 /* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
+
+/* The charge lands BEFORE the model call; any failure after it refunds
+   the exact charged amount (D5 sweep G10 — the refundOnFailure pattern
+   from academy.ts). One charge covers all three modes. */
+async function refundOnFailure(userId: string, action: string): Promise<void> {
+  try {
+    await refundCredits(userId, HOOK_STUDIO_CREDITS, {
+      action: `${action} — Refund (generation failed)`,
+    });
+  } catch (refundErr) {
+    /* Logged inside refundCredits; don't mask the original failure. */
+    void refundErr;
+  }
+}
 
 /* POST /api/hook-studio { mode, ... } → 200 { hooks | scorecard | captions, creditsUsed, creditsRemaining }
    Paid: 1 credit per generation (all modes). Auth required; credits are
@@ -306,6 +320,7 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
       creditsRemaining,
     });
   } catch (err) {
+    await refundOnFailure(req.userId!, actionName);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err, mode: parsed.data.mode }, "[hook-studio] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });

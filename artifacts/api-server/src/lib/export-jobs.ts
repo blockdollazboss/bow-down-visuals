@@ -1,10 +1,9 @@
-import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
-import { OutOfCreditsError } from "./credits";
+import { OutOfCreditsError, canUseCredits, CreditsDisabledError } from "./credits";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 /**
@@ -191,6 +190,11 @@ export async function chargeCreditsForJob(
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`chargeCreditsForJob: invalid cost ${cost}`);
   }
+  // Admin-only mode: block users who haven't been explicitly approved.
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ jobId, userId, cost }, "[export] blocked non-whitelisted spend (admin-only mode)");
+    throw new CreditsDisabledError();
+  }
   const flag = await db().execute(sql`
     UPDATE export_jobs SET credits_charged = true, updated_at = now()
     WHERE id = ${jobId} AND credits_charged = false
@@ -224,6 +228,23 @@ export async function chargeCreditsForJob(
     throw updateErr;
   }
   return { charged: true, creditsAfter };
+}
+
+/**
+ * Clear the credits_charged flag after a charge has been REFUNDED.
+ *
+ * The flag means "a standing, un-refunded charge exists for this job".
+ * When the completion save fails after a successful charge, the worker
+ * refunds the deduction; clearing the flag keeps the row honest and lets
+ * a boot-recovery re-run of the same job charge again (exactly once)
+ * instead of skipping the deduction and delivering free (D5 sweep G2).
+ */
+export async function clearJobChargeFlag(id: string): Promise<void> {
+  await db().execute(sql`
+    UPDATE export_jobs
+    SET credits_charged = false, updated_at = now()
+    WHERE id = ${id} AND credits_charged = true
+  `);
 }
 
 /** Mark a job done with its render result. */
@@ -377,6 +398,4 @@ function humanizeStage(stage: string): string {
 }
 
 /** Kept for tests/callers that need a job id without a DB round-trip. */
-export function newJobId(): string {
-  return randomUUID();
-}
+/* Removed 2026-10-10: newJobId was dead (zero imports). */

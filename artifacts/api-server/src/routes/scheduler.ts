@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db, scheduledPostsTable, type ScheduledPost } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { logger } from "../lib/logger";
@@ -13,6 +13,17 @@ import {
   LedgerWriteError,
 } from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): scheduled media is re-hosted into
+   permanent storage at save time — a post firing weeks later must never
+   find a dead link. The publisher (lib/scheduler-jobs resolveMediaUrl)
+   already resolves storage refs at fire time; presenters re-sign here. */
+async function presentPost(p: ScheduledPost) {
+  const pub = toPublicPost(p);
+  return { ...pub, mediaUrl: pub.mediaUrl ? await refreshSupabaseStorageUrl(pub.mediaUrl) : pub.mediaUrl };
+}
 
 /* ─── Content Scheduler ──────────────────────────────────────────────────
    Schedule posts across Instagram, TikTok, and Facebook from one calendar.
@@ -55,6 +66,10 @@ export const scheduledPostSchema = z.object({
   accountIds: z.partialRecord(z.enum(PLATFORMS), z.string().uuid()).default({}),
   /* ISO datetime. Omitted (or in the past) → saved as a free draft. */
   scheduledAt: z.string().datetime({ offset: true }).optional(),
+  /* Release attribution (0143): set only by the scheduler-from-release
+     flow, which carries the release's id through the composer. Anything
+     else leaves it null — this is a stamp, not a user-editable field. */
+  releaseId: z.string().uuid().optional().nullable(),
 });
 
 export const updateScheduledPostSchema = z.object({
@@ -92,6 +107,7 @@ function toPublicPost(p: ScheduledPost) {
     attempts: p.attempts,
     lastError: p.last_error,
     creditsCharged: p.credits_charged,
+    releaseId: p.release_id ?? null,
     aiBestTime: p.ai_best_time,
     results: p.results,
     createdAt: p.created_at.toISOString(),
@@ -136,7 +152,7 @@ router.get("/scheduler/posts", requireAuth, async (req: Request, res: Response) 
         .orderBy(desc(scheduledPostsTable.created_at))
         .limit(200);
     }
-    res.json({ posts: rows.map(toPublicPost) });
+    res.json({ posts: await Promise.all(rows.map(presentPost)) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[scheduler] list failed");
     res.status(500).json({ error: "list_failed", message: "Couldn't load your scheduled posts." });
@@ -158,7 +174,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     });
     return;
   }
-  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt } = parsed.data;
+  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt, releaseId } = parsed.data;
 
   const missingAccounts = platforms.filter((p) => !accountIds[p]);
   if (missingAccounts.length > 0) {
@@ -198,13 +214,17 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     }
   }
 
+  const storedMediaUrl =
+    (await mirrorExternalMediaUrl(mediaUrl, { kind: mediaType === "image" ? "image" : "video", ownerKey: req.userId! })) ??
+    mediaUrl;
+
   try {
     const [row] = await db
       .insert(scheduledPostsTable)
       .values({
         user_id: req.userId!,
         status: wantsSchedule ? "scheduled" : "draft",
-        media_url: mediaUrl,
+        media_url: storedMediaUrl,
         media_type: mediaType,
         caption,
         hashtags,
@@ -212,10 +232,11 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
         account_ids: { ...accountIds },
         scheduled_at: wantsSchedule ? fireAt : null,
         credits_charged: cost,
+        release_id: releaseId ?? null,
       })
       .returning();
     if (wantsSchedule) requestPollerTick(); // wake the worker for near-term posts
-    res.status(201).json({ post: toPublicPost(row) });
+    res.status(201).json({ post: await presentPost(row) });
   } catch (err) {
     /* The post wasn't created but the charge landed — refund immediately. */
     if (cost > 0) {
@@ -277,9 +298,21 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
   if (data.hashtags !== undefined) patch.hashtags = data.hashtags;
   if (data.platforms !== undefined) patch.platforms = [...data.platforms];
   if (data.accountIds !== undefined || data.platforms !== undefined) patch.account_ids = nextAccountIds;
-  if (data.mediaUrl !== undefined) patch.media_url = data.mediaUrl;
+  if (data.mediaUrl !== undefined) {
+    patch.media_url =
+      (await mirrorExternalMediaUrl(data.mediaUrl, {
+        kind: (data.mediaType ?? post.media_type) === "image" ? "image" : "video",
+        ownerKey: req.userId!,
+      })) ?? data.mediaUrl;
+  }
   if (data.mediaType !== undefined) patch.media_type = data.mediaType;
 
+  /* Set when the draft→scheduled charge below lands in THIS request.
+     If the shared update after it throws, the row still reads
+     credits_charged = 0, so no later refund path (unschedule / cancel /
+     poller) could ever see the charge — refund it here (D5 sweep G7). */
+  let chargedThisRequest = 0;
+  let updateLanded = false;
   if (data.scheduledAt !== undefined) {
     if (data.scheduledAt === null) {
       /* Unscheduling a scheduled post refunds the whole reservation. */
@@ -313,6 +346,7 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
         }
         try {
           await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" });
+          chargedThisRequest = cost;
         } catch (err) {
           if (err instanceof OutOfCreditsError) {
             res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs to schedule this post." });
@@ -333,10 +367,20 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
       .set({ ...patch, updated_at: new Date() })
       .where(eq(scheduledPostsTable.id, post.id))
       .returning();
+    updateLanded = true;
     if (updated.status === "scheduled") requestPollerTick();
-    res.json({ post: toPublicPost(updated) });
+    res.json({ post: await presentPost(updated) });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[scheduler] update failed");
+    if (chargedThisRequest > 0 && !updateLanded) {
+      /* The charge landed but the row never did — refund it now, while
+         this request still knows about it. */
+      try {
+        await refundCredits(req.userId!, chargedThisRequest, { action: "Content Scheduler — Refund (update failed)" });
+      } catch (refundErr) {
+        logger.error({ err: refundErr, userId: req.userId }, "[scheduler] FAILED to refund after update failure");
+      }
+    }
     res.status(500).json({ error: "update_failed", message: "Couldn't update the post." });
   }
 });
@@ -509,6 +553,145 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
     await refund();
     logger.error({ err, userId: req.userId }, "[scheduler] best-time failed");
     res.status(502).json({ error: "ai_failed", message: "Couldn't get a best-time suggestion — your Visual Buc was refunded." });
+  }
+});
+
+/* ─── Legacy scheduler surface (Stack 8 #1 merge) ────────────────────────
+   Merged in from routes/generate/scheduler.ts, which duplicated this
+   table behind a second, older API. Behavior is preserved VERBATIM —
+   this surface is FREE (no credit charge), takes the single-platform
+   {content, platform} payload, requires a future scheduledAt, and
+   returns RAW snake_case rows. It is NOT the canonical contract (the
+   /scheduler/posts surface above is: paid reservation, DTO responses);
+   the two contracts diverged before this merge and no in-repo caller
+   uses the legacy one, so it is kept as a compatibility surface on the
+   one canonical router rather than silently changing its money or
+   payload behavior. Characterization: scheduler-merge-characterization
+   .test.ts drives both surfaces unchanged pre/post merge. */
+
+function inferMediaKind(url: string): "image" | "video" {
+  return /\.(png|jpe?g|webp|gif|avif)(\?|#|$)/i.test(url) ? "image" : "video";
+}
+
+const legacySchedulePostSchema = z.object({
+  content: z.string().trim().min(1, "Content is required.").max(5000),
+  mediaUrl: z.string().trim().min(1, "A media URL is required.").max(2048),
+  platform: z.enum(PLATFORMS),
+  scheduledAt: z
+    .string()
+    .datetime({ message: "scheduledAt must be an ISO datetime string." })
+    .refine((v) => new Date(v).getTime() > Date.now(), {
+      message: "scheduledAt must be in the future.",
+    }),
+  hashtags: z.string().trim().max(500).optional().default(""),
+});
+
+export type CreateLegacyScheduledPostOutcome =
+  | { kind: "created"; post: ScheduledPost }
+  | { kind: "invalid"; issues: z.ZodIssue[] };
+
+/** THE legacy schedule-post write path — the POST /schedule-post
+ *  route below and the operator's posts.schedule tool (Phase 2
+ *  Lane D) both ride this one function: the surface's own schema
+ *  (an exact ISO datetime, in the future, or it refuses), the
+ *  mirror-on-save for the media, and the insert keyed by the
+ *  caller's OWN user id. The entry is only an entry — the job
+ *  poller fires it when its time comes. */
+export async function createLegacyScheduledPost(
+  userId: string,
+  input: unknown,
+): Promise<CreateLegacyScheduledPostOutcome> {
+  const parsed = legacySchedulePostSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const [post] = await db
+    .insert(scheduledPostsTable)
+    .values({
+      user_id: userId,
+      status: "scheduled",
+      media_url:
+        (await mirrorExternalMediaUrl(parsed.data.mediaUrl, {
+          kind: inferMediaKind(parsed.data.mediaUrl),
+          ownerKey: userId,
+        })) ?? parsed.data.mediaUrl,
+      caption: parsed.data.content,
+      hashtags: parsed.data.hashtags,
+      platforms: [parsed.data.platform],
+      scheduled_at: new Date(parsed.data.scheduledAt),
+    })
+    .returning();
+  return { kind: "created", post: post! };
+}
+
+// POST /schedule-post — save a post for later publishing (free)
+router.post("/schedule-post", requireAuth, async (req, res) => {
+  try {
+    const outcome = await createLegacyScheduledPost(req.userId!, req.body);
+    if (outcome.kind === "invalid") {
+      res.status(400).json({
+        error: "Invalid request.",
+        details: outcome.issues.map((i) => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+      });
+      return;
+    }
+    res.status(201).json({ post: await refreshSupabaseStorageUrlsDeep(outcome.post) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] schedule-post failed");
+    res.status(500).json({ error: "Could not schedule the post." });
+  }
+});
+
+// GET /scheduled-posts — list the user's scheduled posts, upcoming first
+router.get("/scheduled-posts", requireAuth, async (req, res) => {
+  try {
+    const posts = await db
+      .select()
+      .from(scheduledPostsTable)
+      .where(eq(scheduledPostsTable.user_id, req.userId!))
+      .orderBy(asc(scheduledPostsTable.scheduled_at));
+    res.json({ posts: await refreshSupabaseStorageUrlsDeep(posts) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] scheduled-posts list failed");
+    res.status(500).json({ error: "Could not load scheduled posts." });
+  }
+});
+
+// DELETE /scheduled-posts/:id — cancel a scheduled post (owner only)
+router.delete("/scheduled-posts/:id", requireAuth, async (req, res) => {
+  try {
+    const existing = await db
+      .select({ id: scheduledPostsTable.id, status: scheduledPostsTable.status })
+      .from(scheduledPostsTable)
+      .where(
+        and(
+          eq(scheduledPostsTable.id, req.params.id as string),
+          eq(scheduledPostsTable.user_id, req.userId!),
+        ),
+      )
+      .limit(1);
+
+    const row = existing[0];
+    if (!row) {
+      res.status(404).json({ error: "Scheduled post not found." });
+      return;
+    }
+    if (row.status === "posted" || row.status === "publishing") {
+      res.status(409).json({ error: "This post is already being published and cannot be cancelled." });
+      return;
+    }
+
+    const [cancelled] = await db
+      .update(scheduledPostsTable)
+      .set({ status: "canceled", updated_at: new Date() })
+      .where(eq(scheduledPostsTable.id, row.id))
+      .returning();
+
+    res.json({ post: await refreshSupabaseStorageUrlsDeep(cancelled) });
+  } catch (err) {
+    req.log.error({ err }, "[scheduler] cancel failed");
+    res.status(500).json({ error: "Could not cancel the scheduled post." });
   }
 });
 

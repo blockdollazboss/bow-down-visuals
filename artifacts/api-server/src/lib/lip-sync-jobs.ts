@@ -45,6 +45,8 @@ export interface LipSyncJob {
   userId: string;
   projectId: string | null;
   sceneId: string | null;
+  /** The Creative Vault character this job was made as (0142, G8). */
+  artistVaultId: string | null;
   state: LipSyncJobState;
   params: LipSyncJobParams;
   providerJobId: string | null;
@@ -89,7 +91,7 @@ function db(): DrizzleDb {
   return _dbOverride ?? drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, state, params, provider_job_id, result_url, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, artist_vault_id, state, params, provider_job_id, result_url, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -111,6 +113,7 @@ function toLipSyncJob(row: Record<string, unknown>): LipSyncJob {
     userId: String(row["user_id"]),
     projectId: row["project_id"] != null ? String(row["project_id"]) : null,
     sceneId: row["scene_id"] != null ? String(row["scene_id"]) : null,
+    artistVaultId: row["artist_vault_id"] != null ? String(row["artist_vault_id"]) : null,
     state: row["state"] as LipSyncJobState,
     params: params ?? { clipUrl: "", audioUrl: "", sceneStartSec: 0, sceneEndSec: 0 },
     providerJobId: row["provider_job_id"] != null ? String(row["provider_job_id"]) : null,
@@ -132,6 +135,7 @@ export interface CreateLipSyncJobInput {
   userId: string;
   projectId?: string | null;
   sceneId?: string | null;
+  artistVaultId?: string | null;
   params: LipSyncJobParams;
 }
 
@@ -144,12 +148,13 @@ export async function createLipSyncJob(input: CreateLipSyncJobInput): Promise<Li
   ).catch((err) => logger.warn({ err }, "[lip-sync-jobs] prune failed"));
   const id = randomUUID();
   const res = await d.execute(sql`
-    INSERT INTO lip_sync_jobs (id, user_id, project_id, scene_id, params)
+    INSERT INTO lip_sync_jobs (id, user_id, project_id, scene_id, artist_vault_id, params)
     VALUES (
       ${id},
       ${input.userId},
       ${input.projectId ?? null},
       ${input.sceneId ?? null},
+      ${input.artistVaultId ?? null},
       ${JSON.stringify(input.params ?? {})}::jsonb
     )
     RETURNING ${JOB_COLUMNS}
@@ -418,6 +423,4 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
 }
 
 /** Kept for callers that need a job id without a DB round-trip. */
-export function newLipSyncJobId(): string {
-  return randomUUID();
-}
+/* Removed 2026-10-10: newLipSyncJobId was dead (zero imports). */

@@ -22,7 +22,7 @@ export function OpenVideoEditorButton({
   size = "sm",
   variant = "default",
   className = "",
-  label = "Open Video Editor",
+  label = "Open Visual Vibes",
   testId,
 }: OpenVideoEditorButtonProps) {
   return (

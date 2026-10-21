@@ -1,4 +1,7 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
+import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
@@ -10,19 +13,39 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import {
   uploadMediaToSupabaseStorage,
+  uploadFileStreamToSupabaseStorage,
+  SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRef,
 } from "../../lib/objectStorage";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import { recordClipCharge } from "../../lib/clip-charge-obligations";
 import {
   GEN45_CREDIT_COST,
   SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT,
   SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT,
+  SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT,
   SEEDANCE_PRICING_APPROVED,
   SEEDANCE_PRICING_VERSION,
+  VEO_CREDITS_PER_SEC_DEFAULT,
+  VEO_PRICING_APPROVED,
+  VEO_PRICING_VERSION,
+  modelSupportsEndFrame,
   resolveClipPlan,
 } from "./clip-pricing";
+import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
+import {
+  MAX_STACKED_EFFECTS,
+  resolveEffectRecipes,
+  weaveEffectsBlock,
+} from "../../lib/scene-effects";
 import { getLockedPack } from "./pre-production";
+import { weaveLookIntoPrompt } from "../../lib/scene-look";
+import {
+  planClipReferences,
+  type SceneReference,
+} from "./clip-references";
+import type { ClipModel } from "./clip-pricing";
 import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
@@ -38,23 +61,57 @@ const SEEDANCE_CREDITS_PER_SEC_1080P =
   Number(process.env["SEEDANCE_CREDITS_PER_SEC_1080P"]) ||
   Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) ||
   SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT;
+const SEEDANCE_CREDITS_PER_SEC_DRAFT =
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC_DRAFT"]) ||
+  SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT;
+/* Veo 3.1 (Google) credits/sec at 720p. Env-overridable without a deploy. */
+const VEO_CREDITS_PER_SEC =
+  Number(process.env["VEO_CREDITS_PER_SEC"]) ||
+  VEO_CREDITS_PER_SEC_DEFAULT;
 
 /**
  * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
- * Key: Runway taskId  Value: { userId, projectId, credits }
+ * Key: Runway taskId (or veo-<uuid> for Veo)  Value: { userId, projectId, credits, veoOperation? }
  * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
  * In-memory only — a server restart before polling completes means credits
  * won't be charged for that clip (acceptable; user gets a free clip, not a spurious charge).
  */
-const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number }>();
+const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string }>();
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund
  * if the subsequent DB save fails.
  * Key: Runway taskId  Value: { userId, credits, refunded }
  * Auto-expires after 1 hour to prevent unbounded memory growth.
+ *
+ * D3 (migration 0184): this map is now only the FAST PATH. Every charge
+ * also writes a durable clip_charge_obligations row at charge time —
+ * that row is the source of truth, so a server restart between the
+ * charge and the save no longer loses the refund (the stale sweeper
+ * in lib/clip-charge-obligations.ts resolves orphaned rows).
  */
 export const chargedTasks = new Map<string, { userId: string; credits: number; refunded: boolean }>();
+
+/* Write the durable charge→refund obligation for a charge that just
+   landed. A failed record must never break clip delivery — it is
+   logged CRITICAL and the in-memory entry above remains the fallback
+   (the pre-D3 behavior for this one task). */
+async function recordDurableClipCharge(
+  log: Request["log"],
+  taskId: string,
+  userId: string,
+  credits: number,
+  projectId: string | null,
+): Promise<void> {
+  try {
+    await recordClipCharge({ taskId, userId, credits, projectId });
+  } catch (err) {
+    log.error(
+      { err, taskId, userId, credits },
+      "[runway-clip] CRITICAL: durable clip-charge record failed — refund protection is in-memory only for this task",
+    );
+  }
+}
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -150,29 +207,78 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    3. Track task in pendingTasks — credits NOT yet charged.
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req, res) => {
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = req.body as {
-    promptText?: string;
-    negativePrompt?: string;
-    ratio?: "1280:720" | "720:1280";
-    projectId?: string | null;
-    referenceImageUrl?: string | null;
-    /** Final frame of the immediately-preceding scene's clip, used to chain
-     *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
-     *  (vault photo) when absent or unusable. */
-    previousClipUrl?: string | null;
-    /** Video model: "gen4.5" (default, 5s) or "seedance2_5" (premium, up to 30s). */
-    model?: "gen4.5" | "seedance2_5";
-    /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
-    durationSec?: number;
-    /** Output resolution tier for seedance2_5. */
-    resolution?: "720p" | "1080p";
-    /** Locked pre-production pack + shot: when present, the prompt, negative
-     *  prompt, model, duration, and ratio come from the pack's locked
-     *  ingredients — the client's promptText is ignored. */
-    packId?: string | null;
-    shotNumber?: number | null;
-  };
+/* ── Request validation ── */
+const runwayClipSchema = z.object({
+  promptText: z.string().max(5000).optional(),
+  negativePrompt: z.string().max(2000).optional().nullable(),
+  ratio: z.enum(["1280:720", "720:1280"]).optional(),
+  projectId: z.string().max(100).optional().nullable(),
+  referenceImageUrl: z.string().max(2048).optional().nullable(),
+  /** Final frame of the immediately-preceding scene's clip, used to chain
+   *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
+   *  (vault photo) when absent or unusable. */
+  previousClipUrl: z.string().max(2048).optional().nullable(),
+  /** Optional end-frame (last-frame) keyframe image: the visual the clip
+   *  must land on. Only forwarded to models whose API accepts a last frame
+   *  (seedance2_5, veo3_1 — see CLIP_END_FRAME_SUPPORT in clip-pricing.ts);
+   *  gen4.5's PromptImage type allows position 'first' only, so the field
+   *  is dropped for it. Part of the existing generation charge — no
+   *  separate price. A locked pack's ingredient wins over this field. */
+  endFrameImageUrl: z.string().max(2048).optional().nullable(),
+  /** Video model: "gen4.5" (default, 5s), "seedance2_5" (premium, up to
+   *  30s), or "veo3_1" (cinematic; refused until VEO_PRICING_APPROVED). */
+  model: z.enum(["gen4.5", "seedance2_5", "veo3_1"]).optional(),
+  /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
+  durationSec: z.number().finite().min(1).max(60).optional(),
+  /** Output resolution tier for seedance2_5. */
+  resolution: z.enum(["720p", "1080p"]).optional(),
+  /** Draft mode: cheap 480p preview for iterating on a shot. Only for seedance2_5.
+   *  The response includes the seed — re-submit with the same seed +
+   *  resolution "1080p" to enhance the keeper to full res. */
+  draft: z.boolean().optional(),
+  /** Explicit seed for reproducible generations (0–4294967295). The server
+   *  generates one when omitted; the response always includes the seed used. */
+  seed: z.number().int().min(0).max(4294967295).optional(),
+  /** Locked pre-production pack + shot: when present, the prompt, negative
+   *  prompt, model, duration, and ratio come from the pack's locked
+   *  ingredients — the client's promptText is ignored. */
+  packId: z.string().max(100).optional().nullable(),
+  shotNumber: z.number().int().min(0).max(1000).optional().nullable(),
+  /** Viral Effects (lib/scene-effects.ts): generation-time effect recipe
+   *  ids picked in Scene Studio, woven into the prompt at submission.
+   *  Stacked cap enforced here; unknown ids 400 below — never silently
+   *  dropped. Effects ride this generation's existing charge. */
+  effectIds: z.array(z.string().trim().min(1).max(64)).max(MAX_STACKED_EFFECTS).optional(),
+  /** The scene's REFERENCE SET — labeled images (character / location /
+   *  product / style) the generation should match. How much of the set a
+   *  model actually receives is decided per model in clip-references.ts
+   *  (Seedance takes the set; single-image models take the priority
+   *  reference) and reported back in the response's `references` block —
+   *  never silently dropped. Ignored in pack mode: a locked pack's own
+   *  reference set is the source of truth. */
+  referenceSet: z
+    .array(
+      z.object({
+        role: z.enum(["character", "location", "product", "style"]),
+        url: z.string().max(2048),
+        label: z.string().max(200).optional(),
+        source: z.string().max(60).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+});
+
+const submitRunwayClipHandler = async (req: Request, res: Response) => {
+  const parsed = runwayClipSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid runway clip request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds, referenceSet } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -191,8 +297,15 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     }
   }
 
-  const effectivePrompt = lockedIngredients?.prompt ?? promptText;
+  /* Locked pack look picks weave into the locked prompt through the shared
+     composer (lib/scene-look.ts); a pack without picks is byte-identical. */
+  const effectivePrompt = lockedIngredients
+    ? weaveLookIntoPrompt(lockedIngredients.prompt, { look: lockedIngredients.look })
+    : promptText;
   const effectiveNegative = lockedIngredients?.negativePrompt ?? negativePrompt;
+  /* The end frame rides the locked pack like every other ingredient: a
+     locked shot's end frame wins over the per-request field. */
+  const effectiveEndFrame = lockedIngredients?.endFrameImageUrl ?? endFrameImageUrl;
   const effectiveModel = lockedIngredients?.model ?? model;
   const effectiveDuration = lockedIngredients?.durationSec ?? durationSec;
   const effectiveRatio = (lockedIngredients?.ratio === "1280:720" ? "1280:720" : "720:1280") as "1280:720" | "720:1280";
@@ -202,16 +315,38 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     return;
   }
 
+  /* ── Viral Effects resolution ────────────────────────────────────────────
+     Resolve the creator's picked effect recipes before any pricing gate
+     or provider work: an unknown id is a client bug and 400s here rather
+     than silently generating without the effect the creator picked. In
+     pack mode the effect still applies — it is generation-time direction
+     layered over the locked prompt, not a prompt override. */
+  const { recipes: effectRecipes, unknownIds: unknownEffectIds } = resolveEffectRecipes(effectIds);
+  if (unknownEffectIds.length > 0) {
+    res.status(400).json({
+      error: "unknown_effect",
+      message: `Unknown effect: ${unknownEffectIds.join(", ")}. Pick effects from the Viral Effects rail.`,
+    });
+    return;
+  }
+  const effectBlock = weaveEffectsBlock(effectRecipes);
+  const effectsApplied = effectRecipes.map((r) => r.id);
+
   /* ── Model + duration resolution ───────────────────────────────────────── */
   const plan = resolveClipPlan({
     model: effectiveModel,
     durationSec: effectiveDuration,
     resolution,
     ratio,
+    draft,
     creditsPerSec720p: SEEDANCE_CREDITS_PER_SEC_720P,
     creditsPerSec1080p: SEEDANCE_CREDITS_PER_SEC_1080P,
+    creditsPerSecDraft: SEEDANCE_CREDITS_PER_SEC_DRAFT,
+    creditsPerSecVeo: VEO_CREDITS_PER_SEC,
   });
   const useSeedance = plan.useSeedance;
+  const useVeo = plan.useVeo;
+  const isDraft = plan.isDraft;
   const resolvedDurationSec = plan.durationSec;
   /* Duration-proportional pricing for the premium model; flat 5 for gen4.5. */
   const creditCost = plan.creditCost;
@@ -233,6 +368,22 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
       message:
         "Seedance 2.5 scene pricing is pending approval, so generations are paused. No Visual Bucs were charged and no video was generated.",
       pricingVersion: SEEDANCE_PRICING_VERSION,
+    });
+    return;
+  }
+
+  /* ── Veo 3.1 pricing approval gate (same pattern as Seedance) ────────────
+     Refuse BEFORE any Gemini call, credit check, or pending-task tracking. */
+  if (useVeo && !VEO_PRICING_APPROVED) {
+    req.log.warn(
+      { userId: req.userId, pricingVersion: VEO_PRICING_VERSION },
+      "[runway-clip] Veo 3.1 submission BLOCKED — pricing pending user approval",
+    );
+    res.status(402).json({
+      error: "veo_pricing_pending_approval",
+      message:
+        "Veo 3.1 scene pricing is pending approval, so generations are paused. No Visual Bucs were charged and no video was generated.",
+      pricingVersion: VEO_PRICING_VERSION,
     });
     return;
   }
@@ -274,10 +425,121 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     }
   }
 
-  const useImageRef = !!refImage;
+  /* ── Reference SET planning (multi-reference generation) ───────────────
+     The scene's reference set comes from the locked pack when in pack
+     mode (the client's set is ignored — the lock is the truth), else
+     from the request body. What each model actually receives is planned
+     in clip-references.ts from the model's real input shape: Seedance
+     2.5 takes the set as reference images; Gen-4.5 / Veo take a single
+     first frame (the anchor, else the highest-priority set member —
+     character first). Reductions are reported, never silent.
+     The resolved single image above (chain frame / vault photo) is the
+     plan's ANCHOR — except in pack mode with a locked set, where a
+     client-sent photo must not override the lock (the chain frame still
+     anchors continuity). Legacy packs without a set keep today's
+     behavior, with their locked plates riding as product references. */
+  const hasLockedSet = !!lockedIngredients?.referenceSet?.length;
+  let effectiveSet: SceneReference[] = [];
+  if (lockedIngredients) {
+    if (hasLockedSet) {
+      effectiveSet = lockedIngredients.referenceSet!.map((r) => ({
+        role: r.role,
+        url: r.url,
+        label: r.label,
+        source: r.source,
+      }));
+    } else if (lockedIngredients.referenceAssetUrls?.length) {
+      effectiveSet = lockedIngredients.referenceAssetUrls.map((url, i) => ({
+        role: "product" as const,
+        url,
+        label: `Locked pack reference ${i + 1}`,
+        source: "legacy",
+      }));
+    }
+  } else if (referenceSet?.length) {
+    effectiveSet = referenceSet.map((r) => ({
+      role: r.role,
+      url: r.url,
+      label: r.label ?? "",
+      source: r.source ?? "upload",
+    }));
+  }
+  const anchorUrl = hasLockedSet
+    ? referenceSource === "previous_scene"
+      ? refImage ?? null
+      : null
+    : refImage ?? null;
+  const planModel: ClipModel = useVeo ? "veo3_1" : useSeedance ? "seedance2_5" : "gen4.5";
+  const refPlan = planClipReferences({
+    model: planModel,
+    referenceSet: effectiveSet,
+    anchorUrl,
+    anchorKind: referenceSource === "previous_scene" ? "previous_scene" : "single_photo",
+  });
+  const useImageRef = refPlan.submittedUrls.length > 0;
+  /* Legacy badge semantics, kept truthful under sets: a set-driven
+     submission whose first image is the character reads as the vault
+     photo it is; anchor-driven submissions keep their existing source. */
+  const responseReferenceSource: typeof referenceSource = anchorUrl
+    ? referenceSource
+    : refPlan.submittedFromSet > 0 &&
+        effectiveSet.find((r) => r.url === refPlan.submittedUrls[0])?.role === "character"
+      ? "vault_photo"
+      : referenceSource;
+  let referencesReport = {
+    mode: refPlan.mode,
+    submitted: refPlan.submittedUrls.length,
+    inSet: refPlan.setSize,
+    reduced: refPlan.reduced,
+    note: refPlan.note,
+  };
+
+  /* ── End-frame resolution ────────────────────────────────────────────────
+     Only models whose provider API accepts a last frame ever see the end
+     frame (seedance2_5 / veo3_1). For gen4.5 it is dropped here — the SDK's
+     Gen4_5.PromptImage position is 'first' only — so the parameter is
+     absent from the provider request, never sent-and-ignored. A stable
+     storage ref is minted to HTTPS exactly like the chaining clip URL. */
+  let endFrameUrl: string | undefined;
+  if (modelSupportsEndFrame(plan.model)) {
+    let ef = effectiveEndFrame?.trim();
+    if (ef && !/^https:\/\//i.test(ef) && parseSupabaseStorageRef(ef)) {
+      const resolved = await refreshSupabaseStorageUrl(ef);
+      ef = resolved.startsWith("http") ? resolved : undefined;
+    }
+    if (ef && /^https:\/\//i.test(ef)) {
+      endFrameUrl = ef;
+    } else if (ef) {
+      req.log.warn("[runway-clip] end frame supplied but not a usable HTTPS URL — generating without it");
+    }
+  }
+
+  /* ── End-frame precedence over the reference set (stack5 integration) ──
+     When a valid end frame will actually be submitted for Seedance, the
+     keyframe submission wins over the reference-images plan (the SDK
+     forbids mixing positioned keyframes with unpositioned references):
+     only the plan's anchor-first image rides, as the 'first' keyframe.
+     The report is rewritten to what truly rode, so the un-sent set
+     members are reported — never silently dropped. */
+  if (useSeedance && endFrameUrl && refPlan.mode === "reference_images") {
+    const firstUrl = refPlan.submittedUrls[0];
+    const firstFromSet = firstUrl ? effectiveSet.some((r) => r.url === firstUrl) : false;
+    const notSent = refPlan.setSize - (firstFromSet ? 1 : 0);
+    referencesReport = {
+      mode: firstUrl ? "single" : "none",
+      submitted: firstUrl ? 1 : 0,
+      inSet: refPlan.setSize,
+      reduced: notSent > 0,
+      note: notSent > 0
+        ? `An end frame was set for this scene, so the clip was made with first/last keyframes — keyframe mode can't mix with reference images, so ${notSent} of your ${refPlan.setSize} reference images weren't sent.`
+        : refPlan.note,
+    };
+  }
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
-  if (!apiKey) {
+  // Veo 3.1 runs on Gemini, never touches Runway — don't block it on the
+  // Runway key.
+  if (!apiKey && !useVeo) {
     res.status(500).json({ error: "Runway API key is not configured on the server" });
     return;
   }
@@ -285,7 +547,7 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
   req.log.info(
-    { userId: req.userId, currentCredits, requiredCredits: creditCost, model: useSeedance ? "seedance2_5" : "gen4.5" },
+    { userId: req.userId, currentCredits, requiredCredits: creditCost, model: plan.model },
     "[runway-clip] credit check started",
   );
 
@@ -345,13 +607,95 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
   const continuityBlock = lockedIngredients?.continuityNotes?.trim()
     ? ` Continuity lock: ${lockedIngredients.continuityNotes.trim()}`.slice(0, 200)
     : "";
-  const content = `${base} ${motionBlock}${continuityBlock}`.trim();
+  /* Viral Effects weave — "" when no effects are picked, so a no-effect
+     generation's prompt stays byte-identical to before this rail existed. */
+  const content = `${base} ${motionBlock}${effectBlock}${continuityBlock}`.trim();
 
   const neg = effectiveNegative?.trim();
   const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
   /* gen4.5 image-to-video caps promptText at 1000 UTF-16 code units; text-to-video allows more. */
   const promptCap = useImageRef ? 1000 : 1400;
   const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, promptCap);
+
+  /* ── Veo 3.1 (Google) path: cinematic clips with native audio ────────────
+     Async like Runway: submit the long-running operation, track it in
+     pendingTasks under a veo-<uuid> id, and let the GET poller below drive
+     it to completion. Credits are only charged on success. Positioned after
+     the credit pre-check above — no free generations. */
+  if (useVeo) {
+    try {
+      let imageBase64: string | undefined;
+      let imageMimeType: string | undefined;
+      if (refPlan.singleUrl) {
+        try {
+          const imgRes = await fetch(refPlan.singleUrl, { signal: AbortSignal.timeout(60_000) });
+          if (imgRes.ok) {
+            const buf = Buffer.from(await imgRes.arrayBuffer());
+            if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
+              imageBase64 = buf.toString("base64");
+              imageMimeType = imgRes.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+            }
+          }
+        } catch {
+          req.log.warn("[runway-clip] Veo reference image fetch failed — text-to-video fallback");
+        }
+      }
+      /* End frame (Veo 3.1 first/last-frame interpolation): fetched with
+         the same discipline as the first frame. Veo never accepts a lone
+         last frame, so it is only forwarded when a first frame landed. */
+      let lastFrameBase64: string | undefined;
+      let lastFrameMimeType: string | undefined;
+      if (endFrameUrl && imageBase64) {
+        try {
+          const efRes = await fetch(endFrameUrl, { signal: AbortSignal.timeout(60_000) });
+          if (efRes.ok) {
+            const buf = Buffer.from(await efRes.arrayBuffer());
+            if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
+              lastFrameBase64 = buf.toString("base64");
+              lastFrameMimeType = efRes.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+            }
+          }
+        } catch {
+          req.log.warn("[runway-clip] Veo end-frame fetch failed — generating without an end frame");
+        }
+      }
+      /* Veo generates its own audio natively (dialogue/SFX/ambience) — that
+         is its signature strength, so unlike Seedance we leave it on. */
+      const veoPrompt = `${content} ${PERFORMANCE_DIRECTIVE}`.slice(0, 4000);
+      const operation = await submitVeoVideo({
+        prompt: veoPrompt,
+        aspectRatio: effectiveRatio === "720:1280" ? "9:16" : "16:9",
+        imageBase64,
+        imageMimeType,
+        lastFrameBase64,
+        lastFrameMimeType,
+        resolution: "720p",
+      });
+      const veoTaskId = `veo-${randomUUID()}`;
+      pendingTasks.set(veoTaskId, {
+        userId: req.userId!,
+        projectId: projectId ?? null,
+        credits: creditCost,
+        veoOperation: operation,
+      });
+      req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
+      res.json({
+        taskId: veoTaskId,
+        referenceSource: responseReferenceSource,
+        references: referencesReport,
+        creditCost,
+        model: "veo3_1",
+        durationSec: resolvedDurationSec,
+        endFrameUsed: !!lastFrameBase64,
+        effectsApplied,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
+      req.log.error({ err: msg }, "[runway-clip] Veo 3.1 submission failed — no credits charged");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
 
   const client = new RunwayML({ apiKey });
   const resolvedRatio = effectiveRatio;
@@ -371,18 +715,52 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
        aggressive truncation gen4.5 needs. */
     const seedancePrompt = `${content} ${PERFORMANCE_DIRECTIVE} | Avoid: ${avoidBlock}`.slice(0, 4000);
 
-    /* Image-to-video: anchor the artist's face/look to their vault photo so every
-       generated scene keeps the same visual identity. Falls back to text-to-video
-       when no usable reference photo is provided. */
+    /* Explicit seed for reproducibility — the draft→enhance flow re-submits
+       with the draft's seed at 1080p to preserve its composition/motion.
+       Random when the client doesn't supply one. */
+    const resolvedSeed = useSeedance
+      ? (typeof seed === "number" ? seed : Math.floor(Math.random() * 4294967296))
+      : undefined;
+
+    /* Image-to-video: anchor the artist's face/look to their references so
+       every generated scene keeps the same visual identity. Seedance 2.5
+       receives the reference SET (unpositioned reference images) when the
+       plan says so; Gen-4.5 receives the single planned image. Falls back
+       to text-to-video when the plan submits no image. */
+    /* Seedance end-frame keyframes take precedence over the set: when an
+       end frame is set, promptImage becomes the positioned keyframe array
+       — the plan's anchor-first image (when one resolved) at 'first', the
+       end frame at 'last'. Seedance's keyframe mode cannot mix positioned
+       and unpositioned images, so the first frame is positioned too. With
+       no end frame the request keeps its exact planned shape (reference
+       array / plain string / text-to-video). gen4.5 never reaches this
+       branch's keyframes — endFrameUrl is only resolved for models that
+       support it. */
     const task = useSeedance
-      ? useImageRef
+      ? endFrameUrl || refPlan.mode === "reference_images"
         ? await client.imageToVideo.create({
             model: "seedance2_5",
-            promptImage: refImage!,
+            promptImage: endFrameUrl
+              ? [
+                  ...(refPlan.submittedUrls[0] ? [{ uri: refPlan.submittedUrls[0], position: "first" as const }] : []),
+                  { uri: endFrameUrl, position: "last" as const },
+                ]
+              : (refPlan.promptImage as Array<{ uri: string }>),
             promptText: seedancePrompt,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
             audio: false,
+            seed: resolvedSeed,
+          })
+        : refPlan.mode === "single"
+        ? await client.imageToVideo.create({
+            model: "seedance2_5",
+            promptImage: refPlan.singleUrl!,
+            promptText: seedancePrompt,
+            duration: resolvedDurationSec,
+            ratio: seedanceRatio,
+            audio: false,
+            seed: resolvedSeed,
           })
         : await client.textToVideo.create({
             model: "seedance2_5",
@@ -390,11 +768,12 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
             duration: resolvedDurationSec,
             ratio: seedanceRatio,
             audio: false,
+            seed: resolvedSeed,
           })
       : useImageRef
       ? await client.imageToVideo.create({
           model: "gen4.5",
-          promptImage: refImage!,
+          promptImage: refPlan.singleUrl!,
           promptText: finalPrompt,
           duration: 5,
           ratio: resolvedRatio,
@@ -410,13 +789,37 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
     pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost });
     req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
-    res.json({ taskId: task.id, referenceSource, creditCost, model: useSeedance ? "seedance2_5" : "gen4.5", durationSec: resolvedDurationSec });
+    res.json({
+      taskId: task.id,
+      referenceSource: responseReferenceSource,
+      references: referencesReport,
+      creditCost,
+      model: useSeedance ? "seedance2_5" : "gen4.5",
+      durationSec: resolvedDurationSec,
+      endFrameUsed: useSeedance && !!endFrameUrl,
+      effectsApplied,
+      ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
     req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.post("/generate-runway-clip", requireAuth, generationLimiter, submitRunwayClipHandler);
+
+/* Operator core (Phase 2 Lane E): the Tier 3 generate.video tool
+   submits through this exact handler in-process (lib/rail-core) —
+   same pre-check; credits stay pending on SUCCEEDED exactly as the
+   page's flow leaves them. (HTTP rate limiting stays on the route;
+   the operator path carries the executor's own gates.) */
+export async function runSubmitRunwayClip(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(submitRunwayClipHandler as never, deps, { body });
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-runway-clip/:taskId
@@ -425,8 +828,86 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, async (req,
    - FAILED/CANCELLED → no charge → return error
    - Still running → return { status: "processing", progress }
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
+const pollRunwayClipHandler = async (req: Request, res: Response) => {
   const { taskId } = req.params as { taskId: string };
+
+  /* ── Veo 3.1 poll branch ─────────────────────────────────────────────────
+     Veo tasks are tracked under veo-<uuid> ids with the Gemini operation
+     name in pendingTasks. Same money rules as Runway: charge only on
+     success, once, guarded by pendingTasks presence. */
+  if (taskId.startsWith("veo-")) {
+    const pending = pendingTasks.get(taskId);
+    if (!pending?.veoOperation) {
+      res.json({ status: "failed", error: "Unknown or expired Veo task." });
+      return;
+    }
+    try {
+      const poll = await pollVeoOperation(pending.veoOperation);
+      if (!poll.done) {
+        res.json({ status: "processing", progress: null });
+        return;
+      }
+      if (poll.error || !poll.videoUri) {
+        pendingTasks.delete(taskId);
+        req.log.info({ taskId, error: poll.error }, "[runway-clip] Veo 3.1 task failed — no credits charged");
+        res.json({ status: "failed", error: poll.error ?? "Veo 3.1 generation failed." });
+        return;
+      }
+      /* ── Download from Google, persist to Supabase Storage ──
+         Charge happens ONLY after the clip is safely stored: if the
+         download/upload fails, no credits move and the user can retry. */
+      const tmpFile = path.join(os.tmpdir(), `veo-${randomUUID()}.mp4`);
+      try {
+        req.log.info({ taskId }, "[runway-clip] downloading clip from Veo");
+        // 2026-10-12 OOM fix: stream Veo download + upload via disk —
+        // the whole clip used to sit in RAM twice (download Buffer,
+        // then upload).
+        await downloadVeoVideoToFile(poll.videoUri, tmpFile);
+        const objectName = `clips/${randomUUID()}.mp4`;
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
+        const previewUrl = await refreshSupabaseStorageUrl(storageRef);
+
+        /* ── Charge once, guarded by pendingTasks presence ── */
+        if (pending.userId === req.userId) {
+          const cost = pending.credits;
+          try {
+            const creditsAfter = await chargeCreditsAtomic(
+              req.userId!,
+              cost,
+              { action: "Veo Video Clip", projectId: pending.projectId ?? null },
+              { rollbackOnLedgerFailure: false },
+            );
+            req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: cost }, "[runway-clip] Veo 3.1 credits deducted");
+            chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
+            setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000);
+            await recordDurableClipCharge(req.log, taskId, req.userId!, cost, pending.projectId ?? null);
+          } catch (err) {
+            if (err instanceof LedgerWriteError) {
+              req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after Veo deduction");
+            } else {
+              req.log.error({ err, taskId }, "[runway-clip] Veo credit deduction FAILED — clip delivered without charge");
+            }
+          }
+        } else {
+          req.log.warn({ taskId }, "[runway-clip] Veo userId mismatch on poll — skipping charge");
+        }
+        pendingTasks.delete(taskId);
+
+        req.log.info({ objectName, taskId }, "[runway-clip] Veo clip saved — returning storage ref + preview URL");
+        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef });
+      } catch (uploadErr: unknown) {
+        req.log.error({ err: uploadErr }, "[runway-clip] Veo clip download/upload failed — no credits charged");
+        res.json({ status: "failed", error: "Veo generated the clip but saving it failed. No Visual Bucs were charged — please try again." });
+      } finally {
+        cleanup(tmpFile);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Veo poll failed";
+      req.log.error({ err: msg, taskId }, "[runway-clip] Veo poll error");
+      res.status(500).json({ error: msg });
+    }
+    return;
+  }
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {
@@ -455,8 +936,13 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
       if (pending && pending.userId === req.userId) {
         /* Duration-proportional cost for Seedance, flat 5 for gen4.5. */
         const cost = pending.credits ?? GEN45_CREDIT_COST;
-        /* Fresh credit read to avoid stale middleware value */
-        const { data: freshProfile } = await req.userSupabase!
+        /* Fresh credit read to avoid stale middleware value. The
+           operator's completion driver has no session client (no
+           browser token server-side), so it reads through the admin
+           client instead — this read is informational (the charge
+           itself fresh-reads inside chargeCreditsAtomic either way),
+           and real requests always carry req.userSupabase, unchanged. */
+        const { data: freshProfile } = await (req.userSupabase ?? getSupabaseAdmin())
           .from("profiles")
           .select("credits")
           .eq("id", req.userId!)
@@ -489,6 +975,7 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
           /* Track for possible refund if the subsequent save fails */
           chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
           setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
+          await recordDurableClipCharge(req.log, taskId, req.userId!, cost, projectId);
         } catch (err) {
           if (err instanceof LedgerWriteError) {
             req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after deduction — clip delivered, charge has no ledger trace");
@@ -518,7 +1005,9 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
         const objectName = `clips/${randomUUID()}.mp4`;
         req.log.info({ objectName }, "[runway-clip] uploading clip to Supabase Storage");
-        const storageRef = await uploadMediaToSupabaseStorage(objectName, readFileSync(tmpFile), "video/mp4");
+        // 2026-10-12 OOM fix: stream the upload from disk — readFileSync
+        // used to load the entire MP4 into RAM (and block the event loop).
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
 
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
         req.log.info({ objectName, taskId }, "[runway-clip] clip saved to Supabase Storage — returning storage ref + preview URL");
@@ -554,6 +1043,19 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
     const msg = err instanceof Error ? err.message : "Failed to poll Runway task";
     res.status(500).json({ error: msg });
   }
-});
+};
+
+router.get("/generate-runway-clip/:taskId", requireAuth, pollRunwayClipHandler);
+
+/* Operator core (Phase 2 Lane E): the generate.video completion
+   driver polls through this exact handler in-process (lib/rail-core)
+   so an operator-started clip finishes — and is charged on success —
+   by the rail's own code, not a copy of it. */
+export async function runPollRunwayClip(
+  deps: RailCoreDeps,
+  taskId: string,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(pollRunwayClipHandler as never, deps, { params: { taskId } });
+}
 
 export default router;

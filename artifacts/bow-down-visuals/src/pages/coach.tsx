@@ -1,14 +1,26 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import {
  DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
  Wallet, CalendarCheck, CheckCircle2, AlertTriangle,
- Play, Camera, Music2,
+ Play, Camera, Music2, Copy,
+ Handshake, Megaphone, Coffee, Disc3, Crown, Store, ShoppingBag,
+ Rocket, Newspaper, Mail, Users, Trophy, Gift, UsersRound, FileText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
+import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
+import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
+import ActionTrackerPanel from "@/components/coach/ActionTrackerPanel";
+import { primaryActionFor, creatorStateSummary, type CoachNextAction, type CoachCreatorState } from "@/lib/coach-next-action";
+
+/* ── Money-hub pages de-hosted in Phase 2: they are real routes now
+   (see MORE_COACH_TOOLS directory below). ─────────────────────────── */
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -26,18 +38,7 @@ interface PlatformOpt {
  blurb: string;
 }
 
-const PLATFORM_OPTS: PlatformOpt[] = [
- { key: "youtube", label: "YouTube", icon: Play, blurb: "Partner Program" },
- { key: "tiktok", label: "TikTok", icon: Music2, blurb: "Creator Rewards" },
- { key: "instagram", label: "Instagram", icon: Camera, blurb: "Bonuses & gifts" },
-];
-
-const NICHE_PRESETS = [
- "Music", "Gaming", "Comedy", "Fitness",
- "Beauty & Fashion", "Tech", "Education", "Lifestyle",
-];
-
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 interface EligibilityItem {
  platform: string;
@@ -58,6 +59,9 @@ interface CoachResponse {
  eligibility?: EligibilityItem[];
  earnings?: Earnings;
  moneyMoves?: string[];
+ /* DE-19: the state-derived next move + the catalog state behind it. */
+ nextAction?: CoachNextAction;
+ creatorState?: CoachCreatorState;
  note?: string;
  creditsUsed?: number;
  creditsRemaining?: number;
@@ -77,14 +81,14 @@ function progressBar(p: number): string {
  return "from-red-500 to-red-300";
 }
 
-function statusBadge(status: EligibilityItem["status"]): { label: string; cls: string } {
+function statusBadge(status: EligibilityItem["status"]): { labelKey: string; cls: string } {
  switch (status) {
  case "eligible":
- return { label: "Eligible", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" };
+ return { labelKey: "coach.statusEligible", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" };
  case "close":
- return { label: "Almost there", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" };
+ return { labelKey: "coach.statusClose", cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" };
  default:
- return { label: "Building", cls: "border-white/15 bg-white/[0.04] text-white/50" };
+ return { labelKey: "coach.statusBuilding", cls: "border-white/15 bg-white/[0.04] text-white/50" };
  }
 }
 
@@ -92,8 +96,28 @@ const inputClass =
  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function MonetizationCoach() {
+  const isLight = useIsLightTheme();
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
+ usePageTitle("Monetization Coach", "The Money Room coach: turn your content into income, step by step.");
+
+ const PLATFORM_OPTS: PlatformOpt[] = [
+  { key: "youtube", label: t("coach.platformYouTube"), icon: Play, blurb: t("coach.platformYouTubeBlurb") },
+  { key: "tiktok", label: t("coach.platformTikTok"), icon: Music2, blurb: t("coach.platformTikTokBlurb") },
+  { key: "instagram", label: t("coach.platformInstagram"), icon: Camera, blurb: t("coach.platformInstagramBlurb") },
+ ];
+
+ const NICHE_OPTIONS: { value: string; label: string }[] = [
+  { value: "Music", label: t("coach.nicheMusic") },
+  { value: "Gaming", label: t("coach.nicheGaming") },
+  { value: "Comedy", label: t("coach.nicheComedy") },
+  { value: "Fitness", label: t("coach.nicheFitness") },
+  { value: "Beauty & Fashion", label: t("coach.nicheBeautyFashion") },
+  { value: "Tech", label: t("coach.nicheTech") },
+  { value: "Education", label: t("coach.nicheEducation") },
+  { value: "Lifestyle", label: t("coach.nicheLifestyle") },
+ ];
 
  const [niche, setNiche] = useState("Music");
  const [customNiche, setCustomNiche] = useState("");
@@ -106,9 +130,129 @@ export default function MonetizationCoach() {
  const [cadence, setCadence] = useState("3");
 
  const [plan, setPlan] = useState<CoachResponse | null>(null);
+ /* Save-the-moves: the plan's money moves persisted into the Action
+    Tracker (POST /api/coach/action-items, source 'plan'). */
+ const [savingMoves, setSavingMoves] = useState(false);
+ const [movesMsg, setMovesMsg] = useState<string | null>(null);
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
+/* ── Money-hub tab groups ─────────────────────────────────────────────── */
+type CoachTab = "plan" | "niche" | "money" | "actions";
+
+interface CoachTabDef { key: CoachTab; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
+interface CoachTabGroup { id: string; labelKey: string; defaultLabel: string; tabs: CoachTabDef[]; }
+
+const COACH_TAB_GROUPS: CoachTabGroup[] = [
+  {
+    id: "plan", labelKey: "coach.tabGroupPlan", defaultLabel: "Plan",
+    tabs: [
+      { key: "plan", labelKey: "coach.tabPlan", defaultLabel: "Money Plan", Icon: Target },
+      { key: "niche", labelKey: "coach.tabNiche", defaultLabel: "Niche Analyzer", Icon: Sparkles },
+    ],
+  },
+  {
+    id: "track", labelKey: "coach.tabGroupTrack", defaultLabel: "Track",
+    tabs: [
+      { key: "money", labelKey: "coach.tabMoneyTracker", defaultLabel: "Money Tracker", Icon: Wallet },
+      { key: "actions", labelKey: "coach.tabActionTracker", defaultLabel: "Action Tracker", Icon: CheckCircle2 },
+    ],
+  },
+];
+
+const ALL_COACH_TABS = COACH_TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
+
+/* Phase 2: the money-hub pages are real routes now. Old /coach?tab=
+   bookmarks for a moved tab redirect to the page itself (shim in the
+   deep-link effect below). */
+const MOVED_COACH_TABS: Record<string, string> = {
+  "brand-deals": "/brand-deals",
+  distribute: "/distribute",
+  tips: "/tips",
+  beats: "/beats",
+  memberships: "/memberships",
+  shoutouts: "/shoutouts",
+  referrals: "/referrals",
+  team: "/team",
+  "press-kit": "/press-kit",
+  "email-list": "/email-list",
+  collabs: "/collabs",
+  contests: "/contests",
+  storefronts: "/storefronts",
+  "my-shop": "/my-shop",
+};
+
+/* ── More money tools: static directory of the de-hosted pages,
+   grouped by their Phase-1 area. ─────────────────────────────────── */
+interface CoachToolLink { href: string; labelKey: string; defaultLabel: string; Icon: LucideIcon; }
+interface CoachToolGroup { labelKey: string; defaultLabel: string; links: CoachToolLink[]; }
+
+const MORE_COACH_TOOLS: CoachToolGroup[] = [
+  {
+    labelKey: "nav.getPaid", defaultLabel: "Business / Get Paid",
+    links: [
+      { href: "/brand-deals", labelKey: "coach.tabBrandDeals", defaultLabel: "Brand Deals", Icon: Handshake },
+      { href: "/shoutouts", labelKey: "coach.tabShoutouts", defaultLabel: "Shoutouts", Icon: Megaphone },
+      { href: "/tips", labelKey: "coach.tabTips", defaultLabel: "Tips", Icon: Coffee },
+      { href: "/beats", labelKey: "coach.tabBeats", defaultLabel: "Sell Beats", Icon: Disc3 },
+      { href: "/memberships", labelKey: "coach.tabMemberships", defaultLabel: "Memberships", Icon: Crown },
+      { href: "/distribute", labelKey: "coach.tabDistribute", defaultLabel: "Distribute", Icon: Rocket },
+      { href: "/referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
+      { href: "/team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
+      { href: "/contracts", labelKey: "coach.tabContracts", defaultLabel: "Contracts", Icon: FileText },
+      { href: "/sponsors/dashboard", labelKey: "coach.tabSponsorDashboard", defaultLabel: "Sponsor Dashboard", Icon: Handshake },
+    ],
+  },
+  {
+    labelKey: "nav.branding", defaultLabel: "Branding",
+    links: [
+      { href: "/storefronts", labelKey: "coach.tabStorefronts", defaultLabel: "Storefronts", Icon: Store },
+      { href: "/my-shop", labelKey: "coach.tabMyShop", defaultLabel: "My Shop", Icon: ShoppingBag },
+    ],
+  },
+  {
+    labelKey: "nav.promote", defaultLabel: "Promote",
+    links: [
+      { href: "/press-kit", labelKey: "coach.tabPressKit", defaultLabel: "Press Kit", Icon: Newspaper },
+      { href: "/email-list", labelKey: "coach.tabEmailList", defaultLabel: "Email List", Icon: Mail },
+    ],
+  },
+  {
+    labelKey: "nav.social", defaultLabel: "Social",
+    links: [
+      { href: "/collabs", labelKey: "coach.tabCollabs", defaultLabel: "Collabs", Icon: Users },
+      { href: "/contests", labelKey: "coach.tabContests", defaultLabel: "Contests", Icon: Trophy },
+    ],
+  },
+];
+
+ const [activeTab, setActiveTab] = useState<CoachTab>("plan");
+ const search = useSearch();
+
+ /* Deep-link: /coach?tab=<coach-tab> (e.g. from a paid brand deal or
+    invoice) lands directly on that tab. Phase 2 bookmark shim: a tab
+    that moved out redirects to its real route — &subtab= converts to
+    ?tab= (the param Brand Deals / Distribute read for their inner
+    tabs: finder|pitch|marketplace, releases|new|plan) and any other
+    params ride along. */
+ const [, setLocation] = useLocation();
+ useEffect(() => {
+ const params = new URLSearchParams(search);
+ const tab = params.get("tab");
+ const dest = tab ? MOVED_COACH_TABS[tab] : undefined;
+ if (dest) {
+ params.delete("tab");
+ const subtab = params.get("subtab");
+ if (subtab) {
+ params.set("tab", subtab);
+ params.delete("subtab");
+ }
+ const qs = params.toString();
+ setLocation(qs ? `${dest}?${qs}` : dest, { replace: true });
+ return;
+ }
+ if (tab && (ALL_COACH_TABS as string[]).includes(tab)) setActiveTab(tab as CoachTab);
+ }, [search, setLocation]);
 
  function togglePlatform(key: PlatformKey) {
  setPlatforms((prev) =>
@@ -125,11 +269,11 @@ export default function MonetizationCoach() {
  if (loading || !user) return;
  const finalNiche = (customNiche.trim() || niche).slice(0, 120);
  if (!finalNiche) {
- setError("Tell the coach your niche first — that's what the money math runs on.");
+ setError(t("coach.errorNoNiche"));
  return;
  }
  if (platforms.length === 0) {
- setError("Pick at least one platform to check eligibility for.");
+ setError(t("coach.errorNoPlatform"));
  return;
  }
  const cadenceNum = Math.max(0, Math.min(100, parseInt(cadence, 10) || 0));
@@ -154,6 +298,9 @@ export default function MonetizationCoach() {
  instagram: parseInt(followers.instagram || "0", 10) || 0,
  },
  cadence: cadenceNum,
+ /* Real tracked money (from the Money Tracker tab) — grounds the
+ plan in the creator's actual numbers instead of pure estimates. */
+ moneySnapshot: readMoneySnapshot(),
  }),
  });
  if (!res) return; // user cancelled the credit confirmation (finally resets state)
@@ -164,7 +311,7 @@ export default function MonetizationCoach() {
  return;
  }
  if (!res.ok || !Array.isArray(data.eligibility) || data.eligibility.length === 0 || !Array.isArray(data.moneyMoves) || data.moneyMoves.length === 0) {
- throw new Error(data.message || data.error || "Money plan failed — try again.");
+ throw new Error(data.message || data.error || t("coach.errorPlanFailed"));
  }
  setPlan(data);
  refreshProfile();
@@ -172,14 +319,14 @@ export default function MonetizationCoach() {
  document.getElementById("coach-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Money plan failed — try again.");
+ setError(err instanceof Error ? err.message : t("coach.errorPlanFailed"));
  } finally {
  setLoading(false);
  }
  }
 
  return (
- <div className="min-h-screen bg-black text-white">
+ <div className="bg-black text-white">
 
  <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}
@@ -189,39 +336,74 @@ export default function MonetizationCoach() {
 
  {/* hero */}
  <div className="relative text-center">
- <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <DollarSign className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+ <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-primary">
+ <DollarSign className="h-3 w-3" aria-hidden="true" /> {t("coach.heroBadge")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Monetization <span className="text-primary">Coach</span>
+ {t("coach.titleStart")} <span className="text-primary">{t("coach.titleHighlight")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- The money end of the creator loop: where you stand on every
- monetization program, what your niche actually pays, and your
- next 3 money moves.
+ {t("coach.subtitle")}
  </p>
  </div>
 
+ {/* ── TABS: grouped money-hub navigation ─────────────────────────── */}
+ <div className="relative mt-8 flex justify-center">
+ <div className="flex flex-wrap justify-center gap-x-5 gap-y-4 max-w-4xl">
+ {COACH_TAB_GROUPS.map((group) => (
+ <div key={group.id} className="flex flex-col items-center gap-1.5">
+ <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+ {t(group.labelKey, { defaultValue: group.defaultLabel })}
+ </span>
+ <div className="inline-flex flex-wrap justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 gap-1">
+ {group.tabs.map((tab) => (
+ <button
+ key={tab.key}
+ onClick={() => setActiveTab(tab.key)}
+ className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold transition ${
+ activeTab === tab.key
+ ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
+ : "text-white/55 hover:text-white"
+ }`}
+ >
+ <tab.Icon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(tab.labelKey, { defaultValue: tab.defaultLabel })}
+ </button>
+ ))}
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+
+ {activeTab === "money" ? (
+ <MoneyTrackerPanel />
+ ) : activeTab === "actions" ? (
+ <ActionTrackerPanel />
+ ) : activeTab === "niche" ? (
+ <NicheAnalyzerPanel />
+ ) : (
+ <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}
- <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  {/* niche */}
  <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Your niche
+ {t("coach.yourNiche")}
  </p>
  <div data-min-stars="2" className="flex flex-wrap gap-2">
- {NICHE_PRESETS.map((n) => {
- const selected = !customNiche.trim() && niche === n;
+ {NICHE_OPTIONS.map((opt) => {
+ const selected = !customNiche.trim() && niche === opt.value;
  return (
  <button
- key={n}
- onClick={() => { setNiche(n); setCustomNiche(""); }}
+ key={opt.value}
+ onClick={() => { setNiche(opt.value); setCustomNiche(""); }}
  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
  selected
  ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
  : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
  }`}
  >
- {n}
+ {opt.label}
  </button>
  );
  })}
@@ -230,13 +412,13 @@ export default function MonetizationCoach() {
  value={customNiche}
  onChange={(e) => setCustomNiche(e.target.value)}
  maxLength={120}
- placeholder="Or type your own niche…"
+ placeholder={t("coach.customNichePlaceholder")}
  className={`${inputClass} mt-3`}
  />
 
  {/* platforms */}
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Where do you post?
+ {t("coach.whereDoYouPost")}
  </p>
  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
  {PLATFORM_OPTS.map((p) => {
@@ -276,8 +458,8 @@ export default function MonetizationCoach() {
  value={followers[p.key]}
  onChange={(e) => setFollowerCount(p.key, e.target.value)}
  inputMode="numeric"
- placeholder={p.key === "youtube" ? "Subscribers" : "Followers"}
- aria-label={`${p.label} follower count`}
+ placeholder={p.key === "youtube" ? t("coach.subscribersPlaceholder") : t("coach.followersPlaceholder")}
+ aria-label={t("coach.followerCountAria", { label: p.label })}
  className={`${inputClass} mt-3 !py-2.5`}
  />
  )}
@@ -288,15 +470,15 @@ export default function MonetizationCoach() {
 
  {/* cadence */}
  <p data-min-stars="3" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Videos per week
+ {t("coach.videosPerWeek")}
  </p>
  <input
  data-min-stars="3"
  value={cadence}
  onChange={(e) => setCadence(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
  inputMode="numeric"
- placeholder="3"
- aria-label="Videos per week"
+ placeholder={t("coach.cadencePlaceholder")}
+ aria-label={t("coach.videosPerWeek")}
  className={`${inputClass} max-w-[180px]`}
  />
 
@@ -313,7 +495,7 @@ export default function MonetizationCoach() {
  ) : (
  <TrendingUp className="h-6 w-6" aria-hidden="true" />
  )}
- {loading ? "Crunching the numbers…" : "Build my money plan"}
+ {loading ? t("coach.crunching") : t("coach.buildPlan")}
  </button>
  ) : (
  <Link
@@ -321,12 +503,12 @@ export default function MonetizationCoach() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <TrendingUp className="h-6 w-6" aria-hidden="true" />
- Sign in to build your money plan
+ {t("coach.signInCta")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per plan · powered by Thy Cheat Code
+ {t("coach.costPerPlan", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -340,24 +522,20 @@ export default function MonetizationCoach() {
  {/* ── FRESH MONEY OPPORTUNITIES ──────────────────────────────── */}
  <div className="relative mt-8">
  <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Fresh money opportunities
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.freshOpportunities")}
  </p>
  <div className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
  <p className="mb-2 inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
- New · Oct 20
+ {t("coach.newsBadge")}
  </p>
  <p className="text-base font-black text-white">
- Spotify starts paying video podcasters in 37 more countries
+ {t("coach.newsTitle")}
  </p>
  <p className="mt-2 text-[15px] leading-relaxed text-white/70">
- Share of Premium video revenue + half the ad money Spotify sells
- into your episodes. The bar: 3 episodes ever, 2,000 watch hours and
- 1,000 engaged listeners in the last 30 days — way easier than
- YouTube's Partner Program. Already making long-form video? Repost
- it as a video podcast and get paid twice for the same content.
+ {t("coach.newsBody")}
  </p>
  <p className="mt-3 text-xs text-white/40">
- Eligibility check lives in Spotify for Creators → Monetize.
+ {t("coach.newsFooter")}
  </p>
  </div>
  </div>
@@ -365,26 +543,46 @@ export default function MonetizationCoach() {
  {/* ── RESULTS ────────────────────────────────────────────────── */}
  {plan && plan.eligibility && plan.eligibility.length > 0 && (
  <div id="coach-results" className="relative mt-8">
- {/* eligibility */}
- <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Target className="h-3.5 w-3.5" aria-hidden="true" /> Monetization eligibility
+ {/* DE-19: the state the coach actually read — the plan is grounded
+     in this creator's catalog, and says so. */}
+ {creatorStateSummary(plan.creatorState) && (
+ <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-center text-xs font-semibold text-white/60">
+ {t("coach.stateReadout", { defaultValue: "Your coach read your catalog" })}: {creatorStateSummary(plan.creatorState)}
  </p>
+ )}
+ <div className="mb-4 flex items-center justify-between">
+ <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Target className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.eligibilityTitle")}
+ </p>
+ <button
+   onClick={async () => {
+     const lines: string[] = ["MY MONEY PLAN — Bow Down Visuals"];
+     plan.eligibility!.forEach((e) => lines.push(`• ${e.platform} — ${e.program}: ${e.status.toUpperCase()} (${e.threshold}; ${e.progress}% there)`));
+     if (plan.moneyMoves?.length) { lines.push("", "MONEY MOVES:"); plan.moneyMoves.forEach((m) => lines.push(`• ${m}`)); }
+     if (plan.note) lines.push("", plan.note);
+     try { await navigator.clipboard.writeText(lines.join("\n")); setError(null); } catch { /* clipboard blocked */ }
+   }}
+   className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+ >
+   <Copy className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.copyPlan", { defaultValue: "Copy plan" })}
+ </button>
+ </div>
  <div className="grid gap-3">
  {plan.eligibility.map((item, i) => {
  const badge = statusBadge(item.status);
  return (
  <div
  key={`elig-${i}`}
- className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+ className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
  >
  <div className="flex items-center justify-between gap-3">
  <p className="text-base font-black text-white">{item.platform}</p>
  <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badge.cls}`}>
- {badge.label}
+ {t(badge.labelKey)}
  </span>
  </div>
  <p className="mt-1 text-sm text-white/55">{item.program}</p>
- <p className="mt-1 text-xs text-white/40">Threshold: {item.threshold}</p>
+ <p className="mt-1 text-xs text-white/40">{t("coach.threshold", { value: item.threshold })}</p>
  <div className="mt-3 flex items-center gap-3">
  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
  <div
@@ -398,7 +596,7 @@ export default function MonetizationCoach() {
  </div>
  {item.nextStep && (
  <p className="mt-3 text-sm leading-relaxed text-white/70">
- <span className="font-semibold text-primary/90">Next: </span>
+ <span className="font-semibold text-primary/90">{t("coach.nextLabel")}</span>
  {item.nextStep}
  </p>
  )}
@@ -411,24 +609,24 @@ export default function MonetizationCoach() {
  {plan.earnings && (plan.earnings.rpmNotes || plan.earnings.bestFormat || plan.earnings.bestCadence) && (
  <>
  <p className="mb-4 mt-8 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Wallet className="h-3.5 w-3.5" aria-hidden="true" /> What your niche pays
+ <Wallet className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.earningsTitle")}
  </p>
  <div className="grid gap-3">
  {plan.earnings.bestFormat && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Earns most</p>
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.earnsMost")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestFormat}</p>
  </div>
  )}
  {plan.earnings.rpmNotes && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">RPM ranges (estimates)</p>
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.rpmRanges")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.rpmNotes}</p>
  </div>
  )}
  {plan.earnings.bestCadence && (
- <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Cadence</p>
+ <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("coach.cadenceLabel")}</p>
  <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{plan.earnings.bestCadence}</p>
  </div>
  )}
@@ -440,7 +638,7 @@ export default function MonetizationCoach() {
  {plan.moneyMoves && plan.moneyMoves.length > 0 && (
  <>
  <p className="mb-4 mt-8 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> Your next 3 money moves · 30 days
+ <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.moneyMovesTitle")}
  </p>
  <div className="grid gap-3">
  {plan.moneyMoves.map((move, i) => (
@@ -458,9 +656,102 @@ export default function MonetizationCoach() {
  </>
  )}
 
- <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/30">
+ {/* Save the moves — a plan you can't check off is a poster. The
+     moves persist in the Action Tracker tab (source 'plan'); saving
+     twice is safe (the API skips moves already tracked). */}
+ {plan.moneyMoves && plan.moneyMoves.length > 0 && user && (
+ <div className="mt-5 text-center">
+ <button
+ onClick={async () => {
+ if (savingMoves || !plan.moneyMoves) return;
+ setSavingMoves(true);
+ setMovesMsg(null);
+ try {
+ const token = await getAccessToken();
+ const res = await confirmedFetch("/api/coach/action-items", {
+ skipConfirm: true,
+ method: "POST",
+ headers: {
+ "Content-Type": "application/json",
+ ...(token ? { Authorization: `Bearer ${token}` } : {}),
+ },
+ body: JSON.stringify({ titles: plan.moneyMoves, source: "plan" }),
+ });
+ if (!res) return;
+ const data = (await res.json().catch(() => ({}))) as { items?: unknown[]; skipped?: unknown[]; error?: string };
+ if (!res.ok) throw new Error(data.error || "Couldn't save the moves.");
+ const saved = Array.isArray(data.items) ? data.items.length : 0;
+ setMovesMsg(
+ saved > 0
+ ? t("coach.movesSaved", { defaultValue: "Saved to your Action Tracker — check them off as you finish them." })
+ : t("coach.movesAlreadySaved", { defaultValue: "Those moves are already in your Action Tracker." }),
+ );
+ } catch (err) {
+ setMovesMsg(err instanceof Error ? err.message : "Couldn't save the moves.");
+ } finally {
+ setSavingMoves(false);
+ }
+ }}
+ disabled={savingMoves}
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3 text-sm font-black text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+ >
+ {savingMoves ? (
+ <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+ ) : (
+ <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+ )}
+ {t("coach.saveMoves", { defaultValue: "Save these moves to my tracker" })}
+ </button>
+ {movesMsg && (
+ <p className="mt-2.5 text-xs font-semibold text-white/60">
+ {movesMsg}{" "}
+ <button onClick={() => setActiveTab("actions")} className="font-black text-primary underline underline-offset-2">
+ {t("coach.openTracker", { defaultValue: "Open the Action Tracker" })}
+ </button>
+ </p>
+ )}
+ </div>
+ )}
+
+ {/* action buttons — the plan is a starting line, not a display.
+     DE-19: ONE primary move, derived from the creator's real state
+     (server-side nextAction); the old static trio stays as
+     secondaries, minus whichever the primary already covers. */}
+ <div className="mt-6 flex flex-wrap justify-center gap-3">
+ {(() => {
+ const primary = primaryActionFor(plan);
+ const secondaries = [
+ { href: "/distribute", label: t("coach.planActDistribute", { defaultValue: "Distribute music" }), Icon: Rocket },
+ { href: "/brand-deals", label: t("coach.planActDeals", { defaultValue: "Find brand deals" }), Icon: Handshake },
+ { href: "/referrals", label: t("coach.planActReferrals", { defaultValue: "Grow referrals" }), Icon: Gift },
+ ].filter((s) => s.href !== primary.href);
+ return (
+ <>
+ <Link
+ href={primary.href}
+ className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
+ >
+ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+ {primary.label}
+ </Link>
+ {secondaries.map((s) => (
+ <Link
+ key={s.href}
+ href={s.href}
+ className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary/20"
+ >
+ <s.Icon className="h-4 w-4" aria-hidden="true" />
+ {s.label}
+ </Link>
+ ))}
+ </>
+ );
+ })()}
+ </div>
+
+ <p className="mt-4 flex items-start justify-center gap-1.5 text-center text-xs italic text-white/50">
  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
- {plan.note || "Thresholds and RPMs are estimates as of 2026 — verify current program terms."}
+ {plan.note || t("coach.defaultDisclaimer")}
  </p>
 
  {user && (
@@ -475,18 +766,51 @@ export default function MonetizationCoach() {
  ) : (
  <Sparkles className="h-4 w-4" aria-hidden="true" />
  )}
- Rebuild plan ({CREDIT_COST} Visual Buc)
+ {t("coach.rebuildPlan", { cost: CREDIT_COST })}
  </button>
  </div>
  )}
  </div>
  )}
+ </>
+ )}
+
+ {/* ── MORE MONEY TOOLS directory ─────────────────────────────── */}
+ <div className="relative mt-12">
+ <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <DollarSign className="h-3.5 w-3.5" aria-hidden="true" /> {t("coach.moreToolsTitle", { defaultValue: "More money tools" })}
+ </p>
+ <div className="grid gap-3 sm:grid-cols-2">
+ {MORE_COACH_TOOLS.map((group) => (
+ <div
+ key={group.labelKey}
+ className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+ >
+ <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+ {t(group.labelKey, { defaultValue: group.defaultLabel })}
+ </p>
+ <div className="flex flex-wrap gap-1.5">
+ {group.links.map((link) => (
+ <Link
+ key={link.href}
+ href={link.href}
+ className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] font-bold text-white/70 transition hover:border-primary/40 hover:text-white"
+ >
+ <link.Icon className="h-3.5 w-3.5" aria-hidden="true" />
+ {t(link.labelKey, { defaultValue: link.defaultLabel })}
+ </Link>
+ ))}
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Plan in hand? Ask{" "}
- <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble to turn your money moves into this week's content.
+ {t("coach.crossLinkStart")}{" "}
+ <span className="font-semibold text-primary">{t("coach.crossLinkBrand")}</span>{" "}
+ {t("coach.crossLinkEnd")}
  </p>
  </main>
 

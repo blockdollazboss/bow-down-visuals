@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import {
   TrendingUp, Loader2, Sparkles, Lightbulb, Bookmark, BookmarkCheck,
@@ -6,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Trend Predictor ────────────────────────────────────────────────────
    Get ahead of trends instead of chasing them. AI analyzes the creator's
@@ -17,22 +19,28 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    Honest framing: predictions are pattern analysis, not guarantees — the
    disclaimer ships with every forecast and is shown above the results. */
 
-const NICHE_PRESETS = [
-  "Music", "Gaming", "Comedy", "Fitness",
-  "Beauty & Fashion", "Tech", "Education", "Lifestyle",
+const NICHE_PRESETS: Array<{ value: string; labelKey: string }> = [
+  { value: "Music", labelKey: "trends.nicheMusic" },
+  { value: "Gaming", labelKey: "trends.nicheGaming" },
+  { value: "Comedy", labelKey: "trends.nicheComedy" },
+  { value: "Fitness", labelKey: "trends.nicheFitness" },
+  { value: "Beauty & Fashion", labelKey: "trends.nicheBeautyFashion" },
+  { value: "Tech", labelKey: "trends.nicheTech" },
+  { value: "Education", labelKey: "trends.nicheEducation" },
+  { value: "Lifestyle", labelKey: "trends.nicheLifestyle" },
 ];
 
 const PLATFORM_OPTS = [
-  { key: "tiktok", label: "TikTok" },
-  { key: "instagram", label: "Instagram" },
-  { key: "youtube", label: "YouTube" },
+  { key: "tiktok", label: "TikTok", labelKey: "trends.platformTiktok" },
+  { key: "instagram", label: "Instagram", labelKey: "trends.platformInstagram" },
+  { key: "youtube", label: "YouTube", labelKey: "trends.platformYoutube" },
 ] as const;
 type PlatformKey = (typeof PLATFORM_OPTS)[number]["key"];
 
 const AUDIENCE_OPTS = [
-  { key: "starting", label: "Just starting", blurb: "0–1k followers" },
-  { key: "growing", label: "Growing", blurb: "1k–50k followers" },
-  { key: "established", label: "Established", blurb: "50k+ followers" },
+  { key: "starting", label: "Just starting", labelKey: "trends.audienceStarting", blurb: "0–1k followers", blurbKey: "trends.audienceStartingBlurb" },
+  { key: "growing", label: "Growing", labelKey: "trends.audienceGrowing", blurb: "1k–50k followers", blurbKey: "trends.audienceGrowingBlurb" },
+  { key: "established", label: "Established", labelKey: "trends.audienceEstablished", blurb: "50k+ followers", blurbKey: "trends.audienceEstablishedBlurb" },
 ] as const;
 type AudienceKey = (typeof AUDIENCE_OPTS)[number]["key"];
 
@@ -97,6 +105,8 @@ function loadWatchlist(): TrackedTrend[] {
 }
 
 export default function TrendPredictor() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -133,10 +143,10 @@ export default function TrendPredictor() {
     return watchlist.some((t) => t.trend === trend);
   }
 
-  function trackTrend(t: TrendItem, nicheName: string) {
-    if (isTracked(t.trend)) return;
+  function trackTrend(trend: TrendItem, nicheName: string) {
+    if (isTracked(trend.trend)) return;
     persistWatchlist([
-      { ...t, niche: nicheName, trackedAt: new Date().toISOString() },
+      { ...trend, niche: nicheName, trackedAt: new Date().toISOString() },
       ...watchlist,
     ]);
   }
@@ -155,11 +165,11 @@ export default function TrendPredictor() {
     if (loading || !user) return;
     const finalNiche = (customNiche.trim() || niche).slice(0, 120);
     if (!finalNiche) {
-      setError("Tell the predictor your niche first — that's what the forecast runs on.");
+      setError(t("trends.nicheRequiredError"));
       return;
     }
     if (platforms.length === 0) {
-      setError("Pick at least one platform to forecast for.");
+      setError(t("trends.platformRequiredError"));
       return;
     }
 
@@ -192,7 +202,7 @@ export default function TrendPredictor() {
         return;
       }
       if (!res.ok || !Array.isArray(data.trends) || data.trends.length === 0) {
-        throw new Error(data.message || data.error || "Forecast failed — try again.");
+        throw new Error(data.message || data.error || t("trends.forecastFailedError"));
       }
       setForecast(data);
       refreshProfile();
@@ -200,7 +210,7 @@ export default function TrendPredictor() {
         document.getElementById("trend-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Forecast failed — try again.");
+      setError(err instanceof Error ? err.message : t("trends.forecastFailedError"));
     } finally {
       setLoading(false);
     }
@@ -230,17 +240,17 @@ export default function TrendPredictor() {
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as IdeasResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
-        setIdeasError("Out of Visual Bucs — top up to get content ideas.");
+        setIdeasError(t("trends.ideasOutOfCredits"));
         refreshProfile();
         return;
       }
       if (!res.ok || !Array.isArray(data.ideas) || data.ideas.length === 0) {
-        throw new Error(data.message || data.error || "Ideas failed — try again.");
+        throw new Error(data.message || data.error || t("trends.ideasFailedError"));
       }
       setIdeas(data.ideas);
       refreshProfile();
     } catch (err) {
-      setIdeasError(err instanceof Error ? err.message : "Ideas failed — try again.");
+      setIdeasError(err instanceof Error ? err.message : t("trends.ideasFailedError"));
     } finally {
       setIdeasLoading(false);
     }
@@ -249,7 +259,7 @@ export default function TrendPredictor() {
   const finalNiche = (customNiche.trim() || niche).slice(0, 120);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
       <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
@@ -260,38 +270,36 @@ export default function TrendPredictor() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Radar className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's trend tools
+            <Radar className="h-3 w-3" aria-hidden="true" /> {t("trends.kicker")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Trend <span className="text-primary">Predictor</span>
+            {t("trends.heading")} <span className="text-primary">{t("trends.headingAccent")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Stop chasing trends — get ahead of them. AI analyzes your niche and
-            predicts 5 trends about to spike, with confidence scores, reasoning,
-            and the early signals to watch.
+            {t("trends.heroDescription")}
           </p>
         </div>
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
-        <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           {/* niche */}
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Your niche
+            {t("trends.yourNiche")}
           </p>
           <div className="flex flex-wrap gap-2">
             {NICHE_PRESETS.map((n) => {
-              const selected = !customNiche.trim() && niche === n;
+              const selected = !customNiche.trim() && niche === n.value;
               return (
                 <button
-                  key={n}
-                  onClick={() => { setNiche(n); setCustomNiche(""); }}
+                  key={n.value}
+                  onClick={() => { setNiche(n.value); setCustomNiche(""); }}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                     selected
                       ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
                       : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                   }`}
                 >
-                  {n}
+                  {t(n.labelKey)}
                 </button>
               );
             })}
@@ -300,13 +308,13 @@ export default function TrendPredictor() {
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             maxLength={120}
-            placeholder="Or type your own niche…"
+            placeholder={t("trends.nichePlaceholder")}
             className={`${inputClass} mt-3`}
           />
 
           {/* platforms */}
           <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Where do you post?
+            {t("trends.whereDoYouPost")}
           </p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {PLATFORM_OPTS.map((p) => {
@@ -323,7 +331,7 @@ export default function TrendPredictor() {
                 >
                   <span className="flex items-center justify-between">
                     <span className={`text-sm font-bold ${selected ? "text-white" : "text-white/60"}`}>
-                      {p.label}
+                      {t(p.labelKey)}
                     </span>
                     <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                       selected ? "border-primary bg-primary text-black" : "border-white/20 text-transparent"
@@ -338,7 +346,7 @@ export default function TrendPredictor() {
 
           {/* audience */}
           <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            Audience size
+            {t("trends.audienceSize")}
           </p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {AUDIENCE_OPTS.map((a) => {
@@ -354,9 +362,9 @@ export default function TrendPredictor() {
                   }`}
                 >
                   <span className={`block text-sm font-bold ${selected ? "text-white" : "text-white/60"}`}>
-                    {a.label}
+                    {t(a.labelKey)}
                   </span>
-                  <span className="mt-0.5 block text-xs text-white/40">{a.blurb}</span>
+                  <span className="mt-0.5 block text-xs text-white/40">{t(a.blurbKey)}</span>
                 </button>
               );
             })}
@@ -367,22 +375,22 @@ export default function TrendPredictor() {
             <button
               onClick={predictTrends}
               disabled={loading || !user}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-black uppercase tracking-widest transition disabled:cursor-not-allowed ${!user && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] hover:brightness-110"}`}
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Forecasting…
+                  {t("trends.forecasting")}
                 </>
               ) : (
                 <>
                   <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                  Predict my trends · {FORECAST_CREDITS} Visual Bucs
+                  {t("trends.predictButton", { count: FORECAST_CREDITS })}
                 </>
               )}
             </button>
             {!user && (
-              <p className="mt-3 text-xs text-white/40">Sign in to run a forecast.</p>
+              <p className="mt-3 text-xs text-white/40">{t("trends.signInToForecast")}</p>
             )}
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -400,16 +408,15 @@ export default function TrendPredictor() {
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
               <p className="text-[13px] leading-relaxed text-amber-200/80">
-                {forecast.disclaimer ||
-                  "Predictions based on pattern analysis — not guarantees. Trends shift fast; verify momentum before going all-in."}
+                {forecast.disclaimer || t("trends.defaultDisclaimer")}
               </p>
             </div>
 
             <div className="space-y-4">
-              {forecast.trends.map((t, i) => (
+              {forecast.trends.map((trend, i) => (
                 <div
-                  key={`${t.trend}-${i}`}
-                  className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-black p-6"
+                  key={`${trend.trend}-${i}`}
+                  className={`${isLight ? "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -417,39 +424,39 @@ export default function TrendPredictor() {
                         {i + 1}
                       </span>
                       <div>
-                        <h3 className="font-display text-lg font-black leading-snug">{t.trend}</h3>
+                        <h3 className="font-display text-lg font-black leading-snug">{trend.trend}</h3>
                         <p className="mt-0.5 text-xs uppercase tracking-widest text-white/40">
-                          {t.timeframe}
+                          {trend.timeframe}
                         </p>
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className={`font-display text-2xl font-black ${confidenceColor(t.confidence)}`}>
-                        {t.confidence}%
+                      <p className={`font-display text-2xl font-black ${confidenceColor(trend.confidence)}`}>
+                        {trend.confidence}%
                       </p>
-                      <p className="text-[10px] uppercase tracking-widest text-white/35">confidence</p>
+                      <p className="text-[10px] uppercase tracking-widest text-white/35">{t("trends.confidenceLabel")}</p>
                     </div>
                   </div>
 
                   {/* confidence bar */}
                   <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
                     <div
-                      className={`h-full rounded-full bg-gradient-to-r ${confidenceBar(t.confidence)}`}
-                      style={{ width: `${t.confidence}%` }}
+                      className={`h-full rounded-full bg-gradient-to-r ${confidenceBar(trend.confidence)}`}
+                      style={{ width: `${trend.confidence}%` }}
                     />
                   </div>
 
-                  {t.reasoning && (
-                    <p className="mt-4 text-sm leading-relaxed text-white/65">{t.reasoning}</p>
+                  {trend.reasoning && (
+                    <p className="mt-4 text-sm leading-relaxed text-white/65">{trend.reasoning}</p>
                   )}
 
-                  {t.earlySignals.length > 0 && (
+                  {trend.earlySignals.length > 0 && (
                     <div className="mt-4">
                       <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                        <Eye className="h-3 w-3" aria-hidden="true" /> Early signals to watch
+                        <Eye className="h-3 w-3" aria-hidden="true" /> {t("trends.earlySignals")}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {t.earlySignals.map((s, si) => (
+                        {trend.earlySignals.map((s, si) => (
                           <span
                             key={si}
                             className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/60"
@@ -464,47 +471,47 @@ export default function TrendPredictor() {
                   {/* actions */}
                   <div className="mt-5 flex flex-wrap gap-2.5">
                     <button
-                      onClick={() => fetchIdeas(t)}
+                      onClick={() => fetchIdeas(trend)}
                       disabled={ideasLoading}
                       className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-4 py-2 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
                     >
-                      {ideasLoading && ideasFor === t.trend ? (
+                      {ideasLoading && ideasFor === trend.trend ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                       ) : (
                         <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
                       )}
-                      10 content ideas · {IDEAS_CREDITS} Visual Buc
+                      {t("trends.ideasButton", { count: IDEAS_CREDITS })}
                     </button>
-                    {isTracked(t.trend) ? (
+                    {isTracked(trend.trend) ? (
                       <button
-                        onClick={() => untrackTrend(t.trend)}
+                        onClick={() => untrackTrend(trend.trend)}
                         className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/20"
                       >
                         <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                        Tracked — remove
+                        {t("trends.trackedRemove")}
                       </button>
                     ) : (
                       <button
-                        onClick={() => trackTrend(t, finalNiche)}
+                        onClick={() => trackTrend(trend, finalNiche)}
                         className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 text-xs font-bold text-white/60 transition hover:border-primary/40 hover:text-white"
                       >
                         <Bookmark className="h-3.5 w-3.5" aria-hidden="true" />
-                        Track trend · free
+                        {t("trends.trackTrendFree")}
                       </button>
                     )}
                   </div>
 
                   {/* ideas panel */}
-                  {ideasFor === t.trend && (
-                    <div className="mt-5 rounded-2xl border border-primary/25 bg-black/50 p-5">
+                  {ideasFor === trend.trend && (
+                    <div className={`mt-5 rounded-2xl border border-primary/25 p-5 ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/50"}`}>
                       <div className="flex items-center justify-between">
                         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
-                          <Sparkles className="h-3 w-3" aria-hidden="true" /> Content ideas
+                          <Sparkles className="h-3 w-3" aria-hidden="true" /> {t("trends.contentIdeas")}
                         </p>
                         <button
                           onClick={() => { setIdeasFor(null); setIdeas([]); }}
                           className="text-white/40 transition hover:text-white"
-                          aria-label="Close ideas"
+                          aria-label={t("trends.closeIdeas")}
                         >
                           <X className="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -512,7 +519,7 @@ export default function TrendPredictor() {
                       {ideasLoading && (
                         <p className="mt-3 flex items-center gap-2 text-sm text-white/50">
                           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                          Cooking up 10 ideas…
+                          {t("trends.cookingIdeas")}
                         </p>
                       )}
                       {ideasError && (
@@ -545,39 +552,38 @@ export default function TrendPredictor() {
           <div className="relative mt-12">
             <h2 className="flex items-center gap-2 font-display text-2xl font-black">
               <BookmarkCheck className="h-5 w-5 text-primary" aria-hidden="true" />
-              Your watchlist
+              {t("trends.yourWatchlist")}
             </h2>
             <p className="mt-2 text-sm text-white/50">
-              Trends you're tracking. Watch the early signals — when they start
-              spiking, that's your window to post.
+              {t("trends.watchlistDescription")}
             </p>
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {watchlist.map((t) => (
+              {watchlist.map((wt) => (
                 <div
-                  key={t.trend}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"
+                  key={wt.trend}
+                  className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-bold leading-snug">{t.trend}</p>
+                      <p className="text-sm font-bold leading-snug">{wt.trend}</p>
                       <p className="mt-1 text-[11px] uppercase tracking-widest text-white/35">
-                        {t.niche} · {t.confidence}% confidence
+                        {t("trends.watchlistMeta", { niche: wt.niche, confidence: wt.confidence })}
                       </p>
                     </div>
                     <button
-                      onClick={() => untrackTrend(t.trend)}
+                      onClick={() => untrackTrend(wt.trend)}
                       className="text-white/30 transition hover:text-white"
-                      aria-label={`Stop tracking ${t.trend}`}
+                      aria-label={t("trends.stopTracking", { trend: wt.trend })}
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
-                  {t.earlySignals.length > 0 && (
+                  {wt.earlySignals.length > 0 && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      {t.earlySignals.slice(0, 3).map((s, si) => (
+                      {wt.earlySignals.slice(0, 3).map((s, si) => (
                         <span
                           key={si}
-                          className="rounded-full border border-white/10 bg-black/40 px-2.5 py-0.5 text-[11px] text-white/50"
+                          className={`rounded-full border px-2.5 py-0.5 text-[11px] text-white/50 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}
                         >
                           {s}
                         </span>

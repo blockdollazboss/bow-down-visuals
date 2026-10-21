@@ -17,6 +17,9 @@ export interface ScheduledPostShape {
   attempts: number;
   lastError: string | null;
   creditsCharged: number;
+  /** Distribution release this post announces (0143 attribution), or
+   *  null when it wasn't scheduled from a release. */
+  releaseId: string | null;
   results: Array<{ platform: SchedulerPlatformKey; status: string; error?: string | null }>;
   createdAt: string;
   updatedAt: string;
@@ -66,6 +69,77 @@ export function movePostToDate(scheduledAtISO: string, targetDate: string): stri
   const [y, m, day] = targetDate.split("-").map(Number);
   const moved = new Date(y!, m! - 1, day!, current.getHours(), current.getMinutes(), 0, 0);
   return Number.isNaN(moved.getTime()) ? null : moved.toISOString();
+}
+
+/**
+ * Decide what a calendar drag means before anything moves. The month
+ * grid's drop handler is optimistic: on a "move" plan it re-dates the
+ * post in local state at once, PATCHes through the existing update
+ * path, and rolls the post back to its original time if the write
+ * fails. The other plans never touch the network:
+ *  - "noop":    dropped on the day the post already sits on.
+ *  - "past":    the moved time would be < 60s in the future — the same
+ *               rule the server enforces (400 bad_time), caught here
+ *               so the user hears about it without a round trip.
+ *  - "invalid": no scheduled time to move, or an unparseable target.
+ */
+export type ReschedulePlan =
+  | { kind: "move"; scheduledAt: string }
+  | { kind: "noop" }
+  | { kind: "past" }
+  | { kind: "invalid" };
+
+export function planReschedule(
+  post: ScheduledPostShape,
+  targetDate: string,
+  nowMs: number = Date.now(),
+): ReschedulePlan {
+  if (!post.scheduledAt) return { kind: "invalid" };
+  const moved = movePostToDate(post.scheduledAt, targetDate);
+  if (!moved) return { kind: "invalid" };
+  if (toLocalDate(new Date(moved)) === toLocalDate(new Date(post.scheduledAt))) {
+    return { kind: "noop" };
+  }
+  if (new Date(moved).getTime() < nowMs + 60_000) return { kind: "past" };
+  return { kind: "move", scheduledAt: moved };
+}
+
+/**
+ * Per-platform connection state for the scheduler's "posting accounts"
+ * strip — a structural read of the SAME account list the composer
+ * picks from (GET /api/social/accounts), so the strip can never
+ * disagree with the composer. A platform with any usable account is
+ * "connected"; one whose accounts all expired is "expired" (the
+ * composer silently filters expired accounts out, which made expired
+ * indistinguishable from never-connected — the strip exists to say it
+ * out loud); no account at all is "none".
+ */
+export interface PostingAccountLike {
+  platform: string;
+  username: string | null;
+  pageName: string | null;
+  usernameMasked: string | null;
+  expired: boolean;
+}
+
+export interface PostingAccountState {
+  platform: SchedulerPlatformKey;
+  state: "connected" | "expired" | "none";
+  /** Human label for the account (page name, else masked/raw username). */
+  accountLabel: string | null;
+}
+
+const POSTING_PLATFORMS: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"];
+
+export function postingAccountStates(accounts: PostingAccountLike[]): PostingAccountState[] {
+  return POSTING_PLATFORMS.map((platform) => {
+    const mine = accounts.filter((a) => a.platform === platform);
+    const labelOf = (a: PostingAccountLike) => a.pageName ?? a.usernameMasked ?? a.username;
+    const usable = mine.find((a) => !a.expired);
+    if (usable) return { platform, state: "connected", accountLabel: labelOf(usable) };
+    if (mine.length > 0) return { platform, state: "expired", accountLabel: labelOf(mine[0]!) };
+    return { platform, state: "none", accountLabel: null };
+  });
 }
 
 /** Group scheduled posts by their local YYYY-MM-DD date. */
@@ -124,6 +198,20 @@ export function normalizeHashtags(raw: string): string {
     .filter((t) => t.length > 0 && t.length <= 60)
     .map((t) => `#${t}`);
   return [...new Set(tags)].join(" ");
+}
+
+/**
+ * Release attribution (migration 0143) read TOLERANTLY. The API DTO
+ * exposes `releaseId: string | null` on scheduled posts (set only by
+ * the scheduler-from-release flow), but this reader accepts the field
+ * as it may arrive — absent on rows serialized before 0143, null on
+ * posts scheduled any other way — and yields the id only when it is
+ * actually a non-empty string. Kept structural (no ScheduledPostShape
+ * change) so surfaces can ask any post-shaped value.
+ */
+export function postReleaseId(post: ScheduledPostShape | Record<string, unknown>): string | null {
+  const v = (post as { releaseId?: unknown }).releaseId;
+  return typeof v === "string" && v.length > 0 ? v : null;
 }
 
 /** Days (YYYY-MM-DD) for the visible month grid, including leading blanks. */

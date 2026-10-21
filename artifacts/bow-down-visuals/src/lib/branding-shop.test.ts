@@ -11,8 +11,8 @@ import {
 } from "./branding-shop";
 
 describe("branding shop catalog", () => {
-  it("has seven products with positive cent prices and sizes", () => {
-    expect(BRANDING_PRODUCTS).toHaveLength(7);
+  it("has nine products with positive cent prices and sizes", () => {
+    expect(BRANDING_PRODUCTS).toHaveLength(9);
     for (const p of BRANDING_PRODUCTS) {
       expect(Number.isInteger(p.priceCents)).toBe(true);
       expect(p.priceCents).toBeGreaterThan(0);
@@ -22,8 +22,12 @@ describe("branding shop catalog", () => {
 
   it("covers the full POD lineup", () => {
     expect(BRANDING_PRODUCTS.map((p) => p.key).sort()).toEqual(
-      ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"]
+      ["hoodie", "mug", "phonecase", "poster", "rug", "rug-premium", "snapback", "tote", "tshirt"]
     );
+    // Only the premium die-cut rug is a quote-only display tier; every
+    // other catalog product (the standard rug included) is orderable.
+    expect(BRANDING_PRODUCTS.find((p) => p.key === "rug-premium")?.quoteOnly).toBe(true);
+    expect(BRANDING_PRODUCTS.filter((p) => p.quoteOnly).map((p) => p.key)).toEqual(["rug-premium"]);
   });
 
   it("has three color options", () => {
@@ -36,8 +40,8 @@ describe("branding shop catalog", () => {
     );
   });
 
-  it("charges 2 credits per AI design set, max 3 mockup products", () => {
-    expect(BRANDING_DESIGN_COST).toBe(2);
+  it("charges 200 Visual Bucs per AI design set, max 3 mockup products", () => {
+    expect(BRANDING_DESIGN_COST).toBe(200);
     expect(MAX_DESIGN_PRODUCTS).toBe(3);
   });
 });

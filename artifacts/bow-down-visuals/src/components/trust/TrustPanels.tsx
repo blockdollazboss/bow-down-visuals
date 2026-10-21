@@ -1,0 +1,586 @@
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  statementFromPayload,
+  statementIsEmpty,
+  statementLineRows,
+  statementLineText,
+  statementMoney,
+  statementTotalLabel,
+} from "@/lib/earnings-statement";
+import { CATALOG_EXPORT_KIND_OPTIONS, CATALOG_EXPORT_FIELD_OPTIONS } from "./catalog-export-options";
+
+export { CATALOG_EXPORT_KIND_OPTIONS, CATALOG_EXPORT_FIELD_OPTIONS } from "./catalog-export-options";
+
+/* Stack 10 trust surfaces. Every panel renders recorded data only:
+   a failed load says so, an empty state says it's empty — nothing is
+   ever filled in with a plausible-looking zero or curve. */
+
+async function api(token: string | null, method: string, path: string, body?: unknown) {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as any)?.error ?? "Something went wrong.");
+  return json as any;
+}
+
+const card = "rounded-2xl border border-border bg-card p-6";
+const btn = "rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50";
+const ghost = "rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50";
+const input = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm";
+
+/* ── #2 Succession ─────────────────────────────────────────────────── */
+export function LegacySettings() {
+  const { getAccessToken } = useAuth();
+  const [designation, setDesignation] = useState<any>(null);
+  const [inbox, setInbox] = useState<any[]>([]);
+  const [heir, setHeir] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/legacy/designation");
+      setDesignation(d.designation);
+      if (d.designation) { setHeir(d.designation.heirUserId); setInstructions(d.designation.instructions); }
+      const i = await api(t, "GET", "/api/legacy/inbox");
+      setInbox(i.designations ?? []);
+    } catch { setErr("Could not load your legacy settings."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function save() {
+    setErr(null); setMsg(null);
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "POST", "/api/legacy/designation", { heirUserId: heir.trim(), instructions });
+      setDesignation(d.designation);
+      setMsg("Saved. Your heir sees a pending designation and chooses whether to accept.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  async function revoke() {
+    try { const t = await getAccessToken(); const d = await api(t, "DELETE", "/api/legacy/designation"); setDesignation(d.designation); setMsg("Designation removed."); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not remove."); }
+  }
+  async function respond(id: string, response: "accept" | "decline") {
+    try { const t = await getAccessToken(); await api(t, "POST", `/api/legacy/inbox/${id}/respond`, { response }); void load(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not record your answer."); }
+  }
+
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Legacy &amp; succession</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Name the creator who should take over your catalog and your page if you can&apos;t. Your heir would control
+        your <strong>catalog and page</strong> — never your private messages, and never your payment rails or payout
+        credentials. Nothing transfers automatically: activation is a manual review by our team, and this page only
+        records your designation and your instructions.
+      </p>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {designation && designation.status !== "revoked" && (
+        <p className="mt-3 text-sm">Current designation: <strong>{designation.status}</strong> (heir account {designation.heirUserId})</p>
+      )}
+      <div className="mt-4 grid gap-3">
+        <input className={input} placeholder="Heir's account ID (ask them for it from their settings)" value={heir} onChange={(e) => setHeir(e.target.value)} />
+        <textarea className={input} rows={3} placeholder="Your instructions for your heir (optional)" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+        <div className="flex gap-2">
+          <button type="button" className={btn} onClick={save} disabled={!heir.trim()}>Save designation</button>
+          {designation && designation.status !== "revoked" && <button type="button" className={ghost} onClick={revoke}>Remove designation</button>}
+        </div>
+      </div>
+      {inbox.length > 0 && (
+        <div className="mt-6 border-t border-border pt-4">
+          <h3 className="text-sm font-bold">Designations naming you</h3>
+          {inbox.map((d) => (
+            <div key={d.id} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span>Account {d.userId} named you — status: <strong>{d.status}</strong></span>
+              {d.status === "pending" && <>
+                <button type="button" className={ghost} onClick={() => respond(d.id, "accept")}>Accept</button>
+                <button type="button" className={ghost} onClick={() => respond(d.id, "decline")}>Decline</button>
+              </>}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ── Stack 3 #2b Legacy contact (same Settings area as succession) ─── */
+export function LegacyContactSettings() {
+  const { getAccessToken } = useAuth();
+  const [contact, setContact] = useState<any>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/legacy/contact");
+      setContact(d.contact);
+      if (d.contact) { setName(d.contact.name); setEmail(d.contact.email); setNote(d.contact.note ?? ""); }
+    } catch { setErr("Could not load your legacy contact."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function save() {
+    setErr(null); setMsg(null); setConfirmingRemove(false);
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "PUT", "/api/legacy/contact", { name: name.trim(), email: email.trim(), note: note.trim() });
+      setContact(d.contact);
+      setMsg("Saved. This is the person we will contact about your account and your work if you no longer can.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  async function remove() {
+    setErr(null); setMsg(null);
+    try {
+      const t = await getAccessToken();
+      await api(t, "DELETE", "/api/legacy/contact");
+      setContact(null); setName(""); setEmail(""); setNote(""); setConfirmingRemove(false);
+      setMsg("Legacy contact removed.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not remove."); }
+  }
+
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Legacy contact</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Name one person — a partner, a family member, a friend — and the email where Bow Down Visuals should
+        reach them about your account and your work if you no longer can. This setting only records who we
+        should contact. It does <strong>not</strong> transfer your account, your catalog, or any money, and it
+        has no legal effect — for that, a will is the tool. Only you can see or change this; it never appears
+        on your public profile.
+      </p>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {contact && (
+        <p className="mt-3 text-sm">Current legacy contact: <strong>{contact.name}</strong> ({contact.email})</p>
+      )}
+      <div className="mt-4 grid gap-3">
+        <input className={input} placeholder="Contact's name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+        <input className={input} type="email" placeholder="Contact's email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} />
+        <textarea className={input} rows={3} placeholder="Note for us when we reach out (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btn} onClick={save} disabled={!name.trim() || !email.trim()}>Save legacy contact</button>
+          {contact && !confirmingRemove && <button type="button" className={ghost} onClick={() => setConfirmingRemove(true)}>Remove legacy contact</button>}
+          {contact && confirmingRemove && (
+            <>
+              <span className="self-center text-sm">Remove {contact.name} as your legacy contact?</span>
+              <button type="button" className={ghost} onClick={remove}>Yes, remove</button>
+              <button type="button" className={ghost} onClick={() => setConfirmingRemove(false)}>Keep</button>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Stack 11 #5 Permanence (same Settings area as succession) ─────── */
+export function PermanenceSettings() {
+  const { getAccessToken } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try { const t = await getAccessToken(); setData(await api(t, "GET", "/api/distribution/permanence")); }
+    catch { setErr("Could not load your permanence settings."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+  async function chooseCatalog(election: string) {
+    try { const t = await getAccessToken(); await api(t, "PUT", "/api/distribution/permanence/catalog", { election }); setMsg("Catalog permanence election saved."); void load(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  async function chooseRelease(releaseId: string, election: string) {
+    try { const t = await getAccessToken(); await api(t, "PUT", `/api/distribution/releases/${releaseId}/permanence`, { election }); void load(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+  }
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Permanence — your catalog, forever</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Your succession designation (above) says <em>who</em> controls the catalog; permanence says <em>how long it
+        stays</em>. The guarantee is on-platform, and it&apos;s honest about its edges:
+      </p>
+      {data && <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">{(data.covers ?? []).map((c: string) => <li key={c}>{c}</li>)}</ul>}
+      {data && <p className="mt-1 text-sm text-muted-foreground">It does not cover: {(data.excludes ?? []).join(" ")}</p>}
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {data && (
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Whole catalog: <strong>{data.catalog?.election ?? "no election recorded"}</strong></span>
+            <button type="button" className={ghost} onClick={() => chooseCatalog("permanent")}>Keep permanently</button>
+            <button type="button" className={ghost} onClick={() => chooseCatalog("standard")}>Standard</button>
+          </div>
+          {(data.releases ?? []).map((r: any) => (
+            <div key={r.id} className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+              <span className="flex-1">{r.releaseTitle ?? "Release"}: <strong>{r.election}</strong></span>
+              <button type="button" className={ghost} onClick={() => chooseRelease(r.releaseId, r.election === "permanent" ? "standard" : "permanent")}>{r.election === "permanent" ? "Switch to standard" : "Keep permanently"}</button>
+            </div>
+          ))}
+          {(data.releases ?? []).length === 0 && <p className="text-muted-foreground">Per-release elections live on each release in Distribute — this page holds the catalog-wide election.</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ── #3 Catalog portability ────────────────────────────────────────── */
+/* Builder kind/field options live in ./catalog-export-options (plain .ts,
+   importable by tests); they mirror the server whitelist in
+   routes/trust.ts (CATALOG_EXPORT_KINDS) exactly. */
+
+export function CatalogExportPanel() {
+  const { getAccessToken } = useAuth();
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    try { const t = await getAccessToken(); const j = await api(t, "GET", "/api/catalog-export"); setJobs(j.jobs ?? []); }
+    catch { setErr("Could not load your exports."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function create() {
+    setBusy(true); setErr(null);
+    try {
+      const t = await getAccessToken();
+      const made = await api(t, "POST", "/api/catalog-export");
+      const blob = new Blob([JSON.stringify(made.job.manifest, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "my-catalog-manifest.json"; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      void load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not build your package."); }
+    finally { setBusy(false); }
+  }
+
+  /* Builder: one kind, picked fields, CSV or JSON — POST /catalog-export/build. */
+  const [bKind, setBKind] = useState<string>("tracks");
+  const [bFields, setBFields] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(Object.entries(CATALOG_EXPORT_FIELD_OPTIONS).map(([k, opts]) => [k, opts.map((o) => o.key)])));
+  const [bFormat, setBFormat] = useState<"csv" | "json">("csv");
+  const [bBusy, setBBusy] = useState(false);
+  const [bErr, setBErr] = useState<string | null>(null);
+  const [bMsg, setBMsg] = useState<string | null>(null);
+
+  function toggleField(key: string) {
+    setBFields((prev) => {
+      const cur = prev[bKind] ?? [];
+      const next = cur.includes(key) ? cur.filter((f) => f !== key) : [...cur, key];
+      return { ...prev, [bKind]: next.length > 0 ? next : cur };
+    });
+  }
+
+  async function download() {
+    setBBusy(true); setBErr(null); setBMsg(null);
+    try {
+      const t = await getAccessToken();
+      const res = await fetch("/api/catalog-export/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+        body: JSON.stringify({ kind: bKind, fields: bFields[bKind] ?? [], format: bFormat }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error((j as any)?.error ?? "Could not build that export."); }
+      const truncated = res.headers.get("X-Export-Truncated") === "true";
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `my-catalog-${bKind}.${bFormat}`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setBMsg(truncated
+        ? "Downloaded — heads up, this file hit the 2,000-row cap, so it carries your newest 2,000 entries."
+        : "Downloaded.");
+    } catch (e) { setBErr(e instanceof Error ? e.message : "Could not build that export."); }
+    finally { setBBusy(false); }
+  }
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Your whole catalog, downloadable</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        One click builds a package of everything that&apos;s yours: songs and audio files, videos, release metadata,
+        your projects and drafts, store products, and your audience — your email list, your followers, and your
+        fan-club members. It&apos;s a manifest, not one giant zip — video originals are large,
+        so each entry carries the file&apos;s download link plus its metadata in open JSON. Nothing is re-encoded.
+      </p>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      <button type="button" className={`${btn} mt-4`} onClick={create} disabled={busy}>{busy ? "Building…" : "Build my catalog package"}</button>
+      {jobs.length > 0 && <ul className="mt-3 text-sm text-muted-foreground">{jobs.map((j) => <li key={j.id}>{new Date(j.createdAt).toLocaleString()} — {j.status} ({j.progress}%)</li>)}</ul>}
+
+      <div className="mt-6 border-t border-border pt-4">
+        <h3 className="text-base font-black tracking-tight">Or build your own export</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One part of your catalog at a time, with just the fields you want — as a spreadsheet (CSV) or JSON.
+          Newest first, up to 2,000 rows per file; if you have more, the file says so.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Catalog kind">
+          {CATALOG_EXPORT_KIND_OPTIONS.map((o) => (
+            <button key={o.kind} type="button" role="radio" aria-checked={bKind === o.kind}
+              className={bKind === o.kind ? btn : ghost} onClick={() => setBKind(o.kind)}>{o.label}</button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+          {(CATALOG_EXPORT_FIELD_OPTIONS[bKind] ?? []).map((o) => (
+            <label key={o.key} className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" checked={(bFields[bKind] ?? []).includes(o.key)} onChange={() => toggleField(o.key)} />
+              {o.label}
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex gap-2" role="radiogroup" aria-label="File format">
+            {(["csv", "json"] as const).map((f) => (
+              <button key={f} type="button" role="radio" aria-checked={bFormat === f}
+                className={bFormat === f ? btn : ghost} onClick={() => setBFormat(f)}>{f.toUpperCase()}</button>
+            ))}
+          </div>
+          <button type="button" className={btn} onClick={download} disabled={bBusy || (bFields[bKind] ?? []).length === 0}>
+            {bBusy ? "Building…" : "Download export"}
+          </button>
+        </div>
+        {bErr && <p className="mt-2 text-sm text-destructive">{bErr}</p>}
+        {bMsg && <p className="mt-2 text-sm text-emerald-500">{bMsg}</p>}
+      </div>
+    </section>
+  );
+}
+
+/* ── #5 Earnings documents ─────────────────────────────────────────── */
+export function EarningsDocuments() {
+  const { getAccessToken } = useAuth();
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(thisYear);
+  const [stmt, setStmt] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  async function load() {
+    setErr(null);
+    try {
+      const t = await getAccessToken(); const s = await api(t, "GET", `/api/earnings/statements/${year}`);
+      /* Guard (DTO batch #2): a statement without a real sources map is
+         malformed — the honest load error, not a render throw. */
+      const normalized = statementFromPayload(s);
+      if (!normalized) throw new Error("Could not load that statement.");
+      setStmt(normalized);
+    }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not load that statement."); }
+  }
+  async function pdf() {
+    try {
+      const t = await getAccessToken();
+      const res = await fetch(`/api/earnings/statements/${year}/pdf`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `earnings-statement-${year}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch { setErr("Could not download that statement."); }
+  }
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Earnings statements</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        A per-year statement of the earnings recorded here, per source. This is a statement of platform-recorded
+        earnings — it is not a filed tax form. If a payment processor paid you, that processor issues its own tax forms.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <select className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
+          {[thisYear, thisYear - 1, thisYear - 2].map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <button type="button" className={btn} onClick={load}>View statement</button>
+        {stmt && <button type="button" className={ghost} onClick={pdf}>Download PDF</button>}
+      </div>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {stmt && (
+        <div className="mt-4 text-sm">
+          {/* The PDF's own lines: the shared row list (lib/earnings-
+              statement) carries the PDF route's labels + order, so
+              this view and the downloaded PDF can never disagree —
+              and picking another year above clears the old year's
+              statement instead of leaving it beside the new year. */}
+          {statementLineRows(stmt).map((row) => (
+            <div key={row.key} className="flex justify-between border-b border-border py-1.5"><span>{row.label}</span><span>{statementLineText(row)}</span></div>
+          ))}
+          <div className="flex justify-between py-2 font-bold"><span>{statementTotalLabel(stmt.partial)}</span><span>{statementMoney(stmt.totalCents)}</span></div>
+          {statementIsEmpty(stmt) && <p className="text-muted-foreground">Nothing was recorded in {year} — this statement is empty.</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ── #1 Claims (symmetric view) + #8 Retention ─────────────────────── */
+export function ClaimsPanel() {
+  const { getAccessToken } = useAuth();
+  const [claims, setClaims] = useState<any[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    try { const t = await getAccessToken(); const c = await api(t, "GET", "/api/content-id/claims"); setClaims(c.claims ?? []); setLoadFailed(false); }
+    catch { setLoadFailed(true); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+  async function act(id: string, action: string) {
+    try { const t = await getAccessToken(); await api(t, "PATCH", `/api/content-id/claims/${id}`, { action, note: notes[id] ?? "" }); void load(); } catch { /* surfaced on reload */ }
+  }
+  if (claims === null && !loadFailed) return null;
+  const list = claims ?? [];
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Matches &amp; claims</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Fingerprint matches found when audio is uploaded, with the evidence both sides see — matched reference,
+        position in the upload, and how much matched. Either side&apos;s claim carries the same weight; a match
+        moves no money until it&apos;s resolved, and every resolution records its reason.
+      </p>
+      {loadFailed ? (
+        <div className="mt-3">
+          <p className="text-sm text-destructive">Couldn&apos;t load your matches &amp; claims.</p>
+          <button type="button" className={ghost + " mt-2"} onClick={() => void load()}>Retry</button>
+        </div>
+      ) : list.length === 0 && <p className="mt-3 text-sm text-muted-foreground">No matches recorded yet. Matches are made when audio is scanned at upload.</p>}
+      {list.map((c) => (
+        <div key={c.id} className="mt-3 rounded-xl border border-border p-4 text-sm">
+          <div className="flex flex-wrap justify-between gap-2">
+            <span><strong>{c.sourceLabel || "Upload"}</strong> — you are the {c.youAre}</span>
+            <span className="font-semibold">{c.status}</span>
+          </div>
+          <p className="mt-1 text-muted-foreground">Matched at {c.offsetSeconds}s · confidence {c.confidence} · {c.matchedLandmarks} of {c.totalLandmarks} landmarks</p>
+          {c.disputeNote && <p className="mt-1">Dispute: {c.disputeNote}</p>}
+          {c.resolutionNote && <p className="mt-1">Resolution: {c.resolutionNote}</p>}
+          {c.status !== "resolved" && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input className={input + " max-w-xs"} placeholder="Note (required to resolve; recorded for review)" value={notes[c.id] ?? ""} onChange={(e) => setNotes({ ...notes, [c.id]: e.target.value })} />
+              {c.youAre === "uploader" && c.status === "pending" && <button type="button" className={ghost} onClick={() => act(c.id, "dispute")}>Dispute</button>}
+              {c.youAre === "owner" && c.status === "pending" && <button type="button" className={ghost} onClick={() => act(c.id, "accept")}>Accept match</button>}
+              {c.youAre === "owner" && (c.status === "disputed" || c.status === "accepted") && <button type="button" className={ghost} onClick={() => act(c.id, "resolve")}>Resolve with note</button>}
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+export function RetentionPanel() {
+  const { getAccessToken } = useAuth();
+  const [videoId, setVideoId] = useState("");
+  const [data, setData] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  async function load() {
+    setErr(null);
+    try { const t = await getAccessToken(); setData(await api(t, "GET", `/api/analytics/videos/${videoId.trim()}/retention`)); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Could not load retention."); }
+  }
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Per-video retention</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Built from real playback heartbeats. Videos with no recorded heartbeats say so — curves are never back-filled or invented.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input className={input + " max-w-sm"} placeholder="Video ID" value={videoId} onChange={(e) => setVideoId(e.target.value)} />
+        <button type="button" className={btn} onClick={load} disabled={!videoId.trim()}>Load curve</button>
+      </div>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {data && !data.hasData && <p className="mt-3 text-sm text-muted-foreground">{data.note}</p>}
+      {data?.hasData && (
+        <div className="mt-4">
+          <div className="flex h-28 items-end gap-1">
+            {data.curve.map((b: any) => (
+              <div key={b.bucketStartPct} className="flex-1 rounded-t bg-primary/70" style={{ height: `${Math.max(2, b.retainedPct)}%` }} title={`${b.bucketStartPct}% — ${b.retainedPct}% still watching`} />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{data.uniqueViewers} viewers · {data.eventCount} heartbeats</p>
+          {data.audience && <p className="mt-1 text-sm">Audience: {data.audience.followers} followers · {data.audience.nonFollowers} non-followers · {data.audience.newViewers} new · {data.audience.returningViewers} returning</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ── #4 Unified mod console ────────────────────────────────────────── */
+export function ModConsolePanel() {
+  const { getAccessToken } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [state, setState] = useState<"loading" | "ready" | "noprofile" | "error">("loading");
+  const [words, setWords] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const meRes = await fetch("/api/creator-profiles/me", { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+      if (!meRes.ok) { setState("noprofile"); return; }
+      const me = await meRes.json();
+      const profileId = me?.id ?? me?.profile?.id;
+      if (!profileId) { setState("noprofile"); return; }
+      const d = await api(t, "GET", `/api/mod-console?profileId=${profileId}`);
+      setData({ ...d, profileId });
+      setWords((d.automod?.blockedWords ?? []).join(", "));
+      setState("ready");
+    } catch { setState("error"); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function saveRules(patch: any) {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "PUT", "/api/mod-console/automod", { profileId: data.profileId, ...patch });
+      setData({ ...data, automod: d.automod });
+      setMsg("Automod rules saved — they apply to your live chat right away.");
+    } catch (e) { setMsg(e instanceof Error ? e.message : "Could not save rules."); }
+  }
+
+  if (state === "loading") return null;
+  if (state === "noprofile") return null; // no channel yet — nothing to moderate
+  if (state === "error" || !data) return <section className={card}><h2 className="text-lg font-black">Mod console</h2><p className="mt-1 text-sm text-destructive">Couldn&apos;t load the mod console — try again in a moment.</p></section>;
+  const a = data.automod;
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black tracking-tight">Mod console</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Every flag, mute, and deletion across your streams in one place — each with the reason recorded when it
+        happened. Automod never acts silently: a flagged chatter sees exactly why. You are the {data.yourRole};
+        {data.yourRole !== "owner" ? " only the creator sets the rules." : " your moderators work within these rules."}
+      </p>
+      {msg && <p className="mt-2 text-sm text-emerald-500">{msg}</p>}
+      {data.yourRole === "owner" && (
+        <div className="mt-4 grid gap-3 text-sm">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={!!a.blockLinks} onChange={(e) => saveRules({ blockLinks: e.target.checked })} /> Block links in chat</label>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground">Blocked words (comma separated — your list, your call)</label>
+            <div className="mt-1 flex gap-2">
+              <input className={input} value={words} onChange={(e) => setWords(e.target.value)} />
+              <button type="button" className={ghost} onClick={() => saveRules({ blockedWords: words.split(",").map((w) => w.trim()).filter(Boolean) })}>Save words</button>
+            </div>
+          </div>
+          <label className="flex items-center gap-2">Caps limit
+            <select className={input + " w-36"} value={a.capsPercent ?? ""} onChange={(e) => saveRules({ capsPercent: e.target.value === "" ? null : Number(e.target.value) })}>
+              <option value="">Off</option><option value="90">90% caps</option><option value="80">80% caps</option><option value="70">70% caps</option>
+            </select>
+          </label>
+          <p className="text-xs text-muted-foreground">Flood pacing rides the chat&apos;s built-in one-message-every-couple-of-seconds limit — it isn&apos;t a separate rule to configure.</p>
+        </div>
+      )}
+      <div className="mt-5 border-t border-border pt-4">
+        <h3 className="text-sm font-bold">Recent actions &amp; flags ({data.actions.length})</h3>
+        {data.actions.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nothing yet — flags and actions land here as they happen.</p>}
+        {data.actions.slice(0, 30).map((x: any) => (
+          <p key={x.id} className="mt-1.5 text-sm"><strong>{x.action}</strong>{x.rule ? ` (${x.rule})` : ""} — {x.reason} <span className="text-muted-foreground">· {x.createdAt ? new Date(x.createdAt).toLocaleString() : ""}</span></p>
+        ))}
+      </div>
+    </section>
+  );
+}

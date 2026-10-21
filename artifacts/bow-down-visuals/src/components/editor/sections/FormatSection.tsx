@@ -64,7 +64,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${
                 active
                   ? "bg-[#C9A84C]/15 border-[#C9A84C]/50 text-white"
-                  : "bg-white/[0.03] border-white/[0.07] text-white/55 hover:bg-white/[0.06] hover:text-white/75"
+                  : "bg-white/[0.03] border-white/[0.07] text-white/55 hover:bg-white/5 hover:text-white/75"
               }`}
             >
               <span className={active ? "text-[#C9A84C]" : "text-white/35"}>
@@ -73,7 +73,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
               <span className="min-w-0">
                 <span className={`block text-[11px] font-bold ${active ? "text-[#C9A84C]" : ""}`}>{vf.label}</span>
                 <span className="block text-[9px] text-white/35 leading-tight truncate">{vf.note}</span>
-                <span className="block text-[9px] text-white/22 font-mono">{fw}×{fh}</span>
+                <span className="block text-[9px] text-white/25 font-mono">{fw}×{fh}</span>
               </span>
             </button>
           );
@@ -94,7 +94,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
               className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${
                 fitMode === id
                   ? "bg-[#C9A84C]/12 border-[#C9A84C]/40 text-white"
-                  : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:bg-white/[0.05]"
+                  : "bg-white/[0.02] border-white/[0.06] text-white/45 hover:bg-white/5"
               }`}
             >
               <span>
@@ -111,7 +111,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
 
       {/* Status */}
       <div className="mt-3 pt-2 border-t border-white/[0.06]">
-        <p className="text-[9px] font-black text-white/22 uppercase tracking-widest mb-1.5">Project Format Status</p>
+        <p className="text-[9px] font-black text-white/25 uppercase tracking-widest mb-1.5">Project Format Status</p>
         <div className="space-y-0.5">
           {([
             ["format name",       label.name],
@@ -122,7 +122,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
             ["export matches format",         "yes"],
           ] as [string, string][]).map(([k, v]) => (
             <div key={k} className="flex items-center justify-between gap-2">
-              <span className="text-[9px] font-mono text-white/28">{k}</span>
+              <span className="text-[9px] font-mono text-white/30">{k}</span>
               <span className={`text-[9px] font-mono font-bold ${v === "yes" ? "text-green-400" : "text-white/50"}`}>{v}</span>
             </div>
           ))}

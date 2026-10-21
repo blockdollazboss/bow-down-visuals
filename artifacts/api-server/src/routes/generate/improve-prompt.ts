@@ -1,23 +1,47 @@
 import { Router } from "express";
 import OpenAI from "openai";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { freeAiLimiter } from "../../lib/rate-limit";
+import { composeLookContextText, sceneLookPicksSchema } from "../../lib/scene-look";
 
 const router = Router();
 
-interface VaultInput {
-  artistType?: string | null;
-  artistDescription?: string | null;
-  visualStyle?: string | null;
-  hair?: string | null;
-  tattoos?: string | null;
-  jewelry?: string | null;
-  clothingStyle?: string | null;
-  brandColors?: string | null;
-  doNotChangeRules?: string | null;
-  consistencyPrompt?: string | null;
-  referenceImageUrl?: string | null;
-}
+const improvePromptSchema = z.object({
+  prompt: z.string().trim().min(1),
+  sceneContext: z
+    .object({
+      section: z.string().optional(),
+      lyricLine: z.string().optional(),
+      action: z.string().optional(),
+      location: z.string().optional(),
+      cameraMovement: z.string().optional(),
+      lighting: z.string().optional(),
+      mood: z.string().optional(),
+      /** Director's Look Rails picks (lib/scene-look.ts) — woven in below. */
+      look: sceneLookPicksSchema.optional(),
+    })
+    .optional(),
+  artistVault: z
+    .object({
+      artistType: z.string().nullable().optional(),
+      artistDescription: z.string().nullable().optional(),
+      visualStyle: z.string().nullable().optional(),
+      hair: z.string().nullable().optional(),
+      tattoos: z.string().nullable().optional(),
+      jewelry: z.string().nullable().optional(),
+      clothingStyle: z.string().nullable().optional(),
+      brandColors: z.string().nullable().optional(),
+      doNotChangeRules: z.string().nullable().optional(),
+      consistencyPrompt: z.string().nullable().optional(),
+      referenceImageUrl: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  videoStyle: z.string().optional(),
+  platform: z.string().optional(),
+});
 
 /**
  * POST /api/improve-prompt
@@ -25,27 +49,16 @@ interface VaultInput {
  * always covers the key creative elements. When an Artist Vault is provided, the
  * artist's identity and brand rules are baked into the result.
  */
-router.post("/improve-prompt", requireAuth, async (req, res) => {
-  const { prompt, sceneContext, artistVault, videoStyle, platform } = req.body as {
-    prompt?: string;
-    sceneContext?: {
-      section?: string;
-      lyricLine?: string;
-      action?: string;
-      location?: string;
-      cameraMovement?: string;
-      lighting?: string;
-      mood?: string;
-    };
-    artistVault?: VaultInput | null;
-    videoStyle?: string;
-    platform?: string;
-  };
-
-  if (!prompt?.trim()) {
-    res.status(400).json({ error: "prompt is required", errorType: "invalid_prompt" });
+router.post("/improve-prompt", requireAuth, freeAiLimiter, async (req, res) => {
+  const parsed = improvePromptSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
+  const { prompt, sceneContext, artistVault, videoStyle, platform } = parsed.data;
 
   /* ── Scene context ── */
   const contextLines: string[] = [];
@@ -56,6 +69,13 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   if (sceneContext?.cameraMovement) contextLines.push(`Camera: ${sceneContext.cameraMovement}`);
   if (sceneContext?.lighting)       contextLines.push(`Lighting: ${sceneContext.lighting}`);
   if (sceneContext?.mood)           contextLines.push(`Mood: ${sceneContext.mood}`);
+  /* Director's Look Rails: only the picks that survive free-text
+     precedence + dedupe are named — overridden picks are already covered
+     by the creator's own Lighting/Mood lines above. */
+  const lookText = sceneContext?.look
+    ? composeLookContextText({ ...sceneContext, look: sceneContext.look })
+    : "";
+  if (lookText)                     contextLines.push(`Director's Look: ${lookText}`);
   if (videoStyle)                   contextLines.push(`Music Video Style: ${videoStyle}`);
   if (platform)                     contextLines.push(`Platform Format: ${platform}`);
 

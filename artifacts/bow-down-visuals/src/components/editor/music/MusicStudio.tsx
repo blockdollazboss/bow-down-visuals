@@ -1,12 +1,16 @@
 import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Pause, Music2, Upload, Plus, Clock3, Disc3, ListMusic } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
-import type { EditorSettings, MusicStudioSettings } from "@/lib/editor-settings";
+import type { EditorSettings, MusicStudioSettings, AudioStem } from "@/lib/editor-settings";
+import { defaultStemEffects } from "@/lib/editor-settings";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { AiAutoMix } from "@/components/editor/music/AiAutoMix";
 import { ManualDAW } from "@/components/editor/music/ManualDAW";
 import { SongWorkflow } from "@/components/editor/music/SongWorkflow";
 import { LipSyncStudio } from "@/components/editor/music/LipSyncStudio";
 import { GenerateAudio } from "@/components/editor/music/GenerateAudio";
+import { AdLibGenerator } from "@/components/wave8/AdLibGenerator";
+import { SongStructureBuilder } from "@/components/editor/music/SongStructureBuilder";
+import { LyricsToTimeline } from "@/components/editor/music/LyricsToTimeline";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
 import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
@@ -88,6 +92,52 @@ export function MusicStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSimple, ms.mode]);
 
+  /* Wave 9A Remix Chain handoff: a song version sent from the Remix Chain
+     arrives here as a stem so it can be mixed into the video's audio.
+     One-shot: key removed on pickup. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wave9a_version_handoff");
+      if (!raw) return;
+      localStorage.removeItem("wave9a_version_handoff");
+      const h = JSON.parse(raw) as {
+        versionId?: string;
+        label?: string;
+        notes?: string;
+        audioUrl?: string;
+        songId?: string;
+        songTitle?: string;
+      };
+      if (!h.audioUrl) return;
+      /* Guard against double-apply (e.g. StrictMode remount). */
+      if (ms.stems.some((s) => s.url === h.audioUrl)) return;
+      const stem: AudioStem = {
+        id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: h.label ? `${h.songTitle?.trim() || "Song"} — ${h.label}` : (h.songTitle?.trim() || "Remix version"),
+        type: "Full Song Mix",
+        url: h.audioUrl,
+        storagePath: "",
+        fileType: "audio/mpeg",
+        fileSize: 0,
+        uploadedAt: new Date().toISOString(),
+        muted: false,
+        solo: false,
+        locked: false,
+        volume: 100,
+        pan: 0,
+        trimStart: 0,
+        trimEnd: 0,
+        startTime: 0,
+        effects: defaultStemEffects(),
+        fxChain: [],
+      };
+      onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* A direct fallback render should use the mature Manual DAW export path,
      even if the user currently has AI Auto Mix selected. */
   useEffect(() => {
@@ -158,8 +208,31 @@ export function MusicStudio({
 
   const progress = preview.duration > 0 ? Math.min(1, preview.position / preview.duration) : 0;
 
+  /* Vocal-producer input for the Wave 8 Ad-Lib Generator: artist voice
+     description composed from the active vault profile. */
+  const vaultVoiceDesc = activeArtist
+    ? [activeArtist.genre, activeArtist.voice_style, activeArtist.personality]
+        .filter((s): s is string => !!s && s.trim().length > 0)
+        .map((s) => s.trim())
+        .join(" · ")
+    : null;
+
   return (
     <div className="space-y-4">
+      {/* ── Beat maker cross-link: producers start here ── */}
+      <a
+        href="/ai-audio?tab=beats"
+        className="flex items-center gap-3 rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-r from-[#C9A84C]/15 via-[#C9A84C]/[0.06] to-transparent px-4 py-3 transition-colors hover:border-[#C9A84C]/70 hover:from-[#C9A84C]/20"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C]/40">
+          <Disc3 className="h-5 w-5 text-[#C9A84C]" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-black text-[#E8C96A]">Make a beat</span>
+          <span className="block text-xs text-white/50 truncate">Step sequencer, 808 bass, mixer — send it straight back here</span>
+        </span>
+        <span className="text-[#C9A84C] text-lg leading-none">→</span>
+      </a>
       {/* ── Suno-style Now Playing / Song workspace header ── */}
       <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden">
         <div className="p-4 flex items-center gap-4">
@@ -352,12 +425,33 @@ export function MusicStudio({
       {/* ── Generate — Suno-style create card ── */}
       {(studioTab === "create" || ms.stems.length === 0) && (
         <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-1">
-          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} artistVaultId={activeArtist?.id} />
+          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} artistVaultId={activeArtist?.id} onGoToCaptions={onGoToCaptions} projectId={projectId} />
         </div>
       )}
 
       {/* ── Song workflow: lyrics / transcript / video audio ── */}
       {songWorkflow}
+
+      {/* ── Wave 8 — AI Ad-Lib Generator (vocal production, docked next to lyrics) ── */}
+      <AdLibGenerator
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+        artistName={artistName ?? null}
+        vaultVoice={vaultVoiceDesc}
+      />
+
+      {/* ── Wave 9A — Song Structure Builder (arrangement planning, docked next to lyrics tools) ── */}
+      <SongStructureBuilder
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+      />
+
+      {/* ── Wave 9A — Lyrics-to-Timeline (AI lyric timing estimate, hands off to video editor) ── */}
+      <LyricsToTimeline
+        lyrics={transcriptText ?? null}
+        songTitle={songTitle ?? null}
+        durationSec={durationSec}
+      />
 
       {/* ── Mode content — organized sections ── */}
       {ms.mode === "auto" && (

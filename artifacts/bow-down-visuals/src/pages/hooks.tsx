@@ -1,14 +1,39 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import CommentToVideoSection from "@/components/hooks/CommentToVideoSection";
+import AIInterviewSection from "@/components/hooks/AIInterviewSection";
+import LyricStoriesSection from "@/components/hooks/LyricStoriesSection";
 import {
  Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
  Clapperboard, Film, GraduationCap, Wrench, CheckCircle2, AlertTriangle,
+ MousePointerClick, Copy, Check, PenLine, Type, MonitorPlay, Music2,
+ Camera, RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh,
+ CalendarDays, Dices, Lightbulb, Image as ImageIcon, Music, Compass, Captions,
+ MessageSquareReply, Mic2, BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import ScriptWriter from "@/pages/script-writer";
+import CaptionStyler from "@/pages/caption-styler";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import ShareMenu from "@/components/ShareMenu";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
+import { getHookTemplate } from "@/data/hook-templates";
+import { getCaptionPack } from "@/data/caption-templates";
+import HookRewriter from "@/components/wave8/HookRewriter";
+import {
+ scoreColor as titleScoreColor,
+ scoreBar as titleScoreBar,
+ TITLE_STUDIO_HISTORY_KEY,
+ parseTitleStudioHistory,
+ pushTitleStudioHistory,
+ tagsCopyString,
+} from "@/lib/title-studio";
+import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
  Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -17,25 +42,40 @@ import { useHubProject } from "@/lib/hub-project";
  generation on GPT-6 Sol. Video-type keys must stay in sync with the
  backend route's VIDEO_TYPES enum. */
 
-type TabKey = "hooks" | "preflight" | "captions";
+type TabKey = "hooks" | "preflight" | "captions" | "cta" | "titles" | "dice" | "scripts" | "styler" | "comments" | "interview" | "lyrics";
+
+type CtaGoalKey = "subscribe" | "comment" | "share" | "follow" | "buy" | "stream";
+
+const CTA_GOALS: CtaGoalKey[] = ["subscribe", "comment", "share", "follow", "buy", "stream"];
+
+const CTA_PLATFORMS = ["tiktok", "instagram", "youtube", "twitter", "facebook"] as const;
+
+type PlacementKey = "opener" | "mid-roll" | "closer" | "pinned-comment";
+
+interface CtaVariant {
+ text: string;
+ placement: PlacementKey;
+ strength: number;
+}
+
+const CTA_CREDIT_COST = 50;
 
 type VideoTypeKey = "music-promo" | "behind-the-scenes" | "tutorial" | "announcement";
 
 interface VideoType {
  key: VideoTypeKey;
- label: string;
  icon: LucideIcon;
- blurb: string;
 }
 
 const VIDEO_TYPES: VideoType[] = [
- { key: "music-promo", label: "Music Promo", icon: Megaphone, blurb: "Promoting a song or music video" },
- { key: "behind-the-scenes", label: "Behind the Scenes", icon: Film, blurb: "Studio life & process content" },
- { key: "tutorial", label: "Tutorial", icon: GraduationCap, blurb: "Teaching one creator skill fast" },
- { key: "announcement", label: "Announcement", icon: Clapperboard, blurb: "Drops, shows & big news" },
+ { key: "music-promo", icon: Megaphone },
+ { key: "behind-the-scenes", icon: Film },
+ { key: "tutorial", icon: GraduationCap },
+ { key: "announcement", icon: Clapperboard },
 ];
 
-const CREDIT_COST = 1;
+/* x100 Visual Bucs — matches the /api/hook-studio charge + registry. */
+const CREDIT_COST = 100;
 
 interface HooksResponse {
  hooks?: string[];
@@ -72,6 +112,14 @@ interface CaptionsResponse {
  message?: string;
 }
 
+interface CtaResponse {
+ ctas?: CtaVariant[];
+ creditsUsed?: number;
+ creditsRemaining?: number;
+ error?: string;
+ message?: string;
+}
+
 function scoreColor(score: number): string {
  if (score >= 75) return "text-emerald-400";
  if (score >= 50) return "text-amber-400";
@@ -87,19 +135,919 @@ function scoreBar(score: number): string {
 const inputClass =
  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
+/* ─── Titles tab (merged from the Title & Description Studio page) ──────
+   One paid AI tool: type a video topic, pick a platform + tone, and GPT-6
+   writes 10 click-ranked titles, a full description with timestamps/CTA
+   template, and 15 platform-optimized tags — 1 credit per generation
+   (POST /api/title-studio; registry key "/api/title-studio").
+   History lives in localStorage (free, pure UI). Keeps its → /scheduler
+   handoff. The Hook Rewriter (Wave 8) stays fully intact elsewhere on
+   this page — nothing there was touched. */
+
+type TitlePlatformKey = "youtube" | "tiktok" | "instagram";
+type TitleToneKey = "hype" | "professional" | "funny";
+
+interface TitlePlatformOpt { key: TitlePlatformKey; labelKey: string; icon: LucideIcon; blurbKey: string }
+interface TitleToneOpt { key: TitleToneKey; labelKey: string; icon: LucideIcon; blurbKey: string }
+
+const TITLE_PLATFORMS: TitlePlatformOpt[] = [
+ { key: "youtube", labelKey: "titles.platformYouTube", icon: MonitorPlay, blurbKey: "titles.platformYouTubeBlurb" },
+ { key: "tiktok", labelKey: "titles.platformTikTok", icon: Music2, blurbKey: "titles.platformTikTokBlurb" },
+ { key: "instagram", labelKey: "titles.platformInstagram", icon: Camera, blurbKey: "titles.platformInstagramBlurb" },
+];
+
+const TITLE_TONES: TitleToneOpt[] = [
+ { key: "hype", labelKey: "titles.toneHype", icon: Flame, blurbKey: "titles.toneHypeBlurb" },
+ { key: "professional", labelKey: "titles.toneProfessional", icon: Briefcase, blurbKey: "titles.toneProfessionalBlurb" },
+ { key: "funny", labelKey: "titles.toneFunny", icon: Laugh, blurbKey: "titles.toneFunnyBlurb" },
+];
+
+const TITLE_CREDIT_COST = 100;
+
+interface TitleStudioResponse {
+ titles?: RankedTitle[];
+ description?: string;
+ tags?: string[];
+ note?: string;
+ creditsUsed?: number;
+ creditsRemaining?: number;
+ error?: string;
+ message?: string;
+}
+
+function TitleCopyButton({ text, label }: { text: string; label: string }) {
+ const { t } = useTranslation();
+ const [copied, setCopied] = useState(false);
+ return (
+ <button
+ type="button"
+ aria-label={t("titles.copyAria", { label })}
+ onClick={() => {
+ void navigator.clipboard.writeText(text).then(() => {
+ setCopied(true);
+ setTimeout(() => setCopied(false), 1400);
+ });
+ }}
+ className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+ {copied ? t("titles.copied") : t("titles.copyButton", { label })}
+ </button>
+ );
+}
+
+function TitlesTab() {
+  const isLight = useIsLightTheme();
+ const { t } = useTranslation();
+ const { user, getAccessToken, refreshProfile } = useAuth();
+ const { confirmedFetch } = useConfirmedApi();
+ const { addAsset } = useHubProject();
+ const [topic, setTopic] = useState("");
+ const [platform, setPlatform] = useState<TitlePlatformKey>("youtube");
+ const [tone, setTone] = useState<TitleToneKey>("hype");
+ const [keywords, setKeywords] = useState("");
+ const [result, setResult] = useState<TitleStudioResponse | null>(null);
+ const [loading, setLoading] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+ const [outOfCredits, setOutOfCredits] = useState(false);
+ const [history, setHistory] = useState<TitleStudioHistoryEntry[]>([]);
+ const [showHistory, setShowHistory] = useState(false);
+
+ useEffect(() => {
+ setHistory(parseTitleStudioHistory(localStorage.getItem(TITLE_STUDIO_HISTORY_KEY)));
+ /* Deep-link: ?tab=titles&topic=<text> prefills the topic. */
+ try {
+ const params = new URLSearchParams(window.location.search);
+ const topicParam = params.get("topic")?.trim().slice(0, 300);
+ if (topicParam) setTopic(topicParam);
+ } catch {
+ /* non-browser or malformed URL — ignore */
+ }
+ }, []);
+
+ function pushHistory(entry: Omit<TitleStudioHistoryEntry, "id" | "when">) {
+ setHistory((prev) => {
+ const next = pushTitleStudioHistory(prev, entry);
+ try {
+ localStorage.setItem(TITLE_STUDIO_HISTORY_KEY, JSON.stringify(next));
+ } catch {
+ /* storage full — keep in-memory only */
+ }
+ return next;
+ });
+ }
+
+ function handlePaidFailure(res: Response, data: { error?: string }): boolean {
+ if (res.status === 402 || data.error === "out_of_credits") {
+ setOutOfCredits(true);
+ refreshProfile();
+ return true;
+ }
+ return false;
+ }
+
+ async function generate() {
+ if (loading || !user) return;
+ if (!topic.trim()) {
+ setError(t("titles.topicRequired"));
+ return;
+ }
+ setLoading(true);
+ setError(null);
+ setOutOfCredits(false);
+ try {
+ const token = await getAccessToken();
+ const res = await confirmedFetch("/api/title-studio", {
+ method: "POST",
+ headers: {
+ "Content-Type": "application/json",
+ ...(token ? { Authorization: `Bearer ${token}` } : {}),
+ },
+ body: JSON.stringify({
+ topic: topic.trim(),
+ platform,
+ tone,
+ keywords: keywords.trim(),
+ }),
+ });
+ if (!res) return; // user cancelled the credit confirmation (finally resets state)
+ const data = (await res.json().catch(() => ({}))) as TitleStudioResponse;
+ if (handlePaidFailure(res, data)) return;
+ if (!res.ok || !Array.isArray(data.titles) || data.titles.length === 0 || !data.description) {
+ throw new Error(data.message || data.error || t("titles.generationFailed"));
+ }
+ setResult(data);
+ /* The title pack flows into the hub project — scheduler and hooks pick it up. */
+ try {
+ addAsset({
+ kind: "other",
+ url: `data:text/plain;charset=utf-8,${encodeURIComponent(data.titles.join("\n"))}`,
+ label: `Title pack — ${topic.trim().slice(0, 50)}`,
+ detail: `${platform} · ${data.titles.length} titles`,
+ meta: { titles: data.titles.join("\n"), description: data.description, tags: (data.tags ?? []).join(" "), topic: topic.trim() },
+ });
+ } catch { /* hub unavailable — non-fatal */ }
+ pushHistory({
+ topic: topic.trim(),
+ platform,
+ tone,
+ titles: data.titles,
+ description: data.description,
+ tags: data.tags ?? [],
+ });
+ refreshProfile();
+ setTimeout(() => {
+ document.getElementById("titles-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+ }, 100);
+ } catch (err) {
+ setError(err instanceof Error ? err.message : t("titles.generationFailed"));
+ } finally {
+ setLoading(false);
+ }
+ }
+
+ function loadFromHistory(entry: TitleStudioHistoryEntry) {
+ setTopic(entry.topic);
+ setPlatform(entry.platform);
+ setTone(entry.tone);
+ setResult({ titles: entry.titles, description: entry.description, tags: entry.tags });
+ setShowHistory(false);
+ setTimeout(() => {
+ document.getElementById("titles-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+ }, 100);
+ }
+
+ const selectedPlatform = TITLE_PLATFORMS.find((p) => p.key === platform)!;
+
+ return (
+ <div className="relative mt-8">
+ {/* history toggle */}
+ {history.length > 0 && (
+ <div className="text-center">
+ <button
+ type="button"
+ onClick={() => setShowHistory((v) => !v)}
+ className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
+ >
+ <History className="h-3.5 w-3.5" aria-hidden="true" />
+ {t("titles.pastGenerations", { count: history.length })}
+ <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`} aria-hidden="true" />
+ </button>
+ {showHistory && (
+ <div className="mx-auto mt-3 max-w-xl space-y-2 text-left">
+ {history.map((entry) => (
+ <button
+ key={entry.id}
+ type="button"
+ onClick={() => loadFromHistory(entry)}
+ className={`block w-full rounded-xl border px-4 py-3 text-left transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+ >
+ <p className="truncate text-sm font-semibold text-white/90">{entry.topic}</p>
+ <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/35">
+ {entry.platform} · {entry.tone} · {new Date(entry.when).toLocaleDateString()}
+ </p>
+ </button>
+ ))}
+ </div>
+ )}
+ </div>
+ )}
+
+ {/* input card */}
+ <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+ <div className="mb-6 flex items-center gap-3">
+ <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+ <Sparkles className="h-5 w-5" aria-hidden="true" />
+ </span>
+ <div>
+ <h2 className="text-lg font-black">{t("titles.topicHeading")}</h2>
+ <p className="text-xs text-white/45">{t("titles.topicSub")}</p>
+ </div>
+ </div>
+
+ <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-topic">{t("titles.topicLabel")}</label>
+ <textarea
+ id="ts-topic"
+ value={topic}
+ onChange={(e) => setTopic(e.target.value)}
+ rows={3}
+ placeholder={t("titles.topicPlaceholder")}
+ className={inputClass}
+ />
+
+ <div className="mt-5 grid gap-5 md:grid-cols-2">
+ <div>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">{t("titles.platformLabel")}</p>
+ <div className="grid gap-2">
+ {TITLE_PLATFORMS.map(({ key, labelKey, icon: Icon, blurbKey }) => {
+ const selected = platform === key;
+ return (
+ <button
+ key={key}
+ type="button"
+ onClick={() => setPlatform(key)}
+ className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+ selected
+ ? "border-primary bg-primary/10 shadow-[0_0_16px_rgba(212,175,55,0.2)]"
+ : "border-white/10 bg-white/[0.03] hover:border-primary/40"
+ }`}
+ >
+ <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
+ <span>
+ <span className="block text-sm font-bold text-white/90">{t(labelKey)}</span>
+ <span className="block text-xs text-white/40">{t(blurbKey)}</span>
+ </span>
+ </button>
+ );
+ })}
+ </div>
+ </div>
+
+ <div>
+ <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/50">{t("titles.toneLabel")}</p>
+ <div className="grid gap-2">
+ {TITLE_TONES.map(({ key, labelKey, icon: Icon, blurbKey }) => {
+ const selected = tone === key;
+ return (
+ <button
+ key={key}
+ type="button"
+ onClick={() => setTone(key)}
+ className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+ selected
+ ? "border-primary bg-primary/10 shadow-[0_0_16px_rgba(212,175,55,0.2)]"
+ : "border-white/10 bg-white/[0.03] hover:border-primary/40"
+ }`}
+ >
+ <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
+ <span>
+ <span className="block text-sm font-bold text-white/90">{t(labelKey)}</span>
+ <span className="block text-xs text-white/40">{t(blurbKey)}</span>
+ </span>
+ </button>
+ );
+ })}
+ </div>
+ </div>
+ </div>
+
+ <div className="mt-5">
+ <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/50" htmlFor="ts-keywords">{t("titles.keywordsLabel")}<span className="font-normal normal-case text-white/30">{t("titles.optionalNote")}</span>
+ </label>
+ <input
+ id="ts-keywords"
+ value={keywords}
+ onChange={(e) => setKeywords(e.target.value)}
+ placeholder={t("titles.keywordsPlaceholder")}
+ className={inputClass}
+ />
+ </div>
+
+ <div className="mt-7 text-center">
+ <button
+ type="button"
+ onClick={generate}
+ disabled={loading || !user || !topic.trim()}
+ className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${(!user || !topic.trim()) && !loading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
+ >
+ {loading ? (
+ <>
+ <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />{t("titles.cooking")}</>
+ ) : (
+ <>
+ <Sparkles className="h-5 w-5" aria-hidden="true" />
+ {t("titles.generateButton", { cost: TITLE_CREDIT_COST })}
+ </>
+ )}
+ </button>
+ {!user && (
+ <p className="mt-3 text-xs text-white/40">{t("titles.signInPrompt")}</p>
+ )}
+ </div>
+ </div>
+
+ {outOfCredits && (
+ <div className="mt-6">
+ <OutOfCredits />
+ </div>
+ )}
+
+ {error && (
+ <p className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+ {error}
+ </p>
+ )}
+
+ {/* results */}
+ {result && result.titles && result.titles.length > 0 && (
+ <div id="titles-results" className="mt-8 space-y-8">
+ {/* titles */}
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
+ <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+ <h2 className="text-lg font-black">
+ {t("titles.titlesHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.titlesSub")}</span>
+ </h2>
+ <button
+ type="button"
+ onClick={generate}
+ disabled={loading}
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+ >
+ <RotateCcw className="h-4 w-4" aria-hidden="true" />
+ {t("titles.regenerateButton", { cost: TITLE_CREDIT_COST })}
+ </button>
+ <Link
+ href="/scheduler"
+ className="inline-flex items-center gap-2 rounded-2xl border border-white/15 px-5 py-2.5 text-sm font-bold text-white/70 transition hover:border-white/30 hover:text-white"
+ >
+ <CalendarDays className="h-4 w-4" aria-hidden="true" />
+ {t("titles.sendToScheduler", { defaultValue: "Send to scheduler" })}
+ </Link>
+ <div data-testid="btn-hooks-share">
+ <ShareMenu
+ getToken={getAccessToken}
+ shareUrl={`${window.location.origin}/hooks`}
+ text={result.titles[0].title}
+ contentType="other"
+ />
+ </div>
+ </div>
+ <ol className="space-y-3">
+ {result.titles.map((item, i) => (
+ <li
+ key={`title-${i}`}
+ className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-primary/40"
+ >
+ <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+ {i + 1}
+ </span>
+ <div className="min-w-0 flex-1">
+ <p className="text-[15px] font-bold leading-snug text-white/95">{item.title}</p>
+ {item.why && <p className="mt-1 text-xs leading-relaxed text-white/45">{item.why}</p>}
+ <div className="mt-2 flex items-center gap-2">
+ <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
+ <div
+ className={`h-full rounded-full bg-gradient-to-r ${titleScoreBar(item.score)}`}
+ style={{ width: `${item.score}%` }}
+ />
+ </div>
+ <span className={`text-xs font-black ${titleScoreColor(item.score)}`}>{item.score}</span>
+ </div>
+ </div>
+ <TitleCopyButton text={item.title} label={t("titles.titleCopyLabel")} />
+ </li>
+ ))}
+ </ol>
+ </section>
+
+ {/* description */}
+ {result.description && (
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
+ <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+ <h2 className="text-lg font-black">
+ {t("titles.descriptionHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.descriptionReady", { platform: t(selectedPlatform.labelKey) })}</span>
+ </h2>
+ <TitleCopyButton text={result.description} label={t("titles.descriptionCopyLabel")} />
+ </div>
+ <p className="whitespace-pre-line text-sm leading-relaxed text-white/75">{result.description}</p>
+ </section>
+ )}
+
+ {/* tags */}
+ {result.tags && result.tags.length > 0 && (
+ <section className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
+ <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+ <h2 className="text-lg font-black">
+ {t("titles.tagsHeading")} <span className="text-sm font-semibold text-white/40">{t("titles.tagsOptimized", { count: result.tags.length })}</span>
+ </h2>
+ <TitleCopyButton text={tagsCopyString(result.tags)} label={t("titles.allTagsCopyLabel")} />
+ </div>
+ <div className="flex flex-wrap gap-2">
+ {result.tags.map((tag, i) => (
+ <button
+ key={`tag-${i}`}
+ type="button"
+ onClick={() => {
+ void navigator.clipboard.writeText(`#${tag}`);
+ }}
+ title={t("titles.clickToCopy")}
+ className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-primary"
+ >
+ #{tag}
+ </button>
+ ))}
+ </div>
+ </section>
+ )}
+
+ {result.note && (
+ <p className="text-center text-xs italic text-white/50">{result.note}</p>
+ )}
+ </div>
+ )}
+
+ {/* cross-link */}
+ <p className="relative mt-8 text-center text-sm text-white/40">
+ {t("titles.crossLinkBefore")}{" "}
+ <span className="font-semibold text-primary">{t("titles.crossLinkHook")}</span>{" "}
+ {t("titles.crossLinkAfter")}
+ </p>
+ </div>
+ );
+}
+
+/* ─── Dice tab (merged from the Content Randomizer page) ─────────────────
+   Thy Cheat Code's Content Randomizer: the free dice roll is 100% client-side
+   (zero server cost). The "Generate 5 fresh with AI" button POSTs to
+   /api/randomizer (1 credit per roll, GPT-6 Sol). Category keys must stay in
+   sync with the backend route's CATEGORIES enum. */
+/* ─── Thy Cheat Code's Content Randomizer ─────────────────────────────────
+ Public teaser page: the free dice roll is 100% client-side (zero server
+ cost). The "Generate 5 fresh with AI" button POSTs to /api/randomizer
+ (1 credit per roll, GPT-6 Sol). Category keys must stay in sync with the
+ backend route's CATEGORIES enum. */
+
+type CategoryKey =
+ | "video-ideas"
+ | "hooks"
+ | "thumbnails"
+ | "song-concepts"
+ | "niche-picker"
+ | "challenges";
+
+interface Category {
+ key: CategoryKey;
+ icon: LucideIcon;
+ freeIdeas: string[];
+}
+
+const CATEGORIES: Category[] = [
+ {
+ key: "video-ideas",
+ icon: Clapperboard,
+ freeIdeas: [
+ "Day in the life of your artist persona — but every scene is a different music video set",
+ "React to your own old songs and roast your past self",
+ "Turn your song's lyrics into a 30-second movie trailer",
+ "Film the same chorus in 5 wildly different locations, cut on the beat",
+ "Behind-the-scenes of your AI video generation — show the prompts, show the magic",
+ "POV: your song plays as the villain walks in slow motion",
+ "Teach one bar of your verse, then challenge fans to flip it",
+ "Green-screen yourself into famous album covers while your track plays",
+ "Speedrun: write, record, and shoot a hook in 60 minutes",
+ "Your song + a trending meme format = instant promo clip",
+ "Acoustic-to-anthem: start stripped down, drop into the full mix",
+ "Ask fans to pick your next single's cover art — then reveal the AI options",
+ ],
+ },
+ {
+ key: "hooks",
+ icon: Zap,
+ freeIdeas: [
+ "Stop scrolling — this took 47 tries to get right",
+ "POV: you just found your new favorite artist",
+ "I bet you can't name this sample",
+ "This song was made entirely by AI… or was it?",
+ "Wait for the drop at 0:07",
+ "Nobody talks about this part of being an independent artist",
+ "I asked AI to finish my verse — here's what happened",
+ "Your playlist is missing this",
+ "This is what heartbreak sounds like in 2026",
+ "One take. No edits. Full song.",
+ "The label said no, so I did it myself",
+ "Comment 'FIRE' and I'll drop the full version",
+ ],
+ },
+ {
+ key: "thumbnails",
+ icon: ImageIcon,
+ freeIdeas: [
+ "Split face: calm on the left, full performance energy on the right",
+ "Giant gold text over a dark stage — 3 words max",
+ "Your artist portrait with a glowing crown, black background",
+ "Before/after: rough demo vs. final master waveform",
+ "Close-up of hands on the mic, dramatic side lighting",
+ "Red circle + arrow pointing at the wildest frame of your video",
+ "You vs. the AI: side-by-side portrait showdown",
+ "Neon city backdrop, you silhouetted in the center",
+ "Freeze the exact frame the beat drops — add shockwave lines",
+ "Stacked polaroids of every look from the shoot",
+ "Dark room, single spotlight, gold jewelry catching the light",
+ "Big shocked expression + the song title in bold condensed type",
+ ],
+ },
+ {
+ key: "song-concepts",
+ icon: Music,
+ freeIdeas: [
+ "An anthem about quitting your 9-to-5 to chase the dream",
+ "A late-night R&B confession recorded like a voicemail",
+ "Trap banger about your hometown finally getting its shine",
+ "A diss track aimed at your own self-doubt",
+ "Love song for the grind — romance between you and the hustle",
+ "Drill track narrated like a nature documentary",
+ "Gospel-tinged hook about making it out, verses pure street poetry",
+ "A breakup song where the 'ex' is your old sound",
+ "Party starter built around a viral dance challenge",
+ "Storytelling rap: one verse, one night, one decision that changed everything",
+ "Afrobeats fusion celebrating your roots",
+ "Cinematic intro track for your alter ego's origin story",
+ ],
+ },
+ {
+ key: "niche-picker",
+ icon: Compass,
+ freeIdeas: [
+ "AI music video director — you make other artists' visuals",
+ "The sample detective — you find and flip obscure samples on camera",
+ "One-song-a-day challenger — relentless output niche",
+ "Genre-blender — you fuse two genres nobody combined before",
+ "The hook doctor — you fix weak choruses live",
+ "Behind-the-beat educator — you teach production with personality",
+ "Character artist — every release is a new persona with lore",
+ "Hometown hero documentarian — you put your city on the map",
+ "AI vs. human collaborator — every song is a man-vs-machine duel",
+ "The remix royalty — you flip trending sounds weekly",
+ "Lyric breakdown analyst — you decode bars like film theory",
+ "Tiny-desk-style intimate performer — raw, no production hiding",
+ ],
+ },
+ {
+ key: "challenges",
+ icon: Flame,
+ freeIdeas: [
+ "Post one clip every day for 30 days — no excuses",
+ "Make a song using only sounds from your kitchen",
+ "Let your comments pick your next beat — then deliver in 48 hours",
+ "Recreate a viral video shot-for-shot with your own twist",
+ "Go live and write a verse with chat voting on every bar",
+ "Drop a 15-second teaser every day for a week before release",
+ "Collab with a creator you've never met — full song in one stream",
+ "Perform your song in the weirdest location you can find",
+ "Flip the same sample 3 different ways in 3 videos",
+ "Teach a fan your chorus over video call, post their attempt",
+ "No-face challenge: promote a song for a week without showing your face",
+ "Speedrun your entire release rollout in 24 hours",
+ ],
+ },
+];
+
+const AI_CREDIT_COST = 100;
+
+interface RandomizerResponse {
+ ideas?: string[];
+ creditsUsed?: number;
+ creditsRemaining?: number;
+ error?: string;
+ message?: string;
+}
+
+function pickRandom<T>(items: T[], except?: T): T {
+ if (items.length === 1) return items[0];
+ let pick = items[Math.floor(Math.random() * items.length)];
+ let guard = 0;
+ while (pick === except && guard++ < 10) {
+ pick = items[Math.floor(Math.random() * items.length)];
+ }
+ return pick;
+}
+
+function RandomizerDice() {
+  const isLight = useIsLightTheme();
+ const { t } = useTranslation();
+ const { user, getAccessToken, refreshProfile } = useAuth();
+ const { confirmedFetch } = useConfirmedApi();
+ const [activeKey, setActiveKey] = useState<CategoryKey>("video-ideas");
+ const [freeIdea, setFreeIdea] = useState<string | null>(null);
+ const [aiIdeas, setAiIdeas] = useState<string[]>([]);
+ const [aiLoading, setAiLoading] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+ const [outOfCredits, setOutOfCredits] = useState(false);
+
+ const active = CATEGORIES.find((c) => c.key === activeKey)!;
+ const ActiveIcon = active.icon;
+
+ function selectCategory(key: CategoryKey) {
+ setActiveKey(key);
+ setFreeIdea(null);
+ setAiIdeas([]);
+ setError(null);
+ setOutOfCredits(false);
+ }
+
+ function freeRoll() {
+ const cat = CATEGORIES.find((c) => c.key === activeKey)!;
+ setFreeIdea(pickRandom(cat.freeIdeas, freeIdea ?? undefined));
+ }
+
+ async function aiRoll() {
+ if (aiLoading || !user) return;
+ setAiLoading(true);
+ setError(null);
+ setOutOfCredits(false);
+ try {
+ const token = await getAccessToken();
+ const res = await confirmedFetch("/api/randomizer", {
+ method: "POST",
+ headers: {
+ "Content-Type": "application/json",
+ ...(token ? { Authorization: `Bearer ${token}` } : {}),
+ },
+ body: JSON.stringify({ category: activeKey }),
+ });
+ if (!res) return; // user cancelled the credit confirmation (finally resets state)
+ const data = (await res.json().catch(() => ({}))) as RandomizerResponse;
+ if (res.status === 402 || data.error === "out_of_credits") {
+ setOutOfCredits(true);
+ refreshProfile();
+ return;
+ }
+ if (!res.ok || !Array.isArray(data.ideas) || data.ideas.length === 0) {
+ throw new Error(data.message || data.error || t("randomizer.error.aiRollFailed"));
+ }
+ setAiIdeas(data.ideas);
+ refreshProfile();
+ setTimeout(() => {
+ document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+ }, 100);
+ } catch (err) {
+ setError(err instanceof Error ? err.message : t("randomizer.error.aiRollFailed"));
+ } finally {
+ setAiLoading(false);
+ }
+ }
+
+ return (
+ <div className="relative mt-8">
+ {/* glow */}
+ <div className="pointer-events-none absolute inset-x-0 top-0 -z-0 flex justify-center" aria-hidden="true">
+ <div className="h-[280px] w-[560px] rounded-full bg-yellow-600/10 blur-[110px]" />
+ </div>
+
+ {/* hero */}
+ <div className="relative text-center">
+ <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+ <Dices className="h-3 w-3" aria-hidden="true" /> {t("randomizer.badge")}
+ </p>
+ <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
+ {t("randomizer.titlePrefix")} <span className="text-primary">{t("randomizer.titleSuffix")}</span>
+ </h1>
+ <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
+ {t("randomizer.hero")}
+ </p>
+ </div>
+
+ {/* category tabs */}
+ <div className="relative mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label={t("randomizer.categoriesLabel")}>
+ {CATEGORIES.map((c) => {
+ const Icon = c.icon;
+ const selected = c.key === activeKey;
+ return (
+ <button
+ key={c.key}
+ role="tab"
+ aria-selected={selected}
+ onClick={() => selectCategory(c.key)}
+ className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+ selected
+ ? "bg-primary text-black shadow-[0_0_18px_rgba(212,175,55,0.35)]"
+ : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
+ }`}
+ >
+ <Icon className="h-4 w-4" aria-hidden="true" />
+ {t(`randomizer.categories.${c.key}.label`)}
+ </button>
+ );
+ })}
+ </div>
+
+ {/* main panel */}
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+ <div className="flex items-center gap-3">
+ <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+ <ActiveIcon className="h-5 w-5" aria-hidden="true" />
+ </span>
+ <div>
+ <h2 className="text-xl font-bold">{t(`randomizer.categories.${active.key}.label`)}</h2>
+ <p className="text-sm text-white/45">{t(`randomizer.categories.${active.key}.blurb`)}</p>
+ </div>
+ </div>
+
+ {/* free roll */}
+ <div className="mt-8 text-center">
+ <button
+ onClick={freeRoll}
+ className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95"
+ >
+ <Dices className="h-6 w-6 transition group-hover:rotate-12" aria-hidden="true" />
+ {t("randomizer.rollDice")}
+ </button>
+ <p className="mt-2.5 text-xs text-white/35">{t("randomizer.freeForever")}</p>
+
+ {freeIdea && (
+ <div className={`mx-auto mt-6 max-w-xl rounded-2xl border border-primary/30 p-5 text-left ${isLight ? "bg-[#F7ECD2]/70" : "bg-black/60"}`}>
+ <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("randomizer.yourRoll")}
+ </p>
+ <p className="text-[15px] leading-relaxed text-white/90">{freeIdea}</p>
+ </div>
+ )}
+ </div>
+
+ {/* divider */}
+ <div className="my-8 flex items-center gap-4" aria-hidden="true">
+ <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+ <span className="text-[11px] font-bold uppercase tracking-widest text-white/30">{t("randomizer.orDeeper")}</span>
+ <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+ </div>
+
+ {/* AI roll */}
+ <div className="text-center">
+ {user ? (
+ <button
+ onClick={aiRoll}
+ disabled={aiLoading}
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3.5 text-base font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+ >
+ {aiLoading ? (
+ <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+ ) : (
+ <Sparkles className="h-5 w-5" aria-hidden="true" />
+ )}
+ {aiLoading ? t("randomizer.cooking") : t("randomizer.generateAi")}
+ </button>
+ ) : (
+ <Link
+ href="/login"
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3.5 text-base font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ <Sparkles className="h-5 w-5" aria-hidden="true" />
+ {t("randomizer.signInToGenerate")}
+ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+ </Link>
+ )}
+ <p className="mt-2.5 text-xs text-white/35">
+ {t("randomizer.costPerRoll", { cost: AI_CREDIT_COST })}
+ </p>
+ {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
+ {error && !outOfCredits && (
+ <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+ {error}
+ </p>
+ )}
+ </div>
+
+ {/* AI results */}
+ {aiIdeas.length > 0 && (
+ <div id="ai-results" className="mt-8">
+ <div className="mb-4 flex items-center justify-between">
+ <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("randomizer.freshFromAi")}
+ </p>
+ {user && (
+ <button
+ onClick={aiRoll}
+ disabled={aiLoading}
+ className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+ >
+ <Dices className="h-3.5 w-3.5" aria-hidden="true" />
+ {t("randomizer.reroll", { cost: AI_CREDIT_COST })}
+ </button>
+ )}
+ </div>
+ <div className="grid gap-3 sm:grid-cols-2">
+ {aiIdeas.map((idea, i) => (
+ <div
+ key={`${activeKey}-${i}`}
+ className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/40"
+ >
+ <p className="mb-1.5 text-[11px] font-black text-primary/70">#{i + 1}</p>
+ <p className="text-sm leading-relaxed text-white/85">{idea}</p>
+ </div>
+ ))}
+ </div>
+ </div>
+ )}
+ </div>
+
+ {/* cross-link */}
+ <p className="relative mt-8 text-center text-sm text-white/40">
+ {t("randomizer.crossLink.p1")}{" "}
+ <span className="font-semibold text-primary">{t("randomizer.crossLink.name")}</span>{" "}
+ {t("randomizer.crossLink.p2")}
+ </p>
+ </div>
+ );
+}
+
 export default function HookStudio() {
+  const isLight = useIsLightTheme();
+  usePageTitle("Hook Studio", "Write scroll-stopping hooks for your videos with AI.");
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
  const [tab, setTab] = useState<TabKey>("hooks");
+ const [mode, setMode] = useState<"simple" | "custom">("simple");
 
  /* hook generator state */
  const [videoType, setVideoType] = useState<VideoTypeKey>("music-promo");
  const [topic, setTopic] = useState("");
- const { project } = useHubProject();
+
+ /* One-click hook presets */
+ const HOOK_PRESETS = [
+   { label: "🎵 Song Promo", topic: "my new song", type: "music-promo" as VideoTypeKey },
+   { label: "🎙️ Podcast Clip", topic: "podcast episode", type: "behind-the-scenes" as VideoTypeKey },
+   { label: "📚 Tutorial", topic: "how to", type: "tutorial" as VideoTypeKey },
+   { label: "📢 Announcement", topic: "big news", type: "announcement" as VideoTypeKey },
+ ];
+ const { project, addAsset } = useHubProject();
  useEffect(() => {
  if (!topic && project.name) setTopic(project.name);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [project.name]);
+
+ /* Template deep-link: ?template=<slug> preloads the hook generator;
+    ?tab=captions&template=<slug> preloads the caption writer.
+    Used by the public template galleries (/templates/hooks, /templates/captions).
+    Round-trip deep-link: ?topic=<text> on the hooks tab prefills the hook
+    generator topic — used by the Competitor Tracker / Content Intelligence
+    "generate ideas from this gap" handoffs so the gap travels with the creator. */
+ useEffect(() => {
+ try {
+ const params = new URLSearchParams(window.location.search);
+ const tabParam = params.get("tab");
+ if (tabParam === "captions" || tabParam === "cta" || tabParam === "titles" || tabParam === "dice" || tabParam === "scripts" || tabParam === "styler" || tabParam === "comments" || tabParam === "interview" || tabParam === "lyrics") setTab(tabParam);
+ const topicParam = params.get("topic")?.trim().slice(0, 300);
+ /* Multi-ratio export handoff: ?tab=captions&platform=tiktok&topic=…
+    pre-selects the platform and topic on the caption writer. */
+ if (tabParam === "captions") {
+ const platformParam = (params.get("platform") ?? "").toLowerCase();
+ if (["tiktok", "instagram", "youtube", "twitter"].includes(platformParam)) {
+ setCapPlatform(platformParam as "tiktok" | "instagram" | "youtube" | "twitter");
+ }
+ if (topicParam) setCapTopic(topicParam);
+ } else if (topicParam) {
+ setTopic(topicParam);
+ }
+ const slug = params.get("template");
+ if (!slug) return;
+ if (tabParam === "captions") {
+ const pack = getCaptionPack(slug);
+ if (!pack) return;
+ setCapTopic(pack.topic);
+ setCapPlatform(pack.platform);
+ setCapTone(pack.tone);
+ } else {
+ const tpl = getHookTemplate(slug);
+ if (!tpl) return;
+ setVideoType(tpl.videoType);
+ setTopic(tpl.topic);
+ }
+ } catch {
+ /* non-browser or malformed URL — ignore */
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
  const [hooks, setHooks] = useState<string[]>([]);
  const [hooksLoading, setHooksLoading] = useState(false);
 
@@ -118,6 +1066,15 @@ export default function HookStudio() {
  const [capResult, setCapResult] = useState<CaptionsResponse | null>(null);
  const [capLoading, setCapLoading] = useState(false);
 
+ /* cta generator state */
+ const [ctaTopic, setCtaTopic] = useState("");
+ const [ctaGoal, setCtaGoal] = useState<CtaGoalKey>("subscribe");
+ const [ctaPlatform, setCtaPlatform] = useState<(typeof CTA_PLATFORMS)[number]>("tiktok");
+ const [ctaTone, setCtaTone] = useState("");
+ const [ctas, setCtas] = useState<CtaVariant[]>([]);
+ const [ctaLoading, setCtaLoading] = useState(false);
+ const [scriptAdded, setScriptAdded] = useState<Record<number, boolean>>({});
+
  /* shared */
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
@@ -128,9 +1085,9 @@ export default function HookStudio() {
  setOutOfCredits(false);
  }
 
- async function authedPost(body: Record<string, unknown>) {
+ async function authedPost(endpoint: string, body: Record<string, unknown>) {
  const token = await getAccessToken();
- return confirmedFetch("/api/hook-studio", {
+ return confirmedFetch(endpoint, {
  method: "POST",
  headers: {
  "Content-Type": "application/json",
@@ -155,12 +1112,12 @@ export default function HookStudio() {
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({ mode: "hooks", videoType, topic: topic.trim() });
+ const res = await authedPost("/api/hook-studio", { mode: "hooks", videoType, topic: topic.trim() });
  if (!res) return; // user cancelled the credit confirmation (finally resets state)
  const data = (await res.json().catch(() => ({}))) as HooksResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
- throw new Error(data.message || data.error || "Hook generation failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errHooksFailed"));
  }
  setHooks(data.hooks);
  refreshProfile();
@@ -168,7 +1125,7 @@ export default function HookStudio() {
  document.getElementById("hooks-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Hook generation failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errHooksFailed"));
  } finally {
  setHooksLoading(false);
  }
@@ -177,14 +1134,14 @@ export default function HookStudio() {
  async function generateCaptions() {
  if (capLoading || !user) return;
  if (!capTopic.trim()) {
- setError("Tell us what the post is about first.");
+ setError(t("hooks.errNeedTopic"));
  return;
  }
  setCapLoading(true);
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({
+ const res = await authedPost("/api/hook-studio", {
  mode: "captions",
  topic: capTopic.trim(),
  platform: capPlatform,
@@ -194,7 +1151,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as CaptionsResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.captions) || data.captions.length === 0) {
- throw new Error(data.message || data.error || "Caption generation failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errCaptionsFailed"));
  }
  setCapResult(data);
  refreshProfile();
@@ -202,7 +1159,7 @@ export default function HookStudio() {
  document.getElementById("captions-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Caption generation failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errCaptionsFailed"));
  } finally {
  setCapLoading(false);
  }
@@ -211,14 +1168,14 @@ export default function HookStudio() {
  async function scoreVideo() {
  if (preflightLoading || !user) return;
  if (!title.trim()) {
- setError("Give your video a title first — that's the first thing the pre-flight checks.");
+ setError(t("hooks.errNeedTitle"));
  return;
  }
  setPreflightLoading(true);
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({
+ const res = await authedPost("/api/hook-studio", {
  mode: "preflight",
  title: title.trim(),
  caption: caption.trim(),
@@ -229,7 +1186,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as PreflightResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.checks) || data.checks.length === 0) {
- throw new Error(data.message || data.error || "Scoring failed — try again.");
+ throw new Error(data.message || data.error || t("hooks.errScoringFailed"));
  }
  setScorecard(data);
  refreshProfile();
@@ -237,16 +1194,73 @@ export default function HookStudio() {
  document.getElementById("preflight-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "Scoring failed — try again.");
+ setError(err instanceof Error ? err.message : t("hooks.errScoringFailed"));
  } finally {
  setPreflightLoading(false);
  }
  }
 
+ async function generateCtas() {
+ if (ctaLoading || !user) return;
+ if (!ctaTopic.trim()) {
+ setError(t("hooks.errNeedVideoTopic"));
+ return;
+ }
+ setCtaLoading(true);
+ setError(null);
+ setOutOfCredits(false);
+ setScriptAdded({});
+ try {
+ const res = await authedPost("/api/generate-cta", {
+ videoTopic: ctaTopic.trim(),
+ ctaGoal,
+ platform: ctaPlatform,
+ tone: ctaTone.trim(),
+ });
+ if (!res) return; // user cancelled the credit confirmation (finally resets state)
+ const data = (await res.json().catch(() => ({}))) as CtaResponse;
+ if (handlePaidFailure(res, data)) return;
+ if (!res.ok || !Array.isArray(data.ctas) || data.ctas.length === 0) {
+ throw new Error(data.message || data.error || t("hooks.errCtasFailed"));
+ }
+ setCtas(data.ctas);
+ refreshProfile();
+ setTimeout(() => {
+ document.getElementById("cta-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+ }, 100);
+ } catch (err) {
+ setError(err instanceof Error ? err.message : t("hooks.errCtasFailed"));
+ } finally {
+ setCtaLoading(false);
+ }
+ }
+
+ /* ── "add to script" handoff ─────────────────────────────────────────────
+    Drops the CTA into the Hub project as a script-kind asset. The Hub's
+    tray + workflow rail pick it up automatically, and tools that consume
+    script assets (Script Writer, Voiceover's script picker) can use it —
+    the CTA travels with the project without leaving the /hooks page. */
+ function addCtaToScript(cta: CtaVariant, index: number) {
+ addAsset({
+ kind: "script",
+ url: `data:text/plain;charset=utf-8,${encodeURIComponent(cta.text)}`,
+ label: `CTA · ${t(`hooks.ctaGoal.${ctaGoal}.label`)} · ${cta.text.slice(0, 40)}`,
+ detail: cta.text,
+ meta: {
+ text: cta.text,
+ goal: ctaGoal,
+ platform: ctaPlatform,
+ placement: cta.placement,
+ topic: ctaTopic.trim().slice(0, 80),
+ },
+ });
+ setScriptAdded((prev) => ({ ...prev, [index]: true }));
+ }
+
  const activeVideoType = VIDEO_TYPES.find((v) => v.key === videoType)!;
 
  return (
- <div className="min-h-screen bg-black text-white">
+ <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
 
  <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
  {/* glow */}
@@ -257,26 +1271,33 @@ export default function HookStudio() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <Zap className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+ <Zap className="h-3 w-3" aria-hidden="true" /> {t("hooks.kicker")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Hook <span className="text-primary">Studio</span>
+ {t("hooks.heroTitleA")} <span className="text-primary">{t("hooks.heroTitleB")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- Your money is made in the first 3 seconds. Generate scroll-stopping
- openers — then run your post through the pre-flight before you ship it.
+ {t("hooks.heroSub")}
  </p>
  </div>
 
  {/* tabs */}
- <div className="relative mt-10 flex justify-center gap-2" role="tablist" aria-label="Hook Studio tools">
+ <div className="relative mt-10 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist" aria-label={t("hooks.tablistAria")}>
  {(
  [
- { key: "hooks", label: "Hook Generator", icon: Zap },
- { key: "captions", label: "Captions & Hashtags", icon: Megaphone },
- { key: "preflight", label: "Virality Pre-flight", icon: Gauge },
- ] as { key: TabKey; label: string; icon: LucideIcon }[]
- ).map(({ key, label, icon: Icon }) => {
+ { key: "hooks", icon: Zap },
+ { key: "titles", icon: Type },
+ { key: "captions", icon: Megaphone },
+ { key: "scripts", icon: PenLine },
+ { key: "styler", icon: Captions },
+ { key: "cta", icon: MousePointerClick },
+ { key: "preflight", icon: Gauge },
+ { key: "dice", icon: Dices },
+ { key: "comments", icon: MessageSquareReply },
+ { key: "interview", icon: Mic2 },
+ { key: "lyrics", icon: BookOpen },
+ ] as { key: TabKey; icon: LucideIcon }[]
+ ).map(({ key, icon: Icon }) => {
  const selected = tab === key;
  return (
  <button
@@ -284,14 +1305,14 @@ export default function HookStudio() {
  role="tab"
  aria-selected={selected}
  onClick={() => switchTab(key)}
- className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+ className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition ${
  selected
  ? "bg-primary text-black shadow-[0_0_18px_rgba(212,175,55,0.35)]"
  : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
  }`}
  >
  <Icon className="h-4 w-4" aria-hidden="true" />
- {label}
+ {t(`hooks.tab.${key}.label`, { defaultValue: key === "titles" ? "Titles" : key === "dice" ? "Dice" : key === "scripts" ? "Scripts" : key === "styler" ? "Caption Styler" : key === "comments" ? "Comments" : key === "interview" ? "Interview" : key === "lyrics" ? "Lyric Stories" : undefined })}
  </button>
  );
  })}
@@ -299,20 +1320,66 @@ export default function HookStudio() {
 
  {/* ── HOOK GENERATOR ─────────────────────────────────────────── */}
  {tab === "hooks" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Zap className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Hook Generator</h2>
- <p className="text-sm text-white/45">Five first-3-second openers, engineered to stop the scroll.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.hooks.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.hookGenSub")}</p>
  </div>
  </div>
 
+ {/* Simple / Custom toggle */}
+ <div className="flex gap-2 mt-6">
+   <button
+     type="button"
+     onClick={() => setMode("simple")}
+     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+       mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+     }`}
+   >
+     Turbo
+   </button>
+   <button
+     type="button"
+     onClick={() => setMode("custom")}
+     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+       mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+     }`}
+   >
+     Advanced
+   </button>
+ </div>
+
+ {mode === "simple" && (
+   <div className="mt-6 space-y-4">
+     <p className="text-sm text-white/60">One tap — we'll write 10 hooks for you.</p>
+     <div className="grid grid-cols-2 gap-2.5">
+       {HOOK_PRESETS.map((preset) => (
+         <button
+           key={preset.label}
+           type="button"
+           onClick={() => {
+             setTopic(preset.topic);
+             setVideoType(preset.type);
+           }}
+           className="p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-center"
+         >
+           <span className="text-sm font-semibold">{preset.label}</span>
+         </button>
+       ))}
+     </div>
+   </div>
+ )}
+
+ {mode === "custom" && (
+ <>
+
  {/* video type picker */}
  <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What kind of video?
+ {t("hooks.whatKindLabel")}
  </p>
  <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
  {VIDEO_TYPES.map((v) => {
@@ -329,8 +1396,8 @@ export default function HookStudio() {
  }`}
  >
  <Icon className={`mb-2 h-5 w-5 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
- <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{v.label}</p>
- <p className="mt-0.5 text-[11px] leading-snug text-white/35">{v.blurb}</p>
+ <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{t(`hooks.videoType.${v.key}.label`)}</p>
+ <p className="mt-0.5 text-[11px] leading-snug text-white/35">{t(`hooks.videoType.${v.key}.blurb`)}</p>
  </button>
  );
  })}
@@ -338,13 +1405,13 @@ export default function HookStudio() {
 
  {/* topic */}
  <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What's it about? <span className="normal-case tracking-normal text-white/25">(optional)</span>
+ {t("hooks.aboutLabel")} <span className="normal-case tracking-normal text-white/25">{t("hooks.optionalTag")}</span>
  </p>
  <input
  value={topic}
  onChange={(e) => setTopic(e.target.value)}
  maxLength={300}
- placeholder={`e.g. my new single "${activeVideoType.label === "Music Promo" ? "Golden Tide" : "..."}"`}
+ placeholder={t("hooks.topicPlaceholder", { example: activeVideoType.key === "music-promo" ? "Golden Tide" : "..." })}
  className={inputClass}
  />
 
@@ -361,7 +1428,7 @@ export default function HookStudio() {
  ) : (
  <Sparkles className="h-6 w-6" aria-hidden="true" />
  )}
- {hooksLoading ? "Cooking up hooks…" : "Generate 5 hooks"}
+ {hooksLoading ? t("hooks.cookingHooks") : t("hooks.generateHooks")}
  </button>
  ) : (
  <Link
@@ -369,17 +1436,34 @@ export default function HookStudio() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Sparkles className="h-6 w-6" aria-hidden="true" />
- Sign in to generate hooks
+ {t("hooks.signInToGenerate")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per generation · powered by Thy Cheat Code
+ {t("hooks.creditNoteGeneration", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
  <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
  {error}
+ </p>
+ )}
+ {/* ── Content Intelligence round-trip ───────────────────────────────
+     Drops the current hook into Step 2 of the Content Intelligence chain
+     (/analytics-hub → Intelligence tab): validate the idea, score the
+     hook for the viral loop, check the niche, find competitor gaps, and
+     build the calendar — one guided flow. */}
+ {(hooks.length > 0 || topic.trim()) && (
+ <p className="mt-4">
+ <Link
+ href={`/analytics-hub?tab=intelligence&hook=${encodeURIComponent((hooks[0] ?? topic).trim().slice(0, 600))}`}
+ className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ <Zap className="h-4 w-4" aria-hidden="true" />
+ {t("hooks.fullIntelligenceCheck")}
+ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+ </Link>
  </p>
  )}
  </div>
@@ -389,7 +1473,7 @@ export default function HookStudio() {
  <div id="hooks-results" className="mt-8">
  <div className="mb-4 flex items-center justify-between">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Your 5 hooks
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("hooks.yourHooks")}
  </p>
  {user && (
  <button
@@ -399,7 +1483,7 @@ export default function HookStudio() {
  className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
  >
  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
- Re-roll ({CREDIT_COST} Visual Buc)
+ {t("hooks.reroll", { cost: CREDIT_COST })}
  </button>
  )}
  </div>
@@ -418,40 +1502,62 @@ export default function HookStudio() {
  </div>
  <p className="mt-4 text-center text-xs text-white/30">
  <Wrench className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
- Tip: say it in the first second, show it on screen too.
+ {t("hooks.hooksTip")}
  </p>
  </div>
+ )}
+ {/* Wave 8 · Hook Rewriter — docked after the generator UI, inside the hooks tab */}
+ <HookRewriter
+   onUseAsTopic={(text) => {
+     setTopic(text);
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }}
+ />
+ </>
  )}
  </div>
  )}
 
  {/* ── CAPTIONS & HASHTAGS ────────────────────────────────────── */}
+ {tab === "titles" && (
+ <TitlesTab />
+ )}
  {tab === "captions" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Megaphone className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Captions & Hashtags</h2>
- <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 100 Visual Bucs.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.captions.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.captionsSub")}</p>
  </div>
  </div>
 
+ {/* Cross-link: this tab writes TEXT captions — burned-in video captions
+     live in Clip Maker (the Caption Styler). */}
+ <Link
+ href="/promo-clip"
+ className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 transition hover:border-primary/40 hover:text-white"
+ >
+ <span>{t("hooks.captions.needBurnedIn", { defaultValue: "Need burned-in video captions?" })}</span>
+ <ArrowRight className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+ </Link>
+
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- What's the post about?
+ {t("hooks.postAboutLabel")}
  </p>
  <textarea
  value={capTopic}
  onChange={(e) => setCapTopic(e.target.value)}
- placeholder="e.g. My new single 'Midnight Gold' just dropped — luxury rap anthem"
+ placeholder={t("hooks.capTopicPlaceholder")}
  rows={3}
  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
  />
 
  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
  <div>
- <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
+ <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.platformLabel")}</p>
  <div data-min-stars="2" className="grid grid-cols-2 gap-2">
  {(["tiktok", "instagram", "youtube", "twitter"] as const).map((p) => (
  <button
@@ -470,12 +1576,12 @@ export default function HookStudio() {
  </div>
  <div data-min-stars="3">
  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
- Tone / vibe <span className="normal-case font-normal text-white/30">(optional)</span>
+ {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
  </p>
  <input
  value={capTone}
  onChange={(e) => setCapTone(e.target.value)}
- placeholder="e.g. confident, playful, luxury"
+ placeholder={t("hooks.tonePlaceholder")}
  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
  />
  </div>
@@ -484,19 +1590,19 @@ export default function HookStudio() {
  <button
  onClick={generateCaptions}
  disabled={capLoading || !capTopic.trim()}
- className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+ className={`mt-8 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!capTopic.trim() && !capLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
  >
  {capLoading ? (
- <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
+ <><Loader2 className="h-5 w-5 animate-spin" /> {t("hooks.writing")}</>
  ) : (
- <><Sparkles className="h-5 w-5" /> Generate — 100 Visual Bucs</>
+ <><Sparkles className="h-5 w-5" /> {t("hooks.generateCaptions")}</>
  )}
  </button>
 
  {capResult && (
  <div id="captions-results" className="mt-8 space-y-6">
  <div>
- <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Captions — pick your favorite</p>
+ <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.captionsPickFav")}</p>
  <div className="space-y-3">
  {capResult.captions?.map((c, i) => (
  <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -505,7 +1611,7 @@ export default function HookStudio() {
  onClick={() => navigator.clipboard.writeText(c)}
  className="mt-2 text-xs font-semibold text-primary hover:underline"
  >
- Copy
+ {t("hooks.copy")}
  </button>
  </div>
  ))}
@@ -515,7 +1621,7 @@ export default function HookStudio() {
  {capResult.hashtags && (
  <div>
  <div className="mb-3 flex items-center justify-between">
- <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Hashtags</p>
+ <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.hashtagsLabel")}</p>
  <button
  onClick={() => {
  const all = [
@@ -527,7 +1633,7 @@ export default function HookStudio() {
  }}
  className="text-xs font-semibold text-primary hover:underline"
  >
- Copy all
+ {t("hooks.copyAll")}
  </button>
  </div>
  {(["niche", "broad", "trending"] as const).map((tier) => {
@@ -536,7 +1642,7 @@ export default function HookStudio() {
  return (
  <div key={tier} className="mb-3">
  <p className="mb-1.5 text-xs font-semibold capitalize text-white/50">
- {tier === "niche" ? "🎯 Niche (targeted reach)" : tier === "broad" ? "🌊 Broad (discovery)" : "🔥 Trending energy"}
+ {tier === "niche" ? t("hooks.tierNiche") : tier === "broad" ? t("hooks.tierBroad") : t("hooks.tierTrending")}
  </p>
  <div className="flex flex-wrap gap-1.5">
  {tags.map((t, i) => (
@@ -553,7 +1659,7 @@ export default function HookStudio() {
 
  {capResult.cta && (
  <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4">
- <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">Call to action</p>
+ <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.callToAction")}</p>
  <p className="text-white/90">{capResult.cta}</p>
  </div>
  )}
@@ -562,36 +1668,216 @@ export default function HookStudio() {
  </div>
  )}
 
+ {/* ── CTA GENERATOR ──────────────────────────────────────────── */}
+ {tab === "cta" && (
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+ <div className="flex items-center gap-3">
+ <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+ <MousePointerClick className="h-5 w-5" aria-hidden="true" />
+ </span>
+ <div>
+ <h2 className="text-xl font-bold">{t("hooks.tab.cta.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.ctaSub")}</p>
+ </div>
+ </div>
+
+ <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.ctaTopicLabel")}
+ </p>
+ <input
+ value={ctaTopic}
+ onChange={(e) => setCtaTopic(e.target.value)}
+ maxLength={300}
+ placeholder={t("hooks.ctaTopicPlaceholder")}
+ className={inputClass}
+ />
+
+ <p data-min-stars="2" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.ctaGoalLabel")}
+ </p>
+ <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+ {CTA_GOALS.map((g) => {
+ const selected = g === ctaGoal;
+ return (
+ <button
+ key={g}
+ onClick={() => setCtaGoal(g)}
+ className={`rounded-2xl border px-3.5 py-3 text-left transition ${
+ selected
+ ? "border-primary bg-primary/10 shadow-[0_0_16px_rgba(212,175,55,0.2)]"
+ : "border-white/10 bg-white/[0.03] hover:border-primary/40"
+ }`}
+ >
+ <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>
+ {t(`hooks.ctaGoal.${g}.label`)}
+ </p>
+ </button>
+ );
+ })}
+ </div>
+
+ <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+ <div>
+ <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.platformLabel")}</p>
+ <div data-min-stars="2" className="grid grid-cols-2 gap-2">
+ {CTA_PLATFORMS.map((p) => (
+ <button
+ key={p}
+ onClick={() => setCtaPlatform(p)}
+ className={`rounded-lg px-3 py-2.5 text-sm font-semibold capitalize transition ${
+ ctaPlatform === p
+ ? "bg-primary text-black"
+ : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
+ }`}
+ >
+ {p === "twitter" ? "X / Twitter" : p}
+ </button>
+ ))}
+ </div>
+ </div>
+ <div data-min-stars="3">
+ <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
+ </p>
+ <input
+ value={ctaTone}
+ onChange={(e) => setCtaTone(e.target.value)}
+ placeholder={t("hooks.tonePlaceholder")}
+ className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
+ />
+ </div>
+ </div>
+
+ <div className="mt-8 text-center">
+ {user ? (
+ <button
+ onClick={generateCtas}
+ disabled={ctaLoading || !ctaTopic.trim()}
+ className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-black transition active:scale-95 disabled:cursor-not-allowed ${!ctaTopic.trim() && !ctaLoading ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}
+ >
+ {ctaLoading ? (
+ <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+ ) : (
+ <MousePointerClick className="h-6 w-6" aria-hidden="true" />
+ )}
+ {ctaLoading ? t("hooks.cookingCtas") : t("hooks.generateCtas")}
+ </button>
+ ) : (
+ <Link
+ href="/login"
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ <MousePointerClick className="h-6 w-6" aria-hidden="true" />
+ {t("hooks.signInToGenerate")}
+ <ArrowRight className="h-5 w-5" aria-hidden="true" />
+ </Link>
+ )}
+ <p className="mt-2.5 text-xs text-white/35">
+ {t("hooks.creditNoteCta", { cost: CTA_CREDIT_COST })}
+ </p>
+ {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
+ {error && !outOfCredits && (
+ <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+ {error}
+ </p>
+ )}
+ </div>
+
+ {/* results — ranked by strength */}
+ {ctas.length > 0 && (
+ <div id="cta-results" className="mt-8">
+ <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("hooks.yourCtas")}
+ </p>
+ <div className="grid gap-3">
+ {ctas.map((cta, i) => (
+ <div
+ key={`cta-${i}`}
+ className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/40"
+ >
+ <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+ {i + 1}
+ </span>
+ <div className="min-w-0 flex-1">
+ <p className="text-[15px] leading-relaxed text-white/90">“{cta.text}”</p>
+ <div className="mt-2 flex flex-wrap items-center gap-2">
+ <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+ {t(`hooks.ctaPlacement.${cta.placement}.label`)}
+ </span>
+ <span className={`text-xs font-bold ${scoreColor(cta.strength)}`}>
+ {t("hooks.ctaStrengthLabel")} {cta.strength}
+ </span>
+ </div>
+ <div className="mt-2.5 flex flex-wrap gap-2">
+ <button
+ onClick={() => navigator.clipboard.writeText(cta.text)}
+ className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
+ >
+ <Copy className="h-3 w-3" aria-hidden="true" /> {t("hooks.copy")}
+ </button>
+ <button
+ onClick={() => addCtaToScript(cta, i)}
+ disabled={scriptAdded[i]}
+ className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:cursor-default disabled:bg-primary/10 disabled:text-primary/60"
+ >
+ {scriptAdded[i] ? (
+ <><Check className="h-3 w-3" aria-hidden="true" /> {t("hooks.addedToScript")}</>
+ ) : (
+ <>{t("hooks.addToScript")}</>
+ )}
+ </button>
+ {scriptAdded[i] && (
+ <a
+ href="/script-writer"
+ className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-primary"
+ >
+ <PenLine className="h-3 w-3" aria-hidden="true" /> {t("hooks.sendToScriptWriter")}
+ </a>
+ )}
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ <p className="mt-4 text-center text-xs text-white/30">
+ <Wrench className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+ {t("hooks.ctaHandoffTip")}
+ </p>
+ </div>
+ )}
+ </div>
+ )}
+
  {/* ── VIRALITY PRE-FLIGHT ────────────────────────────────────── */}
  {tab === "preflight" && (
- <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
  <div className="flex items-center gap-3">
  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
  <Gauge className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">Virality Pre-flight</h2>
- <p className="text-sm text-white/45">A readiness score for your post — before you ship it.</p>
+ <h2 className="text-xl font-bold">{t("hooks.tab.preflight.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.preflightSub")}</p>
  </div>
  </div>
 
  <div className="mt-8 grid gap-4">
  <div>
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-title">
- Title / first line
+ {t("hooks.pfTitleLabel")}
  </label>
  <input
  id="pf-title"
  value={title}
  onChange={(e) => setTitle(e.target.value)}
  maxLength={200}
- placeholder="The exact first line viewers see or hear"
+ placeholder={t("hooks.pfTitlePlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-caption">
- Caption
+ {t("hooks.pfCaptionLabel")}
  </label>
  <textarea
  id="pf-caption"
@@ -599,26 +1885,26 @@ export default function HookStudio() {
  onChange={(e) => setCaption(e.target.value)}
  maxLength={1000}
  rows={2}
- placeholder="Your caption (optional)"
+ placeholder={t("hooks.pfCaptionPlaceholder")}
  className={`${inputClass} resize-none`}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-hashtags">
- Hashtags
+ {t("hooks.hashtagsLabel")}
  </label>
  <input
  id="pf-hashtags"
  value={hashtags}
  onChange={(e) => setHashtags(e.target.value)}
  maxLength={500}
- placeholder="#newmusic #independentartist …"
+ placeholder={t("hooks.pfHashtagsPlaceholder")}
  className={inputClass}
  />
  </div>
  <div data-min-stars="3">
  <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-desc">
- What's the video?
+ {t("hooks.pfDescLabel")}
  </label>
  <textarea
  id="pf-desc"
@@ -626,7 +1912,7 @@ export default function HookStudio() {
  onChange={(e) => setDescription(e.target.value)}
  maxLength={1000}
  rows={2}
- placeholder="Describe the video in a sentence or two (optional)"
+ placeholder={t("hooks.pfDescPlaceholder")}
  className={`${inputClass} resize-none`}
  />
  </div>
@@ -644,7 +1930,7 @@ export default function HookStudio() {
  ) : (
  <Gauge className="h-6 w-6" aria-hidden="true" />
  )}
- {preflightLoading ? "Running pre-flight…" : "Score my video"}
+ {preflightLoading ? t("hooks.runningPreflight") : t("hooks.scoreVideo")}
  </button>
  ) : (
  <Link
@@ -652,12 +1938,12 @@ export default function HookStudio() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Gauge className="h-6 w-6" aria-hidden="true" />
- Sign in to run the pre-flight
+ {t("hooks.signInToRunPreflight")}
  <ArrowRight className="h-5 w-5" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {CREDIT_COST} Visual Buc per scorecard · powered by Thy Cheat Code
+ {t("hooks.creditNoteScorecard", { cost: CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -670,13 +1956,13 @@ export default function HookStudio() {
  {/* scorecard */}
  {scorecard && typeof scorecard.score === "number" && (
  <div id="preflight-results" className="mt-8">
- <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-center">
+ <div className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/60"}`}>
  <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">
- Viral readiness score
+ {t("hooks.viralReadiness")}
  </p>
  <p className={`mt-2 font-display text-6xl font-black ${scoreColor(scorecard.score)}`}>
  {scorecard.score}
- <span className="text-2xl text-white/30">/100</span>
+ <span className="text-2xl text-white/30">{t("hooks.scoreOutOf")}</span>
  </p>
  <div className="mx-auto mt-4 h-2.5 max-w-sm overflow-hidden rounded-full bg-white/10">
  <div
@@ -717,7 +2003,7 @@ export default function HookStudio() {
  />
  </div>
  <p className="mt-2.5 text-sm leading-relaxed text-white/60">
- <span className="font-semibold text-primary/90">Fix: </span>
+ <span className="font-semibold text-primary/90">{t("hooks.fixPrefix")}</span>
  {check.fix}
  </p>
  </div>
@@ -725,18 +2011,54 @@ export default function HookStudio() {
  </div>
 
  <p className="mt-4 text-center text-xs italic text-white/30">
- {scorecard.disclaimer || "A readiness score, not a virality guarantee — no AI can predict what blows up."}
+ {scorecard.disclaimer || t("hooks.disclaimerDefault")}
  </p>
  </div>
  )}
  </div>
  )}
 
+ {/* ── DICE (CONTENT RANDOMIZER) ──────────────────────────────── */}
+ {tab === "dice" && (
+ <RandomizerDice />
+ )}
+
+ {/* ── SCRIPTS (SCRIPT WRITER) ────────────────────────────────── */}
+ {tab === "scripts" && (
+ <ScriptWriter />
+ )}
+
+ {/* ── CAPTION STYLER (AI VIDEO CAPTIONS) ─────────────────────── */}
+ {tab === "styler" && (
+ <CaptionStyler />
+ )}
+
+ {/* ── COMMENT-TO-VIDEO ─────────────────────────────────────────── */}
+ {tab === "comments" && (
+ <div className="relative mt-8">
+ <CommentToVideoSection />
+ </div>
+ )}
+
+ {/* ── AI INTERVIEW ─────────────────────────────────────────────── */}
+ {tab === "interview" && (
+ <div className="relative mt-8">
+ <AIInterviewSection />
+ </div>
+ )}
+
+ {/* ── LYRIC STORIES ────────────────────────────────────────────── */}
+ {tab === "lyrics" && (
+ <div className="relative mt-8">
+ <LyricStoriesSection />
+ </div>
+ )}
+
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Hooks in hand? Ask{" "}
+ {t("hooks.crossLinkBefore")}{" "}
  <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble to build the full video plan around them.
+ {t("hooks.crossLinkAfter")}
  </p>
  </main>
 

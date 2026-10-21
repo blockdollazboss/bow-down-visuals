@@ -6,6 +6,7 @@
  *   PATCH  /api/shops/:id
  *   DELETE /api/shops/:id
  *   GET    /api/shops/handle/:handle        (public storefront)
+ *   GET    /api/shops/:id/products          (owner list, status incl.)
  *   POST   /api/shops/:id/products
  *   PATCH  /api/shops/:id/products/:productId
  *   DELETE /api/shops/:id/products/:productId
@@ -42,6 +43,15 @@ vi.mock("../../../middlewares/require-auth", () => ({
   },
 }));
 
+/* The shared public limiter (30/min per IP) is not what these tests
+   exercise — with the pause/unlist block added, the file's cumulative
+   limiter'd calls cross the bucket mid-run and unrelated AI tests
+   start eating 429s. Passthrough, the pattern coach-tracker.test.ts
+   already uses; limiter behavior has its own coverage. */
+vi.mock("../../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
@@ -71,6 +81,25 @@ vi.mock("../../../lib/supabase-admin", () => ({
 vi.mock("../../../lib/objectStorage", () => ({
   ensureShopProductsBucket: vi.fn(async () => {}),
   SHOP_PRODUCTS_BUCKET: "shop-products",
+  // Read paths re-sign storage refs per request; non-ref URLs pass
+  // through unchanged, which is all these tests exercise.
+  refreshSupabaseStorageUrl: vi.fn(async (ref: string) => ref),
+  // The storefront slug read deep-refreshes its payload; fixtures carry
+  // no storage refs, so identity is the faithful stand-in (same choice
+  // as storefronts-profile-slug.test.ts).
+  refreshSupabaseStorageUrlsDeep: vi.fn(async (v: unknown) => v),
+  normalizeToStorageRef: vi.fn((u: string) => u),
+  // Same semantics as the real helper (r2:// / supabase:// refs only).
+  isStorageRef: vi.fn(
+    (v: unknown) =>
+      typeof v === "string" && (v.startsWith("r2://") || v.startsWith("supabase://")),
+  ),
+}));
+
+vi.mock("../../../lib/mirrorMedia", () => ({
+  // Mirror-on-save (2026-10-13) is a storage concern: keep the caller's
+  // URL as-is so these tests stay hermetic (no network fetch).
+  mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v),
 }));
 
 import router, {
@@ -113,6 +142,8 @@ CREATE TABLE shop_products (
   description text,
   image_url text,
   image_path text,
+  status text NOT NULL DEFAULT 'active',
+  pinned_ugc_ad_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );`;
@@ -404,6 +435,111 @@ describe("product CRUD", () => {
     const { id } = await seedShop(USER_B, "their-product-shop");
     const { status } = await req("POST", `/shops/${id}/products`, { name: "Hijack", price_cents: 100 });
     expect(status).toBe(404);
+  });
+});
+
+/* ── Product pause / unlist (migration 0176) ───────────────────────────────
+   The seller flips status on the existing PATCH rail. Paused products
+   vanish from every buyer read (and carry no status flag there), stay
+   visible in the owner's management list, and can never be bought
+   (the checkout refusal itself is pinned in market-checkout.test.ts). */
+describe("product pause/unlist", () => {
+  async function shopWithTwoProducts() {
+    const { id, handle } = await seedShop(USER_A, "pause-shop");
+    const a = await seedProduct(id, USER_A, "Live Widget");
+    const b = await seedProduct(id, USER_A, "Pausing Widget");
+    return { id, handle, a, b };
+  }
+
+  it("new products are born 'active' and the owner list carries status", async () => {
+    const { id } = await seedShop(USER_A, "born-live");
+    const created = await req("POST", `/shops/${id}/products`, { name: "Fresh", price_cents: 500 });
+    expect(created.status).toBe(201);
+    expect(created.json.product.status).toBe("active");
+
+    const list = await req("GET", `/shops/${id}/products`);
+    expect(list.status).toBe(200);
+    expect(list.json.products).toHaveLength(1);
+    expect(list.json.products[0].status).toBe("active");
+  });
+
+  it("legacy rows (inserted without a status) read as live everywhere", async () => {
+    const { id, handle, a } = await shopWithTwoProducts();
+    const list = await req("GET", `/shops/${id}/products`);
+    const row = list.json.products.find((p: any) => p.id === a.id);
+    expect(row.status).toBe("active");
+    const pub = await req("GET", `/shops/handle/${handle}`);
+    expect(pub.json.products.map((p: any) => p.id)).toContain(a.id);
+  });
+
+  it("owner pause: product vanishes from buyer reads, stays in the owner list, buyer DTO leaks no status", async () => {
+    const { id, handle, a, b } = await shopWithTwoProducts();
+    const paused = await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "paused" });
+    expect(paused.status).toBe(200);
+    expect(paused.json.product.status).toBe("paused");
+
+    /* Buyer handle read: paused gone, live one present, no status key anywhere. */
+    const pub = await req("GET", `/shops/handle/${handle}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.products.map((p: any) => p.id)).toEqual([a.id]);
+    expect(pub.json.products[0].status).toBeUndefined();
+
+    /* Buyer storefront slug read: same rule. */
+    const slug = await req("GET", `/storefronts/slug/${handle}`);
+    expect(slug.status).toBe(200);
+    expect(slug.json.products.map((p: any) => p.id)).toEqual([a.id]);
+    expect(slug.json.products[0].status).toBeUndefined();
+
+    /* Public hub count counts live products only. */
+    const hub = await req("GET", "/storefronts");
+    const hubShop = hub.json.shops.find((s: any) => s.id === id);
+    expect(hubShop.product_count).toBe(1);
+
+    /* Owner list: both products, the paused one marked. */
+    const list = await req("GET", `/shops/${id}/products`);
+    expect(list.json.products).toHaveLength(2);
+    expect(list.json.products.find((p: any) => p.id === b.id).status).toBe("paused");
+    expect(list.json.products.find((p: any) => p.id === a.id).status).toBe("active");
+  });
+
+  it("unpause restores the product to buyer reads", async () => {
+    const { id, handle, b } = await shopWithTwoProducts();
+    await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "paused" });
+    const back = await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "active" });
+    expect(back.status).toBe(200);
+    expect(back.json.product.status).toBe("active");
+    const pub = await req("GET", `/shops/handle/${handle}`);
+    expect(pub.json.products.map((p: any) => p.id)).toContain(b.id);
+  });
+
+  it("a non-owner cannot pause: 404 and the product is provably unchanged", async () => {
+    const { id, handle, b } = await shopWithTwoProducts();
+    testState.userId = USER_B;
+    const attempt = await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "paused" });
+    expect(attempt.status).toBe(404);
+    const listAttempt = await req("GET", `/shops/${id}/products`);
+    expect(listAttempt.status).toBe(404);
+
+    testState.userId = USER_A;
+    const list = await req("GET", `/shops/${id}/products`);
+    expect(list.json.products.find((p: any) => p.id === b.id).status).toBe("active");
+    const pub = await req("GET", `/shops/handle/${handle}`);
+    expect(pub.json.products.map((p: any) => p.id)).toContain(b.id);
+  });
+
+  it("rejects an out-of-vocabulary status and changes nothing", async () => {
+    const { id, b } = await shopWithTwoProducts();
+    const bad = await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "hidden" });
+    expect(bad.status).toBe(400);
+    const list = await req("GET", `/shops/${id}/products`);
+    expect(list.json.products.find((p: any) => p.id === b.id).status).toBe("active");
+  });
+
+  it("pausing is free — no credit charge on the status flip", async () => {
+    const { id, b } = await shopWithTwoProducts();
+    await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "paused" });
+    await req("PATCH", `/shops/${id}/products/${b.id}`, { status: "active" });
+    expect(mockCharge).not.toHaveBeenCalled();
   });
 });
 

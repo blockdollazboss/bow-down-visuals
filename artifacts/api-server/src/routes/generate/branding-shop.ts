@@ -2,9 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import multer from "multer";
 import OpenAI from "openai";
 import RunwayML from "@runwayml/sdk";
-import Stripe from "stripe";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
+
+/* Mirror-on-save (2026-10-13 law): order-item design images are re-hosted
+   into permanent storage at order time (fulfillment resolves the stored
+   refs back to signed URLs when it fetches/hands off the design). */
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -17,6 +23,8 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { r2Upload } from "../../lib/r2-client";
 import {
   fulfillmentMode,
   toOrderStatus,
@@ -51,7 +59,7 @@ const router = Router();
 
 /* Product catalog — keep in sync with the frontend /branding-shop page.
    baseCostCents is server-only (margin internals). Margins:
-   tee 60% · hoodie 56% · mug 59% · snapback 57% · poster 60% · case 57% · tote 58% */
+   tee 60% · hoodie 56% · mug 59% · snapback 57% · poster 60% · case 57% · tote 58% · rug 52% */
 const PRODUCTS = {
   tshirt:    { label: "Classic Tee",  priceCents: 2499, baseCostCents: 1000, sizes: ["S", "M", "L", "XL", "2XL"] },
   hoodie:    { label: "Luxury Hoodie", priceCents: 4999, baseCostCents: 2200, sizes: ["S", "M", "L", "XL", "2XL"] },
@@ -60,6 +68,14 @@ const PRODUCTS = {
   poster:    { label: "Art Poster",   priceCents: 1999, baseCostCents: 800,  sizes: ['12x18"', '18x24"'] },
   phonecase: { label: "Phone Case",   priceCents: 2299, baseCostCents: 1000, sizes: ["iPhone", "Samsung"] },
   tote:      { label: "Canvas Tote",  priceCents: 1899, baseCostCents: 800,  sizes: ["One size"] },
+  /* The rug joined the storefront catalog in 72df1372 with its PrintKK
+     fulfillment built and tested in lib/branding-fulfillment — but it was
+     never added here, so the design/order zod enums (built from these
+     keys) rejected every rug order with a 400. Label/price/sizes mirror
+     the frontend catalog exactly. rug-premium stays OUT on purpose: it
+     is a contact-for-quote display tier (64f1f810), not an orderable
+     product — the page no longer offers it for cart or design mockups. */
+  rug:       { label: "Custom Logo Rug", priceCents: 4999, baseCostCents: 2400, sizes: ["2x3 ft", "3x5 ft", "4x6 ft"] },
 } as const;
 type ProductKey = keyof typeof PRODUCTS;
 
@@ -75,10 +91,10 @@ const STYLE_DIRECTION: Record<BrandStyle, string> = {
   bold: "loud and maximal — vibrant color, big shapes, unmissable from across the room",
 };
 
-/* 2 credits per AI brand-kit design set (logo + up to 3 product mockups).
-   The set burns one GPT-6 text call plus up to 4 Runway gen4_image
-   generations — 2 credits holds a healthy margin at that provider cost.
-   Env-overridable without a deploy. */
+/* 200 Visual Bucs per AI brand-kit design set (logo + up to 3 product
+   mockups). The set burns one GPT-6 text call plus up to 4 Runway
+   gen4_image generations — 200 holds a healthy margin at that provider
+   cost. Env-overridable without a deploy. */
 const DESIGN_CREDIT_COST = Number(process.env["BRANDING_SHOP_DESIGN_COST"]) || 200;
 
 /* Server-side poll budget for the parallel Runway design tasks. */
@@ -195,13 +211,7 @@ async function runwayGenerateAndUpload(
   const buf = Buffer.from(await dl.arrayBuffer());
 
   const filePath = `${userId}/branding/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin()
-    .storage.from(BRANDING_BUCKET)
-    .upload(filePath, buf, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const {
-    data: { publicUrl },
-  } = getSupabaseAdmin().storage.from(BRANDING_BUCKET).getPublicUrl(filePath);
+  const publicUrl = await r2Upload(filePath, buf, "image/png");
   return publicUrl;
 }
 
@@ -363,7 +373,13 @@ router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, 
 
   const id = randomUUID();
   const itemsJson = JSON.stringify(
-    items.map((i) => ({ ...i, unitPriceCents: PRODUCTS[i.product].priceCents }))
+    await Promise.all(items.map(async (i) => ({
+      ...i,
+      designUrl: i.designUrl
+        ? ((await mirrorExternalMediaUrl(i.designUrl, { kind: "image", ownerKey: req.userId! })) ?? i.designUrl)
+        : i.designUrl,
+      unitPriceCents: PRODUCTS[i.product].priceCents,
+    })))
   );
   const result = await db.execute(sql`
     INSERT INTO branding_orders (id, user_id, items, total_cents, name, email, address, city, state, zip, status)
@@ -399,6 +415,26 @@ router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, 
         : "Order received and sent to our print partner! Pay at checkout and production begins. No payment has been taken yet.",
   });
 });
+
+/**
+ * Deterministic Stripe idempotency key for a branding-order checkout.
+ * The intent is the durable order row: repeat checkout calls for the
+ * same unpaid order (double-click, lost response) reuse the original
+ * session instead of minting a second payable one; once the order is
+ * paid the checkout endpoint refuses, and a new order is a new row
+ * with a fresh key.
+ */
+export function buildBrandingOrderCheckoutKey(args: {
+  userId: string;
+  orderId: string;
+  totalCents: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.userId,
+    rail: "branding-order",
+    purchaseIntent: { orderId: args.orderId, totalCents: args.totalCents },
+  });
+}
 
 function getBaseUrl(req: import("express").Request): string {
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
@@ -486,8 +522,13 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
     return;
   }
 
-  const stripe = new Stripe(stripeKey);
+  const stripe = createGuardedStripeClient(stripeKey);
   const baseUrl = getBaseUrl(req);
+  const idempotencyKey = buildBrandingOrderCheckoutKey({
+    userId: req.userId!,
+    orderId: order.id,
+    totalCents: order.total_cents,
+  });
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: order.email,
@@ -512,7 +553,7 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
     },
     success_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
     cancel_url: `${baseUrl}/branding-shop?order=${order.id}`,
-  });
+  }, { idempotencyKey });
 
   await db.execute(sql`
     UPDATE branding_orders SET stripe_session_id = ${session.id} WHERE id = ${order.id}
@@ -522,6 +563,41 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
 });
 
 /* ── GET /api/branding-shop/orders — my orders (FREE) ───────────────────── */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files allowed"));
+  },
+});
+
+/* ── POST /api/branding-shop/upload-logo — upload custom logo for rugs ────
+   Returns a URL for the uploaded logo. Used for custom logo rug orders. */
+router.post(
+  "/branding-shop/upload-logo",
+  publicApiLimiter,
+  requireAuth,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ error: "No file uploaded" });
+        return;
+      }
+
+      const key = `branding-logos/${req.userId!}/${randomUUID()}-${file.originalname}`;
+      const url = await r2Upload(key, file.buffer, file.mimetype);
+
+      res.json({ url });
+    } catch (err) {
+      logger.error({ err }, "Logo upload failed");
+      res.status(500).json({ error: "Upload failed" });
+    }
+  }
+);
+
 router.get("/branding-shop/orders", requireAuth, async (req, res) => {
   const result = await db.execute(sql`
     SELECT id, items, total_cents, status, provider, provider_order_id,
@@ -531,7 +607,7 @@ router.get("/branding-shop/orders", requireAuth, async (req, res) => {
     ORDER BY created_at DESC
     LIMIT 100
   `);
-  res.json({
+  res.json(await refreshSupabaseStorageUrlsDeep({
     demo: fulfillmentMode() === "mock",
     orders: (result.rows as unknown as Array<{
       id: string;
@@ -556,7 +632,7 @@ router.get("/branding-shop/orders", requireAuth, async (req, res) => {
       paid: r.paid,
       createdAt: r.created_at,
     })),
-  });
+  }));
 });
 
 /* ── POST /api/branding-shop/orders/:id/refresh — refresh status (FREE) ────

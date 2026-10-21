@@ -1,3 +1,6 @@
+import type { SceneLookPicks } from "@/lib/scene-look";
+import type { SceneReference } from "./scene-references";
+
 export interface SceneData {
   id: string;
   sceneNumber: number;
@@ -34,6 +37,26 @@ export interface SceneData {
   /** Image URL of the location picked from the user's Locations library
    *  (visual reference for the scene's setting; label goes in `location`). */
   locationImageUrl?: string | null;
+  /** Optional end-frame (last-frame) keyframe image for this scene — the
+   *  visual the generated clip should land on. Picked from the same media
+   *  library as the location image. Only sent to models whose API accepts
+   *  a last frame (seedance2_5 / veo3_1); see lib/scene-end-frame. */
+  endFrameImageUrl?: string | null;
+  /** Director's Look Rails picks (lib/scene-look.ts) — structured genre /
+   *  era / lens / lighting / emotion keys woven into the generation prompt
+   *  by the shared composer. Persists with the scene like every other
+   *  scene field; absent on scenes saved before the rails existed. */
+  look?: SceneLookPicks;
+  /** Viral Effects picks (server recipe ids, lib/scene-effects.ts): woven
+   *  into the generation prompt by /generate-runway-clip. Max 2. */
+  effectIds?: string[];
+  /** The scene's multi-reference SET (character / location / product /
+   *  style), proposed from the creator's own vault + brand kit and
+   *  approved in Scene Studio — removals persist here. Undefined = not
+   *  yet materialized; the picker proposes from live sources instead.
+   *  At generation the server maps the set onto what the picked model
+   *  actually accepts (see lib/scene-references.ts). */
+  referenceSet?: SceneReference[];
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */

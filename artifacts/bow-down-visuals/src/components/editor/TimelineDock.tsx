@@ -16,8 +16,16 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, SkipBack, ZoomIn, ZoomOut, Scissors, Film, Music2,
-  AlertTriangle, RotateCcw, PlusSquare, RefreshCw, LayoutList, Waves, ChevronDown, ChevronUp,
+  AlertTriangle, RotateCcw, PlusSquare, RefreshCw, Repeat, LayoutList, Waves, ChevronDown, ChevronUp,
+  Snowflake, Loader2, X, Share2, Download, Copy, ClipboardPaste, Trash2, Gauge,
+  Rewind, Sparkles, Palette, ArrowLeftRight, Volume2, VolumeX, Pencil, Upload,
 } from "lucide-react";
+import { ClipContextMenu, type ContextMenuItem } from "./ClipContextMenu";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useShareClip } from "@/hooks/use-share-clip";
+import { useTranslation } from "react-i18next";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -28,9 +36,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings, computeManualTimings } from "@/lib/scene-timing";
-import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode } from "@/lib/editor-settings";
-import { defaultClipEdit, TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT } from "@/lib/editor-settings";
+import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import {
+  defaultClipEdit, defaultColorCorrection, TRANSITIONS, EFFECTS, COLOR_GRADES, GRADE_PRESET_CORRECTIONS,
+  TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
+} from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
+import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
 
 /** Audio/video sync mode options — migrated from the removed VideoTimeline component. */
@@ -85,6 +97,10 @@ interface TimelineDockProps {
   setSelectedIdx: (i: number | null) => void;
   /** Reports the dock's current rendered height (px) so other floating UI can avoid overlapping it. */
   onHeightChange?: (height: number) => void;
+  /** Replaces a scene's clip URL (e.g. with a freeze-frame render). */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
+  /** Compact audio-fallback warning pill rendered in the transport row (right side). */
+  audioWarningPill?: React.ReactNode;
 }
 
 export function TimelineDock({
@@ -93,7 +109,13 @@ export function TimelineDock({
   onSeek, onTogglePlay, onRestart,
   selectedIdx, setSelectedIdx,
   onHeightChange,
+  onReplaceClipVideo,
+  audioWarningPill,
 }: TimelineDockProps) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
+  const { shareClip } = useShareClip();
   const [zoom, setZoom] = useState(1);
   const [beatGrid, setBeatGrid] = useState<BeatGrid | null>(null);
   const [beatLoading, setBeatLoading] = useState(false);
@@ -108,6 +130,8 @@ export function TimelineDock({
   const fadeDragRef = useRef<{ side: "in" | "out"; startX: number; startVal: number } | null>(null);
   const rangeDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const rangeCreateRef = useRef<{ startX: number; startTime: number; moved: boolean } | null>(null);
+  const loopCreateRef = useRef<{ startX: number; startTime: number; moved: boolean } | null>(null);
+  const loopDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const cropDragRef = useRef<{ side: "start" | "end" } | null>(null);
   const moveDragRef = useRef<{ sceneId: string; startX: number; startVal: number } | null>(null);
   const resizeDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -140,6 +164,17 @@ export function TimelineDock({
   const exportRange = settings.export.exportRange ?? { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 };
   const songCrop = settings.musicStudio.songCrop ?? { enabled: false, startSec: 0, endSec: 0 };
   const cropEndResolved = songCrop.endSec > songCrop.startSec ? songCrop.endSec : (audioDuration ?? totalDur);
+  /* ── Loop-playback region (Shift+drag on waveform; toggle in transport) ── */
+  const loop = settings.timelineLoop ?? { enabled: false, startSec: 0, endSec: 0 };
+  const loopValid = loop.endSec > loop.startSec + 0.2 && loop.startSec >= 0;
+
+  /* ── Loop playback: when the playhead reaches the loop end, wrap to the loop start ── */
+  useEffect(() => {
+    if (!isPlaying || !loop.enabled || !loopValid) return;
+    if (currentTime >= loop.endSec) {
+      onSeek(Math.max(0, loop.startSec));
+    }
+  }, [currentTime, isPlaying, loop.enabled, loopValid, loop.startSec, loop.endSec, onSeek]);
 
   /* ── Audio/video sync status — migrated from the removed VideoTimeline component ── */
   const syncMode = va.syncMode ?? "keep-as-is";
@@ -278,6 +313,31 @@ export function TimelineDock({
       setSettings({ ...settings, export: { ...settings.export, exportRange: next } });
       return;
     }
+    /* ── Loop region edge-handle drag ── */
+    if (loopDragRef.current) {
+      const rect = el.getBoundingClientRect();
+      const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
+      const next = loopDragRef.current.side === "start"
+        ? { ...loop, startSec: Math.min(t, loop.endSec - 0.3) }
+        : { ...loop, endSec: Math.max(t, loop.startSec + 0.3) };
+      setSettings({ ...settings, timelineLoop: next });
+      return;
+    }
+    /* ── Loop region drag-create (Shift+drag) ── */
+    if (loopCreateRef.current) {
+      const rect = el.getBoundingClientRect();
+      const create = loopCreateRef.current;
+      if (!create.moved && Math.abs(e.clientX - create.startX) < 4) return;
+      create.moved = true;
+      const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
+      const lo = Math.min(create.startTime, t);
+      const hi = Math.max(create.startTime, t);
+      setSettings({
+        ...settings,
+        timelineLoop: { enabled: true, startSec: lo, endSec: Math.max(hi, lo + 0.3) },
+      });
+      return;
+    }
     if (rangeCreateRef.current) {
       const rect = el.getBoundingClientRect();
       const create = rangeCreateRef.current;
@@ -318,6 +378,7 @@ export function TimelineDock({
 
   const onPointerUp = useCallback(() => {
     if (rangeCreateRef.current?.moved) suppressNextClickRef.current = true;
+    if (loopCreateRef.current?.moved) suppressNextClickRef.current = true;
     if (moveDragRef.current && isManual) {
       const sceneId = moveDragRef.current.sceneId;
       const result = computeManualTimings(scenes, audioDuration, clipEdits);
@@ -343,22 +404,58 @@ export function TimelineDock({
     fadeDragRef.current = null;
     rangeDragRef.current = null;
     rangeCreateRef.current = null;
+    loopDragRef.current = null;
+    loopCreateRef.current = null;
     cropDragRef.current = null;
     moveDragRef.current = null;
     resizeDragRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isManual, scenes, audioDuration, clipEdits, settings, setSettings]);
 
-  /* ── Drag-select export range directly on the waveform (works from "full" mode too) ── */
+  /* ── Drag-select export range directly on the waveform (works from "full" mode too).
+        Shift+drag instead creates the loop-playback region. ── */
   const startRangeCreate = useCallback((e: React.PointerEvent) => {
     const el = timelineRef.current;
     if (!el || totalDur <= 0) return;
     const rect = el.getBoundingClientRect();
     const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (e.shiftKey) {
+      loopCreateRef.current = { startX: e.clientX, startTime: t, moved: false };
+      return;
+    }
     rangeCreateRef.current = { startX: e.clientX, startTime: t, moved: false };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDur, snapEnabled, beatGrid]);
+
+  /* ── Loop region edge-handle drag starter ── */
+  const startLoopDrag = useCallback((e: React.PointerEvent, side: "start" | "end") => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    loopDragRef.current = { side };
+  }, []);
+
+  /* ── Loop toggle: enabling with no region defaults to the full timeline ── */
+  const toggleLoop = useCallback(() => {
+    if (!loop.enabled) {
+      const valid = loop.endSec > loop.startSec + 0.2;
+      setSettings({
+        ...settings,
+        timelineLoop: {
+          enabled: true,
+          startSec: valid ? loop.startSec : 0,
+          endSec: valid ? loop.endSec : totalDur,
+        },
+      });
+    } else {
+      setSettings({ ...settings, timelineLoop: { ...loop, enabled: false } });
+    }
+  }, [loop, totalDur, settings, setSettings]);
+
+  /* ── Clear the loop region entirely ── */
+  const clearLoopRegion = useCallback(() => {
+    setSettings({ ...settings, timelineLoop: { enabled: false, startSec: 0, endSec: 0 } });
+  }, [settings, setSettings]);
 
   /* ── Drag-to-reorder (back-to-back only — flex layout structurally enforces no gaps) ── */
   function onDragEnd(event: DragEndEvent) {
@@ -384,6 +481,98 @@ export function TimelineDock({
   const splitStart = playheadIdx !== null ? (offsets[playheadIdx] ?? 0) : 0;
   const splitDur = playheadIdx !== null ? (durs[playheadIdx] ?? 0) : 0;
   const canSplit = !!splitScene && currentTime > splitStart + 0.3 && currentTime < splitStart + splitDur - 0.3;
+
+  /* ── Freeze frame — one click at the playhead (CapCut-style).
+     Holds the frame for 2s and returns a floating result card with
+     Use in editor / Share / Download. ── */
+  const [freezeBusy, setFreezeBusy] = useState(false);
+  const [freezeResult, setFreezeResult] = useState<string | null>(null);
+  const freezeSceneIdRef = useRef<string | null>(null);
+
+  const canFreeze =
+    !!splitScene?.demoClipUrl && !freezeBusy &&
+    currentTime > splitStart + 0.2 && currentTime < splitStart + splitDur - 0.2;
+
+  async function pollFreezeJob(jobId: string): Promise<void> {
+    for (let i = 0; i < 150; i++) {
+      // up to ~5 minutes of server-side rendering
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await confirmedFetch(`/api/freeze-mask/job/${jobId}`, { skipConfirm: true });
+      if (!res) throw new Error(t("videoEditor.freezePollCancelled"));
+      const body = await res.json().catch(() => ({}));
+      if (body.status === "done" && body.url) {
+        setFreezeResult(body.url as string);
+        return;
+      }
+      if (body.status === "failed") throw new Error(body.error ?? t("videoEditor.freezeRenderFailed"));
+    }
+    throw new Error(t("videoEditor.freezeTimedOut"));
+  }
+
+  /* ── Freeze a clip at an index at the current playhead (generic — used by the
+     Freeze tool and the right-click menu). Renders a 2s hold of the current
+     frame server-side; the floating result card offers "Use in editor". ── */
+  const freezeClipAt = useCallback(async (idx: number) => {
+    const scene = scenes[idx];
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    const ok =
+      !!scene?.demoClipUrl && !freezeBusy &&
+      currentTime > start + 0.2 && currentTime < start + dur - 0.2;
+    if (!ok || !scene?.demoClipUrl) {
+      toast({
+        title: "Can't freeze here",
+        description: "Move the playhead over a clip with video, then freeze.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setFreezeBusy(true);
+    setFreezeResult(null);
+    freezeSceneIdRef.current = scene.id;
+    // Media-file timestamp = clip trim offset + playhead position inside the clip.
+    const trimStart = clipEdits[scene.id]?.trimStart ?? 0;
+    try {
+      const res = await confirmedFetch("/api/freeze-frame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: scene.demoClipUrl,
+          timestamp: Math.max(0, trimStart + (currentTime - start)),
+          holdDuration: 2,
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        toast({
+          title: t("videoEditor.outOfBucsTitle"),
+          description: t("videoEditor.freezeOutOfBucs"),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (res.status !== 202 || !body.jobId) throw new Error(body.error ?? t("videoEditor.freezeStartFailed"));
+      await pollFreezeJob(body.jobId as string);
+      toast({ title: t("videoEditor.freezeReadyTitle"), description: t("videoEditor.freezeReadyDesc") });
+    } catch (err) {
+      toast({
+        title: t("videoEditor.freezeFailedTitle"),
+        description: err instanceof Error ? err.message : t("videoEditor.tryAgain"),
+        variant: "destructive",
+      });
+    } finally {
+      setFreezeBusy(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenes, offsets, durs, currentTime, freezeBusy, clipEdits, confirmedFetch, toast, t]);
+
+  async function doFreeze() {
+    if (playheadIdx === null) return;
+    await freezeClipAt(playheadIdx);
+  }
+
+
 
   const doSplit = useCallback(() => {
     if (!splitScene || !canSplit || !setScenes || playheadIdx === null) return;
@@ -422,6 +611,52 @@ export function TimelineDock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splitScene, canSplit, setScenes, playheadIdx, currentTime, splitStart, splitDur, clipEdits, settings, setSettings, snapEnabled, beatGrid]);
 
+  /* ── Generic split of the clip at `idx` at the current playhead — the
+     right-click menu's "Split at playhead" targets the right-clicked clip,
+     not necessarily the one under the playhead. Same scene/clipEdit math as
+     doSplit above. ── */
+  const splitClipAt = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    if (!(currentTime > start + 0.3 && currentTime < start + dur - 0.3)) return;
+    const splitAt = snap(currentTime) - start;
+    const ce = clipEdits[scene.id] ?? defaultClipEdit();
+    const origTrimStart = ce.trimStart ?? 0;
+    const origTrimEnd = ce.trimEnd ?? 0;
+
+    const firstId = scene.id;
+    const secondId = genId();
+    const secondScene: SceneData = {
+      ...scene,
+      id: secondId,
+      sceneNumber: scene.sceneNumber + 0.5,
+      timestamp: tsRange(start + splitAt, start + dur),
+    };
+    const firstScene: SceneData = {
+      ...scene,
+      timestamp: tsRange(start, start + splitAt),
+    };
+
+    const nextScenes = [...scenes];
+    nextScenes[idx] = firstScene;
+    nextScenes.splice(idx + 1, 0, secondScene);
+    setScenes(nextScenes);
+
+    setSettings({
+      ...settings,
+      clips: {
+        ...clipEdits,
+        [firstId]: { ...ce, trimEnd: origTrimEnd + (dur - splitAt) },
+        [secondId]: { ...ce, trimStart: origTrimStart + splitAt, useLipSync: false, lipSyncUrl: null, lipSyncStatus: null },
+      },
+    });
+    setSelectedIdx(idx + 1);
+    toast({ title: "Clip split", description: `Split at ${fmt(snap(currentTime))}` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setScenes, scenes, offsets, durs, currentTime, clipEdits, settings, setSettings, setSelectedIdx, toast, snapEnabled, beatGrid]);
+
   /* ── Keyboard shortcut: "S" splits the clip under the playhead (ignored while typing) ── */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -437,6 +672,306 @@ export function TimelineDock({
   }, [canSplit, doSplit]);
 
   const isSelected = (i: number) => selectedIdx === i;
+
+  /* ── Right-click context menu for timeline clips ── */
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sceneIdx: number } | null>(null);
+  const [sceneClipboard, setSceneClipboard] = useState<{ scene: SceneData; edit: ClipEdit } | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
+
+  const openClipCtxMenu = useCallback((e: React.MouseEvent, i: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIdx(i);
+    setCtxMenu({ x: e.clientX, y: e.clientY, sceneIdx: i });
+  }, [setSelectedIdx]);
+
+  /** Patch a clip's ClipEdit (same merge pattern as EffectsSection.patchClip). */
+  const patchClipEdit = useCallback((sceneId: string, patch: Partial<ClipEdit>) => {
+    const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
+    setSettings({ ...settings, clips: { ...clipEdits, [sceneId]: { ...current, ...patch } } });
+  }, [clipEdits, settings, setSettings]);
+
+  /** Patch a clip's Pro Tools settings (speed / reverse / color grade). */
+  const patchProTools = useCallback((sceneId: string, patch: Partial<ProToolsSettings>) => {
+    const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
+    patchClipEdit(sceneId, { proTools: { ...current.proTools, ...patch } });
+  }, [clipEdits, patchClipEdit]);
+
+  const duplicateClip = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    const newId = genId();
+    const copy: SceneData = { ...scene, id: newId, sceneNumber: scene.sceneNumber + 0.5 };
+    const next = [...scenes];
+    next.splice(idx + 1, 0, copy);
+    setScenes(next);
+    const ce = clipEdits[scene.id];
+    if (ce) {
+      setSettings({ ...settings, clips: { ...clipEdits, [newId]: { ...ce } } });
+    }
+    setSelectedIdx(idx + 1);
+    toast({ title: "Clip duplicated", description: `${scene.section || `Scene ${idx + 1}`} copied after itself.` });
+  }, [setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  const deleteClip = useCallback((idx: number) => {
+    if (!setScenes || idx < 0 || idx >= scenes.length) return;
+    const scene = scenes[idx]!;
+    setScenes(scenes.filter((_, i) => i !== idx));
+    if (clipEdits[scene.id]) {
+      const rest = { ...clipEdits };
+      delete rest[scene.id];
+      setSettings({ ...settings, clips: rest });
+    }
+    if (selectedIdx === idx) setSelectedIdx(null);
+    else if (selectedIdx !== null && selectedIdx > idx) setSelectedIdx(selectedIdx - 1);
+    toast({ title: "Clip deleted", description: scene.section || `Scene ${idx + 1}` });
+  }, [setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, setSelectedIdx, toast]);
+
+  const copyClip = useCallback((idx: number) => {
+    const scene = scenes[idx];
+    if (!scene) return;
+    const edit = { ...defaultClipEdit(), ...(clipEdits[scene.id] ?? {}) };
+    setSceneClipboard({ scene: JSON.parse(JSON.stringify(scene)) as SceneData, edit });
+    toast({ title: "Clip copied", description: scene.section || `Scene ${idx + 1}` });
+  }, [scenes, clipEdits, toast]);
+
+  const pasteClip = useCallback((afterIdx: number) => {
+    if (!sceneClipboard || !setScenes) return;
+    const newId = genId();
+    const copy: SceneData = {
+      ...sceneClipboard.scene,
+      id: newId,
+      sceneNumber: (scenes[afterIdx]?.sceneNumber ?? afterIdx) + 0.5,
+    };
+    const next = [...scenes];
+    next.splice(afterIdx + 1, 0, copy);
+    setScenes(next);
+    setSettings({ ...settings, clips: { ...clipEdits, [newId]: { ...sceneClipboard.edit } } });
+    setSelectedIdx(afterIdx + 1);
+    toast({ title: "Clip pasted", description: sceneClipboard.scene.section || "Clip" });
+  }, [sceneClipboard, setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+
+  const renameClip = useCallback((idx: number) => {
+    const scene = scenes[idx];
+    if (!scene || !setScenes) return;
+    const next = window.prompt("Rename clip", scene.section || `Scene ${idx + 1}`);
+    if (next === null) return;
+    const label = next.trim();
+    if (!label) return;
+    setScenes(scenes.map((s, i) => (i === idx ? { ...s, section: label } : s)));
+    toast({ title: "Clip renamed", description: label });
+  }, [scenes, setScenes, toast]);
+
+  /** Replace-clip file picker flow — uploads via /api/upload-clip, then swaps the clip URL. */
+  const handleReplaceFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const sceneId = replaceTargetId;
+    setReplaceTargetId(null);
+    if (!file || !sceneId || !onReplaceClipVideo) return;
+    if (file.size > 80 * 1024 * 1024) {
+      toast({ title: "That clip is over 80 MB — trim it or pick a smaller file.", variant: "destructive" });
+      return;
+    }
+    try {
+      toast({ title: "Uploading replacement clip…" });
+      let token: string | null = null;
+      try {
+        token = (await supabase?.auth.getSession())?.data?.session?.access_token ?? null;
+      } catch { token = null; }
+      if (!token) throw new Error("Not signed in. Please sign in and try again.");
+      const form = new FormData();
+      form.append("clip", file, file.name);
+      const res = await fetch("/api/upload-clip", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? data.error ?? `Upload failed (${res.status})`);
+      if (!data.url) throw new Error("Upload succeeded but returned no clip URL.");
+      onReplaceClipVideo(sceneId, data.url);
+      toast({ title: "Clip replaced", description: file.name });
+    } catch (err) {
+      toast({
+        title: "Replace failed",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+    }
+  }, [replaceTargetId, onReplaceClipVideo, toast]);
+
+  /* ── Build the right-click menu items for the clip at index `idx`. Every
+     item performs a real action — nothing here is a dead button. ── */
+  function buildClipCtxItems(idx: number): ContextMenuItem[] {
+    const scene = scenes[idx];
+    if (!scene) return [];
+    const start = offsets[idx] ?? 0;
+    const dur = durs[idx] ?? 0;
+    const idxCanSplit = currentTime > start + 0.3 && currentTime < start + dur - 0.3;
+    const idxCanFreeze =
+      !!scene.demoClipUrl && !freezeBusy &&
+      currentTime > start + 0.2 && currentTime < start + dur - 0.2;
+    const ce = { ...defaultClipEdit(), ...(clipEdits[scene.id] ?? {}) };
+    const pt = ce.proTools;
+    const label = scene.section || `Scene ${idx + 1}`;
+    const pasteAfter = selectedIdx ?? idx;
+
+    return [
+      {
+        key: "split", label: <span>Split at playhead <span className="ml-1 text-[10px] text-white/30 font-mono">S</span></span>,
+        icon: <Scissors className="h-3.5 w-3.5" />,
+        disabled: !idxCanSplit,
+        disabledTitle: idxCanSplit ? undefined : "Move the playhead over this clip to split it",
+        onClick: () => splitClipAt(idx),
+      },
+      {
+        key: "duplicate", label: "Duplicate clip",
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => duplicateClip(idx),
+      },
+      {
+        key: "delete", label: "Delete clip", danger: true,
+        icon: <Trash2 className="h-3.5 w-3.5" />,
+        onClick: () => deleteClip(idx),
+      },
+      { key: "div-1", divider: true, label: "" },
+      {
+        key: "copy", label: "Copy clip",
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => copyClip(idx),
+      },
+      {
+        key: "paste", label: "Paste clip",
+        icon: <ClipboardPaste className="h-3.5 w-3.5" />,
+        disabled: !sceneClipboard,
+        disabledTitle: !sceneClipboard ? "Copy a clip first" : undefined,
+        onClick: () => pasteClip(pasteAfter),
+      },
+      { key: "div-2", divider: true, label: "" },
+      {
+        key: "speed", label: "Speed", icon: <Gauge className="h-3.5 w-3.5" />,
+        children: [0.25, 0.5, 1, 1.5, 2, 4].map((v) => ({
+          key: `speed-${v}`, label: `${v}×`,
+          checked: pt.speed === v && !pt.speedCurve,
+          onClick: () => {
+            patchProTools(scene.id, { speed: v, speedCurve: null });
+            toast({ title: "Clip speed", description: `${label}: ${v}×` });
+          },
+        })),
+      },
+      {
+        key: "reverse", label: "Reverse clip", icon: <Rewind className="h-3.5 w-3.5" />,
+        checked: pt.reverse,
+        onClick: () => {
+          patchProTools(scene.id, { reverse: !pt.reverse });
+          toast({ title: pt.reverse ? "Reverse off" : "Reverse on", description: `${label} plays ${pt.reverse ? "forward" : "backward"} on export` });
+        },
+      },
+      {
+        key: "freeze", label: "Freeze frame",
+        icon: <Snowflake className="h-3.5 w-3.5" />,
+        disabled: !idxCanFreeze,
+        disabledTitle: !idxCanFreeze ? "Move the playhead over a clip with video to freeze it" : undefined,
+        onClick: () => { void freezeClipAt(idx); },
+      },
+      { key: "div-3", divider: true, label: "" },
+      {
+        key: "transition", label: "Transition into clip", icon: <ArrowLeftRight className="h-3.5 w-3.5" />,
+        children: (idx === 0 ? ["Cut"] : [...TRANSITIONS]).map((tr) => ({
+          key: `transition-${tr}`, label: tr,
+          checked: ce.transition === tr,
+          onClick: () => {
+            patchClipEdit(scene.id, { transition: tr });
+            toast({ title: "Transition", description: `${label}: ${tr}` });
+          },
+        })),
+      },
+      {
+        key: "effect", label: "Add effect", icon: <Sparkles className="h-3.5 w-3.5" />,
+        children: ["None", ...EFFECTS].map((fx) => ({
+          key: `effect-${fx}`, label: fx,
+          checked: ce.effect === fx,
+          onClick: () => {
+            patchClipEdit(scene.id, { effect: fx });
+            toast({ title: "Clip effect", description: `${label}: ${fx}` });
+          },
+        })),
+      },
+      {
+        key: "grade", label: "Adjust color", icon: <Palette className="h-3.5 w-3.5" />,
+        children: [
+          ...[...COLOR_GRADES].map((g) => ({
+            key: `grade-${g}`, label: g,
+            checked: pt.colorGradePreset === g,
+            onClick: () => {
+              const preset = GRADE_PRESET_CORRECTIONS[g];
+              patchProTools(scene.id, {
+                colorGradePreset: g,
+                ...(preset ? { colorCorrection: { ...preset } } : {}),
+              });
+              toast({ title: "Color grade", description: `${label}: ${g}` });
+            },
+          })),
+          { key: "grade-clear", divider: true, label: "" },
+          {
+            key: "grade-none", label: "Clear grade",
+            onClick: () => {
+              patchProTools(scene.id, { colorGradePreset: null, colorCorrection: defaultColorCorrection() });
+              toast({ title: "Color grade cleared", description: label });
+            },
+          },
+        ],
+      },
+      {
+        key: "volume", label: "",
+        custom: (
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#C9A84C]/80">Volume</span>
+              <span className="text-[11px] font-mono text-white/60">{ce.volume}%</span>
+            </div>
+            <input
+              type="range" min={0} max={100} step={1} value={ce.volume}
+              onChange={(e) => patchClipEdit(scene.id, { volume: Number(e.target.value) })}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full accent-[#C9A84C] cursor-pointer"
+              aria-label="Clip volume"
+            />
+          </div>
+        ),
+        keepOpen: true,
+      },
+      {
+        key: "mute", label: ce.muted ? "Unmute clip" : "Mute clip",
+        icon: ce.muted ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />,
+        checked: ce.muted,
+        onClick: () => {
+          patchClipEdit(scene.id, { muted: !ce.muted });
+          toast({ title: ce.muted ? "Clip unmuted" : "Clip muted", description: label });
+        },
+      },
+      { key: "div-4", divider: true, label: "" },
+      {
+        key: "replace", label: "Replace clip…",
+        icon: <Upload className="h-3.5 w-3.5" />,
+        disabled: !onReplaceClipVideo,
+        disabledTitle: !onReplaceClipVideo ? "Not available" : undefined,
+        onClick: () => {
+          setReplaceTargetId(scene.id);
+          // Defer so the menu unmounts before the file dialog opens.
+          setTimeout(() => replaceInputRef.current?.click(), 50);
+        },
+      },
+      {
+        key: "rename", label: "Rename clip",
+        icon: <Pencil className="h-3.5 w-3.5" />,
+        onClick: () => renameClip(idx),
+      },
+    ];
+  }
+
   const dockHidden = !!settings.timelineDockHidden;
 
   /* ── Report the dock's rendered height so floating UI (e.g. the master player) can avoid overlapping it ── */
@@ -496,6 +1031,66 @@ export function TimelineDock({
         <div className="h-1.5 w-12 rounded-full bg-border group-hover:bg-primary/60 group-active:bg-primary transition-colors" />
       </div>
 
+      {/* ── Freeze-frame result card — floats above the dock ── */}
+      {freezeResult && (
+        <div
+          className="absolute bottom-full right-3 md:right-6 mb-3 z-50 w-56 sm:w-64 rounded-2xl border border-[#C9A84C]/40 bg-[#0a0a0a]/95 backdrop-blur p-3 shadow-2xl shadow-black/60"
+          data-testid="timeline-dock-freeze-result"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-black text-[#C9A84C]">{t("videoEditor.freezeReadyTitle")}</p>
+            <button
+              type="button"
+              onClick={() => setFreezeResult(null)}
+              className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label={t("videoEditor.dismiss")}
+              data-testid="timeline-dock-freeze-dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <video src={freezeResult} controls playsInline className="w-full max-h-36 object-contain rounded-lg bg-black" />
+          <div className="flex gap-1.5 mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                const sid = freezeSceneIdRef.current;
+                if (sid && onReplaceClipVideo) {
+                  onReplaceClipVideo(sid, freezeResult);
+                  toast({ title: t("videoEditor.freezeAppliedTitle"), description: t("videoEditor.freezeAppliedDesc") });
+                  setFreezeResult(null);
+                }
+              }}
+              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-black
+                bg-gradient-to-r from-[#C9A84C] to-[#8a6f2e] text-black hover:from-[#e0bc58] hover:to-[#a5853a] transition-all"
+              data-testid="timeline-dock-freeze-use-in-editor"
+            >
+              {t("videoEditor.useInEditor")}
+            </button>
+            <button
+              type="button"
+              onClick={() => shareClip(freezeResult, t("videoEditor.freezeShareTitle"))}
+              title={t("videoEditor.shareTitle")}
+              className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold
+                border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              data-testid="timeline-dock-freeze-share"
+            >
+              <Share2 className="h-3 w-3" /> {t("videoEditor.share")}
+            </button>
+            <a
+              href={freezeResult}
+              download="freeze-frame.mp4"
+              title={t("videoEditor.downloadTitle")}
+              className="inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-[11px] font-bold
+                border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              data-testid="timeline-dock-freeze-download"
+            >
+              <Download className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* ── Transport row ── */}
       <div className="flex items-center gap-2 px-3 md:px-6 py-1.5 border-b border-white/10 bg-black">
         <button type="button" onClick={onRestart}
@@ -517,12 +1112,34 @@ export function TimelineDock({
           <Scissors className="h-3 w-3" /> Split
         </button>
 
+        <button type="button" onClick={doFreeze} disabled={!canFreeze}
+          data-testid="timeline-dock-freeze" title={t("videoEditor.freezeTitle")}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
+            text-[#C9A84C] border-[#C9A84C]/40 bg-[#C9A84C]/10 hover:bg-[#C9A84C]/20">
+          {freezeBusy
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : <Snowflake className="h-3 w-3" />}
+          {freezeBusy ? t("videoEditor.freezing") : t("videoEditor.freeze")}
+        </button>
+
         <button type="button" onClick={() => setSnapEnabled((s) => !s)}
           className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
             snapEnabled ? "text-primary border-primary/30 bg-primary/10" : "text-muted-foreground/70 border-border"
           }`}
           title={beatGrid ? `${beatGrid.bpm.toFixed(0)} BPM detected` : beatLoading ? "Detecting beat grid…" : "No beat grid"}>
           {beatLoading ? "Beat…" : beatGrid ? `${beatGrid.bpm.toFixed(0)} BPM` : "Beat snap"}
+        </button>
+
+        <button type="button" onClick={toggleLoop}
+          data-testid="timeline-dock-loop-toggle"
+          title={loop.enabled
+            ? `Loop ON — ${fmt(loop.startSec)} to ${fmt(loop.endSec)}. Click to turn off. Shift+drag on the waveform to re-set the region.`
+            : "Loop playback: Shift+drag on the waveform to pick any region, then toggle this on. Playback wraps from the region end back to its start."}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+            loop.enabled ? "text-violet-300 border-violet-400/40 bg-violet-400/15" : "text-muted-foreground/70 border-border hover:text-foreground"
+          }`}>
+          <Repeat className="h-3 w-3" />
+          Loop{loop.enabled && loopValid ? ` ${fmt(loop.startSec)}–${fmt(loop.endSec)}` : ""}
         </button>
 
         <button type="button"
@@ -558,6 +1175,8 @@ export function TimelineDock({
         </button>
 
         <div className="flex-1" />
+
+        {audioWarningPill}
 
         <span className="text-[9px] text-muted-foreground/60 hidden md:inline">
           {isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
@@ -637,7 +1256,7 @@ export function TimelineDock({
           </div>
 
           <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
-            <span className="text-primary/80 font-bold">{selectedSyncMode.label}:</span>{" "}
+            <span className="text-primary/70 font-bold">{selectedSyncMode.label}:</span>{" "}
             {selectedSyncMode.desc}
           </p>
         </div>
@@ -668,13 +1287,13 @@ export function TimelineDock({
           {/* Waveform + fade handles + export range overlay — grows/shrinks with the dock height */}
           <div ref={timelineRef} className="relative cursor-crosshair rounded bg-black overflow-hidden border border-white/5"
             style={{ flexGrow: 36, flexShrink: 1, flexBasis: 0, minHeight: 24 }}
-            onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range">
+            onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range · Shift+drag to set loop region">
             {audioUrl ? (
-              <TinyWaveform progress={totalDur > 0 ? currentTime / totalDur : 0} />
+              <RealWaveform audioUrl={audioUrl} progress={totalDur > 0 ? currentTime / totalDur : 0} />
             ) : (
               <div className="w-full h-full flex items-center justify-center gap-2">
-                <Music2 className="h-3 w-3 text-amber-400/40" />
-                <span className="text-[10px] text-amber-400/75">Add a song to see the waveform</span>
+                <Music2 className="h-3 w-3 text-amber-400" />
+                <span className="text-[10px] text-amber-400">Add a song to see the waveform</span>
               </div>
             )}
 
@@ -692,6 +1311,30 @@ export function TimelineDock({
                   <div onPointerDown={(e) => startRangeDrag(e, "end")}
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-red-400/70 cursor-ew-resize z-20 hover:bg-red-300"
                     style={{ left: `${endPct}%` }} title="Export range end" />
+                </>
+              );
+            })()}
+
+            {/* Loop region — violet band with draggable edge handles; double-click clears */}
+            {totalDur > 0 && loopValid && (() => {
+              const startPct = (loop.startSec / totalDur) * 100;
+              const endPct = (loop.endSec / totalDur) * 100;
+              return (
+                <>
+                  <div className="absolute inset-y-0 bg-violet-500/15 border-x border-violet-400/40 pointer-events-none z-10"
+                    style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
+                  <div onPointerDown={(e) => startLoopDrag(e, "start")}
+                    onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
+                    style={{ left: `${startPct}%` }} title={`Loop start: ${fmt(loop.startSec)} — drag to adjust, double-click to clear`}>
+                    <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
+                  </div>
+                  <div onPointerDown={(e) => startLoopDrag(e, "end")}
+                    onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
+                    style={{ left: `${endPct}%` }} title={`Loop end: ${fmt(loop.endSec)} — drag to adjust, double-click to clear`}>
+                    <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
+                  </div>
                 </>
               );
             })()}
@@ -791,6 +1434,7 @@ export function TimelineDock({
                           cursor: "grab",
                         }}
                         onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                        onContextMenu={(e) => openClipCtxMenu(e, i)}
                         data-testid={`timeline-dock-clip-${i}`}
                       >
                         {trimStart > 0 && clipDur > 0 && (
@@ -810,13 +1454,13 @@ export function TimelineDock({
                         {hasOverlap && <span className="text-[8px] text-pink-300 mr-1 shrink-0 font-bold pointer-events-none" title={`Overlap: ${timing.overlapWithPrevSec.toFixed(1)}s → transition`}>⇄{timing.overlapWithPrevSec.toFixed(1)}s</span>}
                         {selected && (
                           <>
-                            <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
+                            <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                               title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
                               <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                             </div>
-                            <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
+                            <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                               title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
@@ -859,8 +1503,20 @@ export function TimelineDock({
                                 cursor: "grab",
                               }}
                               onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                              onContextMenu={(e) => openClipCtxMenu(e, i)}
                               data-testid={`timeline-dock-clip-${i}`}
                             >
+                              {/* Actual video frame — first frame of the attached clip, dimmed behind the label */}
+                              {hasClip && (useLipSync ? ce?.lipSyncUrl : scene.demoClipUrl) && (
+                                <video
+                                  src={(useLipSync ? ce?.lipSyncUrl : scene.demoClipUrl) ?? undefined}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  disablePictureInPicture
+                                  className="absolute inset-0 h-full w-full object-cover opacity-40 pointer-events-none"
+                                />
+                              )}
                               {trimStart > 0 && clipDur > 0 && (
                                 <div className="absolute left-0 top-0 bottom-0 pointer-events-none"
                                   style={{ width: `${Math.min(48, (trimStart / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderRight: "1px dashed rgba(255,255,255,0.25)" }} />
@@ -877,13 +1533,13 @@ export function TimelineDock({
                               {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
                               {selected && (
                                 <>
-                                  <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
+                                  <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                                     title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
                                     <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                                   </div>
-                                  <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
+                                  <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                                     title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
@@ -906,6 +1562,28 @@ export function TimelineDock({
           </div>
         </div>
       </div>
+
+      {/* ── Hidden file input for the "Replace clip…" menu action ── */}
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleReplaceFile}
+        aria-hidden
+      />
+
+      {/* ── Right-click context menu for timeline clips ── */}
+      {ctxMenu && scenes[ctxMenu.sceneIdx] && (
+        <ClipContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={buildClipCtxItems(ctxMenu.sceneIdx)}
+          onClose={() => setCtxMenu(null)}
+          testId="timeline-clip-context-menu"
+          tone="dark"
+        />
+      )}
     </div>
   );
 }
@@ -935,11 +1613,21 @@ function SortableClip({
   );
 }
 
-/* ── Tiny waveform (visual only) ── */
-function TinyWaveform({ progress = 0 }: { progress?: number }) {
-  const segments = 200;
-  const points = useMemo(() => Array.from({ length: segments }, (_, i) => {
-    const t = i / segments;
+/* ── Real waveform — decoded peak data from the actual song audio.
+ *    Falls back to a decorative shimmer only while decoding or if the
+ *    audio can't be fetched/decoded (CORS, bad file). ── */
+function RealWaveform({ audioUrl, progress = 0 }: { audioUrl: string; progress?: number }) {
+  const [peaks, setPeaks] = useState<AudioPeaks | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPeaks(null);
+    getAudioPeaks(audioUrl, 240).then((p) => { if (!cancelled) setPeaks(p); });
+    return () => { cancelled = true; };
+  }, [audioUrl]);
+
+  // Decorative fallback bars while the real peaks load (or if decode fails).
+  const fallback = useMemo(() => Array.from({ length: 240 }, (_, i) => {
+    const t = i / 240;
     const h =
       0.25 * Math.abs(Math.sin(t * 13.1 + 0.4)) +
       0.35 * Math.abs(Math.sin(t * 27.8 + 2.1)) +
@@ -947,12 +1635,15 @@ function TinyWaveform({ progress = 0 }: { progress?: number }) {
       0.15 * Math.abs(Math.sin(t * 91.0 + 8.3));
     return Math.max(0.08, Math.min(1, h));
   }), []);
+
+  const bars = peaks ?? fallback;
+  const segments = bars.length;
   return (
     <div className="absolute inset-0 flex items-center gap-px px-0.5">
-      {points.map((h, i) => {
+      {bars.map((h, i) => {
         const played = i / segments < progress;
         return (
-          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.75)" : "rgba(255,255,255,0.20)" }} />
+          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.85)" : "rgba(255,255,255,0.28)" }} />
         );
       })}
     </div>

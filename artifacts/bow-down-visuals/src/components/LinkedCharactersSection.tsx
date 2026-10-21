@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { X, Plus, Users, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ export function LinkedCharactersSection({
   vault: ArtistVault;
   allVaults: ArtistVault[];
 }) {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const [links, setLinks] = useState<LinkedCharacter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +108,7 @@ export function LinkedCharactersSection({
   }
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 mt-3">
+    <div className={`rounded-xl border p-4 mt-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="flex items-center gap-2 mb-1">
         <Users className="h-4 w-4 text-[#C9A84C]" />
         <p className="text-sm font-bold text-white">Linked Characters</p>
@@ -133,7 +135,7 @@ export function LinkedCharactersSection({
             return (
               <div
                 key={link.id}
-                className="flex items-center gap-3 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2"
+                className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
               >
                 <div
                   className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-black shrink-0"

@@ -4,12 +4,17 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { markExtensionDownloaded } from "@/lib/extension-promo";
 import { markAndroidDownloaded, isAndroidDevice } from "@/lib/android-promo";
+import { markIOSInstalled, isIOSDevice } from "@/lib/ios-promo";
+import { markChromeInstalled, isChromeMobile } from "@/lib/chrome-promo";
 import {
   Smartphone, Puzzle, Download as DownloadIcon, Check, ShieldCheck,
-  Zap, BellRing, MessageCircle,
+  Zap, BellRing, MessageCircle, Share, Globe,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { SocialProofBand } from "@/components/SocialProofBand";
 
 /* ─── Unified download page: Android app + Chrome extension ─── */
 
@@ -28,16 +33,38 @@ const EXT_STEPS = [
   { title: "Pin it", body: "Click the puzzle-piece icon in Chrome's toolbar and pin Thy Cheat Code." },
 ];
 
+const IOS_STEPS = [
+  { title: "Open in Safari", body: "Visit bowdownvisuals.com in Safari on your iPhone or iPad (it must be Safari, not Chrome)." },
+  { title: "Tap the Share button", body: "Tap the Share icon at the bottom of the screen (the square with an arrow pointing up)." },
+  { title: "Add to Home Screen", body: "Scroll down in the share sheet and tap “Add to Home Screen”, then tap Add." },
+  { title: "Open from your home screen", body: "The Bow Down Visuals icon appears alongside your apps — tap it to launch the full studio, full-screen." },
+  { title: "Sign in", body: "Sign in with your Bow Down Visuals account — your credits, bonuses and projects carry over." },
+];
+
+const CHROME_STEPS = [
+  { title: "Open in Chrome", body: "Visit bowdownvisuals.com in Chrome on your Android phone." },
+  { title: "Tap the menu", body: "Tap the three-dot menu (⋮) in the top-right corner of Chrome." },
+  { title: "Install app", body: "Tap “Install app” (or “Add to Home Screen”), then tap Install on the confirmation." },
+  { title: "Open from your home screen", body: "The Bow Down Visuals icon appears alongside your apps — tap it to launch the full studio, full-screen, no browser bar." },
+  { title: "Sign in", body: "Sign in with your Bow Down Visuals account — your credits, bonuses and projects carry over." },
+];
+
 const FAQS = [
   { q: "Is the Android app free?", a: "Yes — the app itself is free. AI features inside use your site's Visual Bucs at the same rates as the website." },
   { q: "Is sideloading safe?", a: "The APK is built by us from the same code as the website and signed with our key. You can verify the signature matches future updates." },
   { q: "Do I need an account?", a: "Yes — both the app and the extension sign in with your Bow Down Visuals account, so everything carries over." },
   { q: "Will it be on the Play Store?", a: "Eventually. Sideloading gets it in your hands today without waiting on store review." },
+  { q: "What about iPhone?", a: "No App Store download needed — open bowdownvisuals.com in Safari, tap Share → Add to Home Screen, and the full studio installs as a web app on your home screen." },
+  { q: "Can I install it from Chrome?", a: "Yes — open bowdownvisuals.com in Chrome on Android, tap the three-dot menu → Install app, and it installs to your home screen with no download. It stays updated automatically." },
 ];
 
 export default function Download() {
-  usePageTitle("Download — Android App & Chrome Extension | Bow Down Visuals");
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  usePageTitle(t("download.metaTitle"), "Download Bow Down Visuals for Android and the Thy Cheat Code Chrome extension.");
   const onAndroid = typeof navigator !== "undefined" && isAndroidDevice();
+  const onIOS = typeof navigator !== "undefined" && isIOSDevice();
+  const onChromeMobile = typeof navigator !== "undefined" && isChromeMobile();
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -50,84 +77,127 @@ export default function Download() {
       <div className="mx-auto max-w-4xl px-6 py-16">
         <LuxReveal>
           <div className="text-center mb-12">
-            <MarketingBadge variant="kicker">Get Bow Down Visuals everywhere</MarketingBadge>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-              Take the studio <span className="text-[#e8c86a]">with you</span>
+            <MarketingBadge variant="kicker">{t("download.get_bow_down_visuals_everywhere")}</MarketingBadge>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{t("download.take_the_studio")}{" "}<span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>{t("download.with_you")}</span>
             </h1>
-            <p className="mt-4 text-white/50 max-w-xl mx-auto">
-              The full AI content studio as an Android app, plus Thy Cheat Code
-              for your desktop browser. Free to download — your account, credits
-              and bonuses carry over everywhere.
-            </p>
+            <p className="mt-4 text-white/50 max-w-xl mx-auto">{t("download.the_full_ai_content_studio_as_an")}</p>
           </div>
         </LuxReveal>
+
+        {/* Live social proof — real platform numbers */}
+        <SocialProofBand variant="compact" className={isLight ? "mb-10 rounded-2xl border border-primary/25 bg-[#C9A84C]/[0.08]" : "mb-10 rounded-2xl border border-primary/15 bg-black/40"} />
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : "border-white/10"} bg-white/[0.03]`}>
+            <div className={`rounded-2xl border p-8 ${onAndroid ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Smartphone className="h-7 w-7 text-[#e8c86a]" />
+                <Smartphone className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Android App</h2>
-              <p className="text-sm text-white/50 mb-6">
-                Every studio tool — songs, videos, thumbnails, promo clips —
-                in a native-feel app on your phone.
-              </p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Full studio, optimized for touch</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Daily bonus + hourly crate on the go</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-[#e8c86a]" /> Same account, same credits</li>
+              <h2 className="text-2xl font-bold mb-2">{t("download.android_app")}</h2>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("download.every_studio_tool_songs_videos_t")}</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.full_studio_optimized_for_touch")}</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.daily_bonus_hourly_crate_on_the")}</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.same_account_same_credits")}</li>
               </ul>
               <a href="https://github.com/blockdollazboss/bow-down-visuals/releases/download/v1.0.1-android/bow-down-visuals.apk" download onClick={markAndroidDownloaded}>
                 <Button className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6">
-                  <DownloadIcon className="h-5 w-5 mr-2" /> Download APK
-                </Button>
+                  <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_apk")}</Button>
               </a>
               {onAndroid && (
-                <p className="mt-3 text-center text-xs text-[#e8c86a]">← You're on Android — this one's for you</p>
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("download.you_re_on_android_this_one_s_for")}</p>
               )}
             </div>
           </LuxReveal>
 
           {/* Extension card */}
           <LuxReveal>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+            <div className={`rounded-2xl border p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-white/10 bg-white/[0.03]"}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
-                <Puzzle className="h-7 w-7 text-[#e8c86a]" />
+                <Puzzle className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Chrome Extension</h2>
-              <p className="text-sm text-white/50 mb-6">
-                Thy Cheat Code in your browser toolbar — AI chat, every site
-                tool, and bonus claims without leaving the page.
-              </p>
-              <ul className="space-y-2 mb-8 text-sm text-white/70">
-                <li className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-[#e8c86a]" /> AI chat on any page</li>
-                <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#e8c86a]" /> Right-click AI actions</li>
-                <li className="flex items-center gap-2"><BellRing className="h-4 w-4 text-[#e8c86a]" /> Never miss free credits</li>
+              <h2 className="text-2xl font-bold mb-2">{t("download.chrome_extension")}</h2>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("download.thy_cheat_code_in_your_browser_t")}</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><MessageCircle className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.ai_chat_on_any_page")}</li>
+                <li className="flex items-center gap-2"><Zap className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.right_click_ai_actions")}</li>
+                <li className="flex items-center gap-2"><BellRing className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.never_miss_free_credits")}</li>
               </ul>
               <a href="/bow-down-visuals-extension-v2.zip" download onClick={markExtensionDownloaded}>
-                <Button variant="outline" className="w-full border-white/15 text-base py-6 hover:bg-white/5">
-                  <DownloadIcon className="h-5 w-5 mr-2" /> Download Extension
-                </Button>
+                <Button variant="outline" className={`w-full text-base py-6 ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#2A1E07] hover:bg-[#C9A84C]/20" : "border-white/15 hover:bg-white/5"}`}>
+                  <DownloadIcon className="h-5 w-5 mr-2" />{t("download.download_extension")}</Button>
               </a>
-              <Link href="/extension" className="mt-3 block text-center text-xs text-white/40 hover:text-white/70">
-                Learn more about the extension →
-              </Link>
+              <Link href="/extension" className={`mt-3 block text-center text-xs ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white/70"}`}>{t("download.learn_more_about_the_extension")}</Link>
+            </div>
+          </LuxReveal>
+
+          {/* iPhone / iPad card */}
+          <LuxReveal>
+            <div className={`rounded-2xl border p-8 ${onIOS ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
+                <Share className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">iPhone & iPad</h2>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Install the full studio as a web app — no App Store needed.</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Full studio, full-screen from your home screen</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Daily bonus & hourly crate on the go</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Same account, same credits</li>
+              </ul>
+              <Button
+                className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6"
+                onClick={() => {
+                  markIOSInstalled();
+                  document.getElementById("ios-install-steps")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <Share className="h-5 w-5 mr-2" />Show me how
+              </Button>
+              {onIOS && (
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>You're on iOS — this one's for you.</p>
+              )}
+            </div>
+          </LuxReveal>
+
+          {/* Chrome web app card */}
+          <LuxReveal>
+            <div className={`rounded-2xl border p-8 ${onChromeMobile ? "border-[#e8c86a]/60 shadow-[0_0_40px_rgba(201,168,76,0.25)]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"} ${isLight ? "bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
+                <Globe className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Chrome Web App</h2>
+              <p className={`text-sm mb-6 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Install the studio straight from Chrome — no download, no sideloading.</p>
+              <ul className={`space-y-2 mb-8 text-sm ${isLight ? "text-[#4A3B1E]" : "text-white/70"}`}>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Full studio, full-screen from your home screen</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Always up to date — no manual updates</li>
+                <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Same account, same credits</li>
+              </ul>
+              <Button
+                className="w-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 text-base py-6"
+                onClick={() => {
+                  markChromeInstalled();
+                  document.getElementById("chrome-install-steps")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <Globe className="h-5 w-5 mr-2" />Show me how
+              </Button>
+              {onChromeMobile && (
+                <p className={`mt-3 text-center text-xs ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>You're on Chrome — this one's for you.</p>
+              )}
             </div>
           </LuxReveal>
         </div>
 
         {/* Install guides */}
-        <div className="mt-16 grid gap-8 md:grid-cols-2">
+        <div id="ios-install-steps" className={`mt-16 grid gap-8 md:grid-cols-2 rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" /> Installing the APK
-            </h3>
+              <ShieldCheck className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.installing_the_apk")}</h3>
             <ol className="space-y-4">
               {APK_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -138,12 +208,41 @@ export default function Download() {
           </div>
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
-              <ShieldCheck className="h-5 w-5 text-[#e8c86a]" /> Installing the extension
-            </h3>
+              <ShieldCheck className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />{t("download.installing_the_extension")}</h3>
             <ol className="space-y-4">
               {EXT_STEPS.map((s, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold text-[#e8c86a]">{i + 1}</span>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{s.title}</p>
+                    <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
+              <Share className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Installing on iPhone / iPad</h3>
+            <ol className="space-y-4">
+              {IOS_STEPS.map((s, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{s.title}</p>
+                    <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div id="chrome-install-steps">
+            <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
+              <Globe className={`h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />Installing from Chrome</h3>
+            <ol className="space-y-4">
+              {CHROME_STEPS.map((s, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#c9a84c]/15 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
                     <p className="text-xs text-white/45 mt-0.5">{s.body}</p>
@@ -156,10 +255,10 @@ export default function Download() {
 
         {/* FAQs */}
         <div className="mt-16">
-          <h3 className="text-lg font-bold mb-6 text-center">Questions</h3>
+          <h3 className="text-lg font-bold mb-6 text-center">{t("download.questions")}</h3>
           <div className="space-y-3 max-w-2xl mx-auto">
             {FAQS.map((f, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+              <div key={i} className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/35 bg-[#FBF6E9] text-[#2A1E07]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="text-sm font-semibold mb-1">{f.q}</p>
                 <p className="text-xs text-white/45">{f.a}</p>
               </div>

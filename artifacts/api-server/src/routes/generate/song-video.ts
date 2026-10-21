@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
@@ -76,6 +77,27 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
 
 type SongStructureData = Record<string, unknown> | null | undefined;
 
+/* ── Request body validation ──────────────────────────────────────────── */
+
+const songVideoSchema = z.object({
+  artistName: z.string().optional(),
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  explicit: z.string().optional(),
+  songTopic: z.string().optional(),
+  voiceStyle: z.string().optional(),
+  beatStyle: z.string().optional(),
+  songLength: z.string().optional(),
+  videoStyle: z.string().optional(),
+  platform: z.string().optional(),
+  artistDescription: z.string().optional(),
+  instructions: z.string().optional(),
+  existingLyrics: z.string().optional(),
+  artistVault: z.record(z.string(), z.string().nullable().optional()).nullable().optional(),
+  songStructure: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
 function formatSongStructure(s: SongStructureData): string {
   if (!s) return "";
   const sections = (s["sections"] as Array<{ name: string; startTime?: string; endTime?: string; notes?: string }>) ?? [];
@@ -96,14 +118,20 @@ function formatSongStructure(s: SongStructureData): string {
 }
 
 router.post("/generate-song-video", requireAuth, async (req, res) => {
+  const parsed = songVideoSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const {
     artistName, songTitle, genre, mood, explicit, songTopic,
     voiceStyle, beatStyle, songLength, videoStyle, platform,
     artistDescription, instructions, existingLyrics,
-  } = req.body as Record<string, string>;
-
-  const artistVault = req.body.artistVault as VaultData | null | undefined;
-  const songStructure = req.body.songStructure as SongStructureData;
+    artistVault, songStructure,
+  } = parsed.data;
 
   const currentCredits = req.userCredits ?? 0;
 

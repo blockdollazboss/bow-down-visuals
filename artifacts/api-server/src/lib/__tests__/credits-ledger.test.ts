@@ -17,6 +17,22 @@ vi.mock("../payment-record", () => ({
   recordCreditUsageStrict: vi.fn(),
 }));
 
+vi.mock("../teams", () => ({
+  // chargeCredits() gained a team-pool lookup (getUserActiveTeam) after this
+  // suite was written. Every scenario below exercises the PERSONAL-balance
+  // path, so the faithful stub is "this user has no active team":
+  // getUserActiveTeam resolves null, exactly as it does in production for a
+  // teamless user, and charge falls through to deductCredits(). The real
+  // implementation queries Render Postgres via Drizzle — unstubbed it throws
+  // ECONNREFUSED before any ledger logic runs, which is what darkened this
+  // suite. deductTeamCredits must never be reached on the personal path;
+  // make it reject loudly if a future change routes these scenarios there.
+  getUserActiveTeam: vi.fn(async () => null),
+  deductTeamCredits: vi.fn(async () => {
+    throw new Error("deductTeamCredits must not be called on the personal-balance path");
+  }),
+}));
+
 import { getSupabaseAdmin, addCreditsToProfile } from "../supabase-admin";
 import { recordCreditUsageStrict } from "../payment-record";
 import {
@@ -66,6 +82,11 @@ describe("chargeCredits — ledger atomicity", () => {
       action: "Test Charge",
       creditsUsed: 5,
       projectId: null,
+      // The ledger record gained teamId + idempotencyKey when team-pool
+      // charges and P0-23 idempotency landed; on the personal, no-key path
+      // both are null. Exact-shape assertion kept at full strength.
+      teamId: null,
+      idempotencyKey: null,
     });
     expect(addCreditsToProfile).not.toHaveBeenCalled();
   });

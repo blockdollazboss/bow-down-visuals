@@ -1,3 +1,4 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +34,7 @@ export interface ArtistVault {
   voice_preview_url: string | null;
   is_active: boolean;
   created_at: string;
+  spotlight_order?: number | null;
 }
 
 /* ─── Subject types ────────────────────────────────────────────────────────
@@ -63,7 +65,7 @@ export function normalizeSubjectType(value: string | null | undefined): SubjectT
 
 export const SUBJECT_TYPE_META: Record<
   SubjectType,
-  { label: string; badge: string; dot: string; glow: string; description: string; icon: LucideIcon }
+  { label: string; badge: string; dot: string; glow: string; description: string; icon: LucideIcon; color: string }
 > = {
   singer: {
     label: "Singer",
@@ -72,6 +74,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
     description: "Singers and vocalists - for music videos and songs",
     icon: Mic,
+    color: "#67e8f9",
   },
   rapper: {
     label: "Rapper",
@@ -80,6 +83,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
     description: "Rappers and hip-hop artists - for music videos and songs",
     icon: Flame,
+    color: "#fcd34d",
   },
   influencer: {
     label: "Influencer",
@@ -88,6 +92,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(232,121,249,0.25)]",
     description: "Influencers and content creators - for promos, socials, and brand content",
     icon: Users,
+    color: "#f0abfc",
   },
   actor: {
     label: "Actor",
@@ -96,6 +101,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(96,165,250,0.25)]",
     description: "Actors, male presenters, hosts - for movies, series, and skits",
     icon: Clapperboard,
+    color: "#93c5fd",
   },
   actress: {
     label: "Actress",
@@ -104,6 +110,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,113,133,0.25)]",
     description: "Actresses, female presenters, hosts - for movies, series, and skits",
     icon: Drama,
+    color: "#fda4af",
   },
   character: {
     label: "Character",
@@ -112,6 +119,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(192,132,252,0.25)]",
     description: "Fictional characters, mascots, avatars - for stories and branding",
     icon: Ghost,
+    color: "#d8b4fe",
   },
   gamer: {
     label: "Gamer",
@@ -120,6 +128,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(52,211,153,0.25)]",
     description: "Gamers, streamers, esports players - for gaming content and streams",
     icon: Gamepad2,
+    color: "#6ee7b7",
   },
   streamer: {
     label: "Streamer",
@@ -128,6 +137,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(163,230,53,0.35)]",
     description: "Streamers, live creators, broadcasters - for live content and community streams",
     icon: Radio,
+    color: "#bef264",
   },
   podcaster: {
     label: "Podcaster",
@@ -136,6 +146,7 @@ export const SUBJECT_TYPE_META: Record<
     glow: "shadow-[0_0_12px_rgba(251,146,60,0.25)]",
     description: "Podcasters, hosts, interviewers - for podcasts and talk content",
     icon: Podcast,
+    color: "#fdba74",
   },
 };
 
@@ -175,6 +186,7 @@ const selectClass =
   "h-10 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 pr-8 text-sm focus:outline-none focus:border-primary/50 appearance-none cursor-pointer";
 
 export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loadedVaultProp, context }: Props) {
+  const isLight = useIsLightTheme();
   const { getAccessToken } = useAuth();
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [selected, setSelected] = useState("");
@@ -227,7 +239,7 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
 
   if (!loaded && vaults.length === 0) {
     return (
-      <div className="mb-6 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
+      <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <Archive className="h-4 w-4 text-white/25 shrink-0" />
         <p className="text-sm text-white/40">
           No subject profiles yet.{" "}
@@ -253,10 +265,29 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
       </div>
 
       {loaded ? (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-primary/30 shrink-0">
-            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-          </div>
+        <div className={`flex items-center gap-3 p-3 rounded-xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          {/* Subject photo — image, then video, then checkmark */}
+          {loaded.reference_image_url ? (
+            <img
+              src={loaded.reference_image_url}
+              alt=""
+              className="h-10 w-10 rounded-full object-cover shrink-0 border border-primary/30"
+            />
+          ) : loaded.reference_video_url ? (
+            <video
+              src={loaded.reference_video_url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              ref={(v) => { if (v) v.muted = true; }}
+              className="h-10 w-10 rounded-full object-cover shrink-0 border border-primary/30 pointer-events-none"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-primary/30 shrink-0">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+            </div>
+          )}
           <div className="min-w-0 flex items-center gap-2.5">
             <p className="text-sm font-bold text-white truncate tracking-wide">{loaded.artist_name}</p>
             <SubjectBadge type={normalizeSubjectType(loaded.artist_type)} />
@@ -295,9 +326,9 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
                       v.id === selected ? "bg-gradient-to-r from-primary/[0.15] to-transparent border-l-2 border-l-primary" : "border-l-2 border-l-transparent"
                     }`}
                   >
-                    <span className="truncate text-sm text-white font-medium tracking-wide">{v.artist_name}</span>
+                    <span className="min-w-0 truncate text-sm text-white font-medium tracking-wide">{v.artist_name}</span>
                     <SubjectBadge type={normalizeSubjectType(v.artist_type)} />
-                    {v.genre && <span className="ml-auto text-xs text-white/35 truncate pl-2 font-medium">{v.genre}</span>}
+                    {v.genre && <span className="ml-auto min-w-0 text-xs text-white/35 truncate pl-2 font-medium">{v.genre}</span>}
                   </button>
                 ))}
               </div>

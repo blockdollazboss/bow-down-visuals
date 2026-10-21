@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
   Sidebar,
@@ -22,17 +24,14 @@ import {
   Home,
   LayoutDashboard,
   Layers,
-  Music,
   Music2,
   Disc,
   Drum,
   ShoppingCart,
   Wallet,
-  Video,
   Film,
   Clapperboard,
   Image,
-  Images,
   Sparkles,
   CreditCard,
   Mic2,
@@ -49,7 +48,6 @@ import {
   GraduationCap,
   Shirt,
   ListMusic,
-  SearchCheck,
   Handshake,
   Megaphone,
   ClipboardCheck,
@@ -66,18 +64,17 @@ import {
   Scissors,
   Lightbulb,
   PenLine,
-  Dices,
   Captions,
   Disc3,
   BookOpen,
   AudioWaveform,
-  Waves,
-  AudioLines,
   Languages,
   Type,
   CalendarDays,
   Clock,
   MessageSquareReply,
+  MessageCircle,
+  Compass,
   TrendingUp,
   Repeat,
   DollarSign,
@@ -89,107 +86,102 @@ import {
   Users,
   Trophy,
   Ticket,
+  Nfc,
   Copyright,
   Scale,
   UsersRound,
   Maximize,
   Eraser,
   MicOff,
-  Split,
-  Volume2,
-  Package,
-  Palette,
-  Tv,
-  FlaskConical,
   Podcast,
-  PlaySquare,
   Gamepad2,
+  Swords,
   Gem,
   Gift,
   Puzzle,
   Star,
-  Gauge,
   BarChart3,
   Crown,
   Rocket,
+  LayoutGrid,
   type LucideIcon,
 
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { BowTestLogo } from "@/components/BowTestLogo";
+import { ThemedLogo } from "@/components/ThemedLogo";
+import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
 
 const IS_DEV = import.meta.env.DEV;
 
-/** Simple / Advanced mode switch — ported from the old TopBar so the
- *  toolbar's mode control lives in the sidebar now. */
+/** Creator Rank display — stars are EARNED (server-computed from
+ *  recorded work; see lib/creator-rank.ts on the API). This is a
+ *  display, not a dial: there is nothing to tap to change your rank.
+ *  It shows the earned stars, the rank name, progress toward the next
+ *  star, and what earns it — the next thing, named. */
 function ModeToggle() {
-  const { stars, maxStars, setStars } = useUserMode();
+  const { stars, rank } = useUserMode();
+  const next = rank?.next ?? null;
+  const progressPct =
+    rank == null
+      ? 0
+      : next == null
+        ? 100
+        : Math.min(100, Math.round((rank.points / Math.max(1, next.pointsAt)) * 100));
   return (
-    <div className="w-full space-y-1.5" role="radiogroup" aria-label="Creator level">
+    <div className="w-full space-y-1.5" aria-label="Creator rank">
       <div className="flex items-center justify-between px-0.5">
         <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
-          Creator Level
+          Creator Rank
         </span>
         <span className="text-[10px] font-black text-primary uppercase">
           {STAR_RANKS[stars - 1]}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-1">
-        {([1, 2, 3, 4, 5, 6] as const).map((s) => {
-          const active = s <= stars;
-          const locked = s > maxStars;
-          const starIcon = (
-            <Star
-              className={`h-5 w-5 transition-colors ${
-                active
-                  ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
-                  : "fill-transparent text-white/20 hover:text-white/40"
-              }`}
-            />
-          );
-          if (locked) {
-            return (
-              <Link
-                key={s}
-                href="/pricing"
-                aria-label={`${s} stars — ${STAR_RANKS[s - 1]} — locked, requires ${STAR_RANKS[s - 1]} plan`}
-                title={`Locked — requires the ${STAR_RANKS[s - 1]} plan. Tap to see plans.`}
-                className="flex-1 flex justify-center items-center gap-0.5 py-1 opacity-50 hover:opacity-90 transition-opacity"
-              >
-                {starIcon}
-                <Lock className="h-3 w-3 text-white/40" />
-              </Link>
-            );
-          }
-          return (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={stars === s}
-              aria-label={`${s} star${s > 1 ? "s" : ""} — ${STAR_RANKS[s - 1]}`}
-              onClick={() => setStars(s)}
-              className="flex-1 flex justify-center py-1 transition-transform hover:scale-125 active:scale-95"
-              title={`${STAR_RANKS[s - 1]} — ${STAR_TAGLINES[s - 1]}`}
-            >
-              {starIcon}
-            </button>
-          );
-        })}
+      <div className="flex items-center justify-between gap-1 px-0.5" aria-label={`${stars} of 6 stars earned`}>
+        {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+          <Star
+            key={s}
+            className={`h-5 w-5 ${
+              s <= stars
+                ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
+                : "fill-transparent text-white/20"
+            }`}
+          />
+        ))}
       </div>
-      <p className="text-[10px] text-white/35 px-0.5">
-        {STAR_TAGLINES[stars - 1]}
-      </p>
-      {maxStars < 6 && (
+      {rank != null && next != null && (
+        <>
+          <div
+            className="mx-0.5 h-1 rounded-full bg-white/10 overflow-hidden"
+            role="progressbar"
+            aria-valuenow={rank.points}
+            aria-valuemax={next.pointsAt}
+            aria-label={`${rank.points} of ${next.pointsAt} points toward ${next.stars} stars`}
+          >
+            <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+          </div>
+          <p className="text-[10px] text-white/35 px-0.5">
+            {rank.points} pts · {next.pointsNeeded} to {STAR_RANKS[next.stars - 1]}
+          </p>
+          {rank.hints.slice(0, 2).map((hint) => (
+            <p key={hint} className="text-[10px] text-white/35 px-0.5">
+              {hint}
+            </p>
+          ))}
+        </>
+      )}
+      {rank != null && next == null && (
         <p className="text-[10px] text-white/35 px-0.5">
-          <Link href="/pricing" className="underline underline-offset-2 hover:text-white/60">
-            Upgrade your plan
-          </Link>{" "}
-          to unlock more stars.
+          {rank.points} pts · top rank — every star earned.
         </p>
+      )}
+      {rank == null && (
+        <p className="text-[10px] text-white/35 px-0.5">{STAR_TAGLINES[stars - 1]}</p>
       )}
     </div>
   );
@@ -197,7 +189,7 @@ function ModeToggle() {
 
 interface NavLink {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   adminOnly?: boolean;
   tour?: string;
@@ -205,7 +197,7 @@ interface NavLink {
 }
 
 interface NavSection {
-  title: string;
+  titleKey: string;
   links: NavLink[];
 }
 
@@ -220,146 +212,152 @@ function NavItemBadge({ text }: { text: string }) {
   );
 }
 
-/* ── Grouped navigation: every routed page reachable, no dead links ── */
+/* ── Grouped navigation: 19 hub entries. Every former standalone page lives
+   as a tab inside its hub; old URLs redirect (see App.tsx). ── */
 const SECTIONS: NavSection[] = [
   {
-    title: "Home",
+    /* My Studio — the creator's house (blueprint Phase 1, 2026-10-13):
+       home base first, then the flow Create → Brand → Promote → Social →
+       Get Paid. My Projects / Vault / Library moved out of Create. */
+    titleKey: "nav.myStudio",
     links: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/", labelKey: "nav.home", icon: Home },
+      { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
+      { href: "/library", labelKey: "nav.library", icon: Library },
+      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
     ],
   },
   {
-    title: "Create",
+    titleKey: "nav.create",
     links: [
-      { href: "/hub", label: "Creation Hub", icon: Layers },
-      { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
-      { href: "/make-song", label: "Make a Song", icon: Music },
-      { href: "/beat-maker", label: "Beat Maker", icon: Drum },
-      { href: "/make-video", label: "Video for My Song", icon: Video },
-      { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
-      { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
-      { href: "/clip-maker", label: "AI Streamer Clips", icon: Scissors },
-      { href: "/create", label: "Quick Create", icon: Zap },
-      { href: "/my-projects", label: "My Projects", icon: FolderOpen },
-      { href: "/my-clips", label: "My Clips", icon: Library },
-      { href: "/songs", label: "Songs", icon: Music2 },
-      { href: "/artist-vault", label: "Creator Vault", icon: ShieldCheck },
-      { href: "/locations", label: "Locations", icon: MapPin },
-      { href: "/jewelry", label: "Logo-to-Luxury Studio", icon: Gem },
-      { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },
+      { href: "/create", labelKey: "nav.create", icon: Layers },
+      /* The two headline creation verbs get their own front doors
+         (findability fix, 2026-10-18) — they used to sit 2–3 layers
+         deep inside the hub and the Audio Studio tab strip. */
+      { href: "/create?panel=song", labelKey: "nav.makeSong", icon: Music2 },
+      { href: "/audio-studio?tab=aiaudio&sub=beats", labelKey: "nav.beatMaker", icon: Drum },
+      /* The beat shelf gets its own front door with the shell wrap
+         (2026-10-18): creators pick beats for their songs here; the
+         page used to render outside the sidebar shell entirely. */
+      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3 },
+      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
+      { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
+      { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
+      { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
+      { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen },
     ],
   },
   {
-    title: "AI Studio",
+    /* Branding gets its own home (was filed under Monetize). Phase 2
+       de-hosted Storefronts and My Shop out of the Coach into here. */
+    titleKey: "nav.branding",
     links: [
-      { href: "/hooks", label: "Hook Studio", icon: Lightbulb },
-      { href: "/script-writer", label: "Script Writer", icon: PenLine },
-      { href: "/randomizer", label: "Content Randomizer", icon: Dices },
-      { href: "/caption-styler", label: "Caption Styler", icon: Captions },
-      { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
-      { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
-      { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
-      { href: "/cover-art", label: "Cover Art", icon: Disc3 },
-      { href: "/lyric-video", label: "Lyric Video Maker", icon: AudioWaveform },
-      { href: "/voiceover", label: "Voiceover Studio", icon: Mic2 },
-      { href: "/translate", label: "Translator", icon: Languages },
-      { href: "/titles", label: "Title Studio", icon: Type },
+      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
+      { href: "/storefronts", labelKey: "nav.storefronts", icon: Store },
+      { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag },
+      { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc },
     ],
   },
   {
-    title: "Grow",
+    titleKey: "nav.promote",
     links: [
-      { href: "/content-calendar", label: "Content Calendar", icon: CalendarDays },
-      { href: "/scheduler", label: "Scheduler", icon: Clock },
-      { href: "/comment-replies", label: "Comment Replies", icon: MessageSquareReply },
-      { href: "/trends", label: "Trend Predictor", icon: TrendingUp },
-      { href: "/repurpose", label: "Content Repurposer", icon: Repeat },
-      { href: "/sounds", label: "Sound Finder", icon: AudioWaveform },
-      { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
-      { href: "/virality-check", label: "Virality Check", icon: Gauge },
-      { href: "/analytics-hub", label: "Analytics Hub", icon: BarChart3 },
-      { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
-      { href: "/go-live", label: "Go Live", icon: Radio },
-      { href: "/shows", label: "Show Finder", icon: Ticket },
-      { href: "/discord-bot", label: "Discord Bot", icon: Bot },
+      { href: "/promote", labelKey: "nav.promote", icon: Megaphone },
+      { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
+      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
+      { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
+      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart },
+      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
+      { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
     ],
   },
   {
-    title: "Monetize",
+    /* The social area — unburied 2026-10-12 (owner directive); renamed to
+       Social in the Phase-1 six-area map. Feed is the front door (/home,
+       the creator timeline); Thy Cheat Code is every member's first friend. */
+    titleKey: "nav.social",
     links: [
-      { href: "/distribute", label: "Distribute Music", icon: Rocket },
-      { href: "/coach", label: "Monetization Coach", icon: DollarSign },
-      { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
-      { href: "/brand-deals", label: "Brand Deal Finder", icon: Handshake },
-      { href: "/sponsors", label: "Sponsor Marketplace", icon: Users },
-      { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
-      { href: "/tips", label: "Tips", icon: HeartHandshake },
-      { href: "/merch", label: "Merch Designer", icon: Shirt },
-      { href: "/branding-shop", label: "Branding Shop", icon: Store },
-      { href: "/beats", label: "Beats Marketplace", icon: Disc },
-      { href: "/live-shopping", label: "Live Shopping", icon: ShoppingCart },
-      { href: "/memberships", label: "Memberships", icon: Star },
-      { href: "/royalties", label: "Royalties", icon: Wallet },
-      { href: "/storefronts", label: "Storefronts", icon: ShoppingBag },
-      { href: "/my-shop", label: "My Shop", icon: Store },
-      { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
-      { href: "/press-kit", label: "Press Kit", icon: Newspaper },
-      { href: "/email-list", label: "Email List", icon: Mail },
-      { href: "/collabs", label: "Collabs", icon: UsersRound },
-      { href: "/contests", label: "Contests", icon: Trophy },
-      { href: "/referrals", label: "Referrals", icon: Gift },
-      { href: "/team", label: "Team", icon: Users },
+      { href: "/home", labelKey: "nav.feed", icon: Newspaper },
+      { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard },
+      { href: "/explore", labelKey: "nav.explore", icon: Compass },
+      { href: "/groups", labelKey: "nav.groups", icon: Users },
+      { href: "/community", labelKey: "nav.community", icon: MessageSquareReply },
+      { href: "/events", labelKey: "nav.events", icon: CalendarDays },
+      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
+      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
+      { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      /* Fan Shoutouts joins Social with the shell wrap (2026-10-18) —
+         the marketplace page used to render outside the shell and had
+         no sidebar door at all. */
+      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone },
+      { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW" },
+      { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW" },
+      /* Quests live on the dashboard surface — this is their front door
+         (findability fix, 2026-10-18); the World Quest Board is the other. */
+      { href: "/dashboard", labelKey: "nav.quests", icon: ClipboardCheck },
+      { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
     ],
   },
   {
-    title: "Learn",
+    titleKey: "nav.getPaid",
     links: [
-      { href: "/guides", label: "Guides & Services", icon: BookOpen },
-      { href: "/academy", label: "Creator Academy", icon: GraduationCap },
-      { href: "/copyright", label: "Copyright", icon: Copyright },
-      { href: "/llc-guide", label: "LLC Guide", icon: Scale },
-      { href: "/community", label: "Community", icon: UsersRound },
-    ],
-  },
-  {
-    title: "Tools",
-    links: [
-      { href: "/extension", label: "Chrome Extension", icon: Puzzle, badge: "NEW" },
-      { href: "/upscale", label: "Upscale & Clean", icon: Maximize },
-      { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
-      { href: "/audio-cleanup", label: "Audio Cleanup", icon: Waves },
-      { href: "/vocal-removal", label: "Vocal Removal", icon: MicOff },
-      { href: "/stems", label: "Stem Splitter", icon: Split },
-      { href: "/mastering", label: "AI Mastering", icon: SlidersHorizontal },
-      { href: "/mix-master", label: "Mix & Master", icon: AudioLines },
-      { href: "/sfx", label: "SFX Generator", icon: Volume2 },
-      { href: "/samples", label: "Sample Packs", icon: Package },
-      { href: "/logo-maker", label: "Logo Maker", icon: Palette },
-      { href: "/branding-kit", label: "Branding Kit", icon: Crown },
-      { href: "/intros-outros", label: "Intros & Outros", icon: PlaySquare },
-      { href: "/stream-pack", label: "Stream Pack", icon: Tv },
-      { href: "/thumbnail-test", label: "Thumbnail A/B Test", icon: FlaskConical },
-      { href: "/podcast", label: "Podcast Studio", icon: Podcast },
+      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      /* The money-ops cluster gets real doors (findability fix,
+         2026-10-18): Earnings had NO website link anywhere; Memberships
+         and Tips were footer-only; Team hid inside the Coach. */
+      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet },
+      { href: "/memberships", labelKey: "nav.memberships", icon: Ticket },
+      { href: "/team", labelKey: "nav.team", icon: Users },
+      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake },
+      { href: "/brand-deals", labelKey: "nav.brandDeals", icon: Handshake },
+      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
+      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
+      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
     ],
   },
 ];
 
 const FOOTER_LINKS: NavLink[] = [
-  { href: "/pricing", label: "Pricing", icon: CreditCard },
-  { href: "/credit-history", label: "Visual Buc History", icon: Zap },
-  { href: "/cursor-lab", label: "Cursor Style", icon: MousePointer2 },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
+  /* The safety net: the /features registry names every feature by its
+     real name (findability fix, 2026-10-18). */
+  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid },
+  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings },
+  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
-  const [open, setOpen] = useState(true);
+  const { t } = useTranslation();
+  // Persist collapsed state per section so it survives remounts/navigation.
+  // Defaults to open; auto-opens when the section contains the active page.
+  const storageKey = `bdv-sidebar-${section.titleKey}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) return saved === "1";
+    } catch {}
+    return true;
+  });
   const links = section.links.filter((l) => !l.adminOnly || isAdmin);
   if (links.length === 0) return null;
   const hasActive = links.some((l) => location === l.href);
+  // If the active page is in a collapsed section, auto-expand it.
+  useEffect(() => {
+    if (hasActive && !open) {
+      setOpen(true);
+      try { localStorage.setItem(storageKey, "1"); } catch {}
+    }
+  }, [hasActive]);
+
+  function handleOpenChange(v: boolean) {
+    setOpen(v);
+    try { localStorage.setItem(storageKey, v ? "1" : "0"); } catch {}
+  }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={handleOpenChange}>
       <SidebarGroup className="p-0">
         <CollapsibleTrigger asChild>
           <button
@@ -368,7 +366,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
               hasActive ? "text-primary" : "text-white/30"
             }`}
           >
-            <span>{section.title}</span>
+            <span>{t(section.titleKey)}</span>
             <ChevronsUpDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
           </button>
         </CollapsibleTrigger>
@@ -384,7 +382,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
                   >
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
                       <link.icon className="h-5 w-5" />
-                      <span className="font-medium">{link.label}</span>
+                      <span className="font-medium">{t(link.labelKey)}</span>
                       {link.badge && <NavItemBadge text={link.badge} />}
                     </Link>
                   </SidebarMenuButton>
@@ -399,6 +397,8 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
 }
 
 export function AppSidebar() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [location] = useLocation();
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
@@ -464,11 +464,7 @@ export function AppSidebar() {
         >
           <div className="h-full w-full flex items-center px-4 gap-2 overflow-x-auto">
             <Link href="/" className="flex items-center gap-2 mr-4 shrink-0 pointer-events-none">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.webp`}
-                alt="Bow Down Visuals"
-                className="h-8 w-auto"
-              />
+              <ThemedLogo className="h-8 w-auto" />
             </Link>
             <HorizontalSidebarNav />
           </div>
@@ -491,11 +487,7 @@ export function AppSidebar() {
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 rounded-lg">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.webp`}
-                alt="Bow Down Visuals"
-                className="h-14 w-auto"
-              />
+              <ThemedLogo className="h-14 w-auto" />
             </div>
             <button type="button" onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} title="Hide sidebar" aria-label="Hide sidebar" data-testid="btn-collapse-sidebar" className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black">
               <ChevronsLeft className={`h-4 w-4 ${docked === "right" ? "rotate-180" : ""}`} />
@@ -508,7 +500,7 @@ export function AppSidebar() {
               placeholder="Search pages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50"
+              className={`w-full rounded-lg border pl-9 pr-3 py-2 text-sm outline-none focus:border-primary/50 ${isLight ? "bg-white border-[#C9A84C]/40 text-[#2A1E07] placeholder:text-[#6B5B36]/50" : "bg-[#171208]/40 border-white/10 text-white placeholder:text-white/30"}`}
             />
             {searchQuery && (
               <button
@@ -522,6 +514,9 @@ export function AppSidebar() {
             )}
           </div>
           {user && <div className="pointer-events-auto"><ModeToggle /></div>}
+          <div className="pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
+            <ThemeToggle />
+          </div>
         </SidebarHeader>
 
       <SidebarContent className="gap-1 px-2">
@@ -529,12 +524,12 @@ export function AppSidebar() {
           ? SECTIONS.map((section) => ({
               ...section,
               links: section.links.filter((link) =>
-                link.label.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                t(link.labelKey).toLowerCase().includes(searchQuery.trim().toLowerCase())
               ),
             })).filter((section) => section.links.length > 0)
           : SECTIONS
         ).map((section) => (
-          <SidebarSection key={section.title} section={section} location={location} isAdmin={isAdmin} />
+          <SidebarSection key={section.titleKey} section={section} location={location} isAdmin={isAdmin} />
         ))}
 
         {/* Footer links: pricing, account, admin — always visible */}
@@ -550,7 +545,7 @@ export function AppSidebar() {
                   >
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour}>
                       <link.icon className="h-5 w-5" />
-                      <span className="font-medium">{link.label}</span>
+                      <span className="font-medium">{t(link.labelKey)}</span>
                       {link.href === "/credit-history" && profile && (
                         <span className="ml-auto text-xs font-black text-primary">
                           {profile.credits.toLocaleString("en-US")}
@@ -610,7 +605,7 @@ export function AppSidebar() {
             )}
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? profile.email}</p>
+                <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? "Creator"}</p>
                 <Link
                   href="/pricing"
                   title="View ranks"
@@ -673,15 +668,17 @@ function DockIndicator({ x, y }: { x: number; y: number }) {
 
 /** Horizontal navigation for top/bottom docked sidebar */
 function HorizontalSidebarNav() {
+  const { t } = useTranslation();
   const [location] = useLocation();
   const mainSections = [
-    { title: "Home", href: "/", icon: Home },
-    { title: "Create", href: "/hub", icon: Layers },
-    { title: "AI Studio", href: "/hooks", icon: Sparkles },
-    { title: "Grow", href: "/content-calendar", icon: TrendingUp },
-    { title: "Monetize", href: "/pricing", icon: DollarSign },
-    { title: "Learn", href: "/academy", icon: GraduationCap },
-    { title: "Tools", href: "/settings", icon: Settings },
+    { titleKey: "nav.home", href: "/", icon: Home },
+    { titleKey: "nav.myStudio", href: "/dashboard", icon: LayoutDashboard },
+    { titleKey: "nav.create", href: "/create", icon: Layers },
+    { titleKey: "nav.branding", href: "/branding-kit", icon: Crown },
+    { titleKey: "nav.promote", href: "/promote", icon: Megaphone },
+    { titleKey: "nav.social", href: "/home", icon: Newspaper },
+    { titleKey: SHORTS_NAV_ENTRY.labelKey, href: SHORTS_NAV_ENTRY.href, icon: Clapperboard },
+    { titleKey: "nav.getPaid", href: "/coach", icon: DollarSign },
   ];
   return (
     <>
@@ -689,9 +686,9 @@ function HorizontalSidebarNav() {
         const Icon = section.icon;
         const isActive = location === section.href;
         return (
-          <Link key={section.title} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+          <Link key={section.titleKey} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
             <Icon className="h-4 w-4" />
-            <span className="hidden md:inline">{section.title}</span>
+            <span className="hidden md:inline">{t(section.titleKey)}</span>
           </Link>
         );
       })}

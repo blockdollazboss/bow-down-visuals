@@ -1,0 +1,169 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
+import { Switch } from "@/components/ui/switch";
+import { BellRing, AlertTriangle, RotateCcw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+/* ── Retention & nudges settings ────────────────────────────────────────
+   One board, every system with an off switch. Flip anything off and the
+   system stays silent (each backend system honours its pref). */
+
+type PrefKey =
+  | "daily_drop_enabled"
+  | "away_digest_enabled"
+  | "creation_streaks_enabled"
+  | "quests_enabled"
+  | "login_streaks_enabled"
+  | "share_to_earn_enabled"
+  | "contests_enabled"
+  | "fomo_feed_enabled";
+
+const PREF_KEYS: PrefKey[] = [
+  "daily_drop_enabled",
+  "away_digest_enabled",
+  "creation_streaks_enabled",
+  "quests_enabled",
+  "login_streaks_enabled",
+  "share_to_earn_enabled",
+  "contests_enabled",
+  "fomo_feed_enabled",
+];
+
+const PREF_I18N: Record<PrefKey, string> = {
+  daily_drop_enabled: "dailyDropEnabled",
+  away_digest_enabled: "awayDigestEnabled",
+  creation_streaks_enabled: "creationStreaksEnabled",
+  quests_enabled: "questsEnabled",
+  login_streaks_enabled: "loginStreaksEnabled",
+  share_to_earn_enabled: "shareToEarnEnabled",
+  contests_enabled: "contestsEnabled",
+  fomo_feed_enabled: "fomoFeedEnabled",
+};
+
+export function RetentionPrefsSettings() {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { user, getAccessToken } = useAuth();
+  const { toast } = useToast();
+  const [prefs, setPrefs] = useState<Record<PrefKey, boolean> | null>(null);
+  const [saving, setSaving] = useState<PrefKey | null>(null);
+  /* A failed load is NOT "everything on" — while prefs is null the
+     switches would otherwise render fabricated checked=ON values,
+     disabled forever. Failures get an error state with a retry, and
+     the switch list renders only after a successful load attempt
+     clears it. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      setLoadError(false);
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/retention/prefs", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error("load failed");
+        const d = await res.json() as Record<PrefKey, boolean>;
+        if (cancelled) return;
+        setPrefs({
+          daily_drop_enabled: d.daily_drop_enabled ?? true,
+          away_digest_enabled: d.away_digest_enabled ?? true,
+          creation_streaks_enabled: d.creation_streaks_enabled ?? true,
+          quests_enabled: d.quests_enabled ?? true,
+          login_streaks_enabled: d.login_streaks_enabled ?? true,
+          share_to_earn_enabled: d.share_to_earn_enabled ?? true,
+          contests_enabled: d.contests_enabled ?? true,
+          fomo_feed_enabled: d.fomo_feed_enabled ?? true,
+        });
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, getAccessToken, retryNonce]);
+
+  async function toggle(key: PrefKey, next: boolean) {
+    if (!prefs || saving) return;
+    const prev = prefs[key];
+    setPrefs({ ...prefs, [key]: next });
+    setSaving(key);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/retention/prefs", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ [key]: next }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      const d = await res.json() as Record<PrefKey, boolean>;
+      setPrefs({
+        daily_drop_enabled: d.daily_drop_enabled ?? next,
+        away_digest_enabled: d.away_digest_enabled ?? next,
+        creation_streaks_enabled: d.creation_streaks_enabled ?? next,
+        quests_enabled: d.quests_enabled ?? next,
+        login_streaks_enabled: d.login_streaks_enabled ?? next,
+        share_to_earn_enabled: d.share_to_earn_enabled ?? next,
+        contests_enabled: d.contests_enabled ?? next,
+        fomo_feed_enabled: d.fomo_feed_enabled ?? next,
+      });
+      toast({ title: t("retention.prefs.saved") });
+    } catch {
+      setPrefs({ ...prefs, [key]: prev }); // revert on failure
+      toast({ title: t("retention.prefs.saveFailed"), variant: "destructive" });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <section className={`rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className="flex items-center gap-3 mb-1">
+        <div className="h-10 w-10 rounded-xl bg-primary/[0.12] border border-primary/25 flex items-center justify-center shrink-0">
+          <BellRing className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-base font-black text-white">{t("retention.prefs.title")}</h2>
+          <p className="text-xs text-white/40 mt-0.5">{t("retention.prefs.subtitle")}</p>
+        </div>
+      </div>
+      {loadError ? (
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4 text-sm text-red-200/80 flex items-center gap-3">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {t("retention.prefs.loadError")}
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> {t("retention.prefs.retry")}
+          </button>
+        </div>
+      ) : (
+      <div className="mt-4 divide-y divide-white/[0.05]">
+        {PREF_KEYS.map((key) => (
+          <div key={key} className="flex items-center gap-4 py-3.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">{t(`retention.prefs.${PREF_I18N[key]}.title`)}</p>
+              <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed">{t(`retention.prefs.${PREF_I18N[key]}.desc`)}</p>
+            </div>
+            <Switch
+              checked={prefs ? prefs[key] : true}
+              disabled={!prefs || saving !== null}
+              onCheckedChange={(v: boolean) => toggle(key, v)}
+              aria-label={t(`retention.prefs.${PREF_I18N[key]}.title`)}
+            />
+          </div>
+        ))}
+      </div>
+      )}
+    </section>
+  );
+}

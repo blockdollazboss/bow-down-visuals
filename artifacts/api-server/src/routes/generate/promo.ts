@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
@@ -8,6 +9,22 @@ import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/cr
 const router = Router();
 
 const CREDIT_COST = 100;
+
+const promoSchema = z.object({
+  artistName: z.string().optional(),
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  platform: z.string().optional(),
+  promoGoal: z.string().optional(),
+  songHook: z.string().optional(),
+  instructions: z.string().optional(),
+  promoType: z.string().optional(),
+  lyrics: z.string().optional(),
+  hasRunwayClips: z.boolean().optional(),
+  clipCount: z.number().optional(),
+  artistVault: z.record(z.string(), z.string().nullable().optional()).nullable().optional(),
+});
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -65,12 +82,19 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
 }
 
 router.post("/generate-promo-clips", requireAuth, async (req, res) => {
+  const parsed = promoSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const {
     artistName, songTitle, genre, mood, platform, promoGoal, songHook, instructions,
-    promoType, lyrics, hasRunwayClips, clipCount,
-  } = req.body as Record<string, string | boolean | number>;
+    promoType, lyrics, hasRunwayClips, clipCount, artistVault,
+  } = parsed.data;
 
-  const artistVault = req.body.artistVault as VaultData | null | undefined;
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -107,7 +131,7 @@ Mood: ${mood || "Dark"}
 Primary Platform: ${platform || "TikTok 9:16"}
 Promo Goal: ${promoGoal || "Drive streams"}${promoTypeLine}${lyricsBlock}${clipsLine}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
-${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
+${buildVaultContext(artistVault)}${await buildCoStarContext(artistVault?.["vaultId"] ?? artistVault?.["id"], req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Every idea must be platform-specific, creative, and ready to execute immediately.
 

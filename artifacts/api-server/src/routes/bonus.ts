@@ -3,9 +3,8 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   getBonusProfile,
   claimDailyBonus,
-  spinWheel,
   canClaimDaily,
-  wheelCooldownSeconds,
+  crateCooldownSeconds,
   activeBonusBalance,
   WHEEL_SEGMENTS,
   DAILY_BONUS_BASE,
@@ -13,6 +12,7 @@ import {
   WHEEL_COOLDOWN_MINUTES,
   utcToday,
   utcYesterday,
+  utcDayBeforeYesterday,
   claimHourlyCrate,
   hourlyCrateStatus,
 } from "../lib/bonus";
@@ -27,22 +27,36 @@ router.get("/bonus/status", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
     const p = await getBonusProfile(userId);
+    // The crate's real state lives in hourly_crate_claims (written by
+    // claimHourlyCrate, the routed spin) — the same source
+    // /bonus/hourly-crate-status reads. See crateCooldownSeconds.
+    const crate = await hourlyCrateStatus();
     // Effective streak: 0 if the last claim is older than yesterday (missed a day).
     // The stored value only updates on claim, so it can be stale.
-    // Manual claim only — no auto-claim. Miss a day, lose the streak.
+    // Manual claim only — no auto-claim. Miss a day, lose the streak,
+    // UNLESS exactly one day was missed and a streak freeze is banked —
+    // claiming today auto-consumes it and preserves the chain.
     let effectiveStreak = p.dailyStreak;
+    let freezeWouldSave = false;
     const last = p.lastDailyClaim;
     if (last && last !== utcToday() && last !== utcYesterday()) {
       effectiveStreak = 0;
+      if (last === utcDayBeforeYesterday() && p.streakFreezes > 0) {
+        freezeWouldSave = true;
+        effectiveStreak = p.dailyStreak;
+      }
     }
     res.json({
       streak: effectiveStreak,
       canClaimDaily: canClaimDaily(p.lastDailyClaim),
+      lastDailyClaim: p.lastDailyClaim,
+      streakFreezes: p.streakFreezes,
+      freezeWouldSave,
       dailyBonusBase: DAILY_BONUS_BASE,
       dailyBonusMilestone: DAILY_BONUS_STREAK_7,
       bonusCredits: activeBonusBalance(p.bonusCredits, p.bonusExpiresAt),
       bonusExpiresAt: p.bonusExpiresAt,
-      wheelCooldownSeconds: wheelCooldownSeconds(p.lastWheelSpin),
+      wheelCooldownSeconds: crateCooldownSeconds(crate),
       wheelCooldownMinutes: WHEEL_COOLDOWN_MINUTES,
       wheelSegments: WHEEL_SEGMENTS.map((s) => ({ credits: s.credits, label: s.label, isJackpot: !!s.isJackpot })),
     });
@@ -68,6 +82,9 @@ router.post("/bonus/claim-daily", requireAuth, async (req, res) => {
       streak: result.streak,
       bonusGranted: result.bonusGranted,
       isStreakMilestone: result.isStreakMilestone,
+      freezeUsed: result.freezeUsed,
+      freezesEarned: result.freezesEarned,
+      streakFreezes: result.streakFreezes,
     });
   } catch (err: unknown) {
     req.log.error({ err }, "bonus/claim-daily error");

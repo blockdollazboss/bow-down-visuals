@@ -377,6 +377,7 @@ function TimelinePreviewPlayer({
     v: HTMLVideoElement,
     errorLabel: string,
     clipTimeInScene = 0,
+    autoplay = true,
   ) {
     if (!scene.demoClipUrl) return;
     const rawOffset = scene.clipVideoOffsetSec ?? 0;
@@ -400,7 +401,12 @@ function TimelinePreviewPlayer({
     } else {
       // Negative offset or mid-scene seek: adjust currentTime directly
       v.currentTime = Math.max(0, clipTimeInScene - rawOffset);
-      v.play().catch((e: Error) => setLastError(`${errorLabel}: ${e.message}`));
+      // Only start playback when the caller intends it. A seek on a paused
+      // timeline must never autoplay — the old unconditional play() here raced
+      // with the sync pause() in seekTo and lost on iOS (clip visibly played).
+      if (autoplay) {
+        v.play().catch((e: Error) => setLastError(`${errorLabel}: ${e.message}`));
+      }
     }
   }
 
@@ -543,13 +549,13 @@ function TimelinePreviewPlayer({
       } else if (audioRef.current) {
         audioRef.current.currentTime = toTrackTime(t);
       }
-      // Seek video to correct clip position
+      // Seek video to correct clip position — pass the actual play state so a
+      // paused seek never autoplays the clip.
       const idx = isManual ? sceneAtManual(t, sceneTimings, manualResult!.order) : sceneAt(t, offsets);
       const scene = idx >= 0 ? scenes[idx] : undefined;
       if (scene?.demoClipUrl && videoRef.current) {
         const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
-        loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
-        if (!isPlayingNow) videoRef.current.pause();
+        loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset, isPlayingNow);
       } else if (videoRef.current) {
         videoRef.current.pause();
       }
@@ -602,7 +608,7 @@ function TimelinePreviewPlayer({
       className={
         isFullscreen
           ? "bg-[#080808] flex flex-col w-full h-full overflow-hidden"
-          : "rounded-xl border border-primary/20 bg-[#080808] overflow-hidden"
+          : "bg-[#080808] flex flex-col w-full h-full overflow-hidden"
       }
     >
       {/* Hidden audio element — IS the master clock */}
@@ -627,6 +633,7 @@ function TimelinePreviewPlayer({
            audio engine + controls, not a second preview area here.          */}
       {!externalVideoRef && <div
         className={`relative bg-black ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}
+        data-dark-lock
       >
         {hasClip ? (
           <video
@@ -742,7 +749,7 @@ function TimelinePreviewPlayer({
 
       {/* ── Controls ─────────────────────────────────────────── */}
       <div
-        className={`px-4 py-3 border-t border-white/[0.05] space-y-3 ${isFullscreen ? "overflow-y-auto max-h-64 shrink-0" : ""}`}
+        className="px-4 py-3 border-t border-white/[0.05] space-y-3 shrink-0"
       >
         {/* Caption overlay info */}
         {!isFullscreen && (

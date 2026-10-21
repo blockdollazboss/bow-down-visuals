@@ -120,13 +120,13 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       setSettings(next);
       if (autoApplied) setTransitionError(null);
       toast({
-        title: "AI Edit Plan ready ✓",
-        description: `Generated with ${data.source === "ai" ? "GPT-4o-mini AI" : "smart defaults"}.${autoApplied ? " AI transitions auto-applied to the timeline." : " Review the plan then click Apply."}`,
+        title: "Edit Plan ready ✓",
+        description: `Generated with ${data.source === "ai" ? "Thy Cheat Code AI" : "smart defaults"}.${autoApplied ? " Transitions auto-applied to the timeline." : " Review the plan then click Apply."}`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      toast({ title: "AI Edit failed", description: msg, variant: "destructive" });
+      toast({ title: "Edit failed", description: msg, variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -149,12 +149,12 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         preApplyCaptionStylePreset: settings.captions.stylePreset,
       },
     });
-    toast({ title: "AI Edit Applied ✓", description: "Effects, color grade, and caption style updated in your project." });
+    toast({ title: "Edit Applied ✓", description: "Effects, color grade, and caption style updated in your project." });
   }
 
   function applyTransitions() {
     if (!plan || !(plan.transitionPlan?.length > 0)) {
-      setTransitionError("No transition plan to apply. Generate an AI Edit Plan first.");
+      setTransitionError("No transition plan to apply. Generate an Edit Plan first.");
       return;
     }
     const next = applyAiTransitionsToClips(settings, scenes, plan);
@@ -162,7 +162,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
     setTransitionError(null);
     const count = next.aiEdit.appliedTransitions.filter((t) => t.transitionType !== "Cut").length;
     toast({
-      title: "AI Transitions Applied ✓",
+      title: "Transitions Applied ✓",
       description: `${count} transition${count === 1 ? "" : "s"} written to the timeline. Play the master player to see them render at each scene change.`,
     });
   }
@@ -196,7 +196,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       },
       aiEdit: { ...aiEdit, applied: false },
     });
-    toast({ title: "AI Edit Undone", description: "Restored settings to pre-edit state." });
+    toast({ title: "Edit Undone", description: "Restored settings to pre-edit state." });
   }
 
   function resetEdit() {
@@ -217,7 +217,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       },
     });
     setTransitionError(null);
-    toast({ title: "Reset to Clean Edit", description: "All AI edits cleared." });
+    toast({ title: "Reset to Clean Edit", description: "All edits cleared." });
   }
 
   /* ── Status / debug computed values ── */
@@ -264,7 +264,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">Auto AI Edit Whole Video</h3>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Turbo Edit Whole Video</h3>
             <p className="text-xs text-white/40 mt-0.5">
               AI analyzes your clips, audio, captions &amp; style — then creates a complete edit plan
             </p>
@@ -308,14 +308,14 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             className="w-full gold-glow gap-2"
           >
             {generating
-              ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating AI Edit Plan…</>
-              : <><Sparkles className="h-4 w-4" /> {plan ? "Regenerate AI Edit Plan" : "Generate AI Edit Plan"}</>
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating Edit Plan…</>
+              : <><Sparkles className="h-4 w-4" /> {plan ? "Regenerate Edit Plan" : "Generate Edit Plan"}</>
             }
           </Button>
 
           {/* ── Credits note ── */}
           <p className="text-[10px] text-white/25 text-center">
-            AI Edit is free during development. Credits may apply in production.
+            AI Edit is free during development. Visual Bucs may apply in production.
           </p>
 
           {/* ── Auto Apply AI Transitions toggle ── */}
@@ -325,11 +325,11 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             className="w-full flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.04] transition-colors px-3 py-2.5 text-left"
             data-testid="toggle-auto-apply-transitions"
           >
-            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${aiEdit.autoApplyTransitions ? "bg-primary" : "bg-white/15"}`}>
+            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${aiEdit.autoApplyTransitions ? "bg-primary" : "bg-white/10"}`}>
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${aiEdit.autoApplyTransitions ? "left-[18px]" : "left-0.5"}`} />
             </span>
             <span className="flex-1 min-w-0">
-              <span className="block text-[11px] font-black text-white/70 uppercase tracking-wider">Auto Apply AI Transitions</span>
+              <span className="block text-[11px] font-black text-white/70 uppercase tracking-wider">Auto Apply Transitions</span>
               <span className="block text-[10px] text-white/35 mt-0.5">When on, transitions are written to the timeline automatically after generating a plan.</span>
             </span>
           </button>
@@ -356,7 +356,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       {/* ── Edit Plan display ── */}
       {plan && (
         <div className="space-y-3">
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">AI Edit Plan</p>
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">Edit Plan</p>
 
           <PlanCard icon={<ArrowLeftRight className="h-3.5 w-3.5" />} title="Transition Plan">
             {plan.transitionPlan?.length > 0 ? (
@@ -435,7 +435,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
             <div className="pt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 {plan.effectsPlan?.map((fx) => (
-                  <span key={fx} className="text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary/80 px-2 py-0.5 rounded-full">{fx}</span>
+                  <span key={fx} className="text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary/70 px-2 py-0.5 rounded-full">{fx}</span>
                 ))}
               </div>
               {plan.colorGrade && plan.colorGrade !== "None" && (
@@ -446,7 +446,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
 
           <PlanCard icon={<Type className="h-3.5 w-3.5" />} title="Caption Style">
             <div className="pt-2">
-              <span className="text-[11px] font-bold text-primary/80">{plan.captionStylePreset}</span>
+              <span className="text-[11px] font-bold text-primary/70">{plan.captionStylePreset}</span>
               <p className="text-[10px] text-white/35 mt-1">Applied to all caption lines in the final export</p>
             </div>
           </PlanCard>
@@ -505,7 +505,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">AI Edit Status</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {statusRows.map(([label, ok, val]) => (
             <DebugRow key={label} label={label} ok={ok} value={val} />
           ))}
@@ -515,9 +515,9 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       {/* ── AI Edit Debug ── */}
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">AI Edit Debug</p>
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Edit Debug</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {debugRows.map(([label, val]) => (
             <DebugRow key={label} label={label} value={val} />
           ))}
@@ -529,7 +529,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Transition Render Debug</p>
         </div>
-        <div className="divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/5">
           {transitionDebugRows.map(([label, ok, val]) => (
             <DebugRow key={label} label={label} ok={ok} value={val} />
           ))}

@@ -1,14 +1,67 @@
 import { randomBytes } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
-import { db, socialAccountsTable } from "@workspace/db";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { eq, and, desc, sql, gt, lt, or, inArray, ilike, isNull, lte } from "drizzle-orm";
+import {
+  db,
+  socialAccountsTable,
+  storiesTable,
+  storyHighlightsTable,
+  postsTable,
+  postReplyDraftsTable,
+  POST_REPLY_DRAFT_TONES,
+  reactionsTable,
+  savesTable,
+  pollOptionsTable,
+  pollVotesTable,
+  creatorProfilesTable,
+  followsTable,
+  notificationsTable,
+  profileTracksTable,
+  profileVideosTable,
+  likesTable,
+  playEventsTable,
+  closeFriendsTable,
+  conversationsTable,
+  messagesTable,
+  type Attachment,
+} from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, deductCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
-import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+
+/* Mirror-on-save (2026-10-13 law): post attachments, story media and
+   highlight covers are re-hosted into permanent storage at save time.
+   Attachment media fields are url/thumb/artwork/image; the url kind
+   follows the attachment kind (track → audio, watch → video, else image). */
+const ATTACHMENT_URL_KIND: Record<string, "image" | "video" | "audio"> = {
+  track: "audio",
+  watch: "video",
+};
+
+async function mirrorAttachments<T extends Record<string, unknown>>(atts: T[], ownerKey: string): Promise<T[]> {
+  return Promise.all(
+    atts.map(async (att) => {
+      const out: Record<string, unknown> = { ...att };
+      const kind = ATTACHMENT_URL_KIND[String(att["kind"] ?? "")] ?? "image";
+      if (typeof out["url"] === "string") {
+        out["url"] = (await mirrorExternalMediaUrl(out["url"], { kind, ownerKey })) ?? out["url"];
+      }
+      for (const f of ["thumb", "artwork", "image"] as const) {
+        if (typeof out[f] === "string") {
+          out[f] = (await mirrorExternalMediaUrl(out[f] as string, { kind: "image", ownerKey })) ?? out[f];
+        }
+      }
+      return out as T;
+    }),
+  );
+}
 import {
   buildAuthUrl,
   buildFacebookAuthUrl,
@@ -39,6 +92,9 @@ import {
   type TikTokOAuthConfig,
 } from "../lib/social-tiktok";
 import { logger } from "../lib/logger";
+import { audienceVisible, circleAuthorIdsFor, type AudienceContext } from "../lib/close-friends";
+import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
+import { verifyAccessToken } from "../lib/live-ws";
 
 /* ── Instagram auto-post MVP ─────────────────────────────────────────────
    GET  /social/instagram/auth-url   (authed)  → Meta OAuth authorize URL
@@ -385,9 +441,9 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
   const { accountId, caption, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; Meta needs a real
-     URL, so resolve to a fresh signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); Meta needs
+     a real URL, so resolve to a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     videoUrl = await refreshSupabaseStorageUrl(videoUrl);
   }
   if (!/^https:\/\//.test(videoUrl)) {
@@ -665,13 +721,13 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
   const { accountId, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; resolve to a fresh
-     signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); resolve to
+     a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     try {
       videoUrl = await refreshSupabaseStorageUrl(videoUrl);
     } catch (err) {
-      logger.warn({ err }, "[social] tiktok publish: supabase url refresh failed, using raw url");
+      logger.warn({ err }, "[social] tiktok publish: storage url refresh failed, using raw url");
     }
   }
   if (!/^https:\/\//.test(videoUrl)) {
@@ -729,7 +785,15 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     creditsRemaining = await readCreditBalance(req.userId!);
   } else {
     try {
-      creditsRemaining = await deductCredits(req.userId!, TIKTOK_POST_CREDITS);
+      /* Strict ledger + idempotency (P0-23). rollbackOnLedgerFailure=false:
+         the money is already taken at this point so the upload must proceed;
+         a ledger gap is logged as CRITICAL for manual reconciliation. */
+      creditsRemaining = await chargeCredits(
+        req.userId!,
+        TIKTOK_POST_CREDITS,
+        { action: "social_tiktok_post" },
+        { idempotencyKey: `tiktok-post:${attemptId}`, personalOnly: true, rollbackOnLedgerFailure: false },
+      );
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -738,7 +802,14 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
         });
         return;
       }
-      throw err;
+      if (err instanceof LedgerWriteError) {
+        // Deduction stands, ledger missing — logged CRITICAL inside
+        // chargeCredits. Upload must proceed; read balance for response.
+        logger.error({ userId: req.userId, attemptId }, "[social] ledger write failed for tiktok charge — proceeding with upload, reconciliation needed");
+        creditsRemaining = await readCreditBalance(req.userId!);
+      } else {
+        throw err;
+      }
     }
     /* Mark the deduction immediately so a reclaimed retry after a crash
        knows not to charge again. A failure here is logged, not fatal — the
@@ -895,9 +966,9 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
   const { accountId, caption, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
-  /* Completed exports persist a supabase:// storage ref; Meta needs a real
-     URL, so resolve to a fresh signed URL before the credit deduction. */
-  if (videoUrl.startsWith("supabase://")) {
+  /* Completed exports persist a storage ref (supabase:// or r2://); Meta needs
+     a real URL, so resolve to a fresh signed URL before the credit deduction. */
+  if (isStorageRef(videoUrl)) {
     videoUrl = await refreshSupabaseStorageUrl(videoUrl);
   }
   if (!/^https:\/\//.test(videoUrl)) {
@@ -953,7 +1024,15 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     creditsRemaining = await readCreditBalance(req.userId!);
   } else {
     try {
-      creditsRemaining = await deductCredits(req.userId!, FACEBOOK_POST_CREDITS);
+      /* Strict ledger + idempotency (P0-23). rollbackOnLedgerFailure=false:
+         the money is already taken at this point so the publish must proceed;
+         a ledger gap is logged as CRITICAL for manual reconciliation. */
+      creditsRemaining = await chargeCredits(
+        req.userId!,
+        FACEBOOK_POST_CREDITS,
+        { action: "social_facebook_post" },
+        { idempotencyKey: `facebook-post:${attemptId}`, personalOnly: true, rollbackOnLedgerFailure: false },
+      );
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -962,7 +1041,14 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
         });
         return;
       }
-      throw err;
+      if (err instanceof LedgerWriteError) {
+        // Deduction stands, ledger missing — logged CRITICAL inside
+        // chargeCredits. Publish must proceed; read balance for response.
+        logger.error({ userId: req.userId, attemptId }, "[social] ledger write failed for facebook charge — proceeding with publish, reconciliation needed");
+        creditsRemaining = await readCreditBalance(req.userId!);
+      } else {
+        throw err;
+      }
     }
     /* Mark the deduction immediately so a reclaimed retry after a crash
        knows not to charge again. A failure here is logged, not fatal — the
@@ -1045,6 +1131,1593 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     }
     logger.error({ err, userId: req.userId }, "[social] Facebook publish failed");
     res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Facebook. Your Visual Bucs were refunded." });
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKER 8 — Creator Streaming Platform: STORIES / POSTS / REACTIONS / SAVES
+   ───────────────────────────────────────────────────────────────────────────
+   The best of Instagram + Twitter/X, in gold/black luxury — docked on the
+   same router (routes/index.ts untouched; every path here is absolute under
+   /api, exactly like the Meta auto-post routes above).
+
+   Stories:  POST   /api/stories              (auth) 24h expiry
+             GET    /api/stories/feed         (auth) followed creators, newest first
+             POST   /api/stories/:id/view     (auth) bump view_count
+             POST   /api/stories/:id/reply    (auth) reply → DM (conversations/messages)
+             GET/POST/PUT/DELETE /api/stories/highlights (+/:id/stories)
+   Posts:    POST   /api/posts                (auth) ≤500 chars, kind post|quote
+             GET    /api/feed?mode=chrono|foryou (auth)
+             GET    /api/posts/:id            (public) single post + thread context
+             GET    /api/posts/:id/replies    (public) thread
+             POST   /api/posts/:id/reply|repost|quote (auth)
+             GET/PUT/DELETE /api/posts/:id/reply-draft (auth) my saved
+                    reply draft for the post (0160; a landed reply
+                    retires it)
+             DELETE /api/posts/:id            (auth, own)
+             GET    /api/posts/:id/analytics  (auth, own) engagement + earning hint
+             POST   /api/posts/assist         (auth, 100 Visual Bucs) AI "write it for me"
+             POST   /api/posts/:id/poll/vote  (auth)
+   React:    POST   /api/react  DELETE /api/react  (auth)
+             emoji ∈ {like, love, fire, clap, mindblown}; like is the default.
+             Reactions live in their own table — they NEVER write to Worker 1's
+             `likes` table (avoids double-counting with the media like buttons).
+   Saves:    POST   /api/saves  DELETE /api/saves/:kind/:targetId  (auth)
+             GET    /api/saves/mine (auth)
+   Discover: GET    /api/trending/topics       hashtag velocity, 24h
+             GET    /api/hashtag/:tag/posts    posts for a hashtag
+                    (/api/hashtag/:tag itself is the shorts worker's media hub)
+
+   Link-graph rule (standing): @mentions → /artist/:slug, avatars → profiles,
+   story viewer header → creator profile, track attachments → /track/:id,
+   video attachments → /watch/:id, product attachments → /store/buy/:kind/:id
+   (REJECTED at write time if they can't resolve — a product mention with no
+   link is a bug), event attachments → /shows, #hashtags → /hashtag/:tag.
+
+   Expiry: every story read filters expires_at > now(). No cron — the
+   migration also purges week-old corpses; scheduled posts appear when their
+   time comes via the same time-filter trick (scheduled_for <= now()).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const w8WriteLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
+  message: { error: "Easy, shark — slow down a little. 🦈" },
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Optional auth for public read surfaces: sets req.userId when a
+ *  valid Bearer token rides along, never 401s. Close-friends content
+ *  (Stack 9 #7) is enforced at READ time — a public surface can only
+ *  serve it to a viewer it can actually identify as in the circle. */
+async function optionalAuth(req: Request): Promise<void> {
+  if ((req as Request & { userId?: string }).userId) return;
+  const h = req.headers["authorization"];
+  if (!h?.startsWith("Bearer ")) return;
+  try {
+    const v = await verifyAccessToken(h.slice(7));
+    if (v) (req as Request & { userId?: string }).userId = v.userId;
+  } catch { /* viewer stays anonymous — scoped content stays hidden */ }
+}
+
+/** Build the read-time audience context for a viewer (Stack 9 #7). */
+async function audienceContext(viewerUserId: string | null): Promise<AudienceContext> {
+  if (!viewerUserId) {
+    return { viewerUserId: null, viewerProfileId: null, followedProfileIds: new Set(), circleAuthorUserIds: new Set() };
+  }
+  const [me, followed, circle] = await Promise.all([
+    myProfile(viewerUserId),
+    db.select({ profileId: followsTable.profileId }).from(followsTable).where(eq(followsTable.followerUserId, viewerUserId)),
+    circleAuthorIdsFor(viewerUserId),
+  ]);
+  return {
+    viewerUserId,
+    viewerProfileId: me?.id ?? null,
+    followedProfileIds: new Set(followed.map((f) => f.profileId)),
+    circleAuthorUserIds: circle,
+  };
+}
+
+/** Filter post rows through read-time audience enforcement. Author
+ *  user ids resolve from the profiles table (posts carry profileId). */
+async function filterVisiblePosts<T extends { profileId: string; audience: string; removedAt?: Date | string | null }>(
+  rows: T[],
+  ctx: AudienceContext,
+  profilesById?: Map<string, { userId: string }>,
+): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  let byId = profilesById;
+  if (!byId) {
+    const ids = [...new Set(rows.map((r) => r.profileId))];
+    const profiles = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, ids));
+    byId = new Map(profiles.map((pr) => [pr.id, pr]));
+  }
+  return rows.filter((r) => {
+    /* Moderation removal (Stack-4): list surfaces never serve a
+       removed item — not even to its author. The author's honest
+       view of their removed item is the single-post read
+       (postVisibleTo), which attaches the moderation state. */
+    if (r.removedAt) return false;
+    const author = byId!.get(r.profileId);
+    if (!author) return r.audience !== "close_friends" && r.audience !== "followers" ? true : false;
+    return audienceVisible(r.audience, { userId: author.userId, profileId: r.profileId }, ctx);
+  });
+}
+
+async function myProfile(userId: string) {
+  const [p] = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, userId))
+    .limit(1);
+  return p ?? null;
+}
+
+function pickProfile(p: typeof creatorProfilesTable.$inferSelect | undefined) {
+  if (!p) return null;
+  return {
+    id: p.id,
+    slug: p.slug,
+    display_name: p.displayName,
+    avatar_url: p.avatarUrl,
+    is_verified: p.isVerified,
+  };
+}
+
+/** One post's read-time visibility for a viewer (Stack 9 #7). */
+async function postVisibleTo(
+  post: { profileId: string; audience: string; removedAt?: Date | string | null },
+  viewerUserId: string | null,
+): Promise<boolean> {
+  if (post.removedAt) {
+    /* Moderation removal (Stack-4): a removed item exists ONLY for
+       its own author — who reads it with its moderation state
+       attached. For everyone else it does not exist: no single read,
+       no replies under it, no quoting or reposting it. */
+    if (!viewerUserId) return false;
+    const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
+    return !!author && author.userId === viewerUserId;
+  }
+  if (post.audience === "public") return true;
+  const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
+  if (!author) return false;
+  const ctx = await audienceContext(viewerUserId);
+  return audienceVisible(post.audience, { userId: author.userId, profileId: post.profileId }, ctx);
+}
+
+/* Story DTO, field-by-field: the frontend Story contract
+   (lib/social-api.ts) is snake_case — StoryViewer reads expires_at /
+   media_kind / media_url. A raw row spread shipped camelCase table
+   keys and the viewer silently broke. author is the pickProfile shape
+   (null where the endpoint never joined the author). */
+function toStoryDto(
+  s: typeof storiesTable.$inferSelect,
+  author: ReturnType<typeof pickProfile>,
+) {
+  return {
+    id: s.id,
+    profile_id: s.profileId,
+    media_url: s.mediaUrl,
+    media_kind: s.mediaKind,
+    caption: s.caption,
+    audience: s.audience ?? "public",
+    view_count: s.viewCount,
+    expires_at: s.expiresAt,
+    created_at: s.createdAt,
+    author,
+  };
+}
+
+/* Highlight DTO, field-by-field: the frontend StoryHighlight contract
+   (lib/social-api.ts) is snake_case — profile-sections gates the cover
+   image on h.cover_url. GET /stories/highlights shipped the raw rows,
+   so cover_url/story_ids/profile_id never arrived and every highlight
+   ring fell back to the ✦ placeholder. */
+function toHighlightDto(h: typeof storyHighlightsTable.$inferSelect) {
+  return {
+    id: h.id,
+    profile_id: h.profileId,
+    title: h.title,
+    cover_url: h.coverUrl,
+    story_ids: h.storyIds,
+    created_at: h.createdAt,
+  };
+}
+
+function extractHashtags(body: string): string[] {
+  const out = new Set<string>();
+  const re = /(^|[\s(])#([A-Za-z0-9_]{2,40})/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) out.add(m[2].toLowerCase());
+  return [...out];
+}
+
+function extractMentions(body: string): string[] {
+  const out = new Set<string>();
+  const re = /(^|[\s(])@([a-z0-9][a-z0-9-]{1,38}[a-z0-9])/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) out.add(m[2].toLowerCase());
+  return [...out];
+}
+
+async function notifyUser(userId: string, kind: string, title: string, body: string, link: string) {
+  try {
+    await db.insert(notificationsTable).values({ userId, kind, title, body, link });
+  } catch {
+    /* best-effort — never break the write path over a notification */
+  }
+}
+
+/** DE-17: a notification must land ON the thing it announces — the
+ *  post's own page (/post/:id, backed by GET /posts/:id) — never the
+ *  feed's front door. Every post-alert kind links the post that
+ *  carries the action the alert describes. */
+export function postNotificationLink(postId: string): string {
+  return `/post/${postId}`;
+}
+
+/* ── Link-graph guard: attachments that promise a destination must deliver ── */
+const attachmentSchema = z
+  .object({
+    kind: z.string(),
+    url: z.string().max(2000).optional(),
+    id: z.string().max(100).optional(),
+    title: z.string().max(200).optional(),
+    thumb: z.string().max(2000).optional(),
+    artwork: z.string().max(2000).optional(),
+    image: z.string().max(2000).optional(),
+    artistSlug: z.string().max(60).optional(),
+    kindSlug: z.string().max(60).optional(),
+    storeSlug: z.string().max(60).optional(),
+    date: z.string().max(60).optional(),
+    venue: z.string().max(200).optional(),
+  })
+  .passthrough();
+
+function assertLinkable(att: z.infer<typeof attachmentSchema>) {
+  /* A post with a product mention that doesn't link to the product is a bug —
+     reject it at write time. Same for sounds and events. */
+  if (att.kind === "product" && !(att.id && att.kindSlug)) {
+    throw new Error("Product attachments must include id + kindSlug so they link to /store/buy/:kind/:id.");
+  }
+  if ((att.kind === "track" || att.kind === "watch") && !att.id) {
+    throw new Error("Sound/video attachments must include the media id so they link to /track/:id or /watch/:id.");
+  }
+  if (att.kind === "event" && !att.id) {
+    throw new Error("Event attachments must include the event id so they link to /shows.");
+  }
+}
+
+const createPostSchema = z.object({
+  body: z.string().trim().min(1).max(500),
+  media_urls: z.array(attachmentSchema).max(10).optional().default([]),
+  kind: z.enum(["post", "quote"]).optional().default("post"),
+  reply_to: z.string().uuid().optional().nullable(),
+  quote_of: z.string().uuid().optional().nullable(),
+  group_id: z.string().uuid().optional().nullable(),
+  scheduled_for: z.string().datetime().optional().nullable(),
+  audience: z.enum(["public", "followers", "close_friends"]).optional().default("public"),
+  poll: z.array(z.string().trim().min(1).max(80)).min(2).max(4).optional(),
+});
+
+type EnrichedPost = Record<string, unknown> & {
+  author: ReturnType<typeof pickProfile>;
+  viewer_emoji: string | null;
+  viewer_saved: boolean;
+  reaction_counts: Record<string, number>;
+  quoted: EnrichedPost | null;
+  poll: { options: Array<{ id: string; option_text: string; vote_count: number }>; viewer_option_id: string | null } | null;
+};
+
+async function enrichPosts(
+  rows: Array<typeof postsTable.$inferSelect>,
+  viewerUserId: string | null,
+): Promise<EnrichedPost[]> {
+  if (rows.length === 0) return [];
+  const postIds = rows.map((p) => p.id);
+  const profileIds = [...new Set(rows.map((p) => p.profileId))];
+
+  const [profiles, reactions, saves, quotesPkg, pollOpts] = await Promise.all([
+    db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, profileIds)),
+    db.select().from(reactionsTable).where(
+      and(eq(reactionsTable.targetKind, "post"), inArray(reactionsTable.targetId, postIds)),
+    ),
+    viewerUserId
+      ? db.select().from(savesTable).where(
+          and(eq(savesTable.userId, viewerUserId), eq(savesTable.kind, "post"), inArray(savesTable.targetId, postIds)),
+        )
+      : Promise.resolve([]),
+    (async () => {
+      const qids = [...new Set(rows.map((p) => p.quoteOf).filter((x): x is string => !!x))];
+      if (qids.length === 0) return { enriched: [] as EnrichedPost[], raw: [] as Array<typeof postsTable.$inferSelect> };
+      const qp = await db.select().from(postsTable).where(inArray(postsTable.id, qids));
+      return { enriched: await enrichPosts(qp, viewerUserId), raw: qp };
+    })(),
+    db.select().from(pollOptionsTable).where(inArray(pollOptionsTable.postId, postIds)).orderBy(pollOptionsTable.position),
+  ]);
+  const quotes = quotesPkg.enriched;
+
+  /* Quoted-post enforcement (Stack 9 #7): a quote EMBEDS another
+     post — if the viewer can't see the quoted post, it renders as
+     null, exactly like a deleted quote. */
+  const invisibleQuoteIds = new Set<string>();
+  if (viewerUserId) {
+    const scopedQuotes = quotes.filter((q) => (q as { audience?: string }).audience && (q as { audience?: string }).audience !== "public");
+    if (scopedQuotes.length) {
+      const ctx = await audienceContext(viewerUserId);
+      const qProfileIds = [...new Set(scopedQuotes.map((q) => String((q as { profile_id?: string }).profile_id)))];
+      const qProfiles = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, qProfileIds));
+      const qById = new Map(qProfiles.map((pr) => [pr.id, pr]));
+      for (const q of scopedQuotes) {
+        const author = qById.get(String((q as { profile_id?: string }).profile_id));
+        if (!author || !audienceVisible(String((q as { audience?: string }).audience), { userId: author.userId, profileId: author.id }, ctx)) {
+          invisibleQuoteIds.add(String(q.id));
+        }
+      }
+    }
+  }
+  /* Moderation removal (Stack-4): a quote EMBEDS another post — a
+     removed one renders as null, exactly like a deleted quote, for
+     everyone except the removed post's own author. */
+  const removedQuotes = quotesPkg.raw.filter((q) => q.removedAt);
+  if (removedQuotes.length) {
+    const me = viewerUserId ? await myProfile(viewerUserId) : null;
+    for (const q of removedQuotes) {
+      if (!me || q.profileId !== me.id) invisibleQuoteIds.add(q.id);
+    }
+  }
+  const pmap = new Map(profiles.map((p) => [p.id, p]));
+  const qmap = new Map(quotes.map((q) => [String(q.id), q]));
+  const countMap = new Map<string, Record<string, number>>();
+  const viewerEmoji = new Map<string, string>();
+  for (const r of reactions) {
+    const c = countMap.get(r.targetId) ?? {};
+    c[r.emoji] = (c[r.emoji] ?? 0) + 1;
+    countMap.set(r.targetId, c);
+    if (viewerUserId && r.userId === viewerUserId) viewerEmoji.set(r.targetId, r.emoji);
+  }
+  const savedSet = new Set(saves.map((s) => s.targetId));
+  const pollMap = new Map<string, Array<typeof pollOptionsTable.$inferSelect>>();
+  for (const o of pollOpts) {
+    const arr = pollMap.get(o.postId) ?? [];
+    arr.push(o);
+    pollMap.set(o.postId, arr);
+  }
+  let viewerVotes = new Map<string, string>();
+  if (viewerUserId) {
+    const vv = await db.select().from(pollVotesTable).where(
+      and(eq(pollVotesTable.userId, viewerUserId), inArray(pollVotesTable.postId, postIds)),
+    );
+    viewerVotes = new Map(vv.map((v) => [v.postId, v.optionId]));
+  }
+
+  /* Stored media values may be storage refs (mirrored at save) — mint
+     fresh URLs for attachments + author avatars on every read. Quoted
+     posts arrive already refreshed via the recursive call above. */
+  return (await Promise.all(
+    rows.map(async (p) => {
+      const author = pickProfile(pmap.get(p.profileId));
+      /* DTO built field-by-field (the toPublicProfile pattern): the
+         frontend contract (FeedPost in lib/social-api.ts) is snake_case
+         end to end, so the camelCase table keys must never leak through
+         a raw spread — media, timestamps and counts silently broke when
+         they did (post.media_urls / created_at / *_count all read
+         snake_case on the client). */
+      return {
+        id: p.id,
+        profile_id: p.profileId,
+        body: p.body,
+        media_urls: await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
+        kind: p.kind,
+        reply_to: p.replyTo,
+        quote_of: p.quoteOf,
+        repost_of: p.repostOf,
+        group_id: p.groupId,
+        scheduled_for: p.scheduledFor,
+        audience: p.audience,
+        like_count: p.likeCount,
+        repost_count: p.repostCount,
+        reply_count: p.replyCount,
+        created_at: p.createdAt,
+        /* Moderation state (Stack-4): read enforcement means a
+           removed post only ever reaches this DTO for its own
+           author (or embedded in their own view of a quote) — the
+           flag + reason CATEGORY are for that author's honest
+           "Removed by moderation" state. The admin's note and
+           identity never ride this DTO. */
+        moderation_removed: !!p.removedAt,
+        removal_reason: p.removedAt ? (p.removalReason ?? null) : null,
+        author: author
+          ? {
+              ...author,
+              avatar_url: author.avatar_url ? await refreshSupabaseStorageUrl(author.avatar_url) : author.avatar_url,
+            }
+          : author,
+        viewer_emoji: viewerEmoji.get(p.id) ?? null,
+        viewer_saved: savedSet.has(p.id),
+        reaction_counts: countMap.get(p.id) ?? {},
+        quoted: p.quoteOf ? (invisibleQuoteIds.has(p.quoteOf) ? null : (qmap.get(p.quoteOf) ?? null)) : null,
+        poll: pollMap.has(p.id)
+          ? {
+              options: (pollMap.get(p.id) ?? []).map((o) => ({ id: o.id, option_text: o.optionText, vote_count: o.voteCount })),
+              viewer_option_id: viewerVotes.get(p.id) ?? null,
+            }
+          : null,
+      };
+    }),
+  )) as EnrichedPost[];
+}
+
+function publishedOnly() {
+  /* Published = not scheduled for the future AND not removed by
+     moderation (Stack-4). Every list read (feed, replies, hashtag,
+     trending) goes through this gate, so a removed item leaves all
+     of them at once; the single-post read applies the author-only
+     exception in postVisibleTo instead. */
+  return and(
+    or(isNull(postsTable.scheduledFor), lte(postsTable.scheduledFor, new Date())),
+    isNull(postsTable.removedAt),
+  );
+}
+
+/* ════════════════ STORIES ════════════════ */
+
+const createStorySchema = z.object({
+  media_url: z.string().url().max(2000),
+  media_kind: z.enum(["image", "video"]).optional().default("image"),
+  caption: z.string().max(280).optional().default(""),
+  audience: z.enum(["public", "followers", "close_friends"]).optional().default("public"),
+});
+
+router.post("/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile", message: "Create your creator profile first — then your stories live there for 24 hours." });
+    const parsed = createStorySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [story] = await db.insert(storiesTable).values({
+      profileId: me.id,
+      mediaUrl:
+        (await mirrorExternalMediaUrl(parsed.data.media_url, {
+          kind: parsed.data.media_kind === "video" ? "video" : "image",
+          ownerKey: req.userId!,
+        })) ?? parsed.data.media_url,
+      mediaKind: parsed.data.media_kind,
+      caption: parsed.data.caption,
+      audience: parsed.data.audience,
+      expiresAt: new Date(Date.now() + 24 * 3600_000),
+    }).returning();
+    return res.status(201).json({ story: await refreshSupabaseStorageUrlsDeep(story) });
+  } catch (err) {
+    return res.status(500).json({ error: "story_failed", message: "Couldn't post that story." });
+  }
+});
+
+router.get("/stories/feed", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    const followed = await db.select({ profileId: followsTable.profileId })
+      .from(followsTable).where(eq(followsTable.followerUserId, req.userId!));
+    const ids = new Set(followed.map((f) => f.profileId));
+    if (me) ids.add(me.id);
+    /* Circle authors (Stack 9 #7): their close-friends stories are
+       for the viewer even when the viewer doesn't follow them. */
+    const circleRows = await db.select({ profileId: closeFriendsTable.owner_profile_id })
+      .from(closeFriendsTable).where(eq(closeFriendsTable.friend_user_id, req.userId!));
+    for (const c of circleRows) ids.add(c.profileId);
+    if (ids.size === 0) return res.json({ stories: [] });
+    /* Opportunistic corpse purge — expiry itself needs no cron. */
+    db.delete(storiesTable).where(lt(storiesTable.expiresAt, new Date(Date.now() - 7 * 86400_000))).catch(() => {});
+    const idArr = [...ids];
+    const [rows, profiles] = await Promise.all([
+      db.select().from(storiesTable)
+        .where(and(inArray(storiesTable.profileId, idArr), gt(storiesTable.expiresAt, new Date())))
+        .orderBy(desc(storiesTable.createdAt)).limit(200),
+      db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, idArr)),
+    ]);
+    const pmap = new Map(profiles.map((p) => [p.id, p]));
+    /* Read-time audience enforcement (Stack 9 #7): the feed query is
+       follow-scoped, but close-friends stories need the circle check
+       too — a follower who isn't in the circle must not receive them.
+       Authors outside the follow set (circle members the viewer
+       doesn't follow) are added when they scoped to the circle. */
+    const ctx = await audienceContext(req.userId!);
+    const visible = rows.filter((st) => {
+      const author = pmap.get(st.profileId);
+      if (!author) return false;
+      return audienceVisible(st.audience ?? "public", { userId: author.userId, profileId: st.profileId }, ctx);
+    });
+    return res.json(await refreshSupabaseStorageUrlsDeep({
+      stories: visible.map((s) => toStoryDto(s, pickProfile(pmap.get(s.profileId)))),
+    }));
+  } catch (err) {
+    return res.status(500).json({ error: "stories_feed_failed" });
+  }
+});
+
+router.post("/stories/:id/view", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [storyRow] = await db.select().from(storiesTable).where(eq(storiesTable.id, id)).limit(1);
+    if (!storyRow) return res.status(404).json({ error: "not_found" });
+    if ((storyRow.audience ?? "public") !== "public") {
+      const [authorProfile] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, storyRow.profileId)).limit(1);
+      const ctx = await audienceContext(req.userId!);
+      if (!authorProfile || !audienceVisible(storyRow.audience, { userId: authorProfile.userId, profileId: storyRow.profileId }, ctx)) {
+        return res.status(404).json({ error: "not_found" });
+      }
+    }
+    await db.update(storiesTable)
+      .set({ viewCount: sql`${storiesTable.viewCount} + 1` })
+      .where(eq(storiesTable.id, id));
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "view_failed" });
+  }
+});
+
+/* Story reply → DM: opens (or reuses) the canonical conversation with the
+   story owner and drops the reply in as a message. */
+const storyReplySchema = z.object({ body: z.string().trim().min(1).max(500) });
+
+router.post("/stories/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const parsed = storyReplySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [story] = await db.select().from(storiesTable).where(eq(storiesTable.id, id)).limit(1);
+    if (!story) return res.status(404).json({ error: "not_found" });
+    const [owner] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, story.profileId)).limit(1);
+    if ((story.audience ?? "public") !== "public") {
+      const ctx = await audienceContext(req.userId!);
+      if (!owner || !audienceVisible(story.audience, { userId: owner.userId, profileId: story.profileId }, ctx)) {
+        return res.status(404).json({ error: "not_found" });
+      }
+    }
+    if (!owner) return res.status(404).json({ error: "not_found" });
+    if (owner.userId === req.userId) return res.status(400).json({ error: "own_story", message: "That's your own story — no need to DM yourself. 🦈" });
+    const [a, b] = [req.userId!, owner.userId].sort();
+    let [conv] = await db.select().from(conversationsTable)
+      .where(and(eq(conversationsTable.participantA, a), eq(conversationsTable.participantB, b))).limit(1);
+    if (!conv) {
+      [conv] = await db.insert(conversationsTable)
+        .values({ participantA: a, participantB: b, requestedBy: req.userId! })
+        .returning();
+    }
+    const [msg] = await db.insert(messagesTable).values({
+      conversationId: conv.id,
+      senderUserId: req.userId!,
+      body: `↩️ Story reply: ${parsed.data.body}`,
+    }).returning();
+    await db.update(conversationsTable).set({ lastMessageAt: new Date() }).where(eq(conversationsTable.id, conv.id));
+    await notifyUser(owner.userId, "story_reply", "New story reply 💬",
+      `${parsed.data.body.slice(0, 120)}`, `/messages?to=${req.userId}`);
+    return res.status(201).json({ message: msg, conversation_id: conv.id });
+  } catch (err) {
+    return res.status(500).json({ error: "reply_failed", message: "Couldn't send that reply." });
+  }
+});
+
+/* ── Highlights CRUD (owner-only) ── */
+
+/* Public: unexpired stories for one profile — powers the /artist/:slug
+   profile page stories section (Worker 4 mount). */
+router.get("/stories/by-profile/:profileId", async (req: Request, res: Response) => {
+  try {
+    await optionalAuth(req);
+    const profileId = String(req.params["profileId"]);
+    if (!UUID_RE.test(profileId)) return res.status(400).json({ error: "invalid_id" });
+    const allRows = await db.select().from(storiesTable)
+      .where(and(eq(storiesTable.profileId, profileId), gt(storiesTable.expiresAt, new Date())))
+      .orderBy(desc(storiesTable.createdAt)).limit(50);
+    /* Read-time audience enforcement (Stack 9 #7): anonymous and
+       non-circle viewers never receive close-friends stories here. */
+    const [authorProfile] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, profileId)).limit(1);
+    const viewerId = (req as Request & { userId?: string }).userId ?? null;
+    const ctx = await audienceContext(viewerId);
+    const rows = authorProfile
+      ? allRows.filter((st) => audienceVisible(st.audience ?? "public", { userId: authorProfile.userId, profileId }, ctx))
+      : [];
+    /* Same Story[] contract as the feed — the profile page's stories
+       section consumes this payload as snake_case Story objects. */
+    return res.json({ stories: rows.map((s) => toStoryDto(s, null)) });
+  } catch {
+    return res.status(500).json({ error: "stories_failed" });
+  }
+});
+
+router.get("/stories/highlights", requireAuth, async (req: Request, res: Response) => {
+  try {
+    /* ?profile_id= views anyone's highlights (profile page); without it, mine. */
+    const pid = String(req.query["profile_id"] ?? "");
+    let profileId: string | null = null;
+    if (UUID_RE.test(pid)) {
+      profileId = pid;
+    } else {
+      const me = await myProfile(req.userId!);
+      if (!me) return res.json({ highlights: [] });
+      profileId = me.id;
+    }
+    const rows = await db.select().from(storyHighlightsTable)
+      .where(eq(storyHighlightsTable.profileId, profileId))
+      .orderBy(desc(storyHighlightsTable.createdAt));
+    /* Refresh first (re-signs the cover URL), then map to the DTO. */
+    const refreshed = await refreshSupabaseStorageUrlsDeep(rows);
+    return res.json({ highlights: refreshed.map((h) => toHighlightDto(h)) });
+  } catch {
+    return res.status(500).json({ error: "highlights_failed" });
+  }
+});
+
+const highlightSchema = z.object({
+  title: z.string().trim().min(1).max(60),
+  cover_url: z.string().url().max(2000).optional().nullable(),
+  story_ids: z.array(z.string().uuid()).max(100).optional().default([]),
+});
+
+router.post("/stories/highlights", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const parsed = highlightSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [h] = await db.insert(storyHighlightsTable).values({
+      profileId: me.id,
+      title: parsed.data.title,
+      coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url ?? null, { kind: "image", ownerKey: req.userId! })) ?? null,
+      storyIds: parsed.data.story_ids,
+    }).returning();
+    return res.status(201).json({ highlight: await refreshSupabaseStorageUrlsDeep(h) });
+  } catch {
+    return res.status(500).json({ error: "highlight_failed" });
+  }
+});
+
+async function ownHighlight(req: Request) {
+  const me = await myProfile(req.userId!);
+  if (!me) return null;
+  const [h] = await db.select().from(storyHighlightsTable)
+    .where(and(eq(storyHighlightsTable.id, String(req.params["id"])), eq(storyHighlightsTable.profileId, me.id)))
+    .limit(1);
+  return h ?? null;
+}
+
+router.put("/stories/highlights/:id", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const h = await ownHighlight(req);
+    if (!h) return res.status(404).json({ error: "not_found" });
+    const parsed = highlightSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [updated] = await db.update(storyHighlightsTable).set({
+      ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+      ...(parsed.data.cover_url !== undefined
+        ? { coverUrl: (await mirrorExternalMediaUrl(parsed.data.cover_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.cover_url }
+        : {}),
+      ...(parsed.data.story_ids !== undefined ? { storyIds: parsed.data.story_ids } : {}),
+    }).where(eq(storyHighlightsTable.id, h.id)).returning();
+    return res.json({ highlight: await refreshSupabaseStorageUrlsDeep(updated) });
+  } catch {
+    return res.status(500).json({ error: "highlight_failed" });
+  }
+});
+
+router.delete("/stories/highlights/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const h = await ownHighlight(req);
+    if (!h) return res.status(404).json({ error: "not_found" });
+    await db.delete(storyHighlightsTable).where(eq(storyHighlightsTable.id, h.id));
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "highlight_failed" });
+  }
+});
+
+router.post("/stories/highlights/:id/stories", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const h = await ownHighlight(req);
+    if (!h) return res.status(404).json({ error: "not_found" });
+    const parsed = z.object({ story_ids: z.array(z.string().uuid()).min(1).max(100) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const merged = [...new Set([...(h.storyIds ?? []), ...parsed.data.story_ids])].slice(0, 100);
+    const [updated] = await db.update(storyHighlightsTable)
+      .set({ storyIds: merged })
+      .where(eq(storyHighlightsTable.id, h.id)).returning();
+    return res.json({ highlight: await refreshSupabaseStorageUrlsDeep(updated) });
+  } catch {
+    return res.status(500).json({ error: "highlight_failed" });
+  }
+});
+
+/* ════════════════ POSTS ════════════════ */
+
+router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile", message: "Create your creator profile first — posting is free, the profile is your stage." });
+    const parsed = createPostSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const d = parsed.data;
+    try {
+      d.media_urls.forEach(assertLinkable);
+    } catch (e) {
+      return res.status(400).json({ error: "unlinked_attachment", message: (e as Error).message });
+    }
+
+    let kind: string = d.kind;
+    if (d.reply_to) {
+      const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, d.reply_to)).limit(1);
+      if (!parent) return res.status(404).json({ error: "reply_target_missing" });
+      if (!(await postVisibleTo(parent, req.userId!))) return res.status(404).json({ error: "reply_target_missing" });
+      kind = "thread_reply";
+    }
+    let quoteTarget: typeof postsTable.$inferSelect | null = null;
+    if (d.quote_of) {
+      const [q] = await db.select().from(postsTable).where(eq(postsTable.id, d.quote_of)).limit(1);
+      if (!q) return res.status(404).json({ error: "quote_target_missing" });
+      if (!(await postVisibleTo(q, req.userId!))) return res.status(404).json({ error: "quote_target_missing" });
+      quoteTarget = q;
+      kind = "quote";
+    }
+    const scheduledFor = d.scheduled_for ? new Date(d.scheduled_for) : null;
+    if (scheduledFor && scheduledFor.getTime() <= Date.now()) {
+      return res.status(400).json({ error: "bad_schedule", message: "Schedule it in the future — the cheat code can't time-travel. 🦈" });
+    }
+
+    const [post] = await db.insert(postsTable).values({
+      profileId: me.id,
+      body: d.body,
+      mediaUrls: (await mirrorAttachments(d.media_urls, req.userId!)) as unknown as Attachment[],
+      kind,
+      replyTo: d.reply_to ?? null,
+      quoteOf: d.quote_of ?? null,
+      groupId: d.group_id ?? null,
+      scheduledFor,
+      audience: d.audience,
+    }).returning();
+
+    if (d.poll && d.poll.length >= 2 && !scheduledFor) {
+      await db.insert(pollOptionsTable).values(
+        d.poll.map((text, i) => ({ postId: post.id, optionText: text, position: i })),
+      );
+    }
+    if (d.reply_to) {
+      await db.update(postsTable)
+        .set({ replyCount: sql`${postsTable.replyCount} + 1` })
+        .where(eq(postsTable.id, d.reply_to));
+    }
+
+    /* @mentions → notify the mentioned creators (their handle links to /artist/:slug). */
+    const mentions = extractMentions(d.body);
+    if (mentions.length > 0) {
+      const mentioned = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.slug, mentions));
+      for (const m of mentioned) {
+        if (m.userId !== req.userId) {
+          await notifyUser(m.userId, "mention", `${me.displayName} mentioned you 📣`,
+            d.body.slice(0, 120), postNotificationLink(post.id));
+        }
+      }
+    }
+    if (d.reply_to) {
+      const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, d.reply_to)).limit(1);
+      if (parent) {
+        const [pa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1);
+        if (pa && pa.userId !== req.userId) {
+          await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`, d.body.slice(0, 120), postNotificationLink(post.id));
+        }
+      }
+    }
+    if (quoteTarget) {
+      const [qa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, quoteTarget.profileId)).limit(1);
+      if (qa && qa.userId !== req.userId) {
+        await notifyUser(qa.userId, "post_quote", `${me.displayName} quoted your post 🔁`, d.body.slice(0, 120), postNotificationLink(post.id));
+      }
+    }
+
+    const [enriched] = await enrichPosts([post], req.userId!);
+    return res.status(201).json({ post: enriched });
+  } catch (err) {
+    return res.status(500).json({ error: "post_failed", message: "Couldn't publish that post." });
+  }
+});
+
+/**
+ * Per-creator affinity for a viewer, from behavior already recorded:
+ * reactions on the creator's posts, likes on their tracks/videos,
+ * plays of their tracks/videos, and follows. Weighted per
+ * lib/for-you.ts AFFINITY_WEIGHTS. Bounded reads (latest 500 each).
+ */
+async function computeAffinity(viewerUserId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, { reactions: number; likes: number; plays: number; follows: number }>();
+  const bump = (profileId: string, key: "reactions" | "likes" | "plays" | "follows") => {
+    const c = counts.get(profileId) ?? { reactions: 0, likes: 0, plays: 0, follows: 0 };
+    c[key] += 1;
+    counts.set(profileId, c);
+  };
+  const [reactions, likes, plays, follows] = await Promise.all([
+    db.select().from(reactionsTable).where(and(eq(reactionsTable.userId, viewerUserId), eq(reactionsTable.targetKind, "post"))).limit(500),
+    db.select().from(likesTable).where(eq(likesTable.userId, viewerUserId)).limit(500),
+    db.select().from(playEventsTable).where(eq(playEventsTable.userId, viewerUserId)).limit(500),
+    db.select().from(followsTable).where(eq(followsTable.followerUserId, viewerUserId)).limit(500),
+  ]);
+  for (const f of follows) bump(f.profileId, "follows");
+  const postIds = [...new Set(reactions.map((r) => r.targetId))];
+  if (postIds.length) {
+    const ps = await db.select({ id: postsTable.id, profileId: postsTable.profileId }).from(postsTable).where(inArray(postsTable.id, postIds));
+    const byId = new Map(ps.map((x) => [x.id, x.profileId]));
+    for (const r of reactions) {
+      const pid = byId.get(r.targetId);
+      if (pid) bump(pid, "reactions");
+    }
+  }
+  const trackIds = [...new Set([...likes.filter((l) => l.kind === "track").map((l) => l.targetId), ...plays.filter((e) => e.kind === "track").map((e) => e.mediaId)])];
+  if (trackIds.length) {
+    const ts = await db.select({ id: profileTracksTable.id, profileId: profileTracksTable.profileId }).from(profileTracksTable).where(inArray(profileTracksTable.id, trackIds));
+    const byId = new Map(ts.map((x) => [x.id, x.profileId]));
+    for (const l of likes) if (l.kind === "track" && byId.get(l.targetId)) bump(byId.get(l.targetId)!, "likes");
+    for (const e of plays) if (e.kind === "track" && byId.get(e.mediaId)) bump(byId.get(e.mediaId)!, "plays");
+  }
+  const videoIds = [...new Set([...likes.filter((l) => l.kind === "video").map((l) => l.targetId), ...plays.filter((e) => e.kind === "video").map((e) => e.mediaId)])];
+  if (videoIds.length) {
+    const vs = await db.select({ id: profileVideosTable.id, profileId: profileVideosTable.profileId }).from(profileVideosTable).where(inArray(profileVideosTable.id, videoIds));
+    const byId = new Map(vs.map((x) => [x.id, x.profileId]));
+    for (const l of likes) if (l.kind === "video" && byId.get(l.targetId)) bump(byId.get(l.targetId)!, "likes");
+    for (const e of plays) if (e.kind === "video" && byId.get(e.mediaId)) bump(byId.get(e.mediaId)!, "plays");
+  }
+  const out = new Map<string, number>();
+  for (const [pid, c] of counts) out.set(pid, affinityScore(c));
+  return out;
+}
+
+/* Feed: ?mode=chrono (default — your timeline, no algorithm overlords 🦈)
+   |foryou (followed + high-engagement + your own creators get a boost).
+   ?before=ISO for pagination, ?limit. */
+router.get("/feed", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const mode = req.query["mode"] === "foryou" ? "foryou" : "chrono";
+    const limit = Math.min(Math.max(Number(req.query["limit"]) || 30, 1), 100);
+    const beforeRaw = String(req.query["before"] ?? "");
+    const before = beforeRaw ? new Date(beforeRaw) : null;
+    const me = await myProfile(req.userId!);
+    const followed = await db.select({ profileId: followsTable.profileId })
+      .from(followsTable).where(eq(followsTable.followerUserId, req.userId!));
+    const followedIds = new Set(followed.map((f) => f.profileId));
+
+    const conds = [publishedOnly(), sql`${postsTable.kind} != 'thread_reply'`];
+    if (before && !isNaN(before.getTime())) conds.push(lt(postsTable.createdAt, before));
+
+    /* Read-time audience enforcement (Stack 9 #7) applies to BOTH
+       modes before any ranking: close-friends posts reach only the
+       author's circle, followers posts only followers. */
+    const actx = await audienceContext(req.userId!);
+
+    if (mode === "chrono") {
+      const rows = await db.select().from(postsTable)
+        .where(and(...conds))
+        .orderBy(desc(postsTable.createdAt)).limit(limit);
+      const visible = await filterVisiblePosts(rows, actx);
+      const enriched = await enrichPosts(visible, req.userId!);
+      return res.json({ mode, posts: enriched });
+    }
+
+    /* For-You v1 (Stack 9 #4): charts-and-recency blended with real
+       interest signals — follows, plus per-creator affinity built
+       from the viewer's recorded reactions / likes / plays. The
+       factors are named in lib/for-you.ts; every item carries its
+       honest `why` (the strongest true signal). NO paid boosting
+       exists or is read here. */
+    const rows = await db.select().from(postsTable)
+      .where(and(...conds))
+      .orderBy(desc(postsTable.createdAt)).limit(150);
+    const visibleRows = await filterVisiblePosts(rows, actx);
+    const affinityByProfile = await computeAffinity(req.userId!);
+    const now = Date.now();
+    const scored = visibleRows
+      .map((p) => {
+        const signals = {
+          isFollowed: followedIds.has(p.profileId),
+          isOwn: !!me && p.profileId === me.id,
+          affinity: affinityByProfile.get(p.profileId) ?? 0,
+          likeCount: p.likeCount ?? 0,
+          repostCount: p.repostCount ?? 0,
+          replyCount: p.replyCount ?? 0,
+          hasMedia: (((p.mediaUrls as unknown[]) ?? []).length > 0),
+          createdAtMs: new Date(p.createdAt).getTime(),
+        };
+        return { p, score: forYouScore(signals, now), why: whyReason(signals, now) };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+    const enriched = await enrichPosts(scored.map((x) => x.p), req.userId!);
+    const whyById = new Map(scored.map((x) => [x.p.id, x.why]));
+    for (const e of enriched) {
+      const w = whyById.get(String(e.id));
+      if (w) (e as Record<string, unknown>).why = w;
+    }
+    return res.json({ mode, posts: enriched });
+  } catch (err) {
+    return res.status(500).json({ error: "feed_failed" });
+  }
+});
+
+router.get("/posts/:id", async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!post) return res.status(404).json({ error: "not_found" });
+    await optionalAuth(req);
+    const viewer = (req as Request & { userId?: string }).userId ?? null;
+    /* Read-time audience enforcement (Stack 9 #7): a scoped post is
+       a 404 to anyone outside its audience — its existence doesn't
+       leak either. */
+    if (!(await postVisibleTo(post, viewer))) return res.status(404).json({ error: "not_found" });
+    const [enriched] = await enrichPosts([post], viewer);
+    return res.json({ post: enriched });
+  } catch {
+    return res.status(500).json({ error: "post_failed" });
+  }
+});
+
+router.get("/posts/:id/replies", async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!parent) return res.status(404).json({ error: "not_found" });
+    await optionalAuth(req);
+    const viewer = (req as Request & { userId?: string }).userId ?? null;
+    if (!(await postVisibleTo(parent, viewer))) return res.status(404).json({ error: "not_found" });
+    const rows = await db.select().from(postsTable)
+      .where(and(eq(postsTable.replyTo, id), publishedOnly()))
+      .orderBy(postsTable.createdAt).limit(100);
+    const ctx = await audienceContext(viewer);
+    const visible = await filterVisiblePosts(rows, ctx);
+    return res.json({ replies: await enrichPosts(visible, viewer) });
+  } catch {
+    return res.status(500).json({ error: "replies_failed" });
+  }
+});
+
+const replySchema = z.object({ body: z.string().trim().min(1).max(500) });
+
+router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const parsed = replySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!parent) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(parent, req.userId!))) return res.status(404).json({ error: "not_found" });
+    const [post] = await db.insert(postsTable).values({
+      profileId: me.id,
+      body: parsed.data.body,
+      mediaUrls: [],
+      kind: "thread_reply",
+      replyTo: id,
+    }).returning();
+    await db.update(postsTable)
+      .set({ replyCount: sql`${postsTable.replyCount} + 1` })
+      .where(eq(postsTable.id, id));
+    /* A landed reply retires the SENDER's saved draft for this post
+       (STACK-20 R2 #8, the dm_drafts lifecycle): the words live in the
+       thread now, so the bench copy goes — the sender's own row only,
+       best-effort: a clear failure never fails a reply that landed. */
+    try {
+      await clearOwnReplyDraft(id, req.userId!);
+    } catch (draftErr) {
+      logger.error({ err: draftErr, userId: req.userId }, "[social] reply landed but the draft clear failed");
+    }
+    const [pa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1);
+    if (pa && pa.userId !== req.userId) {
+      await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`,
+        parsed.data.body.slice(0, 120), postNotificationLink(post.id));
+    }
+    const [enriched] = await enrichPosts([post], req.userId!);
+    return res.status(201).json({ post: enriched });
+  } catch {
+    return res.status(500).json({ error: "reply_failed" });
+  }
+});
+
+/* ── Post reply drafts (STACK-20 R2 #8 — UPGRADE-PROGRAM 2.19) ──────
+   One in-progress reply per member per board post, held on the server
+   (migration 0160) so a half-written answer at the Community Board
+   survives a closed thread, leaving the Hall and a phone reload — the
+   dm_drafts lifecycle (0157) on the post rail. Private scratch: the
+   post's own visibility gate decides who may touch its drafts at all
+   (an unseen post is a 404, existence included), and every read/write
+   is then keyed by the caller's OWN user id, so another member can
+   neither read nor overwrite my draft. The draft carries a tone — the
+   Comment Reply Assistant's set — as metadata: the member's chosen
+   voice for the reply, stored with the words; no generation is wired
+   to it. Saving an empty (or all-whitespace) body IS clearing. A
+   landed reply retires the sender's row (see the reply handler
+   above). The body cap is the reply route's own 500 chars. */
+
+const replyDraftSchema = z.object({
+  body: z.string().max(500),
+  tone: z.enum(POST_REPLY_DRAFT_TONES).optional(),
+});
+
+type ReplyDraftRow = typeof postReplyDraftsTable.$inferSelect;
+
+function toReplyDraftDto(row: ReplyDraftRow) {
+  return { body: row.body, tone: row.tone, updated_at: row.updatedAt };
+}
+
+async function readOwnReplyDraft(postId: string, userId: string) {
+  const rows = await db.select().from(postReplyDraftsTable)
+    .where(and(
+      eq(postReplyDraftsTable.postId, postId),
+      eq(postReplyDraftsTable.userId, userId),
+    ))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function clearOwnReplyDraft(postId: string, userId: string) {
+  await db.delete(postReplyDraftsTable)
+    .where(and(
+      eq(postReplyDraftsTable.postId, postId),
+      eq(postReplyDraftsTable.userId, userId),
+    ));
+}
+
+/** The post a draft hangs on: it must exist AND be visible to the
+ *  caller — a scoped post is a 404 to anyone outside its audience,
+ *  drafts included, exactly like the post's own read surfaces. */
+async function replyDraftParent(req: Request, res: Response) {
+  const id = String(req.params["id"]);
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "invalid_id" }); return null; }
+  const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+  if (!parent) { res.status(404).json({ error: "not_found" }); return null; }
+  if (!(await postVisibleTo(parent, req.userId!))) { res.status(404).json({ error: "not_found" }); return null; }
+  return parent;
+}
+
+export type SaveReplyDraftOutcome =
+  | { kind: "saved"; draft: { body: string; tone: string; updated_at: Date } }
+  | { kind: "cleared" }
+  | { kind: "invalid_id" }
+  | { kind: "not_found" }
+  | { kind: "invalid"; issues: z.ZodIssue[] };
+
+/** THE post-reply-draft write path — the PUT route below and the
+ *  operator's drafts.reply tool (Phase 2 Lane D) both ride this one
+ *  function: the parent post must exist AND be visible to the caller
+ *  (a scoped post is a not_found to anyone outside its audience,
+ *  drafts included), the composer's own schema caps the words, and
+ *  the upsert is keyed by (post, the caller's OWN user id) — another
+ *  member's draft row is never the one written. An omitted tone
+ *  keeps the tone already on the bench; an empty body clears. */
+export async function savePostReplyDraft(
+  userId: string,
+  postId: string,
+  input: unknown,
+): Promise<SaveReplyDraftOutcome> {
+  if (!UUID_RE.test(postId)) return { kind: "invalid_id" };
+  const [parent] = await db.select().from(postsTable).where(eq(postsTable.id, postId)).limit(1);
+  if (!parent) return { kind: "not_found" };
+  if (!(await postVisibleTo(parent, userId))) return { kind: "not_found" };
+  const parsed = replyDraftSchema.safeParse(input ?? {});
+  if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const { body, tone } = parsed.data;
+  if (body.trim().length === 0) {
+    await clearOwnReplyDraft(parent.id, userId);
+    return { kind: "cleared" };
+  }
+  const existing = tone === undefined ? await readOwnReplyDraft(parent.id, userId) : null;
+  const finalTone = tone ?? existing?.tone ?? "hype";
+  const now = new Date();
+  const [row] = await db.insert(postReplyDraftsTable)
+    .values({ postId: parent.id, userId, body, tone: finalTone, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [postReplyDraftsTable.postId, postReplyDraftsTable.userId],
+      set: { body, tone: finalTone, updatedAt: now },
+    })
+    .returning();
+  return { kind: "saved", draft: row ? toReplyDraftDto(row) : { body, tone: finalTone, updated_at: now } };
+}
+
+/** Read my saved reply draft for this post (or null). */
+router.get("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parent = await replyDraftParent(req, res);
+    if (!parent) return;
+    const row = await readOwnReplyDraft(parent.id, req.userId!);
+    return res.json({ draft: row ? toReplyDraftDto(row) : null });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_load_failed" });
+  }
+});
+
+/** Save my reply draft for this post. An empty body clears it; an
+ *  omitted tone keeps the tone already on the bench. */
+router.put("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const outcome = await savePostReplyDraft(req.userId!, String(req.params["id"]), req.body);
+    if (outcome.kind === "invalid_id") return res.status(400).json({ error: "invalid_id" });
+    if (outcome.kind === "not_found") return res.status(404).json({ error: "not_found" });
+    if (outcome.kind === "invalid") return res.status(400).json({ error: "invalid", details: outcome.issues });
+    if (outcome.kind === "cleared") return res.json({ draft: null });
+    return res.json({ draft: outcome.draft });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_save_failed" });
+  }
+});
+
+/** Clear my reply draft for this post. */
+router.delete("/posts/:id/reply-draft", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parent = await replyDraftParent(req, res);
+    if (!parent) return;
+    await clearOwnReplyDraft(parent.id, req.userId!);
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "reply_draft_clear_failed" });
+  }
+});
+
+router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [orig] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!orig) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(orig, req.userId!))) return res.status(404).json({ error: "not_found" });
+    if (orig.audience === "close_friends") return res.status(400).json({ error: "circle_only", message: "Close-friends posts stay in the circle — they can't be reposted or quoted." });
+    const [existing] = await db.select({ id: postsTable.id }).from(postsTable)
+      .where(and(eq(postsTable.profileId, me.id), eq(postsTable.repostOf, id))).limit(1);
+    if (existing) return res.status(409).json({ error: "already_reposted", post_id: existing.id });
+    const [post] = await db.insert(postsTable).values({
+      profileId: me.id,
+      body: "",
+      mediaUrls: [],
+      kind: "repost",
+      repostOf: id,
+    }).returning();
+    await db.update(postsTable)
+      .set({ repostCount: sql`${postsTable.repostCount} + 1` })
+      .where(eq(postsTable.id, id));
+    const [oa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, orig.profileId)).limit(1);
+    if (oa && oa.userId !== req.userId) {
+      await notifyUser(oa.userId, "post_repost", `${me.displayName} reposted you 🔁`, "", postNotificationLink(id));
+    }
+    return res.status(201).json({ post });
+  } catch {
+    return res.status(500).json({ error: "repost_failed" });
+  }
+});
+
+const quoteSchema = z.object({
+  body: z.string().trim().min(1).max(500),
+  media_urls: z.array(attachmentSchema).max(10).optional().default([]),
+});
+
+router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const parsed = quoteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    try {
+      parsed.data.media_urls.forEach(assertLinkable);
+    } catch (e) {
+      return res.status(400).json({ error: "unlinked_attachment", message: (e as Error).message });
+    }
+    const [orig] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!orig) return res.status(404).json({ error: "not_found" });
+    if (!(await postVisibleTo(orig, req.userId!))) return res.status(404).json({ error: "not_found" });
+    if (orig.audience === "close_friends") return res.status(400).json({ error: "circle_only", message: "Close-friends posts stay in the circle — they can't be reposted or quoted." });
+    const [post] = await db.insert(postsTable).values({
+      profileId: me.id,
+      body: parsed.data.body,
+      mediaUrls: (await mirrorAttachments(parsed.data.media_urls, req.userId!)) as unknown as Attachment[],
+      kind: "quote",
+      quoteOf: id,
+    }).returning();
+    const [oa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, orig.profileId)).limit(1);
+    if (oa && oa.userId !== req.userId) {
+      await notifyUser(oa.userId, "post_quote", `${me.displayName} quoted your post 🔁`,
+        parsed.data.body.slice(0, 120), postNotificationLink(post.id));
+    }
+    const [enriched] = await enrichPosts([post], req.userId!);
+    return res.status(201).json({ post: enriched });
+  } catch {
+    return res.status(500).json({ error: "quote_failed" });
+  }
+});
+
+router.delete("/posts/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [post] = await db.select().from(postsTable)
+      .where(and(eq(postsTable.id, id), eq(postsTable.profileId, me.id))).limit(1);
+    if (!post) return res.status(404).json({ error: "not_found", message: "Only your own posts can be deleted." });
+    /* The thread dies with its parent; quotes keep a null quoted ref ("unavailable"). */
+    await db.delete(postsTable).where(eq(postsTable.replyTo, id));
+    await db.delete(postsTable).where(eq(postsTable.id, id));
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "delete_failed" });
+  }
+});
+
+/* Post analytics (own posts): engagement breakdown + the money hint. */
+router.get("/posts/:id/analytics", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!post) return res.status(404).json({ error: "not_found" });
+    if (!me || post.profileId !== me.id) return res.status(403).json({ error: "forbidden" });
+    const reactions = await db.select({ emoji: reactionsTable.emoji })
+      .from(reactionsTable)
+      .where(and(eq(reactionsTable.targetKind, "post"), eq(reactionsTable.targetId, id)));
+    const byEmoji: Record<string, number> = {};
+    for (const r of reactions) byEmoji[r.emoji] = (byEmoji[r.emoji] ?? 0) + 1;
+    const media = (post.mediaUrls as Array<{ kind?: string }>) ?? [];
+    const hasProduct = media.some((m) => m.kind === "product");
+    const hasSound = media.some((m) => m.kind === "track" || m.kind === "video");
+    const engagement = (post.likeCount ?? 0) + (post.repostCount ?? 0) * 3 + (post.replyCount ?? 0) * 2;
+    return res.json({
+      analytics: {
+        likes: post.likeCount ?? 0,
+        reposts: post.repostCount ?? 0,
+        replies: post.replyCount ?? 0,
+        reactions: byEmoji,
+        engagement_score: engagement,
+        /* Guide them to the money: earning posts get the nudge inline. */
+        earning_hint: hasProduct
+          ? "This post links your drop — buyers can tap straight through. Posts with a buy link earn; posts without one just entertain. 🦈"
+          : hasSound
+            ? "This post pushes your sound. Attach your drop or merch next and turn the streams into sales — \"link your drop\" is one tap in the composer."
+            : engagement >= 10
+              ? "This one's moving — strike while it's hot: repost it with your product attached and let the engagement do the selling."
+              : "Quiet so far. Posts that sell attach a product with a buy link — the composer suggests it when your words sound like money.",
+      },
+    });
+  } catch {
+    return res.status(500).json({ error: "analytics_failed" });
+  }
+});
+
+/* AI "write it for me" (1 star): returns a draft. Never auto-posts.
+   Price: 100 Visual Bucs (owner ruling, Oct 20, 2026 — supersedes the
+   old 1 VB literal). */
+export const POST_ASSIST_CREDITS = 100;
+const assistSchema = z.object({
+  prompt: z.string().trim().min(3).max(300),
+  tone: z.enum(["hype", "chill", "professional", "funny"]).optional().default("hype"),
+});
+
+router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  /* Set once the charge lands; a provider failure after it refunds the
+     exact charged amount (D5 sweep G15). */
+  let assistCharged = false;
+  let assistIdempotencyKey: string | null = null;
+  try {
+    const parsed = assistSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    /* Server-derived idempotency key — a double-submit of the same
+       draft request can't charge twice for one delivery. */
+    const idempotencyKey = buildChargeIdempotencyKey("post_assist", req.userId!, null, {
+      prompt: parsed.data.prompt,
+      tone: parsed.data.tone,
+    });
+    assistIdempotencyKey = idempotencyKey;
+    try {
+      await chargeCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist" }, { idempotencyKey });
+      assistCharged = true;
+    } catch (e) {
+      if (e instanceof OutOfCreditsError) {
+        return res.status(402).json({ error: "out_of_credits", message: "That draft costs 100 Visual Bucs — top up to keep the cheat code writing." });
+      }
+      throw e;
+    }
+    const openai = getOpenAI();
+    const completion = await openai.chat.completions.create({
+      model: getTextModel(),
+      max_tokens: 220,
+      messages: [
+        {
+          role: "system",
+          content: "You write short social posts for creators on Bow Down Visuals (\"the content creation cheat code\"). Max 500 characters, one post, no hashtags unless asked. Voice: confident, gold-luxury, creator-to-fans. Never mention being an AI.",
+        },
+        { role: "user", content: `Tone: ${parsed.data.tone}. Topic: ${parsed.data.prompt}` },
+      ],
+    });
+    const draft = completion.choices[0]?.message?.content?.trim().slice(0, 500) ?? "";
+    return res.json({ draft });
+  } catch (err) {
+    if (assistCharged) {
+      try {
+        await refundCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist — Refund (assist failed)" });
+        /* Void the charge's key so a retry charges again instead of
+           being suppressed as a replay and running free. */
+        if (assistIdempotencyKey) await voidChargeIdempotencyKey(assistIdempotencyKey);
+      } catch (refundErr) {
+        logger.error({ err: refundErr, userId: req.userId }, "[social] CRITICAL: post_assist refund failed — manual reconciliation required");
+      }
+    }
+    return res.status(500).json({ error: "assist_failed", message: "The cheat code's pen ran dry — try again." });
+  }
+});
+
+/* Poll voting (one vote per user per post). */
+const voteSchema = z.object({ option_id: z.string().uuid() });
+
+router.post("/posts/:id/poll/vote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const parsed = voteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const [opt] = await db.select().from(pollOptionsTable)
+      .where(and(eq(pollOptionsTable.id, parsed.data.option_id), eq(pollOptionsTable.postId, id))).limit(1);
+    if (!opt) return res.status(404).json({ error: "option_not_found" });
+    const [existing] = await db.select().from(pollVotesTable)
+      .where(and(eq(pollVotesTable.userId, req.userId!), eq(pollVotesTable.postId, id))).limit(1);
+    if (existing) return res.status(409).json({ error: "already_voted" });
+    await db.insert(pollVotesTable).values({ userId: req.userId!, postId: id, optionId: opt.id });
+    await db.update(pollOptionsTable)
+      .set({ voteCount: sql`${pollOptionsTable.voteCount} + 1` })
+      .where(eq(pollOptionsTable.id, opt.id));
+    const options = await db.select().from(pollOptionsTable)
+      .where(eq(pollOptionsTable.postId, id)).orderBy(pollOptionsTable.position);
+    return res.json({
+      poll: {
+        options: options.map((o) => ({ id: o.id, option_text: o.optionText, vote_count: o.voteCount })),
+        viewer_option_id: opt.id,
+      },
+    });
+  } catch {
+    return res.status(500).json({ error: "vote_failed" });
+  }
+});
+
+/* ════════════════ REACTIONS ════════════════ */
+
+const reactSchema = z.object({
+  target_kind: z.enum(["post", "track", "video", "profile"]),
+  target_id: z.string().uuid(),
+  emoji: z.enum(["like", "love", "fire", "clap", "mindblown"]),
+});
+
+router.post("/react", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const parsed = reactSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const { target_kind, target_id, emoji } = parsed.data;
+    const [existing] = await db.select().from(reactionsTable).where(
+      and(
+        eq(reactionsTable.userId, req.userId!),
+        eq(reactionsTable.targetKind, target_kind),
+        eq(reactionsTable.targetId, target_id),
+      ),
+    ).limit(1);
+    if (existing?.emoji === emoji) return res.json({ ok: true, unchanged: true });
+    const wasLike = existing?.emoji === "like";
+    await db.insert(reactionsTable)
+      .values({ userId: req.userId!, targetKind: target_kind, targetId: target_id, emoji })
+      .onConflictDoUpdate({
+        target: [reactionsTable.userId, reactionsTable.targetKind, reactionsTable.targetId],
+        set: { emoji, createdAt: new Date() },
+      });
+    if (target_kind === "post") {
+      const delta = (emoji === "like" ? 1 : 0) - (wasLike ? 1 : 0);
+      if (delta !== 0) {
+        await db.update(postsTable)
+          .set({ likeCount: sql`${postsTable.likeCount} + ${delta}` })
+          .where(eq(postsTable.id, target_id));
+      }
+    }
+    return res.json({ ok: true, emoji });
+  } catch {
+    return res.status(500).json({ error: "react_failed" });
+  }
+});
+
+router.delete("/react", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parsed = reactSchema.omit({ emoji: true }).safeParse(req.query);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const { target_kind, target_id } = parsed.data;
+    const [existing] = await db.select().from(reactionsTable).where(
+      and(
+        eq(reactionsTable.userId, req.userId!),
+        eq(reactionsTable.targetKind, target_kind),
+        eq(reactionsTable.targetId, target_id),
+      ),
+    ).limit(1);
+    if (!existing) return res.json({ ok: true });
+    await db.delete(reactionsTable).where(
+      and(
+        eq(reactionsTable.userId, req.userId!),
+        eq(reactionsTable.targetKind, target_kind),
+        eq(reactionsTable.targetId, target_id),
+      ),
+    );
+    if (target_kind === "post" && existing.emoji === "like") {
+      await db.update(postsTable)
+        .set({ likeCount: sql`GREATEST(${postsTable.likeCount} - 1, 0)` })
+        .where(eq(postsTable.id, target_id));
+    }
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "react_failed" });
+  }
+});
+
+/* ════════════════ SAVES (bookmarks) ════════════════ */
+
+const saveSchema = z.object({
+  kind: z.enum(["post", "track", "video", "profile"]),
+  target_id: z.string().uuid(),
+});
+
+router.post("/saves", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const parsed = saveSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    await db.insert(savesTable)
+      .values({ userId: req.userId!, kind: parsed.data.kind, targetId: parsed.data.target_id })
+      .onConflictDoNothing();
+    return res.status(201).json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "save_failed" });
+  }
+});
+
+router.delete("/saves/:kind/:targetId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const kind = String(req.params["kind"]);
+    const targetId = String(req.params["targetId"]);
+    if (!["post", "track", "video", "profile"].includes(kind) || !UUID_RE.test(targetId)) {
+      return res.status(400).json({ error: "invalid" });
+    }
+    await db.delete(savesTable).where(
+      and(eq(savesTable.userId, req.userId!), eq(savesTable.kind, kind), eq(savesTable.targetId, targetId)),
+    );
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "save_failed" });
+  }
+});
+
+router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(savesTable)
+      .where(eq(savesTable.userId, req.userId!))
+      .orderBy(desc(savesTable.createdAt)).limit(100);
+    const byKind = new Map<string, string[]>();
+    for (const r of rows) {
+      const arr = byKind.get(r.kind) ?? [];
+      arr.push(r.targetId);
+      byKind.set(r.kind, arr);
+    }
+    const savedPostRows = byKind.has("post")
+      ? await db.select().from(postsTable).where(inArray(postsTable.id, byKind.get("post")!))
+      : [];
+    /* A saved close-friends post leaves the saver's surfaces the
+       moment they're out of the circle (Stack 9 #7, read-time). */
+    const postRows = await filterVisiblePosts(savedPostRows, await audienceContext(req.userId!));
+    const posts: EnrichedPost[] = await enrichPosts(postRows, req.userId!);
+    const profiles: Array<typeof creatorProfilesTable.$inferSelect> = byKind.has("profile")
+      ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, byKind.get("profile")!))
+      : [];
+    const tracks: Array<typeof profileTracksTable.$inferSelect> = byKind.has("track")
+      ? await db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, byKind.get("track")!))
+      : [];
+    const videos: Array<typeof profileVideosTable.$inferSelect> = byKind.has("video")
+      ? await db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, byKind.get("video")!))
+      : [];
+    const savedAt = new Map(rows.map((r) => [`${r.kind}:${r.targetId}`, r.createdAt]));
+    /* Refresh at the response boundary: saved tracks/videos/profiles
+       store media as storage refs (r2:// / supabase://), which are not
+       playable URLs — the post branch already refreshes via enrichPosts,
+       so wrap the whole assembled payload like sibling read endpoints. */
+    return res.json(await refreshSupabaseStorageUrlsDeep({
+      saves: rows.map((r) => {
+        const key = `${r.kind}:${r.targetId}`;
+        const base = { kind: r.kind, target_id: r.targetId, saved_at: savedAt.get(key) };
+        if (r.kind === "post") {
+          const p = posts.find((x) => String(x.id) === r.targetId);
+          return { ...base, post: p ?? null };
+        }
+        if (r.kind === "profile") {
+          const p = profiles.find((x) => x.id === r.targetId);
+          return { ...base, profile: pickProfile(p) };
+        }
+        if (r.kind === "track") {
+          const t = tracks.find((x) => x.id === r.targetId);
+          return { ...base, track: t ? { id: t.id, title: t.title, artwork_url: t.artworkUrl, profile_id: t.profileId } : null };
+        }
+        const v = videos.find((x) => x.id === r.targetId);
+        return { ...base, video: v ? { id: v.id, title: v.title, thumbnail_url: v.thumbnailUrl, profile_id: v.profileId } : null };
+      }),
+    }));
+  } catch {
+    return res.status(500).json({ error: "saves_failed" });
+  }
+});
+
+/* ════════════════ DISCOVERY ════════════════ */
+
+/* Hashtag velocity over the last 24h: post bodies + video tags. */
+router.get("/trending/topics", async (_req: Request, res: Response) => {
+  try {
+    const since = new Date(Date.now() - 24 * 3600_000);
+    const [posts, videos] = await Promise.all([
+      db.select({ body: postsTable.body }).from(postsTable)
+        .where(and(gt(postsTable.createdAt, since), publishedOnly(), eq(postsTable.audience, "public"))).limit(2000),
+      db.select({ tags: profileVideosTable.tags }).from(profileVideosTable)
+        .where(gt(profileVideosTable.createdAt, since)).limit(2000),
+    ]);
+    const counts = new Map<string, { posts: number; videos: number }>();
+    for (const p of posts) {
+      for (const t of extractHashtags(p.body)) {
+        const c = counts.get(t) ?? { posts: 0, videos: 0 };
+        c.posts += 1;
+        counts.set(t, c);
+      }
+    }
+    for (const v of videos) {
+      for (const raw of v.tags ?? []) {
+        const t = raw.replace(/^#/, "").toLowerCase();
+        if (!t) continue;
+        const c = counts.get(t) ?? { posts: 0, videos: 0 };
+        c.videos += 1;
+        counts.set(t, c);
+      }
+    }
+    const topics = [...counts.entries()]
+      .map(([tag, c]) => ({ tag, posts: c.posts, videos: c.videos, velocity: c.posts * 2 + c.videos }))
+      .sort((a, b) => b.velocity - a.velocity)
+      .slice(0, 20);
+    return res.json({ topics });
+  } catch {
+    return res.status(500).json({ error: "trending_failed" });
+  }
+});
+
+/* Posts for a hashtag. NOTE: /api/hashtag/:tag itself belongs to the shorts
+   worker (media hub); this sibling returns the *posts* for the tag so the
+   hashtag page can add a Posts tab without colliding. */
+router.get("/hashtag/:tag/posts", async (req: Request, res: Response) => {
+  try {
+    const tag = String(req.params["tag"]).replace(/^#/, "").toLowerCase();
+    if (!/^[a-z0-9_]{2,40}$/.test(tag)) return res.status(400).json({ error: "invalid_tag" });
+    const rows = await db.select().from(postsTable)
+      .where(and(ilike(postsTable.body, `%#${tag}%`), publishedOnly()))
+      .orderBy(desc(postsTable.createdAt)).limit(50);
+    const boundary = new RegExp(`(^|[\\s(])#${tag}([\\s).,!?;:]|$)`, "i");
+    const matched = rows.filter((p) => boundary.test(p.body));
+    await optionalAuth(req);
+    const viewer = (req as Request & { userId?: string }).userId ?? null;
+    /* Read-time audience enforcement (Stack 9 #7) on the hashtag surface too. */
+    const ctx = await audienceContext(viewer);
+    const visible = await filterVisiblePosts(matched, ctx);
+    return res.json({ tag, posts: await enrichPosts(visible, viewer) });
+  } catch {
+    return res.status(500).json({ error: "hashtag_failed" });
   }
 });
 

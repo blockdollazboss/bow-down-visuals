@@ -8,6 +8,17 @@ import fs from "node:fs/promises";
 const artifactDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const publicDir = path.join(artifactDir, "dist", "public");
 
+/* Access lock-down (Lane 4, audit ~/workspace/access-lockdown/AUDIT.md
+   §1.4 / §4.6 / §5.1): prerender ONLY the static public set. The SEO /
+   marketing family (/pricing, /beta-access, /tools + /tools/*, /for +
+   /for/*, genre hubs) is LOCKED behind sign-in by the owner's ruling —
+   a prerendered page that bounces to /login is a soft-404 risk, so it
+   must not be generated at all. The matching sitemap trim lives in
+   public/sitemap.xml; both lists are pinned by
+   src/lib/prerender-sitemap-lockdown.test.ts. Public-but-dynamic routes
+   (/artist/:slug, /charts, /shorts, marketplace browse, legal pages…)
+   are NOT added here — they were never prerendered, and parameterized
+   routes get no invented entries. */
 const ROUTES = [
   {
     path: "/",
@@ -16,21 +27,7 @@ const ROUTES = [
     description:
       "Tell us your artist, genre, and idea. In seconds, Bow Down Visuals generates lyrics, a full video treatment, promo content, and more — ready to use.",
   },
-  {
-    path: "/pricing",
-    outFile: "pricing/index.html",
-    title: "Pricing — Bow Down Visuals",
-    description:
-      "Choose your creator plan. Beta members lock in the founding rate and get bonus credits when Bow Down Visuals' AI song, video, and promo tools go live.",
-  },
-  {
-    path: "/waitlist",
-    outFile: "waitlist/index.html",
-    title: "Join the Waitlist — Bow Down Visuals",
-    description:
-      "Join the Bow Down Visuals waitlist for early access to AI-powered song, music video, and promo clip creation built for independent artists.",
-  },
-];
+]
 
 async function main() {
   const template = await fs.readFile(path.join(publicDir, "index.html"), "utf-8");

@@ -1,14 +1,20 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Video, ArrowLeft, Loader2, Trash2, Copy, Check,
   Calendar, Film, AlertCircle, X, Layers, ChevronRight,
-  CheckCircle2, Link2,
+  CheckCircle2, Link2, Target, Gauge, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareForReview";
 
 interface GeneratedClip {
   id: string;
@@ -18,6 +24,9 @@ interface GeneratedClip {
   prompt: string | null;
   final_prompt: string | null;
   runway_job_id: string | null;
+  /* The character this clip was made as (0142, G8) — named via the
+     vault list when it resolves. */
+  artist_vault_id: string | null;
   video_url: string;
   thumbnail_url: string | null;
   status: string;
@@ -52,6 +61,7 @@ function formatDate(iso: string) {
 }
 
 function CopyBtn({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -76,53 +86,63 @@ interface AttachModalProps {
 }
 
 function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalProps) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  /* Project-load failures get an in-modal error state with a retry —
+     they must never render as the genuine "no projects" empty state. */
+  const [loadError, setLoadError] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(null);
   const [selectedScene, setSelectedScene] = useState<SceneItem | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [attachedInfo, setAttachedInfo] = useState<{ section: string | null; index: number } | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/projects", {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-        if (!res.ok) throw new Error("Failed to load projects");
-        const data = await res.json() as { projects: ProjectOption[] };
-        /* Show ALL projects — the server now handles scenes-missing gracefully */
-        const allProjects = data.projects ?? [];
-        setProjects(allProjects);
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    setLoadError(false);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/projects", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load projects");
+      const data = await res.json() as { projects: ProjectOption[] };
+      /* Show ALL projects — the server now handles scenes-missing gracefully */
+      const allProjects = data.projects ?? [];
+      setProjects(allProjects);
 
-        /* Pre-select project if clip has project_id */
-        if (clip.project_id) {
-          const match = allProjects.find((p) => p.id === clip.project_id);
-          if (match) {
-            setSelectedProject(match);
-            /* Pre-select scene if clip has scene_id — fall back to first scene */
-            const scenes = match.output_data?.scenes ?? [];
-            if (clip.scene_id) {
-              const sceneMatch = scenes.find((s) => s.id === clip.scene_id);
-              if (sceneMatch) {
-                setSelectedScene(sceneMatch);
-              } else if (scenes.length > 0) {
-                /* scene_id stale (scenes were rebuilt) — pick by index guess */
-                setSelectedScene(scenes[scenes.length - 1] ?? null);
-              }
+      /* Pre-select project if clip has project_id */
+      if (clip.project_id) {
+        const match = allProjects.find((p) => p.id === clip.project_id);
+        if (match) {
+          setSelectedProject(match);
+          /* Pre-select scene if clip has scene_id — fall back to first scene */
+          const scenes = match.output_data?.scenes ?? [];
+          if (clip.scene_id) {
+            const sceneMatch = scenes.find((s) => s.id === clip.scene_id);
+            if (sceneMatch) {
+              setSelectedScene(sceneMatch);
+            } else if (scenes.length > 0) {
+              /* scene_id stale (scenes were rebuilt) — pick by index guess */
+              setSelectedScene(scenes[scenes.length - 1] ?? null);
             }
           }
         }
-      } catch {
-        toast({ title: "Could not load projects", variant: "destructive" });
-      } finally {
-        setLoadingProjects(false);
       }
-    })();
-  }, [clip.project_id, clip.scene_id, getAccessToken, toast]);
+    } catch {
+      setLoadError(true);
+      toast({ title: t("myClips.errorLoadProjects"), variant: "destructive" });
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [clip.project_id, clip.scene_id, getAccessToken, toast, t]);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   async function handleAttach() {
     if (!selectedProject || !selectedScene) return;
@@ -149,19 +169,19 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
       if (!res.ok || !json.success) {
         const errMsg = json.error ?? `Server error ${res.status}`;
         setAttachError(errMsg);
-        toast({ title: "Could not attach clip", description: errMsg, variant: "destructive" });
+        toast({ title: t("myClips.errorAttach"), description: errMsg, variant: "destructive" });
         return;
       }
       setAttachedInfo({ section: json.scene?.section ?? null, index: json.scene?.index ?? 0 });
       onSuccess(clip.id);
       toast({
-        title: "Clip attached — Clip Ready!",
-        description: `Attached to Scene ${json.scene?.index ?? ""}${json.scene?.section ? ` (${json.scene.section})` : ""}. Open the Video Editor to see it.`,
+        title: t("myClips.clipAttached"),
+        description: t("myClips.attachedDesc", { index: json.scene?.index ?? "", section: json.scene?.section ? ` (${json.scene.section})` : "" }),
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Unknown error";
       setAttachError(errMsg);
-      toast({ title: "Attach failed", description: errMsg, variant: "destructive" });
+      toast({ title: t("myClips.errorAttachFailed"), description: errMsg, variant: "destructive" });
     } finally {
       setAttaching(false);
     }
@@ -206,7 +226,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               <video src={clip.video_url} className="w-full h-full object-cover" muted />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{clip.title || "Runway Clip"}</p>
+              <p className="text-sm font-bold text-white truncate">{clip.title || "Scene Clip"}</p>
               <p className="text-[10px] text-white/35">{formatDate(clip.created_at)}</p>
             </div>
           </div>
@@ -215,11 +235,26 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
+          ) : loadError ? (
+            <div className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+              <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+              <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your projects.</p>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                Something went wrong on our end — your projects are safe, this list just couldn't reach them.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadProjects()}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+              >
+                <RotateCcw className="h-4 w-4" /> Try again
+              </button>
+            </div>
           ) : projects.length === 0 ? (
             <div className="text-center py-6">
               <Layers className="h-8 w-8 text-white/20 mx-auto mb-2" />
               <p className="text-sm text-white/50 font-medium">No projects with scenes found</p>
-              <p className="text-[11px] text-white/30 mt-1">Open the Video Editor and rebuild scenes first.</p>
+              <p className="text-[11px] text-white/30 mt-1">Open Visual Vibes and rebuild scenes first.</p>
             </div>
           ) : attachedInfo ? (
             /* Success state */
@@ -246,7 +281,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                       onClick={() => { setSelectedProject(p); setSelectedScene(null); }}
                       className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
                         selectedProject?.id === p.id
-                          ? "border-primary/40 bg-primary/10 text-white"
+                          ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                           : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
                       }`}
                     >
@@ -272,14 +307,14 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                 <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] px-3 py-3 text-center">
                   <p className="text-xs font-bold text-amber-400">No scenes saved yet</p>
                   <p className="text-[10px] text-white/35 mt-0.5">
-                    Open the Video Editor, load your scenes, then come back and attach.
+                    Open Visual Vibes, load your scenes, then come back and attach.
                   </p>
                   <Link
                     href={`/video-editor?project=${selectedProject.id}`}
                     className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-primary hover:underline"
                     onClick={onClose}
                   >
-                    <ChevronRight className="h-3 w-3" /> Open Video Editor
+                    <ChevronRight className="h-3 w-3" /> Open Visual Vibes
                   </Link>
                 </div>
               )}
@@ -295,7 +330,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                           onClick={() => setSelectedScene(scene)}
                           className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
                             selectedScene?.id === scene.id
-                              ? "border-primary/40 bg-primary/10 text-white"
+                              ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
                               : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
                           }`}
                         >
@@ -313,7 +348,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
                             {hasClip && (
                               <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-1.5 py-0.5">
-                                Has clip
+                                {t("myClips.hasClip")}
                               </span>
                             )}
                             {selectedScene?.id === scene.id && <Check className="h-3.5 w-3.5 text-primary" />}
@@ -343,7 +378,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               onClick={onClose}
               className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
             >
-              Cancel
+              {t("myClips.cancel")}
             </button>
             <button
               onClick={handleAttach}
@@ -362,14 +397,14 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
           <div className="px-5 pb-4 flex gap-2">
             <Link href={`/video-editor?project=${selectedProject?.id ?? ""}`} className="flex-1">
               <button className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                <ChevronRight className="h-4 w-4" /> Open Video Editor
+                <ChevronRight className="h-4 w-4" /> Open Visual Vibes
               </button>
             </Link>
             <button
               onClick={onClose}
               className="py-2.5 px-4 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
             >
-              Done
+              {t("myClips.done")}
             </button>
           </div>
         )}
@@ -378,21 +413,459 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
   );
 }
 
+/* ─── SEO Score Modal ────────────────────────────────────────────────────── */
+interface SeoScoreIssue {
+  severity: "high" | "medium" | "low";
+  message: string;
+  fix: string;
+}
+
+interface SeoScoreResult {
+  overallScore: number;
+  dimensions: {
+    titleStrength: number;
+    keywordCoverage: number;
+    descriptionQuality: number;
+    tagRelevance: number;
+    packagingComplete: number;
+  };
+  issues: SeoScoreIssue[];
+  optimizedTitle: string;
+  optimizedDescriptionFirst150: string;
+}
+
+const SEO_DIMENSIONS: Array<{
+  key: keyof SeoScoreResult["dimensions"];
+  label: string;
+}> = [
+  { key: "titleStrength",      label: "Title strength" },
+  { key: "keywordCoverage",    label: "Keyword coverage" },
+  { key: "descriptionQuality", label: "Description quality" },
+  { key: "tagRelevance",       label: "Tag relevance" },
+  { key: "packagingComplete",  label: "Packaging complete" },
+];
+
+function scoreTint(score: number): string {
+  if (score >= 80) return "text-green-400";
+  if (score >= 60) return "text-amber-400";
+  return "text-red-400";
+}
+
+function barTint(score: number): string {
+  if (score >= 80) return "bg-green-400";
+  if (score >= 60) return "bg-amber-400";
+  return "bg-red-400";
+}
+
+function severityStyle(sev: SeoScoreIssue["severity"]): string {
+  if (sev === "high")   return "text-red-400 bg-red-400/10 border-red-400/25";
+  if (sev === "medium") return "text-amber-400 bg-amber-400/10 border-amber-400/25";
+  return "text-white/50 bg-white/[0.04] border-white/10";
+}
+
+function CopyTextBtn({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-white transition-colors px-2 py-1 rounded hover:bg-primary/10 shrink-0"
+    >
+      {copied ? <><Check className="h-3 w-3 text-green-400" /> Copied</> : <><Copy className="h-3 w-3" /> Copy {label}</>}
+    </button>
+  );
+}
+
+const seoInputClass =
+  "w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
+
+function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => void }) {
+  const { toast } = useToast();
+  const { refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+
+  const [title, setTitle] = useState(clip.title ?? "");
+  const [description, setDescription] = useState("");
+  const [tags, setTags] = useState("");
+  const [niche, setNiche] = useState("");
+  const [hasChapters, setHasChapters] = useState(false);
+  const [hasCaptions, setHasCaptions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SeoScoreResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleScore() {
+    if (!title.trim() || !description.trim() || !niche.trim()) {
+      setError("Fill in the title, description, and niche so the score is accurate.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await confirmedFetch("/api/seo-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 15),
+          niche: niche.trim(),
+          hasChapters,
+          hasCaptions,
+        }),
+      });
+      /* null = user cancelled the credit confirmation */
+      if (!res) { setLoading(false); return; }
+      const data = await res.json() as {
+        result?: SeoScoreResult;
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 402 || data.error === "out_of_credits") {
+        refreshProfile();
+        toast({
+          title: "Not enough Visual Bucs",
+          description: "The SEO Score costs 75 Visual Bucs. Top up to run it.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      if (!res.ok || !data.result) {
+        throw new Error(data.message ?? data.error ?? `Server error ${res.status}`);
+      }
+      setResult(data.result);
+      refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SEO score failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const needsTitleFix = result !== null && result.dimensions.titleStrength < 70;
+  const needsDescFix = result !== null && result.dimensions.descriptionQuality < 70;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.10] bg-zinc-950 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] sticky top-0 bg-zinc-950 z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Gauge className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Video SEO Score</p>
+              <p className="text-[11px] text-white/35">75 Visual Bucs — title + description + tags + chapters</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {!result ? (
+            /* ── Input form ── */
+            <>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-black border border-white/[0.06] overflow-hidden shrink-0">
+                  <video src={clip.video_url} className="w-full h-full object-cover" muted />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{clip.title || "Scene Clip"}</p>
+                  <p className="text-[10px] text-white/35">Score this clip's publish packaging</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Title</label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="The title as it will appear on YouTube"
+                  maxLength={150}
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Paste the full description as it will be published"
+                  rows={4}
+                  maxLength={5000}
+                  className={`${seoInputClass} resize-y`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Tags <span className="normal-case font-normal text-white/25">(comma separated)</span></label>
+                <input
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="ai music, creator tips, behind the scenes"
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Niche</label>
+                <input
+                  value={niche}
+                  onChange={(e) => setNiche(e.target.value)}
+                  placeholder="e.g. AI music production, gaming, fitness"
+                  maxLength={100}
+                  className={seoInputClass}
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasChapters}
+                    onChange={(e) => setHasChapters(e.target.checked)}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  Has chapters
+                </label>
+                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasCaptions}
+                    onChange={(e) => setHasCaptions(e.target.checked)}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  Has captions
+                </label>
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-3 py-2.5">
+                  <p className="text-[11px] text-red-300">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleScore}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Scoring…</>
+                ) : (
+                  <><Target className="h-4 w-4" /> Score My SEO — 75 Visual Bucs</>
+                )}
+              </button>
+            </>
+          ) : (
+            /* ── Results ── */
+            <>
+              {/* Overall score */}
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4 flex items-center gap-5">
+                <div className="relative h-20 w-20 shrink-0">
+                  <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                    <circle
+                      cx="40" cy="40" r="34" fill="none"
+                      stroke={result.overallScore >= 80 ? "#4ade80" : result.overallScore >= 60 ? "#fbbf24" : "#f87171"}
+                      strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={`${(result.overallScore / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-2xl font-black ${scoreTint(result.overallScore)}`}>{result.overallScore}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Publish readiness</p>
+                  <p className="text-[11px] text-white/40 mt-1 leading-relaxed">
+                    {result.overallScore >= 80
+                      ? "Locked in — publish it. The packaging is search-ready."
+                      : result.overallScore >= 60
+                        ? "Solid bones, but a few fixes below would lift reach."
+                        : "Needs work before publishing — fix the high-severity issues first."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Dimensions */}
+              <div className="space-y-2">
+                {SEO_DIMENSIONS.map((dim) => {
+                  const score = result.dimensions[dim.key];
+                  return (
+                    <div key={dim.key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-white/70">{dim.label}</span>
+                        <span className={`text-xs font-black ${scoreTint(score)}`}>{score}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div className={`h-full rounded-full ${barTint(score)} transition-all`} style={{ width: `${score}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Issues */}
+              {result.issues.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Fix before publishing</p>
+                  {result.issues.map((issue, idx) => (
+                    <div key={idx} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[9px] font-black uppercase tracking-wider rounded-full border px-1.5 py-0.5 ${severityStyle(issue.severity)}`}>
+                          {issue.severity}
+                        </span>
+                        <p className="text-xs font-bold text-white/85">{issue.message}</p>
+                      </div>
+                      <p className="text-[11px] text-white/45 leading-relaxed">
+                        <span className="text-primary font-bold">Fix: </span>{issue.fix}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* AI rewrites */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Rewrites — ready to use</p>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Optimized title</p>
+                      <p className="text-sm font-bold text-white leading-snug">{result.optimizedTitle}</p>
+                    </div>
+                    <CopyTextBtn text={result.optimizedTitle} label="title" />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Optimized first 150 chars</p>
+                      <p className="text-xs text-white/80 leading-relaxed">{result.optimizedDescriptionFirst150}</p>
+                    </div>
+                    <CopyTextBtn text={result.optimizedDescriptionFirst150} label="text" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Handoffs — low scores route to the fixer tools */}
+              {(needsTitleFix || needsDescFix) && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Score too low? Fix it here</p>
+                  {needsTitleFix && (
+                    <Link href="/titles" onClick={onClose} className="block">
+                      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                        <div>
+                          <p className="text-xs font-bold text-white">Fix with Title Studio</p>
+                          <p className="text-[10px] text-white/40">AI writes 10 click-ranked titles for your niche</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                      </div>
+                    </Link>
+                  )}
+                  {needsDescFix && (
+                    <Link href="/titles" onClick={onClose} className="block">
+                      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                        <div>
+                          <p className="text-xs font-bold text-white">Rewrite description in Title Studio</p>
+                          <p className="text-[10px] text-white/40">Full description + timestamps + CTA template</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-3 py-2.5">
+                  <p className="text-[11px] text-red-300">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={() => { setResult(null); setError(null); }}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white/50 border border-white/[0.07] bg-white/[0.02] hover:text-white/80 transition-colors"
+              >
+                Score again with new inputs
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Clip Card ────────────────────────────────────────────────────────────── */
 function ClipCard({
   clip,
+  characterName,
   onDelete,
   onAttach,
+  onSeoScore,
 }: {
   clip: GeneratedClip;
+  characterName?: string | null;
   onDelete: (id: string) => void;
   onAttach: (clip: GeneratedClip) => void;
+  onSeoScore: (clip: GeneratedClip) => void;
 }) {
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [showPrompt, setShowPrompt] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  async function handleExtractAudio() {
+    setExtracting(true);
+    try {
+      const res = await confirmedFetch("/api/extract-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: clip.video_url, format: "mp3" }),
+        overrideCost: 50,
+        overrideFeature: t("myClips.extractAudio"),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? t("myClips.extractAudioFailed"));
+      }
+      setAudioUrl(data.url);
+      toast({ title: t("myClips.extractAudioDone") });
+    } catch (err) {
+      toast({
+        title: t("myClips.extractAudioFailed"),
+        description:
+          err instanceof Error ? err.message : t("myClips.extractAudioRefunded"),
+      });
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       {/* Video preview */}
       <div className="relative bg-black aspect-[9/16] max-h-72 w-full overflow-hidden">
         <video
@@ -408,16 +881,19 @@ function ClipCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white truncate">
-              {clip.title || "Runway Clip"}
+              {clip.title || "Scene Clip"}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Calendar className="h-3 w-3 text-white/30 shrink-0" />
               <p className="text-[11px] text-white/35">{formatDate(clip.created_at)}</p>
             </div>
+            {characterName && (
+              <p className="text-[11px] text-[#C9A84C] mt-0.5 truncate">Made as {characterName}</p>
+            )}
           </div>
           <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/20 rounded-full px-2 py-0.5 shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-            Ready
+            {t("myClips.ready")}
           </span>
         </div>
 
@@ -445,8 +921,80 @@ function ClipCard({
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-primary border border-primary/25 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors"
         >
           <Link2 className="h-3.5 w-3.5" />
-          Attach to Project Scene
+          {t("myClips.attachToScene")}
         </button>
+
+        {/* SEO Score — pre-publish audit of title + description + tags */}
+        <button
+          onClick={() => onSeoScore(clip)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-amber-400 border border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/40 transition-colors"
+        >
+          <Target className="h-3.5 w-3.5" />
+          SEO Score <span className="text-white/30 font-normal">· 75</span>
+        </button>
+
+        {/* Extract audio — pull the MP3 out of this clip */}
+        {audioUrl ? (
+          <a
+            href={audioUrl}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-green-400 border border-green-400/25 bg-green-400/5 hover:bg-green-400/10 hover:border-green-400/40 transition-colors"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {t("myClips.downloadMp3")}
+          </a>
+        ) : (
+          <button
+            onClick={handleExtractAudio}
+            disabled={extracting}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-sky-300 border border-sky-400/25 bg-sky-400/5 hover:bg-sky-400/10 hover:border-sky-400/40 transition-colors disabled:opacity-40"
+          >
+            {extracting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Film className="h-3.5 w-3.5" />
+            )}
+            {extracting ? t("myClips.extracting") : t("myClips.extractAudio")}{" "}
+            <span className="text-white/30 font-normal">· {t("myClips.extractAudioCost")}</span>
+          </button>
+        )}
+
+        {/* Publish to showcase (opt-in) */}
+        <PublishToShowcase
+          mediaType="video"
+          mediaUrl={clip.video_url}
+          thumbnailUrl={clip.thumbnail_url}
+          defaultTitle={clip.title || "My Scene Clip"}
+        />
+
+        {/* Publish to my profile: clip → /publish prefilled → live */}
+        <PublishToProfileButton
+          type="video"
+          category="video"
+          videoUrl={clip.video_url}
+          title={clip.title || "My Scene Clip"}
+          artworkUrl={clip.thumbnail_url ?? undefined}
+          from="/my-clips"
+          fromLabel="My Clips"
+        />
+
+        {/* Client review link (CapCut parity) — free shareable feedback page */}
+        <ShareForReviewButton
+          videoUrl={clip.video_url}
+          title={clip.title || "My Scene Clip"}
+          sourceType="clip"
+          sourceId={clip.id}
+        />
+
+        {/* Creator feedback inbox — surfaces client comments on this clip */}
+        <ReviewFeedbackBadge
+          videoUrl={clip.video_url}
+          sourceType="clip"
+          sourceId={clip.id}
+          projectId={clip.project_id}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-1 border-t border-white/[0.05]">
@@ -481,14 +1029,19 @@ function ClipCard({
 
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
 export default function MyClips() {
-  usePageTitle("My Clips", "Your generated promo clips library.");
+  const { t } = useTranslation();
+  usePageTitle(t("myClips.pageTitle"), t("myClips.pageDescription"));
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
   const [clips, setClips] = useState<GeneratedClip[]>([]);
+  /* Vault id → character name, for the "Made as …" line (0142, G8).
+     Best-effort: clips without a resolvable character show nothing. */
+  const [vaultNames, setVaultNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attachingClip, setAttachingClip] = useState<GeneratedClip | null>(null);
+  const [seoClip, setSeoClip] = useState<GeneratedClip | null>(null);
 
   const stableGetAccessToken = useCallback(getAccessToken, [getAccessToken]);
 
@@ -502,6 +1055,22 @@ export default function MyClips() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json() as { clips: GeneratedClip[] };
         setClips(data.clips ?? []);
+        /* Resolve character names for the clips that carry one. */
+        try {
+          const vRes = await fetch("/api/artist-vaults", {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          });
+          if (vRes.ok) {
+            const vData = (await vRes.json()) as { vaults?: Array<{ id: string; artist_name?: string }> };
+            const map: Record<string, string> = {};
+            for (const v of vData.vaults ?? []) {
+              if (v.id && v.artist_name) map[v.id] = v.artist_name;
+            }
+            setVaultNames(map);
+          }
+        } catch {
+          /* names are a display nicety — never fail the list over them */
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load clips");
       } finally {
@@ -518,9 +1087,9 @@ export default function MyClips() {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       setClips((prev) => prev.filter((c) => c.id !== id));
-      toast({ title: "Clip deleted" });
+      toast({ title: t("myClips.clipDeleted") });
     } catch {
-      toast({ title: "Delete failed", variant: "destructive" });
+      toast({ title: t("myClips.errorDelete"), variant: "destructive" });
     }
   }
 
@@ -541,12 +1110,20 @@ export default function MyClips() {
         />
       )}
 
+      {/* SEO Score Modal */}
+      {seoClip && (
+        <SeoScoreModal
+          clip={seoClip}
+          onClose={() => setSeoClip(null)}
+        />
+      )}
+
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
         {/* Header */}
         <Link href="/my-projects" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to My Projects
+          {t("myClips.backToProjects")}
         </Link>
 
         <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
@@ -573,8 +1150,8 @@ export default function MyClips() {
           <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
             <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-[12px] text-white/50 leading-relaxed">
-              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in your Video Editor — no Visual Bucs charged.
-              Open the Video Editor afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
+              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in Visual Vibes — no Visual Bucs charged.
+              Open Visual Vibes afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
             </p>
           </div>
         )}
@@ -601,8 +1178,8 @@ export default function MyClips() {
               <Film className="h-7 w-7 text-white/20" />
             </div>
             <h2 className="text-lg font-bold text-white/60 mb-2">No clips yet</h2>
-            <p className="text-sm text-white/30 mb-6 max-w-sm mx-auto">
-              Generated Runway clips auto-save here. Generate your first clip from the Scene Studio.
+            <p className="text-sm text-white/50 mb-6 max-w-sm mx-auto">
+              {t("myClips.noClipsHint")}
             </p>
             <Link href="/make-video">
               <Button className="gold-glow font-bold gap-2">
@@ -619,8 +1196,10 @@ export default function MyClips() {
               <ClipCard
                 key={clip.id}
                 clip={clip}
+                characterName={clip.artist_vault_id ? vaultNames[clip.artist_vault_id] ?? null : null}
                 onDelete={handleDelete}
                 onAttach={setAttachingClip}
+                onSeoScore={setSeoClip}
               />
             ))}
           </div>

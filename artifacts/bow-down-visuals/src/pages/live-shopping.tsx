@@ -1,5 +1,8 @@
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   ShoppingBag, Loader2, Plus, Trash2, Pencil, Sparkles, Radio,
   Bell, Pin, PinOff, Play, Square, TrendingUp, AlertTriangle,
@@ -21,11 +24,12 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    description writer (1 credit, charged before the call, refunded on
    provider failure).
 
-   Honest v1 boundaries (shown in the UI, never hidden):
-   - Platform checkout is "coming soon": buy buttons open the creator's
-     own checkout URL in a new tab.
-   - Sales and purchase alerts recorded here are TEST sales until
-     platform checkout ships — every response and the dashboard say so. */
+   Checkout (0132, shown in the UI, never hidden):
+   - The default buy path is on-platform secure checkout (test mode):
+     the sale records only when the payment verifies on return.
+   - The creator's own external link stays as a secondary option.
+   - Sales and purchase alerts recorded manually here are TEST sales —
+     the dashboard labels them separately from paid sales. */
 
 interface Product {
   id: string;
@@ -58,12 +62,17 @@ interface ShopAlert {
 interface DashboardData {
   totals: {
     sales: number;
+    paid_sales: number;
+    test_sales: number;
+    paid_revenue: string;
+    paid_revenue_cents: number;
     revenue: string;
     revenue_cents: number;
     platform_fees: string;
     creator_payout: string;
     fee_bps: number;
   };
+  test_data: boolean;
   per_stream: Array<{
     stream_id: string;
     title: string;
@@ -85,6 +94,9 @@ const ghostBtn =
 type Tab = "products" | "overlay" | "dashboard";
 
 export default function LiveShopping() {
+  usePageTitle("Live Shopping", "Sell products during live streams — pin products, fire purchase alerts, and track revenue per stream.");
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<Tab>("products");
@@ -136,7 +148,7 @@ export default function LiveShopping() {
         fetch("/api/live-shopping/streams", { headers }),
         fetch("/api/live-shopping/dashboard", { headers }),
       ]);
-      if (!catRes.ok || !streamRes.ok || !dashRes.ok) throw new Error("Failed to load live shopping data.");
+      if (!catRes.ok || !streamRes.ok || !dashRes.ok) throw new Error(t("liveShopping.errLoad"));
       const cat = await catRes.json();
       const s = await streamRes.json();
       const d = await dashRes.json();
@@ -146,7 +158,7 @@ export default function LiveShopping() {
       const live = (s.streams ?? []).find((x: Stream) => x.status === "live") ?? null;
       setActiveStream(live);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errGeneric"));
     } finally {
       setLoading(false);
     }
@@ -201,7 +213,7 @@ export default function LiveShopping() {
   const saveProduct = async () => {
     const priceCents = Math.round(Number.parseFloat(price || "0") * 100);
     if (!name.trim() || !Number.isFinite(priceCents) || priceCents < 0) {
-      setError("Give the product a name and a valid price.");
+      setError(t("liveShopping.errNamePrice"));
       return;
     }
     setSaving(true);
@@ -220,32 +232,32 @@ export default function LiveShopping() {
         : await fetch("/api/live-shopping/products", { method: "POST", headers, body: JSON.stringify(body) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Failed to save product.");
+        throw new Error(data.error ?? t("liveShopping.errSaveProduct"));
       }
       resetForm();
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save product.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errSaveProduct"));
     } finally {
       setSaving(false);
     }
   };
 
   const deleteProduct = async (id: string) => {
-    if (!window.confirm("Delete this product?")) return;
+    if (!window.confirm(t("liveShopping.confirmDeleteProduct"))) return;
     try {
       const headers = await authHeaders();
       const res = await fetch(`/api/live-shopping/products/${id}`, { method: "DELETE", headers });
-      if (!res.ok) throw new Error("Failed to delete product.");
+      if (!res.ok) throw new Error(t("liveShopping.errDeleteProduct"));
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete product.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errDeleteProduct"));
     }
   };
 
   const generateAiDescription = async () => {
     if (!name.trim()) {
-      setError("Enter a product name first, then let AI write the description.");
+      setError(t("liveShopping.errNameFirst"));
       return;
     }
     setAiDesc(true);
@@ -264,13 +276,13 @@ export default function LiveShopping() {
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "AI description failed.");
+        throw new Error(data.error ?? t("liveShopping.errAiDescription"));
       }
       const data = await res.json();
       setDescription(data.description ?? "");
       refreshProfile?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "AI description failed.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errAiDescription"));
     } finally {
       setAiDesc(false);
     }
@@ -278,7 +290,7 @@ export default function LiveShopping() {
 
   const startStream = async () => {
     if (!streamTitle.trim()) {
-      setError("Give your selling stream a title first.");
+      setError(t("liveShopping.errStreamTitle"));
       return;
     }
     try {
@@ -288,14 +300,14 @@ export default function LiveShopping() {
         headers,
         body: JSON.stringify({ title: streamTitle.trim() }),
       });
-      if (!res.ok) throw new Error("Failed to start stream.");
+      if (!res.ok) throw new Error(t("liveShopping.errStartStream"));
       const data = await res.json();
       setActiveStream(data.stream);
       setStreamTitle("");
       setOverlayKey((k) => k + 1);
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start stream.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errStartStream"));
     }
   };
 
@@ -312,7 +324,7 @@ export default function LiveShopping() {
       setAlerts([]);
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to end stream.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errEndStream"));
     }
   };
 
@@ -325,11 +337,11 @@ export default function LiveShopping() {
         headers,
         body: JSON.stringify({ pinned_product_id: productId }),
       });
-      if (!res.ok) throw new Error("Failed to pin product.");
+      if (!res.ok) throw new Error(t("liveShopping.errPin"));
       const data = await res.json();
       setActiveStream(data.stream);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to pin product.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errPin"));
     }
   };
 
@@ -342,11 +354,11 @@ export default function LiveShopping() {
         headers,
         body: JSON.stringify({
           product_id: product.id,
-          buyer_name: testBuyer.trim() || "A viewer",
+          buyer_name: testBuyer.trim() || t("liveShopping.defaultBuyer"),
           quantity: 1,
         }),
       });
-      if (!res.ok) throw new Error("Failed to fire alert.");
+      if (!res.ok) throw new Error(t("liveShopping.errFireAlert"));
       /* also record a test sale so the dashboard reflects it */
       await fetch("/api/live-shopping/sales", {
         method: "POST",
@@ -355,11 +367,63 @@ export default function LiveShopping() {
       });
       setOverlayKey((k) => k + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fire alert.");
+      setError(e instanceof Error ? e.message : t("liveShopping.errFireAlert"));
     }
   };
 
   const pinned = products.find((p) => p.id === activeStream?.pinned_product_id) ?? null;
+
+  /* Native checkout (default buy path): start the on-platform checkout
+     and send the viewer to it. The sale only exists once the payment
+     verifies on return (see the session_id effect below). */
+  const [buying, setBuying] = useState(false);
+  const [buyMsg, setBuyMsg] = useState<string | null>(null);
+  const buyPinned = async () => {
+    if (!pinned) return;
+    setBuying(true);
+    setBuyMsg(null);
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/live-shopping/checkout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ product_id: pinned.id, stream_id: activeStream?.id, quantity: 1 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed.");
+      window.location.href = data.url as string;
+    } catch (e) {
+      setBuyMsg(e instanceof Error ? e.message : "Checkout failed.");
+      setBuying(false);
+    }
+  };
+
+  /* Returning from checkout: verify server-side before calling it a sale. */
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get("session_id");
+    if (!sid || !user) return;
+    window.history.replaceState(null, "", "/live-shopping");
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const res = await fetch("/api/live-shopping/verify", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ sessionId: sid }),
+        });
+        const data = await res.json().catch(() => ({}));
+        setBuyMsg(
+          res.ok && data.success
+            ? "Payment confirmed — your purchase is complete."
+            : (data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+        );
+        if (res.ok) await loadAll();
+      } catch {
+        setBuyMsg("We couldn't confirm that payment. If you were charged, contact support.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -368,55 +432,51 @@ export default function LiveShopping() {
         <section className="pt-14 pb-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />
-            Live Shopping
+            {t("liveShopping.badge")}
           </div>
           <h1 className="mt-5 text-4xl md:text-6xl font-black tracking-tight">
-            Sell <span className="bg-gradient-to-b from-[#f5d76e] to-[#b8860b] bg-clip-text text-transparent">live</span> on stream
+            {t("liveShopping.heroTitleStart")}<span className="bg-gradient-to-b from-[#f5d76e] to-[#b8860b] bg-clip-text text-transparent">{t("liveShopping.heroTitleLive")}</span>{t("liveShopping.heroTitleEnd")}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/60 text-sm md:text-base leading-relaxed">
-            Pin products in your overlay, fire animated purchase alerts when viewers buy,
-            and track revenue per stream. Free to set up — a 5% fee only applies to
-            sales made through the platform.
+            {t("liveShopping.heroSubtitle")}
           </p>
           <div className="mx-auto mt-4 flex max-w-2xl items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3 text-left">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
             <p className="text-xs leading-relaxed text-amber-100/80">
-              Platform checkout is <strong>coming soon</strong>. Buy buttons currently open your
-              own checkout link, and sales/alerts recorded here are <strong>test sales</strong> —
-              nothing charges anyone.
+              {t("liveShopping.checkoutWarningStart")}<strong>{t("liveShopping.comingSoon")}</strong>{t("liveShopping.checkoutWarningMid")}<strong>{t("liveShopping.testSales")}</strong>{t("liveShopping.checkoutWarningEnd")}
             </p>
           </div>
         </section>
 
         {!user ? (
-          <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
+          <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <Zap className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
-            <h2 className="mt-3 text-xl font-bold">Sign in to open your shop</h2>
-            <p className="mt-2 text-sm text-white/55">Your product catalog and selling streams live in your account.</p>
-            <Link href="/login" className={`${goldBtn} mt-5 w-full`}>Sign In</Link>
+            <h2 className="mt-3 text-xl font-bold">{t("liveShopping.signInTitle")}</h2>
+            <p className="mt-2 text-sm text-white/55">{t("liveShopping.signInSubtitle")}</p>
+            <Link href="/login" className={`${goldBtn} mt-5 w-full`}>{t("liveShopping.signInButton")}</Link>
           </div>
         ) : (
           <>
             {/* tabs */}
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-2 flex-wrap">
               {(
                 [
-                  { key: "products", label: "Products", icon: ShoppingBag },
-                  { key: "overlay", label: "Live Overlay", icon: Radio },
-                  { key: "dashboard", label: "Dashboard", icon: TrendingUp },
+                  { key: "products", label: t("liveShopping.tabProducts"), icon: ShoppingBag },
+                  { key: "overlay", label: t("liveShopping.tabOverlay"), icon: Radio },
+                  { key: "dashboard", label: t("liveShopping.tabDashboard"), icon: TrendingUp },
                 ] as Array<{ key: Tab; label: string; icon: typeof ShoppingBag }>
-              ).map((t) => (
+              ).map((tb) => (
                 <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
+                  key={tb.key}
+                  onClick={() => setTab(tb.key)}
                   className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    tab === t.key
+                    tab === tb.key
                       ? "bg-primary/20 text-primary border border-primary/50"
                       : "text-white/55 border border-white/10 hover:text-white"
                   }`}
                 >
-                  <t.icon className="h-4 w-4" aria-hidden="true" />
-                  {t.label}
+                  <tb.icon className="h-4 w-4" aria-hidden="true" />
+                  {tb.label}
                 </button>
               ))}
             </div>
@@ -425,7 +485,17 @@ export default function LiveShopping() {
               <div className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/[0.06] px-4 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" aria-hidden="true" />
                 <p className="text-xs text-red-100/80">{error}</p>
-                <button onClick={() => setError(null)} className="ml-auto text-white/40 hover:text-white" aria-label="Dismiss">
+                <button onClick={() => setError(null)} className="ml-auto text-white/40 hover:text-white" aria-label={t("liveShopping.dismissAria")}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {buyMsg && (
+              <div className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-xl border border-green-400/30 bg-green-400/[0.06] px-4 py-3">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-300" aria-hidden="true" />
+                <p className="text-xs text-green-100/85">{buyMsg}</p>
+                <button onClick={() => setBuyMsg(null)} className="ml-auto text-white/40 hover:text-white" aria-label={t("liveShopping.dismissAria")}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -434,7 +504,7 @@ export default function LiveShopping() {
             {loading ? (
               <div className="flex items-center justify-center gap-3 py-16 text-white/50">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
-                Loading your shop…
+                {t("liveShopping.loadingShop")}
               </div>
             ) : (
               <>
@@ -442,44 +512,44 @@ export default function LiveShopping() {
                 {tab === "products" && (
                   <section className="mt-8">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold">Product catalog</h2>
+                      <h2 className="text-xl font-bold">{t("liveShopping.catalogTitle")}</h2>
                       <button onClick={() => { resetForm(); setFormOpen(true); }} className={ghostBtn}>
-                        <Plus className="h-4 w-4" aria-hidden="true" /> Add product
+                        <Plus className="h-4 w-4" aria-hidden="true" /> {t("liveShopping.addProduct")}
                       </button>
                     </div>
 
                     {formOpen && (
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                        <h3 className="font-bold">{editing ? "Edit product" : "New product"}</h3>
+                      <div className={`mt-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <h3 className="font-bold">{editing ? t("liveShopping.editProduct") : t("liveShopping.newProduct")}</h3>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Product name *" className={inputClass} />
-                          <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (USD), e.g. 24.99 *" inputMode="decimal" className={inputClass} />
-                          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" className={inputClass} />
-                          <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="Your checkout link (Stripe/Shopify…)" className={inputClass} />
+                          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("liveShopping.productNamePlaceholder")} className={inputClass} />
+                          <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={t("liveShopping.pricePlaceholder")} inputMode="decimal" className={inputClass} />
+                          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t("liveShopping.imageUrlPlaceholder")} className={inputClass} />
+                          <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t("liveShopping.checkoutLinkPlaceholder")} className={inputClass} />
                         </div>
                         <div className="mt-4">
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-semibold uppercase tracking-wider text-white/40">Description</label>
+                            <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("liveShopping.descriptionLabel")}</label>
                             <button onClick={generateAiDescription} disabled={aiDesc} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline disabled:opacity-50">
                               {aiDesc ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                              Write with AI · 100 Visual Bucs
+                              {t("liveShopping.aiWriteButton")}
                             </button>
                           </div>
-                          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What makes it worth buying on stream?" rows={3} className={`${inputClass} mt-2`} />
+                          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("liveShopping.descriptionPlaceholder")} rows={3} className={`${inputClass} mt-2`} />
                         </div>
                         <div className="mt-4 flex gap-3">
                           <button onClick={saveProduct} disabled={saving} className={goldBtn}>
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                            {editing ? "Save changes" : "Add product"}
+                            {editing ? t("liveShopping.saveChanges") : t("liveShopping.addProduct")}
                           </button>
-                          <button onClick={resetForm} className={ghostBtn}>Cancel</button>
+                          <button onClick={resetForm} className={ghostBtn}>{t("liveShopping.cancel")}</button>
                         </div>
                       </div>
                     )}
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {products.map((p) => (
-                        <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                           {p.image_url ? (
                             <img src={p.image_url} alt={p.name} className="h-32 w-full rounded-xl object-cover" loading="lazy" />
                           ) : (
@@ -494,17 +564,17 @@ export default function LiveShopping() {
                           {p.description && <p className="mt-2 line-clamp-2 text-xs text-white/50">{p.description}</p>}
                           <div className="mt-4 flex gap-2">
                             <button onClick={() => openEdit(p)} className={`${ghostBtn} flex-1 !px-2 !py-2 text-xs`}>
-                              <Pencil className="h-3.5 w-3.5" /> Edit
+                              <Pencil className="h-3.5 w-3.5" /> {t("liveShopping.edit")}
                             </button>
                             <button onClick={() => deleteProduct(p.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-400/25 bg-red-400/[0.05] px-2 py-2 text-xs font-semibold text-red-200/80 transition hover:border-red-400/50">
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                              <Trash2 className="h-3.5 w-3.5" /> {t("liveShopping.delete")}
                             </button>
                           </div>
                         </div>
                       ))}
                     </div>
                     {products.length === 0 && !formOpen && (
-                      <p className="mt-8 text-center text-sm text-white/40">No products yet — add your first one to start selling on stream.</p>
+                      <p className="mt-8 text-center text-sm text-white/40">{t("liveShopping.noProducts")}</p>
                     )}
                   </section>
                 )}
@@ -513,13 +583,13 @@ export default function LiveShopping() {
                 {tab === "overlay" && (
                   <section className="mt-8">
                     {!activeStream ? (
-                      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
+                      <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <Radio className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
-                        <h2 className="mt-3 text-xl font-bold">Start a selling stream</h2>
-                        <p className="mt-2 text-sm text-white/55">Pin products and fire purchase alerts while you're live.</p>
-                        <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} placeholder="Stream title, e.g. Friday merch drop" className={`${inputClass} mt-5`} />
+                        <h2 className="mt-3 text-xl font-bold">{t("liveShopping.startStreamTitle")}</h2>
+                        <p className="mt-2 text-sm text-white/55">{t("liveShopping.startStreamSubtitle")}</p>
+                        <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} placeholder={t("liveShopping.streamTitlePlaceholder")} className={`${inputClass} mt-5`} />
                         <button onClick={startStream} className={`${goldBtn} mt-4 w-full`}>
-                          <Play className="h-4 w-4" /> Go live
+                          <Play className="h-4 w-4" /> {t("liveShopping.goLive")}
                         </button>
                       </div>
                     ) : (
@@ -527,18 +597,18 @@ export default function LiveShopping() {
                         {/* overlay preview */}
                         <div>
                           <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold">Overlay preview</h2>
+                            <h2 className="text-xl font-bold">{t("liveShopping.overlayPreview")}</h2>
                             <button onClick={endStream} className="inline-flex items-center gap-1.5 rounded-xl border border-red-400/25 bg-red-400/[0.05] px-3 py-2 text-xs font-semibold text-red-200/80 hover:border-red-400/50">
-                              <Square className="h-3.5 w-3.5" /> End stream
+                              <Square className="h-3.5 w-3.5" /> {t("liveShopping.endStream")}
                             </button>
                           </div>
-                          <div className="relative mt-4 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#141414] to-black">
+                          <div className={`relative mt-4 aspect-video overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                             <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold">
-                              <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> LIVE
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> {t("liveShopping.liveBadge")}
                             </div>
                             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-white/25">
                               <Radio className="mx-auto h-10 w-10" aria-hidden="true" />
-                              <p className="mt-2 text-xs">Your stream scene goes here</p>
+                              <p className="mt-2 text-xs">{t("liveShopping.streamScenePlaceholder")}</p>
                             </div>
                             {/* pinned product card */}
                             {pinned && (
@@ -548,13 +618,17 @@ export default function LiveShopping() {
                                   <p className="truncate text-xs font-bold">{pinned.name}</p>
                                   <p className="text-sm font-black text-primary">{pinned.price}</p>
                                 </div>
-                                {pinned.external_url ? (
-                                  <a href={pinned.external_url} target="_blank" rel="noreferrer" className={`${goldBtn} !px-4 !py-2 text-xs`}>
-                                    Buy <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-white/40">Link coming soon</span>
-                                )}
+                                <div className="flex flex-col items-end gap-1">
+                                  <button onClick={buyPinned} disabled={buying} className={`${goldBtn} !px-4 !py-2 text-xs`}>
+                                    {buying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                                    Buy {pinned.price}
+                                  </button>
+                                  {pinned.external_url && (
+                                    <a href={pinned.external_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/80">
+                                      Creator's own shop <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                             )}
                             {/* purchase alerts */}
@@ -563,7 +637,7 @@ export default function LiveShopping() {
                                 <div key={a.id} className="animate-[pop_0.4s_ease-out] rounded-xl border border-primary/60 bg-black/90 p-3 shadow-[0_0_20px_rgba(212,175,55,0.4)]">
                                   <div className="flex items-center gap-1.5 text-primary">
                                     <Bell className="h-3.5 w-3.5" aria-hidden="true" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider">Purchase!</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("liveShopping.purchaseBadge")}</span>
                                   </div>
                                   <p className="mt-1 text-xs font-semibold">{buildAlertText(a.buyer_name, a.quantity, a.total_cents)}</p>
                                 </div>
@@ -571,16 +645,16 @@ export default function LiveShopping() {
                             </div>
                           </div>
                           <p className="mt-3 text-xs text-white/40">
-                            Capture this in OBS as a browser source. Alerts refresh every few seconds.
+                            {t("liveShopping.obsHint")}
                           </p>
                         </div>
 
                         {/* controls */}
                         <div>
-                          <h2 className="text-xl font-bold">Stream controls</h2>
-                          <p className="mt-1 text-xs text-white/45">“{activeStream.title}” is live</p>
+                          <h2 className="text-xl font-bold">{t("liveShopping.streamControls")}</h2>
+                          <p className="mt-1 text-xs text-white/45">{t("liveShopping.streamIsLive", { title: activeStream.title })}</p>
 
-                          <h3 className="mt-5 text-sm font-bold text-white/70">Pin a product in the overlay</h3>
+                          <h3 className="mt-5 text-sm font-bold text-white/70">{t("liveShopping.pinProductTitle")}</h3>
                           <div className="mt-2 grid gap-2">
                             {products.filter((p) => p.is_active).map((p) => (
                               <button
@@ -588,8 +662,8 @@ export default function LiveShopping() {
                                 onClick={() => pinProduct(activeStream.pinned_product_id === p.id ? null : p.id)}
                                 className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition ${
                                   activeStream.pinned_product_id === p.id
-                                    ? "border-primary/60 bg-primary/10"
-                                    : "border-white/10 bg-white/[0.02] hover:border-primary/40"
+                                    ? (isLight ? "border-[#C9A84C] bg-[#F7ECD2] shadow-[0_0_0_1px_#C9A84C,0_10px_28px_rgba(201,168,76,0.22)]" : "border-primary bg-primary/[0.16] shadow-[0_0_0_1px_rgba(212,175,55,0.55)]")
+                                    : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
                                 }`}
                               >
                                 <span className="flex items-center gap-2">
@@ -599,19 +673,19 @@ export default function LiveShopping() {
                                 <span className="text-primary font-bold">{p.price}</span>
                               </button>
                             ))}
-                            {products.length === 0 && <p className="text-xs text-white/40">Add products first, then pin one here.</p>}
+                            {products.length === 0 && <p className="text-xs text-white/40">{t("liveShopping.addProductsFirst")}</p>}
                           </div>
 
-                          <h3 className="mt-5 text-sm font-bold text-white/70">Fire a test purchase alert</h3>
-                          <p className="text-[11px] text-white/35">Test alerts only — no real payments until platform checkout ships.</p>
+                          <h3 className="mt-5 text-sm font-bold text-white/70">{t("liveShopping.fireTestAlertTitle")}</h3>
+                          <p className="text-[11px] text-white/35">{t("liveShopping.testAlertsNote")}</p>
                           <div className="mt-2 flex gap-2">
-                            <input value={testBuyer} onChange={(e) => setTestBuyer(e.target.value)} placeholder="Buyer name (optional)" className={`${inputClass} !py-2.5`} />
+                            <input value={testBuyer} onChange={(e) => setTestBuyer(e.target.value)} placeholder={t("liveShopping.buyerNamePlaceholder")} className={`${inputClass} !py-2.5`} />
                           </div>
                           <div className="mt-2 grid gap-2">
                             {products.filter((p) => p.is_active).map((p) => (
                               <button key={p.id} onClick={() => fireTestAlert(p)} className={`${ghostBtn} justify-between !py-2.5`}>
                                 <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> {p.name}</span>
-                                <span className="text-xs text-white/40">test alert</span>
+                                <span className="text-xs text-white/40">{t("liveShopping.testAlertBadge")}</span>
                               </button>
                             ))}
                           </div>
@@ -625,38 +699,42 @@ export default function LiveShopping() {
                 {tab === "dashboard" && dashboard && (
                   <section className="mt-8">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold">Sales dashboard</h2>
-                      <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">Test data</span>
+                      <h2 className="text-xl font-bold">{t("liveShopping.dashboardTitle")}</h2>
+                      {dashboard.test_data && (
+                        <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">{t("liveShopping.testDataBadge")}</span>
+                      )}
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                        <div className="flex items-center gap-2 text-white/45"><DollarSign className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Revenue</span></div>
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <div className="flex items-center gap-2 text-white/45"><DollarSign className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.revenueLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black text-primary">{dashboard.totals.revenue}</p>
-                        <p className="mt-1 text-xs text-white/40">{dashboard.totals.sales} test sales</p>
+                        <p className="mt-1 text-xs text-white/40">
+                          {dashboard.totals.paid_sales} paid · {t("liveShopping.testSalesCount", { count: dashboard.totals.test_sales })}
+                        </p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                        <div className="flex items-center gap-2 text-white/45"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Platform fees (5%)</span></div>
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <div className="flex items-center gap-2 text-white/45"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.platformFeesLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black">{dashboard.totals.platform_fees}</p>
-                        <p className="mt-1 text-xs text-white/40">your payout: {dashboard.totals.creator_payout}</p>
+                        <p className="mt-1 text-xs text-white/40">{t("liveShopping.yourPayout", { amount: dashboard.totals.creator_payout })}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                        <div className="flex items-center gap-2 text-white/45"><Users className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Streams</span></div>
+                      <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <div className="flex items-center gap-2 text-white/45"><Users className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">{t("liveShopping.streamsLabel")}</span></div>
                         <p className="mt-2 text-3xl font-black">{dashboard.per_stream.length}</p>
-                        <p className="mt-1 text-xs text-white/40">selling sessions</p>
+                        <p className="mt-1 text-xs text-white/40">{t("liveShopping.sellingSessions")}</p>
                       </div>
                     </div>
-                    <h3 className="mt-8 text-sm font-bold text-white/70">Revenue per stream</h3>
-                    <div className="mt-3 overflow-hidden rounded-2xl border border-white/10">
+                    <h3 className="mt-8 text-sm font-bold text-white/70">{t("liveShopping.revenuePerStream")}</h3>
+                    <div className={`mt-3 overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       {dashboard.per_stream.length === 0 ? (
-                        <p className="p-6 text-center text-sm text-white/40">No streams yet — go live from the overlay tab.</p>
+                        <p className="p-6 text-center text-sm text-white/40">{t("liveShopping.noStreams")}</p>
                       ) : (
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-white/10 bg-white/[0.02] text-left text-xs uppercase tracking-wider text-white/40">
-                              <th className="px-5 py-3">Stream</th>
-                              <th className="px-5 py-3">Sales</th>
-                              <th className="px-5 py-3">Revenue</th>
-                              <th className="px-5 py-3">Fees</th>
+                              <th className="px-5 py-3">{t("liveShopping.thStream")}</th>
+                              <th className="px-5 py-3">{t("liveShopping.thSales")}</th>
+                              <th className="px-5 py-3">{t("liveShopping.thRevenue")}</th>
+                              <th className="px-5 py-3">{t("liveShopping.thFees")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -681,8 +759,8 @@ export default function LiveShopping() {
 
         {/* cross-link */}
         <p className="mt-12 text-center text-sm text-white/40">
-          Running drops on stream? Grab matching graphics in{" "}
-          <Link href="/stream-pack" className="font-semibold text-primary hover:underline">Stream Pack Generator</Link>.
+          {t("liveShopping.crossLinkStart")}{" "}
+          <Link href="/stream-pack" className="font-semibold text-primary hover:underline">{t("liveShopping.crossLinkText")}</Link>{t("liveShopping.crossLinkEnd")}
         </p>
       </main>
 

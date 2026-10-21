@@ -6,12 +6,15 @@ import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { tmpUploadStorage } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -25,8 +28,14 @@ const TARGET_HEIGHTS: Record<UpscaleTarget, number> = {
   "4k": 2160,
 };
 
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const upscaleSchema = z.object({
+  target: z.enum(["1080p", "4k"]).optional(),
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: tmpUploadStorage,
   limits: { fileSize: UPSCALE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -96,6 +105,7 @@ export interface UpscaleJob {
 }
 
 const jobs = new Map<string, UpscaleJob>();
+attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 export function getUpscaleJob(id: string): UpscaleJob | undefined {
   return jobs.get(id);
@@ -127,7 +137,7 @@ async function probeVideoHeight(inputPath: string): Promise<number | null> {
 /* ── Background worker ──────────────────────────────────────────────── */
 
 /** Exported for tests. */
-export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, originalName: string): Promise<void> {
+export async function runUpscaleJob(job: UpscaleJob, uploadedPath: string, originalName: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "upscale-"));
   const ext = (originalName.split(".").pop() ?? "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
   const inputPath = join(workDir, `input.${ext}`);
@@ -135,7 +145,7 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
 
   try {
     job.status = "processing";
-    await fs.writeFile(inputPath, inputBuffer);
+    await fs.copyFile(uploadedPath, inputPath); // 2026-10-12 OOM fix: upload is disk-backed, never a RAM Buffer
 
     // Honest gate: don't "upscale" a video that's already at/above target.
     const sourceHeight = await probeVideoHeight(inputPath);
@@ -172,6 +182,7 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    await fs.unlink(uploadedPath).catch(() => {});
   }
 }
 
@@ -188,8 +199,9 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
  * background job → poll GET /api/upscale/:jobId → download/stream result.
  * Failed jobs are refunded automatically.
  */
-router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res) => {
-  const target = (req.body?.target as string) ?? "";
+router.post("/upscale", requireAuth, upload.single("video"), async (req, res) => {
+  const parsed = upscaleSchema.safeParse(req.body ?? {});
+  const target = parsed.success ? parsed.data.target : undefined;
   if (target !== "1080p" && target !== "4k") {
     res.status(400).json({ error: "INVALID_TARGET", message: "Target must be '1080p' or '4k'." });
     return;
@@ -243,7 +255,7 @@ router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
-  void runUpscaleJob(job, req.file.buffer, req.file.originalname);
+  void runUpscaleJob(job, req.file.path, req.file.originalname);
 
   res.status(202).json({
     jobId: job.id,
@@ -260,7 +272,7 @@ router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL
  * for the upscaled video retained in Supabase storage).
  */
-router.get("/api/upscale/:jobId", requireAuth, (req, res) => {
+router.get("/upscale/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

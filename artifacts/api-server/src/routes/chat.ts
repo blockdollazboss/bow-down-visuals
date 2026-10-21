@@ -5,12 +5,15 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import {
-  CHAT_SYSTEM_PROMPT,
+  buildChatSystemPrompt,
   CHAT_MAX_OUTPUT_TOKENS,
   getChatCreditCost,
 } from "../lib/ai-chat-assistant";
+import { findInventedPrice, PRICE_FALLBACK_REPLY } from "../lib/operator-knowledge";
+import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import { resolveOptionalSession } from "../lib/optional-auth";
 
 const router = Router();
 
@@ -38,7 +41,13 @@ const chatCreditCost = getChatCreditCost();
 const maybeAuth =
   chatCreditCost > 0
     ? requireAuth
-    : (_req: Request, _res: Response, next: NextFunction) => next();
+    : async (req: Request, _res: Response, next: NextFunction) => {
+        /* Free mode stays guest-open (no 401s, contract unchanged) —
+           but a signed-in member's session still resolves, so the
+           operator's hands (Phase 2) can act as them. */
+        await resolveOptionalSession(req);
+        next();
+      };
 
 router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
   const parsed = chatSchema.safeParse(req.body ?? {});
@@ -53,7 +62,35 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
   const { message } = parsed.data;
   const history = parsed.data.history.slice(-MAX_HISTORY_TURNS);
 
-  /* Optional paid mode: deduct before calling the model. */
+  /* Tier 1 doors (Phase 2 Lane C): computed once from the member's own
+     message by the shared chat implementation — a door rides the reply
+     only when the knowledge base matched a feature with a real path. */
+  const doors = buildReplyDoors(message.trim());
+  const doorPayload = doors.length ? { doors } : {};
+
+  /* Operator Phase 2 — a live pending confirmation gets first claim on
+     this message: a clear "yes" consumes it and runs the action, a
+     clear "no" cancels it — no model call, and no per-message chat
+     charge for the confirmation turn itself (the action's own rail
+     charge is the only charge). Needs a session; guests skip it. */
+  const preTurn = await processOperatorPreTurn({
+    userId: req.userId,
+    userEmail: req.userEmail,
+    channel: "chat_text",
+    message: message.trim(),
+  }).catch((err) => {
+    logger.error({ err }, "[chat] operator pre-turn failed — falling through to the model");
+    return null;
+  });
+  if (preTurn) {
+    res.json({ reply: preTurn.replyText, model: null, creditCost: chatCreditCost, action: preTurn.action, ...doorPayload });
+    return;
+  }
+
+  /* Optional paid mode: charge first, but refund on any model failure below.
+     Charge-then-refund keeps the 402 pre-check simple while guaranteeing
+     the user never pays for a failed generation. */
+  let chatCharged = false;
   if (chatCreditCost > 0) {
     const balance = req.userCredits ?? 0;
     if (balance < chatCreditCost) {
@@ -65,6 +102,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     }
     try {
       await chargeCredits(req.userId!, chatCreditCost, { action: "AI Chat Assistant" });
+      chatCharged = true;
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -86,7 +124,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     const completion = await getOpenAI().chat.completions.create({
       model,
       messages: [
-        { role: "system", content: CHAT_SYSTEM_PROMPT },
+        { role: "system", content: buildChatSystemPrompt(message) },
         ...history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: message.trim() },
       ],
@@ -94,12 +132,50 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       temperature: 0.7,
     });
 
-    const reply =
+    let reply =
       completion.choices[0]?.message?.content?.trim() ||
       "My fins slipped — could you ask that again? 🦈";
 
-    res.json({ reply, model, creditCost: chatCreditCost });
+    /* Operator Phase 2 — an action marker in the reply hands the turn
+       to the executor: free tools run now and the reply becomes the
+       executor's code-composed outcome; charged tools become a
+       server-composed proposal awaiting the member's yes. Executor
+       replies are code-authored from rail results, so the price guard
+       below does not apply to them — it guards model text only. */
+    const actionTurn = await processOperatorReply({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      modelReply: reply,
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator action turn failed — answering without hands");
+      return null;
+    });
+    if (actionTurn) {
+      res.json({ reply: actionTurn.replyText, model, creditCost: chatCreditCost, action: actionTurn.action, ...doorPayload });
+      return;
+    }
+
+    /* No-invention guard (Cloud Operator Phase 1): if the model still
+       quoted a VB figure that exists nowhere in the generated knowledge
+       base, the reply does not ship — an honest no-number answer does. */
+    const invented = findInventedPrice(reply);
+    if (invented !== null) {
+      logger.warn({ invented }, "[chat] reply quoted a price outside the knowledge base — replaced");
+      reply = PRICE_FALLBACK_REPLY;
+    }
+
+    res.json({ reply, model, creditCost: chatCreditCost, ...doorPayload });
   } catch (err) {
+    /* Refund: the model call failed after we charged — the user must not
+       pay for a failed generation. */
+    if (chatCharged) {
+      await refundCredits(req.userId!, chatCreditCost, {
+        action: "AI Chat Assistant — Refund (model failed)",
+      }).catch((refundErr) => {
+        logger.error({ refundErr }, "[chat] refund failed after model error");
+      });
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[chat] OpenAI rate limit / quota");
       res.status(503).json({

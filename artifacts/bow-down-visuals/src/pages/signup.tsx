@@ -11,38 +11,58 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useTranslation } from "react-i18next";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
+import { SocialProofBand } from "@/components/SocialProofBand";
+import { mediaUrl } from "@/lib/media-cdn";
+import { loginPathWithNext, postLoginPath, safeNextPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
-const schema = z.object({
-  displayName: z.string().min(2, "Enter your artist or display name"),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-  agreeToTerms: z.boolean().refine((v) => v === true, {
-    message: "You must agree to the Terms and Privacy Policy",
-  }),
-}).refine((d) => d.password === d.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const schema = (t: (key: string) => string) =>
+  z.object({
+    displayName: z.string().min(2, t("signup.validationDisplayName")),
+    email: z.string().email(t("signup.validationEmail")),
+    password: z.string().min(6, t("signup.validationPassword")),
+    confirmPassword: z.string(),
+    agreeToTerms: z.boolean().refine((v) => v === true, {
+      message: t("signup.validationTerms"),
+    }),
+  }).refine((d) => d.password === d.confirmPassword, {
+    message: t("signup.validationPasswordMatch"),
+    path: ["confirmPassword"],
+  });
 
 export default function Signup() {
-  usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
-  const { signUp, signInWithProvider, getAccessToken } = useAuth();
+  const { t } = useTranslation();
+  // Theme-aware video: light theme gets the signup action video, dark gets the drone video
+  const isLight = useIsLightTheme();
+  usePageTitle(t("signup.pageTitle"), t("signup.pageDescription"));
+  const { signUp, signInWithProvider, getAccessToken, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const form = useForm<z.infer<typeof schema>>({
-    resolver: zodResolver(schema),
+  type FormSchema = ReturnType<typeof schema>;
+  const form = useForm<z.infer<FormSchema>>({
+    resolver: zodResolver(schema(t)),
     defaultValues: { displayName: "", email: "", password: "", confirmPassword: "", agreeToTerms: false },
   });
 
-  async function onSubmit(values: z.infer<typeof schema>) {
+  // Already signed in? Don't show the form — same as the login page,
+  // including its ?next= return path: a guest bounced from a locked
+  // page who lands here already signed in (or whose social sign-up
+  // returns with a session) goes where they were headed.
+  useEffect(() => {
+    if (!authLoading && user) {
+      setLocation(postLoginPath(window.location.search));
+    }
+  }, [authLoading, user, setLocation]);
+
+  async function onSubmit(values: z.infer<FormSchema>) {
     setLoading(true);
     setError(null);
     const { error } = await signUp(values.email, values.password, values.displayName);
@@ -71,9 +91,42 @@ export default function Signup() {
           })();
         }
       } catch { /* noop */ }
+      /* Apply waitlist invite code if the user arrived via an invite link
+       * (e.g. /invite/ABC123). Auto-enrolls them on the waitlist so the
+       * inviter gets credited — attribution is idempotent server-side. */
+      try {
+        const inviteCode = localStorage.getItem("bdv_waitlist_invite");
+        if (inviteCode) {
+          localStorage.removeItem("bdv_waitlist_invite");
+          // Fire-and-forget: don't block signup success on the waitlist
+          fetch("/api/waitlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: values.displayName || values.email.split("@")[0],
+              email: values.email,
+              inviteCode,
+            }),
+          }).catch(() => { /* waitlist is best-effort */ });
+        }
+      } catch { /* noop */ }
       setSuccess(true);
       setLoading(false);
     }
+  }
+
+  /* Where this page's sign-in handoffs point: a valid ?next= rides
+   * along to /login, so a guest who was bounced from a locked page
+   * and created an account here still lands where they were headed
+   * once they sign in (the login page's postLoginPath does the rest). */
+  const signInHref = (() => {
+    if (typeof window === "undefined") return "/login";
+    const next = safeNextPath(window.location.search);
+    return next ? loginPathWithNext(next) : "/login";
+  })();
+
+  function goToSignIn() {
+    setLocation(signInHref);
   }
 
   async function onSocialSignUp(provider: SocialProvider) {
@@ -124,24 +177,31 @@ export default function Signup() {
       <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
         onMouseMove={handleMouseScrub}
       >
-        {/* Drone video background — scrub through with your mouse, full brightness */}
+        {/* Video background — theme-aware: light gets the signup action video, dark gets drone */}
         <video
           ref={bgVideoRef}
-          src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+          key={isLight ? "light" : "dark"}
+          src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
           muted
           playsInline
           preload="auto"
           disablePictureInPicture
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
         />
         <main className="flex-1 relative z-10 flex items-center justify-center px-4">
-          <div className="w-full max-w-md text-center space-y-6 bg-black/65 backdrop-blur-xl border border-[#c9a84c]/25 rounded-2xl p-8">
-            <h1 className="text-4xl font-black text-white">Check Your Email</h1>
+          <div className={`w-full max-w-md text-center space-y-6 backdrop-blur-xl border rounded-2xl p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <h1 className="text-4xl font-black text-white">{t("signup.checkEmailTitle")}</h1>
             <p className="text-white/60 text-lg">
-              We sent a confirmation link to your email. Click it to activate your account, then sign in.
+              {t("signup.checkEmailDesc")}
             </p>
-            <Button onClick={() => setLocation("/login")} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
-              Go to Sign In
+            {/* Momentum: the clock starts the moment they're in. */}
+            <ol className="mx-auto max-w-xs space-y-2 text-left text-sm text-white/55">
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">1.</span> Verify your email — that's the only wait in this whole process.</li>
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">2.</span> Sign in — we'll walk you straight to your public page.</li>
+              <li className="flex gap-2"><span className="font-black text-[#c9a84c]">3.</span> Your profile goes <span className="font-bold text-amber-300">live in 60 seconds</span> — name, vibe, share link.</li>
+            </ol>
+            <Button onClick={goToSignIn} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
+              {t("signup.goToSignIn")}
             </Button>
           </div>
         </main>
@@ -161,15 +221,16 @@ export default function Signup() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Drone video background — scrub through with your mouse, full brightness */}
+      {/* Video background — theme-aware: light gets the signup action video, dark gets drone */}
       <video
         ref={bgVideoRef}
-        src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+        key={isLight ? "light" : "dark"}
+        src={mediaUrl(isLight ? "videos/signup-light-action.mp4" : "videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"
         disablePictureInPicture
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        className="auth-video pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />
@@ -177,15 +238,21 @@ export default function Signup() {
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
 
+      {/* Live social proof — real platform numbers, above the signup toolbar */}
+      <SocialProofBand
+        variant="compact"
+        className="border-t border-[#c9a84c]/15 bg-black/55 backdrop-blur-xl"
+      />
+
       {/* Bottom sign-up toolbar */}
-      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+      <footer className="auth-footer relative z-10 border-t border-[#c9a84c]/25 bg-[#171208]/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
         <div className="mx-auto max-w-5xl">
           {firstError && (
             <p className="mb-2 text-center text-xs text-destructive">
               {firstError}
             </p>
           )}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap md:flex-nowrap">
             {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
             <div className="relative h-11 w-28 shrink-0">
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
@@ -201,41 +268,41 @@ export default function Signup() {
             <Input
               data-testid="input-display-name"
               type="text"
-              aria-label="Display Name"
-              placeholder="Display Name"
+              aria-label={t("signup.displayNameField")}
+              placeholder={t("signup.displayNameField")}
               autoComplete="nickname"
-              className="h-9 w-28 md:w-36 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("displayName")}
             />
             <Input
               data-testid="input-email"
               type="email"
-              aria-label="Email"
-              placeholder="Email"
+              aria-label={t("signup.emailField")}
+              placeholder={t("signup.emailField")}
               autoComplete="email"
-              className="h-9 w-28 md:w-36 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("email")}
             />
             <Input
               data-testid="input-password"
               type="password"
-              aria-label="Password"
-              placeholder="Password"
+              aria-label={t("signup.passwordField")}
+              placeholder={t("signup.passwordField")}
               autoComplete="new-password"
-              className="h-9 w-28 md:w-32 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-32 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("password")}
             />
             <Input
               data-testid="input-confirm-password"
               type="password"
-              aria-label="Confirm Password"
-              placeholder="Confirm Password"
+              aria-label={t("signup.confirmPasswordField")}
+              placeholder={t("signup.confirmPasswordField")}
               autoComplete="new-password"
-              className="h-9 w-28 md:w-32 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
+              className={`h-9 w-28 md:w-44 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("confirmPassword")}
             />
             <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Free Account"}
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("signup.creatingLabel")}</> : t("signup.createAccountButton")}
             </Button>
           </form>
           <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45 flex-wrap">
@@ -247,21 +314,21 @@ export default function Signup() {
                 className="border-white/20"
               />
               <span>
-                I agree to the{" "}
+                {t("signup.agreePrefix")}{" "}
                 <Link href="/terms" className="text-[#c9a84c] hover:underline font-medium">
-                  Terms
+                  {t("signup.termsLink")}
                 </Link>{" "}
-                and{" "}
+                {t("signup.agreeAnd")}{" "}
                 <Link href="/privacy" className="text-[#c9a84c] hover:underline font-medium">
-                  Privacy Policy
+                  {t("signup.privacyLink")}
                 </Link>
               </span>
             </label>
             <span aria-hidden className="text-white/20">·</span>
             <span>
-              Already have an account?{" "}
-              <Link href="/login" className="text-[#c9a84c] hover:underline font-medium">
-                Sign in
+              {t("signup.alreadyHaveAccount")}{" "}
+              <Link href={signInHref} className="text-[#c9a84c] hover:underline font-medium">
+                {t("signup.signInLink")}
               </Link>
             </span>
           </div>

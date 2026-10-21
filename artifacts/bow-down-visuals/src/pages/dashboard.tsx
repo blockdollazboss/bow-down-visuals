@@ -1,21 +1,44 @@
-import { useEffect, useState } from "react";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
-  Mic2, Video, Film, Archive, FolderOpen, Headphones,
-  ArrowRight, Zap, AlertCircle, User, RefreshCw,
-  ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal, Users,
+  Mic2, Video, Film, FolderOpen, Headphones, ArrowRight, ArrowUpRight,
+  Zap, AlertCircle, AlertTriangle, RotateCcw, User, Flame, Star, Sparkles, Clapperboard, ImageIcon,
+  Lightbulb, TrendingUp, DollarSign, Activity, ChevronRight, Play, Plus,
+  Music2, BadgeDollarSign, Scissors as ScissorsIcon, Gift, UsersRound, Store,
+  ShoppingBag, Coffee, Disc3, Megaphone, Crown,
 } from "lucide-react";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { StudioPipeline } from "@/components/StudioPipeline";
 import { usePageTitle } from "@/hooks/use-page-title";
-import SpotlightBanner from "@/components/SpotlightBanner";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
-import AndroidPromoBanner from "@/components/AndroidPromoBanner";
-import StreakWidget from "@/components/StreakWidget";
+import SharkDropModal, { type SharkDrop } from "@/components/retention/SharkDropModal";
+import LevelUpModal from "@/components/retention/LevelUpModal";
+import LeaderboardWidget from "@/components/retention/LeaderboardWidget";
+import CreationStreakWidget from "@/components/CreationStreakWidget";
+import QuestsWidget from "@/components/QuestsWidget";
+import FomoFeed from "@/components/FomoFeed";
+import { DailyDropCard } from "@/components/DailyDropCard";
+import { MoveHomeCard } from "@/components/MoveHomeCard";
+import { DailyDropSlate } from "@/components/DailyDropSlate";
+import ContestHubWidget from "@/components/challenges/ContestHubWidget";
+import CommandCenter from "@/components/CommandCenter";
+import { AwayDigestModal } from "@/components/AwayDigestModal";
+import { useTranslation } from "react-i18next";
+import {
+  DASHBOARD_SECTION_KEYS,
+  allDashboardSectionsFailed,
+  dashboardSectionStatusFromSettled,
+  dashboardSectionsToRefetch,
+  initialDashboardSectionStates,
+  markDashboardSectionLoading,
+  settleDashboardSection,
+  type DashboardSectionKey,
+  type DashboardSectionStates,
+} from "@/lib/dashboard-sections";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -29,27 +52,29 @@ interface Project {
   created_at: string;
 }
 
+interface SponsorDeal {
+  id: string;
+  sponsorName: string;
+  stage: string;
+  dealValueCents: number;
+  updatedAt: string;
+}
+
+interface UsageRow {
+  id: string;
+  createdAt: string;
+  action: string;
+  creditsUsed: number;
+}
+
 /* ─────────────────────── HELPERS ─────────────────────── */
 
-const TYPE_COLORS: Record<string, string> = {
-  "Make Song + Video":  "text-yellow-400",
-  "Make a Music Video": "text-blue-400",
-  "Make a Song":        "text-green-400",
-  "Promo Clip Maker":   "text-pink-400",
-  "Thumbnail Maker":    "text-orange-400",
-};
-
-const TYPE_ICONS: Record<string, React.ReactNode> = {
-  "Make Song + Video":  <Mic2     className="h-3.5 w-3.5" />,
-  "Make a Music Video": <Video    className="h-3.5 w-3.5" />,
-  "Make a Song":        <Headphones className="h-3.5 w-3.5" />,
-  "Promo Clip Maker":   <Film     className="h-3.5 w-3.5" />,
-};
-
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatVB(n: number) {
+  return n.toLocaleString("en-US");
 }
 
 function firstName(name: string | null | undefined, email: string | null | undefined) {
@@ -58,85 +83,89 @@ function firstName(name: string | null | undefined, email: string | null | undef
   return "Creator";
 }
 
-/* ─────────────────────── CREATOR CARD ─────────────────────── */
-
-interface CreatorCardProps {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  cta: string;
-  href: string;
-  accent?: boolean;
+function greetingKey(hour: number) {
+  if (hour < 5) return "dashboard.greet_night";
+  if (hour < 12) return "dashboard.greet_morning";
+  if (hour < 18) return "dashboard.greet_afternoon";
+  return "dashboard.greet_evening";
 }
 
-function CreatorCard({ icon: Icon, title, description, cta, href, accent }: CreatorCardProps) {
-  return (
-    <Link href={href}>
-      <div className={`
-        group relative flex flex-col h-full p-6 rounded-2xl border transition-all duration-300 cursor-pointer
-        ${accent
-          ? "lux-shine bg-gradient-to-br from-primary/[0.18] via-primary/[0.09] to-transparent border-primary/45 shadow-[0_0_36px_rgba(218,165,32,0.14)] hover:shadow-[0_0_52px_rgba(218,165,32,0.24)] hover:-translate-y-0.5"
-          : "lux-card"
-        }
-      `}>
-        {accent && (
-          <div className="absolute -top-3 left-5">
-            <MarketingBadge variant="popular">
-              <Star className="h-2.5 w-2.5" /> Most Popular
-            </MarketingBadge>
-          </div>
-        )}
-        <div className={`h-11 w-11 rounded-xl flex items-center justify-center mb-4 shrink-0 transition-colors ${
-          accent ? "bg-primary text-black" : "bg-white/[0.06] group-hover:bg-primary/[0.18]"
-        }`}>
-          <Icon className={`h-5 w-5 ${accent ? "text-black" : "text-primary"}`} />
-        </div>
-        <h3 className="text-base font-semibold text-white tracking-tight mb-1.5 leading-tight">{title}</h3>
-        <p className="text-sm text-white/40 leading-relaxed flex-1">{description}</p>
-        <div className={`mt-5 inline-flex items-center gap-2 text-sm font-bold transition-colors ${
-          accent ? "text-yellow-300 group-hover:text-yellow-200" : "text-primary/80 group-hover:text-primary"
-        }`}>
-          {cta}
-          <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-        </div>
+/* Cinematic card gradients per project type */
+const TYPE_GRADIENT: Record<string, string> = {
+  "Make Song + Video":  "from-amber-500/[0.22] via-yellow-600/[0.08] to-transparent",
+  "Make a Music Video": "from-sky-500/[0.22] via-blue-600/[0.08] to-transparent",
+  "Make a Song":        "from-emerald-500/[0.22] via-green-600/[0.08] to-transparent",
+  "Promo Clip Maker":   "from-pink-500/[0.22] via-fuchsia-600/[0.08] to-transparent",
+  "Thumbnail Maker":    "from-orange-500/[0.22] via-amber-600/[0.08] to-transparent",
+};
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  "Make Song + Video":  <Mic2 className="h-8 w-8" />,
+  "Make a Music Video": <Video className="h-8 w-8" />,
+  "Make a Song":        <Headphones className="h-8 w-8" />,
+  "Promo Clip Maker":   <Film className="h-8 w-8" />,
+};
+
+function projectLabel(p: Project) {
+  return p.title || [p.artist_name, p.song_title].filter(Boolean).join(" — ") || p.project_type;
+}
+
+/* ─────────────────────── SECTION FAILURE NOTE ───────────────────────
+   A failed section's own error state, rendered INSIDE that section's
+   area — never the section's empty state, never a page takeover.
+   Card-sized by default; `bare` drops the card chrome (the note sits
+   inside a card already, e.g. the money pipeline); `compact` is the
+   one-line pill for small elements like the streak chip. */
+function SectionFailureNote({ label, onRetry, isLight, compact = false, bare = false, testId }: {
+  label: string;
+  onRetry: () => void;
+  isLight: boolean;
+  compact?: boolean;
+  bare?: boolean;
+  testId: string;
+}) {
+  if (compact) {
+    return (
+      <div data-testid={testId} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/[0.08] text-xs font-bold text-red-300" title={`${label} couldn't load`}>
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span className="hidden sm:inline">{label} couldn’t load</span>
+        <button type="button" onClick={onRetry} className="font-black underline underline-offset-2 hover:text-red-100 transition-colors">Retry</button>
       </div>
-    </Link>
+    );
+  }
+  const body = (
+    <>
+      <AlertTriangle className="mx-auto h-7 w-7 text-primary" />
+      <p className={`mt-2 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{label} couldn’t load.</p>
+      <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+        Something went wrong on our end — this section just couldn’t load. The rest of your dashboard is fine.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 font-bold text-black hover:brightness-110"
+      >
+        <RotateCcw className="h-4 w-4" /> Try again
+      </button>
+    </>
+  );
+  if (bare) return <div data-testid={testId} className="flex-1 text-center py-2">{body}</div>;
+  return (
+    <div data-testid={testId} className={`rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+      {body}
+    </div>
   );
 }
 
-/* ─────────────────────── RECENT PROJECT ROW ─────────────────────── */
+/* ─────────────────────── SECTION LABEL ─────────────────────── */
 
-function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: string) => void }) {
-  const label = project.title ||
-    [project.artist_name, project.song_title].filter(Boolean).join(" — ") ||
-    project.project_type;
-  const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
-  const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-3.5 w-3.5" />;
-
+function SectionLabel({ icon: Icon, children, action }: { icon: React.ElementType; children: React.ReactNode; action?: React.ReactNode }) {
+  const I = Icon;
   return (
-    <div className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.10] hover:bg-white/[0.04] transition-all group">
-      <div className={`h-8 w-8 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0 ${iconColor}`}>
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-white truncate">{label}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-white/30 font-medium">{project.project_type}</span>
-          {project.artist_name && (
-            <>
-              <span className="text-white/15">·</span>
-              <span className="text-[10px] text-white/30 truncate">{project.artist_name}</span>
-            </>
-          )}
-        </div>
-      </div>
-      <span className="text-[11px] text-white/20 shrink-0 hidden sm:block">{formatDate(project.created_at)}</span>
-      <button
-        onClick={() => onOpen(project.id)}
-        className="shrink-0 text-xs font-bold text-primary/70 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1.5 rounded-lg transition-all"
-      >
-        Open
-      </button>
+    <div className="flex items-center justify-between mb-3">
+      <h2 className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-white/40 uppercase">
+        <I className="h-3.5 w-3.5 text-primary/70" />{children}
+      </h2>
+      {action}
     </div>
   );
 }
@@ -144,47 +173,55 @@ function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: 
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
-  usePageTitle("Dashboard", "Your creator command center — every AI tool in one place.");
+  const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  usePageTitle(t("dashboard.metaTitle"), t("dashboard.metaDescription"));
   const { profile, user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
-  const { setMode, isSimple } = useUserMode();
+  const { stars } = useUserMode();
   const [, setLocation] = useLocation();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
-  const [vaultCount, setVaultCount] = useState<number | null>(null);
-  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [deals, setDeals] = useState<SponsorDeal[]>([]);
+  const [usage, setUsage] = useState<UsageRow[]>([]);
+  const [streak, setStreak] = useState<number | null>(null);
+  /* Per-section load state (lib/dashboard-sections): each of the four
+     core sections settles and retries on its own. A failed section is
+     NOT an empty section — it renders its own failure note in its own
+     area, and it never takes the rest of the page down with it. The
+     full-page error card renders ONLY when all four sections failed. */
+  const [sectionStates, setSectionStates] = useState<DashboardSectionStates>(initialDashboardSectionStates);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
+  const [sharkDrop, setSharkDrop] = useState<SharkDrop | null>(null);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const sharkFiredFor = useRef<string | null>(null);
+  const levelFiredFor = useRef<Set<string>>(new Set());
 
   const name = firstName(profile?.display_name, user?.email);
+  const balance = profile?.credits ?? 0;
 
   /* ── Stripe redirect handler ── */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get("payment");
     const sessionId = params.get("session_id");
-
     if (payment === "cancelled") {
       setPaymentToast({ type: "cancelled", message: "Payment cancelled. No charges were made." });
       window.history.replaceState({}, "", "/dashboard");
       return;
     }
-
     if (payment === "success" && sessionId) {
       window.history.replaceState({}, "", "/dashboard");
       setPaymentToast({ type: "success", message: "Payment successful. Adding Visual Bucs to your account…" });
-
       (async () => {
         try {
           const token = await getAccessToken();
           const res = await fetch("/api/checkout/verify", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
+            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
             body: JSON.stringify({ sessionId }),
           });
-          const data = await res.json() as { success?: boolean; credits?: number; added?: number; pack?: string; error?: string };
+          const data = await res.json() as { success?: boolean; error?: string };
           if (res.ok && data.success) {
             setPaymentToast({ type: "success", message: "Payment successful. Your Visual Bucs were added." });
             refreshProfile();
@@ -199,397 +236,535 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  /* ── Projects fetch ── */
+  /* ── Per-section data fetch: projects, deals, usage, streak ──
+     Each section fetches and settles independently (the old loader
+     settled all four together and flipped ONE page-wide error flag if
+     any of them failed — one flaky endpoint nuked the whole page).
+     Data shaping per section is unchanged from that loader. */
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const fetchSection = async (key: DashboardSectionKey, headers: HeadersInit): Promise<void> => {
+    const run = async (): Promise<{ ok: boolean }> => {
+      if (key === "projects") {
+        const res = await fetch("/api/projects", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ projects: [] }));
+          if (mountedRef.current) setProjects(d.projects ?? []);
+        }
+        return res;
+      }
+      if (key === "deals") {
+        const res = await fetch("/api/wave8/sponsors/deals", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ deals: [] }));
+          if (mountedRef.current) setDeals(d.deals ?? []);
+        }
+        return res;
+      }
+      if (key === "usage") {
+        const res = await fetch("/api/credits/history", { headers });
+        if (res.ok) {
+          const d = await res.json().catch(() => ({ usage: [] }));
+          if (mountedRef.current) setUsage((d.usage ?? []).slice(0, 6));
+        }
+        return res;
+      }
+      const res = await fetch("/api/bonus/status", { headers });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (mountedRef.current) setStreak(typeof d.streak === "number" ? d.streak : 0);
+      }
+      return res;
+    };
+    const [settled] = await Promise.allSettled([run()]);
+    if (!mountedRef.current) return;
+    /* A rejected fetch OR a non-OK response fails THIS section only. */
+    setSectionStates((prev) =>
+      settleDashboardSection(prev, key, dashboardSectionStatusFromSettled(settled) === "ok"),
+    );
+  };
+
+  const loadSections = async (keys: DashboardSectionKey[]): Promise<void> => {
+    let headers: HeadersInit = {};
+    try {
+      const token = await getAccessToken();
+      headers = token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      /* No token, no sections: fail everything asked for, so the page
+         lands on its honest failure states instead of skeletons. */
+      if (mountedRef.current) {
+        setSectionStates((prev) =>
+          keys.reduce((s, k) => settleDashboardSection(s, k, false), prev),
+        );
+      }
+      return;
+    }
+    await Promise.allSettled(keys.map((k) => fetchSection(k, headers)));
+  };
+
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    setProjectsLoading(true);
-    (async () => {
-      const token = await getAccessToken();
-      const res = await fetch("/api/projects", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!cancelled) {
-        const d = res.ok ? await res.json() : { projects: [] };
-        setProjects(d.projects ?? []);
-        setProjectsLoading(false);
-      }
-    })().catch(() => { if (!cancelled) setProjectsLoading(false); });
-    return () => { cancelled = true; };
+    setSectionStates(initialDashboardSectionStates());
+    void loadSections([...DASHBOARD_SECTION_KEYS]);
   }, [user, getAccessToken]);
 
-  /* ── Vault count fetch ── */
+  /* A section's Retry refetches ONLY that section. */
+  const retrySection = (key: DashboardSectionKey) => {
+    setSectionStates((prev) => markDashboardSectionLoading(prev, key));
+    void loadSections(dashboardSectionsToRefetch(sectionStates, key));
+  };
+
+  /* The full-page card's Try again — that card renders only when all
+     four sections failed, so its refetch plan is all four. */
+  const retryAllSections = () => {
+    const plan = dashboardSectionsToRefetch(sectionStates);
+    setSectionStates((prev) =>
+      plan.reduce((s, k) => markDashboardSectionLoading(s, k), prev),
+    );
+    void loadSections(plan);
+  };
+
+  /* ── Retention delight: shark drop dice roll + level-up check ──
+     The server owns all the rules (15% drop chance, 2-per-7-day cap,
+     exactly-once celebrations); the client only surfaces what it returns.
+     Shark drop rolls once per user per mount; level-check re-runs if the
+     resolved star level changes (auth resolves async) — the celebrate
+     POST is idempotent, so re-runs never double-fire. */
+  useEffect(() => {
+    if (!user || sharkFiredFor.current === user.id) return;
+    sharkFiredFor.current = user.id;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch("/api/retention/shark-drop", { headers });
+        if (res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { drop?: SharkDrop | null };
+          if (d.drop) setSharkDrop(d.drop);
+        }
+      } catch {
+        /* Non-fatal: the drop simply doesn't appear on failure. */
+      }
+    })();
+  }, [user, getAccessToken]);
+
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
+    const key = `${user.id}:${stars}`;
+    if (levelFiredFor.current.has(key)) return;
+    levelFiredFor.current.add(key);
     (async () => {
-      const token = await getAccessToken();
-      const res = await fetch("/api/artist-vaults", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!cancelled) {
-        const d = res.ok ? await res.json() : { vaults: [] };
-        setVaultCount((d.vaults ?? []).length);
+      try {
+        const token = await getAccessToken();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`/api/retention/level-check?currentLevel=${stars}`, { headers });
+        if (res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { uncelebrated?: number[] };
+          if (d.uncelebrated && d.uncelebrated.length > 0) setLevelUp(d.uncelebrated[0]!);
+        }
+      } catch {
+        /* Non-fatal. */
       }
-    })().catch(() => setVaultCount(0));
-    return () => { cancelled = true; };
-  }, [user, getAccessToken]);
+    })();
+  }, [user, stars, getAccessToken]);
 
-  /* Open checklist by default for new users */
-  useEffect(() => {
-    if (projects.length === 0 || vaultCount === 0) setChecklistOpen(true);
-  }, [projects.length, vaultCount]);
+  /* ── Derived: money pipeline ── */
+  const money = useMemo(() => {
+    const active = deals.filter((d) => !["paid", "lost", "rejected", "dead"].includes((d.stage || "").toLowerCase()));
+    const pipelineCents = active.reduce((s, d) => s + (d.dealValueCents || 0), 0);
+    const next = [...active].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))[0] ?? null;
+    return { activeCount: active.length, pipelineDollars: Math.round(pipelineCents / 100), next };
+  }, [deals]);
 
-  const recentProjects = projects.slice(0, 5);
+  /* ── Derived: AI next moves (rule-based, real state) ── */
+  const nextMoves = useMemo(() => {
+    const moves: { icon: React.ReactNode; title: string; sub: string; href: string; cta: string }[] = [];
+    const latest = projects[0];
+    if (latest) {
+      moves.push({
+        icon: <Play className="h-4 w-4" />,
+        title: t("dashboard.move_finish", { name: projectLabel(latest) }),
+        sub: t("dashboard.move_finish_sub"),
+        href: `/video-editor?project=${latest.id}`,
+        cta: t("dashboard.move_open"),
+      });
+    }
+    moves.push({
+      icon: <TrendingUp className="h-4 w-4" />,
+      title: t("dashboard.move_trend"),
+      sub: t("dashboard.move_trend_sub"),
+      href: "/scheduler?tab=trends",
+      cta: t("dashboard.move_view"),
+    });
+    moves.push({
+      icon: <Sparkles className="h-4 w-4" />,
+      title: t("dashboard.move_linktohit"),
+      sub: t("dashboard.move_linktohit_sub"),
+      href: "/create?panel=link-to-hit",
+      cta: t("dashboard.move_try"),
+    });
+    return moves.slice(0, 3);
+  }, [projects, t]);
 
-  function handleOpen(id: string) {
-    window.location.href = `/video-editor?project=${id}`;
-  }
-
-  /* ── Checklist step completion ── */
-  const checklistSteps = [
-    {
-      label: "Choose your artist",
-      done: (vaultCount ?? 0) > 0,
-      href: "/artist-vault",
-    },
-    {
-      label: "Make or upload a song",
-      done: projects.some((p) => p.project_type === "Make a Song" || p.project_type === "Make Song + Video"),
-      href: "/make-song",
-    },
-    {
-      label: "Create a video plan",
-      done: projects.some((p) => p.project_type === "Make a Music Video" || p.project_type === "Make Song + Video"),
-      href: "/make-video",
-    },
-    {
-      label: "Generate video clips",
-      done: projects.some((p) => p.project_type === "Make a Music Video" || p.project_type === "Make Song + Video"),
-      href: "/make-video",
-    },
-    {
-      label: "Open the video editor",
-      done: false,
-      href: "/video-editor",
-    },
-    {
-      label: "Export or save your video",
-      done: false,
-      href: "/video-editor",
-    },
+  const quickTiles = [
+    { icon: Music2, label: t("dashboard.tile_song"), href: "/create?panel=song", grad: "from-emerald-500/[0.16] to-transparent" },
+    { icon: Clapperboard, label: t("dashboard.tile_video"), href: "/create?panel=video", grad: "from-sky-500/[0.16] to-transparent" },
+    { icon: Sparkles, label: t("dashboard.tile_cartoon"), href: "/cartoon-studio", grad: "from-fuchsia-500/[0.16] to-transparent" },
+    { icon: ScissorsIcon, label: t("dashboard.tile_vibes"), href: "/video-editor", grad: "from-amber-500/[0.16] to-transparent" },
+    { icon: ImageIcon, label: t("dashboard.tile_thumbnail"), href: "/thumbnail-studio", grad: "from-orange-500/[0.16] to-transparent" },
+    { icon: Lightbulb, label: t("dashboard.tile_hook"), href: "/hooks", grad: "from-yellow-500/[0.16] to-transparent" },
   ];
-  const checklistDoneCount = checklistSteps.filter((s) => s.done).length;
+
+  const greet = t(greetingKey(new Date().getHours()), { name });
 
   return (
-    <div className="min-h-screen bg-black text-white lux-page">
-
+    <>
+    <div className="min-h-screen bg-black text-white lux-page dashboard-root">
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/[0.07] rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 -right-40 w-[400px] h-[400px] bg-violet-700/[0.04] rounded-full blur-[100px]" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[420px] bg-primary/[0.08] rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14 space-y-10">
+      <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-8 md:py-10 space-y-8">
+        {/* NOTE: fixed-position modals live outside .lux-page (see bottom of
+            component) — its entrance animation's fill-mode transform would
+            otherwise trap them to page coordinates instead of the viewport. */}
 
         {/* ── PAYMENT TOAST ── */}
         {paymentToast && (
           <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border text-sm font-medium ${
-            paymentToast.type === "success"
-              ? "border-green-500/30 bg-green-500/[0.08] text-green-300"
-              : paymentToast.type === "cancelled"
-              ? "border-yellow-500/25 bg-yellow-500/[0.06] text-yellow-300/80"
-              : "border-red-500/25 bg-red-500/[0.06] text-red-300"
-          }`}>
+            paymentToast.type === "success" ? "border-green-500/30 bg-green-500/[0.08] text-green-300"
+            : paymentToast.type === "cancelled" ? "border-yellow-500/25 bg-yellow-500/[0.06] text-yellow-300/80"
+            : "border-red-500/25 bg-red-500/[0.06] text-red-300"}`}>
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span className="flex-1">{paymentToast.message}</span>
-            <button
-              onClick={() => setPaymentToast(null)}
-              className="text-white/30 hover:text-white/60 transition-colors shrink-0 text-lg leading-none"
-            >×</button>
+            <button onClick={() => setPaymentToast(null)} className="text-white/30 hover:text-white/60 transition-colors shrink-0 text-lg leading-none">×</button>
           </div>
         )}
 
-        {/* ── 1. WELCOME HEADER ── */}
-        <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">Creator Studio</p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-1">
-            <span className="text-white/90">Welcome back, </span>
-            <span className="gold-text-shine">{name}</span>
-          </h1>
-          <p className="text-white/35 text-base font-medium">
-            Create the Song. Create the Video. Promote the Release.
-          </p>
+        {/* ── 1. COMMAND BAR ── */}
+        <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.12] via-primary/[0.04] to-transparent p-6 md:p-7 shadow-[0_0_50px_rgba(218,165,32,0.10)]">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black tracking-[0.22em] text-primary/60 uppercase mb-1.5">{t("dashboard.command_center")}</p>
+              <h1 className="text-2xl md:text-[28px] font-black tracking-tight text-white leading-tight">{greet}</h1>
+              <p className="text-sm text-white/40 mt-1 font-medium">{t("dashboard.command_sub")}</p>
+            </div>
+            {/* Live stats */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button onClick={() => setLocation("/pricing")} title={t("dashboard.top_up")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)]">
+                <Zap className="h-4 w-4" />{formatVB(balance)}
+              </button>
+              {sectionStates.streak === "failed" ? (
+                <SectionFailureNote compact isLight={isLight} label="Streak" testId="dashboard-streak-failure" onRetry={() => retrySection("streak")} />
+              ) : streak !== null && streak > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] text-sm font-black text-orange-300" title={t("dashboard.streak_days")}>
+                  <Flame className="h-4 w-4" />{streak}
+                </div>
+              )}
+              <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-black text-white/60" title={t("dashboard.creator_level")}>
+                <Star className="h-4 w-4 text-primary" />{stars}
+              </div>
+            </div>
+          </div>
+          {/* Hidden while the projects section is failed — a failed
+              section must not present its "no projects" face here; its
+              own failure note sits in the Continue section below. */}
+          {sectionStates.projects !== "failed" && (
+          <div className="mt-5">
+            {projects[0] ? (
+              <Button size="lg" onClick={() => setLocation(`/video-editor?project=${projects[0].id}`)}
+                className="gold-glow font-black gap-2">
+                <Play className="h-4 w-4" />{t("dashboard.continue_project", { name: projectLabel(projects[0]) })}
+              </Button>
+            ) : (
+              <Link href="/create">
+                <Button size="lg" className="gold-glow font-black gap-2">
+                  <Plus className="h-4 w-4" />{t("dashboard.create_with_ai")}
+                </Button>
+              </Link>
+            )}
+          </div>
+          )}
+        </section>
+
+        {/* ── HOME-BASE COMMAND CENTER ──
+            Its own five panels settle/retry independently of the four
+            core sections below (and of each other) — it renders here,
+            outside the all-sections-failed gate, on purpose: a total
+            core failure must not hide it, and its failure must never
+            hide the core. */}
+        <CommandCenter getToken={getAccessToken} isLight={isLight} />
+
+        {/* ── RETENTION: CREATION STREAK + WEEKLY QUESTS (dismissible, toggleable) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+          <CreationStreakWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
+          <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
         </div>
 
-        {/* ── SPOTLIGHT TAKEOVER PROMO (ad slot for sale) ── */}
-        <SpotlightBanner />
-        <ExtensionPromoBanner />
-        <AndroidPromoBanner />
-        <StreakWidget />
+        {/* ── LIVE FOMO FEED (real anonymized activity; renders nothing when fomo_feed_enabled is off) ── */}
+        <FomoFeed getToken={getAccessToken} />
 
-        {/* ── 2. ACTIVE ARTIST STRIP ── */}
+        {/* ── MOVE HOME (concierge onboarding; hides when complete) ── */}
+        <MoveHomeCard />
+
+        {/* ── THY DAILY DROP ── */}
+        <DailyDropCard />
+
+        {/* ── DROP CATALOGUE — the whole slate under the day's card,
+            the same dock the World's Treasury uses: use any template,
+            archive the ones you don't want (website parity). ── */}
+        <DailyDropSlate />
+
+        {/* ── WEEKLY CREATOR CONTEST — the addictive heartbeat ── */}
+        <ContestHubWidget />
+
+        {/* ── ACTIVE ARTIST STRIP (compact) ── */}
         {activeArtist ? (() => {
           const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
-          const hasConsistency = !!(activeArtist.consistency_prompt || activeArtist.reference_image_url);
           return (
-            <div className="rounded-[18px] border px-4 py-3 flex items-center gap-3.5 relative overflow-hidden" style={{
+            <div className="rounded-2xl border px-4 py-2.5 flex items-center gap-3 relative overflow-hidden" style={{
               borderColor: "var(--character-glow, rgba(201,168,76,0.28))",
               background: "linear-gradient(90deg, var(--character-tint, rgba(201,168,76,0.06)) 0%, rgba(0,0,0,0) 60%)",
-              boxShadow: "0 0 24px var(--character-tint, rgba(201,168,76,0.06)), inset 0 1px 0 var(--character-glow, rgba(201,168,76,0.1))",
             }}>
-              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] rounded-l-[2px]" style={{ background: "linear-gradient(to bottom, var(--character-primary, #C9A84C), transparent)" }} />
-              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black border-[1.5px]" style={{
+              <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center overflow-hidden font-[Georgia,serif] text-base font-black border-[1.5px]" style={{
                 color: "var(--character-primary, #C9A84C)",
-                background: "linear-gradient(135deg, var(--character-tint, rgba(201,168,76,0.2)) 0%, transparent 100%)",
                 borderColor: "var(--character-glow, rgba(201,168,76,0.4))",
-                boxShadow: "0 0 18px var(--character-glow, rgba(201,168,76,0.25))",
+                background: "var(--character-tint, rgba(201,168,76,0.12))",
               }}>
-                {activeArtist.reference_image_url ? (
-                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover object-[top_center]" />
-                ) : initials}
-                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-[1.5px] border-[#080808]" style={{ background: "var(--character-primary, #C9A84C)", boxShadow: "0 0 6px var(--character-primary, #C9A84C)" }} />
+                {activeArtist.reference_image_url ? <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover object-[top_center]" /> : initials}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-[13px] font-black text-white tracking-[0.02em] truncate">
-                    {activeArtist.artist_name}
-                  </p>
-                  <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">ACTIVE</MarketingBadge>
-                </div>
-                <p className="text-[10.5px] text-white/35 mt-0.5 truncate">
-                  {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
-                  {hasConsistency ? " · 🔒 Locked" : ""}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLocation("/choose-artist")}
-                className="h-[30px] rounded-[9px] border text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap transition-colors"
-                style={{
-                  borderColor: "var(--character-glow, rgba(201,168,76,0.3))",
-                  background: "var(--character-tint, rgba(201,168,76,0.08))",
-                  color: "var(--character-primary, #C9A84C)",
-                }}
-              >Change →</button>
+              <p className="flex-1 min-w-0 text-[13px] font-black text-white truncate">{activeArtist.artist_name}</p>
+              <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">{t("dashboard.active")}</MarketingBadge>
+              <button type="button" onClick={() => setLocation("/choose-artist")}
+                className="text-[11px] font-bold text-primary/70 hover:text-primary transition-colors shrink-0">{t("dashboard.change")}</button>
             </div>
           );
-        })() : (
-          <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 flex items-center gap-3.5">
-            <div className="h-11 w-11 rounded-[13px] shrink-0 bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-              <User className="h-5 w-5 text-white/20" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-white/30 tracking-[0.16em] uppercase">Active Artist</p>
-              <p className="text-[12.5px] text-white/35 mt-0.5 flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-white/20 shrink-0" />
-                No artist selected — choose one for consistent AI style
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setLocation("/choose-artist")}
-              className="h-[30px] rounded-[9px] border border-white/[0.12] bg-white/[0.04] text-white/50 text-[10.5px] font-bold cursor-pointer px-3 shrink-0 whitespace-nowrap hover:bg-white/[0.08] hover:text-white/70 transition-colors"
-            >Choose Artist</button>
-          </div>
-        )}
+        })() : null}
 
-        {/* ── 3. CREATE ── */}
-        {isSimple ? (
-          <section>
-            <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.14] via-primary/[0.05] to-transparent p-8 md:p-10 shadow-[0_0_40px_rgba(218,165,32,0.10)]">
-              <div className="max-w-xl">
-                <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-4">
-                  <Sparkles className="h-3 w-3" /> Simple Mode
-                </span>
-                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight mb-2">
-                  Upload a song or paste an idea — we'll do the rest
-                </h2>
-                <p className="text-white/45 text-sm md:text-base font-medium mb-6">
-                  One click. AI picks the genre, mood, format, and editing style, generates your scenes,
-                  and drops you straight into a ready-to-export video.
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link href="/create">
-                    <Button size="lg" className="gold-glow font-black gap-2">
-                      <Sparkles className="h-4 w-4" /> Create with AI
-                    </Button>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setMode("advanced")}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-white/70 transition-colors"
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" /> Switch to Advanced for full manual controls
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : (
-        <section>
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
-              <p className="text-sm text-white/35 mt-1">Follow the 1-2-3 release workflow, or pick any step on its own.</p>
-            </div>
+        {allDashboardSectionsFailed(sectionStates) ? (
+          <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+            <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your dashboard.</p>
+            <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+              Something went wrong on our end — your projects and progress are safe, this page just couldn't load them.
+            </p>
             <button
               type="button"
-              onClick={() => setMode("simple")}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-primary/70 hover:text-primary transition-colors shrink-0"
+              onClick={retryAllSections}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
             >
-              <Sparkles className="h-3.5 w-3.5" /> Try Simple Mode
+              <RotateCcw className="h-4 w-4" /> Try again
             </button>
           </div>
-
-          {/* 1 → 2 → 3 pipeline */}
-          <StudioPipeline />
-
-          <div className="mt-4 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lux-stagger">
-            <CreatorCard
-              icon={Mic2}
-              title="Make Song + Video"
-              description="Create a song idea, lyrics, video scenes, and clips."
-              cta="Start Full Workflow"
-              href="/song-and-video"
-              accent
-            />
-            <CreatorCard
-              icon={Video}
-              title="Make Music Video"
-              description="Turn your song or lyrics into video scenes and AI clips."
-              cta="Create Music Video"
-              href="/make-video"
-            />
-            <CreatorCard
-              icon={Film}
-              title="Promo Clips"
-              description="Make TikTok, Reels, and Shorts ideas for your release."
-              cta="Create Promo Clips"
-              href="/promo-clip"
-            />
-            <div data-tour="card-artist-vault" className="h-full">
-            <CreatorCard
-              icon={Archive}
-              title="Artist Profiles"
-              description="Save your artist look, style, colors, and brand rules."
-              cta="Choose Artist"
-              href="/artist-vault"
-            />
-            </div>
-            <CreatorCard
-              icon={Headphones}
-              title="Music Mixer"
-              description="Upload vocals, beats, or stems and preview your mix."
-              cta="Open Music Mixer"
-              href="/video-editor"
-            />
-            <CreatorCard
-              icon={FolderOpen}
-              title="My Projects"
-              description="Continue editing saved songs, videos, and campaigns."
-              cta="Open Projects"
-              href="/my-projects"
-            />
-            <CreatorCard
-              icon={Users}
-              title="Collab Finder"
-              description="Find creators to team up with — AI match scores, free proposals."
-              cta="Find Collabs"
-              href="/collabs"
-            />
-          </div>
-        </section>
-        )}
-
-        {/* ── 4. RECENT PROJECTS ── */}
+        ) : (
+          <>
+        {/* ── 2. CONTINUE ── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase">Recent Projects</h2>
-            <Link href="/my-projects">
-              <span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">
-                View All Projects <ChevronRight className="h-3 w-3" />
-              </span>
-            </Link>
-          </div>
-          {projectsLoading ? (
-            <div className="flex flex-col gap-2" aria-label="Loading projects">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                  <div className="h-8 w-8 rounded-lg lux-skeleton shrink-0" />
-                  <div className="flex-1">
-                    <div className="h-3.5 w-2/5 rounded lux-skeleton mb-2" />
-                    <div className="h-2.5 w-1/4 rounded lux-skeleton" />
-                  </div>
+          <SectionLabel icon={Play} action={
+            <Link href="/my-projects"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
+          }>{t("dashboard.continue_title")}</SectionLabel>
+          {sectionStates.projects === "failed" ? (
+            <SectionFailureNote isLight={isLight} label="Your projects" testId="dashboard-projects-failure" onRetry={() => retrySection("projects")} />
+          ) : sectionStates.projects === "loading" ? (
+            <div className="flex gap-3 overflow-hidden">
+              {[0,1,2].map(i => <div key={i} className="w-56 h-32 rounded-2xl lux-skeleton shrink-0" />)}
+            </div>
+          ) : projects.length === 0 ? (
+            <Link href="/create">
+              <div className="flex items-center gap-4 p-5 rounded-2xl border border-dashed border-primary/30 bg-primary/[0.04] hover:bg-primary/[0.08] hover:border-primary/50 transition-all group cursor-pointer">
+                <div className="h-11 w-11 rounded-xl bg-primary text-black flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"><Plus className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-sm font-black text-white">{t("dashboard.no_projects_cta")}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{t("dashboard.no_projects_sub")}</p>
                 </div>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none" style={{ scrollbarWidth: "none" }}>
+              {projects.slice(0, 8).map(p => (
+                <button key={p.id} onClick={() => setLocation(`/video-editor?project=${p.id}`)}
+                  className={`snap-start shrink-0 w-56 text-left rounded-2xl border border-white/[0.08] bg-gradient-to-br ${TYPE_GRADIENT[p.project_type] ?? "from-primary/[0.14] to-transparent"} p-4 hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(218,165,32,0.15)] transition-all group relative overflow-hidden`}>
+                  <div className="text-white/[0.13] group-hover:text-primary/25 transition-colors mb-6">{TYPE_ICON[p.project_type] ?? <FolderOpen className="h-8 w-8" />}</div>
+                  <p className="text-sm font-black text-white truncate leading-tight">{projectLabel(p)}</p>
+                  <p className="text-[10px] text-white/35 mt-1 truncate">{p.project_type} · {formatDate(p.created_at)}</p>
+                  <span className="absolute top-3 right-3 h-7 w-7 rounded-full bg-black/50 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                </button>
               ))}
             </div>
-          ) : recentProjects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-white/[0.05] bg-white/[0.01] text-center gap-3">
-              <FolderOpen className="h-8 w-8 text-white/10" />
-              <p className="text-sm text-white/25">No saved projects yet.</p>
-              <Link href="/song-and-video">
-                <Button size="sm" className="gold-glow font-semibold gap-1.5 mt-1">
-                  <Mic2 className="h-3.5 w-3.5" /> Start your first project
+          )}
+        </section>
+
+        {/* ── 3. MONEY PIPELINE ── */}
+        <section>
+          <SectionLabel icon={DollarSign} action={
+            <Link href="/coach"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
+          }>{t("dashboard.money_title")}</SectionLabel>
+          <div className={`rounded-2xl border p-4 md:p-5 flex flex-wrap items-center gap-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            {sectionStates.deals === "loading" ? (
+              <div className="h-10 flex-1 rounded-xl lux-skeleton" />
+            ) : sectionStates.deals === "failed" ? (
+              <SectionFailureNote bare isLight={isLight} label="Your money pipeline" testId="dashboard-deals-failure" onRetry={() => retrySection("deals")} />
+            ) : money.activeCount > 0 ? (
+              <>
+                <div className="h-11 w-11 rounded-xl bg-green-500/[0.12] border border-green-500/25 flex items-center justify-center shrink-0">
+                  <BadgeDollarSign className="h-5 w-5 text-green-400" />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <p className="text-lg font-black text-white leading-tight">
+                    {t("dashboard.deals_pipeline", { count: money.activeCount, value: money.pipelineDollars.toLocaleString() })}
+                  </p>
+                  <p className="text-[11px] text-white/35 mt-0.5">
+                    {money.next ? t("dashboard.next_move_followup", { name: money.next.sponsorName }) : t("dashboard.next_move_find")}
+                  </p>
+                </div>
+                <Link href="/brand-deals">
+                  <Button size="sm" className="gold-glow font-black shrink-0">{t("dashboard.open_deals")}</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="h-11 w-11 rounded-xl bg-primary/[0.10] border border-primary/25 flex items-center justify-center shrink-0">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <p className="text-sm font-black text-white">{t("dashboard.money_empty_title")}</p>
+                  <p className="text-[11px] text-white/35 mt-0.5">{t("dashboard.money_empty_sub")}</p>
+                </div>
+                <Link href="/brand-deals">
+                  <Button size="sm" variant="outline" className="font-bold shrink-0 border-primary/30 text-primary hover:bg-primary/10">{t("dashboard.find_deals")}</Button>
+                </Link>
+              </>
+            )}
+          </div>
+          {/* Earn / Sell pipeline — one card per coach money tab */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            {[
+              { tab: "referrals", label: t("coach.tabReferrals", { defaultValue: "Referrals" }), Icon: Gift },
+              { tab: "team", label: t("coach.tabTeam", { defaultValue: "Team" }), Icon: UsersRound },
+              { tab: "storefronts", label: t("coach.tabStorefronts", { defaultValue: "Storefronts" }), Icon: Store },
+              { tab: "my-shop", label: t("coach.tabMyShop", { defaultValue: "My Shop" }), Icon: ShoppingBag },
+              { tab: "tips", label: t("coach.tabTips", { defaultValue: "Tips" }), Icon: Coffee },
+              { tab: "beats", label: t("coach.tabBeats", { defaultValue: "Sell Beats" }), Icon: Disc3 },
+              { tab: "shoutouts", label: t("coach.tabShoutouts", { defaultValue: "Shoutouts" }), Icon: Megaphone },
+              { tab: "memberships", label: t("coach.tabMemberships", { defaultValue: "Memberships" }), Icon: Crown },
+            ].map(({ tab, label, Icon }) => (
+              <Link key={tab} href={`/${tab}`}>
+                <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <div className="h-10 w-10 mx-auto rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-2.5 group-hover:scale-110 transition-transform">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-black text-white">{label}</p>
+                  <p className="text-[10px] font-bold text-primary/60 group-hover:text-primary mt-1 flex items-center justify-center gap-1">
+                    {t("dashboard.open_tab", { defaultValue: "Open" })}<ArrowRight className="h-3 w-3" />
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ── 4. AI NEXT MOVE ── */}
+        <section>
+          <SectionLabel icon={Sparkles}>{t("dashboard.next_move_title")}</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {nextMoves.map((m, i) => (
+              <Link key={i} href={m.href}>
+                <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <div className="h-9 w-9 rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">{m.icon}</div>
+                  <p className="text-sm font-black text-white leading-snug truncate">{m.title}</p>
+                  <p className="text-[11px] text-white/35 mt-1 leading-relaxed line-clamp-2">{m.sub}</p>
+                  <p className="text-[11px] font-bold text-primary/70 group-hover:text-primary mt-2.5 flex items-center gap-1">{m.cta}<ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" /></p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ── 5. QUICK CREATE ── */}
+        <section>
+          <SectionLabel icon={Zap}>{t("dashboard.quick_create_title")}</SectionLabel>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {quickTiles.map(tile => (
+              <Link key={tile.href} href={tile.href}>
+                <div className={`group p-4 rounded-2xl border border-white/[0.08] bg-gradient-to-br ${tile.grad} hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer text-center`}>
+                  <div className="h-10 w-10 mx-auto rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-primary mb-2.5 group-hover:scale-110 group-hover:border-primary/40 transition-all">
+                    <tile.icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-black text-white">{tile.label}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ── 6. RECENT ACTIVITY ── */}
+        <section>
+          <SectionLabel icon={Activity} action={
+            <Link href="/credit-history"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
+          }>{t("dashboard.activity_title")}</SectionLabel>
+          {sectionStates.usage === "failed" ? (
+            <SectionFailureNote isLight={isLight} label="Your recent activity" testId="dashboard-usage-failure" onRetry={() => retrySection("usage")} />
+          ) : sectionStates.usage === "loading" ? (
+            <div className="space-y-2">{[0,1,2].map(i => <div key={i} className="h-12 rounded-xl lux-skeleton" />)}</div>
+          ) : usage.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/[0.03] px-6 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/25">
+                <Activity className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm font-black text-white">{t("dashboard.activity_empty")}</p>
+              <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("dashboard.no_projects_sub")}</p>
+              <Link href="/create">
+                <Button size="sm" className="gold-glow font-black mt-4 gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />{t("dashboard.create_with_ai")}
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {recentProjects.map((p) => (
-                <RecentProjectRow key={p.id} project={p} onOpen={handleOpen} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* ── 5. GETTING STARTED (collapsible) ── */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setChecklistOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors"
-          >
-            <div className="flex items-center gap-3 text-left">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-primary/70" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-white">Getting Started</p>
-                <p className="text-[11px] text-white/35">
-                  {checklistDoneCount} of {checklistSteps.length} steps completed
-                </p>
-              </div>
-            </div>
-            <ChevronDown className={`h-4 w-4 text-white/30 shrink-0 transition-transform ${checklistOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          {checklistOpen && (
-            <div className="border-t border-white/[0.06] px-6 py-4 space-y-2.5">
-              {checklistSteps.map(({ label, done, href }, i) => (
-                <Link key={label} href={href}>
-                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-                    done
-                      ? "border-primary/20 bg-primary/[0.05] opacity-60 cursor-default"
-                      : "border-white/[0.07] bg-white/[0.02] hover:border-primary/30 cursor-pointer"
-                  }`}>
-                    <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] font-black ${
-                      done ? "border-primary bg-primary text-black" : "border-white/20 text-white/30"
-                    }`}>
-                      {done ? "✓" : i + 1}
-                    </div>
-                    <span className={`text-sm font-semibold flex-1 ${done ? "line-through text-white/30" : "text-white/70"}`}>
-                      {label}
-                    </span>
-                    {!done && <ChevronRight className="h-3.5 w-3.5 text-white/20" />}
+            <div className={`rounded-2xl border divide-y divide-white/[0.05] overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              {usage.slice(0, 5).map(u => (
+                <div key={u.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">
+                    <Zap className="h-3.5 w-3.5 text-primary/70" />
                   </div>
-                </Link>
+                  <p className="flex-1 min-w-0 text-xs font-bold text-white/70 truncate">{u.action}</p>
+                  <span className={`text-[11px] font-mono shrink-0 ${u.creditsUsed < 0 ? "text-green-400" : "text-white/30"}`}>
+                    {u.creditsUsed < 0 ? `+${formatVB(Math.abs(u.creditsUsed))}` : `-${formatVB(u.creditsUsed)}`}
+                  </span>
+                  <span className="text-[10px] text-white/20 shrink-0 hidden sm:block">{formatDate(u.createdAt)}</span>
+                </div>
               ))}
             </div>
           )}
         </section>
 
+        {/* ── 7. WEEKLY LEADERBOARD + DELIGHT SETTINGS ── */}
+        <LeaderboardWidget />
+
+        <ExtensionPromoBanner />
+          </>
+        )}
       </div>
     </div>
+    {/* ── FIXED MODALS — outside .lux-page so `fixed inset-0` = viewport ── */}
+    {sharkDrop && (
+      <SharkDropModal
+        drop={sharkDrop}
+        onClaimed={() => setSharkDrop(null)}
+        onDismiss={() => setSharkDrop(null)}
+      />
+    )}
+    {levelUp !== null && (
+      <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />
+    )}
+    <AwayDigestModal />
+  </>
   );
 }

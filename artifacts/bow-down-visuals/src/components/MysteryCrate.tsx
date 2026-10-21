@@ -4,6 +4,8 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Timer, Sparkles, X, Gift, Loader2, Package } from "lucide-react";
 import { DraggableWidget } from "@/components/draggable-widget";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { coerceCooldownSeconds, isUsableSeconds } from "@/lib/cooldown";
 
 interface BoxPrize {
   credits: number;
@@ -31,6 +33,7 @@ type BoxPhase = "closed" | "shaking" | "opening" | "revealed";
 export function MysteryCrate() {
   const { user, getAccessToken } = useAuth();
   const [location] = useLocation();
+  const isLight = useIsLightTheme();
 
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<BonusStatus | null>(null);
@@ -38,8 +41,9 @@ export function MysteryCrate() {
   const [result, setResult] = useState<{ prize: number; isJackpot: boolean } | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [loadError, setLoadError] = useState(false);
+  const [claimedMessage, setClaimedMessage] = useState<string | null>(null);
 
-  const hidden = !user || location.startsWith("/login") || location.startsWith("/signup");
+  const hidden = !user || location.startsWith("/login") || location.startsWith("/signup") || location.startsWith("/video-editor");
 
   async function api(path: string, opts?: RequestInit) {
     const token = await getAccessToken();
@@ -56,7 +60,10 @@ export function MysteryCrate() {
     try {
       const s: BonusStatus = await api("/api/bonus/status");
       setStatus(s);
-      setCooldown(s.wheelCooldownSeconds);
+      /* Guard at the source (Lane V4 item 4): a partial payload used to
+         put undefined here; the tick then produced NaN and the floating
+         chip rendered the literal text "NaNs" on every page. */
+      setCooldown(coerceCooldownSeconds(s.wheelCooldownSeconds));
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -70,7 +77,7 @@ export function MysteryCrate() {
   }, [loadStatus]);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (!isUsableSeconds(cooldown) || cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
@@ -84,6 +91,7 @@ export function MysteryCrate() {
   }, [open, loadStatus]);
 
   function formatCooldown(s: number): string {
+    if (!isUsableSeconds(s)) return "0:00";
     if (s >= 3600) {
       const h = Math.floor(s / 3600);
       const m = Math.floor((s % 3600) / 60);
@@ -95,18 +103,31 @@ export function MysteryCrate() {
   }
 
   function formatCompact(s: number): string {
+    if (!isUsableSeconds(s)) return "0s";
     if (s >= 3600) return `${Math.floor(s / 3600)}h`;
     if (s >= 60) return `${Math.floor(s / 60)}m`;
     return `${s}s`;
   }
 
   async function handleOpen() {
-    if (phase !== "closed" || cooldown > 0) return;
+    if (cooldown > 0) return;
+    // From "revealed", a tap on "Open Another Crate" means "try again":
+    // reset the crate visual first. The server still enforces the hourly
+    // cap, and the 429 path below surfaces it as an "already claimed" note.
+    if (phase !== "closed" && phase !== "revealed") return;
     setPhase("shaking");
     setResult(null);
+    setClaimedMessage(null);
     try {
-      const r = await api("/api/bonus/spin-wheel", { method: "POST" });
-      if (r.spun) {
+      // Fetch directly (not via api()) so a 429 "already claimed" still
+      // yields its JSON body — api() throws on !ok before we can read it.
+      const token = await getAccessToken();
+      const res = await fetch("/api/bonus/spin-wheel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const r = await res.json().catch(() => ({}));
+      if (res.ok && r.spun) {
         // Shake for suspense, then burst open
         setTimeout(() => setPhase("opening"), 1200);
         setTimeout(() => {
@@ -114,12 +135,29 @@ export function MysteryCrate() {
           setPhase("revealed");
           loadStatus();
         }, 2200);
+      } else if (r.spun === false || res.status === 429) {
+        setPhase("closed");
+        // Someone else claimed this hour's crate — tell the user instead of silently doing nothing
+        setClaimedMessage("Someone beat you to this hour's crate! Try again next hour.");
+        // Backend sends nextHourIn (seconds until next UTC hour); fall back to cooldownSeconds, then 1h
+        const wait = coerceCooldownSeconds(r.nextHourIn,
+          coerceCooldownSeconds(r.cooldownSeconds, 3600));
+        setCooldown(wait);
+      } else if (res.status === 401) {
+        setPhase("closed");
+        // Dead/expired session — the known staging zombie-session case.
+        // Blaming the connection here sends the user chasing wifi ghosts.
+        setClaimedMessage("Your session expired — sign in again, then open the crate.");
       } else {
         setPhase("closed");
-        if (r.cooldownSeconds) setCooldown(r.cooldownSeconds);
+        const serverMsg = typeof r.error === "string" && r.error.trim() ? r.error.trim() : null;
+        setClaimedMessage(serverMsg ?? `Couldn't open the crate (server error ${res.status}). Try again.`);
       }
     } catch {
       setPhase("closed");
+      // Only a real network failure reaches here — this is the one case
+      // where "check your connection" is the truth.
+      setClaimedMessage("Couldn't open the crate. Check your connection and try again.");
     }
   }
 
@@ -201,7 +239,7 @@ export function MysteryCrate() {
         {/* Prize reveal */}
         {phase === "revealed" && result && (
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 animate-[popIn_0.5s_ease-out]">
-            <div className={`px-6 py-3 rounded-xl border-2 font-bold text-2xl whitespace-nowrap shadow-[0_0_30px_rgba(255,215,0,0.6)] ${
+            <div data-dark-lock className={`px-6 py-3 rounded-xl border-2 font-bold text-2xl whitespace-nowrap shadow-[0_0_30px_rgba(255,215,0,0.6)] ${
               result.isJackpot
                 ? "bg-[#ffd700] text-black border-[#fff] animate-pulse"
                 : "bg-black text-[#ffd700] border-[#c9a84c]"
@@ -209,7 +247,7 @@ export function MysteryCrate() {
               {result.isJackpot ? "🏆 JACKPOT!" : `+${result.prize.toLocaleString()}`}
             </div>
             {result.isJackpot && (
-              <p className="text-[#ffd700] font-bold mt-1">+{result.prize.toLocaleString()} Bucs!</p>
+              <p className={`${isLight ? "text-[#7A5A12]" : "text-[#ffd700]"} font-bold mt-1`}>+{result.prize.toLocaleString()} Bucs!</p>
             )}
           </div>
         )}
@@ -233,15 +271,17 @@ export function MysteryCrate() {
           className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 ${
             ready
               ? "bg-gradient-to-br from-[#ffd700] to-[#8a6d2f] animate-[pulse_1.6s_ease-in-out_infinite] shadow-[0_0_24px_rgba(255,215,0,0.55)] border-2 border-[#fff]/30"
-              : "bg-gradient-to-br from-[#3a3a3a] to-[#1a1a1a] border border-[#c9a84c]/50"
+              : isLight
+                ? "bg-gradient-to-br from-[#F5F0E6] to-[#E8DCC0] border border-[#c9a84c]/60"
+                : "bg-gradient-to-br from-[#3a3a3a] to-[#1a1a1a] border border-[#c9a84c]/50"
           }`}
         >
           {ready ? (
             <Package className="h-7 w-7 text-black" />
           ) : loadError ? (
-            <Package className="h-7 w-7 text-[#c9a84c]/60" />
+            <Package className={`h-7 w-7 ${isLight ? "text-[#8a6d2f]/70" : "text-[#c9a84c]/60"}`} />
           ) : (
-            <span className="text-[#c9a84c] text-[11px] font-bold leading-tight text-center px-1">
+            <span className={`${isLight ? "text-[#8a6d2f]" : "text-[#c9a84c]"} text-[11px] font-bold leading-tight text-center px-1`}>
               {formatCompact(cooldown)}
             </span>
           )}
@@ -277,7 +317,7 @@ export function MysteryCrate() {
             </p>
 
             {status?.canClaimDaily && (
-              <p className="text-xs text-[#e8c766] mb-3 flex items-center justify-center gap-1">
+              <p className={`text-xs mb-3 flex items-center justify-center gap-1 ${isLight ? "text-[#7A5A12]" : "text-[#e8c766]"}`}>
                 <Gift className="h-3.5 w-3.5" /> Your daily bonus is also ready — claim it from the popup after login.
               </p>
             )}
@@ -288,7 +328,7 @@ export function MysteryCrate() {
               ) : loadError ? (
                 <div className="w-56 h-56 mx-auto rounded-2xl border-4 border-[#c9a84c]/30 flex flex-col items-center justify-center gap-3 p-8">
                   <p className="text-sm text-muted-foreground">
-                    Couldn't load the Mystery Crate. Check your connection and try again.
+                    Couldn't load the Mystery Crate. Something went wrong on our end — try again.
                   </p>
                   <Button
                     onClick={() => loadStatus()}
@@ -312,9 +352,15 @@ export function MysteryCrate() {
               </div>
             )}
 
+            {claimedMessage && (
+              <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/40">
+                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{claimedMessage}</p>
+              </div>
+            )}
+
             <Button
-              onClick={handleOpen}
-              disabled={!ready}
+              onClick={loadError ? () => { void loadStatus(); } : handleOpen}
+              disabled={loadError ? false : !ready}
               size="lg"
               className="bg-[#c9a84c] text-black hover:bg-[#e8c766] text-lg px-8 py-5 w-full"
             >
@@ -322,6 +368,8 @@ export function MysteryCrate() {
                 <><Sparkles className="h-5 w-5 mr-2 animate-spin" /> Shaking…</>
               ) : phase === "opening" ? (
                 <><Sparkles className="h-5 w-5 mr-2 animate-pulse" /> Opening…</>
+              ) : loadError ? (
+                <><Package className="h-5 w-5 mr-2" /> Couldn't load — tap to retry</>
               ) : !prizesLoaded ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading…</>
               ) : cooldown > 0 ? (

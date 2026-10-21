@@ -4,7 +4,12 @@ import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { uploadPublicMediaToR2, refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
+import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+
+/* Mirror-on-save (2026-10-13 law): design images are re-hosted into
+   permanent storage at save time; reads serve fresh signed URLs minted
+   from the stored ref (image_path when present, else image_url). */
 import { db, merchDesignsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -34,14 +39,9 @@ const MERCH_BUCKET = "generated-clips";
 
 async function uploadMockup(userId: string, buffer: Buffer): Promise<{ url: string; path: string }> {
   const filePath = `merch/${userId}/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin().storage
-    .from(MERCH_BUCKET)
-    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
-  if (upErr) throw upErr;
-  const { data: { publicUrl } } = getSupabaseAdmin().storage
-    .from(MERCH_BUCKET)
-    .getPublicUrl(filePath);
-  return { url: publicUrl, path: filePath };
+  // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
+  const url = await uploadPublicMediaToR2(MERCH_BUCKET, filePath, buffer, "image/png");
+  return { url, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -150,11 +150,15 @@ router.get("/merch/designs", requireAuth, async (req, res) => {
     .where(eq(merchDesignsTable.user_id, req.userId!))
     .orderBy(desc(merchDesignsTable.created_at));
   res.json({
-    designs: rows.map((r) => ({
-      ...r,
-      margin: r.price_cents != null
-        ? calculateMerchMargin(r.price_cents, r.base_cost_cents, COMMISSION_PCT)
-        : null,
+    designs: await Promise.all(rows.map(async (r) => {
+      const source = r.image_path ?? r.image_url;
+      return {
+        ...r,
+        image_url: source ? await refreshSupabaseStorageUrl(source) : r.image_url,
+        margin: r.price_cents != null
+          ? calculateMerchMargin(r.price_cents, r.base_cost_cents, COMMISSION_PCT)
+          : null,
+      };
     })),
     commissionPct: COMMISSION_PCT,
     paymentsLive: false,
@@ -186,6 +190,8 @@ router.post("/merch/designs", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Invalid product or style" });
     return;
   }
+  const storedImageUrl =
+    (await mirrorExternalMediaUrl(d.imageUrl, { kind: "image", ownerKey: req.userId! })) ?? d.imageUrl;
   const [row] = await db
     .insert(merchDesignsTable)
     .values({
@@ -194,8 +200,8 @@ router.post("/merch/designs", requireAuth, async (req, res) => {
       product: d.product,
       style: d.style,
       prompt: d.prompt || null,
-      image_url: d.imageUrl,
-      image_path: d.imagePath ?? null,
+      image_url: storedImageUrl,
+      image_path: isStorageRef(storedImageUrl) ? storedImageUrl : (d.imagePath ?? null),
       price_cents: d.priceCents ?? null,
       base_cost_cents: MERCH_PRODUCTS[d.product as MerchProductKey].baseCostCents,
       status: d.status,

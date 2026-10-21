@@ -73,7 +73,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     tagline: "Sell it in seconds",
     description: "9:16 · bold titles · brand tools · punchy effects",
     icon: "megaphone",
-    accent: "from-fuchsia-500/20 to-red-500/10 border-fuchsia-500/30",
+    accent: "from-violet-500/25 to-purple-700/10 border-violet-400/40",
     defaultFormat: "9:16",
     priorityTabs: ["clips", "captions", "branding", "effects", "timeline", "export"],
     defaultCaptionPreset: "pill-pop",
@@ -89,7 +89,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     tagline: "Every word on screen",
     description: "16:9 · word-by-word karaoke · captions first",
     icon: "mic",
-    accent: "from-cyan-400/20 to-fuchsia-500/10 border-cyan-400/30",
+    accent: "from-sky-400/25 to-blue-700/10 border-sky-400/40",
     defaultFormat: "16:9",
     priorityTabs: ["music", "captions", "timeline", "effects", "export"],
     defaultCaptionPreset: "karaoke-word",
@@ -105,7 +105,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     tagline: "Clean and personal",
     description: "16:9 · subtle captions · minimal effects",
     icon: "video",
-    accent: "from-white/10 to-white/5 border-white/20",
+    accent: "from-emerald-400/20 to-teal-700/10 border-emerald-400/40",
     defaultFormat: "16:9",
     priorityTabs: ["clips", "captions", "timeline", "export"],
     defaultCaptionPreset: "minimal",
@@ -137,7 +137,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     tagline: "Photos that move",
     description: "16:9 · transitions first · gentle motion",
     icon: "images",
-    accent: "from-orange-200/10 to-white/5 border-orange-200/20",
+    accent: "from-orange-400/25 to-amber-700/10 border-orange-400/40",
     defaultFormat: "16:9",
     priorityTabs: ["clips", "timeline", "music", "effects", "export"],
     defaultCaptionPreset: "boxed",
@@ -153,7 +153,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     tagline: "Brand the bookends",
     description: "16:9 · logo + titles · brand tools first",
     icon: "sparkles",
-    accent: "from-yellow-400/20 to-amber-500/10 border-yellow-400/30",
+    accent: "from-pink-500/25 to-fuchsia-700/10 border-pink-400/40",
     defaultFormat: "16:9",
     priorityTabs: ["branding", "clips", "effects", "export"],
     defaultCaptionPreset: "luxury",
@@ -227,9 +227,7 @@ function filterOrAll<T>(subset: T[], all: readonly T[]): T[] {
   return subset.length > 0 ? subset : [...all];
 }
 
-export function templateCaptionPresets(t: VideoTemplate): CaptionStylePreset[] {
-  return t.captionPresets.length > 0 ? [...t.captionPresets] : [];
-}
+/* Removed 2026-10-10: templateCaptionPresets was dead (zero imports). */
 
 export function templateEffects(t: VideoTemplate, all: readonly string[]): string[] {
   return filterOrAll(t.effects, all);

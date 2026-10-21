@@ -269,7 +269,7 @@ export function LipSyncStudio({
     <div className="space-y-4">
       {/* Concept glossary */}
       <div className="flex flex-wrap gap-2">
-        <ConceptPill label="Scene Clips" desc="Silent visual scenes from Runway" />
+        <ConceptPill label="Scene Clips" desc="Silent visual scenes, generated for you" />
         <ConceptPill label="Song Audio" desc="Your uploaded music track" />
         <ConceptPill label="Lip Sync" desc="Artist mouth synced to song" highlight />
         <ConceptPill label="Captions" desc="Lyric text overlaid on screen" />
@@ -279,7 +279,7 @@ export function LipSyncStudio({
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2">
         <p className="text-xs font-black text-white/90">What is Lip Sync?</p>
         <p className="text-[11px] text-white/55 leading-relaxed">
-          Normal Runway scene clips are{" "}
+          Normal scene clips are{" "}
           <span className="text-white/75 font-semibold">silent visual clips</span> — the artist
           looks great but doesn't perform the song. Lip Sync is a separate step that uses your
           uploaded song audio to{" "}
