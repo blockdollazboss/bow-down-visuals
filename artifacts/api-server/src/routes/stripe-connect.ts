@@ -79,8 +79,12 @@ function unsettledSql(alias: string) {
 export async function pendingPayoutCents(profileId: string): Promise<number> {
   const r = await db.execute(sql`
     SELECT
-      COALESCE((SELECT SUM(creator_amount_cents) FROM digital_sales WHERE profile_id = ${profileId}), 0)
-      + COALESCE((SELECT SUM(creator_amount_cents) FROM store_orders WHERE profile_id = ${profileId}), 0)
+      /* Refunded sales never pay out (0182, defect D1): the clawback
+         engine marks digital_sales / store_orders 'refunded' and the
+         bulk ledgers drop them here; earnings.ts already reads
+         store_orders with status = 'completed'. */
+      COALESCE((SELECT SUM(creator_amount_cents) FROM digital_sales WHERE profile_id = ${profileId} AND status <> 'refunded'), 0)
+      + COALESCE((SELECT SUM(creator_amount_cents) FROM store_orders WHERE profile_id = ${profileId} AND status = 'completed'), 0)
       + COALESCE((
           SELECT SUM(sp.net_cents) FROM sponsor_payouts sp
           WHERE sp.creator_user_id = (SELECT user_id::text FROM creator_profiles WHERE id = ${profileId})
@@ -91,6 +95,7 @@ export async function pendingPayoutCents(profileId: string): Promise<number> {
           SELECT SUM(fm.price_cents) FROM fan_members fm
           WHERE fm.user_id = (SELECT user_id FROM creator_profiles WHERE id = ${profileId})
             AND fm.stripe_session_id IS NOT NULL
+            AND fm.status <> 'refunded'
             AND ${unsettledSql("fm")}
         ), 0)
       + COALESCE((
@@ -128,6 +133,7 @@ export async function markExtensionRowsSettled(
   await db.execute(sql`
     UPDATE fan_members SET ${stamp}
     WHERE user_id = ${userId}::uuid AND stripe_session_id IS NOT NULL
+      AND status <> 'refunded'
       AND ${unsettledSql("fan_members")} AND ${bound}
   `);
   await db.execute(sql`
