@@ -69,15 +69,18 @@ export function cutsForDeletedWords(
     if (runStart < 0) return;
     const first = words[runStart]!;
     const last = words[runEndIdx]!;
+    /* The render endpoint caps labels at 80 chars — the span is the cut,
+     * the label is display-only, so a long run's label is truncated. */
+    const rawLabel = words
+      .slice(runStart, runEndIdx + 1)
+      .map((w) => w.word)
+      .join(" ");
     cuts.push({
       id: `words-${runStart}-${runEndIdx}`,
       start: Math.max(0, first.start - WORD_CUT_PAD_SEC),
       end: last.end + WORD_CUT_PAD_SEC,
       kind: "filler",
-      label: words
-        .slice(runStart, runEndIdx + 1)
-        .map((w) => w.word)
-        .join(" "),
+      label: rawLabel.length > 80 ? `${rawLabel.slice(0, 77)}…` : rawLabel,
     });
     runStart = -1;
   };

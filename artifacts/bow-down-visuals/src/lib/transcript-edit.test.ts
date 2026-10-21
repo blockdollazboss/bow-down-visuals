@@ -48,6 +48,18 @@ describe("cutsForDeletedWords", () => {
   it("nothing deleted → no cuts", () => {
     expect(cutsForDeletedWords(words, new Set())).toEqual([]);
   });
+  it("a long deleted run keeps its full span but caps the label at the render limit", () => {
+    const many: TranscriptWord[] = Array.from({ length: 30 }, (_, i) => ({
+      word: "supercalifragilistic",
+      start: i * 0.5,
+      end: i * 0.5 + 0.4,
+    }));
+    const cuts = cutsForDeletedWords(many, new Set(many.map((_, i) => i)));
+    expect(cuts).toHaveLength(1);
+    expect(cuts[0]!.label.length).toBeLessThanOrEqual(80);
+    expect(cuts[0]!.start).toBe(0);
+    expect(cuts[0]!.end).toBeCloseTo(14.5 + 0.4 + 0.15);
+  });
 });
 
 describe("buildTranscriptRenderCuts + editedTimeSaved", () => {
