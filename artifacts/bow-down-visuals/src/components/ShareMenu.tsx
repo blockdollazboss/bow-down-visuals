@@ -139,13 +139,13 @@ export default function ShareMenu({
       return { url: finalUrl, text: text ?? title ?? "" };
     }
     const refLine = code
-      ? `\nMake your own: ${origin}/?ref=${encodeURIComponent(code)}`
-      : `\nMake your own: ${origin}/`;
+      ? `\n${t("share.make_your_own", { url: `${origin}/?ref=${encodeURIComponent(code)}`, defaultValue: "Make your own: {{url}}" })}`
+      : `\n${t("share.make_your_own", { url: `${origin}/`, defaultValue: "Make your own: {{url}}" })}`;
     return {
       url: shareUrl,
-      text: `${text ?? title ?? ""}\n\nMade with Bow Down Visuals 🦈${refLine}`.trim(),
+      text: `${text ?? title ?? ""}\n\n${t("share.attribution", { defaultValue: "Made with Bow Down Visuals 🦈" })}${refLine}`.trim(),
     };
-  }, [shareUrl, finalUrl, text, title, code]);
+  }, [shareUrl, finalUrl, text, title, code, t]);
 
   const track = useCallback(async (channel: ShareChannel) => {
     if (!getToken) return;
@@ -282,7 +282,7 @@ export default function ShareMenu({
               </button>
               {code && (
                 <p className="px-3 pb-1 pt-2 text-[11px] text-white/35">
-                  Links carry your referral code. Made with Bow Down Visuals.
+                  {t("share.referral_note", { defaultValue: "Links carry your referral code. Made with Bow Down Visuals." })}
                 </p>
               )}
             </div>

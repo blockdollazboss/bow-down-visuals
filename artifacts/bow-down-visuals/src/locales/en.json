@@ -13514,7 +13514,13 @@
     "whatsapp": "WhatsApp",
     "copy": "Copy link",
     "copied": "Copied!",
-    "reward_tbd": "Reward TBD"
+    "reward_tbd": "Reward TBD",
+    "to_x": "Share to X",
+    "to_whatsapp": "Share to WhatsApp",
+    "to_sms": "Share to SMS",
+    "referral_note": "Links carry your referral code. Made with Bow Down Visuals.",
+    "make_your_own": "Make your own: {{url}}",
+    "attribution": "Made with Bow Down Visuals 🦈"
   },
   "command": {
     "title": "Command center",
