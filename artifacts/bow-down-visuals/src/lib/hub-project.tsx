@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import type { HubProjectPayload } from "./hub-projects";
 
 /* ─── Hub project state ─────────────────────────────────────────────────────
    The heart of the One Unified Creation Hub: a single project ("Midnight
@@ -55,6 +56,10 @@ interface HubProjectContextValue {
   removeAsset: (id: string) => void;
   renameAsset: (id: string, label: string) => void;
   newProject: () => void;
+  /** Make a server payload (GET /api/hub/projects/:id) the active
+      project — the projects browser's "Open in the Hub" for any row,
+      not just the most recent. */
+  adoptProject: (payload: HubProjectPayload) => void;
   hasKind: (kind: HubAssetKind) => boolean;
   latestOfKind: (kind: HubAssetKind) => HubAsset | undefined;
   /** Step keys the user manually marked done/skipped (no-asset steps). Per project type. */
@@ -73,6 +78,10 @@ const HubProjectContext = createContext<HubProjectContextValue | null>(null);
 
 const STORAGE_KEY = "bdv-hub-project-v1";
 const DONES_KEY = "bdv-hub-step-dones-v1";
+
+/** The valid project types, for validating a server payload being
+    adopted (an unknown stored type degrades to "song"). */
+const HUB_PROJECT_TYPES: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"];
 
 function freshProject(): HubProject {
   return {
@@ -353,6 +362,32 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject(freshProject());
   }, []);
 
+  /* Adopt a server payload as the active project (wave-2 #3 — opening
+     an older project from the projects browser). Mirrors the initial
+     pull's adoption: the server's client ref becomes the local id so
+     future saves keep landing on THIS row; a legacy row without one
+     adopts under its server row id, which the save rail's client-ref
+     claim binds on first write. The adopted state IS the server's
+     state, so it is marked synced — the debounced push must not echo
+     it straight back. */
+  const adoptProject = useCallback((payload: HubProjectPayload) => {
+    const adopted: HubProject = {
+      id: payload.clientRef ?? payload.id,
+      name: payload.name,
+      type: HUB_PROJECT_TYPES.includes(payload.type as HubProjectType)
+        ? (payload.type as HubProjectType)
+        : "song",
+      assets: payload.assets,
+      concept: payload.concept,
+      templateKey: payload.templateKey,
+      attribution: payload.attribution,
+      updatedAt: payload.updatedAt,
+    };
+    lastSyncedJson.current = JSON.stringify(adopted);
+    setProject(adopted);
+    setSyncStatus("synced");
+  }, []);
+
   const markStepDone = useCallback((key: string) => {
     const t = projectRef.current.type;
     setDones((d) => {
@@ -385,6 +420,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       removeAsset,
       renameAsset,
       newProject,
+      adoptProject,
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
       stepDones: dones[project.type] ?? [],
@@ -393,7 +429,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       referralCode,
       getShareLink,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, renameAsset, newProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
+  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, setAttribution, addAsset, removeAsset, renameAsset, newProject, adoptProject, dones, markStepDone, clearStepDones, referralCode, getShareLink]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -417,6 +453,7 @@ export function useHubProject(): HubProjectContextValue {
       removeAsset: () => {},
       renameAsset: () => {},
       newProject: () => {},
+      adoptProject: () => {},
       hasKind: () => false,
       latestOfKind: () => undefined,
       stepDones: [],

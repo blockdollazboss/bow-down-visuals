@@ -204,3 +204,63 @@ describe("hub projects (0142 multi-project)", () => {
     expect(list.json.projects.map((p: any) => p.name)).toEqual(["B"]);
   });
 });
+
+describe("GET /hub/projects/:id — open any project by id (wave-2 #3)", () => {
+  it("the owner opens their own OLDER project by id, with the full payload", async () => {
+    const asset = {
+      id: "asset-1", kind: "song", url: "https://example.com/song.mp3",
+      label: "Song One", createdAt: 123,
+    };
+    const older = await req("PUT", "/api/hub/project", saveBody({
+      clientRef: "proj-a", name: "First", concept: "the older one",
+      assets: [asset], updatedAt: 1000,
+    }));
+    await req("PUT", "/api/hub/project", saveBody({ clientRef: "proj-b", name: "Second", updatedAt: 2000 }));
+
+    /* The singular read would give "Second" — the by-id read must
+       give the older row, payload and all. */
+    const got = await req("GET", `/api/hub/projects/${older.json.id}`);
+    expect(got.status).toBe(200);
+    expect(got.json.project.id).toBe(older.json.id);
+    expect(got.json.project.name).toBe("First");
+    expect(got.json.project.clientRef).toBe("proj-a");
+    expect(got.json.project.concept).toBe("the older one");
+    expect(got.json.project.assets).toEqual([asset]);
+    expect(got.json.project.updatedAt).toBe(1000);
+  });
+
+  it("another member's project id reads as 404 — no existence leak", async () => {
+    const mine = await req("PUT", "/api/hub/project", saveBody({ clientRef: "proj-a", name: "Mine" }));
+
+    testState.userId = USER_B;
+    const stolen = await req("GET", `/api/hub/projects/${mine.json.id}`);
+    expect(stolen.status).toBe(404);
+    expect(stolen.json.project).toBeUndefined();
+    expect(JSON.stringify(stolen.json)).not.toContain("Mine");
+  });
+
+  it("a missing id 404s, and a malformed id 404s instead of 500ing", async () => {
+    const missing = await req("GET", `/api/hub/projects/${randomUUID()}`);
+    expect(missing.status).toBe(404);
+    expect(missing.json.project).toBeUndefined();
+
+    const malformed = await req("GET", "/api/hub/projects/not-a-uuid");
+    expect(malformed.status).toBe(404);
+    expect(malformed.json.project).toBeUndefined();
+  });
+
+  it("the summaries endpoint is unchanged — no payload fields ride along", async () => {
+    await req("PUT", "/api/hub/project", saveBody({
+      clientRef: "proj-a", name: "Summarized", concept: "must not leak into the list",
+      assets: [{ id: "asset-1", kind: "song", url: "https://example.com/s.mp3", label: "S", createdAt: 1 }],
+    }));
+    const list = await req("GET", "/api/hub/projects");
+    expect(list.status).toBe(200);
+    expect(list.json.projects).toHaveLength(1);
+    const row = list.json.projects[0];
+    expect(Object.keys(row).sort()).toEqual(["artistVaultId", "id", "name", "type", "updatedAt"]);
+    expect(row.assets).toBeUndefined();
+    expect(row.concept).toBeUndefined();
+    expect(row.clientRef).toBeUndefined();
+  });
+});
