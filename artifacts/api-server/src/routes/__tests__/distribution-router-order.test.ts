@@ -62,7 +62,7 @@ CREATE TABLE distribution_releases (
   upc_kind text NOT NULL DEFAULT 'internal', label_imprint text, copyright_c_line text, copyright_p_line text,
   subgenre text, original_release_date text, preorder_date text, territories_mode text NOT NULL DEFAULT 'worldwide',
   territories jsonb NOT NULL DEFAULT '[]'::jsonb,
-  presave_headline text, presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb, presave_bonus_url text
+  presave_headline text, presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb, presave_bonus_url text, meta_pixel_id text, tiktok_pixel_id text, google_tag_id text
 );
 CREATE TABLE royalty_entries (id uuid PRIMARY KEY, user_id uuid NOT NULL, song_title text NOT NULL, artist_name text, platform text NOT NULL, period_start text NOT NULL, period_end text NOT NULL, streams text, gross_amount numeric(12,2) NOT NULL DEFAULT 0, currency text NOT NULL DEFAULT 'USD', source text NOT NULL DEFAULT 'csv', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE distribution_royalty_splits (id uuid PRIMARY KEY, release_id uuid NOT NULL, user_id uuid NOT NULL, payee_name text NOT NULL, role text, share_pct numeric(5,2) NOT NULL, payee_email text, invite_status text NOT NULL DEFAULT 'not_invited', invite_token text, agreement_version integer NOT NULL DEFAULT 1, effective_from timestamptz NOT NULL DEFAULT now(), superseded_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());

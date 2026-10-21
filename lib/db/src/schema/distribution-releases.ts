@@ -36,6 +36,14 @@ export const distributionReleasesTable = pgTable("distribution_releases", {
     .notNull()
     .default({}),
   presave_bonus_url: text("presave_bonus_url"),
+  /* ── Retargeting pixels (migration 0186) ─────────────────────────────
+     The creator's own ad-platform pixel/tag IDs for this release's
+     smartlink landing. The public page fires exactly the configured
+     pixels on view; all three null = nothing fires. Validated
+     server-side on save. */
+  meta_pixel_id: text("meta_pixel_id"),
+  tiktok_pixel_id: text("tiktok_pixel_id"),
+  google_tag_id: text("google_tag_id"),
 });
 
 export type DistributionReleaseRow = typeof distributionReleasesTable.$inferSelect;

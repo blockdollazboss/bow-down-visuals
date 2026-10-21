@@ -59,7 +59,7 @@ CREATE TABLE distribution_releases (
   upc_kind text NOT NULL DEFAULT 'internal', label_imprint text, copyright_c_line text, copyright_p_line text,
   subgenre text, original_release_date text, preorder_date text, territories_mode text NOT NULL DEFAULT 'worldwide',
   territories jsonb NOT NULL DEFAULT '[]'::jsonb,
-  presave_headline text, presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb, presave_bonus_url text
+  presave_headline text, presave_platform_links jsonb NOT NULL DEFAULT '{}'::jsonb, presave_bonus_url text, meta_pixel_id text, tiktok_pixel_id text, google_tag_id text
 );
 CREATE TABLE presave_follows (id uuid PRIMARY KEY, release_id uuid NOT NULL, email text NOT NULL, name text, platform text, source text NOT NULL DEFAULT 'presave', created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (release_id, email));
 CREATE TABLE presave_shares (id uuid PRIMARY KEY, release_id uuid NOT NULL, channel text, created_at timestamptz NOT NULL DEFAULT now());

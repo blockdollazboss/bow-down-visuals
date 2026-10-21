@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
 import { presaveTracklistRows, type PresaveTracklistEntry } from "@/lib/presave-tracklist";
+import { injectSmartlinkPixels, type SmartlinkPixels } from "@/lib/smartlink-pixels";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -42,6 +43,9 @@ interface PresaveRelease {
   released?: boolean;
   persistsAfterRelease?: boolean;
   landing?: { videoUrl: string | null; storeUrl: string | null; socialLinks: Record<string, string> };
+  /* Migration 0186: the creator's own retargeting pixels for this
+     release (all null when none are configured — nothing fires). */
+  pixels?: SmartlinkPixels;
   accountPresave?: { platform: string; supported: boolean; itemKind?: string; actionLabel: string | null; accountSaveCount?: number; reason?: string };
 }
 
@@ -170,6 +174,43 @@ export default function PresaveLanding() {
       return new URLSearchParams(window.location.search).get("ref") ?? "";
     } catch { return ""; }
   }, []);
+
+  /* Campaign channel (?src= or utm_source): rides into the smartlink
+     analytics so the creator sees which post drove each tap. */
+  const channel = useMemo(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return (p.get("src") ?? p.get("utm_source") ?? "").slice(0, 40);
+    } catch { return ""; }
+  }, []);
+
+  /* Smartlink analytics + retargeting pixels (migration 0186): once
+     per page load — record the view and fire the creator's own pixels,
+     but only the ones this release actually carries. */
+  const viewTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!data || viewTrackedRef.current) return;
+    viewTrackedRef.current = true;
+    injectSmartlinkPixels(data.pixels);
+    void fetch(`/api/distribution/presave/${encodeURIComponent(slug)}/view`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ channel }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, [data, slug, channel]);
+
+  /* Fire-and-forget outbound tap recording; the server resolves the
+     key against the links really on this page — the anchor's own
+     navigation is never delayed or blocked by it. */
+  const trackClick = (kind: "platform" | "video" | "store" | "social" | "bonus", key = "") => {
+    void fetch(`/api/distribution/presave/${encodeURIComponent(slug)}/click`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind, key, channel }),
+      keepalive: true,
+    }).catch(() => undefined);
+  };
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -498,6 +539,7 @@ export default function PresaveLanding() {
                       href={url}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => trackClick("platform", key)}
                       className={`inline-flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
                         released
                           ? "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25"
@@ -539,17 +581,17 @@ export default function PresaveLanding() {
                 </p>
                 <div className="grid gap-2">
                   {data.landing.videoUrl && (
-                    <a href={data.landing.videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                    <a href={data.landing.videoUrl} target="_blank" rel="noreferrer" onClick={() => trackClick("video")} className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
                       <span>Watch the video</span><ExternalLink className="h-4 w-4 opacity-60" />
                     </a>
                   )}
                   {data.landing.storeUrl && (
-                    <a href={data.landing.storeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                    <a href={data.landing.storeUrl} target="_blank" rel="noreferrer" onClick={() => trackClick("store")} className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
                       <span>Get it in the store</span><ExternalLink className="h-4 w-4 opacity-60" />
                     </a>
                   )}
                   {Object.entries(data.landing.socialLinks ?? {}).map(([k, url]) => (
-                    <a key={k} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
+                    <a key={k} href={url} target="_blank" rel="noreferrer" onClick={() => trackClick("social", k)} className="inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:border-primary/50 hover:text-primary">
                       <span>{k === "x" ? "X" : k === "website" ? "Website" : k[0]!.toUpperCase() + k.slice(1)}</span><ExternalLink className="h-4 w-4 opacity-60" />
                     </a>
                   ))}
@@ -573,6 +615,7 @@ export default function PresaveLanding() {
                   href={data.bonusUrl}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => trackClick("bonus")}
                   className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110"
                 >
                   <Gift className="h-4 w-4" /> {t("presave.openBonus")}

@@ -7,6 +7,7 @@ import {
   ListMusic, ChevronRight, BadgeCheck, ArrowLeft, ArrowRight,
   Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash, ShieldCheck,
   ExternalLink, Megaphone, Mail, Type, BarChart3, Vault, Share2,
+  Eye, MousePointerClick,
   Circle, Layers, Album, ListChecks, Gift,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,6 +21,7 @@ import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
 import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel } from "@/components/distribute/DistributionLegacyPanels";
 import { useHubProject } from "@/lib/hub-project";
 import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
+import { isValidPixelId, type SmartlinkPixels } from "@/lib/smartlink-pixels";
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
@@ -1411,10 +1413,27 @@ const PRESAVE_PLATFORM_KEYS = [
   "amazon_music", "deezer", "tidal",
 ];
 
+interface PresaveLinkAnalytics {
+  views: number;
+  clicks: number;
+  clicksLast7d: number;
+  perLink: Array<{ linkKey: string; linkTitle: string; clicks: number }>;
+  perChannel: Array<{ channel: string; clicks: number }>;
+  perCountry: Array<{ country: string; clicks: number }>;
+}
+
 interface PresaveStats {
   followers: number;
   shares: number;
-  settings: { headline: string | null; platformLinks: Record<string, string>; bonusUrl: string | null };
+  settings: {
+    headline: string | null;
+    platformLinks: Record<string, string>;
+    bonusUrl: string | null;
+    pixels: SmartlinkPixels;
+  };
+  /* null on a pre-0186 install (analytics not collected yet) — the UI
+     hides the panel rather than showing invented zeros. */
+  linkAnalytics: PresaveLinkAnalytics | null;
   recentFollows: Array<{ email: string; name: string | null; platform: string | null; created_at: string }>;
 }
 
@@ -1436,6 +1455,9 @@ function PresaveManager(props: {
   const [headline, setHeadline] = useState("");
   const [links, setLinks] = useState<Record<string, string>>({});
   const [bonusUrl, setBonusUrl] = useState("");
+  const [metaPixelId, setMetaPixelId] = useState("");
+  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [googleTagId, setGoogleTagId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
@@ -1449,6 +1471,9 @@ function PresaveManager(props: {
       setHeadline(data.settings?.headline ?? "");
       setLinks(data.settings?.platformLinks ?? {});
       setBonusUrl(data.settings?.bonusUrl ?? "");
+      setMetaPixelId(data.settings?.pixels?.metaPixelId ?? "");
+      setTiktokPixelId(data.settings?.pixels?.tiktokPixelId ?? "");
+      setGoogleTagId(data.settings?.pixels?.googleTagId ?? "");
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't load pre-save stats.");
     } finally {
@@ -1460,13 +1485,25 @@ function PresaveManager(props: {
 
   async function saveSettings() {
     if (saving) return;
+    /* Pixel IDs are shape-checked here so a typo is caught before the
+       round-trip; the server validates again and refuses bad IDs. */
+    if (!isValidPixelId("meta", metaPixelId)) { onError("That Meta Pixel ID doesn't look right — it should be 6–20 digits. Nothing was saved."); return; }
+    if (!isValidPixelId("tiktok", tiktokPixelId)) { onError("That TikTok Pixel ID doesn't look right — check it and try again. Nothing was saved."); return; }
+    if (!isValidPixelId("google", googleTagId)) { onError("That Google tag ID doesn't look right — it starts with G-, AW-, GT- or UA-. Nothing was saved."); return; }
     setSaving(true);
     onError("");
     try {
       const res = await authFetch(`/api/distribution/releases/${release.id}/presave-settings`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ headline, platformLinks: links, bonusUrl }),
+        body: JSON.stringify({
+          headline,
+          platformLinks: links,
+          bonusUrl,
+          metaPixelId: metaPixelId.trim(),
+          tiktokPixelId: tiktokPixelId.trim(),
+          googleTagId: googleTagId.trim(),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as PresaveStats & { error?: string; message?: string };
       if (!res.ok) throw new Error((data as { message?: string; error?: string }).message || (data as { error?: string }).error || "Couldn't save pre-save settings.");
@@ -1529,6 +1566,72 @@ function PresaveManager(props: {
             </button>
           </div>
 
+          {/* smartlink analytics (migration 0186): landing views +
+              outbound link clicks, split by link / channel / country */}
+          {stats?.linkAnalytics && (
+            <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Release link analytics</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/75">
+                  <Eye className="h-3.5 w-3.5" /> {stats.linkAnalytics.views.toLocaleString()} page views
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/75">
+                  <MousePointerClick className="h-3.5 w-3.5" /> {stats.linkAnalytics.clicks.toLocaleString()} link clicks
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/75">
+                  {stats.linkAnalytics.clicksLast7d.toLocaleString()} clicks in the last 7 days
+                </span>
+              </div>
+              {stats.linkAnalytics.views === 0 && stats.linkAnalytics.clicks === 0 ? (
+                <p className="mt-3 text-xs text-white/45">
+                  No smartlink traffic yet — share your release link and views + clicks will land here.
+                </p>
+              ) : (
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  {stats.linkAnalytics.perLink.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-white/35">By link</p>
+                      <ul className="space-y-1">
+                        {stats.linkAnalytics.perLink.map((r) => (
+                          <li key={r.linkKey} className="flex items-center justify-between gap-2 text-xs text-white/60">
+                            <span className="min-w-0 truncate">{r.linkTitle || r.linkKey}</span>
+                            <span className="shrink-0 font-bold text-white/80">{r.clicks.toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {stats.linkAnalytics.perChannel.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-white/35">By channel</p>
+                      <ul className="space-y-1">
+                        {stats.linkAnalytics.perChannel.map((r) => (
+                          <li key={r.channel} className="flex items-center justify-between gap-2 text-xs text-white/60">
+                            <span className="min-w-0 truncate">{r.channel}</span>
+                            <span className="shrink-0 font-bold text-white/80">{r.clicks.toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {stats.linkAnalytics.perCountry.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-white/35">By country</p>
+                      <ul className="space-y-1">
+                        {stats.linkAnalytics.perCountry.map((r) => (
+                          <li key={r.country} className="flex items-center justify-between gap-2 text-xs text-white/60">
+                            <span className="min-w-0 truncate">{r.country}</span>
+                            <span className="shrink-0 font-bold text-white/80">{r.clicks.toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* recent fans */}
           {stats && stats.recentFollows.length > 0 && (
             <div className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
@@ -1559,7 +1662,7 @@ function PresaveManager(props: {
           {/* settings editor */}
           {!editing ? (
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110">
-              <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content
+              <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content, retargeting pixels
             </button>
           ) : (
             <div className={`space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
@@ -1599,6 +1702,42 @@ function PresaveManager(props: {
                   inputMode="url"
                   className={inputClass}
                 />
+              </div>
+              <div>
+                <label className={labelClass}>Retargeting pixels <span className="font-normal normal-case text-white/30">(optional — your own ad accounts)</span></label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-32 shrink-0 text-xs font-bold text-white/60">Meta Pixel ID</span>
+                    <input
+                      value={metaPixelId}
+                      onChange={(e) => setMetaPixelId(e.target.value)}
+                      placeholder="e.g. 123456789012345"
+                      inputMode="numeric"
+                      className={`${inputClass} py-2 text-xs`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-32 shrink-0 text-xs font-bold text-white/60">TikTok Pixel ID</span>
+                    <input
+                      value={tiktokPixelId}
+                      onChange={(e) => setTiktokPixelId(e.target.value)}
+                      placeholder="e.g. C9ABCDEFGHIJKLMN12"
+                      className={`${inputClass} py-2 text-xs`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-32 shrink-0 text-xs font-bold text-white/60">Google tag ID</span>
+                    <input
+                      value={googleTagId}
+                      onChange={(e) => setGoogleTagId(e.target.value)}
+                      placeholder="e.g. G-ABC123XYZ9"
+                      className={`${inputClass} py-2 text-xs`}
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-white/40">
+                  When a fan opens your release page, these fire so the visit becomes an audience you can advertise back to. Leave blank for none.
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button onClick={saveSettings} disabled={saving} className={goldBtn}>
