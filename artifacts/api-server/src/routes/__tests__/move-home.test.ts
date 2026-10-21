@@ -501,3 +501,40 @@ describe("move home — connected accounts only, never an import", () => {
     expect(await count("scheduled_posts")).toBe(0);
   });
 });
+
+describe("move home — owner scoping", () => {
+  it("another member never sees, edits, or applies the caller's checklist", async () => {
+    const a = randomUUID();
+    const b = randomUUID();
+    await answers(a, ANSWERS);
+    await draft(a);
+
+    /* B's read is a fresh, empty checklist — none of A's data leaks. */
+    const bView = await get(b);
+    expect(bView.status).toBe(200);
+    expect(bView.json.moveHome.answers).toEqual({});
+    expect(bView.json.moveHome.drafts.profile).toBeUndefined();
+    expect(bView.json.moveHome.steps.every((s: any) => s.status === "pending")).toBe(true);
+    expect(bView.json.moveHome.context.hasProfile).toBe(false);
+
+    /* B acting (draft, edit, approve) touches only B's own state. */
+    await draft(b);
+    const bDraft = (await get(b)).json.moveHome.drafts.profile;
+    expect(bDraft.displayName).not.toBe(ANSWERS.displayName);
+    expect(bDraft.slug).not.toBe(ANSWERS.handle);
+    await approve(b, "profile");
+
+    /* A is exactly where A left off: drafted, unapproved, A's words. */
+    const aView = await get(a);
+    expect(aView.json.moveHome.answers.displayName).toBe(ANSWERS.displayName);
+    expect(aView.json.moveHome.drafts.profile.slug).toBe(ANSWERS.handle);
+    expect(aView.json.moveHome.steps.find((s: any) => s.key === "profile").status).toBe("drafted");
+    expect(aView.json.moveHome.context.hasProfile).toBe(false);
+
+    /* And exactly one profile row exists — B's, keyed to B. */
+    const profiles = await rows("creator_profiles");
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].user_id).toBe(b);
+    expect(profiles[0].slug).not.toBe(ANSWERS.handle);
+  });
+});
