@@ -33,6 +33,7 @@ import {
 } from "../../lib/email-segments";
 import { dispatchCampaign } from "../../lib/email-campaign-send";
 import { ensureAutomationsForList, automationDto } from "../../lib/email-automations";
+import { resolveAutomationLocale, type AutomationLocale } from "../../lib/email-automation-i18n";
 import {
   EMAIL_NEWSLETTER_CREDIT_COST,
   EMAIL_FREE_SUBSCRIBER_LIMIT,
@@ -979,12 +980,25 @@ async function loadOwnedList(req: any, res: any, id: string) {
   return list;
 }
 
+/* The caller's locale for automation copy. The server keeps no
+   stored language preference for a member (the web app keeps the
+   choice in the browser), so resolution is: an explicit `locale`
+   field on the request — the JSON body on PATCH, the query string
+   on GET — then English. A list first provisioned under a locale
+   seeds its starter copy in that language; the label + trigger
+   note render in it on every read. Stored subject/body is the
+   creator's own copy and is never re-translated. */
+function automationLocaleOf(req: any): AutomationLocale {
+  return resolveAutomationLocale(req.body?.locale, req.query?.locale);
+}
+
 router.get("/email-list/lists/:id/automations", publicApiLimiter, requireAuth, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await loadOwnedList(req, res, id);
   if (!list) return;
-  const automations = await ensureAutomationsForList(list);
-  res.json({ automations: await Promise.all(automations.map((a) => automationDto(a))) });
+  const locale = automationLocaleOf(req);
+  const automations = await ensureAutomationsForList(list, locale);
+  res.json({ automations: await Promise.all(automations.map((a) => automationDto(a, locale))) });
 });
 
 const automationPatchSchema = z.object({
@@ -1004,6 +1018,7 @@ router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requir
   const kind = kindParam as EmailAutomationKind;
   const list = await loadOwnedList(req, res, id);
   if (!list) return;
+  const locale = automationLocaleOf(req);
   const parsed = automationPatchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1012,7 +1027,7 @@ router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requir
     });
     return;
   }
-  const automations = await ensureAutomationsForList(list);
+  const automations = await ensureAutomationsForList(list, locale);
   const automation = automations.find((a) => a.kind === kind);
   if (!automation) {
     res.status(404).json({ error: "Automation not found." });
@@ -1038,7 +1053,7 @@ router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requir
     .from(emailAutomationsTable)
     .where(eq(emailAutomationsTable.id, automation.id))
     .limit(1);
-  res.json({ automation: await automationDto(fresh ?? automation) });
+  res.json({ automation: await automationDto(fresh ?? automation, locale) });
 });
 
 /* Queue (or re-queue a failed) campaign for sending: draft|failed →

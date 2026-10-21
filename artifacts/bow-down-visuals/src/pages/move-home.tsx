@@ -71,7 +71,7 @@ const BLOCKED_COPY: Record<string, string> = {
 };
 
 export default function MoveHome() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   usePageTitle(
     t("moveHome.title"),
     t("moveHome.pageDescription"),
@@ -124,10 +124,14 @@ export default function MoveHome() {
     }
   }, []);
 
+  /* Every call carries the current language as ?locale= — the server
+     composes step titles/blurbs and new drafts in it (server-side
+     catalogs); stored drafts keep the language they were made in. */
   const call = useCallback(
     async (method: string, path: string, body?: unknown): Promise<MoveHomeData | null> => {
       const token = await getAccessToken();
-      const res = await fetch(path, {
+      const sep = path.includes("?") ? "&" : "?";
+      const res = await fetch(`${path}${sep}locale=${encodeURIComponent(i18n.language)}`, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -139,7 +143,7 @@ export default function MoveHome() {
       if (!res.ok) throw new Error(json.error ?? t("moveHome.genericError"));
       return json.moveHome ?? null;
     },
-    [getAccessToken, t],
+    [getAccessToken, t, i18n.language],
   );
 
   useEffect(() => {

@@ -31,6 +31,7 @@ import { logger } from "../lib/logger";
 import {
   MOVE_HOME_STEP_KEYS,
   MoveHomeError,
+  aiCopyPolish,
   getMoveHomeStatus,
   saveAnswers,
   runDrafting,
@@ -40,8 +41,25 @@ import {
   reopenStep,
 } from "../lib/move-home";
 import type { MoveHomeStepKey } from "@workspace/db";
+import { resolveServerLocale, type ServerLocale } from "../lib/server-i18n";
 
 const router = Router();
+
+/* The caller's locale for server-composed copy. The server keeps no
+   stored language preference for a member (the web app keeps the
+   choice in the browser), so resolution is: an explicit `locale`
+   field on the request — the JSON body where a body is read
+   leniently, the query string everywhere (the Move Home page sends
+   it as a query param on every call, which also survives this
+   router's strict body schemas) — then English. Step titles/blurbs
+   render in it on every read; a drafting pass composes its drafts
+   in it, and composed drafts are never re-translated. */
+function moveHomeLocaleOf(req: Request): ServerLocale {
+  return resolveServerLocale(
+    (req.body as Record<string, unknown> | undefined)?.locale,
+    req.query?.locale,
+  );
+}
 
 const stepParam = z.enum(MOVE_HOME_STEP_KEYS as unknown as [string, ...string[]]);
 
@@ -81,7 +99,7 @@ const answersSchema = z
 
 router.get("/move-home", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
-    res.json({ moveHome: await getMoveHomeStatus(req.userId!) });
+    res.json({ moveHome: await getMoveHomeStatus(req.userId!, moveHomeLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "status read");
   }
@@ -99,7 +117,7 @@ router.put("/move-home/answers", requireAuth, publicApiLimiter, async (req: Requ
   }
   try {
     await saveAnswers(req.userId!, parsed.data);
-    res.json({ moveHome: await getMoveHomeStatus(req.userId!) });
+    res.json({ moveHome: await getMoveHomeStatus(req.userId!, moveHomeLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "answers save");
   }
@@ -107,7 +125,7 @@ router.put("/move-home/answers", requireAuth, publicApiLimiter, async (req: Requ
 
 router.post("/move-home/draft", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
-    res.json({ moveHome: await runDrafting(req.userId!) });
+    res.json({ moveHome: await runDrafting(req.userId!, aiCopyPolish, moveHomeLocaleOf(req)) });
   } catch (err) {
     handleError(res, err, "drafting");
   }
@@ -214,7 +232,7 @@ router.patch(
       return;
     }
     try {
-      res.json({ moveHome: await updateDraft(req.userId!, step, parsed.data as Record<string, unknown>) });
+      res.json({ moveHome: await updateDraft(req.userId!, step, parsed.data as Record<string, unknown>, moveHomeLocaleOf(req)) });
     } catch (err) {
       handleError(res, err, "draft edit");
     }
@@ -229,7 +247,7 @@ router.post(
     const step = parseStep(req, res);
     if (!step) return;
     try {
-      res.json({ moveHome: await approveStep(req.userId!, step) });
+      res.json({ moveHome: await approveStep(req.userId!, step, moveHomeLocaleOf(req)) });
     } catch (err) {
       handleError(res, err, "approve");
     }
@@ -244,7 +262,7 @@ router.post(
     const step = parseStep(req, res);
     if (!step) return;
     try {
-      res.json({ moveHome: await skipStep(req.userId!, step) });
+      res.json({ moveHome: await skipStep(req.userId!, step, moveHomeLocaleOf(req)) });
     } catch (err) {
       handleError(res, err, "skip");
     }
@@ -259,7 +277,7 @@ router.post(
     const step = parseStep(req, res);
     if (!step) return;
     try {
-      res.json({ moveHome: await reopenStep(req.userId!, step) });
+      res.json({ moveHome: await reopenStep(req.userId!, step, moveHomeLocaleOf(req)) });
     } catch (err) {
       handleError(res, err, "reopen");
     }

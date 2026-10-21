@@ -155,7 +155,7 @@ const tabBtn = (active: boolean) =>
 export default function EmailListBuilder() {
   usePageTitle("Email List", "Own your audience: hosted signup pages, embeddable forms, AI newsletter drafts, and subscriber tools.");
   const isLight = useIsLightTheme();
- const { t } = useTranslation();
+ const { t, i18n } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const [tab, setTab] = useState<TabKey>("dashboard");
 
@@ -358,7 +358,7 @@ export default function EmailListBuilder() {
  authedFetch(`/api/email-list/lists/${listId}/tags`),
  authedFetch(`/api/email-list/lists/${listId}/segments`),
  authedFetch(`/api/email-list/lists/${listId}/campaigns`),
- authedFetch(`/api/email-list/lists/${listId}/automations`),
+ authedFetch(`/api/email-list/lists/${listId}/automations?locale=${encodeURIComponent(i18n.language)}`),
  ]);
  if (tagsRes.ok) setEmailTags((await tagsRes.json()).tags ?? []);
  if (segRes.ok) setSegments((await segRes.json()).segments ?? []);
@@ -380,7 +380,7 @@ export default function EmailListBuilder() {
 
  useEffect(() => {
  if (activeListId) loadEngagement(activeListId);
- }, [activeListId, loadEngagement]);
+ }, [activeListId, loadEngagement, i18n.language]);
 
  /* Automations: one PATCH door for the switch and the copy. The
     server stamps enabled_at on switch-on, so nothing that happened
@@ -392,7 +392,7 @@ export default function EmailListBuilder() {
  try {
  const res = await authedFetch(`/api/email-list/lists/${activeListId}/automations/${a.kind}`, {
  method: "PATCH",
- body: JSON.stringify(patch),
+ body: JSON.stringify({ ...patch, locale: i18n.language }),
  });
  const data = await res.json();
  if (!res.ok) throw new Error(data.error ?? "Couldn't save that automation.");

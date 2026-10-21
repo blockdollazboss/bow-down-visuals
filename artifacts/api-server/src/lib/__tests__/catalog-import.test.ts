@@ -50,6 +50,7 @@ import {
   assembleDraft,
   setCatalogImportDeps,
 } from "../catalog-import";
+import { catalogImportCopyFor } from "../catalog-import-i18n";
 
 function createTestDb() {
   const mem = newDb({ autoCreateForeignKeyIndices: true });
@@ -571,5 +572,84 @@ describe("pure helpers + the free pin", () => {
       expect(src).not.toMatch(/creditsTable|spendCredits|chargeCredits|deductCredits/);
       expect(src).not.toMatch(/from\s+["'][^"']*lib\/credits["']/);
     }
+  });
+});
+
+describe("locale path — server catalogs", () => {
+  it("CATALOG_HONESTY is the catalog's en block (single source)", () => {
+    expect(CATALOG_HONESTY).toEqual(catalogImportCopyFor("en").honesty);
+  });
+
+  it("state renders the honesty block + account notes in the caller's locale", async () => {
+    const fr = catalogImportCopyFor("fr");
+    const state = await getCatalogState(USER, "fr");
+    expect(state.honesty).toEqual(fr.honesty);
+    expect(state.accounts.find((a) => a.platform === "tiktok")?.note).toBe(fr.honesty.tiktokBlocked);
+    expect(state.accounts.find((a) => a.platform === "youtube")?.note).toBe(fr.honesty.linkOnly);
+    /* A default read is still English. */
+    const en = await getCatalogState(USER);
+    expect(en.honesty).toEqual(catalogImportCopyFor("en").honesty);
+  });
+
+  it("a tiktok scan refuses in the caller's locale", async () => {
+    const err = await scanAccount(USER, TT_ID, "es").catch((e) => e);
+    expect(err).toMatchObject({ status: 422, code: "PROVIDER_BLOCKED" });
+    expect(err.message).toBe(catalogImportCopyFor("es").honesty.tiktokBlocked);
+  });
+
+  it("a blocked fetch stores the note in the fetch call's locale — a later English read never rewrites it", async () => {
+    fetchImpl.mockImplementation(async (url: string) => {
+      if (url.includes("graph.facebook.com")) return fbVideosResponse(false);
+      throw new Error("unexpected");
+    });
+    const { items } = await scanAccount(USER, FB_ID);
+    const done = await fetchItem(USER, items[0]!.id, "es");
+    expect(done.status).toBe("blocked");
+    expect(done.statusNote).toBe(catalogImportCopyFor("es").honesty.noFileUrl);
+    const state = await getCatalogState(USER);
+    expect(state.items.find((i) => i.id === items[0]!.id)?.statusNote).toBe(
+      catalogImportCopyFor("es").honesty.noFileUrl,
+    );
+  });
+
+  it("a failed fetch stores the catalog failure note in the call's locale", async () => {
+    const { items } = await scanAccount(USER, IG_ID);
+    const target = items.find((i) => i.externalId === "ig-2")!;
+    downloadBuffer.mockRejectedValueOnce(new Error("socket died"));
+    const failed = await fetchItem(USER, target.id, "de");
+    expect(failed.status).toBe("failed");
+    expect(failed.statusNote).toBe(catalogImportCopyFor("de").fetchFailedNote);
+  });
+
+  it("a rebuild in Spanish stores Spanish draft notes; the creator's own words stay theirs", async () => {
+    aiWords = null;
+    setCatalogImportDeps({
+      transcribe: async () => { throw new Error("no scribe in tests"); },
+    });
+    const [up] = await registerUploads(USER, [
+      { key: `${USER}/catalog-import/xyz-loft-tape.mp3`, filename: "loft-tape.mp3", kind: "audio" },
+    ]);
+    const ready = await rebuildItem(USER, up!.id, "es");
+    const es = catalogImportCopyFor("es");
+    const notes = ready.draft?.notes ?? [];
+    expect(ready.draft?.title).toBe("loft tape");
+    expect(notes.find((n) => n.part === "captions")?.reason).toBe(es.transcriptUnavailable);
+    expect(notes.find((n) => n.part === "chapters")?.reason).toBe(es.draftNotes.chaptersNeedTranscript);
+    expect(notes.find((n) => n.part === "thumbnail")?.reason).toBe(es.draftNotes.thumbnailMissing);
+    expect(notes.find((n) => n.part === "series")?.reason).toBe(es.draftNotes.seriesNoMarker);
+  });
+
+  it("assembleDraft in a locale composes that locale's notes; en stays the default", () => {
+    const esDraft = assembleDraft(
+      { title: "Plain Title", caption: "", transcript: null, hasThumbnail: false, ai: null },
+      "es",
+    );
+    expect(esDraft.notes.find((n) => n.part === "captions")?.reason).toBe(
+      catalogImportCopyFor("es").draftNotes.captionsUnavailable,
+    );
+    const enDraft = assembleDraft({ title: "Plain Title", caption: "", transcript: null, hasThumbnail: false, ai: null });
+    expect(enDraft.notes.find((n) => n.part === "captions")?.reason).toBe(
+      "Transcription wasn't available for this file.",
+    );
   });
 });

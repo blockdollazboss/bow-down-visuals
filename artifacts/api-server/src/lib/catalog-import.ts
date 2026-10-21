@@ -55,6 +55,8 @@ import { r2Upload, r2PublicUrl } from "./r2-client";
 import { transcribeAudioTimed, type TimedTranscription } from "./transcription";
 import { getOpenAI, getTextModel } from "./ai-clients";
 import { logger } from "./logger";
+import type { ServerLocale } from "./server-i18n";
+import { catalogImportCopyFor } from "./catalog-import-i18n";
 
 /* ── Errors ──────────────────────────────────────────────────────────── */
 
@@ -71,19 +73,14 @@ export class CatalogImportError extends Error {
 
 const notFound = () => new CatalogImportError(404, "NOT_FOUND", "That item isn't on your import list.");
 
-/* ── Honest capability copy (the UI renders these verbatim) ─────────── */
+/* ── Honest capability copy (the UI renders these verbatim) ───────────
+   The English block, derived from the en entry of the server catalog
+   (lib/catalog-import-i18n) — the single source for this copy in all
+   ten locales. Reads in another locale render from the same catalog
+   (getCatalogState); notes stored on items keep the language of the
+   call that composed them. */
 
-export const CATALOG_HONESTY = {
-  /** The sentence the whole feature stands on. */
-  movesLine:
-    "Your work moves. Your followers don't — no platform lets anyone take an audience with them, and we won't pretend otherwise. What comes home is your content itself; your email list is how an audience becomes yours.",
-  tiktokBlocked:
-    "TikTok doesn't give apps a way to read or download your videos — the connection you granted covers posting only. Your TikTok catalog can't be pulled in automatically. Bring those files in with bulk upload below — that door always works.",
-  linkOnly:
-    "This is a display link you typed in, not a connected account — there's no connection that could read a catalog from it. Bulk upload below is the way in for this work.",
-  noFileUrl:
-    "The platform listed this post but wouldn't hand over the video file itself, so it can't be brought in automatically. Bulk upload the original file below and it comes home the same way.",
-} as const;
+export const CATALOG_HONESTY = catalogImportCopyFor("en").honesty;
 
 export type CatalogAccountState = "ready" | "blocked" | "link-only";
 
@@ -114,19 +111,11 @@ async function defaultDownloadBuffer(fetchImpl: FetchImpl, url: string): Promise
   if (!res.ok) throw new Error(`download failed (HTTP ${res.status})`);
   const declared = Number(res.headers.get("content-length") ?? "0");
   if (declared > MAX_FETCH_BYTES) {
-    throw new CatalogImportError(
-      413,
-      "FILE_TOO_LARGE",
-      "That file is larger than the 800 MB import limit. Bring it in as a bulk upload instead — uploads don't pass through this server.",
-    );
+    throw new CatalogImportError(413, "FILE_TOO_LARGE", catalogImportCopyFor("en").fileTooLarge);
   }
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > MAX_FETCH_BYTES) {
-    throw new CatalogImportError(
-      413,
-      "FILE_TOO_LARGE",
-      "That file is larger than the 800 MB import limit. Bring it in as a bulk upload instead — uploads don't pass through this server.",
-    );
+    throw new CatalogImportError(413, "FILE_TOO_LARGE", catalogImportCopyFor("en").fileTooLarge);
   }
   return buf;
 }
@@ -221,22 +210,28 @@ export function hashtagsOf(text: string): string[] {
   return [...new Set(found)].slice(0, 8);
 }
 
-function cleanTitle(raw: string): string {
-  return raw.replace(/\s+/g, " ").trim().slice(0, 200) || "Untitled";
+function cleanTitle(raw: string, locale: ServerLocale = "en"): string {
+  return raw.replace(/\s+/g, " ").trim().slice(0, 200) || catalogImportCopyFor(locale).untitledFallback;
 }
 
 /** The draft when the AI rail is off: the creator's own words, cleaned —
-    labeled 'assembled', never dressed up as AI work. */
-export function assembleDraft(input: {
-  title: string;
-  caption: string;
-  transcript: TimedTranscription | null;
-  transcriptSkipReason?: string;
-  hasThumbnail: boolean;
-  ai: AiDraftWords | null;
-}): CatalogImportDraft {
+    labeled 'assembled', never dressed up as AI work. Note reasons are
+    catalog template text, composed in the locale of the call that
+    built the draft and then stored with it. */
+export function assembleDraft(
+  input: {
+    title: string;
+    caption: string;
+    transcript: TimedTranscription | null;
+    transcriptSkipReason?: string;
+    hasThumbnail: boolean;
+    ai: AiDraftWords | null;
+  },
+  locale: ServerLocale = "en",
+): CatalogImportDraft {
+  const copy = catalogImportCopyFor(locale);
   const notes: CatalogImportDraftNote[] = [];
-  const title = cleanTitle(input.ai?.title ?? input.title);
+  const title = cleanTitle(input.ai?.title ?? input.title, locale);
   notes.push({ part: "title", state: "done" });
   const description = (input.ai?.description ?? input.caption ?? "").slice(0, 2000);
   notes.push({ part: "description", state: "done" });
@@ -250,37 +245,37 @@ export function assembleDraft(input: {
     const segs = input.transcript.segments ?? [];
     chapters = segs.slice(0, 12).map((s) => ({
       atSec: Math.max(0, Math.floor(s.start)),
-      label: s.text.trim().split(/\s+/).slice(0, 6).join(" ") || "Chapter",
+      label: s.text.trim().split(/\s+/).slice(0, 6).join(" ") || copy.chapterFallback,
     }));
     notes.push(
       chapters.length > 0
         ? { part: "chapters", state: "done" }
-        : { part: "chapters", state: "skipped", reason: "The transcript came back without timed sections, so there is nothing to hang chapters on." },
+        : { part: "chapters", state: "skipped", reason: copy.draftNotes.chaptersNoTimedSections },
     );
   } else {
     notes.push({
       part: "captions",
       state: "skipped",
-      reason: input.transcriptSkipReason || "Transcription wasn't available for this file.",
+      reason: input.transcriptSkipReason || copy.draftNotes.captionsUnavailable,
     });
     notes.push({
       part: "chapters",
       state: "skipped",
-      reason: "Chapters are built from the transcript — no transcript, no chapters.",
+      reason: copy.draftNotes.chaptersNeedTranscript,
     });
   }
 
   notes.push(
     input.hasThumbnail
       ? { part: "thumbnail", state: "done" }
-      : { part: "thumbnail", state: "skipped", reason: "No thumbnail came over with this file. You can set one after it's home." },
+      : { part: "thumbnail", state: "skipped", reason: copy.draftNotes.thumbnailMissing },
   );
 
   const series = parseSeriesSuggestion(input.title);
   notes.push(
     series
       ? { part: "series", state: "done" }
-      : { part: "series", state: "skipped", reason: "No episode marker (like “Ep. 3” or “S2E3”) in the title, so no series grouping was suggested." },
+      : { part: "series", state: "skipped", reason: copy.draftNotes.seriesNoMarker },
   );
 
   return {
@@ -324,7 +319,11 @@ async function ownAccount(userId: string, accountId: string) {
   return account ?? null;
 }
 
-export async function getCatalogState(userId: string): Promise<CatalogState> {
+export async function getCatalogState(
+  userId: string,
+  locale: ServerLocale = "en",
+): Promise<CatalogState> {
+  const copy = catalogImportCopyFor(locale);
   const [accounts, items, profiles] = await Promise.all([
     db.select().from(socialAccountsTable).where(eq(socialAccountsTable.user_id, userId)).orderBy(asc(socialAccountsTable.created_at)),
     db.select().from(catalogImportItemsTable).where(eq(catalogImportItemsTable.userId, userId)).orderBy(asc(catalogImportItemsTable.createdAt)),
@@ -347,12 +346,12 @@ export async function getCatalogState(userId: string): Promise<CatalogState> {
     if (a.platform === "facebook") {
       return a.page_id
         ? { ...base, state: "ready" as const, note: null }
-        : { ...base, state: "blocked" as const, note: "This Facebook connection has no Page attached, and catalogs live on Pages. Reconnect in Settings and pick your Page." };
+        : { ...base, state: "blocked" as const, note: copy.facebookNoPage };
     }
     if (a.platform === "tiktok") {
-      return { ...base, state: "blocked" as const, note: CATALOG_HONESTY.tiktokBlocked };
+      return { ...base, state: "blocked" as const, note: copy.honesty.tiktokBlocked };
     }
-    return { ...base, state: "blocked" as const, note: CATALOG_HONESTY.linkOnly };
+    return { ...base, state: "blocked" as const, note: copy.honesty.linkOnly };
   });
   /* Display-only links typed onto the profile (YouTube/X/Twitch and any
      other social_links keys) are stated as link-only — they are not
@@ -366,11 +365,11 @@ export async function getCatalogState(userId: string): Promise<CatalogState> {
       platform: key,
       username: null,
       state: "link-only",
-      note: CATALOG_HONESTY.linkOnly,
+      note: copy.honesty.linkOnly,
       itemCount: 0,
     });
   }
-  return { accounts: views, items, honesty: CATALOG_HONESTY };
+  return { accounts: views, items, honesty: copy.honesty };
 }
 
 /* ── Scan: list what isn't home yet ──────────────────────────────────── */
@@ -384,21 +383,22 @@ export interface ScanResult {
   items: CatalogImportItem[];
 }
 
-export async function scanAccount(userId: string, accountId: string): Promise<ScanResult> {
+export async function scanAccount(
+  userId: string,
+  accountId: string,
+  locale: ServerLocale = "en",
+): Promise<ScanResult> {
+  const copy = catalogImportCopyFor(locale);
   const account = await ownAccount(userId, accountId);
   if (!account) throw new CatalogImportError(404, "ACCOUNT_NOT_FOUND", "That account isn't connected to you.");
   if (account.platform === "tiktok") {
-    throw new CatalogImportError(422, "PROVIDER_BLOCKED", CATALOG_HONESTY.tiktokBlocked);
+    throw new CatalogImportError(422, "PROVIDER_BLOCKED", copy.honesty.tiktokBlocked);
   }
   if (account.platform !== "instagram" && account.platform !== "facebook") {
-    throw new CatalogImportError(422, "PROVIDER_BLOCKED", CATALOG_HONESTY.linkOnly);
+    throw new CatalogImportError(422, "PROVIDER_BLOCKED", copy.honesty.linkOnly);
   }
   if (account.platform === "facebook" && !account.page_id) {
-    throw new CatalogImportError(
-      422,
-      "NO_PAGE",
-      "This Facebook connection has no Page attached, and catalogs live on Pages. Reconnect in Settings and pick your Page.",
-    );
+    throw new CatalogImportError(422, "NO_PAGE", copy.facebookNoPage);
   }
   if (!account.access_token_encrypted) {
     throw new CatalogImportError(422, "RECONNECT", "This connection has no usable token. Reconnect it in Settings, then scan again.");
@@ -496,14 +496,19 @@ async function ownItem(userId: string, itemId: string): Promise<CatalogImportIte
   return item;
 }
 
-export async function fetchItem(userId: string, itemId: string): Promise<CatalogImportItem> {
+export async function fetchItem(
+  userId: string,
+  itemId: string,
+  locale: ServerLocale = "en",
+): Promise<CatalogImportItem> {
+  const copy = catalogImportCopyFor(locale);
   const item = await ownItem(userId, itemId);
   if (item.status === "approved" || item.status === "here" || item.status === "ready") return item;
   if (item.status === "dismissed") throw new CatalogImportError(409, "DISMISSED", "That item was dismissed. Scan again to bring it back.");
   if (!item.remoteFileUrl) {
     const [updated] = await db
       .update(catalogImportItemsTable)
-      .set({ status: "blocked", statusNote: CATALOG_HONESTY.noFileUrl, updatedAt: new Date() })
+      .set({ status: "blocked", statusNote: copy.honesty.noFileUrl, updatedAt: new Date() })
       .where(eq(catalogImportItemsTable.id, item.id))
       .returning();
     return updated!;
@@ -534,10 +539,16 @@ export async function fetchItem(userId: string, itemId: string): Promise<Catalog
       .returning();
     return updated!;
   } catch (err) {
+    /* The stored note is catalog text in the caller's locale. A
+       CatalogImportError's message passes through as-is (provider
+       text and the deps-seam errors are the error's own words) —
+       except FILE_TOO_LARGE, whose text IS the catalog string. */
     const note =
       err instanceof CatalogImportError
-        ? err.message
-        : "The file couldn't be brought over. It may have expired on the platform — scan again to refresh it, then retry.";
+        ? err.code === "FILE_TOO_LARGE"
+          ? copy.fileTooLarge
+          : err.message
+        : copy.fetchFailedNote;
     const [updated] = await db
       .update(catalogImportItemsTable)
       .set({ status: "failed", statusNote: note, updatedAt: new Date() })
@@ -551,11 +562,15 @@ export interface BatchResult {
   results: Array<{ itemId: string; ok: boolean; status: string; note?: string }>;
 }
 
-export async function fetchSelected(userId: string, itemIds: string[]): Promise<BatchResult> {
+export async function fetchSelected(
+  userId: string,
+  itemIds: string[],
+  locale: ServerLocale = "en",
+): Promise<BatchResult> {
   const results: BatchResult["results"] = [];
   for (const id of itemIds.slice(0, 100)) {
     try {
-      const item = await fetchItem(userId, id);
+      const item = await fetchItem(userId, id, locale);
       results.push({ itemId: id, ok: item.status === "here" || item.status === "ready" || item.status === "approved", status: item.status, note: item.statusNote ?? undefined });
     } catch (err) {
       results.push({ itemId: id, ok: false, status: "error", note: err instanceof Error ? err.message : "Failed." });
@@ -573,7 +588,11 @@ export interface UploadRegistration {
   contentType?: string;
 }
 
-export async function registerUploads(userId: string, files: UploadRegistration[]): Promise<CatalogImportItem[]> {
+export async function registerUploads(
+  userId: string,
+  files: UploadRegistration[],
+  locale: ServerLocale = "en",
+): Promise<CatalogImportItem[]> {
   const created: CatalogImportItem[] = [];
   for (const f of files.slice(0, 200)) {
     if (!f.key.startsWith(`${userId}/catalog-import/`) || f.key.includes("..")) {
@@ -588,7 +607,7 @@ export async function registerUploads(userId: string, files: UploadRegistration[
         socialAccountId: null,
         externalId: null,
         kind: f.kind,
-        title: cleanTitle(f.filename.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " ")),
+        title: cleanTitle(f.filename.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " "), locale),
         mediaUrl: catalogImportDeps.publicUrl(f.key),
         storageKey: f.key,
         status: "here",
@@ -601,7 +620,12 @@ export async function registerUploads(userId: string, files: UploadRegistration[
 
 /* ── Rebuild: the AI relocation draft ────────────────────────────────── */
 
-export async function rebuildItem(userId: string, itemId: string): Promise<CatalogImportItem> {
+export async function rebuildItem(
+  userId: string,
+  itemId: string,
+  locale: ServerLocale = "en",
+): Promise<CatalogImportItem> {
+  const copy = catalogImportCopyFor(locale);
   const item = await ownItem(userId, itemId);
   if (item.status !== "here" && item.status !== "ready") {
     throw new CatalogImportError(409, "NOT_HERE", "That work isn't home yet — bring it in first, then rebuild its details.");
@@ -615,7 +639,7 @@ export async function rebuildItem(userId: string, itemId: string): Promise<Catal
   try {
     const bytes = await catalogImportDeps.downloadBuffer(item.mediaUrl);
     if (bytes.length > MAX_TRANSCRIBE_BYTES) {
-      transcriptSkipReason = "This file is too large to transcribe in one pass (200 MB), so captions and chapters were skipped — the rest of the rebuild still ran.";
+      transcriptSkipReason = copy.transcriptTooLarge;
     } else {
       const ext = extFor(item.kind, null, item.storageKey);
       transcript = await catalogImportDeps.transcribe({
@@ -631,7 +655,7 @@ export async function rebuildItem(userId: string, itemId: string): Promise<Catal
       }
     }
   } catch {
-    transcriptSkipReason = "Transcription wasn't available for this file, so captions and chapters were skipped — the rest of the rebuild still ran.";
+    transcriptSkipReason = copy.transcriptUnavailable;
   }
 
   const caption = item.originalCaption ?? "";
@@ -641,14 +665,17 @@ export async function rebuildItem(userId: string, itemId: string): Promise<Catal
     transcriptExcerpt: (transcript?.text ?? "").slice(0, 3000),
     kind: item.kind,
   });
-  const draft = assembleDraft({
-    title: item.title,
-    caption,
-    transcript,
-    transcriptSkipReason,
-    hasThumbnail: Boolean(item.thumbnailUrl),
-    ai,
-  });
+  const draft = assembleDraft(
+    {
+      title: item.title,
+      caption,
+      transcript,
+      transcriptSkipReason,
+      hasThumbnail: Boolean(item.thumbnailUrl),
+      ai,
+    },
+    locale,
+  );
   const [updated] = await db
     .update(catalogImportItemsTable)
     .set({ status: "ready", draft, statusNote: null, updatedAt: new Date() })
@@ -666,7 +693,12 @@ export interface ApproveOverrides {
   series?: { name: string; season: number; episode: number } | null;
 }
 
-export async function approveItem(userId: string, itemId: string, overrides?: ApproveOverrides): Promise<CatalogImportItem> {
+export async function approveItem(
+  userId: string,
+  itemId: string,
+  overrides?: ApproveOverrides,
+  locale: ServerLocale = "en",
+): Promise<CatalogImportItem> {
   const item = await ownItem(userId, itemId);
   if (item.status === "approved") return item;
   if (item.status !== "here" && item.status !== "ready") {
@@ -675,8 +707,11 @@ export async function approveItem(userId: string, itemId: string, overrides?: Ap
   if (!item.mediaUrl) throw new CatalogImportError(409, "NOT_HERE", "That work has no file home yet.");
   const draft: CatalogImportDraft =
     item.draft ??
-    assembleDraft({ title: item.title, caption: item.originalCaption ?? "", transcript: null, transcriptSkipReason: "", hasThumbnail: Boolean(item.thumbnailUrl), ai: null });
-  const title = cleanTitle(overrides?.title ?? draft.title);
+    assembleDraft(
+      { title: item.title, caption: item.originalCaption ?? "", transcript: null, transcriptSkipReason: "", hasThumbnail: Boolean(item.thumbnailUrl), ai: null },
+      locale,
+    );
+  const title = cleanTitle(overrides?.title ?? draft.title, locale);
   const description = (overrides?.description ?? draft.description).slice(0, 2000);
   const tags = (overrides?.tags ?? draft.tags).slice(0, 8);
   const series = overrides?.series !== undefined ? overrides.series : draft.series;
@@ -776,11 +811,15 @@ export async function approveItem(userId: string, itemId: string, overrides?: Ap
   return updated!;
 }
 
-export async function approveBatch(userId: string, itemIds: string[]): Promise<BatchResult> {
+export async function approveBatch(
+  userId: string,
+  itemIds: string[],
+  locale: ServerLocale = "en",
+): Promise<BatchResult> {
   const results: BatchResult["results"] = [];
   for (const id of itemIds.slice(0, 100)) {
     try {
-      const item = await approveItem(userId, id);
+      const item = await approveItem(userId, id, undefined, locale);
       results.push({ itemId: id, ok: item.status === "approved", status: item.status });
     } catch (err) {
       results.push({ itemId: id, ok: false, status: "error", note: err instanceof Error ? err.message : "Failed." });

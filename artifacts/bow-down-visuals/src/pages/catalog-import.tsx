@@ -97,7 +97,7 @@ const PLATFORM_LABEL: Record<string, string> = {
 };
 
 export default function CatalogImport() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   usePageTitle(
     t("catalogImport.title"),
     t("catalogImport.pageDescription"),
@@ -134,10 +134,15 @@ export default function CatalogImport() {
           ? "border-[#C9A84C]/40 text-zinc-600"
           : "border-white/10 text-zinc-400");
 
+  /* Every call carries the current language as ?locale= — the server
+     renders the honesty block + account notes in it and composes
+     status/draft notes in it (server-side catalogs); stored notes
+     keep the language they were made in. */
   const call = useCallback(
     async (method: string, path: string, body?: unknown): Promise<any> => {
       const token = await getAccessToken();
-      const res = await fetch(path, {
+      const sep = path.includes("?") ? "&" : "?";
+      const res = await fetch(`${path}${sep}locale=${encodeURIComponent(i18n.language)}`, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -149,7 +154,7 @@ export default function CatalogImport() {
       if (!res.ok) throw new Error(json.error ?? t("catalogImport.genericError"));
       return json;
     },
-    [getAccessToken, t],
+    [getAccessToken, t, i18n.language],
   );
 
   const refresh = useCallback(async () => {

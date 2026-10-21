@@ -540,3 +540,46 @@ describe("move home — owner scoping", () => {
     expect(profiles[0].slug).not.toBe(ANSWERS.handle);
   });
 });
+
+describe("move home — locale path", () => {
+  it("step titles render in the requested locale; no locale = English; pt-BR normalizes to pt", async () => {
+    const u = randomUUID();
+    const es = await call(u, "GET", "/api/move-home?locale=es");
+    expect(es.status).toBe(200);
+    expect(es.json.moveHome.steps.map((s: any) => s.title)).toEqual([
+      "Tu perfil Grand Stage",
+      "Tu tienda inicial",
+      "Tu kit de prensa",
+      "Tu lista de correo + bienvenida",
+      "Tus publicaciones de lanzamiento",
+    ]);
+    const en = await get(u);
+    expect(en.json.moveHome.steps[0].title).toBe("Your Grand Stage profile");
+    const pt = await call(u, "GET", "/api/move-home?locale=pt-BR");
+    expect(pt.json.moveHome.steps[0].title).toBe("Seu perfil Grand Stage");
+    const unknown = await call(u, "GET", "/api/move-home?locale=xx");
+    expect(unknown.json.moveHome.steps[0].title).toBe("Your Grand Stage profile");
+  });
+
+  it("a drafting pass composes in its locale; later reads re-render titles but never re-translate the drafts", async () => {
+    const u = randomUUID();
+    await answers(u, ANSWERS);
+    const drafted = await call(u, "POST", "/api/move-home/draft?locale=es");
+    expect(drafted.status).toBe(200);
+    expect(drafted.json.moveHome.steps[0].title).toBe("Tu perfil Grand Stage");
+    expect(drafted.json.moveHome.drafts.email_list.welcomeSubject).toBe(
+      "Ya estás dentro: bienvenido al círculo interno de Nova Reign",
+    );
+    expect(drafted.json.moveHome.drafts.store.products[0].description).toContain(
+      "edita esta descripción",
+    );
+    /* Read back in French: the chrome (step titles) renders French,
+       the stored Spanish drafts stay Spanish — they are the creator's
+       data now. */
+    const fr = await call(u, "GET", "/api/move-home?locale=fr");
+    expect(fr.json.moveHome.steps[0].title).toBe("Votre profil Grand Stage");
+    expect(fr.json.moveHome.drafts.email_list.welcomeSubject).toBe(
+      "Ya estás dentro: bienvenido al círculo interno de Nova Reign",
+    );
+  });
+});

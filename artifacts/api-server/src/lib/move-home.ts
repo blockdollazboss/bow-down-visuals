@@ -50,43 +50,26 @@ import {
 import { ensureKingsWelcome } from "./kings-welcome";
 import { getOpenAI, getTextModel } from "./ai-clients";
 import { logger } from "./logger";
+import { fillServerTemplate, type ServerLocale } from "./server-i18n";
+import { moveHomeCopyFor, type MoveHomeCopy } from "./move-home-i18n";
 
+const MOVE_HOME_STEP_ORDER: MoveHomeStepKey[] = [
+  "profile",
+  "store",
+  "press_kit",
+  "email_list",
+  "launch_posts",
+];
+
+/** The step definitions in English, derived from the en entry of the
+    server catalog (lib/move-home-i18n) — the single source for step
+    titles + blurbs in all ten locales. Reads in another locale render
+    from the same catalog (getMoveHomeStatus); nothing is stored. */
 export const MOVE_HOME_STEPS: Array<{
   key: MoveHomeStepKey;
   title: string;
   blurb: string;
-}> = [
-  {
-    key: "profile",
-    title: "Your Grand Stage profile",
-    blurb:
-      "Your home page — name, bio, lane, and the social links from the accounts you've actually connected.",
-  },
-  {
-    key: "store",
-    title: "Your starter store",
-    blurb:
-      "Your first products, drafted from your own catalog — live in your store the moment you approve them.",
-  },
-  {
-    key: "press_kit",
-    title: "Your press kit",
-    blurb:
-      "A shareable EPK — bio, top tracks, and your connected socials — drafted from your profile.",
-  },
-  {
-    key: "email_list",
-    title: "Your email list + welcome",
-    blurb:
-      "The audience you own. A fan list with a welcome email, ready before your first fan lands.",
-  },
-  {
-    key: "launch_posts",
-    title: "Your launch posts",
-    blurb:
-      "Announcement drafts for each connected social, saved to your Post Scheduler as drafts — you pick when they fire.",
-  },
-];
+}> = MOVE_HOME_STEP_ORDER.map((key) => ({ key, ...moveHomeCopyFor("en").steps[key] }));
 
 export const MOVE_HOME_STEP_KEYS = MOVE_HOME_STEPS.map((s) => s.key);
 
@@ -148,12 +131,15 @@ export interface MoveHomeContext {
   videos: Array<{ id: string; title: string; videoUrl: string; thumbnailUrl: string | null }>;
 }
 
-function accountLabel(a: {
-  platform: string;
-  username: string | null;
-  page_id: string | null;
-  page_name: string | null;
-}): { label: string; profileUrl: string | null } {
+function accountLabel(
+  a: {
+    platform: string;
+    username: string | null;
+    page_id: string | null;
+    page_name: string | null;
+  },
+  copy: MoveHomeCopy,
+): { label: string; profileUrl: string | null } {
   if (a.platform === "instagram") {
     const u = (a.username ?? "").replace(/^@/, "");
     return {
@@ -170,12 +156,15 @@ function accountLabel(a: {
   }
   /* facebook */
   return {
-    label: a.page_name ? `Facebook · ${a.page_name}` : "Facebook Page",
+    label: a.page_name ? `Facebook · ${a.page_name}` : copy.facebookPageLabel,
     profileUrl: a.page_id ? `https://www.facebook.com/${a.page_id}` : null,
   };
 }
 
-export async function loadMoveHomeContext(userId: string): Promise<MoveHomeContext> {
+export async function loadMoveHomeContext(
+  userId: string,
+  locale: ServerLocale = "en",
+): Promise<MoveHomeContext> {
   const [profile] = await db
     .select()
     .from(creatorProfilesTable)
@@ -195,7 +184,7 @@ export async function loadMoveHomeContext(userId: string): Promise<MoveHomeConte
     if (platform !== "instagram" && platform !== "tiktok" && platform !== "facebook") continue;
     if (seenPlatforms.has(platform)) continue;
     seenPlatforms.add(platform);
-    const { label, profileUrl } = accountLabel(row);
+    const { label, profileUrl } = accountLabel(row, moveHomeCopyFor(locale));
     accounts.push({
       platform,
       accountId: row.id,
@@ -267,38 +256,35 @@ export function slugify(input: string): string {
   return slug.length >= 3 ? slug : "creator";
 }
 
-const LANE_NOUN: Record<string, string> = {
-  music: "artist",
-  video: "video creator",
-  gaming: "streamer",
-  podcast: "podcaster",
-  film: "filmmaker",
-  tv: "show creator",
-  influencer: "creator",
-  education: "educator",
-  other: "creator",
-};
-
 function clean(s: string | undefined | null): string {
   return (s ?? "").trim();
 }
 
+/** Compose a creator's drafts from the catalog templates of ONE
+    locale — the locale of the request that ran the drafting pass.
+    The composed drafts are stored as the creator's own data and are
+    never re-translated afterwards. Everything interpolated through
+    the templates (names, genre, location, track titles) is the
+    creator's data and passes through untranslated. */
 export function buildDrafts(
   answers: MoveHomeAnswers,
   ctx: MoveHomeContext,
+  locale: ServerLocale = "en",
 ): { drafts: MoveHomeDrafts; blocked: Partial<Record<MoveHomeStepKey, MoveHomeStepState["blockedReason"]>> } {
+  const copy = moveHomeCopyFor(locale);
   const blocked: Partial<Record<MoveHomeStepKey, MoveHomeStepState["blockedReason"]>> = {};
 
   const displayName =
     clean(answers.displayName) ||
     ctx.profile?.displayName ||
     ctx.accounts[0]?.username?.replace(/^@/, "") ||
-    "New Creator";
+    copy.defaultCreatorName;
   const vertical = (VERTICALS as readonly string[]).includes(clean(answers.vertical))
     ? clean(answers.vertical)
     : (ctx.profile?.vertical ?? "music");
   const genre = clean(answers.genre);
-  const laneNoun = LANE_NOUN[vertical] ?? "creator";
+  const genreClause = genre ? `${genre} ` : "";
+  const laneNoun = copy.laneNouns[vertical] ?? copy.laneNouns["other"] ?? "creator";
   const slug = ctx.profile?.slug ?? slugify(clean(answers.handle) || displayName);
   const homePath = `/artist/${slug}`;
 
@@ -320,10 +306,17 @@ export function buildDrafts(
   const bio =
     bioSeed ||
     [
-      `${displayName} is a ${genre ? `${genre} ` : ""}${laneNoun} building a home for everything they make${clean(answers.location) ? ` — based in ${clean(answers.location)}` : ""}.`,
+      fillServerTemplate(copy.bioIntro, {
+        displayName,
+        genre: genreClause,
+        laneNoun,
+        location: clean(answers.location)
+          ? fillServerTemplate(copy.bioLocationClause, { location: clean(answers.location) })
+          : "",
+      }),
       connectedNames.length
-        ? `You may know the work from ${connectedNames.join(", ")} — now it all lives in one place.`
-        : "Everything lives here now — music, videos, store, and memberships, straight from the source.",
+        ? fillServerTemplate(copy.bioKnownFrom, { platforms: connectedNames.join(", ") })
+        : copy.bioEverythingHere,
     ].join(" ");
 
   const profile: MoveHomeDrafts["profile"] = {
@@ -345,7 +338,7 @@ export function buildDrafts(
   const products: NonNullable<MoveHomeDrafts["store"]>["products"] = pricedTracks.map((t) => ({
     kind: "download" as const,
     title: t.title,
-    description: `Official download of "${t.title}" by ${displayName} — yours from the source.`,
+    description: fillServerTemplate(copy.productDescription, { title: t.title, displayName }),
     priceCents: t.downloadPriceCents,
     sourceTrackId: t.id,
     suggestedPrice: false,
@@ -353,9 +346,10 @@ export function buildDrafts(
   if (products.length === 0) {
     products.push({
       kind: "digital",
-      title: clean(answers.starterProductTitle) || `${displayName} — Supporter Pack`,
-      description:
-        "Starter product — edit this description to say exactly what buyers get before you approve it. Nothing goes on sale until you say so.",
+      title:
+        clean(answers.starterProductTitle) ||
+        fillServerTemplate(copy.starterProductTitle, { displayName }),
+      description: copy.starterProductDescription,
       priceCents: 500,
       suggestedPrice: true,
     });
@@ -368,7 +362,9 @@ export function buildDrafts(
     artistName: displayName,
     tagline:
       clean(answers.tagline) ||
-      (genre ? `${genre} ${laneNoun} — official press kit` : `${displayName} — official press kit`),
+      (genre
+        ? fillServerTemplate(copy.taglineGenre, { genre: genreClause, laneNoun })
+        : fillServerTemplate(copy.taglinePlain, { displayName })),
     bio,
     genre,
     location: clean(answers.location),
@@ -379,19 +375,15 @@ export function buildDrafts(
   };
 
   const emailList: MoveHomeDrafts["email_list"] = {
-    name: `${displayName} — Inner Circle`,
+    name: fillServerTemplate(copy.listName, { displayName }),
     handle: slug,
-    description: `First to hear new drops, shows, and exclusives from ${displayName}. No noise — just the good stuff.`,
-    welcomeSubject: `You're in — welcome to ${displayName}'s inner circle`,
-    welcomeBody: [
-      `Welcome home.`,
-      ``,
-      `You just joined the list that hears everything first — new ${genre ? `${genre} ` : ""}drops, videos, shows, and store exclusives from ${displayName}, before anywhere else.`,
-      ``,
-      `Start here: bowdownvisuals.com${homePath}`,
-      ``,
-      `— ${displayName}`,
-    ].join("\n"),
+    description: fillServerTemplate(copy.listDescription, { displayName }),
+    welcomeSubject: fillServerTemplate(copy.welcomeSubject, { displayName }),
+    welcomeBody: fillServerTemplate(copy.welcomeBody, {
+      displayName,
+      genre: genreClause,
+      homePath,
+    }),
     updatesExisting: false /* resolved against the DB at draft time in runDrafting */,
   };
 
@@ -407,8 +399,10 @@ export function buildDrafts(
           ? { url: ctx.profile.avatarUrl, type: "image" }
           : null;
 
-  const announcement =
-    `I moved home. 🏠 Everything I make — ${vertical === "music" ? "music, videos" : "videos, work"}, store, memberships — now lives in one place I own: bowdownvisuals.com${homePath}. No algorithm between us. Come see the new home.`;
+  const announcement = fillServerTemplate(
+    vertical === "music" ? copy.announcementMusic : copy.announcementOther,
+    { homePath },
+  );
   const genreTag = genre ? ` #${genre.replace(/[^a-zA-Z0-9]+/g, "")}` : "";
   const posts: MoveHomeLaunchPostDraft[] = ctx.accounts.map((a) => ({
     platform: a.platform,
@@ -416,7 +410,7 @@ export function buildDrafts(
     accountLabel: a.label,
     caption:
       a.platform === "tiktok"
-        ? `I moved home 🏠 Everything I make now lives in one place I own — link in bio. bowdownvisuals.com${homePath}`
+        ? fillServerTemplate(copy.tiktokCaption, { homePath })
         : announcement,
     hashtags: `#MovedHome #IndependentCreator${genreTag}`,
     mediaUrl: media?.url ?? null,
@@ -582,18 +576,23 @@ export interface MoveHomeStatus {
   };
 }
 
-export async function getMoveHomeStatus(userId: string): Promise<MoveHomeStatus> {
+export async function getMoveHomeStatus(
+  userId: string,
+  locale: ServerLocale = "en",
+): Promise<MoveHomeStatus> {
   const [progress, ctx] = await Promise.all([
     getOrCreateProgress(userId),
-    loadMoveHomeContext(userId),
+    loadMoveHomeContext(userId, locale),
   ]);
+  const copy = moveHomeCopyFor(locale);
   return {
     answers: progress.answers ?? {},
     drafts: progress.drafts ?? {},
-    steps: MOVE_HOME_STEPS.map((def) => {
-      const state = stepState(progress, def.key);
+    steps: MOVE_HOME_STEP_ORDER.map((key) => {
+      const state = stepState(progress, key);
+      const def = copy.steps[key];
       return {
-        key: def.key,
+        key,
         title: def.title,
         blurb: def.blurb,
         status: state.status,
@@ -628,10 +627,11 @@ export async function saveAnswers(
 export async function runDrafting(
   userId: string,
   polish: CopyPolish | null = aiCopyPolish,
+  locale: ServerLocale = "en",
 ): Promise<MoveHomeStatus> {
   const progress = await getOrCreateProgress(userId);
-  const ctx = await loadMoveHomeContext(userId);
-  const { drafts, blocked } = buildDrafts(progress.answers ?? {}, ctx);
+  const ctx = await loadMoveHomeContext(userId, locale);
+  const { drafts, blocked } = buildDrafts(progress.answers ?? {}, ctx, locale);
 
   /* Email step: does a list already exist for this creator? */
   const [existingList] = await db
@@ -676,7 +676,7 @@ export async function runDrafting(
     steps,
     ...completionPatch(steps),
   });
-  return getMoveHomeStatus(userId);
+  return getMoveHomeStatus(userId, locale);
 }
 
 /** Creator edits to a single draft (validated in the route). Approved
@@ -685,6 +685,7 @@ export async function updateDraft(
   userId: string,
   key: MoveHomeStepKey,
   patch: Record<string, unknown>,
+  locale: ServerLocale = "en",
 ): Promise<MoveHomeStatus> {
   const progress = await getOrCreateProgress(userId);
   const state = stepState(progress, key);
@@ -695,10 +696,14 @@ export async function updateDraft(
   const current = (drafts[key] ?? {}) as Record<string, unknown>;
   drafts[key] = { ...current, ...patch };
   await saveProgress(userId, { drafts: drafts as MoveHomeDrafts });
-  return getMoveHomeStatus(userId);
+  return getMoveHomeStatus(userId, locale);
 }
 
-export async function skipStep(userId: string, key: MoveHomeStepKey): Promise<MoveHomeStatus> {
+export async function skipStep(
+  userId: string,
+  key: MoveHomeStepKey,
+  locale: ServerLocale = "en",
+): Promise<MoveHomeStatus> {
   const progress = await getOrCreateProgress(userId);
   const state = stepState(progress, key);
   if (state.status === "approved") {
@@ -711,20 +716,24 @@ export async function skipStep(userId: string, key: MoveHomeStepKey): Promise<Mo
     blockedReason: undefined,
   });
   await saveProgress(userId, { steps, ...completionPatch(steps) });
-  return getMoveHomeStatus(userId);
+  return getMoveHomeStatus(userId, locale);
 }
 
-export async function reopenStep(userId: string, key: MoveHomeStepKey): Promise<MoveHomeStatus> {
+export async function reopenStep(
+  userId: string,
+  key: MoveHomeStepKey,
+  locale: ServerLocale = "en",
+): Promise<MoveHomeStatus> {
   const progress = await getOrCreateProgress(userId);
   const state = stepState(progress, key);
-  if (state.status !== "skipped") return getMoveHomeStatus(userId);
+  if (state.status !== "skipped") return getMoveHomeStatus(userId, locale);
   const steps = withStep(progress, key, {
     ...state,
     status: progress.drafts?.[key] ? "drafted" : "pending",
     decidedAt: undefined,
   });
   await saveProgress(userId, { steps, ...completionPatch(steps) });
-  return getMoveHomeStatus(userId);
+  return getMoveHomeStatus(userId, locale);
 }
 
 /* ─── Apply rails — the only way a draft goes live ───────────────────── */
@@ -993,10 +1002,14 @@ const APPLIERS: Record<MoveHomeStepKey, (userId: string, p: MoveHomeProgress) =>
 /** The approval door. One step, one explicit call, applied to its real
     rail. Approving an already-approved step is a no-op read — a step
     can never be applied twice. */
-export async function approveStep(userId: string, key: MoveHomeStepKey): Promise<MoveHomeStatus> {
+export async function approveStep(
+  userId: string,
+  key: MoveHomeStepKey,
+  locale: ServerLocale = "en",
+): Promise<MoveHomeStatus> {
   const progress = await getOrCreateProgress(userId);
   const state = stepState(progress, key);
-  if (state.status === "approved") return getMoveHomeStatus(userId);
+  if (state.status === "approved") return getMoveHomeStatus(userId, locale);
   if (state.status !== "drafted") {
     throw new MoveHomeError(409, "NOT_DRAFTED", "Draft your home first — approval only works on a drafted step.");
   }
@@ -1009,5 +1022,5 @@ export async function approveStep(userId: string, key: MoveHomeStepKey): Promise
     appliedRef,
   });
   await saveProgress(userId, { steps, ...completionPatch(steps) });
-  return getMoveHomeStatus(userId);
+  return getMoveHomeStatus(userId, locale);
 }
