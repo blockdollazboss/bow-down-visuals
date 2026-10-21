@@ -60,11 +60,21 @@ type TemplateKey = (typeof TEMPLATES)[number]["key"];
 
 type FilesMap = Record<string, string>;
 
+interface SeededFrom {
+  profile: boolean;
+  brandKit: boolean;
+  songs: number;
+  videos: number;
+  products: number;
+  shows: number;
+}
+
 interface GenerateResponse {
   files?: FilesMap;
   templateLabel?: string;
   businessName?: string;
   fileCount?: number;
+  seededFrom?: SeededFrom;
   ownership?: string;
   error?: string;
   /* Persistence (0195): the saved project + head version, and whether
@@ -162,6 +172,7 @@ export default function WebsiteBuilder() {
   const [editing, setEditing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [files, setFiles] = useState<FilesMap | null>(null);
+  const [seededFrom, setSeededFrom] = useState<SeededFrom | null>(null);
   const [editRequest, setEditRequest] = useState("");
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
@@ -431,6 +442,7 @@ export default function WebsiteBuilder() {
     setLoading(true);
     setError("");
     setFiles(null);
+    setSeededFrom(null);
     try {
       const res = await confirmedFetch("/api/website-builder/generate", {
         method: "POST",
@@ -455,6 +467,7 @@ export default function WebsiteBuilder() {
         throw new Error(data.error || t("websiteBuilder.generationFailedError"));
       }
       setFiles(data.files);
+      setSeededFrom(data.seededFrom ?? null);
       setShowPreview(true);
       if (data.projectId) {
         setProjectId(data.projectId);
@@ -772,6 +785,22 @@ export default function WebsiteBuilder() {
         {/* Result */}
         {files && (
           <div>
+            {seededFrom && (
+              <p className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
+                <span className="font-semibold text-primary">
+                  {t("websiteBuilder.seededFromTitle")}
+                </span>{" "}
+                {seededFrom.songs + seededFrom.videos + seededFrom.products + seededFrom.shows > 0
+                  ? t("websiteBuilder.seededFrom", {
+                      songs: seededFrom.songs,
+                      videos: seededFrom.videos,
+                      products: seededFrom.products,
+                      shows: seededFrom.shows,
+                    })
+                  : t("websiteBuilder.seededNone")}
+                {seededFrom.brandKit && <> {t("websiteBuilder.seededBrandKit")}</>}
+              </p>
+            )}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Eye className="h-5 w-5 text-primary" /> {t("websiteBuilder.stepPreview")}
