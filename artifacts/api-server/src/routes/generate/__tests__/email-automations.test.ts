@@ -75,6 +75,7 @@ function buildFakeDb(actual: Record<string, any>) {
     "shopsTable",
     "creatorProfilesTable",
     "digitalSalesTable",
+    "abandonedCheckoutsTable",
   ] as const;
 
   /* Unique constraints from migration 0189 (+ the pre-existing handle
@@ -97,6 +98,9 @@ function buildFakeDb(actual: Record<string, any>) {
     { table: "email_automation_sends", cols: ["automation_id", "trigger_ref"] },
     { table: "creator_profiles", cols: ["user_id"] },
     { table: "digital_sales", cols: ["stripe_session_id"], when: (r) => r["stripe_session_id"] != null },
+    /* Migration 0204: one record per expired Stripe session — the
+       webhook replay law for abandoned store/storefront checkouts. */
+    { table: "abandoned_checkouts", cols: ["stripe_session_id"] },
   ];
   const tables = new Map<string, any>(); /* db name -> table object */
   const stores = new Map<string, Row[]>(); /* db name -> rows */
@@ -576,8 +580,13 @@ import {
   creatorProfilesTable,
   digitalSalesTable,
   fanMembersTable,
+  abandonedCheckoutsTable,
 } from "@workspace/db";
-import { runEmailAutomationsOnce } from "../../../lib/email-automations";
+import {
+  runEmailAutomationsOnce,
+  recordAbandonedStripeCheckout,
+  classifyExpiredCheckout,
+} from "../../../lib/email-automations";
 import { dispatchCampaign } from "../../../lib/email-campaign-send";
 import { eq } from "drizzle-orm";
 
@@ -1136,5 +1145,250 @@ describe("carrier campaigns are not newsletters", () => {
     const direct = await dispatchCampaign(carrier.id);
     expect(direct.ok).toBe(false);
     expect(direct.reason).toBe("automation_carrier");
+  });
+});
+
+/* ── Abandoned checkout: Stripe store/storefront expiries (0204) ────
+   The shop pending rows were only half the picture: the digital store
+   and the profile storefront write nothing when a checkout starts, so
+   their abandonments arrive as checkout.session.expired webhooks and
+   land in abandoned_checkouts. The recorder is the webhook's half
+   (classification + per-session idempotency); the runner's half is
+   the same claim/carrier path every other trigger rides. */
+
+const BUYER = randomUUID();
+
+function storefrontSession(profileId: string, over: Record<string, any> = {}) {
+  return {
+    id: `cs_test_sf_${randomUUID().slice(0, 8)}`,
+    payment_status: "unpaid",
+    amount_total: 2500,
+    metadata: {
+      type: "storefront_purchase",
+      buyer_user_id: BUYER,
+      profile_id: profileId,
+      product_id: randomUUID(),
+      product_kind: "digital",
+    },
+    ...over,
+  };
+}
+
+function storeSession(profileId: string, over: Record<string, any> = {}) {
+  const itemId = randomUUID();
+  return {
+    id: `cs_test_st_${randomUUID().slice(0, 8)}`,
+    payment_status: "unpaid",
+    amount_total: 900,
+    metadata: {
+      buyer_user_id: BUYER,
+      profile_id: profileId,
+      item_kind: "track",
+      item_id: itemId,
+      platform_fee_cents: "45",
+      creator_amount_cents: "855",
+    },
+    ...over,
+  };
+}
+
+async function abandonedRows() {
+  return (await db.select().from(abandonedCheckoutsTable)) as Array<Record<string, any>>;
+}
+
+/** File a record through the real recorder, then pin its created_at
+ *  to the fixture moment (the fake db can't render the column's
+ *  defaultNow; real PG stamps it at insert). */
+async function recordAt(session: Record<string, any>, at: Date) {
+  const recorded = await recordAbandonedStripeCheckout(session as any);
+  expect(recorded).toBe(true);
+  await db
+    .update(abandonedCheckoutsTable)
+    .set({ createdAt: at })
+    .where(eq(abandonedCheckoutsTable.stripeSessionId, session.id));
+}
+
+describe("abandoned checkout — expired-session classification", () => {
+  it("classifies storefront and digital-store sessions from their stamped metadata", () => {
+    const profileId = randomUUID();
+    expect(classifyExpiredCheckout(storefrontSession(profileId) as any)).toMatchObject({
+      rail: "storefront",
+      profileId,
+      buyerUserId: BUYER,
+    });
+    const st = storeSession(profileId);
+    expect(classifyExpiredCheckout(st as any)).toMatchObject({
+      rail: "store",
+      profileId,
+      buyerUserId: BUYER,
+      itemRef: `track:${st.metadata.item_id}`,
+    });
+  });
+
+  it("classifies nothing for paid sessions, other rails, or unlinked sessions", () => {
+    const profileId = randomUUID();
+    /* A paid session in an expiry event is a contradiction — no record. */
+    expect(classifyExpiredCheckout(storefrontSession(profileId, { payment_status: "paid" }) as any)).toBeNull();
+    /* Marketplace already has its pending rows — recording it too
+       would double-fire the fan. */
+    expect(
+      classifyExpiredCheckout({
+        id: "cs_test_mp",
+        payment_status: "unpaid",
+        metadata: { type: "marketplace_shop_purchase", shop_id: randomUUID(), checkout_group_id: "g1" },
+      } as any),
+    ).toBeNull();
+    /* Other typed rails (tips, shoutouts, tiers) are not this trigger. */
+    expect(
+      classifyExpiredCheckout({
+        id: "cs_test_tip",
+        payment_status: "unpaid",
+        metadata: { type: "tip_jar", tipId: randomUUID() },
+      } as any),
+    ).toBeNull();
+    /* No signed-in buyer / no creator profile — nothing to fire for. */
+    expect(
+      classifyExpiredCheckout({
+        id: "cs_test_anon",
+        payment_status: "unpaid",
+        metadata: { type: "storefront_purchase", profile_id: profileId },
+      } as any),
+    ).toBeNull();
+    expect(classifyExpiredCheckout({ id: "cs_test_bare", payment_status: "unpaid", metadata: {} } as any)).toBeNull();
+  });
+});
+
+describe("abandoned checkout — the recorder (webhook's half)", () => {
+  it("files one record per session; a replayed webhook files nothing twice", async () => {
+    const profile = await seedProfile(OWNER);
+    const session = storefrontSession(profile.id);
+    expect(await recordAbandonedStripeCheckout(session as any)).toBe(true);
+    expect(await recordAbandonedStripeCheckout(session as any)).toBe(false);
+    const rows = await abandonedRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0]).toMatchObject({
+      stripeSessionId: session.id,
+      rail: "storefront",
+      profileId: profile.id,
+      buyerUserId: BUYER,
+      amountCents: 2500,
+    });
+  });
+
+  it("records nothing for a paid session or a marketplace session", async () => {
+    const profile = await seedProfile(OWNER);
+    expect(
+      await recordAbandonedStripeCheckout(storefrontSession(profile.id, { payment_status: "paid" }) as any),
+    ).toBe(false);
+    expect(
+      await recordAbandonedStripeCheckout({
+        id: "cs_test_mp_2",
+        payment_status: "unpaid",
+        metadata: { type: "marketplace_shop_purchase", shop_id: randomUUID(), checkout_group_id: "g9" },
+      } as any),
+    ).toBe(false);
+    expect(await abandonedRows()).toEqual([]);
+  });
+});
+
+describe("abandoned checkout — the runner fires the recorded expiry once", () => {
+  it("sends exactly one carrier for a recorded storefront expiry; replays and re-runs never double-send", async () => {
+    const profile = await seedProfile(OWNER);
+    await addSubscriber("buyer@x.com");
+    userEmails.map.set(BUYER, "buyer@x.com");
+    const session = storefrontSession(profile.id);
+    await recordAt(session, hoursAgo(30));
+    /* The same webhook landing again after filing: still one record. */
+    expect(await recordAbandonedStripeCheckout(session as any)).toBe(false);
+    expect((await abandonedRows()).length).toBe(1);
+
+    const abandoned = await enableAutomation("abandoned_checkout", { enabledAt: hoursAgo(72) });
+    /* A second automation rides along to prove the other triggers are
+       untouched: no sales exist, so it must stay silent. */
+    await enableAutomation("post_purchase", { enabledAt: hoursAgo(72) });
+
+    const totals = await runNow();
+    expect(totals.sent).toBe(1);
+    const carriers = (await db.select().from(emailCampaignsTable)) as Array<Record<string, any>>;
+    expect(carriers.length).toBe(1);
+    expect(carriers[0].automationId).toBe(abandoned.id);
+    const claims = await sendRows();
+    expect(claims.length).toBe(1);
+    expect(claims[0]).toMatchObject({
+      triggerKind: "abandoned_checkout",
+      triggerRef: `stripe_checkout:${session.id}`,
+      status: "sent",
+    });
+    expect(mail.sends.length).toBe(1);
+
+    /* The sweeper running again owns nothing new: the claim ledger
+       already holds this checkout. */
+    const again = await runNow();
+    expect(again.sent).toBe(0);
+    expect((await db.select().from(emailCampaignsTable)).length).toBe(1);
+    expect((await sendRows()).length).toBe(1);
+    expect(mail.sends.length).toBe(1);
+  });
+
+  it("fires for a digital-store expiry too, addressed through the auth rail", async () => {
+    const profile = await seedProfile(OWNER);
+    await addSubscriber("fan@y.com");
+    userEmails.map.set(BUYER, "fan@y.com");
+    await recordAt(storeSession(profile.id), hoursAgo(30));
+    await enableAutomation("abandoned_checkout", { enabledAt: hoursAgo(72) });
+    const totals = await runNow();
+    expect(totals.sent).toBe(1);
+    const claims = await sendRows();
+    expect(claims.length).toBe(1);
+    expect(claims[0].triggerKind).toBe("abandoned_checkout");
+    expect(claims[0].recipientEmail).toBe("fan@y.com");
+  });
+
+  it("sends nothing while the automation is off, however real the abandonment", async () => {
+    const profile = await seedProfile(OWNER);
+    await addSubscriber("buyer@x.com");
+    userEmails.map.set(BUYER, "buyer@x.com");
+    await recordAt(storefrontSession(profile.id), hoursAgo(30));
+    await getAutomations(); /* provisioned, still disabled */
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(await sendRows()).toEqual([]);
+    expect(await db.select().from(emailCampaignsTable)).toEqual([]);
+    expect(mail.sends).toEqual([]);
+  });
+
+  it("never fires for an abandonment older than the switch-on moment", async () => {
+    const profile = await seedProfile(OWNER);
+    await addSubscriber("buyer@x.com");
+    userEmails.map.set(BUYER, "buyer@x.com");
+    await recordAt(storefrontSession(profile.id), hoursAgo(30));
+    await enableAutomation("abandoned_checkout", { enabledAt: hoursAgo(1) });
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(await sendRows()).toEqual([]);
+    expect(mail.sends).toEqual([]);
+  });
+
+  it("is not actionable when the buyer isn't a subscriber — no claim, no send", async () => {
+    const profile = await seedProfile(OWNER);
+    userEmails.map.set(BUYER, "stranger@x.com");
+    await recordAt(storefrontSession(profile.id), hoursAgo(30));
+    await enableAutomation("abandoned_checkout", { enabledAt: hoursAgo(72) });
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(await sendRows()).toEqual([]);
+    expect(mail.sends).toEqual([]);
+  });
+
+  it("is owner-scoped: another creator's expired checkout never fires this list", async () => {
+    const othersProfile = await seedProfile(OTHER);
+    await addSubscriber("buyer@x.com");
+    userEmails.map.set(BUYER, "buyer@x.com");
+    await recordAt(storefrontSession(othersProfile.id), hoursAgo(30));
+    await enableAutomation("abandoned_checkout", { enabledAt: hoursAgo(72) });
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(await sendRows()).toEqual([]);
+    expect(mail.sends).toEqual([]);
   });
 });
