@@ -28,6 +28,24 @@
  * camera still starts raw — an engine failure never holds the
  * camera hostage.
  *
+ * FREEZE FIX (Oct 21, 2026) — the four-part guard against the tab
+ * seizing when backdrop effects engage:
+ *  1. RAW-FIRST START: start() acquires the camera and starts the
+ *     render loop on the raw picture BEFORE any engine work
+ *     begins; the engine loads afterwards and its effect fades in
+ *     (ENGINE_FADE_IN_MS) only once it is actually live.
+ *  2. DEFAULT MODE "none": a fresh session starts on the Original
+ *     (raw) picture — backdrop effects are opt-in, never the
+ *     default path. A mode the caller passes explicitly always
+ *     wins; only the fallback changed.
+ *  3. ENGINE-INIT TIMEOUT: engine initialisation is capped at
+ *     ENGINE_INIT_TIMEOUT_MS; a stalled load lands raw with the
+ *     honest engine-down note instead of hanging start() forever.
+ *  4. INFERENCE FAILURE CAP: an engine whose inferences fail
+ *     MAX_CONSECUTIVE_INFERENCE_FAILURES times in a row parks
+ *     itself for the rest of the session (see _parkEngine) rather
+ *     than retrying on the main thread forever.
+ *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
  * first — the output stream then holds the processed picture and the
@@ -137,6 +155,29 @@ export const MATTE_REFINEMENT_STEPS: readonly MatteRefinementStep[] = [
   { maskCap: 384, emaWeight: 0.6, choke: 0.05, curveLo: 0.06, curveHi: 0.94, featherPasses: 1 },
 ];
 export const MATTE_MAX_STEP = MATTE_REFINEMENT_STEPS.length - 1;
+
+/**
+ * Hard cap on engine initialisation (ms). A stalled load — a hung
+ * script fetch, a compile that never returns — must not wedge
+ * start(): past this the engine reads as unavailable, the studio
+ * shows its honest engine-down note, and the camera runs raw.
+ */
+export const ENGINE_INIT_TIMEOUT_MS = 10_000;
+
+/**
+ * Consecutive failed inferences after which the live engine parks
+ * itself for the rest of the session. One failure is a hiccup; an
+ * unbroken run of them is an engine that will not recover on its
+ * own, and retrying it frame after frame is main-thread work the
+ * tab pays for nothing.
+ */
+export const MAX_CONSECUTIVE_INFERENCE_FAILURES = 30;
+
+/** How long a freshly-live engine's effect takes to fade in over
+ *  the raw picture (ms) when it arrives while the session is
+ *  already running. */
+export const ENGINE_FADE_IN_MS = 350;
+
 export type BackgroundChangerErrorCode = "PERMISSION_DENIED" | "NO_CAMERA" | "CDN_LOAD_FAILED" | "UNSUPPORTED" | "SEGMENTATION_FAILED";
 
 /** Error with a stable machine-readable `code` for UI handling. */
@@ -210,6 +251,8 @@ export interface BackgroundChangerConfig {
   mode?: BackgroundMode;
   /** Background engine quality (see BackgroundQuality). Default 'auto'. */
   quality?: BackgroundQuality;
+  /** Hard cap on engine initialisation (ms). Default ENGINE_INIT_TIMEOUT_MS. */
+  engineInitTimeoutMs?: number;
   /** Fired whenever the live background engine changes
    *  ('standard' | 'off') — the studio shows it as the honest
    *  "Background engine: On / Off" status. */
@@ -378,6 +421,21 @@ export class BackgroundChanger {
      contract (the one MediaPipe engine); null = raw camera ("Off"). */
   private _engine: MattingEngine | null = null;
   private _engineKind: BackgroundEngineKind = "off";
+  /* Consecutive inference failures against the live engine; reset
+     by every landed matte and every engine swap. Past
+     MAX_CONSECUTIVE_INFERENCE_FAILURES the engine parks. */
+  private _consecutiveInferenceFailures = 0;
+  /* True once the engine has parked itself this session (see
+     _parkEngine). A parked engine is never revived implicitly —
+     only a fresh start() (a new session) clears the park. */
+  private _engineParked = false;
+  /* The error a parked engine reports; re-asserted by _selectEngine
+     so the honest unavailable note survives a trip through raw
+     mode and back. */
+  private _parkError: BackgroundChangerError | null = null;
+  /* When the live engine arrived mid-session (the fade-in clock),
+     or null when no fade is in progress. */
+  private _engineFadeStart: number | null = null;
   /* Bumped on every engine swap/stop so in-flight frames from a
      retired engine can never composite (or un-block the loop). */
   private _engineEpoch = 0;
@@ -407,8 +465,13 @@ export class BackgroundChanger {
 
   constructor(config: BackgroundChangerConfig = {}) {
     this.config = {
-      mode: config.mode ?? "green",
+      /* Default mode is "none" (Original/raw): backdrop effects are
+         opt-in per session, so the engine path is never the
+         default path (freeze fix, part 2). An explicit mode from
+         the caller always wins. */
+      mode: config.mode ?? "none",
       quality: config.quality ?? "auto",
+      engineInitTimeoutMs: config.engineInitTimeoutMs ?? ENGINE_INIT_TIMEOUT_MS,
       onEngineStatus: config.onEngineStatus,
       image: config.image ?? null,
       blurAmount: config.blurAmount ?? 18,
@@ -494,30 +557,39 @@ export class BackgroundChanger {
     }
     if (deviceId) this.deviceId = deviceId;
 
-    // The engine must NEVER hold the camera hostage: if no engine can
-    // load, the camera still starts and runs raw — scenes, mixer,
-    // recording, the chroma key and camera effects all stay live;
-    // only the AI backdrop modes (green/blur/image) disable. The
-    // studio reads segmentationAvailable / engineError /
-    // getEngineKind() after start() resolves and tells the creator
-    // plainly. _selectEngine never throws.
+    // RAW-FIRST (freeze fix, part 1): the camera is acquired and
+    // the render loop starts on the raw picture BEFORE any engine
+    // work begins — the first frame never waits on an engine
+    // download or compile. The engine then loads (under the init
+    // timeout in _selectEngine) and its effect fades in once it is
+    // actually live. The engine must NEVER hold the camera
+    // hostage: if no engine can load, the camera still runs raw —
+    // scenes, mixer, recording, the chroma key and camera effects
+    // all stay live; only the AI backdrop modes (green/blur/image)
+    // disable. The studio reads segmentationAvailable /
+    // engineError / getEngineKind() after start() resolves and
+    // tells the creator plainly. _selectEngine never throws.
     //
     // Raw sessions (mode "none") skip the engine ENTIRELY (Lane F
     // audit, Flag E-1): no engine download, no inference CPU for a
     // matte that is never drawn. The engine loads lazily when the
-    // first backdrop mode is picked (see setMode).
+    // first backdrop mode is picked (see setMode). A fresh session
+    // also clears any engine park from the previous one.
     this._engineError = null;
-    if (this.mode !== "none") {
-      await this._selectEngine();
-    }
+    this._engineParked = false;
+    this._parkError = null;
+    this._consecutiveInferenceFailures = 0;
     await this._acquireCamera(this.deviceId);
-    if (this.config.image) await this.setImage(this.config.image);
 
     this.outputStream = this.canvas.captureStream(this.config.fps);
     await this._syncAudioTracks();
     this._running = true;
     this._frameStall.reset(performance.now());
     this._loop();
+    if (this.mode !== "none") {
+      await this._selectEngine();
+    }
+    if (this.config.image) await this.setImage(this.config.image);
     return { stream: this.outputStream, changer: this };
   }
 
@@ -778,6 +850,7 @@ export class BackgroundChanger {
     const engine = this._engine;
     this._engine = null;
     this._engineKind = "off";
+    this._engineFadeStart = null;
     this._busy = false;
     this.segmenter = null;
     if (engine) {
@@ -809,13 +882,94 @@ export class BackgroundChanger {
       await this._teardownEngine();
       return;
     }
+    /* A parked engine (inference failure cap) stays parked for the
+       rest of the session: re-assert its error + status so the
+       honest unavailable note survives, and never revive it here —
+       only a fresh start() clears the park. */
+    if (this._engineParked) {
+      this._engineError = this._parkError;
+      if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus("off");
+      return;
+    }
     try {
       const engine = new MediaPipeEngine(this.config.modelSelection);
-      await engine.init();
+      await this._initEngine(engine);
       if (this._isRawMode()) { await engine.dispose().catch(() => undefined); await this._teardownEngine(); return; }
       await this._swapEngine(engine);
     } catch (err) {
       await this._swapEngine(null, err);
+    }
+  }
+
+  /**
+   * Initialise an engine under the hard init timeout (freeze fix,
+   * part 3). A stalled init — a script fetch that never answers, a
+   * compile that never returns — rejects with a CDN_LOAD_FAILED
+   * timeout error instead of hanging the caller forever. The
+   * orphaned engine is disposed whenever its init eventually
+   * settles, so a late success never leaks a live segmenter nobody
+   * owns; a late failure is swallowed for the same reason (the
+   * timeout already reported the outcome).
+   */
+  private async _initEngine(engine: MediaPipeEngine): Promise<void> {
+    const timeoutMs = Math.max(1, this.config.engineInitTimeoutMs || ENGINE_INIT_TIMEOUT_MS);
+    const init = engine.init();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      await Promise.race([
+        init,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new BackgroundChangerError(
+                "CDN_LOAD_FAILED",
+                "The background-effects engine took too long to load, so your camera is running plain.",
+              ),
+            );
+          }, timeoutMs);
+        }),
+      ]);
+    } catch (err) {
+      void init.then(
+        () => engine.dispose().catch(() => undefined),
+        () => engine.dispose().catch(() => undefined),
+      );
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Park the live engine for the rest of the session (freeze fix,
+   * part 4): its inferences have failed
+   * MAX_CONSECUTIVE_INFERENCE_FAILURES times in a row, so it is
+   * stood down (disposed) and the studio falls back to the raw
+   * picture with the engine-down note, instead of the loop paying
+   * main-thread retries forever. Only a fresh start() — a new
+   * session — clears the park.
+   */
+  private async _parkEngine(): Promise<void> {
+    if (this._engineParked) return;
+    this._engineParked = true;
+    this._parkError = new BackgroundChangerError(
+      "SEGMENTATION_FAILED",
+      "Background effects stopped working, so your camera is running plain.",
+    );
+    await this._swapEngine(null, this._parkError);
+  }
+
+  /** One inference against the live engine produced nothing (a null
+   *  matte or a rejection). Counts toward the park cap; a landed
+   *  matte resets the run (see _loop). */
+  private _noteInferenceFailure(): void {
+    this._consecutiveInferenceFailures++;
+    if (
+      this._consecutiveInferenceFailures >= MAX_CONSECUTIVE_INFERENCE_FAILURES &&
+      this._engine &&
+      !this._engineParked
+    ) {
+      void this._parkEngine();
     }
   }
 
@@ -836,6 +990,8 @@ export class BackgroundChanger {
     this._engineEpoch++;
     this._engine = null;
     this._engineKind = "off";
+    this._engineFadeStart = null;
+    this._consecutiveInferenceFailures = 0;
     this._busy = false;
     this._frameStall.reset(performance.now());
     this.segmenter = null;
@@ -860,6 +1016,11 @@ export class BackgroundChanger {
     this._engineEpoch++;
     this._engine = next;
     this._engineKind = next ? (next as MediaPipeEngine).kind : "off";
+    /* An engine arriving while the session is already running
+       fades its effect in over the raw picture instead of cutting
+       to it (raw-first start, lazy setMode load, quality switch). */
+    this._engineFadeStart = next && this._running ? performance.now() : null;
+    this._consecutiveInferenceFailures = 0;
     this._busy = false;
     this._frameStall.reset(performance.now());
     this._mattePost.reset();
@@ -1091,16 +1252,22 @@ export class BackgroundChanger {
         if (!this._running || epoch !== this._engineEpoch) return;
         this._governPerf(engine as MediaPipeEngine);
         if (matte) {
+          this._consecutiveInferenceFailures = 0;
           this._compositeMatte(matte);
           this._noteMatteFrame();
         } else {
+          this._noteInferenceFailure();
           this._noteFrameMiss();
         }
       })
       .catch(() => {
         /* transient inference failure — the next frame retries; the
-           stall tracker decides when silence becomes a fallback */
-        if (epoch === this._engineEpoch) this._noteFrameMiss();
+           stall tracker decides when silence becomes a fallback, and
+           the failure counter decides when retries become a park */
+        if (epoch === this._engineEpoch) {
+          this._noteInferenceFailure();
+          this._noteFrameMiss();
+        }
       })
       .finally(() => {
         if (epoch === this._engineEpoch) this._busy = false;
@@ -1130,6 +1297,18 @@ export class BackgroundChanger {
   private _noteMatteFrame(): void {
     if (!this._frameStall.noteMatte(performance.now())) return;
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
+  }
+
+  /** Alpha for the composited layers while a freshly-live engine
+   *  is fading in over the raw picture: 1 when no fade is running. */
+  private _fadeAlpha(now: number): number {
+    if (this._engineFadeStart === null) return 1;
+    const t = (now - this._engineFadeStart) / ENGINE_FADE_IN_MS;
+    if (t >= 1) {
+      this._engineFadeStart = null;
+      return 1;
+    }
+    return Math.max(0, t);
   }
 
   /** Engine-down frame: the untouched camera picture, finished with the
@@ -1181,6 +1360,12 @@ export class BackgroundChanger {
     const H = this.canvas.height;
     const ctx = this._ctx;
     if (!W || !H) return;
+    // A freshly-live engine fades in over the raw picture: paint
+    // the raw frame first (it applies the effect finish), then lay
+    // the composited layers over it at the fade alpha and skip the
+    // second finish below — the grade/overlays are already on.
+    const fade = this._fadeAlpha(performance.now());
+    if (fade < 1) this._compositeRaw();
     const mw = matte.width;
     const mh = matte.height;
 
@@ -1218,6 +1403,7 @@ export class BackgroundChanger {
     }
 
     ctx.save();
+    if (fade < 1) ctx.globalAlpha = fade;
     if (this.mirror) {
       ctx.translate(W, 0);
       ctx.scale(-1, 1);
@@ -1248,8 +1434,9 @@ export class BackgroundChanger {
 
     ctx.restore();
 
-    // 4 — camera effect finish (shared with the engine-down raw path).
-    this._applyEffectFinish(ctx);
+    // 4 — camera effect finish (shared with the engine-down raw path;
+    // skipped mid-fade — the raw underlay already applied it).
+    if (fade >= 1) this._applyEffectFinish(ctx);
   }
 
   /**
