@@ -20,7 +20,8 @@ import {
   presaveSharesTable,
   releaseLinkClicksTable,
 } from "@workspace/db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { presaveUrl } from "../../lib/presave-url";
 
 /* Pitch statuses — defined locally (not imported from @workspace/db) so the
    module evaluates cleanly in worktree test environments where the symlinked
@@ -590,10 +591,15 @@ router.delete("/playlist-pitch/tracker/:id", requireAuth, async (req, res) => {
    creator's distribution release record, their creator profile, and the
    release's real presave / smartlink stats. REAL DATA ONLY: a field the
    record doesn't hold comes back null/empty AND is named in `missing` —
-   never filled with plausible text. (The release's presave_slug lives
-   outside the drizzle schema — raw-SQL only in distribution.ts — so the
-   packet links the artist-pasted streaming URLs + profile instead of
-   guessing a smartlink URL.) */
+   never filled with plausible text. The release's presave_slug lives
+   outside the drizzle schema (raw-SQL only, the distribution.ts
+   pattern), so the packet endpoint reads it raw alongside the drizzle
+   row; when a slug exists, the packet composes the track's own live
+   presave/smartlink URL from it via the canonical formation
+   (lib/presave-url — the same string the mint endpoint returns).
+   When it doesn't, the packet falls back to the artist-pasted
+   streaming URLs, and a release with neither is named in `missing` —
+   a URL is never fabricated. */
 
 export interface ReleaseRecordForPacket {
   id: string;
@@ -605,6 +611,10 @@ export interface ReleaseRecordForPacket {
   artwork_url: string | null;
   metadata: Record<string, unknown> | null;
   status: string;
+  /* The release's minted pre-save slug (raw-SQL column, not on the
+     drizzle table — the endpoint reads it separately). Null until
+     the artist mints their pre-save link. */
+  presave_slug: string | null;
   presave_headline: string | null;
   presave_platform_links: Record<string, string> | null;
   presave_bonus_url: string | null;
@@ -652,6 +662,9 @@ export interface PitchPacket {
   description: string | null;
   links: {
     streaming: Record<string, string>;
+    /* The track's own live pre-save / smartlink URL, composed from
+       the stored slug — null when no slug has been minted. */
+    presaveUrl: string | null;
     audioUrl: string | null;
     profileUrl: string | null;
   };
@@ -693,7 +706,13 @@ export function buildPitchPacket(input: {
     const url = nonEmpty(v);
     if (url) streaming[k] = url;
   }
-  if (Object.keys(streaming).length === 0) missing.push("streamingLinks");
+  /* The track's own live page: composed from the stored slug via the
+     canonical formation. A release carrying its smartlink HAS a link
+     a curator can open, so `streamingLinks` is only missing when the
+     record holds neither pasted platform links nor a slug. */
+  const slug = nonEmpty(release.presave_slug);
+  const presaveLink = slug ? presaveUrl(slug) : null;
+  if (Object.keys(streaming).length === 0 && !presaveLink) missing.push("streamingLinks");
   if (!release.artwork_url) missing.push("artwork");
   if (!release.presave_headline) missing.push("headline");
 
@@ -731,6 +750,7 @@ export function buildPitchPacket(input: {
     description,
     links: {
       streaming,
+      presaveUrl: presaveLink,
       audioUrl: release.audio_url,
       profileUrl,
     },
@@ -782,6 +802,16 @@ router.get("/playlist-pitch/packet/:releaseId", requireAuth, async (req, res) =>
     return;
   }
 
+  /* presave_slug is a raw-SQL column outside the drizzle release
+     schema (the distribution.ts pattern) — read it for THIS release
+     (already owner-scoped above) so the packet can compose the
+     track's own live presave/smartlink URL when one was minted. */
+  const slugResult = await db.execute(sql`
+    SELECT presave_slug FROM distribution_releases WHERE id = ${releaseId} LIMIT 1
+  `);
+  const slugRaw = (slugResult.rows[0] as Record<string, unknown> | undefined)?.["presave_slug"];
+  const presaveSlug = typeof slugRaw === "string" && slugRaw.trim() ? slugRaw.trim() : null;
+
   const [profile] = await db
     .select()
     .from(creatorProfilesTable)
@@ -802,7 +832,7 @@ router.get("/playlist-pitch/packet/:releaseId", requireAuth, async (req, res) =>
     .where(eq(releaseLinkClicksTable.releaseId, releaseId));
 
   const packet = buildPitchPacket({
-    release,
+    release: { ...release, presave_slug: presaveSlug },
     profile: profile ?? null,
     stats: {
       presaves: follows.length,

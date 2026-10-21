@@ -8475,7 +8475,8 @@
     "packetStats": "Release stats so far",
     "packetTitle": "Pitch packet",
     "packetAudioLabel": "Track audio",
-    "packetProfileLabel": "Artist profile"
+    "packetProfileLabel": "Artist profile",
+    "packetPresaveLabel": "Pre-save / smartlink"
   },
   "refundPolicy": {
     "nav": {

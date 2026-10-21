@@ -23,6 +23,7 @@ import {
 } from "../../lib/distribution-aggregator";
 import { parseSpotifyItem } from "../../lib/distribution-legacy";
 import { fanOutToFollowers } from "../../lib/notify-fanout";
+import { APP_PUBLIC_URL, presaveUrl } from "../../lib/presave-url";
 
 const router = Router();
 
@@ -1775,12 +1776,9 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
    POST /api/distribution/releases/:id/presave — mint a shareable pre-save
    slug. GET /api/distribution/presave/:slug is PUBLIC (no auth) so fans can
    open the landing page without an account. */
-const APP_PUBLIC_URL = (process.env["APP_PUBLIC_URL"] ?? "https://bowdownvisuals.com").replace(/\/$/, "");
-
-function presaveUrl(slug: string): string {
-  return `${APP_PUBLIC_URL}/presave/${slug}`;
-}
-
+/* APP_PUBLIC_URL + presaveUrl come from lib/presave-url — the one
+   canonical formation, shared with every surface that composes the
+   link from a stored slug. */
 router.post("/distribution/releases/:id/presave", requireAuth, async (req, res) => {
   try {
     const existing = await getOwnedRelease(releaseId(req), req.userId!);

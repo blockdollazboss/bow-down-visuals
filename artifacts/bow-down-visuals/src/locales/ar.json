@@ -6701,7 +6701,8 @@
     "packetStats": "إحصائيات الإصدار حتى الآن",
     "packetTitle": "حزمة العرض",
     "packetAudioLabel": "صوت الأغنية",
-    "packetProfileLabel": "ملف الفنان"
+    "packetProfileLabel": "ملف الفنان",
+    "packetPresaveLabel": "الحفظ المسبق / الرابط الذكي"
   },
   "refundPolicy": {
     "nav": {
