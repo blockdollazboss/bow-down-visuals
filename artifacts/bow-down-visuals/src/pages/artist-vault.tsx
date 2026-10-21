@@ -1268,6 +1268,398 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   );
 }
 
+/* ─────────────────────── IDENTITY SET ───────────────────────
+   Higgsfield G4, honest near-term form: the character holds a SET of
+   labeled photos of the same character (angle / expression / wardrobe).
+   At generation time the server picks the best-matching photo per shot
+   and shows the pick + why in Scene Studio (overridable, never silent).
+   No training is involved — this is disciplined reference selection.
+   Only the creator's own photos belong here; an AI-generated portrait
+   may be added only with the generated label on, and it is badged. */
+
+interface IdentityPhoto {
+  id: string;
+  image_url: string;
+  image_path: string | null;
+  angle: string;
+  expression: string;
+  wardrobe: string | null;
+  source: string;
+}
+
+interface IdentityCoverageItem {
+  key: string;
+  label: string;
+  covered: boolean;
+  missingMessage: string;
+}
+
+interface IdentityCoverage {
+  items: IdentityCoverageItem[];
+  coveredCount: number;
+  totalCount: number;
+  missingMessages: string[];
+  summary: string;
+}
+
+/** Must match MAX_IDENTITY_PHOTOS_PER_VAULT in the identity API route. */
+const MAX_IDENTITY_PHOTOS = 12;
+
+const IDENTITY_ANGLE_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "front", labelKey: "artistVault.identityAngleFront" },
+  { value: "three_quarter_left", labelKey: "artistVault.identityAngleThreeQuarterLeft" },
+  { value: "three_quarter_right", labelKey: "artistVault.identityAngleThreeQuarterRight" },
+  { value: "left_profile", labelKey: "artistVault.identityAngleLeftProfile" },
+  { value: "right_profile", labelKey: "artistVault.identityAngleRightProfile" },
+  { value: "back", labelKey: "artistVault.identityAngleBack" },
+  { value: "full_body", labelKey: "artistVault.identityAngleFullBody" },
+  { value: "close_up", labelKey: "artistVault.identityAngleCloseUp" },
+];
+
+const IDENTITY_EXPRESSION_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "neutral", labelKey: "artistVault.identityExpressionNeutral" },
+  { value: "smile", labelKey: "artistVault.identityExpressionSmile" },
+  { value: "laughing", labelKey: "artistVault.identityExpressionLaughing" },
+  { value: "serious", labelKey: "artistVault.identityExpressionSerious" },
+  { value: "intense", labelKey: "artistVault.identityExpressionIntense" },
+  { value: "singing", labelKey: "artistVault.identityExpressionSinging" },
+  { value: "sad", labelKey: "artistVault.identityExpressionSad" },
+  { value: "surprised", labelKey: "artistVault.identityExpressionSurprised" },
+];
+
+const identitySelectClass =
+  "w-full rounded-lg border border-white/[0.10] bg-white/[0.04] px-2 py-1.5 text-xs text-white focus:border-primary/50 focus:outline-none";
+
+function IdentitySetSection({ vaultId, mainPhotoUrl }: {
+  vaultId: string;
+  mainPhotoUrl: string | null;
+}) {
+  const { t } = useTranslation();
+  const isLight = useIsLightTheme();
+  const { getAccessToken, user } = useAuth();
+  const [photos, setPhotos] = useState<IdentityPhoto[]>([]);
+  const [coverage, setCoverage] = useState<IdentityCoverage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [angle, setAngle] = useState("front");
+  const [expression, setExpression] = useState("neutral");
+  const [wardrobe, setWardrobe] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [isGenerated, setIsGenerated] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const fetchPhotos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityLoadFailed"));
+      setPhotos(data.photos ?? []);
+      setCoverage(data.coverage ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityLoadFailed"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPhotos(); }, [vaultId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setFull = photos.length >= MAX_IDENTITY_PHOTOS;
+
+  const addPhoto = async (url: string, path: string | null) => {
+    if (setFull) {
+      setError(t("artistVault.identityFull", { max: MAX_IDENTITY_PHOTOS }));
+      return;
+    }
+    if (!/^https?:\/\//i.test(url.trim())) {
+      setError(t("artistVault.identityUrlRequired"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          image_url: url.trim(),
+          image_path: path,
+          angle,
+          expression,
+          wardrobe: wardrobe.trim() || null,
+          source: isGenerated ? "generated" : "upload",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityAddFailed"));
+      setImageUrl("");
+      setWardrobe("");
+      setIsGenerated(false);
+      setShowAdd(false);
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityAddFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadPhoto = async (file: File) => {
+    if (!user) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t("artistVault.imageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken().catch(() => null);
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const filePath = `${user.id}/${vaultId}/identity/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const publicUrl = await r2UploadFile(filePath, file, file.type, token);
+      await addPhoto(publicUrl, filePath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const updatePhoto = async (id: string, patch: Partial<Pick<IdentityPhoto, "angle" | "expression" | "wardrobe">>) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityUpdateFailed"));
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityUpdateFailed"));
+    }
+  };
+
+  const removePhoto = async (id: string) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/identity-photos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityRemoveFailed"));
+      await fetchPhotos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("artistVault.identityRemoveFailed"));
+    }
+  };
+
+  const optionBg = isLight ? "#FAF6ED" : "#111";
+
+  return (
+    <div data-min-stars="4" className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-bold text-white/30 uppercase tracking-wider">{t("artistVault.identityTitle")}</p>
+        {(setFull || photos.length > 0) && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/25">
+            {t("artistVault.identityCount", { count: photos.length, max: MAX_IDENTITY_PHOTOS })}
+          </span>
+        )}
+        {!setFull && (
+          <button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> {t("artistVault.identityAdd")}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-white/40 mb-3">{t("artistVault.identityBlurb")}</p>
+
+      {coverage && photos.length + (mainPhotoUrl ? 1 : 0) > 0 && (
+        <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3">
+          <p className="text-xs font-semibold text-white/70 mb-2">{coverage.summary}</p>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {coverage.items.map((item) => (
+              <span
+                key={item.key}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  item.covered
+                    ? "text-green-300 bg-green-500/10 border-green-500/30"
+                    : "text-white/35 bg-white/[0.03] border-white/[0.10]"
+                }`}
+              >
+                {item.covered ? "✓ " : ""}{item.label}
+              </span>
+            ))}
+          </div>
+          {coverage.missingMessages.length > 0 && (
+            <ul className="space-y-1">
+              {coverage.missingMessages.map((m) => (
+                <li key={m} className="text-[11px] text-amber-200/70 flex gap-1.5">
+                  <span aria-hidden>•</span><span>{m}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {showAdd && !setFull && (
+        <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select value={angle} onChange={(e) => setAngle(e.target.value)} className={identitySelectClass} style={{ colorScheme: "dark" }} aria-label={t("artistVault.identityAngleFront")}>
+              {IDENTITY_ANGLE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+              ))}
+            </select>
+            <select value={expression} onChange={(e) => setExpression(e.target.value)} className={identitySelectClass} style={{ colorScheme: "dark" }} aria-label={t("artistVault.identityExpressionNeutral")}>
+              {IDENTITY_EXPRESSION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+              ))}
+            </select>
+          </div>
+          <Input
+            value={wardrobe}
+            onChange={(e) => setWardrobe(e.target.value)}
+            placeholder={t("artistVault.identityWardrobePlaceholder")}
+            className="bg-white/[0.04] border-white/[0.10] text-white text-sm"
+          />
+          <label className="flex items-center gap-2 text-xs text-white/60 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isGenerated}
+              onChange={(e) => setIsGenerated(e.target.checked)}
+              className="h-3.5 w-3.5 accent-amber-400"
+            />
+            {t("artistVault.identityGeneratedLabel")}
+          </label>
+          <div className="flex gap-2">
+            <Input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder={t("artistVault.imageUrlPlaceholder")}
+              className="bg-white/[0.04] border-white/[0.10] text-white text-sm flex-1"
+            />
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => addPhoto(imageUrl, null)}
+              className="shrink-0 font-bold rounded-lg"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("artistVault.addButton")}
+            </Button>
+          </div>
+          <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${uploading ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
+            {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("artistVault.uploading")}</> : <><Upload className="h-3.5 w-3.5" /> {t("artistVault.uploadImage")}</>}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              aria-label={t("artistVault.identityUploadAria")}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadPhoto(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-white/40 py-4 text-center">{t("artistVault.identityLoading")}</p>
+      ) : photos.length === 0 && !mainPhotoUrl ? (
+        <p className="text-sm text-white/40 py-4 text-center">{t("artistVault.identityEmpty")}</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {mainPhotoUrl && (
+            <div className="rounded-xl overflow-hidden border border-primary/30 bg-black/40">
+              <div className="relative aspect-square bg-white/[0.03]">
+                <img src={mainPhotoUrl} alt={t("artistVault.identityMainBadge")} className="h-full w-full object-cover object-top" loading="lazy" />
+                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-primary">
+                  {t("artistVault.identityMainBadge")}
+                </span>
+              </div>
+              <div className="p-2.5">
+                <p className="text-[11px] text-white/45">{t("artistVault.identityMainCaption")}</p>
+              </div>
+            </div>
+          )}
+          {photos.map((p) => (
+            <div key={p.id} className="rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+              <div className="relative aspect-square bg-white/[0.03]">
+                <img src={p.image_url} alt={t(IDENTITY_ANGLE_OPTIONS.find((o) => o.value === p.angle)?.labelKey ?? "artistVault.identityAngleFront")} className="h-full w-full object-cover object-top" loading="lazy" />
+                {p.source === "generated" && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-amber-400">
+                    {t("artistVault.identityGeneratedBadge")}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(p.id)}
+                  title={t("artistVault.identityRemoveTitle")}
+                  aria-label={t("artistVault.identityRemoveAria")}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-red-400/70 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="p-2.5 space-y-1.5">
+                <select
+                  value={p.angle}
+                  onChange={(e) => updatePhoto(p.id, { angle: e.target.value })}
+                  className={identitySelectClass}
+                  style={{ colorScheme: "dark" }}
+                  aria-label={t("artistVault.identityAngleFront")}
+                >
+                  {IDENTITY_ANGLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+                  ))}
+                </select>
+                <select
+                  value={p.expression}
+                  onChange={(e) => updatePhoto(p.id, { expression: e.target.value })}
+                  className={identitySelectClass}
+                  style={{ colorScheme: "dark" }}
+                  aria-label={t("artistVault.identityExpressionNeutral")}
+                >
+                  {IDENTITY_EXPRESSION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value} style={{ background: optionBg }}>{t(o.labelKey)}</option>
+                  ))}
+                </select>
+                <Input
+                  defaultValue={p.wardrobe ?? ""}
+                  placeholder={t("artistVault.identityWardrobePlaceholder")}
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim() || null;
+                    if (v !== (p.wardrobe ?? null)) updatePhoto(p.id, { wardrobe: v });
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
   vault: ArtistVaultRecord; allVaults: ArtistVaultRecord[]; onClose: () => void; onEdit: () => void; onLock: () => void;
   onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
@@ -1356,6 +1748,11 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
           hasReferencePhoto={!!vault.reference_image_url}
           refreshKey={wardrobeRefreshKey}
           onGenerateOutfit={onGenerateOutfit}
+        />
+
+        <IdentitySetSection
+          vaultId={vault.id}
+          mainPhotoUrl={vault.reference_image_url}
         />
 
         <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
