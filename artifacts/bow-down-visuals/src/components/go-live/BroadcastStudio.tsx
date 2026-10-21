@@ -372,7 +372,7 @@ export default function BroadcastStudio() {
     stage.pool.avatarVideo = () => changerRef.current?.getSourceVideo() ?? null;
     stage.pool.avatarAnalyser = () =>
       mixerRef.current?.getAnalyser("mic") ?? changerRef.current?.getAnalyser() ?? null;
-    /* Guest sources (0198): tiles resolve their live feed from the
+    /* Guest sources (0201): tiles resolve their live feed from the
        backstage registry, and the GuestPanel reaches this stage
        through the studio bridge (promote = source on air). */
     stage.pool.guestVideoFor = (sessionId) => guestFeeds.videoFor(sessionId);

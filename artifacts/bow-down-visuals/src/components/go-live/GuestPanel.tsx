@@ -16,7 +16,7 @@ import { BackstageClient, type BackstagePeer } from "@/lib/go-live/backstage-cli
 import { guestFeeds } from "@/lib/go-live/guest-feeds";
 import { putGuestOnStage, takeGuestOffStage, attachGuestAudio, clearAllGuestsFromStage } from "@/lib/go-live/studio-bridge";
 
-/* ─── Guests & Backstage (Go Live, 0198) ─────────────────────────────────
+/* ─── Guests & Backstage (Go Live, 0201) ─────────────────────────────────
    Docked under the Broadcast studio in the Go Live hub. The host
    mints invite links for the CURRENT live stream; guests join
    backstage (private greenroom: mesh video + its own chat — the

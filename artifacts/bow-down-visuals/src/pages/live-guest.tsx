@@ -12,7 +12,7 @@ import {
 } from "@/lib/go-live/guest-api";
 import { BackstageClient, type BackstagePeer } from "@/lib/go-live/backstage-client";
 
-/* ─── Guest backstage door (/live/guest/:token, 0198) ────────────────────
+/* ─── Guest backstage door (/live/guest/:token, 0201) ────────────────────
    Where an invite link lands. No account, no sign-up: the link IS the
    pass. The guest picks the name the host will see, steps into
    backstage (private — the audience sees and hears none of it), and

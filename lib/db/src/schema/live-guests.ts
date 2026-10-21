@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { liveStreamsTable } from "./live-streams";
 
-/* Go Live guest invites + backstage (migration 0198) — the StreamYard
+/* Go Live guest invites + backstage (migration 0201) — the StreamYard
    mechanic on our own pipe (competitor study G3). Three tables:
 
    live_guest_invites — a shareable link the host mints for ONE stream.

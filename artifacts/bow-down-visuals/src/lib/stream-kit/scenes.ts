@@ -108,7 +108,7 @@ export interface SceneSource {
   /* avatar: character + drive settings */
   avatar?: AvatarSettings;
   /* guest: an invited backstage guest riding this scene (Go Live
-     guests, 0198). The feed itself is a live WebRTC element the
+     guests, 0201). The feed itself is a live WebRTC element the
      studio pool resolves by session id — scenes carry only the
      reference, never media. The name is the guest's display name as
      the host sees it; surfaces add the "Guest" label, the name here
