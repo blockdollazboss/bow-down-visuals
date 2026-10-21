@@ -27,6 +27,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 vi.mock("../../lib/rate-limit", () => ({ publicApiLimiter: (_q: any, _s: any, n: any) => n() }));
 
 import catalogImportRouter from "../catalog-import";
+import { catalogImportCopyFor } from "../../lib/catalog-import-i18n";
 import { newDb } from "pg-mem";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { encryptToken } from "../../lib/social-crypto";
@@ -328,5 +329,31 @@ describe("catalog-import HTTP", () => {
     expect(videos).toHaveLength(1);
     expect(videos[0]!.isPublished).toBe(true);
     expect(videos[0]!.title).toBe("Harbor Nights — The Pilot");
+  });
+});
+
+describe("catalog-import — locale path", () => {
+  it("the state read renders honesty + account notes in the requested locale; no locale = English", async () => {
+    const fr = await call("GET", "/api/catalog-import?locale=fr");
+    expect(fr.status).toBe(200);
+    expect(fr.json.honesty).toEqual(catalogImportCopyFor("fr").honesty);
+    expect(fr.json.accounts.find((a: any) => a.platform === "tiktok")?.note).toBe(
+      catalogImportCopyFor("fr").honesty.tiktokBlocked,
+    );
+    const en = await call("GET", "/api/catalog-import");
+    expect(en.json.honesty).toEqual(catalogImportCopyFor("en").honesty);
+  });
+
+  it("a tiktok scan refuses in the caller's locale", async () => {
+    const r = await call("POST", "/api/catalog-import/scan?locale=es", { accountId: TT_ID });
+    expect(r.status).toBe(422);
+    expect(r.json.code).toBe("PROVIDER_BLOCKED");
+    expect(r.json.error).toBe(catalogImportCopyFor("es").honesty.tiktokBlocked);
+  });
+
+  it("an unknown locale falls back to English", async () => {
+    const r = await call("GET", "/api/catalog-import?locale=xx");
+    expect(r.status).toBe(200);
+    expect(r.json.honesty).toEqual(catalogImportCopyFor("en").honesty);
   });
 });

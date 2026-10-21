@@ -140,3 +140,81 @@ describe("buildDrafts — honesty rules", () => {
     expect(drafts.press_kit?.topTracks).toEqual([{ title: "One", url: "https://f/1.mp3" }]);
   });
 });
+
+describe("buildDrafts — locale path", () => {
+  it("composes the templates in the requested locale; the creator's data rides through untranslated", () => {
+    const ctx: MoveHomeContext = {
+      ...EMPTY,
+      tracks: [
+        { id: "t1", title: "Midnight Run", audioUrl: "https://f/a.mp3", artworkUrl: null, downloadPriceCents: 199, isPublished: true },
+      ],
+    };
+    const { drafts } = buildDrafts(
+      { displayName: "Nova Reign", genre: "soul trap", location: "Atlanta" },
+      ctx,
+      "es",
+    );
+    expect(drafts.profile?.bio).toContain("Nova Reign es un soul trap artista");
+    expect(drafts.profile?.bio).toContain("con base en Atlanta");
+    expect(drafts.store?.products[0].description).toBe(
+      "Descarga oficial de \"Midnight Run\" de Nova Reign: tuya, directo de la fuente.",
+    );
+    expect(drafts.press_kit?.tagline).toBe("soul trap artista — kit de prensa oficial");
+    expect(drafts.email_list?.name).toBe("Nova Reign — Círculo interno");
+    expect(drafts.email_list?.welcomeSubject).toBe(
+      "Ya estás dentro: bienvenido al círculo interno de Nova Reign",
+    );
+    expect(drafts.email_list?.welcomeBody).toContain("soul trap música");
+    expect(drafts.email_list?.welcomeBody).toContain("bowdownvisuals.com/artist/nova-reign");
+  });
+
+  it("the creator's own words are never translated, in any locale", () => {
+    const { drafts } = buildDrafts(
+      {
+        displayName: "Nova Reign",
+        bioSeed: "I make soul trap for late-night drivers.",
+        tagline: "Nova forever.",
+        starterProductTitle: "Nova's Vault",
+      },
+      EMPTY,
+      "ja",
+    );
+    expect(drafts.profile?.bio).toBe("I make soul trap for late-night drivers.");
+    expect(drafts.press_kit?.tagline).toBe("Nova forever.");
+    expect(drafts.store?.products[0].title).toBe("Nova's Vault");
+  });
+
+  it("the fallback creator name and lane noun come from the catalog", () => {
+    const { drafts } = buildDrafts({}, EMPTY, "fr");
+    expect(drafts.email_list?.name).toBe("Nouveau créateur — Cercle privé");
+    expect(drafts.profile?.bio).toContain("Nouveau créateur est un artiste");
+  });
+
+  it("explicit en matches the default build exactly", () => {
+    const answers = { displayName: "Nova Reign", genre: "soul trap", location: "Atlanta" };
+    expect(buildDrafts(answers, EMPTY, "en")).toEqual(buildDrafts(answers, EMPTY));
+  });
+
+  it("launch captions compose in the drafting locale, hashtags stay the same tags", () => {
+    const ctx: MoveHomeContext = {
+      ...EMPTY,
+      accounts: [
+        {
+          platform: "instagram",
+          accountId: "22222222-2222-2222-2222-222222222222",
+          username: "novareign",
+          pageId: null,
+          pageName: null,
+          label: "Instagram · @novareign",
+          profileUrl: "https://instagram.com/novareign",
+        },
+      ],
+      videos: [{ id: "v1", title: "Intro", videoUrl: "https://files.example/i.mp4", thumbnailUrl: null }],
+    };
+    const { drafts } = buildDrafts({ displayName: "Nova Reign", genre: "soul trap" }, ctx, "de");
+    const caption = drafts.launch_posts?.posts[0].caption ?? "";
+    expect(caption).toContain("Ich bin umgezogen.");
+    expect(caption).toContain("bowdownvisuals.com/artist/nova-reign");
+    expect(drafts.launch_posts?.posts[0].hashtags).toBe("#MovedHome #IndependentCreator #soultrap");
+  });
+});
