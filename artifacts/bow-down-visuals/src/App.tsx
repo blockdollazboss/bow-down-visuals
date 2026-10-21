@@ -148,6 +148,7 @@ const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const World = lazyWithRetry(() => import("@/pages/world"));
 const StreamControllerPage = lazyWithRetry(() => import("@/pages/stream-controller"));
 const LiveWatch = lazyWithRetry(() => import("@/pages/live-watch"));
+const LiveGuest = lazyWithRetry(() => import("@/pages/live-guest"));
 const PremierePage = lazyWithRetry(() => import("@/pages/premiere"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
@@ -556,6 +557,7 @@ function AppShell() {
           <Route path="/track/:id"><StreamTrackPage /></Route>
           <Route path="/watch/:id"><StreamWatchPage /></Route>
           <Route path="/live/:id"><LiveWatch /></Route>
+          <Route path="/live/guest/:token"><LiveGuest /></Route>
           <Route path="/premiere/:id"><PremierePage /></Route>
           {/* Legacy broadcast page retired (findability fix, 2026-10-18):
               the live studio is /go-live's Broadcast tab. The old path
