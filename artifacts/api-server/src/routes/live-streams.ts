@@ -23,6 +23,7 @@ import {
   StreamProviderError,
 } from "../lib/cloudflare-stream";
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
+import { closeBackstage } from "../lib/live-backstage";
 import { stopAllRelays } from "../lib/multistream";
 import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
@@ -433,6 +434,11 @@ async function getLiveStreamForProfile(profileId: string): Promise<LiveStream | 
 }
 
 async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<LiveStream> {
+  /* Ending a stream closes its backstage too (guest invites +
+     greenroom, 0198): sockets are told and dropped here; the guest
+     sessions themselves stay on record but every guest call checks
+     the stream's status, so the passes are dead from this moment. */
+  closeBackstage(row.id, "The stream has ended.");
   const now = new Date();
   const updated = await db
     .update(liveStreamsTable)
