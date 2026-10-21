@@ -7562,7 +7562,7 @@
     "rebuiltSuffix": " — reconstruído",
     "registrationError": "O registro tropeçou. Atualize — os arquivos estão no seu armazenamento.",
     "retry": "Tentar de novo",
-    "scanFound": "Encontrada{{plural}} {{count}} peça{{plural}} nova{{plural}} em {{platform}}{{skipped}}. Escolha abaixo o que vem para casa.",
+    "scanFound": "Novidades no {{platform}}: {{count}} peça{{plural}}{{skipped}}. Escolha abaixo o que vem para casa.",
     "scanMyPosts": "Escanear minhas publicações",
     "scanNone": "Nada de novo lá — tudo nessa conta já está em casa ou já está listado.",
     "scanSkipped": "({{count}} publicações de fotos não fazem parte de uma mudança de catálogo)",

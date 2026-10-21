@@ -8987,7 +8987,7 @@
     "rebuiltSuffix": " — reconstruit",
     "registrationError": "L'enregistrement a trébuché. Actualisez — les fichiers sont dans votre stockage.",
     "retry": "Réessayer",
-    "scanFound": "Il y a {{count}} nouvelle{{plural}} pièce{{plural}} trouvée{{plural}} sur {{platform}}{{skipped}}. Choisissez ci-dessous ce qui rentre à la maison.",
+    "scanFound": "Nouveautés sur {{platform}} : {{count}} pièce{{plural}}{{skipped}}. Choisissez ci-dessous ce qui vient à la maison.",
     "scanMyPosts": "Scanner mes publications",
     "scanNone": "Rien de nouveau là-bas — tout sur ce compte est déjà à la maison ou déjà listé.",
     "scanSkipped": "({{count}} publications photo ne font pas partie d'un déménagement de catalogue)",

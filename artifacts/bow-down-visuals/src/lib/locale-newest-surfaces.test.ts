@@ -46,8 +46,10 @@ const CATALOGS: Record<string, Record<string, string>> = {};
 for (const l of ALL) CATALOGS[l] = flat(load(l));
 const EN = CATALOGS.en!;
 
-/* Whole namespaces that are wave-3/4 surfaces end to end. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch"] as const;
+/* Whole namespaces that are wave-3/4 surfaces end to end. The last six were
+   added by the surface-wiring lane: those pages were wired to t() and their
+   strings now live in these namespaces. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
