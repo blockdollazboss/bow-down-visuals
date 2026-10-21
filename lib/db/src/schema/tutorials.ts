@@ -16,7 +16,7 @@ import { z } from "zod/v4";
 import { creatorProfilesTable, profileVideosTable } from "./creator-platform";
 
 /**
- * Tutorials V1 (migration 0198) — the two-sided how-to system, built
+ * Tutorials V1 (migration 0200) — the two-sided how-to system, built
  * INSIDE the Creator Academy (never a separate island):
  *
  *   tutorial_series   an ordered shelf of tutorials. Official series
