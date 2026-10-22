@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "999476cfec2873950e455828b20d0b7cfca0d0cd",
+  "baseCommit": "ebadb3ae7e45fe3274c9bcec7f8faf7f6c3e3ed4",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -135,9 +135,9 @@
     {
       "constant": "PRO_TOOLS_AI_CREDITS",
       "endpoint": "/api/pro-tools/auto-grade",
-      "serverValue": 1,
+      "serverValue": 100,
       "serverSource": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts",
-      "registryValue": 1,
+      "registryValue": 100,
       "agree": true
     },
     {
@@ -11709,7 +11709,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12163,7 +12163,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12549,7 +12549,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12939,7 +12939,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13334,7 +13334,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13723,7 +13723,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14113,7 +14113,7 @@
         },
         {
           "feature": "Auto Grade",
-          "vb": 1,
+          "vb": 100,
           "endpoint": "/api/pro-tools/auto-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },

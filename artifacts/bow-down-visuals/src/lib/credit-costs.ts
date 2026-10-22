@@ -100,8 +100,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },
   // Mirrors PRO_TOOLS_AI_CREDITS in the server route
   // (routes/generate/pro-tools-ai.ts, env PRO_TOOLS_AI_CREDITS,
-  // default 1) — the rail charges a single Visual Buc.
-  "/api/pro-tools/auto-grade": { cost: 1, feature: "Auto Grade" },
+  // default 100) — the rail charges 100 Visual Bucs.
+  "/api/pro-tools/auto-grade": { cost: 100, feature: "Auto Grade" },
   "/api/apply-lut": { cost: 150, feature: "LUT Apply" },
   "/api/slow-motion": { cost: 300, feature: "AI Slow Motion" },
   "/api/cinematic-fx": { cost: 150, feature: "Cinematic FX Render" },

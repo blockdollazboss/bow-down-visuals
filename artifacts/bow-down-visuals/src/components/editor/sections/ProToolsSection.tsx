@@ -151,7 +151,7 @@ export function ProToolsSection({
     patchProTools({ colorCorrection: { ...pt.colorCorrection, ...patch } });
   }
 
-  /* ── AI Auto-Grade (1 credit, backend vision) ── */
+  /* ── AI Auto-Grade (100 credits, backend vision) ── */
   async function handleAutoGrade() {
     const video = videoRef.current;
     const frame = video ? captureFrameDataUrl(video) : null;

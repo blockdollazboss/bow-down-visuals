@@ -12,7 +12,11 @@
  * DISPLAY to the rail truth — charges never moved — and these pins
  * re-derive both sides from the source files so display and charge
  * cannot drift apart silently again. (The operator-knowledge suite
- * pins the same six from the knowledge base's side.)
+ * pins the same six from the knowledge base's side.) One follow-up
+ * did move a charge, by owner ruling (Oct 22, 2026): auto-grade's
+ * rail default went from its pre-x100 leftover of 1 to 100 VB, and
+ * its display moved in lockstep — the pin below now holds both
+ * sides at 100.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -43,9 +47,9 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(CREDIT_COSTS["/api/jewelry/export-stl"]?.cost).toBe(rail);
   });
 
-  it("auto grade: registry == PRO_TOOLS_AI_CREDITS (1)", () => {
+  it("auto grade: registry == PRO_TOOLS_AI_CREDITS (100)", () => {
     const rail = deriveServerConstant("routes/generate/pro-tools-ai.ts", "PRO_TOOLS_AI_CREDITS");
-    expect(rail).toBe(1);
+    expect(rail).toBe(100);
     expect(CREDIT_COSTS["/api/pro-tools/auto-grade"]?.cost).toBe(rail);
   });
 

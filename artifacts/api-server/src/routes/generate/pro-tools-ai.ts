@@ -12,7 +12,10 @@ import { logger } from "../../lib/logger";
  * → 200 { correction: ColorCorrectionSettings, usedVision: boolean,
  *         creditsUsed, creditsRemaining }
  *
- * Paid: 1 credit per generation (env-overridable via PRO_TOOLS_AI_CREDITS).
+ * Paid: 100 Visual Bucs per generation (env-overridable via
+ * PRO_TOOLS_AI_CREDITS). The original default of 1 was a pre-x100
+ * leftover; the owner set the price to 100 on Oct 22, 2026 — the
+ * one-click AI-assist tier (Post Assist, camera planner, bio, headshot).
  * Credits are deducted BEFORE the model call (charge-before-generate) and
  * auto-refunded when generation fails.
  *
@@ -26,7 +29,7 @@ import { logger } from "../../lib/logger";
  *     usedVision=false flags the fallback in the response.
  */
 
-export const PRO_TOOLS_AI_CREDITS = Number(process.env["PRO_TOOLS_AI_CREDITS"] ?? 1) || 1;
+export const PRO_TOOLS_AI_CREDITS = Number(process.env["PRO_TOOLS_AI_CREDITS"] ?? 100) || 100;
 
 const SLIDER_KEYS = [
   "brightness", "contrast", "saturation", "temperature", "tint",
