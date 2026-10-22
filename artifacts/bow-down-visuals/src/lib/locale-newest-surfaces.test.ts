@@ -740,9 +740,11 @@ describe("admin — full parity, no untranslated English residue, single-brace t
      only the descriptive tail ("Analytics Hub — …").
    - tabDashboard (de/it): these catalogs' own nav.dashboard is
      "Dashboard" — the global chrome keeps the word, so the tab does.
-   - fields.engagementRate + statEngagement (de/it): "Engagement" is
-     the established marketing term in both languages — the word the
-     platforms' own de/it interfaces use for this metric.
+   - fields.engagementRate + statEngagement (de/fr/it): "Engagement" is
+     the established marketing term in all three languages — the word
+     the platforms' own interfaces use for this metric. (fr carried the
+     MT error "Fiançailles" until the Stack-24 fr-corrections lane
+     replaced it with the same established term.)
    - trendLabel (de/it): "Trend" is spelled identically in German and
      is an established, identically-spelled loanword in Italian.
    - focus (it): the "Focus:" label is the established loanword
@@ -763,7 +765,13 @@ const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "milestones.loggedFrom",
   ],
   es: ["milestones.loggedFrom"],
-  fr: ["tabIntelligence", "competitor.notesLabel", "milestones.loggedFrom"],
+  fr: [
+    "fields.engagementRate",
+    "statEngagement",
+    "tabIntelligence",
+    "competitor.notesLabel",
+    "milestones.loggedFrom",
+  ],
   hi: ["hookStudio", "milestones.loggedFrom"],
   it: [
     "fields.engagementRate",
