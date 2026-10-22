@@ -76,11 +76,21 @@ const EN = CATALOGS.en!;
    (every signed-in user's first surfaces), myShop (shop-owner flows),
    nav (global chrome) and retention (streak/bonus widgets) — existed
    only partially in the nine catalogs (retention in none of them), so
-   non-English users silently fell back to English across all five. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
+   non-English users silently fell back to English across all five.
+   "wave9" came with the Stack-23 locale-parity-4 lane (Oct 22 2026):
+   eight of its nine tool blocks (directEdit, structure, remix,
+   timeline, beatSync, templates, bgReplace, characterDirector)
+   existed only in en.json — 222 leaves absent from all nine catalogs
+   (1,998 values) — now translated ×9 and pinned here; the ninth block
+   (cameraMovePlanner) was already pinned via BLOCK_PREFIXES below
+   and is subsumed by the whole-namespace pin. Array leaves (e.g.
+   wave8.calendar.dayNames, whose components read it with
+   returnObjects: true) flatten to the array itself, so the emptiness
+   and placeholder checks below judge array leaves by their
+   elements. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave9"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
-  "wave9.cameraMovePlanner.",
   "artistVault.identity",
   "beats.template",
   "myShop.discount",
@@ -133,11 +143,15 @@ function requiredKeys(): string[] {
 
 const REQUIRED = requiredKeys();
 const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m) => m[0]).sort();
+/* Array leaves flatten to the array itself; judge their placeholder
+   shape by the joined element text. */
+const leafText = (v: unknown): string =>
+  Array.isArray(v) ? v.map((x) => String(x)).join("\n") : typeof v === "string" ? v : "";
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill and the Stack-23 wave9 fill (2691 keys)", () => {
+    expect(REQUIRED.length).toBe(2691);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -148,16 +162,18 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
 
   it.each(ALL)("%s values are non-empty (headlinePrefix word-order slot aside)", (locale) => {
     const cat = CATALOGS[locale]!;
-    const empty = REQUIRED.filter(
-      (k) => typeof cat[k] !== "string" || (cat[k]!.trim() === "" && !MAY_BE_EMPTY.has(k)),
-    );
+    const empty = REQUIRED.filter((k) => {
+      const v: unknown = cat[k];
+      if (Array.isArray(v)) return v.length === 0 || v.some((x) => typeof x !== "string" || x.trim() === "");
+      return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPTY.has(k));
+    });
     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).join(", ")}`).toEqual([]);
   });
 
   it.each(ALL)("%s preserves the en placeholder shape on every key", (locale) => {
     const cat = CATALOGS[locale]!;
     const bad = REQUIRED.filter(
-      (k) => k in cat && JSON.stringify(tokens(cat[k]!)) !== JSON.stringify(tokens(EN[k]!)),
+      (k) => k in cat && JSON.stringify(tokens(leafText(cat[k]))) !== JSON.stringify(tokens(leafText(EN[k]))),
     );
     expect(bad, `${locale} placeholder drift: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
   });
