@@ -1377,6 +1377,15 @@ export default function WorldPage() {
           scene.setSelfFigure(client.self);
           if (!spawnedRef.current) {
             spawnedRef.current = true;
+            /* The scene is born defaulting to the hall; confirm the
+               welcome's room BEFORE the spawn is placed, or the
+               spawn clamp files a plaza arrival (z 31.5) into the
+               hall's floor (z ≤ 11.1) and the body materializes at
+               the hall's south doors instead of on the promenade.
+               Movement, camera clamp and shell visibility all key
+               off the scene's room, so this one confirmation is
+               what makes the landing real. */
+            if (client.room) scene.setRoom(client.room.id);
             scene.setSpawn(client.self.x, client.self.z);
           }
         }
