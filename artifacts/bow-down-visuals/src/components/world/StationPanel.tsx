@@ -1805,7 +1805,7 @@ export default function StationPanel(props: StationPanelProps) {
             if (!slug) {
               return (
                 <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                  This door belongs to a creator&rsquo;s room — step through the Courtyard
+                  This door belongs to a creator&rsquo;s room — step through the King&rsquo;s Plaza
                   arch and pick whose place you&rsquo;re visiting.
                 </p>
               );

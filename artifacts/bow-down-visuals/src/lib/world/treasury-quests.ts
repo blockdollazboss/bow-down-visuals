@@ -84,7 +84,7 @@ const STATION_ROOM_NAMES: Record<string, string> = {
   "world:game-rooms": "the Game Rooms",
   "world:kings-hall": "the King's Hall",
   "world:treasury": "the Treasury",
-  "world:courtyard": "the Courtyard",
+  "world:courtyard": "the King's Plaza",
   "world:royal-court": "the Royal Court Chamber",
   "world:branding-atelier": "the Branding Atelier",
 };
