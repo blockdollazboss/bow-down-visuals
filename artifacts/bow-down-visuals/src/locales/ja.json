@@ -86,7 +86,7 @@
     "heroSubtitle": "プロのように作るために必要なすべて — 音楽、動画、サムネイル、ブランディングなど。すべてAIの力で。",
     "heroTitle": "コンテンツ制作のチートコード",
     "pageTitle": "Bow Down Visuals — コンテンツクリエイターのチートコード",
-    "pageDescription": "コンテンツクリエイターのためのAIスタジオ：楽曲、ミュージックビデオ、プロモクリップ、ブランディング＆ビジネスツール。80以上のAI機能 — 作った分だけ支払えばOK。",
+    "pageDescription": "コンテンツクリエイターのためのAIスタジオ：楽曲、ミュージックビデオ、プロモクリップ、ブランディング＆ビジネスツール。19以上のAI機能 — 作った分だけ支払えばOK。",
     "shareLabel": "チートコードを広めよう",
     "shareLabelTellCreator": "クリエイターに教える",
     "shareX": "Xでシェア",
@@ -109,7 +109,7 @@
     "heroHeadlineA": "競合たちは、あなたが",
     "heroHeadlineB": "チームを雇ったと思うでしょう。",
     "heroSlogan": "ズルをしているみたい。そこが狙いです。",
-    "heroSub": "Bow Down Visualsは、楽曲を作り、動画を撮り、プロモを切り、ビジネスを回すAIスタジオです — 80以上のツール、ひとつのVisual Bucsシステム、許可は不要。",
+    "heroSub": "Bow Down Visualsは、楽曲を作り、動画を撮り、プロモを切り、ビジネスを回すAIスタジオです — 19以上のツール、ひとつのVisual Bucsシステム、許可は不要。",
     "watchItWork": "実際に見てみる",
     "alreadyHaveAccount": "すでにアカウントをお持ちですか？ ",
     "signIn": "サインイン",
@@ -285,7 +285,7 @@
     "manifestoKicker": "キングからのメッセージ",
     "manifestoTitleA": "ひざまずけ",
     "manifestoTitleB": "今だ。",
-    "manifestoBody": "業界の時代は終わった。80以上のAIツール。ひとつのチートコード。許可はいらない。",
+    "manifestoBody": "業界の時代は終わった。19以上のAIツール。ひとつのチートコード。許可はいらない。",
     "manifestoRumor": "噂：このページにはチートコードが隠されている。",
     "studioKicker": "スタジオ",
     "studioTitle": "ひとつのログイン。すべてがここに。",
@@ -298,17 +298,17 @@
           {
             "title": "楽曲を作る",
             "description": "フルソング — 数分で歌詞、メロディ、プロダクションまで。",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "ミュージックビデオを作る",
             "description": "あなたのトラックに合わせたシネマティックなAIシーン。",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "楽曲＋ビデオ",
             "description": "フルパッケージ — 楽曲とビデオをひとつの流れで。",
-            "cost": "4 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -319,7 +319,7 @@
           {
             "title": "ビデオエディター",
             "description": "カット、字幕、カラー調整 — リップシンク内蔵。",
-            "cost": "リップシンク 3 VB"
+            "cost": "リップシンク 300 VB"
           },
           {
             "title": "AIナレーション",
@@ -329,7 +329,7 @@
           {
             "title": "アップスケール",
             "description": "正直な1080p・4Kアップスケール。偽物の高画質化はなし。",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -340,12 +340,12 @@
           {
             "title": "プロモクリップ",
             "description": "TikTok、リール、ショート用のスクロールを止めるクリップ。",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "フックスタジオ",
             "description": "最初の3秒を掴むフック＋バイラル事前チェック。",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "スケジューラー",
@@ -361,17 +361,17 @@
           {
             "title": "マネタイズコーチ",
             "description": "プラットフォーム別の30日マネープラン。",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "スポンサーマッチ",
             "description": "AIがマッチするブランド案件＋成約する提案書。",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "グッズデザイナー",
             "description": "AIグッズモックアップ — ドロップシップ対応。",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       }
@@ -433,7 +433,7 @@
     "referTitleA": "クリエイターを連れてくる。",
     "referTitleB": "クレジットで報酬を得る。",
     "referBodyA": "あなたのリンクをシェア。友達は",
-    "referBodyB": "10クレジット無料",
+    "referBodyB": "1,000クレジット無料",
     "referBodyC": "で作り始められます。あなたは",
     "referBodyD": "彼らの購入額の25%",
     "referBodyE": "を90日間受け取れます。",
@@ -445,7 +445,7 @@
     "faqs": [
       {
         "q": "Bow Down Visualsとは？",
-        "a": "コンテンツクリエイターのためのAIスタジオ — 80以上のツールが楽曲を作り、ビデオを撮り、プロモを切り、ブランドをデザインし、ビジネスを回します。ひとつのアカウント、ひとつのVisual Bucsシステム、チームは不要。"
+        "a": "コンテンツクリエイターのためのAIスタジオ — 19以上のツールが楽曲を作り、ビデオを撮り、プロモを切り、ブランドをデザインし、ビジネスを回します。ひとつのアカウント、ひとつのVisual Bucsシステム、チームは不要。"
       },
       {
         "q": "Visual Bucsの仕組みは？",
@@ -556,12 +556,12 @@
     ],
     "bizOpen": "開く",
     "jackpotBold": "毎月、ひとつのチートコードが当たります。",
-    "jackpotBody": "チートコード・ジャックポット — 毎月、秘密の矢印コードが登場。最初に解読して入力した人が100 Visual Bucsを獲得します。",
+    "jackpotBody": "チートコード・ジャックポット — 毎月、秘密の矢印コードが登場。最初に解読して入力した人が10,000 Visual Bucsを獲得します。",
     "jackpotCta": "コードを解読する",
     "academyKicker": "クリエイターアカデミー",
     "academyTitleA": "チートコードには",
     "academyTitleB": "マニュアルが付いています。",
-    "academySub": "映像、音楽、ブランディングのマスタークラス無料カタログ — ツールが動かすのと同じプレイブックを、まっすぐ教えます。AIレッスンは1 Visual Bucから。",
+    "academySub": "映像、音楽、ブランディングのマスタークラス無料カタログ — ツールが動かすのと同じプレイブックを、まっすぐ教えます。AIレッスンは100 Visual Bucsから。",
     "academyCta": "アカデミーを探る"
   },
   "language": {
@@ -1581,7 +1581,7 @@
     "topPrioritiesTitle": "優先度の高い3つの課題",
     "fixItNowTitle": "今すぐ修正",
     "fixItNowSubtitle": "監査で見つかった問題を修正するツールに直接ジャンプ。",
-    "hookStudioNote": "フックを書き直してほしい？Hook Studioなら1 Visual Bucでスクロールを止めるフックを5本作成します。"
+    "hookStudioNote": "フックを書き直してほしい？Hook Studioなら100 Visual Bucでスクロールを止めるフックを5本作成します。"
   },
   "beatMaker": {
     "title": "ビートメイカー",
@@ -4234,7 +4234,7 @@
     "pageTitle": "楽曲制作",
     "pageDescription": "AIでフル楽曲を生成——数分で歌詞、メロディ、プロダクションまで。",
     "backToDashboard": "ダッシュボードに戻る",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "400 Visual Bucs",
     "title": "楽曲を作る",
     "subtitle": "次のリリースに向けて、歌詞、フック、ヴァース、ビートの方向性、ボーカルスタイル、AI音楽プロンプトを作成します。",
     "buildOnIt": "これを元に作る",
@@ -4312,7 +4312,7 @@
     "pageTitle": "ミュージックビデオを作成",
     "pageDescription": "AIシーン生成で、あなたの楽曲をシネマティックなミュージックビデオに仕上げましょう。",
     "backToDashboard": "ダッシュボードに戻る",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "200 Visual Bucs",
     "title": "ミュージックビデオを作成",
     "subtitle": "楽曲のセットアップからシネマティックなAIミュージックビデオプランまで、ステップバイステップで進めるスタジオです。",
     "back": "戻る",
@@ -5444,7 +5444,7 @@
     "cleanOption": "クリーン",
     "copiedLabel": "コピーしました！",
     "copyButton": "コピー",
-    "costBadge": "200 Visual Bucs",
+    "costBadge": "400 Visual Bucs",
     "creditRefundedNote": "Visual Bucsを返金しました — コンテンツは",
     "defaultProjectTitle": "楽曲＋映像を作成",
     "dismissButton": "閉じる",
@@ -5748,7 +5748,7 @@
     "colorThemeLabel": "カラーテーマ",
     "colorThemePlaceholder": "例：黒と金、紫と白...",
     "costBadge": "最大300 Visual Bucs",
-    "costNote": "コンセプトパックに100 Visual Bucsを使用し、AIサムネイル画像のレンダリングに成功した場合はさらに2（合計3）を使用します",
+    "costNote": "コンセプトパックに100 Visual Bucsを使用し、AIサムネイル画像のレンダリングに成功した場合はさらに200（合計300）を使用します",
     "downloadImage": "画像をダウンロード",
     "featuredTextLabel": "フィーチャーテキスト",
     "featuredTextPlaceholder": "例：OUT NOW、NEW SINGLE、FT. ARTIST...",
@@ -5854,7 +5854,7 @@
     "applySuggestions": "提案を適用 · {{cost}}クレジット",
     "backToDashboard": "ダッシュボードに戻る",
     "confidence": "信頼度{{confidence}}%",
-    "costNote": "テスト1回につき2 Visual Bucs · 改善版レンダリング1回につき2 Visual Bucs · AIが失敗した場合は自動返金。スコアはAIの予測であり保証ではありません — タイトル、視聴者、タイミングも重要です。",
+    "costNote": "テスト1回につき200 Visual Bucs · 改善版レンダリング1回につき200 Visual Bucs · AIが失敗した場合は自動返金。スコアはAIの予測であり保証ではありません — タイトル、視聴者、タイミングも重要です。",
     "downloadLink": "ダウンロード",
     "fixesLabel": "修正点",
     "generating": "生成中…",
@@ -8471,7 +8471,7 @@
     "bestTime": {
       "title": "AI best-time suggestions",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
-      "cost": "100 Visual Bucs",
+      "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
       "niche": "Niche",
       "postsPerWeek": "Posts / week",

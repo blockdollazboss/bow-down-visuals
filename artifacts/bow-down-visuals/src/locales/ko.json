@@ -87,7 +87,7 @@
     "heroTitle": "콘텐츠 제작의 치트 코드",
     "academyCta": "아카데미 둘러보기",
     "academyKicker": "크리에이터 아카데미",
-    "academySub": "영상, 음악, 브랜딩 마스터클래스를 한곳에 담은 무료 카탈로그 — 도구가 돌아가는 바로 그 플레이북을 가르칩니다. AI 강의는 1 Visual Buc부터.",
+    "academySub": "영상, 음악, 브랜딩 마스터클래스를 한곳에 담은 무료 카탈로그 — 도구가 돌아가는 바로 그 플레이북을 가르칩니다. AI 강의는 100 Visual Bucs부터.",
     "academyTitleA": "치트 코드는",
     "academyTitleB": "설명서와 함께 옵니다.",
     "alreadyHaveAccount": "이미 계정이 있으신가요? ",
@@ -274,7 +274,7 @@
     "faqs": [
       {
         "q": "Bow Down Visuals는 무엇인가요?",
-        "a": "콘텐츠 크리에이터를 위한 AI 스튜디오 — 노래를 쓰고, 영상을 찍고, 프로모를 자르고, 브랜드를 디자인하고, 비즈니스를 운영하는 80개 이상의 도구. 하나의 계정, 하나의 Visual Buc 시스템, 팀은 필요 없어요."
+        "a": "콘텐츠 크리에이터를 위한 AI 스튜디오 — 노래를 쓰고, 영상을 찍고, 프로모를 자르고, 브랜드를 디자인하고, 비즈니스를 운영하는 19개 이상의 도구. 하나의 계정, 하나의 Visual Buc 시스템, 팀은 필요 없어요."
       },
       {
         "q": "Visual Bucs는 어떻게 작동하나요?",
@@ -319,11 +319,11 @@
     "heroHeadlineA": "경쟁자들은 당신이",
     "heroHeadlineB": "팀을 고용했다고 생각할 거예요.",
     "heroSlogan": "치트처럼 느껴져요. 그게 포인트입니다.",
-    "heroSub": "Bow Down Visuals는 노래를 쓰고, 영상을 찍고, 프로모를 자르고, 비즈니스를 운영하는 AI 스튜디오 — 80개 이상의 도구, 하나의 Visual Buc 시스템, 허가 필요 없어요.",
+    "heroSub": "Bow Down Visuals는 노래를 쓰고, 영상을 찍고, 프로모를 자르고, 비즈니스를 운영하는 AI 스튜디오 — 19개 이상의 도구, 하나의 Visual Buc 시스템, 허가 필요 없어요.",
     "howKicker": "사용 방법",
     "howSub": "팀도 없어요. 예산 회의도 없어요. 당신과 코드, 그뿐.",
     "howTitle": "아이디어에서 제국까지, 몇 분 만에",
-    "jackpotBody": "Cheat Code 잭팟 — 매달 비밀 화살표 코드가 공개돼요. 먼저 풀어서 입력한 사람이 100 Visual Bucs를 받습니다.",
+    "jackpotBody": "Cheat Code 잭팟 — 매달 비밀 화살표 코드가 공개돼요. 먼저 풀어서 입력한 사람이 10,000 Visual Bucs를 받습니다.",
     "jackpotBold": "매달, 하나의 치트 코드가 승리합니다.",
     "jackpotCta": "코드 깨기",
     "konamiAccepted": "치트 코드 승인됨",
@@ -336,7 +336,7 @@
     "makeKicker": "만들 수 있는 것",
     "makeSub": "하나의 스튜디오. 뮤직 커리어가 요구하는 모든 에셋 — 위임이 아니라 생성으로.",
     "makeTitle": "발매에 필요한 모든 것",
-    "manifestoBody": "업계의 시대는 끝났어요. 80개 이상의 AI 도구. 하나의 치트 코드. 허가 따윈 필요 없어요.",
+    "manifestoBody": "업계의 시대는 끝났어요. 19개 이상의 AI 도구. 하나의 치트 코드. 허가 따윈 필요 없어요.",
     "manifestoKicker": "킹의 메시지",
     "manifestoRumor": "소문: 이 페이지에 치트 코드가 있대요.",
     "manifestoTitleA": "BOW",
@@ -357,7 +357,7 @@
       "프레스 키트",
       "스폰서 피칭"
     ],
-    "pageDescription": "콘텐츠 크리에이터를 위한 AI 스튜디오: 노래, 뮤직비디오, 프로모 클립, 브랜딩 & 비즈니스 도구. 80개 이상의 AI 기능 — 만드는 것만 유료.",
+    "pageDescription": "콘텐츠 크리에이터를 위한 AI 스튜디오: 노래, 뮤직비디오, 프로모 클립, 브랜딩 & 비즈니스 도구. 19개 이상의 AI 기능 — 만드는 것만 유료.",
     "pageTitle": "Bow Down Visuals — 콘텐츠 크리에이터의 치트 코드",
     "positioning": "콘텐츠 크리에이터의 치트 코드",
     "pricingKicker": "Visual Buc 팩",
@@ -382,7 +382,7 @@
       }
     ],
     "referBodyA": "링크를 공유하세요. 친구는 ",
-    "referBodyB": "무료 크레딧 10개",
+    "referBodyB": "무료 크레딧 1,000개",
     "referBodyC": "를 받고 제작을 시작해요. 당신은 ",
     "referBodyD": "구매 금액의 25%",
     "referBodyE": "를 90일간 받습니다.",
@@ -423,17 +423,17 @@
           {
             "title": "곡 만들기",
             "description": "풀 곡 — 몇 분 만에 가사, 멜로디, 프로덕션.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "뮤직비디오 만들기",
             "description": "트랙에 맞춘 시네마틱 AI 장면.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "곡 + 영상",
             "description": "풀 패키지 — 한 흐름으로 곡과 영상.",
-            "cost": "4 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -444,7 +444,7 @@
           {
             "title": "비디오 에디터",
             "description": "자르고, 자막 달고, 색감 — 립싱크 내장.",
-            "cost": "립싱크 3 VB"
+            "cost": "립싱크 300 VB"
           },
           {
             "title": "AI 보이스오버",
@@ -454,7 +454,7 @@
           {
             "title": "업스케일",
             "description": "정직한 1080p와 4K 업스케일링. 가짜 “향상” 없음.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -465,12 +465,12 @@
           {
             "title": "프로모 클립",
             "description": "TikTok, Reels, Shorts용 스크롤을 멈추는 클립.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "훅 스튜디오",
             "description": "첫 3초 훅 + 바이럴 사전 점검.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "스케줄러",
@@ -486,17 +486,17 @@
           {
             "title": "수익화 코치",
             "description": "플랫폼별 30일 머니 플랜.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "스폰서 매칭",
             "description": "AI 매칭 브랜드 딜 + 성사되는 피칭.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "머치 디자이너",
             "description": "드롭십 준비 완료 AI 머치 목업.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       }
@@ -1581,7 +1581,7 @@
     "topPrioritiesTitle": "우선순위 Top 3",
     "fixItNowTitle": "지금 바로 수정",
     "fixItNowSubtitle": "진단에서 발견된 문제를 해결하는 도구로 바로 이동하세요.",
-    "hookStudioNote": "후크를 대신 써 드릴까요? Hook Studio에서 Visual Buc 1개당 스크롤을 멈추게 하는 후크 5개를 만듭니다."
+    "hookStudioNote": "후크를 대신 써 드릴까요? Hook Studio에서 Visual Buc 100개당 스크롤을 멈추게 하는 후크 5개를 만듭니다."
   },
   "beatMaker": {
     "title": "비트 메이커",
@@ -4234,7 +4234,7 @@
     "pageTitle": "노래 만들기",
     "pageDescription": "AI로 풀곡을 생성하세요 — 가사, 멜로디, 프로덕션을 단 몇 분 만에.",
     "backToDashboard": "대시보드로 돌아가기",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "400 Visual Bucs",
     "title": "노래 만들기",
     "subtitle": "다음 발매를 위한 가사, 훅, 벌스, 비트 방향, 보컬 스타일, AI 음악 프롬프트를 만드세요.",
     "buildOnIt": "이어서 만들기",
@@ -4312,7 +4312,7 @@
     "pageTitle": "뮤직비디오 만들기",
     "pageDescription": "AI 씬 생성으로 곡을 영화 같은 뮤직비디오로 만들어보세요.",
     "backToDashboard": "대시보드로 돌아가기",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "200 Visual Bucs",
     "title": "뮤직비디오 만들기",
     "subtitle": "곡 설정부터 영화 같은 AI 뮤직비디오 플랜까지, 단계별 스튜디오입니다.",
     "back": "뒤로",
@@ -5444,7 +5444,7 @@
     "cleanOption": "클린",
     "copiedLabel": "복사됨!",
     "copyButton": "복사",
-    "costBadge": "200 Visual Bucs",
+    "costBadge": "400 Visual Bucs",
     "creditRefundedNote": "Visual Bucs이 환불되었습니다 — 콘텐츠는 여기에서 확인하세요",
     "defaultProjectTitle": "노래 + 영상 만들기",
     "dismissButton": "닫기",
@@ -5748,7 +5748,7 @@
     "colorThemeLabel": "컬러 테마",
     "colorThemePlaceholder": "예: 블랙 & 골드, 퍼플 & 화이트...",
     "costBadge": "최대 300 Visual Bucs",
-    "costNote": "컨셉 팩에 100 Visual Bucs가 사용되며, AI 썸네일 이미지가 성공적으로 렌더링되면 2가 추가됩니다(총 3)",
+    "costNote": "컨셉 팩에 100 Visual Bucs가 사용되며, AI 썸네일 이미지가 성공적으로 렌더링되면 200가 추가됩니다(총 300)",
     "downloadImage": "이미지 다운로드",
     "featuredTextLabel": "피처드 텍스트",
     "featuredTextPlaceholder": "예: OUT NOW, NEW SINGLE, FT. ARTIST...",
@@ -8471,7 +8471,7 @@
     "bestTime": {
       "title": "AI best-time suggestions",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
-      "cost": "100 Visual Bucs",
+      "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
       "niche": "Niche",
       "postsPerWeek": "Posts / week",

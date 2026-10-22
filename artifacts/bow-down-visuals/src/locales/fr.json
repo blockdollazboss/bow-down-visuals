@@ -86,7 +86,7 @@
     "heroSubtitle": "Tout ce dont vous avez besoin pour créer comme un pro — musique, vidéos, miniatures, branding et plus. Le tout propulsé par l'IA.",
     "heroTitle": "Le Code Secret de la Création de Contenu",
     "pageTitle": "Bow Down Visuals— Le code de triche du créateur de contenu",
-    "pageDescription": "Le studio IA des créateurs de contenu : chansons, clips, clips promo, branding et outils business. 80+ fonctionnalités IA — tu ne paies que ce que tu crées.",
+    "pageDescription": "Le studio IA des créateurs de contenu : chansons, clips, clips promo, branding et outils business. 19+ fonctionnalités IA — tu ne paies que ce que tu crées.",
     "shareLabel": "Diffuse le code",
     "shareLabelTellCreator": "Parles-en à un créateur",
     "shareX": "Partager sur X",
@@ -109,7 +109,7 @@
     "heroHeadlineA": "Tes concurrents penseront que tu",
     "heroHeadlineB": "embauché une équipe.",
     "heroSlogan": "C'est comme de la triche. C'est le point.",
-    "heroSub": "Bow Down Visuals, c'est le studio IA qui écrit tes chansons, tourne tes vidéos, découpe ta promo et gère ton business — 80+ outils, un seul système de Visual Bucs, zéro autorisation requise.",
+    "heroSub": "Bow Down Visuals, c'est le studio IA qui écrit tes chansons, tourne tes vidéos, découpe ta promo et gère ton business — 19+ outils, un seul système de Visual Bucs, zéro autorisation requise.",
     "watchItWork": "Regarde ça fonctionner",
     "alreadyHaveAccount": "Tu as déjà un compte ?",
     "signIn": "Se connecter",
@@ -285,7 +285,7 @@
     "manifestoKicker": "Un message du roi",
     "manifestoTitleA": "INCLINE-",
     "manifestoTitleB": "TOI.",
-    "manifestoBody": "L'industrie a eu son tour. 80+ outils IA. Un cheat code. Zéro autorisation requise.",
+    "manifestoBody": "L'industrie a eu son tour. 19+ outils IA. Un cheat code. Zéro autorisation requise.",
     "manifestoRumor": "Rumeur : cette page contient un code de triche.",
     "studioKicker": "L'Atelier",
     "studioTitle": "Une seule connexion. Toute la machine.",
@@ -298,17 +298,17 @@
           {
             "title": "Faire une chanson",
             "description": "Chansons complètes : paroles, mélodie et production en quelques minutes.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Faire un clip vidéo",
             "description": "Scènes cinématographiques d'IA conçues pour ta piste.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Chanson + Vidéo",
             "description": "Le package complet : chanson et vidéo en un seul flux.",
-            "cost": "4 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -319,7 +319,7 @@
           {
             "title": "Éditeur vidéo",
             "description": "Coupe, sous-titre et étalonne — avec synchronisation labiale intégrée.",
-            "cost": "Synchronisation labiale 3 VB"
+            "cost": "Synchronisation labiale 300 VB"
           },
           {
             "title": "Voix off IA",
@@ -329,7 +329,7 @@
           {
             "title": "Haut de gamme",
             "description": "Mise à l’échelle honnête de 1080p et 4K. Pas de fausse « amélioration ».",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -340,12 +340,12 @@
           {
             "title": "Clips promotionnels",
             "description": "Des clips qui arrêtent le scroll pour TikTok, Reels et Shorts.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Studio d'Accroches",
             "description": "Accroches des trois premières secondes et vérification de la viralité avant le vol.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Planificateur",
@@ -361,17 +361,17 @@
           {
             "title": "Coach en monétisation",
             "description": "Ton plan financier sur 30 jours, plateforme par plateforme.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Match des sponsors",
             "description": "Offres de marque adaptées à l'IA, ainsi que des pitchs conclus.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Concepteur de produits dérivés",
             "description": "Maquettes de produits dérivés IA – prêtes pour le dropshipping.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       }
@@ -433,7 +433,7 @@
     "referTitleA": "Amène des créateurs.",
     "referTitleB": "Sois payé en crédits.",
     "referBodyA": "Partage ton lien. Tes amis reçoivent",
-    "referBodyB": "10 crédits gratuits",
+    "referBodyB": "1 000 crédits gratuits",
     "referBodyC": "pour commencer à créer. Tu gagnes",
     "referBodyD": "25 % de tout ce qu'ils achètent",
     "referBodyE": "pendant 90 jours.",
@@ -445,7 +445,7 @@
     "faqs": [
       {
         "q": "C'est quoi Bow Down Visuals ?",
-        "a": "Le studio d'IA pour les créateurs de contenu : plus de 80 outils qui écrivent tes chansons, tournent tes vidéos, réalisent ta promo, conçoivent ta marque et gèrent ton entreprise. Un compte, un système Visual Buc, aucune équipe requise."
+        "a": "Le studio d'IA pour les créateurs de contenu : plus de 19 outils qui écrivent tes chansons, tournent tes vidéos, réalisent ta promo, conçoivent ta marque et gèrent ton entreprise. Un compte, un système Visual Buc, aucune équipe requise."
       },
       {
         "q": "Comment fonctionnent les Visual Bucs ?",
@@ -556,7 +556,7 @@
     ],
     "bizOpen": "Ouvrir",
     "jackpotBold": "Chaque mois, un code de triche gagne.",
-    "jackpotBody": "Le Cheat Code Jackpot — un code fléché secret tombe chaque mois. Le premier à le décrypter et à le saisir gagne 100 Visual Bucs.",
+    "jackpotBody": "Le Cheat Code Jackpot — un code fléché secret tombe chaque mois. Le premier à le décrypter et à le saisir gagne 10 000 Visual Bucs.",
     "jackpotCta": "Déchiffre le code",
     "academyKicker": "Académie des créateurs",
     "academyTitleA": "Le code de triche",
@@ -1581,7 +1581,7 @@
     "topPrioritiesTitle": "Tes 3 priorités",
     "fixItNowTitle": "Corrige ça maintenant",
     "fixItNowSubtitle": "Plonge directement dans les outils qui corrigent ce que l'audit a trouvé.",
-    "hookStudioNote": "Tu veux des accroches réécrites pour toi ? Le Hook Studio produit 5 accroches imparables par Visual Buc."
+    "hookStudioNote": "Tu veux des accroches réécrites pour toi ? Le Hook Studio produit 5 accroches imparables par 100 Visual Bucs."
   },
   "beatMaker": {
     "title": "Créateur de beats",
@@ -4296,7 +4296,7 @@
     "moodVictory": "Victoire",
     "pageDescription": "Génère des morceaux complets avec l'IA — paroles, mélodie et production en quelques minutes.",
     "pageTitle": "Créer un morceau",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "400 Visual Bucs",
     "selectGenre": "Choisir un genre...",
     "selectLength": "Choisir une durée...",
     "selectMood": "Choisir une ambiance...",
@@ -4324,7 +4324,7 @@
     "pageTitle": "Faire un clip vidéo",
     "pageDescription": "Transforme ta chanson en vidéo musicale cinématographique grâce à la génération de scènes AI.",
     "backToDashboard": "Retour au tableau de bord",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "200 Visual Bucs",
     "title": "Faire un clip vidéo",
     "subtitle": "Un studio étape par étape : de la configuration des chansons à un plan de vidéoclip cinématographique avec IA.",
     "back": "Retour",
@@ -5456,7 +5456,7 @@
     "cleanOption": "Clean",
     "copiedLabel": "Copié!",
     "copyButton": "Copie",
-    "costBadge": "200 Visual Bucs",
+    "costBadge": "400 Visual Bucs",
     "creditRefundedNote": "Visual Bucs remboursé — retrouve ton contenu dans",
     "defaultProjectTitle": "Créer une chanson + une vidéo",
     "dismissButton": "Ignorer",
@@ -5760,7 +5760,7 @@
     "colorThemeLabel": "Thème couleur",
     "colorThemePlaceholder": "ex. noir et or, violet et blanc…",
     "costBadge": "jusqu'à 300 Visual Bucs",
-    "costNote": "Utilise 100 Visual Bucs pour le pack de concepts, plus 2 de plus si la miniature IA se rend avec succès (3 au total)",
+    "costNote": "Utilise 100 Visual Bucs pour le pack de concepts, plus 200 de plus si la miniature IA se rend avec succès (300 au total)",
     "downloadImage": "Télécharger l'image",
     "featuredTextLabel": "Texte vedette",
     "featuredTextPlaceholder": "ex. DISPO, NOUVEAU SINGLE, FT. ARTISTE…",
@@ -9304,7 +9304,7 @@
     "bestTime": {
       "title": "AI best-time suggestions",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
-      "cost": "100 Visual Bucs",
+      "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
       "niche": "Niche",
       "postsPerWeek": "Posts / week",
