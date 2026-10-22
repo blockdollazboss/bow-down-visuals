@@ -129,8 +129,18 @@ const EN = CATALOGS.en!;
    the first pinned namespace whose placeholders include single-brace
    tokens ({email} in removal.removedBy, users.banConfirm and
    users.unbanConfirm), which the admin block at the bottom checks
-   separately because the shared token check only sees {{...}}. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin"] as const;
+   separately because the shared token check only sees {{...}}.
+   "analyticsHub" came with the Stack-24 locale-parity-6 lane
+   (Oct 22 2026): the Analytics Hub's newest blocks — 80 of its 148
+   leaves (the competitor + milestones tab labels, the whole
+   milestones tracker and competitor tracker blocks, tabConnected /
+   tabChannelAudit / tabVirality, csvReadError) — existed in NO non-en
+   catalog, so the Competitor and Milestones tabs silently fell back
+   to English everywhere. All 148 leaves are now translated ×9 and
+   pinned here, and the analyticsHub residue describe at the bottom
+   pins the values too. The namespace carries no array leaves, so the
+   plain string checks below judge it as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -192,11 +202,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill and the Stack-24 admin fill (3637 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill and the Stack-24 analyticsHub fill (3785 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
-    expect(REQUIRED.length).toBe(3637);
+    expect(REQUIRED.length).toBe(3785);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -683,6 +693,88 @@ describe("admin — full parity, no untranslated English residue, single-brace t
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `admin.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+/* Legit-identical analyticsHub values per locale — keys whose correct
+   value in that language IS the en string, so the residue check below
+   must not flag them. Everything not listed here has to differ from en.
+   - milestones.loggedFrom (all nine): the en value IS the bare
+     {{source}} placeholder — the rendered text is the source value
+     itself (manual entry / an import label), so there is literally
+     nothing to translate.
+   - hookStudio (ar/de/hi/it/ja/ko): the Hook Studio product-surface
+     name, kept in its Latin form in these catalogs — the same
+     kept-name pattern as the playlistPitch "Playlist Pitcher" badge
+     (es/pt render it descriptively instead: "Estudio de Hooks" /
+     "Estúdio de Ganchos").
+   - heroTitle (de/it/ja): the surface's product name "Analytics Hub";
+     the de/it/ja pageTitle values keep it in Latin too and translate
+     only the descriptive tail ("Analytics Hub — …").
+   - tabDashboard (de/it): these catalogs' own nav.dashboard is
+     "Dashboard" — the global chrome keeps the word, so the tab does.
+   - fields.engagementRate + statEngagement (de/it): "Engagement" is
+     the established marketing term in both languages — the word the
+     platforms' own de/it interfaces use for this metric.
+   - trendLabel (de/it): "Trend" is spelled identically in German and
+     is an established, identically-spelled loanword in Italian.
+   - focus (it): the "Focus:" label is the established loanword
+     heading in Italian business UI — same kept-loan family as
+     Engagement/Trend in this catalog.
+   - fr tabIntelligence "Intelligence" and competitor.notesLabel
+     "Notes": spelled identically in French (the same class as fr
+     playlistPitch's "Description" / "Genre"). */
+const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: ["hookStudio", "milestones.loggedFrom"],
+  de: [
+    "fields.engagementRate",
+    "heroTitle",
+    "statEngagement",
+    "trendLabel",
+    "hookStudio",
+    "tabDashboard",
+    "milestones.loggedFrom",
+  ],
+  es: ["milestones.loggedFrom"],
+  fr: ["tabIntelligence", "competitor.notesLabel", "milestones.loggedFrom"],
+  hi: ["hookStudio", "milestones.loggedFrom"],
+  it: [
+    "fields.engagementRate",
+    "heroTitle",
+    "statEngagement",
+    "trendLabel",
+    "focus",
+    "hookStudio",
+    "tabDashboard",
+    "milestones.loggedFrom",
+  ],
+  ja: ["heroTitle", "hookStudio", "milestones.loggedFrom"],
+  ko: ["hookStudio", "milestones.loggedFrom"],
+  pt: ["milestones.loggedFrom"],
+};
+
+describe("analyticsHub — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const AH_KEYS = Object.keys(EN).filter((k) => k.startsWith("analyticsHub."));
+
+  it.each(NON_EN)("%s analyticsHub values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((AH_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `analyticsHub.${k}`));
+    const residue = AH_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated analyticsHub values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the analyticsHub allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(AH_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `analyticsHub.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }
