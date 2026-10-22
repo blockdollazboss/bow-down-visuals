@@ -888,12 +888,12 @@
     "planDescription": "ユーザーのプランティアがクリエイターレベルの星の上限を決めます——ティア1は1つ星、ティア6は6つ星すべてを獲得できます。",
     "planEmailPlaceholder": "user@email.com",
     "tiers": {
-      "tier1": "Street Punk",
-      "tier2": "Hustler",
-      "tier3": "Gangster",
-      "tier4": "Shot Caller",
-      "tier5": "Crime Boss",
-      "tier6": "Kingpin"
+      "tier1": "ストリートパンク",
+      "tier2": "ハスラー",
+      "tier3": "ギャングスター",
+      "tier4": "ショットコーラー",
+      "tier5": "クライムボス",
+      "tier6": "キングピン"
     },
     "setTierButton": "ティアを設定",
     "errorTierRange": "1〜6のティアを選んでください。",
@@ -926,7 +926,119 @@
     "bowRaceLoadError": "お辞儀レースデータを読み込めませんでした: {{reason}}",
     "networkError": "ネットワークエラー",
     "errorSaveFailed": "保存に失敗しました。",
-    "bowRaceUpdated": "お辞儀レースを更新しました。"
+    "bowRaceUpdated": "お辞儀レースを更新しました。",
+    "spotlight": {
+      "title": "Spotlight受信箱",
+      "description": "テイクオーバー広告のリード — 各問い合わせを確認し、パイプラインを進めてください。",
+      "empty": "Spotlightの問い合わせはまだありません。",
+      "loadError": "Spotlightの問い合わせを読み込めませんでした。",
+      "statusError": "問い合わせのステータスを更新できませんでした。",
+      "videoLink": "動画を見る",
+      "targetLink": "ターゲットリンク",
+      "status": {
+        "new": "新規",
+        "contacted": "連絡済み",
+        "approved": "承認済み",
+        "rejected": "却下"
+      }
+    },
+    "contact": {
+      "title": "お問い合わせ受信箱",
+      "description": "お問い合わせフォームからのメッセージ — 新しい順。",
+      "empty": "お問い合わせメッセージはまだありません。",
+      "loadError": "お問い合わせメッセージを読み込めませんでした。",
+      "statusError": "メッセージを更新できませんでした。",
+      "markRead": "既読にする",
+      "markUnread": "未読にする"
+    },
+    "dmca": {
+      "title": "DMCAレポート",
+      "description": "サイトの報告窓口から提出された著作権削除レポート — 新しい順。レポートを確認し、判断へ進めてください。",
+      "empty": "削除レポートはまだありません。",
+      "loadError": "削除レポートを読み込めませんでした。",
+      "statusError": "レポートのステータスを更新できませんでした。",
+      "infringingLabel": "報告されたリンク",
+      "originalsLabel": "原著作物",
+      "status": {
+        "new": "新規",
+        "reviewing": "確認中",
+        "actioned": "対応済み",
+        "dismissed": "却下"
+      }
+    },
+    "reports": {
+      "title": "コンテンツレポート",
+      "description": "メンバーが投稿、コメント、プロフィールに対して提出したレポート — 新しい順。レポートはコンテンツを審査キューに入れるだけであり、それ自体が何かを非表示にしたり禁止したりすることは決してありません。",
+      "empty": "コンテンツレポートはまだありません。",
+      "loadError": "コンテンツレポートを読み込めませんでした。",
+      "statusError": "レポートのステータスを更新できませんでした。",
+      "reportedByLabel": "報告者",
+      "contentByLabel": "コンテンツの投稿者",
+      "unknownUser": "不明",
+      "target": {
+        "post": "投稿",
+        "comment": "コメント",
+        "profile": "プロフィール"
+      },
+      "status": {
+        "new": "新規",
+        "reviewing": "確認中",
+        "actioned": "対応済み",
+        "dismissed": "却下"
+      }
+    },
+    "removal": {
+      "title": "コンテンツ削除",
+      "description": "投稿やコメントをIDまたはリンクで取り下げます — 復元もできます。取り下げると、理由が表示される投稿者以外からはコンテンツが非表示になります。何も削除されず、すべての取り下げを元に戻せます。",
+      "inputPlaceholder": "投稿またはコメントのID、あるいは /post/… リンク",
+      "lookupButton": "検索",
+      "lookupError": "検索できませんでした。IDを確認してもう一度お試しください。",
+      "notFound": "そのIDの投稿またはコメントはありません。",
+      "kindPost": "投稿",
+      "kindComment": "コメント",
+      "liveLabel": "公開中",
+      "removedLabel": "取り下げ済み",
+      "removedBy": "{email}により取り下げ",
+      "reasonLabel": "理由 — 投稿者に表示されます",
+      "noteLabel": "メモ（任意、管理記録のみ）",
+      "notePlaceholder": "記録には何と書きますか？",
+      "removeButton": "コンテンツを取り下げる",
+      "restoreButton": "コンテンツを復元する",
+      "reasonRequired": "まず理由を選んでください — 投稿者に表示されます。",
+      "actionError": "そのコンテンツを更新できませんでした。もう一度お試しください。",
+      "recentTitle": "現在取り下げ中",
+      "recentEmpty": "現在取り下げられているものはありません。",
+      "recentLoadError": "削除記録を読み込めませんでした。",
+      "reasons": {
+        "spam": "スパム",
+        "harassment": "嫌がらせ",
+        "hate_speech": "ヘイトスピーチ",
+        "violence": "暴力または脅迫",
+        "sexual_content": "性的なコンテンツ",
+        "copyright": "著作権",
+        "impersonation": "なりすまし",
+        "other": "その他のポリシー違反"
+      }
+    },
+    "users": {
+      "title": "ユーザー管理",
+      "description": "メールアドレスで顧客を検索します。禁止するとサイトからブロックされます。",
+      "emailPlaceholder": "customer@email.com",
+      "lookupButton": "検索",
+      "lookupError": "検索に失敗しました。もう一度お試しください。",
+      "notFound": "そのメールアドレスのユーザーは見つかりません。",
+      "plan": "プラン",
+      "credits": "Visual Bucs",
+      "since": "顧客登録日",
+      "userId": "ユーザーID",
+      "banned": "禁止中",
+      "active": "有効",
+      "ban": "ユーザーを禁止",
+      "unban": "禁止を解除",
+      "banConfirm": "{email} を禁止しますか？サインインがブロックされます。",
+      "unbanConfirm": "{email} の禁止を解除しますか？",
+      "banError": "禁止ステータスを更新できませんでした。"
+    }
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — クロスプラットフォームダッシュボード",

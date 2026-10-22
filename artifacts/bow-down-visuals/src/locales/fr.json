@@ -827,7 +827,7 @@
     "ownerOnly": "Contrôles réservés au propriétaire.",
     "notAuthorized": "Non autorisé.",
     "jackpot": {
-      "title": "Cheat Code Jackpot",
+      "title": "Jackpot Cheat Code",
       "description": "Le jackpot tourne tout seul chaque mois — le serveur crée automatiquement l'événement de chaque mois avec un nouveau code aléatoire. Utilisez ce panneau pour mettre un mois en pause, ou pour lancer un événement manuel spécial avec un code de votre choix (seul un condensat d'un code manuel est stocké).",
       "errorMinMoves": "Touchez au moins 4 directions sur le D-pad pour définir le code.",
       "errorPrizeRange": "Le prix doit être compris entre 100 et 1 000 000 de Visual Bucs.",
@@ -888,19 +888,19 @@
     "planDescription": "Le niveau d'abonnement d'un utilisateur plafonne ses étoiles de Creator Level — le niveau 1 obtient 1 étoile, le niveau 6 les 6.",
     "planEmailPlaceholder": "utilisateur@e-mail.com",
     "tiers": {
-      "tier1": "Street Punk",
-      "tier2": "Hustler",
+      "tier1": "Punk des rues",
+      "tier2": "Débrouillard",
       "tier3": "Gangster",
-      "tier4": "Shot Caller",
-      "tier5": "Crime Boss",
-      "tier6": "Kingpin"
+      "tier4": "Donneur d'ordres",
+      "tier5": "Baron du crime",
+      "tier6": "Caïd"
     },
     "setTierButton": "Définir le niveau",
     "errorTierRange": "Choisissez un niveau de 1 à 6.",
     "errorUserEmail": "Saisissez l'e-mail de l'utilisateur.",
     "errorPlanSet": "Impossible de définir le niveau d'abonnement.",
     "planSetMessage": "{{email}} défini sur {{rank}} (niveau {{tier}}).",
-    "bowRaceTitle": "Global Bow Race",
+    "bowRaceTitle": "Bow Race mondiale",
     "bowRaceDescription": "Une course mensuelle secrète sur tout le site. Les révérences de chaque utilisateur connecté alimentent un compteur unique ; chaque mois, un objectif aléatoire de 1 000 à 5 000 révérences est tiré. Celui dont la révérence tombe exactement sur l'objectif remporte la récompense en Visual Bucs et voit apparaître la fenêtre surprise « Tu as craqué le code ! ». La course n'est annoncée nulle part — ce panneau est le seul endroit où elle apparaît.",
     "raceWon": "Course gagnée — {{period}}",
     "raceWonDetail": "{{email}} a placé la révérence n°{{target}} sur {{target}}{{wonAt}} et a reçu la récompense en Visual Bucs.",
@@ -926,7 +926,119 @@
     "bowRaceLoadError": "Impossible de charger les données de la course : {{reason}}",
     "networkError": "erreur réseau",
     "errorSaveFailed": "Échec de l'enregistrement.",
-    "bowRaceUpdated": "Course mise à jour."
+    "bowRaceUpdated": "Course mise à jour.",
+    "spotlight": {
+      "title": "Boîte de réception Spotlight",
+      "description": "Prospects d'annonces takeover — examinez chaque demande et faites-la avancer dans le pipeline.",
+      "empty": "Aucune demande Spotlight pour le moment.",
+      "loadError": "Impossible de charger les demandes Spotlight.",
+      "statusError": "Impossible de mettre à jour le statut de la demande.",
+      "videoLink": "Regarder la vidéo",
+      "targetLink": "Lien cible",
+      "status": {
+        "new": "Nouveau",
+        "contacted": "Contacté",
+        "approved": "Approuvé",
+        "rejected": "Rejeté"
+      }
+    },
+    "contact": {
+      "title": "Boîte de réception contact",
+      "description": "Messages du formulaire de contact — les plus récents d'abord.",
+      "empty": "Aucun message de contact pour le moment.",
+      "loadError": "Impossible de charger les messages de contact.",
+      "statusError": "Impossible de mettre à jour le message.",
+      "markRead": "Marquer comme lu",
+      "markUnread": "Marquer comme non lu"
+    },
+    "dmca": {
+      "title": "Signalements DMCA",
+      "description": "Signalements de retrait pour droits d'auteur déposés via le formulaire de signalement du site — les plus récents d'abord. Examinez le signalement, puis faites-le passer à une décision.",
+      "empty": "Aucun signalement de retrait pour le moment.",
+      "loadError": "Impossible de charger les signalements de retrait.",
+      "statusError": "Impossible de mettre à jour le statut du signalement.",
+      "infringingLabel": "Liens signalés",
+      "originalsLabel": "Œuvre originale",
+      "status": {
+        "new": "Nouveau",
+        "reviewing": "En cours d'examen",
+        "actioned": "Traité",
+        "dismissed": "Rejeté"
+      }
+    },
+    "reports": {
+      "title": "Signalements de contenu",
+      "description": "Signalements déposés par les membres sur des publications, des commentaires et des profils — les plus récents d'abord. Un signalement met seulement le contenu en file de révision ; il ne masque ni ne bannit jamais rien par lui-même.",
+      "empty": "Aucun signalement de contenu pour le moment.",
+      "loadError": "Impossible de charger les signalements de contenu.",
+      "statusError": "Impossible de mettre à jour le statut du signalement.",
+      "reportedByLabel": "Signalé par",
+      "contentByLabel": "Contenu de",
+      "unknownUser": "inconnu",
+      "target": {
+        "post": "Publication",
+        "comment": "Commentaire",
+        "profile": "Profil"
+      },
+      "status": {
+        "new": "Nouveau",
+        "reviewing": "En cours d'examen",
+        "actioned": "Traité",
+        "dismissed": "Rejeté"
+      }
+    },
+    "removal": {
+      "title": "Retrait de contenu",
+      "description": "Retirez une publication ou un commentaire par son ID ou son lien — ou restaurez-en un. Un retrait masque le contenu pour tout le monde sauf son auteur, qui voit le motif. Rien n'est supprimé, et chaque retrait peut être annulé.",
+      "inputPlaceholder": "ID de publication ou de commentaire, ou lien /post/…",
+      "lookupButton": "Rechercher",
+      "lookupError": "Recherche impossible. Vérifiez l'ID et réessayez.",
+      "notFound": "Aucune publication ni commentaire avec cet ID.",
+      "kindPost": "Publication",
+      "kindComment": "Commentaire",
+      "liveLabel": "En ligne",
+      "removedLabel": "Retiré",
+      "removedBy": "Retiré par {email}",
+      "reasonLabel": "Motif — affiché à l'auteur",
+      "noteLabel": "Note (facultatif, dossier admin uniquement)",
+      "notePlaceholder": "Que doit dire le dossier ?",
+      "removeButton": "Retirer le contenu",
+      "restoreButton": "Restaurer le contenu",
+      "reasonRequired": "Choisissez d'abord un motif — il est affiché à l'auteur.",
+      "actionError": "Impossible de mettre à jour ce contenu. Réessayez.",
+      "recentTitle": "Actuellement retirés",
+      "recentEmpty": "Rien n'est retiré actuellement.",
+      "recentLoadError": "Impossible de charger le registre des retraits.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Harcèlement",
+        "hate_speech": "Discours de haine",
+        "violence": "Violence ou menaces",
+        "sexual_content": "Contenu sexuel",
+        "copyright": "Droits d'auteur",
+        "impersonation": "Usurpation d'identité",
+        "other": "Autre violation des règles"
+      }
+    },
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "description": "Recherchez un client par e-mail. Un bannissement le bloque du site.",
+      "emailPlaceholder": "client@e-mail.com",
+      "lookupButton": "Rechercher",
+      "lookupError": "La recherche a échoué. Réessayez.",
+      "notFound": "Aucun utilisateur trouvé avec cet e-mail.",
+      "plan": "Forfait",
+      "credits": "Visual Bucs",
+      "since": "Client depuis",
+      "userId": "ID utilisateur",
+      "banned": "Banni",
+      "active": "Actif",
+      "ban": "Bannir l'utilisateur",
+      "unban": "Débannir l'utilisateur",
+      "banConfirm": "Bannir {email} ? La connexion lui sera bloquée.",
+      "unbanConfirm": "Débannir {email} ?",
+      "banError": "Impossible de mettre à jour le statut de bannissement."
+    }
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Tableau de bord multiplateforme",

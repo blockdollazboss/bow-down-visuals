@@ -825,7 +825,7 @@
     "bowRaceDescription": "Ein geheimes websiteweites Rennen pro Monat. Die Bows aller angemeldeten Nutzer speisen einen einzigen Zähler; jeden Monat wird ein Zufallsziel von 1.000–5.000 Bows gezogen. Wessen Bow genau auf dem Ziel landet, gewinnt die Visual-Buc-Belohnung und sieht das Überraschungs-Popup „You Cracked the Code!“. Das Rennen wird nirgends angekündigt – dieses Panel ist der einzige Ort, wo es erscheint.",
     "bowRaceFooterNote": "Jeder neue Monat startet automatisch ein neues Rennen mit neuem Zufallsziel – kein manuelles Zurücksetzen nötig. Die Überschreibung gilt einmalig für den nächsten Rennmonat und löscht sich dann selbst. Belohnungen werden als „Global Bow Race“ im Visual-Buc-Ledger protokolliert.",
     "bowRaceLoadError": "Bow-Race-Daten konnten nicht geladen werden: {{reason}}",
-    "bowRaceTitle": "Global Bow Race",
+    "bowRaceTitle": "Globales Bow-Rennen",
     "bowRaceUnavailable": "Bow-Race-Daten nicht verfügbar (API {{status}}) – Datenbanktabellen sind möglicherweise noch nicht eingerichtet.",
     "bowRaceUpdated": "Bow Race aktualisiert.",
     "bowRewardLabel": "Visual-Buc-Belohnung",
@@ -891,7 +891,7 @@
       "prizeLabel": "Preis (Visual Bucs)",
       "runSpecialEvent": "Spezielles Event starten",
       "startsLabel": "Beginnt",
-      "title": "Cheat Code Jackpot"
+      "title": "Cheat-Code-Jackpot"
     },
     "networkError": "Netzwerkfehler",
     "noRaceYet": "Diesen Monat ist noch kein Rennen gestartet – der erste angemeldete Bow zieht das Ziel.",
@@ -919,14 +919,126 @@
     "testPopupButton": "Gewinner-Popup testen",
     "testPopupTitle": "Gewinner-Popup in der Vorschau (keine Visual Bucs vergeben, kein Rennstatus geändert)",
     "tiers": {
-      "tier1": "Street Punk",
-      "tier2": "Hustler",
+      "tier1": "Straßenpunk",
+      "tier2": "Macher",
       "tier3": "Gangster",
-      "tier4": "Shot Caller",
-      "tier5": "Crime Boss",
-      "tier6": "Kingpin"
+      "tier4": "Drahtzieher",
+      "tier5": "Verbrechensboss",
+      "tier6": "Unterweltboss"
     },
-    "winHistory": "Gewinnhistorie"
+    "winHistory": "Gewinnhistorie",
+    "spotlight": {
+      "title": "Spotlight-Posteingang",
+      "description": "Takeover-Anzeigen-Leads — prüfe jede Anfrage und bewege sie durch die Pipeline.",
+      "empty": "Noch keine Spotlight-Anfragen.",
+      "loadError": "Spotlight-Anfragen konnten nicht geladen werden.",
+      "statusError": "Der Anfragestatus konnte nicht aktualisiert werden.",
+      "videoLink": "Video ansehen",
+      "targetLink": "Ziel-Link",
+      "status": {
+        "new": "Neu",
+        "contacted": "Kontaktiert",
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt"
+      }
+    },
+    "contact": {
+      "title": "Kontakt-Posteingang",
+      "description": "Nachrichten aus dem Kontaktformular — neueste zuerst.",
+      "empty": "Noch keine Kontaktnachrichten.",
+      "loadError": "Kontaktnachrichten konnten nicht geladen werden.",
+      "statusError": "Die Nachricht konnte nicht aktualisiert werden.",
+      "markRead": "Als gelesen markieren",
+      "markUnread": "Als ungelesen markieren"
+    },
+    "dmca": {
+      "title": "DMCA-Meldungen",
+      "description": "Über die Meldefunktion der Website eingereichte Urheberrechts-Takedown-Meldungen — neueste zuerst. Prüfe die Meldung und überführe sie dann in eine Entscheidung.",
+      "empty": "Noch keine Takedown-Meldungen.",
+      "loadError": "Takedown-Meldungen konnten nicht geladen werden.",
+      "statusError": "Der Meldestatus konnte nicht aktualisiert werden.",
+      "infringingLabel": "Gemeldete Links",
+      "originalsLabel": "Originalwerk",
+      "status": {
+        "new": "Neu",
+        "reviewing": "In Prüfung",
+        "actioned": "Bearbeitet",
+        "dismissed": "Abgewiesen"
+      }
+    },
+    "reports": {
+      "title": "Inhaltsmeldungen",
+      "description": "Meldungen von Mitgliedern zu Beiträgen, Kommentaren und Profilen — neueste zuerst. Eine Meldung stellt den Inhalt nur zur Prüfung ein; sie verbirgt oder sperrt von sich aus nichts.",
+      "empty": "Noch keine Inhaltsmeldungen.",
+      "loadError": "Inhaltsmeldungen konnten nicht geladen werden.",
+      "statusError": "Der Meldestatus konnte nicht aktualisiert werden.",
+      "reportedByLabel": "Gemeldet von",
+      "contentByLabel": "Inhalt von",
+      "unknownUser": "unbekannt",
+      "target": {
+        "post": "Beitrag",
+        "comment": "Kommentar",
+        "profile": "Profil"
+      },
+      "status": {
+        "new": "Neu",
+        "reviewing": "In Prüfung",
+        "actioned": "Bearbeitet",
+        "dismissed": "Abgewiesen"
+      }
+    },
+    "removal": {
+      "title": "Inhalte entfernen",
+      "description": "Nimm einen Beitrag oder Kommentar über seine ID oder seinen Link vom Netz — oder stelle einen wieder her. Eine Entfernung verbirgt den Inhalt vor allen außer dem Autor, der den Grund sieht. Nichts wird gelöscht, und jede Entfernung kann rückgängig gemacht werden.",
+      "inputPlaceholder": "Beitrags- oder Kommentar-ID oder ein /post/…-Link",
+      "lookupButton": "Nachschlagen",
+      "lookupError": "Das konnte nicht nachgeschlagen werden. Prüfe die ID und versuche es erneut.",
+      "notFound": "Kein Beitrag oder Kommentar mit dieser ID.",
+      "kindPost": "Beitrag",
+      "kindComment": "Kommentar",
+      "liveLabel": "Live",
+      "removedLabel": "Entfernt",
+      "removedBy": "Entfernt von {email}",
+      "reasonLabel": "Grund — wird dem Autor angezeigt",
+      "noteLabel": "Notiz (optional, nur für die Admin-Akte)",
+      "notePlaceholder": "Was soll in der Akte stehen?",
+      "removeButton": "Inhalt entfernen",
+      "restoreButton": "Inhalt wiederherstellen",
+      "reasonRequired": "Wähle zuerst einen Grund — er wird dem Autor angezeigt.",
+      "actionError": "Dieser Inhalt konnte nicht aktualisiert werden. Versuche es erneut.",
+      "recentTitle": "Aktuell entfernt",
+      "recentEmpty": "Aktuell ist nichts entfernt.",
+      "recentLoadError": "Die Entfernungsakte konnte nicht geladen werden.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Belästigung",
+        "hate_speech": "Hassrede",
+        "violence": "Gewalt oder Drohungen",
+        "sexual_content": "Sexueller Inhalt",
+        "copyright": "Urheberrecht",
+        "impersonation": "Identitätsmissbrauch",
+        "other": "Sonstiger Richtlinienverstoß"
+      }
+    },
+    "users": {
+      "title": "Benutzerverwaltung",
+      "description": "Suche einen Kunden per E-Mail. Eine Sperre blockiert ihn für die Website.",
+      "emailPlaceholder": "kunde@email.com",
+      "lookupButton": "Suchen",
+      "lookupError": "Die Suche ist fehlgeschlagen. Versuche es erneut.",
+      "notFound": "Kein Benutzer mit dieser E-Mail gefunden.",
+      "plan": "Plan",
+      "credits": "Visual Bucs",
+      "since": "Kunde seit",
+      "userId": "Benutzer-ID",
+      "banned": "Gesperrt",
+      "active": "Aktiv",
+      "ban": "Benutzer sperren",
+      "unban": "Sperre aufheben",
+      "banConfirm": "{email} sperren? Die Person wird an der Anmeldung gehindert.",
+      "unbanConfirm": "Sperre von {email} aufheben?",
+      "banError": "Der Sperrstatus konnte nicht aktualisiert werden."
+    }
   },
   "analyticsHub": {
     "acrossPlatforms": "auf allen vier Plattformen",

@@ -924,9 +924,121 @@
       "tier3": "Gangster",
       "tier4": "Capobanda",
       "tier5": "Boss del crimine",
-      "tier6": "Kingpin"
+      "tier6": "Re del crimine"
     },
-    "winHistory": "Cronologia vittorie"
+    "winHistory": "Cronologia vittorie",
+    "spotlight": {
+      "title": "Posta Spotlight",
+      "description": "Lead per annunci takeover — esamina ogni richiesta e falla avanzare nella pipeline.",
+      "empty": "Ancora nessuna richiesta Spotlight.",
+      "loadError": "Impossibile caricare le richieste Spotlight.",
+      "statusError": "Impossibile aggiornare lo stato della richiesta.",
+      "videoLink": "Guarda il video",
+      "targetLink": "Link di destinazione",
+      "status": {
+        "new": "Nuovo",
+        "contacted": "Contattato",
+        "approved": "Approvato",
+        "rejected": "Respinto"
+      }
+    },
+    "contact": {
+      "title": "Posta dei contatti",
+      "description": "Messaggi dal modulo di contatto — i più recenti prima.",
+      "empty": "Ancora nessun messaggio di contatto.",
+      "loadError": "Impossibile caricare i messaggi di contatto.",
+      "statusError": "Impossibile aggiornare il messaggio.",
+      "markRead": "Segna come letto",
+      "markUnread": "Segna come non letto"
+    },
+    "dmca": {
+      "title": "Segnalazioni DMCA",
+      "description": "Segnalazioni di rimozione per copyright inviate tramite il modulo di segnalazione del sito — le più recenti prima. Esamina la segnalazione, poi portala a una decisione.",
+      "empty": "Ancora nessuna segnalazione di rimozione.",
+      "loadError": "Impossibile caricare le segnalazioni di rimozione.",
+      "statusError": "Impossibile aggiornare lo stato della segnalazione.",
+      "infringingLabel": "Link segnalati",
+      "originalsLabel": "Opera originale",
+      "status": {
+        "new": "Nuovo",
+        "reviewing": "In revisione",
+        "actioned": "Gestito",
+        "dismissed": "Respinto"
+      }
+    },
+    "reports": {
+      "title": "Segnalazioni di contenuti",
+      "description": "Segnalazioni inviate dai membri su post, commenti e profili — le più recenti prima. Una segnalazione mette solo il contenuto in coda per la revisione; da sola non nasconde né banna mai nulla.",
+      "empty": "Ancora nessuna segnalazione di contenuti.",
+      "loadError": "Impossibile caricare le segnalazioni di contenuti.",
+      "statusError": "Impossibile aggiornare lo stato della segnalazione.",
+      "reportedByLabel": "Segnalato da",
+      "contentByLabel": "Contenuto di",
+      "unknownUser": "sconosciuto",
+      "target": {
+        "post": "Post",
+        "comment": "Commento",
+        "profile": "Profilo"
+      },
+      "status": {
+        "new": "Nuovo",
+        "reviewing": "In revisione",
+        "actioned": "Gestito",
+        "dismissed": "Respinto"
+      }
+    },
+    "removal": {
+      "title": "Rimozione contenuti",
+      "description": "Rimuovi un post o un commento tramite il suo ID o link — oppure ripristinane uno. Una rimozione nasconde il contenuto a tutti tranne al suo autore, che vede il motivo. Non viene eliminato nulla, e ogni rimozione può essere annullata.",
+      "inputPlaceholder": "ID del post o del commento, oppure un link /post/…",
+      "lookupButton": "Cerca",
+      "lookupError": "Impossibile effettuare la ricerca. Controlla l'ID e riprova.",
+      "notFound": "Nessun post o commento con questo ID.",
+      "kindPost": "Post",
+      "kindComment": "Commento",
+      "liveLabel": "Live",
+      "removedLabel": "Rimosso",
+      "removedBy": "Rimosso da {email}",
+      "reasonLabel": "Motivo — viene mostrato all'autore",
+      "noteLabel": "Nota (facoltativo, solo registro admin)",
+      "notePlaceholder": "Cosa deve dire il registro?",
+      "removeButton": "Rimuovi contenuto",
+      "restoreButton": "Ripristina contenuto",
+      "reasonRequired": "Scegli prima un motivo — viene mostrato all'autore.",
+      "actionError": "Impossibile aggiornare quel contenuto. Riprova.",
+      "recentTitle": "Attualmente rimossi",
+      "recentEmpty": "Al momento non è rimosso nulla.",
+      "recentLoadError": "Impossibile caricare il registro delle rimozioni.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Molestie",
+        "hate_speech": "Incitamento all'odio",
+        "violence": "Violenza o minacce",
+        "sexual_content": "Contenuto sessuale",
+        "copyright": "Diritto d'autore",
+        "impersonation": "Furto d'identità",
+        "other": "Altra violazione delle norme"
+      }
+    },
+    "users": {
+      "title": "Gestione utenti",
+      "description": "Cerca un cliente tramite e-mail. Un ban lo blocca dal sito.",
+      "emailPlaceholder": "cliente@email.com",
+      "lookupButton": "Cerca",
+      "lookupError": "Ricerca non riuscita. Riprova.",
+      "notFound": "Nessun utente trovato con questa e-mail.",
+      "plan": "Piano",
+      "credits": "Visual Bucs",
+      "since": "Cliente dal",
+      "userId": "ID utente",
+      "banned": "Bannato",
+      "active": "Attivo",
+      "ban": "Banna utente",
+      "unban": "Revoca ban",
+      "banConfirm": "Bannare {email}? Non potrà più accedere.",
+      "unbanConfirm": "Revocare il ban di {email}?",
+      "banError": "Impossibile aggiornare lo stato del ban."
+    }
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Dashboard Cross-Platform",

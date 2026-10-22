@@ -76,8 +76,20 @@ const EN = CATALOGS.en!;
    (every signed-in user's first surfaces), myShop (shop-owner flows),
    nav (global chrome) and retention (streak/bonus widgets) — existed
    only partially in the nine catalogs (retention in none of them), so
-   non-English users silently fell back to English across all five. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
+   non-English users silently fell back to English across all five.
+   "admin" came with the Stack-24 locale-parity-8 lane (Oct 22 2026):
+   the owner-only admin console existed in full only in en.json — the
+   spotlight/contact/dmca/reports/removal/users blocks (90 of its 189
+   leaves) were absent from all nine catalogs, and 46 further values
+   were byte-identical English residue (the rank names in de/fr/ja,
+   "Global Bow Race" and "Cheat Code Jackpot" in de/fr, …) — now
+   translated ×9 and pinned here. The namespace has no array leaves,
+   so the string checks below judge every leaf directly; it is also
+   the first pinned namespace whose placeholders include single-brace
+   tokens ({email} in removal.removedBy, users.banConfirm and
+   users.unbanConfirm), which the admin block at the bottom checks
+   separately because the shared token check only sees {{...}}. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "admin"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -136,8 +148,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill and the Stack-24 admin fill (2658 keys)", () => {
+    expect(REQUIRED.length).toBe(2658);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -234,6 +246,128 @@ describe("playlistPitch — no untranslated English residue", () => {
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `playlistPitch.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+
+/* Legit-identical admin values per locale — keys whose correct value
+   in that language IS the en string, so the residue check below must
+   not flag them. Everything not listed here has to differ from en.
+   Shared by all nine: users.credits "Visual Bucs" — the house
+   currency brand; every catalog keeps it in Latin throughout this
+   namespace (cf. currentBalance "{{balance}} Visual Bucs" in all ten
+   catalogs).
+   Example e-mail placeholders: friendEmailPlaceholder
+   "friend@email.com", planEmailPlaceholder "user@email.com" and
+   users.emailPlaceholder "customer@email.com" stay byte-identical in
+   ar/hi/ja/ko/pt, the five catalogs that keep the en example
+   addresses throughout this namespace (de/es/fr/it localize theirs —
+   de "freund@email.com"/"nutzer@email.com"/"kunde@email.com" — by
+   the same convention the outreach lane pinned for its example
+   addresses).
+   Locale-specific entries:
+   - pageTitle "Admin" (de/es/fr/it/pt): the standard short form for
+     the admin console in those UIs; all five catalogs keep it while
+     translating everything around it, pageDescription included.
+   - de jackpot.codeLabel "Code:": "Code" is the German word,
+     spelled identically (fr writes "Code :" and differs).
+   - de jackpot.eventsTitle "Events": an established anglicism in
+     German event/marketing UI — the de catalog keeps such terms
+     (cf. the playlistPitch Tracker/Playlists entries).
+   - jackpot.phaseLive "LIVE" (de/it/ja) and removal.liveLabel
+     "Live" (de/it): the universal on-air badge spelling.
+   - tiers.tier3 "Gangster" (de/fr/it): the word is spelled
+     identically in German, French and Italian.
+   - removal.reasons.spam "Spam" (de/es/fr/it/pt): the standard
+     moderation term, spelled identically in all five languages.
+   - users.plan "Plan" (de/es): the word is spelled identically in
+     German and Spanish.
+   - it reports.target.post and removal.kindPost "Post": "Post" is
+     the standard Italian term for a social post, spelled identically. */
+const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: ["friendEmailPlaceholder", "planEmailPlaceholder", "users.credits", "users.emailPlaceholder"],
+  de: [
+    "jackpot.codeLabel",
+    "jackpot.eventsTitle",
+    "jackpot.phaseLive",
+    "pageTitle",
+    "removal.liveLabel",
+    "removal.reasons.spam",
+    "tiers.tier3",
+    "users.credits",
+    "users.plan",
+  ],
+  es: ["pageTitle", "removal.reasons.spam", "users.credits", "users.plan"],
+  fr: ["pageTitle", "removal.reasons.spam", "tiers.tier3", "users.credits"],
+  hi: ["friendEmailPlaceholder", "planEmailPlaceholder", "users.credits", "users.emailPlaceholder"],
+  it: [
+    "jackpot.phaseLive",
+    "pageTitle",
+    "removal.kindPost",
+    "removal.liveLabel",
+    "removal.reasons.spam",
+    "reports.target.post",
+    "tiers.tier3",
+    "users.credits",
+  ],
+  ja: [
+    "friendEmailPlaceholder",
+    "jackpot.phaseLive",
+    "planEmailPlaceholder",
+    "users.credits",
+    "users.emailPlaceholder",
+  ],
+  ko: ["friendEmailPlaceholder", "planEmailPlaceholder", "users.credits", "users.emailPlaceholder"],
+  pt: [
+    "friendEmailPlaceholder",
+    "pageTitle",
+    "planEmailPlaceholder",
+    "removal.reasons.spam",
+    "users.credits",
+    "users.emailPlaceholder",
+  ],
+};
+
+describe("admin — full parity, no untranslated English residue, single-brace tokens intact", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const ADMIN_KEYS = Object.keys(EN).filter((k) => k.startsWith("admin."));
+  const singleTokens = (s: string): string[] =>
+    [...s.replace(/\{\{[^}]+\}\}/g, "").matchAll(/\{[^{}]+\}/g)].map((m) => m[0]).sort();
+
+  it("the admin namespace is 189 leaves in en and every catalog carries all of them", () => {
+    expect(ADMIN_KEYS.length).toBe(189);
+    for (const locale of ALL) {
+      const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("admin.")).length;
+      expect(count, `${locale} admin leaf count`).toBe(189);
+    }
+  });
+
+  it.each(NON_EN)("%s preserves the single-brace placeholder shape on every admin key", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const bad = ADMIN_KEYS.filter(
+      (k) => k in cat && JSON.stringify(singleTokens(cat[k]!)) !== JSON.stringify(singleTokens(EN[k]!)),
+    );
+    expect(bad, `${locale} single-brace placeholder drift: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+
+  it.each(NON_EN)("%s admin values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((ADMIN_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `admin.${k}`));
+    const residue = ADMIN_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated admin values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the admin residue allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(ADMIN_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `admin.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }

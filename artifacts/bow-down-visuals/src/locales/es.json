@@ -926,7 +926,119 @@
     "bowRaceLoadError": "No se pudieron cargar los datos de la carrera bow: {{reason}}",
     "networkError": "error de red",
     "errorSaveFailed": "El guardado falló.",
-    "bowRaceUpdated": "Carrera bow actualizada."
+    "bowRaceUpdated": "Carrera bow actualizada.",
+    "spotlight": {
+      "title": "Bandeja de Spotlight",
+      "description": "Clientes potenciales de anuncios takeover — revisa cada consulta y hazla avanzar por el pipeline.",
+      "empty": "Aún no hay consultas de Spotlight.",
+      "loadError": "No se pudieron cargar las consultas de Spotlight.",
+      "statusError": "No se pudo actualizar el estado de la consulta.",
+      "videoLink": "Ver video",
+      "targetLink": "Enlace de destino",
+      "status": {
+        "new": "Nuevo",
+        "contacted": "Contactado",
+        "approved": "Aprobado",
+        "rejected": "Rechazado"
+      }
+    },
+    "contact": {
+      "title": "Bandeja de contacto",
+      "description": "Mensajes del formulario de contacto — los más nuevos primero.",
+      "empty": "Aún no hay mensajes de contacto.",
+      "loadError": "No se pudieron cargar los mensajes de contacto.",
+      "statusError": "No se pudo actualizar el mensaje.",
+      "markRead": "Marcar como leído",
+      "markUnread": "Marcar como no leído"
+    },
+    "dmca": {
+      "title": "Informes DMCA",
+      "description": "Informes de retirada por derechos de autor enviados mediante el formulario de informes del sitio — los más nuevos primero. Revisa el informe y luego llévalo a una decisión.",
+      "empty": "Aún no hay informes de retirada.",
+      "loadError": "No se pudieron cargar los informes de retirada.",
+      "statusError": "No se pudo actualizar el estado del informe.",
+      "infringingLabel": "Enlaces denunciados",
+      "originalsLabel": "Obra original",
+      "status": {
+        "new": "Nuevo",
+        "reviewing": "En revisión",
+        "actioned": "Procesado",
+        "dismissed": "Desestimado"
+      }
+    },
+    "reports": {
+      "title": "Informes de contenido",
+      "description": "Informes que los miembros presentaron sobre publicaciones, comentarios y perfiles — los más nuevos primero. Un informe solo pone el contenido en cola para revisión; por sí solo nunca oculta ni banea nada.",
+      "empty": "Aún no hay informes de contenido.",
+      "loadError": "No se pudieron cargar los informes de contenido.",
+      "statusError": "No se pudo actualizar el estado del informe.",
+      "reportedByLabel": "Denunciado por",
+      "contentByLabel": "Contenido de",
+      "unknownUser": "desconocido",
+      "target": {
+        "post": "Publicación",
+        "comment": "Comentario",
+        "profile": "Perfil"
+      },
+      "status": {
+        "new": "Nuevo",
+        "reviewing": "En revisión",
+        "actioned": "Procesado",
+        "dismissed": "Desestimado"
+      }
+    },
+    "removal": {
+      "title": "Retirada de contenido",
+      "description": "Retira una publicación o un comentario por su ID o enlace — o restaura uno. Una retirada oculta el contenido a todos excepto a su autor, que ve el motivo. No se elimina nada, y toda retirada puede deshacerse.",
+      "inputPlaceholder": "ID de publicación o comentario, o un enlace /post/…",
+      "lookupButton": "Buscar",
+      "lookupError": "No se pudo buscar eso. Comprueba el ID e inténtalo de nuevo.",
+      "notFound": "Ninguna publicación o comentario con ese ID.",
+      "kindPost": "Publicación",
+      "kindComment": "Comentario",
+      "liveLabel": "En vivo",
+      "removedLabel": "Retirado",
+      "removedBy": "Retirado por {email}",
+      "reasonLabel": "Motivo — se muestra al autor",
+      "noteLabel": "Nota (opcional, solo registro de administración)",
+      "notePlaceholder": "¿Qué debe decir el registro?",
+      "removeButton": "Retirar contenido",
+      "restoreButton": "Restaurar contenido",
+      "reasonRequired": "Elige primero un motivo — se muestra al autor.",
+      "actionError": "No se pudo actualizar ese contenido. Inténtalo de nuevo.",
+      "recentTitle": "Retirados actualmente",
+      "recentEmpty": "No hay nada retirado actualmente.",
+      "recentLoadError": "No se pudo cargar el registro de retiradas.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Acoso",
+        "hate_speech": "Discurso de odio",
+        "violence": "Violencia o amenazas",
+        "sexual_content": "Contenido sexual",
+        "copyright": "Derechos de autor",
+        "impersonation": "Suplantación de identidad",
+        "other": "Otra infracción de las normas"
+      }
+    },
+    "users": {
+      "title": "Gestión de usuarios",
+      "description": "Busca a un cliente por correo electrónico. Un baneo lo bloquea del sitio.",
+      "emailPlaceholder": "cliente@email.com",
+      "lookupButton": "Buscar",
+      "lookupError": "La búsqueda falló. Inténtalo de nuevo.",
+      "notFound": "No se encontró ningún usuario con ese correo.",
+      "plan": "Plan",
+      "credits": "Visual Bucs",
+      "since": "Cliente desde",
+      "userId": "ID de usuario",
+      "banned": "Baneado",
+      "active": "Activo",
+      "ban": "Banear usuario",
+      "unban": "Desbanear usuario",
+      "banConfirm": "¿Banear a {email}? Se le bloqueará el inicio de sesión.",
+      "unbanConfirm": "¿Desbanear a {email}?",
+      "banError": "No se pudo actualizar el estado de baneo."
+    }
   },
   "analyticsHub": {
     "pageTitle": "Centro de Analíticas — Panel Multiplataforma",
