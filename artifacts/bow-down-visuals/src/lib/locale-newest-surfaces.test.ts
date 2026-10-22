@@ -70,8 +70,14 @@ const EN = CATALOGS.en!;
    en.json, and 130 component-referenced keys existed in no catalog at all
    (code defaultValue only) — all are now in en and translated ×9, and the
    whole namespace is pinned here so no editor block can ship en-only
-   again. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor"] as const;
+   again. The last five (settings, dashboard, myShop, nav, retention) came
+   with the Stack-21 locale-parity-2 lane (Oct 21 2026): the top older
+   namespaces by leaf count x surface traffic — settings + dashboard
+   (every signed-in user's first surfaces), myShop (shop-owner flows),
+   nav (global chrome) and retention (streak/bonus widgets) — existed
+   only partially in the nine catalogs (retention in none of them), so
+   non-English users silently fell back to English across all five. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -130,8 +136,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives (1926 keys)", () => {
-    expect(REQUIRED.length).toBe(1926);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
+    expect(REQUIRED.length).toBe(2469);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
