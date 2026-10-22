@@ -23,8 +23,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/song-replace-section": { cost: 300, feature: "Replace Song Section" },
   "/api/beat/generate": { cost: 300, feature: "Generate Beat" },
   "/api/producer-tag": { cost: 100, feature: "Producer Tag" },
-  "/api/music/export": { cost: 400, feature: "Export Audio" },
-  "/api/music/preview-render": { cost: 100, feature: "Preview Render" },
+  // Music export renders are FREE — the handlers in
+  // routes/music-export.ts charge nothing for either endpoint
+  // (verified handler-by-handler, Stack-25 price-registry audit).
+  // The registry records 0 so the confirmation system and the
+  // operator quote "free" from a source instead of a stale price.
+  "/api/music/export": { cost: 0, feature: "Export Audio (free)" },
+  "/api/music/preview-render": { cost: 0, feature: "Preview Render (free)" },
   "/api/voiceover/generate": { cost: 200, feature: "Voiceover" },
   "/api/clone-voice": { cost: 500, feature: "Voice Clone" },
   // Parameterized route — the :id segment is the vault id. getCreditCost
@@ -93,7 +98,10 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/extract-audio": { cost: 50, feature: "Extract Audio" },
   "/api/export-doctor/repair-normalize": { cost: 100, feature: "Repair: Normalize Clip" },
   "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },
-  "/api/pro-tools/auto-grade": { cost: 200, feature: "Auto Grade" },
+  // Mirrors PRO_TOOLS_AI_CREDITS in the server route
+  // (routes/generate/pro-tools-ai.ts, env PRO_TOOLS_AI_CREDITS,
+  // default 1) — the rail charges a single Visual Buc.
+  "/api/pro-tools/auto-grade": { cost: 1, feature: "Auto Grade" },
   "/api/apply-lut": { cost: 150, feature: "LUT Apply" },
   "/api/slow-motion": { cost: 300, feature: "AI Slow Motion" },
   "/api/cinematic-fx": { cost: 150, feature: "Cinematic FX Render" },
@@ -133,11 +141,19 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/photo-enhance": { cost: 100, feature: "Photo Enhance (price TBD)" },
   "/api/remove-background": { cost: 200, feature: "Background Removal" },
   "/api/photo-backdrop": { cost: 100, feature: "Photo Backdrop (price TBD)" },
-  "/api/sample-pack/generate": { cost: 100, feature: "Sample Pack Generator" },
+  // Priced by pack size on the rail (routes/generate/
+  // sample-pack-pricing.ts): SAMPLE_PACK_10_CREDITS = 500 is the
+  // base figure this registry records; the 25-pack is 1,200 and the
+  // 50-pack 2,000, passed by the caller as the computed cost.
+  "/api/sample-pack/generate": { cost: 500, feature: "Sample Pack Generator" },
   "/api/jewelry/design": { cost: 200, feature: "Jewelry Design" },
-  "/api/jewelry/export-stl": { cost: 200, feature: "Export Jewelry STL" },
+  // Mirrors JEWELRY_STL_CREDIT_COST in the server pricing module
+  // (routes/generate/jewelry-pricing.ts) — the rail charges 400.
+  "/api/jewelry/export-stl": { cost: 400, feature: "Export Jewelry STL" },
   "/api/jewelry/consult": { cost: 100, feature: "Jewelry Consult" },
-  "/api/jewelry/estimate": { cost: 100, feature: "Jewelry Estimate" },
+  // The estimate handler (routes/generate/jewelry.ts) is a pure
+  // calculator and charges nothing — the registry records it free.
+  "/api/jewelry/estimate": { cost: 0, feature: "Jewelry Estimate (free)" },
 
   // ── Audio AI ───────────────────────────────────────────────────
   "/api/generate-sfx": { cost: 100, feature: "Generate SFX" },

@@ -206,27 +206,15 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
   });
 });
 
-/* Stack-25 accuracy audit: for these endpoints the CREDIT_COSTS registry
-   misrecords what the rail charges (proven handler-by-handler against the
-   joined tree), so the knowledge base takes the price from the server
-   rail via the generator's SERVER_PRICE_OVERRIDES and the price source
-   names the server file instead of the registry. The Stack-25 describe
-   block at the end of this file re-derives every one of these figures
-   from the server code itself. If the registry is ever corrected, the
-   generator throws and these sets must be emptied in the same change. */
-const SERVER_TRUTH_PRICE_ENDPOINTS = new Set([
-  "/api/jewelry/export-stl",
-  "/api/jewelry/estimate",
-  "/api/music/export",
-  "/api/music/preview-render",
-  "/api/pro-tools/auto-grade",
-  "/api/sample-pack/generate",
-]);
-const REVIEWED_CROSS_CHECK_DISAGREEMENTS = new Set([
-  "/api/jewelry/export-stl",
-  "/api/pro-tools/auto-grade",
-  "/api/sample-pack/generate",
-]);
+/* Stack-25 accuracy audit history: the audit found six endpoints where
+   the CREDIT_COSTS registry misrecorded the rail, and the knowledge base
+   temporarily took those prices from the server rails via the
+   generator's SERVER_PRICE_OVERRIDES. The follow-on price-registry
+   correction fixed CREDIT_COSTS itself to match the rails, the
+   overrides were retired (the generator's table stands empty), and the
+   three constant cross-checks agree again. The Stack-25 describe block
+   at the end of this file now pins registry == rail directly for all
+   six endpoints, re-derived from both source files. */
 
 describe("operator knowledge — sourced facts only", () => {
   it("every price names the registry as its source and is a whole VB figure", () => {
@@ -234,14 +222,7 @@ describe("operator knowledge — sourced facts only", () => {
     for (const f of OPERATOR_FEATURES) {
       for (const p of f.prices) {
         priced++;
-        if (SERVER_TRUTH_PRICE_ENDPOINTS.has(p.endpoint)) {
-          // Reviewed Stack-25 override: the rail is the source, and the
-          // source string must say so (never the stale registry).
-          expect(p.source, `${p.endpoint} override source`).toContain("artifacts/api-server/src/routes/");
-          expect(p.source, `${p.endpoint} override source`).toContain("CREDIT_COSTS registry entry is stale");
-        } else {
-          expect(p.source).toContain("credit-costs.ts");
-        }
+        expect(p.source).toContain("credit-costs.ts");
         expect(Number.isInteger(p.vb)).toBe(true);
         expect(p.vb).toBeGreaterThanOrEqual(0);
         expect(p.endpoint.startsWith("/api/")).toBe(true);
@@ -251,21 +232,10 @@ describe("operator knowledge — sourced facts only", () => {
     expect(priced).toBeGreaterThan(50);
   });
 
-  it("registry vs server-constant cross-checks agree, apart from the reviewed Stack-25 disagreements", () => {
+  it("registry vs server-constant cross-checks all agree", () => {
     expect(OPERATOR_KB.crossChecks.length).toBeGreaterThanOrEqual(3);
     for (const c of OPERATOR_KB.crossChecks) {
-      if (REVIEWED_CROSS_CHECK_DISAGREEMENTS.has(c.endpoint)) {
-        // The disagreement is the record: the registry is stale, and the
-        // knowledge base must carry the SERVER value, not the registry's.
-        expect(c.agree, `${c.constant} vs ${c.endpoint}`).toBe(false);
-        const kbValues = OPERATOR_FEATURES.flatMap((f) => f.prices)
-          .filter((p) => p.endpoint === c.endpoint)
-          .map((p) => p.vb);
-        expect(kbValues.length, `${c.endpoint} priced in the base`).toBeGreaterThan(0);
-        for (const vb of kbValues) expect(vb).toBe(c.serverValue);
-      } else {
-        expect(c.agree, `${c.constant} vs ${c.endpoint}`).toBe(true);
-      }
+      expect(c.agree, `${c.constant} vs ${c.endpoint}`).toBe(true);
     }
   });
 
@@ -672,16 +642,33 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
     return OPERATOR_FEATURES.flatMap((f) => f.prices).filter((p) => p.endpoint === endpoint);
   }
 
-  /* The registry said 200 VB; the rail charges JEWELRY_STL_CREDIT_COST.
-     The knowledge base follows the rail. */
-  it("jewelry STL export carries the server charge, not the stale registry figure", () => {
+  /** The displayed price: the CREDIT_COSTS registry entry in the
+      frontend's credit-costs.ts, parsed from the file itself. (Since the
+      Stack-25 price-registry correction the registry is the knowledge
+      base's only price source again — these pins assert it still agrees
+      with the rail it displays, in both directions.) */
+  function deriveRegistryCost(endpoint: string): number {
+    const registryFile = path.resolve(API_SRC, "..", "..", "bow-down-visuals", "src", "lib", "credit-costs.ts");
+    const src = read(registryFile);
+    const escaped = endpoint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = src.match(new RegExp(`"${escaped}":\\s*\\{\\s*cost:\\s*(\\d+)`));
+    expect(m, `CREDIT_COSTS entry for ${endpoint}`).toBeTruthy();
+    return Number(m![1]);
+  }
+
+  /* The audit found the registry at 200 VB against the rail's
+     JEWELRY_STL_CREDIT_COST = 400. The registry correction moved the
+     DISPLAY to the charge; this pin holds registry == rail so the two
+     can never drift apart silently again. */
+  it("jewelry STL export: the displayed registry price equals the server charge", () => {
     const serverValue = deriveServerConstant("routes/generate/jewelry-pricing.ts", "JEWELRY_STL_CREDIT_COST");
     expect(serverValue).toBe(400);
+    expect(deriveRegistryCost("/api/jewelry/export-stl")).toBe(serverValue);
     const entries = kbPrices("/api/jewelry/export-stl");
     expect(entries.length).toBeGreaterThan(0);
     for (const p of entries) {
       expect(p.vb).toBe(serverValue);
-      expect(p.source).toContain("jewelry-pricing.ts");
+      expect(p.source).toContain("credit-costs.ts");
     }
     // The sibling jewelry rails the registry records correctly stay pinned too.
     expect(deriveServerConstant("routes/generate/jewelry-pricing.ts", "JEWELRY_PREVIEW_CREDIT_COST")).toBe(200);
@@ -690,48 +677,53 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
     for (const p of kbPrices("/api/jewelry/consult")) expect(p.vb).toBe(100);
   });
 
-  /* The registry said 200 VB; pro-tools-ai.ts charges PRO_TOOLS_AI_CREDITS
-     (a single Visual Buc at the code default). Wrong-looking but code-true:
-     the knowledge base quotes what the rail deducts. */
-  it("auto grade carries the server charge, not the stale registry figure", () => {
+  /* The audit found the registry at 200 VB; pro-tools-ai.ts charges
+     PRO_TOOLS_AI_CREDITS (a single Visual Buc at the code default).
+     Wrong-looking but code-true: the display now matches what the rail
+     deducts, and this pin holds them together. */
+  it("auto grade: the displayed registry price equals the server charge", () => {
     const serverValue = deriveServerConstant("routes/generate/pro-tools-ai.ts", "PRO_TOOLS_AI_CREDITS");
     expect(serverValue).toBe(1);
+    expect(deriveRegistryCost("/api/pro-tools/auto-grade")).toBe(serverValue);
     const entries = kbPrices("/api/pro-tools/auto-grade");
     expect(entries.length).toBeGreaterThan(0);
     for (const p of entries) {
       expect(p.vb).toBe(serverValue);
-      expect(p.source).toContain("pro-tools-ai.ts");
+      expect(p.source).toContain("credit-costs.ts");
     }
     expect(KNOWN_VB_FIGURES.has(serverValue)).toBe(true);
   });
 
-  /* The registry said 100 VB flat; the rail prices sample packs by size
-     (10/25/50 samples). The base entry carries the smallest pack's price —
-     the registry's own base-price convention — and the larger tiers are
-     re-derived here so the table can't drift silently. */
-  it("sample packs carry the smallest pack's server price", () => {
+  /* The audit found the registry at 100 VB flat; the rail prices sample
+     packs by size (10/25/50 samples). The registry records the smallest
+     pack's price — its own base-price convention — now corrected to the
+     rail's 500, and the larger tiers are re-derived here so the table
+     can't drift silently. */
+  it("sample packs: the displayed registry base equals the smallest pack's server price", () => {
     const base = deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_10_CREDITS");
     expect(base).toBe(500);
     expect(deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_25_CREDITS")).toBe(1200);
     expect(deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_50_CREDITS")).toBe(2000);
+    expect(deriveRegistryCost("/api/sample-pack/generate")).toBe(base);
     const entries = kbPrices("/api/sample-pack/generate");
     expect(entries.length).toBeGreaterThan(0);
     for (const p of entries) {
       expect(p.vb).toBe(base);
-      expect(p.source).toContain("sample-pack-pricing.ts");
+      expect(p.source).toContain("credit-costs.ts");
     }
   });
 
-  /* Free rails the registry priced anyway: the named handlers perform no
-     credit charge at all, re-derived by slicing each handler out of its
-     route file and scanning the slice for a charge call. */
-  const FREE_OVERRIDES = [
+  /* Free rails the registry once priced anyway: the named handlers
+     perform no credit charge at all, re-derived by slicing each handler
+     out of its route file and scanning the slice for a charge call —
+     and the registry now records them at 0 to match. */
+  const FREE_RAILS = [
     { endpoint: "/api/jewelry/estimate", file: "routes/generate/jewelry.ts", handler: "/jewelry/estimate" },
     { endpoint: "/api/music/export", file: "routes/music-export.ts", handler: "/music/export" },
     { endpoint: "/api/music/preview-render", file: "routes/music-export.ts", handler: "/music/preview-render" },
   ];
-  for (const spec of FREE_OVERRIDES) {
-    it(`${spec.endpoint} is free — its handler charges nothing`, () => {
+  for (const spec of FREE_RAILS) {
+    it(`${spec.endpoint} is free — its handler charges nothing and the registry says so`, () => {
       const src = read(path.join(API_SRC, spec.file));
       const start = src.indexOf(`router.post("${spec.handler}"`);
       expect(start, `${spec.handler} in ${spec.file}`).toBeGreaterThanOrEqual(0);
@@ -739,11 +731,12 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
       const next = rest.slice(1).search(/\n\s*router\.(get|post|put|patch|delete)\(/);
       const slice = next < 0 ? rest : rest.slice(0, next + 1);
       expect(slice).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
+      expect(deriveRegistryCost(spec.endpoint)).toBe(0);
       const entries = kbPrices(spec.endpoint);
       expect(entries.length).toBeGreaterThan(0);
       for (const p of entries) {
         expect(p.vb).toBe(0);
-        expect(p.source).toContain("no credit charge");
+        expect(p.source).toContain("credit-costs.ts");
       }
     });
   }

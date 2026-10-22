@@ -34,11 +34,13 @@
                                  panels, and modes with no route of their
                                  own — are declared in DOCKED_FEATURES with
                                  their facts extracted the same way. Where
-                                 the Stack-25 audit proved the registry
-                                 misrecords a rail, SERVER_PRICE_OVERRIDES
-                                 takes the price from the rail itself and
-                                 generation verifies the override still
-                                 holds (see the table).
+                                 an audit ever proves the registry misrecords
+                                 a rail, SERVER_PRICE_OVERRIDES takes the
+                                 price from the rail itself and generation
+                                 verifies the override still holds (see the
+                                 table — it stands empty since the Stack-25
+                                 registry correction brought CREDIT_COSTS
+                                 back into agreement with every rail).
      credit packs ................ src/routes/stripe-payments.ts PACK_MAP
      takeover offers ............. lib/db/src/schema/spotlight.ts
                                  SPOTLIGHT_OFFER + loading-screen.ts
@@ -927,38 +929,35 @@ const SERVER_PRICE_LINKS = [
   { constant: "PLAYLIST_PITCH_CREDIT_COST", endpoint: "/api/playlist-pitch/kit" },
   { constant: "EXPORT_CREDIT_COST", endpoint: "/api/export-final-video" },
   { constant: "QUALITY_EXPORT_COST", endpoint: "/api/export-quality" },
-  /* Stack-25 accuracy audit: these three links are EXPECTED to disagree
-     — the registry entries are stale and the knowledge base takes the
-     server value via SERVER_PRICE_OVERRIDES below. The disagreement
-     stays recorded here (agree: false) as the standing tripwire: if the
-     registry is ever corrected to match the rail, the override and this
-     note must be removed in the same change. */
+  /* Stack-25 accuracy audit links. These three rails were the audit's
+     constant disagreements (the registry misrecorded all three) until
+     the Stack-25 price-registry correction brought CREDIT_COSTS into
+     agreement with the rails; they stay linked here as ordinary
+     cross-checks, so any future drift between the displayed registry
+     and the server charge trips the coverage test again. */
   { constant: "JEWELRY_STL_CREDIT_COST", endpoint: "/api/jewelry/export-stl" },
   { constant: "PRO_TOOLS_AI_CREDITS", endpoint: "/api/pro-tools/auto-grade" },
   { constant: "SAMPLE_PACK_10_CREDITS", endpoint: "/api/sample-pack/generate" },
 ];
 
-/** Server-truth price overrides (Stack-25 accuracy audit). For these
-    endpoints the CREDIT_COSTS registry misrecords what the rail actually
-    charges, verified handler-by-handler against the joined tree. The
-    knowledge base follows the RAIL, never the registry: a `constant`
-    override takes the price from the named server constant in the named
-    file (the exact value the charge call deducts); a `free` override
-    asserts the named handler in the named route file performs no credit
-    charge at all. Generation THROWS if a constant cannot be extracted,
-    if a free handler starts charging, or if the registry is corrected
-    to agree with the rail (the override is then stale and must go).
-    The registry itself is a frontend display mirror — correcting it is
-    a product change outside this generator; until then these entries
-    carry the server file as their price source. */
-const SERVER_PRICE_OVERRIDES = [
-  { endpoint: "/api/jewelry/export-stl", constant: "JEWELRY_STL_CREDIT_COST", file: "routes/generate/jewelry-pricing.ts" },
-  { endpoint: "/api/pro-tools/auto-grade", constant: "PRO_TOOLS_AI_CREDITS", file: "routes/generate/pro-tools-ai.ts" },
-  { endpoint: "/api/sample-pack/generate", constant: "SAMPLE_PACK_10_CREDITS", file: "routes/generate/sample-pack-pricing.ts" },
-  { endpoint: "/api/jewelry/estimate", free: true, file: "routes/generate/jewelry.ts", handler: "/jewelry/estimate" },
-  { endpoint: "/api/music/export", free: true, file: "routes/music-export.ts", handler: "/music/export" },
-  { endpoint: "/api/music/preview-render", free: true, file: "routes/music-export.ts", handler: "/music/preview-render" },
-];
+/** Server-truth price overrides (mechanism from the Stack-25 accuracy
+    audit). If a future audit proves the CREDIT_COSTS registry misrecords
+    what a rail actually charges, an entry here makes the knowledge base
+    follow the RAIL, never the registry: a `constant` override takes the
+    price from the named server constant in the named file (the exact
+    value the charge call deducts); a `free` override asserts the named
+    handler in the named route file performs no credit charge at all.
+    Generation THROWS if a constant cannot be extracted, if a free
+    handler starts charging, or if the registry is corrected to agree
+    with the rail (the override is then stale and must go).
+    The table stands EMPTY: the audit's six overrides (jewelry STL,
+    pro-tools auto-grade, sample-pack generate, jewelry estimate, music
+    export, music preview-render) were retired in the Stack-25
+    price-registry correction, which fixed CREDIT_COSTS itself to match
+    the rails — the registry is once again the single price source, and
+    the three constant rails stay cross-checked via SERVER_PRICE_LINKS
+    above. */
+const SERVER_PRICE_OVERRIDES = [];
 
 /** Duration-tiered price rails. CLASSIFICATION only — which endpoint is
     priced by which exported table, and which feature entries front that
@@ -1262,13 +1261,15 @@ function main() {
     });
   }
 
-  /* Server-truth price overrides (Stack-25 accuracy audit): verify each
-     reviewed override against the joined code before anything is built
-     on it — drift throws rather than emitting a price the rail does not
-     charge. A constant override must extract from the named file and
-     must still DISAGREE with the registry (agreement means the registry
-     was fixed and the override is stale); a free override's handler
-     slice must contain no credit charge. */
+  /* Server-truth price overrides: verify each reviewed override against
+     the joined code before anything is built on it — drift throws
+     rather than emitting a price the rail does not charge. A constant
+     override must extract from the named file and must still DISAGREE
+     with the registry (agreement means the registry was fixed and the
+     override is stale); a free override's handler slice must contain
+     no credit charge. The table currently stands empty (see
+     SERVER_PRICE_OVERRIDES) — this loop is the tripwire any future
+     override entry is verified by. */
   const priceOverrides = new Map(); // endpoint -> { vb, source }
   for (const spec of SERVER_PRICE_OVERRIDES) {
     const fileLabel = `artifacts/api-server/src/${spec.file}`;

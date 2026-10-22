@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "4744d0f7ffd9f847ff1ce27f6a7b7dd0684231b0",
+  "baseCommit": "999476cfec2873950e455828b20d0b7cfca0d0cd",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -129,24 +129,24 @@
       "endpoint": "/api/jewelry/export-stl",
       "serverValue": 400,
       "serverSource": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts",
-      "registryValue": 200,
-      "agree": false
+      "registryValue": 400,
+      "agree": true
     },
     {
       "constant": "PRO_TOOLS_AI_CREDITS",
       "endpoint": "/api/pro-tools/auto-grade",
       "serverValue": 1,
       "serverSource": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts",
-      "registryValue": 200,
-      "agree": false
+      "registryValue": 1,
+      "agree": true
     },
     {
       "constant": "SAMPLE_PACK_10_CREDITS",
       "endpoint": "/api/sample-pack/generate",
       "serverValue": 500,
       "serverSource": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts",
-      "registryValue": 100,
-      "agree": false
+      "registryValue": 500,
+      "agree": true
     }
   ],
   "features": [
@@ -1084,7 +1084,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -1306,7 +1306,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -1522,7 +1522,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -1738,7 +1738,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -1954,7 +1954,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -2170,7 +2170,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -2390,7 +2390,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -2610,7 +2610,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -2826,7 +2826,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -3042,7 +3042,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -3243,7 +3243,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -3459,7 +3459,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -3678,7 +3678,7 @@
           "feature": "Sample Pack Generator",
           "vb": 500,
           "endpoint": "/api/sample-pack/generate",
-          "source": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts SAMPLE_PACK_10_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Sound Finder",
@@ -4203,16 +4203,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4302,16 +4302,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4401,16 +4401,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4500,16 +4500,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4599,16 +4599,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4698,16 +4698,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -4797,16 +4797,16 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Jewelry Estimate",
+          "feature": "Jewelry Estimate (free)",
           "vb": 0,
           "endpoint": "/api/jewelry/estimate",
-          "source": "artifacts/api-server/src/routes/generate/jewelry.ts /jewelry/estimate handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Export Jewelry STL",
           "vb": 400,
           "endpoint": "/api/jewelry/export-stl",
-          "source": "artifacts/api-server/src/routes/generate/jewelry-pricing.ts JEWELRY_STL_CREDIT_COST — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Merch Design",
@@ -11696,22 +11696,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -12150,22 +12150,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -12536,22 +12536,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -12926,22 +12926,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -13321,22 +13321,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -13710,22 +13710,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
@@ -14100,22 +14100,22 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Export Audio",
+          "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/export handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Preview Render",
+          "feature": "Preview Render (free)",
           "vb": 0,
           "endpoint": "/api/music/preview-render",
-          "source": "artifacts/api-server/src/routes/music-export.ts /music/preview-render handler — no credit charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "Auto Grade",
           "vb": 1,
           "endpoint": "/api/pro-tools/auto-grade",
-          "source": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts PRO_TOOLS_AI_CREDITS — server charge (CREDIT_COSTS registry entry is stale)"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
           "feature": "AI Slow Motion",
