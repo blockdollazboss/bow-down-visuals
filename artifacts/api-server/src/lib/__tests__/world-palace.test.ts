@@ -18,7 +18,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { RoomHub, type WsClientSocket } from "../live-ws";
-import { WorldPalace, PALACE_ROOM_DEFS } from "../world-palace";
+import { WorldPalace, PALACE_ROOM_DEFS, WORLD_PLAZA_ROOM_ID } from "../world-palace";
 import {
   WORLD_ROOM_ID,
   WORLD_PEER_STALE_MS,
@@ -62,6 +62,8 @@ const member = (name: string): WorldIdentity => ({
 });
 
 const MUSIC = "world:music-hall";
+/** The front door since Open World Phase 1: admission lands here. */
+const PLAZA = WORLD_PLAZA_ROOM_ID;
 
 function enter(palace: WorldPalace, socket: FakeSocket, name: string): void {
   /* Mirrors routes/world.ts: enterHall alone — the directory rides
@@ -74,15 +76,21 @@ function frame(palace: WorldPalace, socket: FakeSocket, payload: unknown, now?: 
 }
 
 describe("admission + directory", () => {
-  it("enters through the hall; the welcome names the room and a directory follows", () => {
+  it("enters through the plaza; the welcome names the room and a directory follows", () => {
     const palace = new WorldPalace(new RoomHub());
     const a = fakeSocket();
     enter(palace, a, "Alpha");
     const welcome = a.sent.find((m) => m.type === "welcome");
-    expect(welcome.room).toEqual({ id: WORLD_ROOM_ID, name: "The King's Hall" });
+    /* Open World Phase 1: the front door is the King's Plaza —
+     * arrival faces the palace, spawn on the promenade. */
+    expect(welcome.room).toEqual({ id: PLAZA, name: "The King's Plaza" });
+    /* The spawn arc fans arrivals across the promenade's head —
+     * z is the def's spawn line, x spreads by arrival slot. */
+    expect(welcome.you.z).toBe(31.5);
+    expect(Math.abs(welcome.you.x)).toBeLessThanOrEqual(5);
     const directory = a.sent.filter((m) => m.type === "palace.directory").pop();
     expect(directory.rooms).toHaveLength(PALACE_ROOM_DEFS.length);
-    expect(directory.rooms.find((r: any) => r.id === WORLD_ROOM_ID)).toMatchObject({
+    expect(directory.rooms.find((r: any) => r.id === PLAZA)).toMatchObject({
       count: 1,
       members: ["Alpha"],
       live: false,
@@ -113,6 +121,32 @@ describe("admission + directory", () => {
   });
 });
 
+describe("the plaza grounds (Open World Phase 1)", () => {
+  it("the plaza def carries the grounds plan: name, clamp box, promenade spawn", () => {
+    const def = PALACE_ROOM_DEFS.find((d) => d.roomId === PLAZA);
+    expect(def?.name).toBe("The King's Plaza");
+    expect(def?.bounds).toEqual({ minX: -27.9, maxX: 27.9, minZ: 11.1, maxZ: 33.8 });
+    expect(def?.spawn).toEqual({ x: 0, z: 31.5 });
+  });
+
+  it("moves roam the whole grounds and clamp at the grounds edge", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    // The west grounds, far outside the old courtyard box.
+    frame(palace, b, { type: "move", x: -24, z: 20, rotY: 0 }, 1_000);
+    expect(palace.plazaRoom.peerFor(b)?.x).toBe(-24);
+    expect(palace.plazaRoom.peerFor(b)?.z).toBe(20);
+    // The promenade's south end.
+    frame(palace, b, { type: "move", x: -10, z: 33, rotY: 0 }, 2_000);
+    expect(palace.plazaRoom.peerFor(b)?.z).toBe(33);
+    // Beyond the grounds the clamp holds the edge.
+    frame(palace, b, { type: "move", x: -99, z: 99, rotY: 0 }, 3_000);
+    expect(palace.plazaRoom.peerFor(b)?.x).toBe(-27.9);
+    expect(palace.plazaRoom.peerFor(b)?.z).toBe(33.8);
+  });
+});
+
 describe("doorway transfers", () => {
   it("moves the peer: despawn there, join here, same peerId, character + flags carried", () => {
     const palace = new WorldPalace(new RoomHub());
@@ -120,7 +154,7 @@ describe("doorway transfers", () => {
     const b = fakeSocket();
     enter(palace, a, "Alpha");
     enter(palace, b, "Beta");
-    const betaId = palace.hallRoom.peerFor(b)!.peerId;
+    const betaId = palace.plazaRoom.peerFor(b)!.peerId;
     // Beta walks in as a house guard with voice off.
     frame(palace, b, { type: "character", characterId: "house:palace-guard" });
     frame(palace, b, { type: "voice.off", off: true });
@@ -138,9 +172,9 @@ describe("doorway transfers", () => {
     expect(welcome.you.z).toBe(-2);
     // Non-stage rooms carry no screen state in the welcome.
     expect(welcome.screen).toBeUndefined();
-    // Alpha watched Beta leave the hall; Beta is gone from it.
+    // Alpha watched Beta leave the plaza; Beta is gone from it.
     expect(a.sent.map((m) => m.type)).toContain("peer.leave");
-    expect(palace.hallRoom.peerFor(b)).toBeNull();
+    expect(palace.plazaRoom.peerFor(b)).toBeNull();
     expect(palace.roomOf(b)?.roomId).toBe(MUSIC);
   });
 
@@ -158,10 +192,10 @@ describe("doorway transfers", () => {
     const b = fakeSocket();
     enter(palace, b, "Beta");
     b.sent = [];
-    frame(palace, b, { type: "room.enter", roomId: WORLD_ROOM_ID, x: 0, z: 0 });
+    frame(palace, b, { type: "room.enter", roomId: PLAZA, x: 0, z: 20 });
     frame(palace, b, { type: "room.enter", roomId: "world:nowhere", x: 0, z: 0 });
     expect(b.sent.filter((m) => m.type === "welcome")).toEqual([]);
-    expect(palace.roomOf(b)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(b)?.roomId).toBe(PLAZA);
   });
 
   it("refuses a full destination honestly — the walker keeps their place", () => {
@@ -176,7 +210,7 @@ describe("doorway transfers", () => {
     frame(palace, b, { type: "room.enter", roomId: MUSIC, x: -15, z: -2 });
     expect(b.sent).toEqual([{ type: "room.unavailable", roomId: MUSIC, name: "Music Hall", cap: 30 }]);
     expect(b.closedWith).toBeNull();
-    expect(palace.roomOf(b)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(b)?.roomId).toBe(PLAZA);
   });
 });
 
@@ -208,12 +242,12 @@ describe("room scoping", () => {
     const b = fakeSocket();
     enter(palace, a, "Alpha");
     enter(palace, b, "Beta");
-    const betaId = palace.hallRoom.peerFor(b)!.peerId;
+    const betaId = palace.plazaRoom.peerFor(b)!.peerId;
     frame(palace, a, { type: "voice.join" });
     frame(palace, b, { type: "voice.join" });
     a.sent = [];
     frame(palace, b, { type: "room.enter", roomId: MUSIC, x: -16, z: -2 });
-    // The hall heard Beta's voice leave with their presence (the
+    // The plaza heard Beta's voice leave with their presence (the
     // directory updates ride along — filtered out here).
     expect(a.sent.map((m) => m.type).filter((t) => t !== "palace.directory")).toEqual([
       "voice.left",
@@ -307,6 +341,8 @@ describe("the stage stays in the hall", () => {
     });
     const a = fakeSocket();
     enter(palace, a, "Alpha");
+    /* The stage is the hall's: the performer walks in first. */
+    frame(palace, a, { type: "room.enter", roomId: WORLD_ROOM_ID, x: 0, z: 9.5 });
     frame(palace, a, { type: "stage.live", streamId: "s1" });
     await new Promise((r) => setTimeout(r, 10));
     const hall = palace.directory().find((r) => r.id === WORLD_ROOM_ID);
@@ -452,7 +488,7 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     expect(first.sent).toEqual([{ type: "replaced" }]);
     expect(first.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
     expect(second.sent.some((m) => m.type === "welcome")).toBe(true);
-    expect(palace.hallRoom.size()).toBe(2); // watcher + ONE Alpha
+    expect(palace.plazaRoom.size()).toBe(2); // watcher + ONE Alpha
     expect(directoryTotal(watcher)).toBe(2);
   });
 
@@ -469,7 +505,10 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     expect(first.sent).toEqual([{ type: "replaced" }]);
     expect(first.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
     expect(palace.directory().find((r) => r.id === MUSIC)?.count).toBe(0);
-    expect(palace.hallRoom.size()).toBe(1);
+    /* The rejoin lands at the front door — the plaza — not back
+     * in the side room the ghost was haunting. */
+    expect(palace.plazaRoom.size()).toBe(1);
+    expect(palace.hallRoom.size()).toBe(0);
   });
 
   it("guest tabs replace by session id; anonymous guests and other tabs coexist untouched", () => {
@@ -491,7 +530,7 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     expect(tabA1.closedWith?.code).toBe(WORLD_REPLACED_CLOSE_CODE);
     // Tab B and both anonymous guests are exactly where they were.
     expect(tabB.closedWith).toBeNull();
-    expect(palace.hallRoom.size()).toBe(4);
+    expect(palace.plazaRoom.size()).toBe(4);
   });
 
   it("join/leave storm: twelve enter, seven die silent — one sweep leaves the true five", () => {
@@ -502,7 +541,7 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
       sockets.push(s);
       expect(palace.enterHall(s, member(`P${i}`))).toBe(true);
     }
-    expect(palace.hallRoom.size()).toBe(12);
+    expect(palace.plazaRoom.size()).toBe(12);
     const t0 = Date.now();
 
     // Five keep living on the client's ping cadence; seven never
@@ -513,7 +552,7 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     const reaped = palace.sweepStalePeers(t0 + WORLD_PEER_STALE_MS + 1_000);
 
     expect(reaped).toBe(7);
-    expect(palace.hallRoom.size()).toBe(5);
+    expect(palace.plazaRoom.size()).toBe(5);
     for (let i = 5; i < 12; i++) expect(sockets[i].readyState).toBe(3);
     for (let i = 0; i < 5; i++) expect(sockets[i].readyState).toBe(1);
     // And the directory the room reads agrees with the truth.

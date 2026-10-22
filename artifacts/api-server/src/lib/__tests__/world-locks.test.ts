@@ -12,10 +12,15 @@
  *  - a DOOR lock keeps everyone inside, refuses everyone new —
  *    except an admin account, who always walks in (standing law).
  *  - the directory tells the truth about a locked door.
+ *
+ * Open World Phase 1 moved the front door: first entry now lands
+ * on the King's Plaza, so the first-entry pins bind the PLAZA's
+ * door — and the hall's own locks now bind at the hall's doorway,
+ * like every other room's ("binds only the room it names").
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RoomHub, type WsClientSocket } from "../live-ws";
-import { WorldPalace } from "../world-palace";
+import { WorldPalace, WORLD_PLAZA_ROOM_ID } from "../world-palace";
 import { WorldLockStore } from "../world-locks";
 import {
   WORLD_DOOR_LOCKED_CLOSE_CODE,
@@ -28,6 +33,8 @@ const MARCUS = "11111111-1111-4111-8111-111111111111";
 const LENA = "22222222-2222-4222-8222-222222222222";
 const KING = "33333333-3333-4333-8333-333333333333";
 const MUSIC = "world:music-hall";
+/** The front door since Open World Phase 1. */
+const PLAZA = WORLD_PLAZA_ROOM_ID;
 
 const h = vi.hoisted(() => ({ fake: null as any }));
 
@@ -99,13 +106,13 @@ function transfer(socket: FakeSocket, roomId: string): void {
 describe("person lock — the door binds the account", () => {
   it("refuses a locked member at first entry, with the lock's own frame + close code", async () => {
     await store.lockPerson({
-      roomId: WORLD_ROOM_ID, userId: MARCUS, displayName: "Marcus",
+      roomId: PLAZA, userId: MARCUS, displayName: "Marcus",
       lockedByUserId: KING, minutes: 60,
     });
     const s = fakeSocket();
     expect(enterHall(s, member(MARCUS, "Marcus"))).toBe(false);
     const locked = s.sent.find((m) => m.type === "room.locked");
-    expect(locked).toMatchObject({ kind: "person", roomId: WORLD_ROOM_ID });
+    expect(locked).toMatchObject({ kind: "person", roomId: PLAZA });
     expect(typeof locked.until).toBe("string");
     expect(s.closedWith?.code).toBe(WORLD_LOCKED_OUT_CLOSE_CODE);
     expect(palace.totalPopulation()).toBe(0);
@@ -125,14 +132,32 @@ describe("person lock — the door binds the account", () => {
     transfer(marcus, MUSIC);
     expect(marcus.sent.some((m) => m.type === "room.locked" && m.kind === "person")).toBe(true);
     expect(marcus.closedWith).toBeNull();
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(PLAZA);
     transfer(lena, MUSIC);
     expect(palace.roomOf(lena)?.roomId).toBe(MUSIC);
   });
 
-  it("a rejoin cannot shed it, and a restart cannot shed it", async () => {
+  it("a hall lock no longer bars the palace — it binds at the hall's own door", async () => {
+    /* The hall was the front door when the lock law was written;
+     * since Phase 1 the plaza is, so a hall person-lock admits
+     * the member to the grounds and refuses them at the hall
+     * doorway — the same per-room law, at the room it names. */
     await store.lockPerson({
       roomId: WORLD_ROOM_ID, userId: MARCUS, displayName: "Marcus",
+      lockedByUserId: KING, minutes: 60,
+    });
+    const marcus = fakeSocket();
+    expect(enterHall(marcus, member(MARCUS, "Marcus"))).toBe(true);
+    expect(palace.roomOf(marcus)?.roomId).toBe(PLAZA);
+    transfer(marcus, WORLD_ROOM_ID);
+    expect(marcus.sent.some((m) => m.type === "room.locked" && m.kind === "person")).toBe(true);
+    expect(marcus.closedWith).toBeNull();
+    expect(palace.roomOf(marcus)?.roomId).toBe(PLAZA);
+  });
+
+  it("a rejoin cannot shed it, and a restart cannot shed it", async () => {
+    await store.lockPerson({
+      roomId: PLAZA, userId: MARCUS, displayName: "Marcus",
       lockedByUserId: KING, minutes: 60,
     });
     const first = fakeSocket();
@@ -145,7 +170,7 @@ describe("person lock — the door binds the account", () => {
     const palace2 = new WorldPalace(new RoomHub(), {}, { lockStore: store2 });
     const third = fakeSocket();
     expect(palace2.enterHall(third, member(MARCUS, "Marcus"))).toBe(false);
-    expect(store2.personLock(WORLD_ROOM_ID, MARCUS)).not.toBeNull();
+    expect(store2.personLock(PLAZA, MARCUS)).not.toBeNull();
   });
 
   it("expiry frees the door, and an early unlock frees it now", async () => {
@@ -153,7 +178,7 @@ describe("person lock — the door binds the account", () => {
      * load — the door is simply open. */
     const past = fakeSocket();
     await store.lockPerson({
-      roomId: WORLD_ROOM_ID, userId: MARCUS, displayName: "Marcus",
+      roomId: PLAZA, userId: MARCUS, displayName: "Marcus",
       lockedByUserId: KING, minutes: 0.001, now: Date.now() - 60_000,
     });
     const reloaded = new WorldLockStore();
@@ -163,16 +188,16 @@ describe("person lock — the door binds the account", () => {
 
     /* A standing lock, lifted early by an admin. */
     await store.lockPerson({
-      roomId: WORLD_ROOM_ID, userId: MARCUS, displayName: "Marcus",
+      roomId: PLAZA, userId: MARCUS, displayName: "Marcus",
       lockedByUserId: KING, minutes: 60,
     });
     const refused = fakeSocket();
     expect(enterHall(refused, member(MARCUS, "Marcus"))).toBe(false);
-    expect(await store.unlockPerson(WORLD_ROOM_ID, MARCUS)).toBe(true);
+    expect(await store.unlockPerson(PLAZA, MARCUS)).toBe(true);
     const freed = fakeSocket();
     expect(enterHall(freed, member(MARCUS, "Marcus"))).toBe(true);
     /* Lifting twice is honest about there being nothing to lift. */
-    expect(await store.unlockPerson(WORLD_ROOM_ID, MARCUS)).toBe(false);
+    expect(await store.unlockPerson(PLAZA, MARCUS)).toBe(false);
   });
 
   it("re-locking replaces the standing lock — the newest command is the truth", async () => {
@@ -191,17 +216,17 @@ describe("person lock — the door binds the account", () => {
 });
 
 describe("door lock — inside stays, nobody new, admins always", () => {
-  it("refuses a new entry at a locked hall door, insiders untouched", async () => {
+  it("refuses a new entry at a locked plaza door, insiders untouched", async () => {
     const lena = fakeSocket();
     expect(enterHall(lena, member(LENA, "Lena"))).toBe(true);
-    await store.lockDoor({ roomId: WORLD_ROOM_ID, lockedByUserId: KING });
+    await store.lockDoor({ roomId: PLAZA, lockedByUserId: KING });
     const marcus = fakeSocket();
     expect(enterHall(marcus, member(MARCUS, "Marcus"))).toBe(false);
     const locked = marcus.sent.find((m) => m.type === "room.locked");
-    expect(locked).toMatchObject({ kind: "door", roomId: WORLD_ROOM_ID });
+    expect(locked).toMatchObject({ kind: "door", roomId: PLAZA });
     expect(marcus.closedWith?.code).toBe(WORLD_DOOR_LOCKED_CLOSE_CODE);
     /* Lena never moved. */
-    expect(palace.roomOf(lena)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(lena)?.roomId).toBe(PLAZA);
     expect(palace.totalPopulation()).toBe(1);
   });
 
@@ -212,11 +237,11 @@ describe("door lock — inside stays, nobody new, admins always", () => {
     transfer(marcus, MUSIC);
     expect(marcus.sent.some((m) => m.type === "room.locked" && m.kind === "door")).toBe(true);
     expect(marcus.closedWith).toBeNull();
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(PLAZA);
   });
 
   it("an admin account walks through a locked door — entry and doorway both", async () => {
-    await store.lockDoor({ roomId: WORLD_ROOM_ID, lockedByUserId: KING });
+    await store.lockDoor({ roomId: PLAZA, lockedByUserId: KING });
     await store.lockDoor({ roomId: MUSIC, lockedByUserId: KING });
     const king = fakeSocket();
     expect(enterHall(king, member(KING, "King", true))).toBe(true);

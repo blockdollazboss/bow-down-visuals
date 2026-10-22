@@ -10,7 +10,8 @@
  *        ├─────────────┤  (spawn +    ├─────────────┤
  *        │ GAME ROOMS  │   stage)     │             │
  *        └─────────────┴──────┬───────┴─────────────┘
- *                          COURTYARD (back arch)
+ *                     THE KING'S PLAZA (back arch —
+ *                the open-world front door, Phase 1)
  *
  * Movement is union-of-rects: a position is walkable when it stands
  * in a room's walk rect or in a doorway's portal rect. The walls
@@ -50,6 +51,13 @@ export interface PalaceRoomLayout {
   name: string;
   /** Where a figure's center may stand. */
   walk: PalaceRect;
+  /** Extra walkable ground beyond the main rect — grounds and
+   *  gardens that belong to the same room (one presence, one
+   *  voice mesh, no doorway between). The King's Plaza carries
+   *  its south promenade here (Open World Phase 1): the rects
+   *  must touch or overlap `walk`, because a step may only pass
+   *  through walkable ground. */
+  grounds?: PalaceRect[];
   /** The room's physical interior (wall face to wall face) — the
    *  shell builder floors and ceilings to this. */
   interior: PalaceRect;
@@ -127,13 +135,26 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     spawn: { x: 15.6, z: 5 },
     camClamp: { minX: 14.7, maxX: 27.9, minZ: 3.8, maxZ: 11.6 },
   },
+  /* ── Open World Phase 1: the Courtyard becomes THE KING'S PLAZA ──
+   * The room keeps its id (`world:courtyard` — the directory, the
+   * creator-room arch and every station already point at it) and
+   * becomes the palace's front door: the grounds widen to the
+   * palace's full outer width, a promenade runs south-west of the
+   * creator wing, and spawn moves to the promenade's head — you
+   * arrive facing the palace, with the Kingdom Board monument at
+   * the plaza's heart (0, 19.7) and the hall's open doors beyond.
+   * One room, one presence: the colonnade stations keep their
+   * places along the south wall, and the creator arch still
+   * pierces it at x 9.5. The server clamp box mirrors this plan
+   * (api-server lib/world-palace.ts). */
   [COURTYARD_ID]: {
     id: COURTYARD_ID,
-    name: "Courtyard",
-    walk: { minX: -13.6, maxX: 13.6, minZ: 13.65, maxZ: 25.7 },
-    interior: { minX: -14.0, maxX: 14.0, minZ: 12.4, maxZ: 26.0 },
-    camClamp: { minX: -13.8, maxX: 13.8, minZ: 12.6, maxZ: 25.8 },
-    spawn: { x: 0, z: 14.6 },
+    name: "The King's Plaza",
+    walk: { minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 },
+    grounds: [{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }],
+    interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
+    camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
+    spawn: { x: 0, z: 31.5 },
   },
 };
 
@@ -335,10 +356,12 @@ export function pointInRect(x: number, z: number, r: PalaceRect): boolean {
   return x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
 }
 
-/** Standing room: inside some room's walk rect, or in a doorway. */
+/** Standing room: inside some room's walk rect (or its grounds),
+ *  or in a doorway. */
 export function isWalkable(x: number, z: number): boolean {
   for (const room of allRooms()) {
     if (pointInRect(x, z, room.walk)) return true;
+    if (room.grounds?.some((g) => pointInRect(x, z, g))) return true;
   }
   for (const door of allDoors()) {
     if (pointInRect(x, z, door.portal)) return true;
@@ -361,6 +384,7 @@ export function roomAt(x: number, z: number, fallback: string): string {
   }
   for (const room of allRooms()) {
     if (pointInRect(x, z, room.walk)) return room.id;
+    if (room.grounds?.some((g) => pointInRect(x, z, g))) return room.id;
   }
   return fallback;
 }

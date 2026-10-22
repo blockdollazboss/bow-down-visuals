@@ -4,10 +4,14 @@
  * The registry: one WorldRoom instance per palace room, keyed by room
  * id, all sharing the site's one RoomHub (each room is its own hub
  * channel, so presence, chat, voice and the stage never leak across a
- * doorway). The King's Hall is the front door and keeps everything it
- * always had — its channel id, its bounds, its spawn arc, and the
- * palace's ONE stage + big screen. The other rooms are shells for
- * now: walkable, named, present in the directory — their features
+ * doorway). Since Open World Phase 1 the front door is THE KING'S
+ * PLAZA — the palace grounds the courtyard always stood on, laid
+ * out wide (see WORLD_PLAZA_ROOM_ID): admission lands on the
+ * promenade facing the palace, and the King's Hall is one walk
+ * through its open south doors. The hall keeps everything it
+ * always had — its channel id, its bounds, and the palace's ONE
+ * stage + big screen. The other rooms are shells for now:
+ * walkable, named, present in the directory — their features
  * (jukebox, game tables, the Create desks) dock in later lanes.
  *
  * Doorways (the plan's Step 1 architecture):
@@ -59,6 +63,14 @@ import {
   type WorldRoomOptions,
 } from "./world-room";
 import type { WorldLockStore } from "./world-locks";
+
+/** The King's Plaza — the palace's front door since Open World
+ *  Phase 1. The room's id is the courtyard's own: the directory,
+ *  the creator-room arch and the colonnade stations were already
+ *  pointed at it when the grounds were laid around it. Admission
+ *  (enterPalace) lands here, on the promenade facing the palace;
+ *  the hall is one walk through the open doors. */
+export const WORLD_PLAZA_ROOM_ID = "world:courtyard";
 
 /** The host's herald: at most this many characters reach the
  *  palace — a herald is a headline, not a speech. */
@@ -112,10 +124,15 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     spawn: { x: 16.5, z: -2 },
   },
   {
-    roomId: "world:courtyard",
-    name: "Courtyard",
-    bounds: { minX: -13.5, maxX: 13.5, minZ: 11.1, maxZ: 25.6 },
-    spawn: { x: 0, z: 14.5 },
+    /* Open World Phase 1: the courtyard is now THE KING'S PLAZA —
+     * the palace's front door. The clamp box covers the widened
+     * grounds (the client's floor plan is the same shape: main
+     * ground x ±27.85, z 12.55..25.7, promenade to z 33.6); the
+     * spawn is the promenade's head, facing the palace. */
+    roomId: WORLD_PLAZA_ROOM_ID,
+    name: "The King's Plaza",
+    bounds: { minX: -27.9, maxX: 27.9, minZ: 11.1, maxZ: 33.8 },
+    spawn: { x: 0, z: 31.5 },
   },
   /* The second ring (palace follow-on): the front rooms flank the
    * stage end of the hall; the Branding Atelier mirrors the Game
@@ -262,8 +279,11 @@ export class WorldPalace {
    *  burst of room.enter frames for one unmaterialized room
    *  resolves the profile once, not once per frame. */
   private creatorResolutions = new Set<string>();
-  /** The hall — the palace's front door and its one stage. */
+  /** The hall — the palace's one stage. */
   readonly hallRoom: WorldRoom;
+  /** The King's Plaza — the palace's front door (Open World
+   *  Phase 1): admission lands here, facing the palace. */
+  readonly plazaRoom: WorldRoom;
   private sweeper: NodeJS.Timeout | null = null;
 
   /** The drop-claim rail, kept from the constructor deps: creator
@@ -341,6 +361,7 @@ export class WorldPalace {
       this.rooms.set(roomId, room);
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
+    this.plazaRoom = this.rooms.get(WORLD_PLAZA_ROOM_ID)!;
     this.dropClaimer = deps.claimWorldDrop;
     this.tutorialNotifier = deps.noteTutorialAction;
   }
@@ -394,17 +415,29 @@ export class WorldPalace {
     return null;
   }
 
-  /** Admission: everyone enters through the hall. A rejoining
-   *  identity first replaces its own ghost — wherever in the
-   *  palace the corpse is standing — so a reload or a reconnect
-   *  never stacks a second presence beside the first, and the
-   *  freed slot is back before the hall's cap check runs. */
-  enterHall(socket: WsClientSocket, identity: WorldIdentity): boolean {
+  /** Admission: everyone enters through the front door — since
+   *  Open World Phase 1 that is the King's Plaza, arriving on the
+   *  promenade facing the palace (the hall is a walk through its
+   *  open doors). A rejoining identity first replaces its own
+   *  ghost — wherever in the palace the corpse is standing — so a
+   *  reload or a reconnect never stacks a second presence beside
+   *  the first, and the freed slot is back before the plaza's cap
+   *  check runs. Person locks keep binding the room they name: a
+   *  plaza lock refuses admission itself; a lock on any other
+   *  room binds at that room's door, exactly as it always did. */
+  enterPalace(socket: WsClientSocket, identity: WorldIdentity): boolean {
     const key = worldIdentityKey(identity);
     if (key) {
       for (const room of this.rooms.values()) room.evictIdentity(key, socket);
     }
-    return this.hallRoom.attach(socket, identity);
+    return this.plazaRoom.attach(socket, identity);
+  }
+
+  /** The admission verb's original name, kept for the many test
+   *  harnesses written against it — the front door moved to the
+   *  plaza in Open World Phase 1; new code calls enterPalace. */
+  enterHall(socket: WsClientSocket, identity: WorldIdentity): boolean {
+    return this.enterPalace(socket, identity);
   }
 
   /** Start the presence sweeper (production wiring does this at

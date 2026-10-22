@@ -117,6 +117,48 @@ describe("crossings", () => {
   });
 });
 
+describe("the King's Plaza (Open World Phase 1)", () => {
+  it("the courtyard keeps its id and takes the plaza's name, grounds and spawn", () => {
+    const plaza = PALACE_LAYOUT[COURTYARD_ID]!;
+    expect(plaza.name).toBe("The King's Plaza");
+    expect(plaza.walk).toEqual({ minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 });
+    expect(plaza.grounds).toEqual([{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }]);
+    expect(plaza.spawn).toEqual({ x: 0, z: 31.5 });
+  });
+
+  it("the grounds are one room: east lawns, west lawns and the promenade all read plaza", () => {
+    expect(isWalkable(-24, 20)).toBe(true); // west grounds
+    expect(isWalkable(24, 20)).toBe(true); // east grounds
+    expect(isWalkable(-20, 30)).toBe(true); // the promenade
+    expect(roomAt(-24, 20, HALL_ROOM_ID)).toBe(COURTYARD_ID);
+    expect(roomAt(0, 31.5, HALL_ROOM_ID)).toBe(COURTYARD_ID);
+    /* A walk from the promenade up to the palace doors never
+     * crosses a room line — no doorway fires inside the grounds. */
+    const stroll = resolvePalaceMove({ x: 0, z: 31, room: COURTYARD_ID }, 0, 20);
+    expect(stroll.room).toBe(COURTYARD_ID);
+    expect(stroll.entered).toBeNull();
+    expect(stroll.z).toBe(20);
+  });
+
+  it("the promenade stops at the creator wing's wall — the arch is the only way in", () => {
+    /* East of the promenade's end (x > 2.35, z > 25.7) is the
+     * creator rooms' ground: not plaza floor, and no step crosses
+     * into the template except through its arch portal. */
+    expect(isWalkable(6, 30)).toBe(false);
+    const res = resolvePalaceMove({ x: 2, z: 30, room: COURTYARD_ID }, 6, 30);
+    expect(res.room).toBe(COURTYARD_ID);
+    expect(res.entered).toBeNull();
+    expect(res.x).toBeLessThanOrEqual(2.35);
+  });
+
+  it("the facade is solid away from the arch, even with the grounds against it", () => {
+    const beside = resolvePalaceMove({ x: -20, z: 13, room: COURTYARD_ID }, -20, 11.5);
+    expect(beside.entered).toBeNull();
+    expect(beside.room).toBe(COURTYARD_ID);
+    expect(beside.z).toBe(13);
+  });
+});
+
 describe("the second ring (palace follow-on)", () => {
   it("adds the Treasury, the Royal Court Chamber and the Branding Atelier, one door each", () => {
     for (const id of [TREASURY_ID, ROYAL_COURT_ID, BRANDING_ATELIER_ID]) {

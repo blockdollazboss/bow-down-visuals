@@ -21,10 +21,10 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { RoomHub, type WsClientSocket } from "../live-ws";
-import { WorldPalace } from "../world-palace";
+import { WorldPalace, WORLD_PLAZA_ROOM_ID } from "../world-palace";
 import { WorldLockStore } from "../world-locks";
 import { StageRoom, stageRooms } from "../stage-room";
-import { WORLD_ROOM_ID, type WorldIdentity } from "../world-room";
+import { type WorldIdentity } from "../world-room";
 import { executeAction } from "../operator-executor";
 import { processOperatorReply } from "../operator-chat";
 
@@ -135,8 +135,9 @@ afterEach(() => {
   h.palace = null;
 });
 
-/** Marcus stands in the hall; returns his socket. */
-function marcusInHall(): FakeSocket {
+/** Marcus stands in the palace — on the King's Plaza, where
+ *  admission lands since Open World Phase 1; returns his socket. */
+function marcusInPalace(): FakeSocket {
   const s = fakeSocket();
   expect(palace.enterHall(s, member(MARCUS, "Marcus"))).toBe(true);
   return s;
@@ -144,7 +145,7 @@ function marcusInHall(): FakeSocket {
 
 describe("the gate — authority is the session, never the words", () => {
   it("a non-admin attempt at EVERY verb refuses, audits with its target, and moves zero rails", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     /* A stage room with a listener, for the stage verbs. */
     const stage = new StageRoom(hub, "stage-1", ADMIN_ID);
     stageRooms.set("stage-1", stage);
@@ -180,8 +181,8 @@ describe("the gate — authority is the session, never the words", () => {
     expect(auditRows().find((r) => r.toolId === "world.lock_person")?.target).toBe("Marcus");
     /* Zero rails moved: Marcus stands, unmuted, unlocked; Lena
      * still listens; no door locked; no herald was heard. */
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
-    expect(palace.hallRoom.peerFor(marcus)?.hostMuted).toBe(false);
+    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
+    expect(palace.plazaRoom.peerFor(marcus)?.hostMuted).toBe(false);
     expect(store.personLocksByName("Marcus")).toHaveLength(0);
     expect(store.isDoorLocked(MUSIC)).toBe(false);
     expect(stage.peersDto().find((p) => p.displayName === "Lena")?.role).toBe("listener");
@@ -190,28 +191,28 @@ describe("the gate — authority is the session, never the words", () => {
 
   it("with ADMIN_EMAILS unset, everyone refuses — the owner included (fail-closed)", async () => {
     delete process.env["ADMIN_EMAILS"];
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const outcome = await asAdmin("world.kick", { target: "Marcus" });
     expect(outcome.status).toBe("refused");
     expect(outcome.reason).toBe("not_admin");
     expect(lastAudit()).toMatchObject({ result: "refused", resultReason: "not_admin", toolId: "world.kick" });
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
   });
 
   it("the kill switch stills even an admin's hands, audited", async () => {
     process.env["OPERATOR_HANDS_ENABLED"] = "off";
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const outcome = await asAdmin("world.kick", { target: "Marcus" });
     expect(outcome.status).toBe("refused");
     expect(outcome.reason).toBe("hands_disabled");
     expect(lastAudit()).toMatchObject({ result: "refused", resultReason: "hands_disabled" });
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
   });
 });
 
 describe("an admin's commands ride the real rails", () => {
   it("kick removes the person, on the rail, audited from its result", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const outcome = await asAdmin("world.kick", { target: "Marcus" });
     expect(outcome.status).toBe("done");
     expect(marcus.sent.some((m) => m.type === "removed" && m.reason === "host")).toBe(true);
@@ -219,24 +220,24 @@ describe("an admin's commands ride the real rails", () => {
     expect(palace.roomOf(marcus)).toBeNull();
     expect(lastAudit()).toMatchObject({
       result: "done", toolId: "world.kick", tier: 4,
-      adminEmail: ADMIN_EMAIL, target: "Marcus — The King's Hall",
+      adminEmail: ADMIN_EMAIL, target: "Marcus — The King's Plaza",
     });
   });
 
   it("mute and unmute move the peer's voice state", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const muted = await asAdmin("world.mute", { target: "Marcus" });
     expect(muted.status).toBe("done");
-    expect(palace.hallRoom.peerFor(marcus)?.hostMuted).toBe(true);
+    expect(palace.plazaRoom.peerFor(marcus)?.hostMuted).toBe(true);
     const again = await asAdmin("world.mute", { target: "Marcus" });
     expect(again.status).toBe("failed");
     const unmuted = await asAdmin("world.mute", { target: "Marcus", muted: false });
     expect(unmuted.status).toBe("done");
-    expect(palace.hallRoom.peerFor(marcus)?.hostMuted).toBe(false);
+    expect(palace.plazaRoom.peerFor(marcus)?.hostMuted).toBe(false);
   });
 
   it("herald speaks to the whole palace at once", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const outcome = await asAdmin("world.herald", { text: "The court is in session." });
     expect(outcome.status).toBe("done");
     const announce = marcus.sent.find((m) => m.type === "palace.announce");
@@ -259,37 +260,37 @@ describe("an admin's commands ride the real rails", () => {
   });
 
   it("lock_person removes them now, binds the door after, and unlock_person frees it", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const locked = await asAdmin("world.lock_person", { target: "Marcus", minutes: 30 });
     expect(locked.status).toBe("done");
     expect(locked.replyText).toContain("30 minutes");
-    expect(locked.replyText).toContain("The King's Hall");
+    expect(locked.replyText).toContain("The King's Plaza");
     /* Out now, on the lock's own reason… */
     expect(marcus.sent.some((m) => m.type === "removed" && m.reason === "locked")).toBe(true);
     expect(palace.roomOf(marcus)).toBeNull();
     /* …and the door refuses the account however it comes back. */
     const again = fakeSocket();
     expect(palace.enterHall(again, member(MARCUS, "Marcus"))).toBe(false);
-    expect(store.personLock(WORLD_ROOM_ID, MARCUS)).not.toBeNull();
+    expect(store.personLock(WORLD_PLAZA_ROOM_ID, MARCUS)).not.toBeNull();
     expect(lastAudit()).toMatchObject({
-      result: "done", toolId: "world.lock_person", target: "Marcus — The King's Hall",
+      result: "done", toolId: "world.lock_person", target: "Marcus — The King's Plaza",
     });
     /* The lift resolves by name while he's absent — and frees him. */
     const lifted = await asAdmin("world.unlock_person", { target: "Marcus" });
     expect(lifted.status).toBe("done");
-    expect(store.personLock(WORLD_ROOM_ID, MARCUS)).toBeNull();
+    expect(store.personLock(WORLD_PLAZA_ROOM_ID, MARCUS)).toBeNull();
     const freed = fakeSocket();
     expect(palace.enterHall(freed, member(MARCUS, "Marcus"))).toBe(true);
   });
 
   it("lock_room locks the named room's door; unlock_room reopens it", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const locked = await asAdmin("world.lock_room", { room: "Music Hall" });
     expect(locked.status).toBe("done");
     expect(palace.directory().find((e) => e.id === MUSIC)?.locked).toBe(true);
     palace.handleFrame(marcus, JSON.stringify({ type: "room.enter", roomId: MUSIC }));
     expect(marcus.sent.some((m) => m.type === "room.locked" && m.kind === "door")).toBe(true);
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
     const unlocked = await asAdmin("world.unlock_room", { room: "Music Hall" });
     expect(unlocked.status).toBe("done");
     expect(palace.directory().find((e) => e.id === MUSIC)?.locked).toBe(false);
@@ -298,14 +299,14 @@ describe("an admin's commands ride the real rails", () => {
   });
 
   it("the command channel end to end: a marker with args runs the verb for an admin — and only an admin", async () => {
-    const marcus = marcusInHall();
+    const marcus = marcusInPalace();
     const memberTurn = await processOperatorReply({
       userId: MEMBER_ID, userEmail: MEMBER_EMAIL, channel: "chat_text",
       modelReply: "Right away. [[DO:world.kick {\"target\":\"Marcus\"}]]",
     });
     expect(memberTurn?.action.status).toBe("refused");
     expect(memberTurn?.replyText).toContain("King's call");
-    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcus)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
     const adminTurn = await processOperatorReply({
       userId: ADMIN_ID, userEmail: ADMIN_EMAIL, channel: "admin_command",
       modelReply: "Done. [[DO:world.kick {\"target\":\"Marcus\"}]]",
@@ -317,7 +318,7 @@ describe("an admin's commands ride the real rails", () => {
 
 describe("targets are never guessed", () => {
   it("an ambiguous name refuses — and the room settles it", async () => {
-    const marcusA = marcusInHall();
+    const marcusA = marcusInPalace();
     const marcusB = fakeSocket();
     expect(palace.enterHall(marcusB, member(MARCUS2, "Marcus"))).toBe(true);
     palace.handleFrame(marcusB, JSON.stringify({ type: "room.enter", roomId: MUSIC }));
@@ -327,17 +328,17 @@ describe("targets are never guessed", () => {
     expect(refused.status).toBe("failed");
     expect(lastAudit().result).toBe("failed");
     expect(String(lastAudit().resultReason)).toContain("2 people named");
-    expect(palace.roomOf(marcusA)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcusA)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
     expect(palace.roomOf(marcusB)?.roomId).toBe(MUSIC);
 
     const settled = await asAdmin("world.kick", { target: "Marcus", room: "Music Hall" });
     expect(settled.status).toBe("done");
     expect(palace.roomOf(marcusB)).toBeNull();
-    expect(palace.roomOf(marcusA)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(marcusA)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
   });
 
   it("a name with nobody home refuses honestly", async () => {
-    marcusInHall();
+    marcusInPalace();
     const outcome = await asAdmin("world.kick", { target: "Nobody" });
     expect(outcome.status).toBe("failed");
     expect(String(lastAudit().resultReason)).toContain("can't find anyone named");
@@ -348,7 +349,7 @@ describe("targets are never guessed", () => {
     expect(palace.enterHall(king, member(ADMIN_ID, "King", true))).toBe(true);
     const outcome = await asAdmin("world.kick", { target: "King" });
     expect(outcome.status).toBe("failed");
-    expect(palace.roomOf(king)?.roomId).toBe(WORLD_ROOM_ID);
+    expect(palace.roomOf(king)?.roomId).toBe(WORLD_PLAZA_ROOM_ID);
   });
 
   it("a guest cannot be person-locked — a lock binds an account", async () => {

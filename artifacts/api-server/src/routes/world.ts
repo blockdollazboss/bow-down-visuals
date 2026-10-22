@@ -1572,11 +1572,12 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
     }
 
     const client = socket as unknown as WsClientSocket;
-    /* Everyone enters through the hall; doorways move them after.
-     * The directory rides the attach's change broadcast — the
-     * joiner is inside when it fires, so entry carries exactly one
+    /* Everyone enters through the front door — the King's Plaza
+     * (Open World Phase 1); doorways move them after. The
+     * directory rides the attach's change broadcast — the joiner
+     * is inside when it fires, so entry carries exactly one
      * palace.directory frame, right after the welcome. */
-    if (!palace.enterHall(client, identity)) return; // room_full already sent
+    if (!palace.enterPalace(client, identity)) return; // room_full already sent
     socket.on("message", (data) => {
       try {
         palace.handleFrame(client, data.toString());
