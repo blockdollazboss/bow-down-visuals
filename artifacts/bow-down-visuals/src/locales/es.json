@@ -12145,5 +12145,16 @@
     "copied": "Copiado",
     "oneLanguage": "idioma",
     "manyLanguages": "idiomas"
+  },
+  "world": {
+    "lockedOutTitle": "Tienes el acceso bloqueado a esta sala por ahora",
+    "lockedOutBody": "El palacio puso este bloqueo, y no es un fallo: esta puerta seguirá cerrada para ti hasta que se levante el bloqueo. El resto del sitio sigue siendo tuyo: los espectáculos, tu página, tu gente.",
+    "lockedOutRemaining": "Quedan aproximadamente {{duration}} de este bloqueo.",
+    "doorLockedTitle": "La puerta de esta sala está bloqueada ahora mismo",
+    "doorLockedBody": "El palacio bloqueó esta puerta: quienes están dentro se quedan, y nadie nuevo entra hasta que se vuelva a abrir. El resto del sitio sigue siendo tuyo: los espectáculos, tu página, tu gente.",
+    "lockedTryAgain": "Intentar la puerta de nuevo",
+    "lockedGoLive": "Volver a En Vivo",
+    "lockedOutNotice": "{{name}} está bloqueada para ti por ahora — sigues en {{room}}.",
+    "doorLockedNotice": "La puerta de {{name}} está bloqueada ahora mismo — sigues en {{room}}."
   }
 }

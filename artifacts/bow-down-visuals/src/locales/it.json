@@ -11047,5 +11047,16 @@
     "copied": "Copiato",
     "oneLanguage": "lingua",
     "manyLanguages": "lingue"
+  },
+  "world": {
+    "lockedOutTitle": "Per ora sei bloccato fuori da questa stanza",
+    "lockedOutBody": "Questo blocco lo ha messo il palazzo, e non è un errore: questa porta resta chiusa per te finché il blocco non viene tolto. Il resto del sito è ancora tuo: gli spettacoli, la tua pagina, la tua gente.",
+    "lockedOutRemaining": "Mancano ancora circa {{duration}} alla fine di questo blocco.",
+    "doorLockedTitle": "La porta di questa stanza è chiusa a chiave in questo momento",
+    "doorLockedBody": "Il palazzo ha chiuso a chiave questa porta: chi è dentro resta, e nessuno di nuovo entra finché non si riapre. Il resto del sito è ancora tuo: gli spettacoli, la tua pagina, la tua gente.",
+    "lockedTryAgain": "Riprova la porta",
+    "lockedGoLive": "Torna a Go Live",
+    "lockedOutNotice": "{{name}} è bloccata per te per ora — sei ancora in {{room}}.",
+    "doorLockedNotice": "La porta di {{name}} è chiusa a chiave in questo momento — sei ancora in {{room}}."
   }
 }

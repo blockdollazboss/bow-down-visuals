@@ -14483,5 +14483,16 @@
     "toastPublished": "Published!",
     "toastPublishedDesc": "Your creation is live on the showcase.",
     "viewLink": "View on showcase"
+  },
+  "world": {
+    "lockedOutTitle": "You're locked out of this room for now",
+    "lockedOutBody": "The palace set this lock, and it isn't a glitch — this door stays shut to you until the lock lifts. The rest of the site is still yours: the shows, your page, your people.",
+    "lockedOutRemaining": "About {{duration}} left on this lock.",
+    "doorLockedTitle": "This room's door is locked right now",
+    "doorLockedBody": "The palace locked this door — the people inside stay, and nobody new walks in until it opens again. The rest of the site is still yours: the shows, your page, your people.",
+    "lockedTryAgain": "Try the door again",
+    "lockedGoLive": "Back to Go Live",
+    "lockedOutNotice": "{{name}} is locked to you for now — you're still in {{room}}.",
+    "doorLockedNotice": "{{name}}'s door is locked right now — you're still in {{room}}."
   }
 }

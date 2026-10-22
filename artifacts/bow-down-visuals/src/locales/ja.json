@@ -11030,5 +11030,16 @@
     "copied": "コピーしました",
     "oneLanguage": "言語",
     "manyLanguages": "言語"
+  },
+  "world": {
+    "lockedOutTitle": "今はこの部屋に入れません",
+    "lockedOutBody": "このロックはパレスがかけたもので、故障ではありません。ロックが解除されるまで、この扉はあなたには開きません。サイトのほかの場所はいつも通り使えます：ショー、あなたのページ、あなたの仲間たち。",
+    "lockedOutRemaining": "このロックの残り時間は約{{duration}}です。",
+    "doorLockedTitle": "この部屋の扉は今、ロックされています",
+    "doorLockedBody": "パレスがこの扉にロックをかけました。中にいる人はそのまま残り、再び開くまで新しい人は入れません。サイトのほかの場所はいつも通り使えます：ショー、あなたのページ、あなたの仲間たち。",
+    "lockedTryAgain": "もう一度扉を試す",
+    "lockedGoLive": "Go Liveに戻る",
+    "lockedOutNotice": "{{name}}は今、あなたには閉ざされています — あなたはまだ{{room}}にいます。",
+    "doorLockedNotice": "{{name}}の扉は今、ロックされています — あなたはまだ{{room}}にいます。"
   }
 }

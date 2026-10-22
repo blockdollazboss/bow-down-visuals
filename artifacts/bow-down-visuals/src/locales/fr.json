@@ -12145,5 +12145,16 @@
     "copied": "Copié",
     "oneLanguage": "langue",
     "manyLanguages": "langues"
+  },
+  "world": {
+    "lockedOutTitle": "Cette salle vous est fermée pour le moment",
+    "lockedOutBody": "Le palais a posé ce verrou, et ce n'est pas un bug : cette porte reste fermée pour vous jusqu'à ce que le verrou se lève. Le reste du site est toujours à vous : les spectacles, votre page, vos gens.",
+    "lockedOutRemaining": "Il reste environ {{duration}} avant que ce verrou se lève.",
+    "doorLockedTitle": "La porte de cette salle est verrouillée en ce moment",
+    "doorLockedBody": "Le palais a verrouillé cette porte : les personnes à l'intérieur restent, et personne de nouveau n'entre jusqu'à sa réouverture. Le reste du site est toujours à vous : les spectacles, votre page, vos gens.",
+    "lockedTryAgain": "Réessayer la porte",
+    "lockedGoLive": "Retour à En Direct",
+    "lockedOutNotice": "{{name}} vous est fermée pour le moment — vous êtes toujours dans {{room}}.",
+    "doorLockedNotice": "La porte de {{name}} est verrouillée en ce moment — vous êtes toujours dans {{room}}."
   }
 }
