@@ -84,11 +84,17 @@ const EN = CATALOGS.en!;
    nine catalogs (2,646 values) — now translated ×9 and pinned here.
    Its calendar.dayNames leaf is the pinned set's first ARRAY value
    (components read it with returnObjects: true), so the emptiness and
-   placeholder checks below judge array leaves by their elements. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8"] as const;
+   placeholder checks below judge array leaves by their elements.
+   "wave9" came with the Stack-23 locale-parity-4 lane (Oct 22 2026):
+   eight of its nine tool blocks (directEdit, structure, remix,
+   timeline, beatSync, templates, bgReplace, characterDirector)
+   existed only in en.json — 222 leaves absent from all nine catalogs
+   (1,998 values) — now translated ×9 and pinned here; the ninth block
+   (cameraMovePlanner) was already pinned via BLOCK_PREFIXES below
+   and is subsumed by the whole-namespace pin. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
-  "wave9.cameraMovePlanner.",
   "artistVault.identity",
   "beats.template",
   "myShop.discount",
@@ -148,8 +154,8 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill and the Stack-22 wave8 fill (2763 keys)", () => {
-    expect(REQUIRED.length).toBe(2763);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill and the Stack-23 wave9 fill (2985 keys)", () => {
+    expect(REQUIRED.length).toBe(2985);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
