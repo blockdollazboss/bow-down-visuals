@@ -62,15 +62,20 @@ import type { EngineMatte, MattingEngine } from "./rvm-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
 import { PerfLadder } from "./perf-ladder";
 import { FrameStallTracker } from "./frame-stall";
+import { mediaUrl } from "../media-cdn";
 
-/* The segmentation engine is VENDORED same-origin (public/engines/
+/* The segmentation engine is VENDORED (public/engines/
    selfie-segmentation — @mediapipe/selfie_segmentation 0.1.1675465747)
    and lazy-loaded only when the studio starts a camera: a creator's
    broadcast must never depend on a third-party CDN being reachable from
    their browser. (The previous pin named a version that does not exist
-   in the npm registry, so its CDN URL failed everywhere.) The CDN copy
-   of the same build remains only as a last-resort fallback. */
-export const SEGMENTATION_LOCAL_BASE = "/engines/selfie-segmentation";
+   in the npm registry, so its CDN URL failed everywhere.) The first
+   base below is the site's own media bucket serving those vendored
+   files (its CORS policy covers the site's origins; the classic
+   script tag + locateFile fetches already run cross-origin against
+   the fallback). The CDN copy of the same build remains only as a
+   last-resort fallback. */
+export const SEGMENTATION_LOCAL_BASE = mediaUrl("engines/selfie-segmentation");
 export const SEGMENTATION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747";
 const SEGMENTATION_BASES = [SEGMENTATION_LOCAL_BASE, SEGMENTATION_CDN_BASE] as const;
 const GREEN = "#00FF00";

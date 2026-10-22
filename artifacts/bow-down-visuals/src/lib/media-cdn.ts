@@ -4,11 +4,14 @@
 // heavy media is served off Render's metered bandwidth. Empty string would
 // serve from the app origin instead. One place to flip the whole site.
 //
-// IMPORTANT: the r2.dev public URL sends no CORS headers, so only plain
-// element consumers (<img>, <video>, <audio>, CSS backgrounds, posters) may
-// use these URLs. Anything loaded with crossOrigin="anonymous" (the World
-// hall) or drawn into a canvas (hero sprite sheets, fog, game sprites,
-// export watermark) must keep its origin path — those stay on BASE_URL.
+// CORS: the bucket carries a CORS policy for the site's origins
+// (bowdownvisuals.com, www, both onrender hosts; GET/HEAD, verified live
+// 2026-10-21 — ACAO echoes the request origin, Vary: Origin, preflight
+// 204), so crossOrigin="anonymous" consumers (the World hall) and
+// canvas-drawn assets (hero sprite sheets, fog, game sprites, export
+// watermark) may use these URLs too, as long as the draw path actually
+// requests the image in CORS mode (crossOrigin="anonymous" set before
+// src) so the canvas stays untainted.
 export const MEDIA_CDN_URL: string =
   "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev";
 

@@ -54,6 +54,7 @@
 
 import { houseGuardVariantForId, type GuardVariant } from "./figure";
 import type { MouthBox } from "./lips";
+import { mediaUrl } from "../media-cdn";
 
 /** A loop a standing figure can wear. Guard paths are public/
  *  slots, resolved BASE_URL-aware like every hall texture; vault
@@ -162,11 +163,17 @@ export function loopForCharacterRef(ref: LoopCharacterRef | null | undefined): F
 }
 
 /** The loop video URL resolved the way the hall resolves its
- *  textures (BASE_URL-aware). Absolute URLs (a future vault loop
- *  field points at mirrored storage) pass through untouched. */
+ *  textures: local public/ slots go through the media CDN (the
+ *  bucket's CORS policy covers the site's origins, so the hall's
+ *  crossOrigin="anonymous" video loads stay clean). Absolute URLs
+ *  (a vault loop field points at mirrored storage) pass through
+ *  untouched. The baseUrl argument is retained for call-site
+ *  compatibility; mediaUrl() is itself BASE_URL-aware when no CDN
+ *  is configured. */
 export function loopVideoUrl(baseUrl: string, def: FigureLoopDef): string {
+  void baseUrl;
   if (/^https?:\/\//i.test(def.videoPath)) return def.videoPath;
-  return `${baseUrl}${def.videoPath.replace(/^\//, "")}`;
+  return mediaUrl(def.videoPath);
 }
 
 /* ── The drift rule ───────────────────────────────────────────────────

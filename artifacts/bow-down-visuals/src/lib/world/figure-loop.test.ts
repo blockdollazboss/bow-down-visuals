@@ -51,9 +51,9 @@ describe("guard loops", () => {
     expect(female.h).toBeCloseTo(2171 / 2240);
   });
 
-  it("loop URLs resolve BASE_URL-aware like the hall's textures", () => {
-    expect(loopVideoUrl("/", loopForGuardVariant("male"))).toBe("/world/loops/palace-guard-male-idle-loop.mp4");
-    expect(loopVideoUrl("/app/", loopForGuardVariant("female"))).toBe("/app/world/loops/palace-guard-female-idle-loop.mp4");
+  it("loop URLs resolve through the media CDN like the hall's textures", () => {
+    expect(loopVideoUrl("/", loopForGuardVariant("male"))).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/loops/palace-guard-male-idle-loop.mp4");
+    expect(loopVideoUrl("/app/", loopForGuardVariant("female"))).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/loops/palace-guard-female-idle-loop.mp4");
   });
 });
 

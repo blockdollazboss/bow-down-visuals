@@ -53,9 +53,9 @@ describe("figure measurements", () => {
     expect(defaultFigureCanvasSize(0).w).toBeGreaterThanOrEqual(128);
   });
 
-  it("the slot URL is BASE_URL-aware, like the hall's textures", () => {
-    expect(defaultCharacterUrl("/")).toBe("/world/default-character.png");
-    expect(defaultCharacterUrl("/app/")).toBe("/app/world/default-character.png");
+  it("the slot URL resolves through the media CDN, like the hall's textures", () => {
+    expect(defaultCharacterUrl("/")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/default-character.png");
+    expect(defaultCharacterUrl("/app/")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/default-character.png");
   });
 });
 
@@ -63,8 +63,8 @@ describe("the two house guards", () => {
   it("both slots are named — the male guard keeps the original slot", () => {
     expect(GUARD_CHARACTER_PATHS.male).toBe("/world/default-character.png");
     expect(GUARD_CHARACTER_PATHS.female).toBe("/world/default-character-female.png");
-    expect(guardCharacterUrl("/", "female")).toBe("/world/default-character-female.png");
-    expect(guardCharacterUrl("/app/", "male")).toBe("/app/world/default-character.png");
+    expect(guardCharacterUrl("/", "female")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/default-character-female.png");
+    expect(guardCharacterUrl("/app/", "male")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/world/default-character.png");
   });
 
   it("house pick ids map to their guard — vault ids and no pick map to nothing", () => {

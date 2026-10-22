@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { mediaUrl } from "@/lib/media-cdn";
 
 /* ─────────── Fog Lab B — canvas particle smoke ─────────── */
 /* A true particle simulation: ~220 smoke-textured particles advected by
@@ -10,9 +11,9 @@ import { useEffect, useRef } from "react";
    through fade-in / grow / fade-out life cycles. */
 
 const TEX_URLS = [
-  "/images/fog/smoke-1.png?v=2",
-  "/images/fog/smoke-2.png?v=2",
-  "/images/fog/smoke-3.png?v=2",
+  `${mediaUrl("images/fog/smoke-1.png")}?v=2`,
+  `${mediaUrl("images/fog/smoke-2.png")}?v=2`,
+  `${mediaUrl("images/fog/smoke-3.png")}?v=2`,
 ];
 
 const COUNT = 220;
@@ -62,6 +63,9 @@ export function FogCanvas({
 
     const tex: HTMLImageElement[] = TEX_URLS.map((u) => {
       const img = new Image();
+      // CORS mode: textures come from the media bucket; keep the
+      // canvas untainted (bucket CORS covers the site's origins).
+      img.crossOrigin = "anonymous";
       img.src = u;
       return img;
     });

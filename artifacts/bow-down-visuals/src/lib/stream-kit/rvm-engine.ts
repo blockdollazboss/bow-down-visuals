@@ -9,10 +9,14 @@
  * carried across frames, which is where its temporal stability
  * comes from (no per-frame mask flicker).
  *
- * Everything is VENDORED same-origin (public/engines/onnxruntime +
+ * Everything is VENDORED (public/engines/onnxruntime +
  * public/engines/rvm) and lazy-loaded only when a camera starts —
- * the same local-first discipline as the other engines. The public
- * CDN/GitHub copies remain only as last-resort fallbacks.
+ * the same local-first discipline as the other engines. The first
+ * base below is the site's own media bucket serving those vendored
+ * files (its CORS policy covers the site's origins; every load here
+ * — classic script tag, ORT wasm fetch — already runs cross-origin
+ * against the CDN fallbacks). The public CDN/GitHub copies remain
+ * only as last-resort fallbacks.
  *
  * Runtime selection: WebGPU when the browser exposes a working
  * adapter, otherwise the WASM build (SIMD; threads when the page is
@@ -21,9 +25,11 @@
  * executes the step table.
  */
 
-export const ORT_LOCAL_BASE = "/engines/onnxruntime";
+import { mediaUrl } from "../media-cdn";
+
+export const ORT_LOCAL_BASE = mediaUrl("engines/onnxruntime");
 export const ORT_CDN_BASE = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist";
-export const RVM_LOCAL_BASE = "/engines/rvm";
+export const RVM_LOCAL_BASE = mediaUrl("engines/rvm");
 export const RVM_CDN_BASE =
   "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0";
 export const RVM_MODEL_FILE = "rvm_mobilenetv3_fp32.onnx";

@@ -105,8 +105,12 @@ export interface WorldScreenDto {
 }
 
 /** The hall's featured reel when nothing is live: the King himself,
- *  looping — a file the site already ships (public/videos). */
-export const WORLD_FEATURED_VIDEO_URL = "/videos/shark-king-360-loop.mp4";
+ *  looping — served from the site media bucket (the same public base
+ *  as the frontend's MEDIA_CDN_URL in lib/media-cdn.ts; the bucket's
+ *  CORS policy covers the site's origins, so the hall screen's
+ *  crossOrigin="anonymous" video texture loads clean). */
+export const WORLD_FEATURED_VIDEO_URL =
+  "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/videos/shark-king-360-loop.mp4";
 
 /** Pure pick: a live row only becomes "live" on the screen when it has
  *  a playable HLS URL; a live-but-unplayable row falls back to the

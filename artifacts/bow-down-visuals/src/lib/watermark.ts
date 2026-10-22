@@ -5,9 +5,13 @@
    - Dark theme  → gold logo on transparent (readable on dark videos)
    Custom uploads always win — this is only the fallback. */
 
+import { mediaUrl } from "./media-cdn";
+
 export function getDefaultWatermarkUrl(isLight: boolean): string {
-  const base = import.meta.env.BASE_URL;
-  return isLight ? `${base}bdv-watermark-light.png` : `${base}bdv-watermark.webp`;
+  // Display consumers are plain <img> overlays/previews; the export
+  // burn-in itself is server-side ffmpeg reading the local files
+  // (WATERMARK_FILE_* below), so this URL only feeds display.
+  return mediaUrl(isLight ? "bdv-watermark-light.png" : "bdv-watermark.webp");
 }
 
 /** Server-side filenames (relative to artifacts/bow-down-visuals/public/). */
