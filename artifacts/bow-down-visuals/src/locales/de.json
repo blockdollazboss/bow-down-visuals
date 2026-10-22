@@ -86,7 +86,7 @@
     "heroSubtitle": "Alles, was du brauchst, um wie ein Profi zu erstellen — Musik, Videos, Thumbnails, Branding und mehr. Alles KI-gestützt.",
     "heroTitle": "Der Cheat-Code für Content-Erstellung",
     "pageTitle": "Bow Down Visuals — Der Cheat-Code für Content-Creator",
-    "pageDescription": "Das KI-Studio für Content-Creator: Songs, Musikvideos, Promo-Clips, Branding & Business-Tools. Über 80 KI-Features — zahlen Sie nur für das, was Sie erstellen.",
+    "pageDescription": "Das KI-Studio für Content-Creator: Songs, Musikvideos, Promo-Clips, Branding & Business-Tools. Über 19 KI-Features — zahlen Sie nur für das, was Sie erstellen.",
     "shareLabel": "Verbreiten Sie den Code",
     "shareLabelTellCreator": "Erzählen Sie es einem Creator",
     "shareX": "Auf X teilen",
@@ -109,7 +109,7 @@
     "heroHeadlineA": "Ihre Konkurrenz wird denken, Sie hätten",
     "heroHeadlineB": "ein Team eingestellt.",
     "heroSlogan": "Das fühlt sich wie Schummeln an. Genau darum geht's.",
-    "heroSub": "Bow Down Visuals ist das KI-Studio, das Ihre Songs schreibt, Ihre Videos dreht, Ihre Promo schneidet und Ihr Business führt — über 80 Tools, ein Visual-Bucs-System, null Freigaben nötig.",
+    "heroSub": "Bow Down Visuals ist das KI-Studio, das Ihre Songs schreibt, Ihre Videos dreht, Ihre Promo schneidet und Ihr Business führt — über 19 Tools, ein Visual-Bucs-System, null Freigaben nötig.",
     "watchItWork": "Sehen Sie es in Aktion",
     "alreadyHaveAccount": "Haben Sie schon ein Konto? ",
     "signIn": "Anmelden",
@@ -285,7 +285,7 @@
     "manifestoKicker": "Eine Botschaft vom King",
     "manifestoTitleA": "BOW",
     "manifestoTitleB": "DOWN.",
-    "manifestoBody": "Die Industrie hatte ihren Auftritt. Über 80 KI-Tools. Ein Cheat-Code. Null Freigaben nötig.",
+    "manifestoBody": "Die Industrie hatte ihren Auftritt. Über 19 KI-Tools. Ein Cheat-Code. Null Freigaben nötig.",
     "manifestoRumor": "Gerücht: Diese Seite hat einen Cheat-Code.",
     "studioKicker": "Das Studio",
     "studioTitle": "Ein Login. Die ganze Maschine.",
@@ -298,17 +298,17 @@
           {
             "title": "Song erstellen",
             "description": "Komplette Songs — Lyrics, Melodie und Produktion in Minuten.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Musikvideo erstellen",
             "description": "Kinoreife KI-Szenen, gebaut für Ihren Track.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Song + Video",
             "description": "Das Komplettpaket — Song und Video in einem Flow.",
-            "cost": "4 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -319,7 +319,7 @@
           {
             "title": "Video-Editor",
             "description": "Schneiden, untertiteln und graden — mit eingebautem Lip-Sync.",
-            "cost": "Lip-Sync 3 VB"
+            "cost": "Lip-Sync 300 VB"
           },
           {
             "title": "KI-Voiceover",
@@ -329,7 +329,7 @@
           {
             "title": "Upscale",
             "description": "Ehrliches 1080p- und 4K-Upscaling. Kein gefaktes „Enhance“.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       },
@@ -340,12 +340,12 @@
           {
             "title": "Promo-Clips",
             "description": "Scroll-stoppende Clips für TikTok, Reels und Shorts.",
-            "cost": "4 VB"
+            "cost": "400 VB"
           },
           {
             "title": "Hook-Studio",
             "description": "Hooks für die ersten 3 Sekunden plus Virality-Pre-Flight-Check.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Scheduler",
@@ -361,17 +361,17 @@
           {
             "title": "Monetarisierungs-Coach",
             "description": "Ihr 30-Tage-Geldplan, Plattform für Plattform.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Sponsor-Match",
             "description": "KI-gematchte Brand-Deals plus Pitches, die closen.",
-            "cost": "1 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Merch-Designer",
             "description": "KI-Merch-Mockups — dropship-ready.",
-            "cost": "3 VB"
+            "cost": "300 VB"
           }
         ]
       }
@@ -433,7 +433,7 @@
     "referTitleA": "Bringen Sie Creator.",
     "referTitleB": "Werden Sie in Visual Bucs bezahlt.",
     "referBodyA": "Teilen Sie Ihren Link. Ihre Freunde erhalten ",
-    "referBodyB": "10 Gratis-Visual Bucs",
+    "referBodyB": "1.000 Gratis-Visual Bucs",
     "referBodyC": ", um loszulegen. Sie verdienen ",
     "referBodyD": "25 % von allem, was sie kaufen",
     "referBodyE": " — für 90 Tage.",
@@ -445,7 +445,7 @@
     "faqs": [
       {
         "q": "Was ist Bow Down Visuals?",
-        "a": "Das KI-Studio für Content-Creator — über 80 Tools, die Ihre Songs schreiben, Ihre Videos drehen, Ihre Promo schneiden, Ihre Marke designen und Ihr Business führen. Ein Konto, ein Visual-Bucs-System, kein Team erforderlich."
+        "a": "Das KI-Studio für Content-Creator — über 19 Tools, die Ihre Songs schreiben, Ihre Videos drehen, Ihre Promo schneiden, Ihre Marke designen und Ihr Business führen. Ein Konto, ein Visual-Bucs-System, kein Team erforderlich."
       },
       {
         "q": "Wie funktionieren Visual Bucs?",
@@ -556,7 +556,7 @@
     ],
     "bizOpen": "Öffnen",
     "jackpotBold": "Jeden Monat gewinnt ein Cheat-Code.",
-    "jackpotBody": "Der Cheat-Code-Jackpot — jeden Monat droppt ein geheimer Pfeil-Code. Wer ihn zuerst knackt und eingibt, gewinnt 100 Visual Bucs.",
+    "jackpotBody": "Der Cheat-Code-Jackpot — jeden Monat droppt ein geheimer Pfeil-Code. Wer ihn zuerst knackt und eingibt, gewinnt 10.000 Visual Bucs.",
     "jackpotCta": "Knacken Sie den Code",
     "academyKicker": "Creator Academy",
     "academyTitleA": "Der Cheat-Code",
@@ -1368,7 +1368,7 @@
     "heroSubtitle": "KI bewertet deinen Content in 6 Dimensionen – Hooks, Branding, Captions, CTAs, Konsistenz und deine Bio – und gibt dir dann die exakten Fixes, um aufzusteigen.",
     "heroTitle": "Lass deinen Kanal",
     "heroTitleAccent": "benoten",
-    "hookStudioNote": "Willst du Hooks umschreiben lassen? Das Hook Studio macht 5 Scroll-Stopper pro Visual Buc.",
+    "hookStudioNote": "Willst du Hooks umschreiben lassen? Das Hook Studio macht 5 Scroll-Stopper pro 100 Visual Bucs.",
     "nicheLabel": "Deine Nische *",
     "nichePlaceholder": "z. B. Luxury-Hip-Hop, Fitness-Coaching",
     "optional": "(optional)",
@@ -4038,7 +4038,7 @@
     "pageTitle": "Song erstellen",
     "pageDescription": "Generieren Sie komplette Songs mit KI — Lyrics, Melodie und Produktion in Minuten.",
     "backToDashboard": "Zurück zum Dashboard",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "400 Visual Bucs",
     "title": "Song erstellen",
     "subtitle": "Erstellen Sie Lyrics, Hooks, Strophen, Beat-Richtung, Gesangsstil und KI-Musik-Prompts für Ihren nächsten Release.",
     "buildOnIt": "Darauf aufbauen",
@@ -4116,7 +4116,7 @@
     "pageTitle": "Musikvideo erstellen",
     "pageDescription": "Verwandeln Sie Ihren Song in ein cineastisches Musikvideo mit KI-Szenengenerierung.",
     "backToDashboard": "Zurück zum Dashboard",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "200 Visual Bucs",
     "title": "Musikvideo erstellen",
     "subtitle": "Ein Schritt-für-Schritt-Studio — vom Song-Setup bis zum cineastischen KI-Musikvideo-Plan.",
     "back": "Zurück",
@@ -5248,7 +5248,7 @@
     "cleanOption": "Clean",
     "copiedLabel": "Kopiert!",
     "copyButton": "Kopieren",
-    "costBadge": "200 Visual Bucs",
+    "costBadge": "400 Visual Bucs",
     "creditRefundedNote": "Visual Bucs erstattet — finde deine Inhalte in",
     "defaultProjectTitle": "Song + Video erstellen",
     "dismissButton": "Schließen",
@@ -5552,7 +5552,7 @@
     "colorThemeLabel": "Farbthema",
     "colorThemePlaceholder": "z. B. Schwarz und Gold, Lila und Weiß...",
     "costBadge": "bis zu 300 Visual Bucs",
-    "costNote": "Kostet 100 Visual Bucs für das Konzeptpaket, plus 2 weitere, wenn das KI-Thumbnail-Bild erfolgreich rendert (3 insgesamt)",
+    "costNote": "Kostet 100 Visual Bucs für das Konzeptpaket, plus 200 weitere, wenn das KI-Thumbnail-Bild erfolgreich rendert (300 insgesamt)",
     "downloadImage": "Bild herunterladen",
     "featuredTextLabel": "Präsentierter Text",
     "featuredTextPlaceholder": "z. B. JETZT RAUS, NEUE SINGLE, FT. ARTIST...",
@@ -8807,7 +8807,7 @@
     "bestTime": {
       "title": "AI best-time suggestions",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
-      "cost": "100 Visual Bucs",
+      "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
       "niche": "Niche",
       "postsPerWeek": "Posts / week",

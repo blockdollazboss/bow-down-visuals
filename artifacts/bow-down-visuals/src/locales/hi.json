@@ -273,7 +273,7 @@
     "faqTitle": "अक्सर पूछे जाने वाले प्रश्न",
     "faqs": [
       {
-        "a": "कंटेंट क्रिएटर्स के लिए AI स्टूडियो — 80+ टूल जो आपके गाने लिखते हैं, वीडियो शूट करते हैं, प्रोमो काटते हैं, ब्रांड डिज़ाइन करते हैं और आपका बिज़नेस चलाते हैं। एक अकाउंट, एक Visual Buc सिस्टम, किसी टीम की ज़रूरत नहीं।",
+        "a": "कंटेंट क्रिएटर्स के लिए AI स्टूडियो — 19+ टूल जो आपके गाने लिखते हैं, वीडियो शूट करते हैं, प्रोमो काटते हैं, ब्रांड डिज़ाइन करते हैं और आपका बिज़नेस चलाते हैं। एक अकाउंट, एक Visual Buc सिस्टम, किसी टीम की ज़रूरत नहीं।",
         "q": "Bow Down Visuals क्या है?"
       },
       {
@@ -319,11 +319,11 @@
     "heroHeadlineA": "आपके प्रतियोगी सोचेंगे कि आपने",
     "heroHeadlineB": "एक टीम हायर कर ली है।",
     "heroSlogan": "यह चीटिंग जैसा लगता है। यही तो बात है।",
-    "heroSub": "Bow Down Visuals वह AI स्टूडियो है जो आपके गाने लिखता है, वीडियो शूट करता है, प्रोमो काटता है और आपका बिज़नेस चलाता है — 80+ टूल, एक Visual Buc सिस्टम, किसी अनुमति की ज़रूरत नहीं।",
+    "heroSub": "Bow Down Visuals वह AI स्टूडियो है जो आपके गाने लिखता है, वीडियो शूट करता है, प्रोमो काटता है और आपका बिज़नेस चलाता है — 19+ टूल, एक Visual Buc सिस्टम, किसी अनुमति की ज़रूरत नहीं।",
     "howKicker": "यह कैसे काम करता है",
     "howSub": "कोई टीम नहीं। कोई बजट मीटिंग नहीं। बस आप और कोड।",
     "howTitle": "मिनटों में आइडिया से साम्राज्य तक",
-    "jackpotBody": "द चीट कोड जैकपॉट — हर महीने एक गुप्त एरो-कोड आता है। सबसे पहले इसे क्रैक करके दर्ज करने वाला 100 Visual Bucs जीतता है।",
+    "jackpotBody": "द चीट कोड जैकपॉट — हर महीने एक गुप्त एरो-कोड आता है। सबसे पहले इसे क्रैक करके दर्ज करने वाला 10,000 Visual Bucs जीतता है।",
     "jackpotBold": "हर महीने, एक चीट कोड जीतता है।",
     "jackpotCta": "कोड क्रैक करें",
     "konamiAccepted": "चीट कोड स्वीकार हुआ",
@@ -336,7 +336,7 @@
     "makeKicker": "आप क्या बना सकते हैं",
     "makeSub": "एक स्टूडियो। आपके संगीत करियर की हर संपत्ति — जनरेट की गई, डेलीगेट नहीं।",
     "makeTitle": "आपकी रिलीज़ को जो कुछ चाहिए, सब कुछ",
-    "manifestoBody": "इंडस्ट्री की बारी हो गई। 80+ AI टूल। एक चीट कोड। किसी अनुमति की ज़रूरत नहीं।",
+    "manifestoBody": "इंडस्ट्री की बारी हो गई। 19+ AI टूल। एक चीट कोड। किसी अनुमति की ज़रूरत नहीं।",
     "manifestoKicker": "राजा की ओर से संदेश",
     "manifestoRumor": "अफ़वाह: इस पेज में एक चीट कोड है।",
     "manifestoTitleA": "झुक",
@@ -357,7 +357,7 @@
       "प्रेस किट",
       "स्पॉन्सर पिच"
     ],
-    "pageDescription": "कंटेंट क्रिएटर्स के लिए AI स्टूडियो: गाने, म्यूज़िक वीडियो, प्रोमो क्लिप्स, ब्रांडिंग और बिज़नेस टूल। 80+ AI फ़ीचर — सिर्फ़ उसी का भुगतान करें जो आप बनाते हैं।",
+    "pageDescription": "कंटेंट क्रिएटर्स के लिए AI स्टूडियो: गाने, म्यूज़िक वीडियो, प्रोमो क्लिप्स, ब्रांडिंग और बिज़नेस टूल। 19+ AI फ़ीचर — सिर्फ़ उसी का भुगतान करें जो आप बनाते हैं।",
     "pageTitle": "Bow Down Visuals — कंटेंट क्रिएटर का चीट कोड",
     "positioning": "कंटेंट क्रिएटर का चीट कोड",
     "pricingKicker": "Visual Buc पैक्स",
@@ -382,7 +382,7 @@
       }
     ],
     "referBodyA": "अपना लिंक शेयर करें। आपके दोस्तों को ",
-    "referBodyB": "10 मुफ़्त क्रेडिट",
+    "referBodyB": "1,000 मुफ़्त क्रेडिट",
     "referBodyC": " मिलेंगे बनाने की शुरुआत करने के लिए। आप कमाएंगे ",
     "referBodyD": "उनकी हर खरीद का 25%",
     "referBodyE": " 90 दिनों तक।",
@@ -421,17 +421,17 @@
         "tagline": "संगीत",
         "tools": [
           {
-            "cost": "4 VB",
+            "cost": "400 VB",
             "description": "पूरे गाने — मिनटों में लिरिक्स, मेलोडी और प्रोडक्शन।",
             "title": "गाना बनाएं"
           },
           {
-            "cost": "4 VB",
+            "cost": "400 VB",
             "description": "आपके ट्रैक के लिए सिनेमैटिक AI सीन।",
             "title": "म्यूज़िक वीडियो बनाएं"
           },
           {
-            "cost": "4 VB",
+            "cost": "300 VB",
             "description": "पूरा पैकेज — एक ही फ़्लो में गाना और वीडियो।",
             "title": "गाना + वीडियो"
           }
@@ -442,7 +442,7 @@
         "tagline": "पॉलिश",
         "tools": [
           {
-            "cost": "लिप सिंक 3 VB",
+            "cost": "लिप सिंक 300 VB",
             "description": "कट करें, कैप्शन लगाएं और ग्रेड करें — लिप सिंक बिल्ट-इन।",
             "title": "वीडियो एडिटर"
           },
@@ -452,7 +452,7 @@
             "title": "AI वॉइसओवर"
           },
           {
-            "cost": "3 VB",
+            "cost": "300 VB",
             "description": "ईमानदार 1080p और 4K अपस्केलिंग। कोई नकली “एनहांस” नहीं।",
             "title": "अपस्केल"
           }
@@ -463,12 +463,12 @@
         "tagline": "रोलआउट",
         "tools": [
           {
-            "cost": "4 VB",
+            "cost": "400 VB",
             "description": "TikTok, Reels और Shorts के लिए स्क्रॉल रोकने वाले क्लिप्स।",
             "title": "प्रोमो क्लिप्स"
           },
           {
-            "cost": "1 VB",
+            "cost": "100 VB",
             "description": "पहले-3-सेकंड के हुक प्लस वायरलिटी प्री-फ़्लाइट चेक।",
             "title": "हुक स्टूडियो"
           },
@@ -484,17 +484,17 @@
         "tagline": "बिज़नेस",
         "tools": [
           {
-            "cost": "1 VB",
+            "cost": "100 VB",
             "description": "प्लेटफ़ॉर्म-दर-प्लेटफ़ॉर्म आपका 30-दिन का मनी प्लान।",
             "title": "मोनेटाइज़ेशन कोच"
           },
           {
-            "cost": "1 VB",
+            "cost": "100 VB",
             "description": "AI-मैच किए गए ब्रांड डील, प्लस बंद करने वाले पिच।",
             "title": "स्पॉन्सर मैच"
           },
           {
-            "cost": "3 VB",
+            "cost": "300 VB",
             "description": "AI मर्च मॉकअप — ड्रॉपशिप-रेडी।",
             "title": "मर्च डिज़ाइनर"
           }
@@ -1385,7 +1385,7 @@
     "topPrioritiesTitle": "आपकी टॉप 3 प्रायोरिटी",
     "fixItNowTitle": "अभी फिक्स करें",
     "fixItNowSubtitle": "उन टूल्स पर सीधे जाएं जो ऑडिट में मिली समस्याएं ठीक करते हैं।",
-    "hookStudioNote": "हुक्स रीराइट करवाने हैं? Hook Studio प्रति Visual Buc 5 स्क्रॉल-स्टॉपर देता है।"
+    "hookStudioNote": "हुक्स रीराइट करवाने हैं? Hook Studio प्रति 100 Visual Bucs 5 स्क्रॉल-स्टॉपर देता है।"
   },
   "beatMaker": {
     "advancedBadge": "एडवांस्ड",
@@ -2372,7 +2372,7 @@
     "sign_in": "साइन इन",
     "sign_in_to_run_contests_for_your": "अपने फ़ैन्स के लिए कॉन्टेस्ट चलाने हेतु साइन इन करें।",
     "starts_optional": "शुरुआत (वैकल्पिक)",
-    "the_seed_entry_list_and_algorith": "—\n            सीड, एंट्री सूची और एल्गोरिदम ऑडिट लॉग में प्रकाशित किए जाते हैं ताकि कोई भी ड्रॉ दोबारा चला सके।\n            केवल AI विजेता-घोषणा ग्राफ़िक की लागत 100 Visual Bucs है। बाकी सब मुफ़्त है।",
+    "the_seed_entry_list_and_algorith": "—\n            सीड, एंट्री सूची और एल्गोरिदम ऑडिट लॉग में प्रकाशित किए जाते हैं ताकि कोई भी ड्रॉ दोबारा चला सके।\n            केवल AI विजेता-घोषणा ग्राफ़िक की लागत 1 Visual Buc है। बाकी सब मुफ़्त है।",
     "total_entries": "कुल एंट्री",
     "track_entries": "एंट्री ट्रैक करें",
     "verifiable_random_draw": "सत्यापन योग्य रैंडम ड्रॉ",
@@ -4088,7 +4088,7 @@
     "moodVictory": "Victory",
     "pageDescription": "AI से पूरे गाने बनाएं — मिनटों में lyrics, melody और production।",
     "pageTitle": "गाना बनाएं",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "400 Visual Bucs",
     "selectGenre": "Genre चुनें...",
     "selectLength": "लंबाई चुनें...",
     "selectMood": "Mood चुनें...",
@@ -4116,7 +4116,7 @@
     "pageTitle": "म्यूज़िक वीडियो बनाएं",
     "pageDescription": "AI सीन जनरेशन के साथ अपने गाने को सिनेमैटिक म्यूज़िक वीडियो में बदलें।",
     "backToDashboard": "डैशबोर्ड पर वापस जाएं",
-    "priceBadge": "100 Visual Bucs",
+    "priceBadge": "200 Visual Bucs",
     "title": "म्यूज़िक वीडियो बनाएं",
     "subtitle": "स्टेप-बाय-स्टेप स्टूडियो — गाने की सेटअप से सिनेमैटिक AI म्यूज़िक वीडियो प्लान तक।",
     "back": "पीछे",
@@ -5248,7 +5248,7 @@
     "cleanOption": "क्लीन",
     "copiedLabel": "कॉपी हो गया!",
     "copyButton": "कॉपी करें",
-    "costBadge": "200 Visual Bucs",
+    "costBadge": "400 Visual Bucs",
     "creditRefundedNote": "Visual Bucs वापस — अपना कंटेंट यहां पाएं",
     "defaultProjectTitle": "गीत + वीडियो बनाएं",
     "dismissButton": "खारिज करें",
@@ -5552,7 +5552,7 @@
     "colorThemeLabel": "कलर थीम",
     "colorThemePlaceholder": "जैसे: black and gold, purple and white...",
     "costBadge": "300 Visual Bucs तक",
-    "costNote": "कॉन्सेप्ट पैक के लिए 100 Visual Bucs इस्तेमाल होते हैं, और अगर AI थंबनेल इमेज सफलतापूर्वक रेंडर होती है तो 2 और (कुल 3)",
+    "costNote": "कॉन्सेप्ट पैक के लिए 100 Visual Bucs इस्तेमाल होते हैं, और अगर AI थंबनेल इमेज सफलतापूर्वक रेंडर होती है तो 200 और (कुल 300)",
     "downloadImage": "इमेज डाउनलोड करें",
     "featuredTextLabel": "फ़ीचर्ड टेक्स्ट",
     "featuredTextPlaceholder": "जैसे: OUT NOW, NEW SINGLE, FT. ARTIST...",
@@ -7761,7 +7761,7 @@
     "bestTime": {
       "title": "AI best-time suggestions",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
-      "cost": "100 Visual Bucs",
+      "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
       "niche": "Niche",
       "postsPerWeek": "Posts / week",
