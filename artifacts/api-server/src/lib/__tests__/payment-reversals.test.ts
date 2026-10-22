@@ -31,6 +31,10 @@
  *  - a reversal whose pack leg finished but whose referral leg did
  *    not is reclaimed on retry (the claim gate checks referral work),
  *    never answered 'duplicate' with the referral claw outstanding.
+ *  - the award's referrals row loses exactly the clawed amount from
+ *    its displayed total_referrer_earned (floored at 0), keyed to the
+ *    referral_credits_clawed delta — retries and no-award reversals
+ *    move it not at all.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -690,6 +694,161 @@ describe("credit packs — the VB rail", () => {
     });
     expect(out).toEqual({ outcome: "inflight" });
     expect(balance(BUYER)).toBe(6000);
+  });
+});
+
+describe("referral lifetime total — total_referrer_earned follows the clawback", () => {
+  function earnedOf(referralId: string): number {
+    return Number(sb.referrals.find((r) => r.id === referralId)?.["total_referrer_earned"] ?? 0);
+  }
+
+  /* A referred 5,000-credit pack: award 1,250 (25%). The referrals
+     row's lifetime total is seeded independently of the award so the
+     assertions prove the decrement is the clawed amount, not a
+     zeroing. */
+  async function seedReferredPack(earned: number) {
+    await seedPack();
+    sb.referralPayouts.push({
+      id: "rp_1",
+      referral_id: "ref_1",
+      stripe_session_id: "cs_pack_1",
+      referee_credits_purchased: 5000,
+      referrer_credits_awarded: 1250,
+    });
+    sb.referrals.push({
+      id: "ref_1",
+      referrer_user_id: REFERRER,
+      referee_user_id: BUYER,
+      total_referrer_earned: earned,
+    });
+  }
+
+  it("a full refund decrements the award's referrals row by exactly the clawed amount", async () => {
+    await seedReferredPack(2000);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", creditsClawed: 5000 });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_1")).toBe(750); // 2,000 − 1,250 clawed
+  });
+
+  it("a replayed reversal decrements once — the duplicate run moves nothing", async () => {
+    await seedReferredPack(2000);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(earnedOf("ref_1")).toBe(750);
+    const out2 = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(out2).toEqual({ outcome: "duplicate" });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_1")).toBe(750);
+  });
+
+  it("partial refunds decrement pro-rata; the completing refund decrements only the remainder", async () => {
+    await seedReferredPack(1250);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    const half = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded",
+      charge: charge({ refundedCents: 1950 }),
+    });
+    expect(half).toMatchObject({ outcome: "reversed", creditsClawed: 2500 });
+    expect(balance(REFERRER)).toBe(1375); // 2,000 − 625 (half of 1,250)
+    expect(earnedOf("ref_1")).toBe(625);
+    const rest = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_2", trigger: "charge.refunded", charge: charge({ refundedCents: 3900 }),
+    });
+    expect(rest).toMatchObject({ outcome: "reversed", creditsClawed: 5000 });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_1")).toBe(0);
+  });
+
+  it("the decrement never drives the total negative — it floors at 0", async () => {
+    /* The row's displayed total sits BELOW the award (drift the
+       decrement must absorb, not amplify): the claw still takes the
+       full 1,250 of VB, the total just stops at 0. */
+    await seedReferredPack(400);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", creditsClawed: 5000 });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_1")).toBe(0);
+  });
+
+  it("a reversal with no referral award touches no lifetime total", async () => {
+    await seedPack();
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    /* A referrals row exists for this buyer (another purchase paid
+       it), but THIS session paid no award — nothing may move. */
+    sb.referrals.push({
+      id: "ref_1",
+      referrer_user_id: REFERRER,
+      referee_user_id: BUYER,
+      total_referrer_earned: 900,
+    });
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", creditsClawed: 5000 });
+    expect(balance(REFERRER)).toBe(2000);
+    expect(earnedOf("ref_1")).toBe(900);
+  });
+
+  it("when the referral leg lands on a Stripe retry, the decrement lands with it — once", async () => {
+    /* D7-replay shape with the lifetime total watching: run 1 fails
+       the referral read AFTER the pack claw persisted, so nothing
+       referral-side may move; the retry runs the leg and the
+       decrement together; a third delivery is a duplicate. */
+    await seedPack("pi_1", "cs_pack_1", 1000);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 1000);
+    sb.referralPayouts.push({
+      id: "rp_9",
+      referral_id: "ref_9",
+      stripe_session_id: "cs_pack_1",
+      referee_credits_purchased: 1000,
+      referrer_credits_awarded: 250,
+    });
+    sb.referrals.push({
+      id: "ref_9",
+      referrer_user_id: REFERRER,
+      referee_user_id: BUYER,
+      total_referrer_earned: 250,
+    });
+    const nineDollar = charge({ amountCents: 900, refundedCents: 900 });
+
+    sb.referralLookupFails = true;
+    await expect(
+      processChargeReversal({ stripe: stripeFake, eventId: "evt_r1", trigger: "charge.refunded", charge: nineDollar }),
+    ).rejects.toThrow("referral lookup failed");
+    expect(balance(REFERRER)).toBe(1000);
+    expect(earnedOf("ref_9")).toBe(250);
+
+    sb.referralLookupFails = false;
+    const retry = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_r2", trigger: "charge.refunded", charge: nineDollar,
+    });
+    expect(retry).toMatchObject({ outcome: "reversed", creditsClawed: 1000 });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_9")).toBe(0);
+
+    const third = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_r3", trigger: "charge.refunded", charge: nineDollar,
+    });
+    expect(third).toEqual({ outcome: "duplicate" });
+    expect(balance(REFERRER)).toBe(750);
+    expect(earnedOf("ref_9")).toBe(0);
   });
 });
 

@@ -32,6 +32,10 @@
  *     referral_credits_clawed are cumulative and every step computes
  *     only its delta.
  *   - VB claws back pro-rata on partial refunds (the divisible rail);
+ *     the referral share claws by the same fraction, and the award's
+ *     referrals row loses the same amount from its displayed
+ *     total_referrer_earned (floored at 0, keyed to the persisted
+ *     referral_credits_clawed delta — retries decrement nothing more);
  *     entitlements and seller ledgers reverse only on a FULL refund
  *     or a lost dispute (a partial refund leaves the buyer partially
  *     paid-up; the audit row records that the entitlement was kept).
@@ -467,6 +471,70 @@ async function writeClawbackLedgerRow(input: {
   );
 }
 
+/**
+ * Decrement the referrals row's displayed lifetime total
+ * (total_referrer_earned) by VB the referral leg just clawed back.
+ * The grant side (awardReferralPayout, routes/referrals) bumps this
+ * total when an award lands; without the matching decrement here the
+ * "lifetime earned" figure drifts upward from reality after any
+ * reversed award — the payouts table stays the ledger of record,
+ * this total is its display.
+ *
+ * Semantics mirror the grant side's own fallback: the
+ * increment_referrer_earned RPC is a bare `total + p_amount` with no
+ * floor, so the decrement is a read-modify-write floored at 0
+ * (GREATEST(0, total − amount)) through the same Supabase client the
+ * grant and lookup paths use. The amount is always the delta the
+ * caller just persisted into referral_credits_clawed, so the total
+ * moves exactly with the engine's cumulative progress: a Stripe
+ * retry that debits 0 more calls this with nothing (it is only
+ * invoked when the leg actually debited), and can never decrement
+ * twice for the same VB.
+ *
+ * Failure posture mirrors writeClawbackLedgerRow: the debit and its
+ * progress persist BEFORE this runs, so a failure here must not
+ * throw (a throw would 500 the webhook and re-run legs that already
+ * converged) and must never un-debit — retry briefly, then log
+ * CRITICAL for manual reconciliation.
+ */
+async function decrementReferrerEarnedTotal(input: {
+  referralId: string;
+  amount: number;
+  chargeId: string;
+}): Promise<void> {
+  if (!Number.isFinite(input.amount) || input.amount <= 0 || !input.referralId) return;
+  const admin = getSupabaseAdmin();
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { data: cur, error: readErr } = await admin
+        .from("referrals")
+        .select("total_referrer_earned")
+        .eq("id", input.referralId)
+        .single();
+      if (readErr) throw new Error(`read failed: ${readErr.message}`);
+      const current = Number(
+        (cur as { total_referrer_earned?: number } | null)?.total_referrer_earned ?? 0,
+      );
+      const next = Math.max(0, current - input.amount);
+      if (next === current) return; // already at the floor — nothing to write
+      const { error: updateErr } = await admin
+        .from("referrals")
+        .update({ total_referrer_earned: next })
+        .eq("id", input.referralId);
+      if (updateErr) throw new Error(`update failed: ${updateErr.message}`);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 150 * attempt));
+    }
+  }
+  logger.error(
+    { err: lastErr, ...input },
+    "payment reversal: CRITICAL — referral VB clawed back but total_referrer_earned was not decremented; manual reconciliation required",
+  );
+}
+
 /* ── Per-rail entitlement / seller reversals (full reversal only) ───── */
 
 async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement: boolean; seller: boolean }> {
@@ -600,6 +668,7 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
 
 interface ReferralAward {
   payoutId: string;
+  referralId: string;
   awarded: number;
   referrerId: string;
 }
@@ -656,6 +725,7 @@ async function lookupReferralAward(sessionId: string): Promise<ReferralAward | n
   }
   return {
     payoutId: String((payout as { id?: string }).id ?? ""),
+    referralId,
     awarded,
     referrerId,
   };
@@ -829,6 +899,16 @@ export async function processChargeReversal(input: {
                 action: disputeLost ? "Referral Share Clawback (chargeback)" : "Referral Share Clawback (refund)",
                 creditsUsed: debited,
                 idempotencyKey: `clawback:${charge.id}:referral:${referralClawed}`,
+              });
+              /* The award bumped this referral row's lifetime
+                 display total when it landed; the clawback moves it
+                 back by exactly what was just debited (keyed to the
+                 referral_credits_clawed delta persisted above, so a
+                 retry that debits nothing decrements nothing). */
+              await decrementReferrerEarnedTotal({
+                referralId: award.referralId,
+                amount: debited,
+                chargeId: charge.id,
               });
             }
             if (refShortfall > 0) details["referralShortfall"] = refShortfall;
