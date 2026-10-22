@@ -387,13 +387,16 @@ export const PALACE_STATIONS: PalaceStation[] = [
     /* The plaza monument (Open World Phase 1): the Kingdom Board
      * stands at the plaza's heart too — the same live board as the
      * hall's, on the same panel id, open to guests exactly like
-     * the hall's. The walker stands on its south face. */
+     * the hall's. The walker stands on the open plaza just south
+     * of the monument, facing its engraved face — the plinth
+     * itself is solid (overhaul stage 3 collision), so the
+     * station point stands off it, in reading distance. */
     id: "kingdom-board-plaza",
     roomId: COURTYARD_ID,
     name: "The Kingdom Board",
     tagline: "The board out on the square — what's live, who's where, and the word around the palace.",
     x: 0,
-    z: 21.4,
+    z: 22.6,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,

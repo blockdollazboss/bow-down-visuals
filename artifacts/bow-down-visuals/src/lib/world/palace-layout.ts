@@ -160,8 +160,9 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     grounds: [{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }],
     /* The Kingdom Board monument's plinth (3.55 m trim square at
      * (0, 19.7)) is solid — its board station point stands on the
-     * plinth's south face (0, 21.4), still inside prompt radius of
-     * a walker stopped at the face. */
+     * open plaza just south of it at (0, 22.6), in reading distance
+     * of the engraved face and inside prompt radius of a walker
+     * stopped at the plinth's edge. */
     blocked: [{ minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 }],
     interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },

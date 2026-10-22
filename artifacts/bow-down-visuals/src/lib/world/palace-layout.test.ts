@@ -146,8 +146,9 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     /* Overhaul stage 3 (clipping fix): the monument's footprint is
      * a blocked rect in the plaza's layout. */
     expect(isWalkable(0, 19.7)).toBe(false); // the stele itself
-    expect(isWalkable(0, 21.4)).toBe(false); // the station point stands ON the plinth face
+    expect(isWalkable(0, 21.4)).toBe(false); // the plinth's south edge — solid too
     expect(isWalkable(0, 21.7)).toBe(true); // a walker's stance at the face — prompt radius reaches
+    expect(isWalkable(0, 22.6)).toBe(true); // the board station point stands on open plaza
     /* A step aimed into the plinth stops dead (the bonk)… */
     const bonk = resolvePalaceMove({ x: 0, z: 21.9, room: COURTYARD_ID }, 0, 21.3);
     expect(bonk.x).toBe(0);

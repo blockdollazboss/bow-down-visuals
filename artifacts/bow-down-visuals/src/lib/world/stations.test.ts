@@ -195,10 +195,11 @@ describe("the station registry", () => {
      * custom, it never had a website page to transfer to. */
     expect(plaza.membersOnly).toBe(false);
     expect(plaza.websitePath).toBe(hall.websitePath);
-    /* The monument stands at (0, 19.7); the station point is its
-     * south face, where a walker stands to read it. */
+    /* The monument stands at (0, 19.7); the station point is on
+     * the open plaza just south of its solid plinth (overhaul
+     * stage 3), where a walker stands to read its face. */
     expect(plaza.x).toBe(0);
-    expect(plaza.z).toBe(21.4);
+    expect(plaza.z).toBe(22.6);
     /* The plaza census: the monument board plus the colonnade
      * five, in registry order — nothing moved, nothing lost. */
     expect(stationsInRoom("world:courtyard").map((s) => s.id)).toEqual([
@@ -209,8 +210,8 @@ describe("the station registry", () => {
       "get-paid-room",
       "creator-rooms",
     ]);
-    /* Standing at the monument's south face offers the board. */
-    expect(nearestStation("world:courtyard", 0, 21.4)?.id).toBe("kingdom-board-plaza");
+    /* Standing at the station point south of the monument offers the board. */
+    expect(nearestStation("world:courtyard", 0, 22.6)?.id).toBe("kingdom-board-plaza");
   });
 
   it("guests never reach the create desks — every create station is members-only (stack-20 round 2, #3/#4 gate)", () => {

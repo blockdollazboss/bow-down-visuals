@@ -2863,9 +2863,9 @@ export class KingsHallScene {
      * finials at the plinth corners, and a gold ring inlay in the
      * ground around it. A sign, not a data display — the live
      * board opens in the station panel at the board station (its
-     * marker stands at the monument's south base, built by
-     * buildStationMarkers like every station). No mirror, no
-     * lights of its own. */
+     * marker stands on the open plaza just south of the plinth,
+     * built by buildStationMarkers like every station). No mirror,
+     * no lights of its own. */
     {
       const monument = new THREE.Group();
       monument.position.set(0, 0, 19.7);
