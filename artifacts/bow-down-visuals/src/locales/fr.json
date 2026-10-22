@@ -7009,14 +7009,7 @@
     "videoLinkLoadedDesc": "Ton clip est sur la timeline — coupe-le, légende-le, exporte-le.",
     "videoLinkLoadedTitle": "Vidéo chargée dans l'éditeur",
     "voiceEditsDesc": "Dirige tes montages à la voix — décris simplement le changement.",
-    "voiceEditsTitle": "Montages vocaux",
-    "clipsRecoveredTitle": "{{count}} clip{{plural}} récupéré(s) !",
-    "clipsSyncedTitle": "{{count}} clip{{plural}} synchronisé(s) !",
-    "consistencyAppliedDesc": "Prompt de cohérence ajouté à {{count}} prompt{{plural}} de scène.",
-    "recoveredClipsMsg": "{{count}} clip{{plural}} récupéré(s).",
-    "syncedClipsMsg": "{{count}} clip{{plural}} synchronisé(s).",
-    "tipClipsApproved": "{{count}} clip{{plural}} approuvé(s). Va à l'export quand tu es prêt.",
-    "tipEffectsSelected": "{{count}} effet{{plural}} sélectionné(s). Vérifie l'onglet Effets pour voir l'aperçu CSS en direct."
+    "voiceEditsTitle": "Montages vocaux"
   },
   "viralityCheck": {
     "bestPostingTime": "Meilleur moment de publication",
@@ -11271,10 +11264,7 @@
     "viewOriginal": "Voir l'original",
     "waitingNote": "Ces fichiers sont sur le stockage Bow Down, mais rien n'est encore publié. Reconstruisez les détails qu'un nouveau téléversement vous aurait coûtés — puis approuvez chaque pièce, ou tout le lot prêt d'un coup.",
     "waitingTitle": "À la maison — en attente de votre validation",
-    "yourUpload": "Votre téléversement",
-    "accountPieces": "{{count}} pièce{{plural}} dans votre liste d'import.",
-    "scanFound": "Nouveautés sur {{platform}} : {{count}} pièce{{plural}}{{skipped}}. Choisissez ci-dessous ce qui vient à la maison.",
-    "uploadRegisteredNotice": "{{count}} fichier{{plural}} à la maison. Reconstruisez leurs détails ci-dessous, puis approuvez chacun."
+    "yourUpload": "Votre téléversement"
   },
   "liveGuests": {
     "backToBackstage": "Retour en coulisses",
@@ -11386,8 +11376,7 @@
     "watchInstead": "Regarder le direct à la place",
     "watchShow": "Regarder l'émission",
     "youHostBackstage": "Vous (hôte) · coulisses",
-    "youWord": "Vous",
-    "toastRevokeEnded": "Le lien est mort et {{count}} pass invité{{plural}} se sont terminés avec lui."
+    "youWord": "Vous"
   },
   "moveHome": {
     "answersSaved": "Réponses enregistrées — elles façonneront vos brouillons.",
@@ -11582,8 +11571,7 @@
     "signInToFollow": "Connectez-vous pour suivre",
     "unfollowTitle": "Ne plus suivre la liste",
     "untitled": "Sans titre",
-    "uploadFirstDrop": "Téléversez votre premier drop",
-    "itemsCount": "{{count}} élément{{plural}}"
+    "uploadFirstDrop": "Téléversez votre premier drop"
   },
   "proFinishing": {
     "cappedSuffix": " · plafonné à la limite de téléversement",

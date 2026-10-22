@@ -6997,14 +6997,7 @@
     "videoLinkLoadedDesc": "Dein Clip liegt auf der Timeline — trimme ihn, füge Captions hinzu, exportiere ihn.",
     "videoLinkLoadedTitle": "Video in den Editor geladen",
     "voiceEditsDesc": "Steuere deine Edits mit deiner Stimme — beschreibe einfach die Änderung.",
-    "voiceEditsTitle": "Voice-Edits",
-    "clipsRecoveredTitle": "{{count}} Clip{{plural}} wiederhergestellt!",
-    "clipsSyncedTitle": "{{count}} Clip{{plural}} synchronisiert!",
-    "consistencyAppliedDesc": "Konsistenz-Prompt zu {{count}} Szenen-Prompt{{plural}} hinzugefügt.",
-    "recoveredClipsMsg": "{{count}} Clip{{plural}} wiederhergestellt.",
-    "syncedClipsMsg": "{{count}} Clip{{plural}} synchronisiert.",
-    "tipClipsApproved": "{{count}} Clip{{plural}} freigegeben. Geh zu Export, wenn du bereit bist.",
-    "tipEffectsSelected": "{{count}} Effekt{{plural}} ausgewählt. Schau im Effekte-Tab die Live-CSS-Vorschau an."
+    "voiceEditsTitle": "Voice-Edits"
   },
   "viralityCheck": {
     "bestPostingTime": "Beste Posting-Zeit",
@@ -11250,10 +11243,7 @@
     "viewOriginal": "Original ansehen",
     "waitingNote": "Diese Dateien sind auf Bow Down-Speicher, aber noch ist nichts veröffentlicht. Baue die Details neu auf, die ein erneutes Hochladen gekostet hätte — dann genehmige jedes Stück oder die ganze bereite Charge auf einmal.",
     "waitingTitle": "Zuhause — wartet auf dein Wort",
-    "yourUpload": "Dein Upload",
-    "accountPieces": "{{count}} Post{{plural}} in deiner Importliste.",
-    "scanFound": "{{count}} Post{{plural}} neu auf {{platform}} gefunden{{skipped}}. Wähle unten, was nach Hause kommt.",
-    "uploadRegisteredNotice": "{{count}} Upload{{plural}} zuhause. Baue unten ihre Details neu auf und genehmige dann jede einzeln."
+    "yourUpload": "Dein Upload"
   },
   "liveGuests": {
     "backToBackstage": "Zurück hinter die Bühne",
@@ -11365,8 +11355,7 @@
     "watchInstead": "Stattdessen den Stream ansehen",
     "watchShow": "Die Show ansehen",
     "youHostBackstage": "Du (Host) · hinter der Bühne",
-    "youWord": "Du",
-    "toastRevokeEnded": "Der Link ist tot und {{count}} Gäste-Pässe{{plural}} endeten mit ihm."
+    "youWord": "Du"
   },
   "moveHome": {
     "answersSaved": "Antworten gespeichert — sie formen deine Entwürfe.",
@@ -11561,8 +11550,7 @@
     "signInToFollow": "Anmelden zum Folgen",
     "unfollowTitle": "Playlist nicht mehr folgen",
     "untitled": "Ohne Titel",
-    "uploadFirstDrop": "Lade deinen ersten Drop hoch",
-    "itemsCount": "{{count}} Eintr{{plural}}"
+    "uploadFirstDrop": "Lade deinen ersten Drop hoch"
   },
   "proFinishing": {
     "cappedSuffix": " · auf das Upload-Limit begrenzt",

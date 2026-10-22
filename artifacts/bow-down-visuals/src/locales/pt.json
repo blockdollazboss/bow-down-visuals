@@ -7009,14 +7009,7 @@
     "videoLinkLoadedDesc": "Seu clipe está na linha do tempo — corte, legende, exporte.",
     "videoLinkLoadedTitle": "Vídeo carregado no editor",
     "voiceEditsDesc": "Dirija suas edições com sua voz — é só descrever a mudança.",
-    "voiceEditsTitle": "Edições por Voz",
-    "clipsRecoveredTitle": "{{count}} clipe{{plural}} recuperado(s)!",
-    "clipsSyncedTitle": "{{count}} clipe{{plural}} sincronizado(s)!",
-    "consistencyAppliedDesc": "Prompt de consistência adicionado a {{count}} prompt{{plural}} de cena.",
-    "recoveredClipsMsg": "{{count}} clipe{{plural}} recuperado(s).",
-    "syncedClipsMsg": "{{count}} clipe{{plural}} sincronizado(s).",
-    "tipClipsApproved": "{{count}} clipe{{plural}} aprovado(s). Vá para Exportar quando estiver pronto.",
-    "tipEffectsSelected": "{{count}} efeito{{plural}} selecionado(s). Confira a aba Efeitos para ver a prévia CSS ao vivo."
+    "voiceEditsTitle": "Edições por Voz"
   },
   "viralityCheck": {
     "bestPostingTime": "Melhor Horário de Postagem",
@@ -10173,10 +10166,7 @@
     "viewOriginal": "Ver o original",
     "waitingNote": "Estes arquivos estão no armazenamento Bow Down, mas nada está publicado ainda. Reconstrua os detalhes que um novo envio teria custado — depois aprove cada peça, ou o lote pronto inteiro de uma vez.",
     "waitingTitle": "Em casa — aguardando sua aprovação",
-    "yourUpload": "Seu envio",
-    "accountPieces": "{{count}} peça{{plural}} na sua lista de importação.",
-    "scanFound": "Novidades no {{platform}}: {{count}} peça{{plural}}{{skipped}}. Escolha abaixo o que vem para casa.",
-    "uploadRegisteredNotice": "{{count}} arquivo{{plural}} em casa. Reconstrua os detalhes deles abaixo e depois aprove cada um."
+    "yourUpload": "Seu envio"
   },
   "liveGuests": {
     "backToBackstage": "Voltar aos bastidores",
@@ -10288,8 +10278,7 @@
     "watchInstead": "Assistir à transmissão em vez disso",
     "watchShow": "Assistir ao show",
     "youHostBackstage": "Você (anfitrião) · bastidores",
-    "youWord": "Você",
-    "toastRevokeEnded": "O link morreu e {{count}} passe{{plural}} de convidado acabaram com ele."
+    "youWord": "Você"
   },
   "moveHome": {
     "answersSaved": "Respostas salvas — elas moldarão seus rascunhos.",
@@ -10484,8 +10473,7 @@
     "signInToFollow": "Entre para seguir",
     "unfollowTitle": "Deixar de seguir a playlist",
     "untitled": "Sem título",
-    "uploadFirstDrop": "Envie seu primeiro drop",
-    "itemsCount": "{{count}} item{{plural}}"
+    "uploadFirstDrop": "Envie seu primeiro drop"
   },
   "proFinishing": {
     "cappedSuffix": " · limitado ao teto de envio",

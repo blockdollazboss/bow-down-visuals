@@ -6997,14 +6997,7 @@
     "videoLinkLoadedDesc": "आपकी क्लिप टाइमलाइन पर है — इसे ट्रिम करें, कैप्शन दें, एक्सपोर्ट करें।",
     "videoLinkLoadedTitle": "वीडियो एडिटर में लोड हो गया",
     "voiceEditsDesc": "अपनी आवाज़ से एडिट निर्देशित करें — बस बदलाव बताएं।",
-    "voiceEditsTitle": "वॉइस एडिट",
-    "clipsRecoveredTitle": "{{count}} क्लिप{{plural}} पुनर्प्राप्त!",
-    "clipsSyncedTitle": "{{count}} क्लिप{{plural}} सिंक हो गए!",
-    "consistencyAppliedDesc": "{{count}} सीन प्रॉम्प्ट{{plural}} में कंसिस्टेंसी प्रॉम्प्ट जोड़ा गया।",
-    "recoveredClipsMsg": "{{count}} क्लिप{{plural}} पुनर्प्राप्त।",
-    "syncedClipsMsg": "{{count}} क्लिप{{plural}} सिंक हुए।",
-    "tipClipsApproved": "{{count}} क्लिप{{plural}} स्वीकृत। तैयार होने पर Export पर जाएं।",
-    "tipEffectsSelected": "{{count}} इफ़ेक्ट{{plural}} चुना गया। लाइव CSS प्रीव्यू के लिए Effects टैब देखें।"
+    "voiceEditsTitle": "वॉइस एडिट"
   },
   "viralityCheck": {
     "bestPostingTime": "पोस्ट करने का बेस्ट समय",
@@ -10156,10 +10149,7 @@
     "viewOriginal": "मूल देखें",
     "waitingNote": "ये फ़ाइलें Bow Down संग्रहण पर हैं, लेकिन अभी कुछ भी प्रकाशित नहीं है। वे विवरण फिर से बनाएँ जो फिर से अपलोड करने पर लगते — फिर हर पीस को स्वीकृत करें, या पूरी तैयार खेप को एक साथ।",
     "waitingTitle": "घर पर — आपकी स्वीकृति की प्रतीक्षा",
-    "yourUpload": "आपका अपलोड",
-    "accountPieces": "आपकी आयात सूची में {{count}} पीस{{plural}}।",
-    "scanFound": "{{platform}} पर {{count}} नए पीस{{plural}} मिले{{skipped}}। नीचे चुनें कि क्या घर आता है।",
-    "uploadRegisteredNotice": "{{count}} फ़ाइल{{plural}} घर पर। नीचे उनके विवरण फिर से बनाएँ, फिर हर एक को स्वीकृत करें।"
+    "yourUpload": "आपका अपलोड"
   },
   "liveGuests": {
     "backToBackstage": "बैकस्टेज वापस",
@@ -10271,8 +10261,7 @@
     "watchInstead": "इसके बजाय स्ट्रीम देखें",
     "watchShow": "शो देखें",
     "youHostBackstage": "आप (मेज़बान) · बैकस्टेज",
-    "youWord": "आप",
-    "toastRevokeEnded": "लिंक मर गया और उसके साथ {{count}} मेहमान पास{{plural}} समाप्त हो गए।"
+    "youWord": "आप"
   },
   "moveHome": {
     "answersSaved": "उत्तर सहेजे गए — वे आपके मसौदों को आकार देंगे।",
@@ -10467,8 +10456,7 @@
     "signInToFollow": "फ़ॉलो करने के लिए साइन इन करें",
     "unfollowTitle": "प्लेलिस्ट अनफ़ॉलो करें",
     "untitled": "शीर्षकहीन",
-    "uploadFirstDrop": "अपना पहला ड्रॉप अपलोड करें",
-    "itemsCount": "{{count}} आइटम{{plural}}"
+    "uploadFirstDrop": "अपना पहला ड्रॉप अपलोड करें"
   },
   "proFinishing": {
     "cappedSuffix": " · अपलोड सीमा तक सीमित",

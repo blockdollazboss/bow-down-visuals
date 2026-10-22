@@ -7045,14 +7045,7 @@
     "videoLinkLoadedDesc": "مقطعك في الخط الزمني — قصّه وأضف ترجمات وصدّره.",
     "videoLinkLoadedTitle": "حُمّل الفيديو إلى المحرّر",
     "voiceEditsDesc": "وجّه تحريراتك بصوتك — صف التغيير فقط.",
-    "voiceEditsTitle": "تحريرات صوتية",
-    "clipsRecoveredTitle": "تمت استعادة {{count}} مقطع{{plural}}!",
-    "clipsSyncedTitle": "تمت مزامنة {{count}} مقطع{{plural}}!",
-    "consistencyAppliedDesc": "أُضيف موجّه الثبات إلى {{count}} موجّه مشهد{{plural}}.",
-    "recoveredClipsMsg": "تمت استعادة {{count}} مقطع{{plural}}.",
-    "syncedClipsMsg": "تمت مزامنة {{count}} مقطع{{plural}}.",
-    "tipClipsApproved": "تم اعتماد {{count}} مقطع{{plural}}. انتقل إلى «تصدير» عندما تكون جاهزاً.",
-    "tipEffectsSelected": "تم اختيار {{count}} تأثير{{plural}}. تحقق من تبويب التأثيرات لرؤية معاينة CSS الحية."
+    "voiceEditsTitle": "تحريرات صوتية"
   },
   "viralityCheck": {
     "bestPostingTime": "أفضل وقت للنشر",
@@ -11334,10 +11327,7 @@
     "viewOriginal": "عرض الأصل",
     "waitingNote": "هذه الملفات على مخزن Bow Down، لكن لا شيء منشور بعد. أعد بناء التفاصيل التي كانت إعادة الرفع ستكلّفك — ثم وافق على كل قطعة، أو على الدفعة الجاهزة كلها دفعة واحدة.",
     "waitingTitle": "في البيت — بانتظار موافقتك",
-    "yourUpload": "رفعك أنت",
-    "accountPieces": "{{count}} قطعة{{plural}} في قائمة الاستيراد الخاصة بك.",
-    "scanFound": "وُجد {{count}} قطعة{{plural}} جديدة على {{platform}}{{skipped}}. اختر أدناه ما يأتي إلى البيت.",
-    "uploadRegisteredNotice": "{{count}} ملف{{plural}} في البيت. أعد بناء تفاصيلها أدناه، ثم وافق على كل واحد."
+    "yourUpload": "رفعك أنت"
   },
   "liveGuests": {
     "backToBackstage": "العودة إلى الكواليس",
@@ -11449,8 +11439,7 @@
     "watchInstead": "شاهد البث بدلاً من ذلك",
     "watchShow": "شاهد العرض",
     "youHostBackstage": "أنت (المضيف) · الكواليس",
-    "youWord": "أنت",
-    "toastRevokeEnded": "مات الرابط وانتهت معه {{count}} بطاقة{{plural}} ضيف."
+    "youWord": "أنت"
   },
   "moveHome": {
     "answersSaved": "حُفظت الإجابات — ستشكّل مسوداتك.",
@@ -11645,8 +11634,7 @@
     "signInToFollow": "سجّل الدخول للمتابعة",
     "unfollowTitle": "إلغاء متابعة القائمة",
     "untitled": "بلا عنوان",
-    "uploadFirstDrop": "ارفع أول إصدار لك",
-    "itemsCount": "{{count}} عنصر{{plural}}"
+    "uploadFirstDrop": "ارفع أول إصدار لك"
   },
   "proFinishing": {
     "cappedSuffix": " · محدد بسقف الرفع",

@@ -7009,14 +7009,7 @@
     "videoLinkLoadedDesc": "La tua clip è sulla timeline — tagliala, sottotitolala, esportala.",
     "videoLinkLoadedTitle": "Video caricato nell'editor",
     "voiceEditsDesc": "Dirigi i tuoi montaggi con la voce — descrivi semplicemente la modifica.",
-    "voiceEditsTitle": "Modifiche Vocali",
-    "clipsRecoveredTitle": "{{count}} clip{{plural}} recuperate!",
-    "clipsSyncedTitle": "{{count}} clip{{plural}} sincronizzate!",
-    "consistencyAppliedDesc": "Prompt di coerenza aggiunto a {{count}} prompt scena{{plural}}.",
-    "recoveredClipsMsg": "Recuperate {{count}} clip{{plural}}.",
-    "syncedClipsMsg": "Sincronizzate {{count}} clip{{plural}}.",
-    "tipClipsApproved": "{{count}} clip{{plural}} approvate. Vai su Export quando sei pronto.",
-    "tipEffectsSelected": "{{count}} effetto{{plural}} selezionati. Controlla la scheda Effetti per vedere l'anteprima CSS live."
+    "voiceEditsTitle": "Modifiche Vocali"
   },
   "viralityCheck": {
     "bestPostingTime": "Orario migliore di pubblicazione",
@@ -10173,10 +10166,7 @@
     "viewOriginal": "Visualizza l'originale",
     "waitingNote": "Questi file sono sull'archivio Bow Down, ma niente è ancora pubblicato. Ricostruisci i dettagli che un nuovo caricamento ti sarebbe costato — poi approva ogni pezzo, o tutto il lotto pronto in una volta.",
     "waitingTitle": "A casa — in attesa della tua approvazione",
-    "yourUpload": "Il tuo caricamento",
-    "accountPieces": "{{count}} post{{plural}} nella tua lista di importazione.",
-    "scanFound": "Novità su {{platform}}: {{count}} post{{plural}}{{skipped}}. Scegli qui sotto cosa viene a casa.",
-    "uploadRegisteredNotice": "{{count}} file{{plural}} a casa. Ricostruisci i loro dettagli qui sotto, poi approva ciascuno."
+    "yourUpload": "Il tuo caricamento"
   },
   "liveGuests": {
     "backToBackstage": "Torna nel backstage",
@@ -10288,8 +10278,7 @@
     "watchInstead": "Guarda invece lo stream",
     "watchShow": "Guarda lo show",
     "youHostBackstage": "Tu (host) · backstage",
-    "youWord": "Tu",
-    "toastRevokeEnded": "Il link è morto — finiti con lui anche {{count}} ticket{{plural}} ospite."
+    "youWord": "Tu"
   },
   "moveHome": {
     "answersSaved": "Risposte salvate — daranno forma alle tue bozze.",
@@ -10484,8 +10473,7 @@
     "signInToFollow": "Accedi per seguire",
     "unfollowTitle": "Smetti di seguire la playlist",
     "untitled": "Senza titolo",
-    "uploadFirstDrop": "Carica il tuo primo drop",
-    "itemsCount": "{{count}} item{{plural}}"
+    "uploadFirstDrop": "Carica il tuo primo drop"
   },
   "proFinishing": {
     "cappedSuffix": " · limitato al tetto di caricamento",

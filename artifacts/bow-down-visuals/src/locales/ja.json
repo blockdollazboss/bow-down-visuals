@@ -6997,14 +6997,7 @@
     "videoLinkLoadedDesc": "クリップがタイムラインにあります — トリミング、字幕付け、エクスポートができます。",
     "videoLinkLoadedTitle": "ビデオをエディターに読み込みました",
     "voiceEditsDesc": "声で編集を指示 — 変更を説明するだけです。",
-    "voiceEditsTitle": "ボイス編集",
-    "clipsRecoveredTitle": "{{count}}個のクリップ{{plural}}を復元しました！",
-    "clipsSyncedTitle": "{{count}}個のクリップ{{plural}}を同期しました！",
-    "consistencyAppliedDesc": "{{count}}個のシーンプロンプト{{plural}}に一貫性プロンプトを追加しました。",
-    "recoveredClipsMsg": "{{count}}個のクリップ{{plural}}を復元しました。",
-    "syncedClipsMsg": "{{count}}個のクリップ{{plural}}を同期しました。",
-    "tipClipsApproved": "{{count}}個のクリップ{{plural}}が承認されました。準備ができたらエクスポートへ。",
-    "tipEffectsSelected": "{{count}}個のエフェクト{{plural}}が選択されています。エフェクトタブでライブCSSプレビューを確認。"
+    "voiceEditsTitle": "ボイス編集"
   },
   "viralityCheck": {
     "bestPostingTime": "最適な投稿時間",
@@ -10156,10 +10149,7 @@
     "viewOriginal": "オリジナルを見る",
     "waitingNote": "これらのファイルは Bow Down のストレージにありますが、まだ何も公開されていません。再アップロードで失われる詳細を再構築してから — 各ピースを承認するか、準備完了のまとまりを一度に承認してください。",
     "waitingTitle": "ホーム — あなたの承認待ち",
-    "yourUpload": "あなたのアップロード",
-    "accountPieces": "インポートリストに {{count}} 件のピース{{plural}}。",
-    "scanFound": "{{platform}} で新しいピース{{plural}}が {{count}} 件見つかりました{{skipped}}。下でホームに来るものを選んでください。",
-    "uploadRegisteredNotice": "{{count}} 件のファイル{{plural}}がホームに来ました。下で詳細を再構築してから、それぞれ承認してください。"
+    "yourUpload": "あなたのアップロード"
   },
   "liveGuests": {
     "backToBackstage": "バックステージに戻る",
@@ -10271,8 +10261,7 @@
     "watchInstead": "代わりに配信を見る",
     "watchShow": "ショーを見る",
     "youHostBackstage": "あなた (ホスト) · バックステージ",
-    "youWord": "あなた",
-    "toastRevokeEnded": "リンクは無効になり、{{count}} 件のゲストパス{{plural}}がそれとともに終了しました。"
+    "youWord": "あなた"
   },
   "moveHome": {
     "answersSaved": "回答を保存しました — 下書きの形になります。",
@@ -10467,8 +10456,7 @@
     "signInToFollow": "フォローするにはサインイン",
     "unfollowTitle": "プレイリストのフォローを外す",
     "untitled": "無題",
-    "uploadFirstDrop": "最初のドロップをアップロード",
-    "itemsCount": "{{count}} アイテム{{plural}}"
+    "uploadFirstDrop": "最初のドロップをアップロード"
   },
   "proFinishing": {
     "cappedSuffix": " · アップロード上限に制限",

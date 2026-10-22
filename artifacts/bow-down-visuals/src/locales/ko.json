@@ -6997,14 +6997,7 @@
     "videoLinkLoadedDesc": "클립이 타임라인에 있습니다 — 다듬고, 자막을 넣고, 내보내세요.",
     "videoLinkLoadedTitle": "비디오가 편집기에 로드되었습니다",
     "voiceEditsDesc": "음성으로 편집을 지시하세요 — 변경 사항을 설명하기만 하세요.",
-    "voiceEditsTitle": "음성 편집",
-    "clipsRecoveredTitle": "{{count}}개의 클립{{plural}}이(가) 복원되었습니다!",
-    "clipsSyncedTitle": "{{count}}개의 클립{{plural}}이(가) 동기화되었습니다!",
-    "consistencyAppliedDesc": "{{count}}개의 씬 프롬프트{{plural}}에 일관성 프롬프트가 추가되었습니다.",
-    "recoveredClipsMsg": "{{count}}개의 클립{{plural}}을(를) 복원했습니다.",
-    "syncedClipsMsg": "{{count}}개의 클립{{plural}}을(를) 동기화했습니다.",
-    "tipClipsApproved": "{{count}}개의 클립{{plural}}이(가) 승인되었습니다. 준비되면 내보내기로 이동하세요.",
-    "tipEffectsSelected": "{{count}}개의 효과{{plural}}가 선택되었습니다. 효과 탭에서 실시간 CSS 미리보기를 확인하세요."
+    "voiceEditsTitle": "음성 편집"
   },
   "viralityCheck": {
     "bestPostingTime": "최적 게시 시간",
@@ -10156,10 +10149,7 @@
     "viewOriginal": "원본 보기",
     "waitingNote": "이 파일들은 Bow Down 저장소에 있지만 아직 아무것도 게시되지 않았습니다. 다시 업로드하면 잃었을 세부 정보를 다시 만드세요 — 그런 다음 각 피스를 승인하거나, 준비된 묶음 전체를 한 번에 승인하세요.",
     "waitingTitle": "집 — 승인 대기 중",
-    "yourUpload": "내 업로드",
-    "accountPieces": "가져오기 목록에 {{count}}개의 피스{{plural}}.",
-    "scanFound": "{{platform}}에서 새 피스{{plural}} {{count}}개를 찾았습니다{{skipped}}. 아래에서 집에 올 것을 선택하세요.",
-    "uploadRegisteredNotice": "{{count}}개의 파일{{plural}}이 집에 왔습니다. 아래에서 세부 정보를 다시 만들고 각각 승인하세요."
+    "yourUpload": "내 업로드"
   },
   "liveGuests": {
     "backToBackstage": "백스테이지로 돌아가기",
@@ -10271,8 +10261,7 @@
     "watchInstead": "대신 스트림 시청",
     "watchShow": "쇼 시청",
     "youHostBackstage": "나 (호스트) · 백스테이지",
-    "youWord": "나",
-    "toastRevokeEnded": "링크가 죽었고 게스트 패스{{plural}} {{count}}개가 함께 끝났습니다."
+    "youWord": "나"
   },
   "moveHome": {
     "answersSaved": "답변이 저장되었습니다 — 초안의 모양이 됩니다.",
@@ -10467,8 +10456,7 @@
     "signInToFollow": "팔로우하려면 로그인",
     "unfollowTitle": "플레이리스트 팔로우 취소",
     "untitled": "제목 없음",
-    "uploadFirstDrop": "첫 드롭 업로드",
-    "itemsCount": "{{count}}개의 아이템{{plural}}"
+    "uploadFirstDrop": "첫 드롭 업로드"
   },
   "proFinishing": {
     "cappedSuffix": " · 업로드 한도로 제한됨",
