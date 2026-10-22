@@ -33,7 +33,12 @@
                                  rails, below). Docked surfaces — tabs,
                                  panels, and modes with no route of their
                                  own — are declared in DOCKED_FEATURES with
-                                 their facts extracted the same way.
+                                 their facts extracted the same way. Where
+                                 the Stack-25 audit proved the registry
+                                 misrecords a rail, SERVER_PRICE_OVERRIDES
+                                 takes the price from the rail itself and
+                                 generation verifies the override still
+                                 holds (see the table).
      credit packs ................ src/routes/stripe-payments.ts PACK_MAP
      takeover offers ............. lib/db/src/schema/spotlight.ts
                                  SPOTLIGHT_OFFER + loading-screen.ts
@@ -519,9 +524,10 @@ function extractPriceTiers(src, constantName, fileLabel) {
   return tiers;
 }
 
-/** Server-side *_COST / *_CREDITS constants (cross-check source). Two
-    declaration forms are read: the plain literal (`= 400`) and the
-    env-overridable default (`= Number(process.env["X"]) || 400`) —
+/** Server-side *_COST / *_CREDITS constants (cross-check source). Three
+    declaration forms are read: the plain literal (`= 400`), the
+    env-overridable default (`= Number(process.env["X"]) || 400`), and
+    the nullish-env form (`= Number(process.env["X"] ?? 1) || 1`) —
     the value extracted is the DEFAULT the code charges with no env
     override, which is what the registry records. A constant declared
     any other way parses to nothing, its cross-check reads "no value",
@@ -532,7 +538,7 @@ function extractServerCostConstants() {
   for (const file of walk(API_SRC, [".ts"])) {
     if (file.includes("__tests__") || file.endsWith(".test.ts")) continue;
     const src = read(file);
-    const re = /(?:export\s+)?const\s+([A-Z][A-Z0-9_]*(?:_COST|_CREDITS))\s*(?::\s*number)?\s*=\s*(?:Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*)?(\d+)\b/g;
+    const re = /(?:export\s+)?const\s+([A-Z][A-Z0-9_]*(?:_COST|_CREDITS))\s*(?::\s*number)?\s*=\s*(?:Number\(process\.env\[["'][A-Z0-9_]+["']\](?:\s*\?\?\s*\d+)?\)\s*\|\|\s*)?(\d+)\b/g;
     let m;
     while ((m = re.exec(src))) found.push({ constant: m[1], value: Number(m[2]), file: rel(file) });
   }
@@ -921,6 +927,37 @@ const SERVER_PRICE_LINKS = [
   { constant: "PLAYLIST_PITCH_CREDIT_COST", endpoint: "/api/playlist-pitch/kit" },
   { constant: "EXPORT_CREDIT_COST", endpoint: "/api/export-final-video" },
   { constant: "QUALITY_EXPORT_COST", endpoint: "/api/export-quality" },
+  /* Stack-25 accuracy audit: these three links are EXPECTED to disagree
+     — the registry entries are stale and the knowledge base takes the
+     server value via SERVER_PRICE_OVERRIDES below. The disagreement
+     stays recorded here (agree: false) as the standing tripwire: if the
+     registry is ever corrected to match the rail, the override and this
+     note must be removed in the same change. */
+  { constant: "JEWELRY_STL_CREDIT_COST", endpoint: "/api/jewelry/export-stl" },
+  { constant: "PRO_TOOLS_AI_CREDITS", endpoint: "/api/pro-tools/auto-grade" },
+  { constant: "SAMPLE_PACK_10_CREDITS", endpoint: "/api/sample-pack/generate" },
+];
+
+/** Server-truth price overrides (Stack-25 accuracy audit). For these
+    endpoints the CREDIT_COSTS registry misrecords what the rail actually
+    charges, verified handler-by-handler against the joined tree. The
+    knowledge base follows the RAIL, never the registry: a `constant`
+    override takes the price from the named server constant in the named
+    file (the exact value the charge call deducts); a `free` override
+    asserts the named handler in the named route file performs no credit
+    charge at all. Generation THROWS if a constant cannot be extracted,
+    if a free handler starts charging, or if the registry is corrected
+    to agree with the rail (the override is then stale and must go).
+    The registry itself is a frontend display mirror — correcting it is
+    a product change outside this generator; until then these entries
+    carry the server file as their price source. */
+const SERVER_PRICE_OVERRIDES = [
+  { endpoint: "/api/jewelry/export-stl", constant: "JEWELRY_STL_CREDIT_COST", file: "routes/generate/jewelry-pricing.ts" },
+  { endpoint: "/api/pro-tools/auto-grade", constant: "PRO_TOOLS_AI_CREDITS", file: "routes/generate/pro-tools-ai.ts" },
+  { endpoint: "/api/sample-pack/generate", constant: "SAMPLE_PACK_10_CREDITS", file: "routes/generate/sample-pack-pricing.ts" },
+  { endpoint: "/api/jewelry/estimate", free: true, file: "routes/generate/jewelry.ts", handler: "/jewelry/estimate" },
+  { endpoint: "/api/music/export", free: true, file: "routes/music-export.ts", handler: "/music/export" },
+  { endpoint: "/api/music/preview-render", free: true, file: "routes/music-export.ts", handler: "/music/preview-render" },
 ];
 
 /** Duration-tiered price rails. CLASSIFICATION only — which endpoint is
@@ -1225,6 +1262,48 @@ function main() {
     });
   }
 
+  /* Server-truth price overrides (Stack-25 accuracy audit): verify each
+     reviewed override against the joined code before anything is built
+     on it — drift throws rather than emitting a price the rail does not
+     charge. A constant override must extract from the named file and
+     must still DISAGREE with the registry (agreement means the registry
+     was fixed and the override is stale); a free override's handler
+     slice must contain no credit charge. */
+  const priceOverrides = new Map(); // endpoint -> { vb, source }
+  for (const spec of SERVER_PRICE_OVERRIDES) {
+    const fileLabel = `artifacts/api-server/src/${spec.file}`;
+    const registry = creditCosts.get(spec.endpoint);
+    if (!registry) throw new Error(`price overrides: CREDIT_COSTS has no entry for ${spec.endpoint} to override`);
+    if (spec.constant) {
+      const constant = serverConstants.find((c) => c.constant === spec.constant && c.file === fileLabel);
+      if (!constant) throw new Error(`price overrides: ${spec.constant} not extractable from ${fileLabel}`);
+      if (constant.value === registry.cost) {
+        throw new Error(`price overrides: CREDIT_COSTS ${spec.endpoint}=${registry.cost} now agrees with ${spec.constant}=${constant.value} (${fileLabel}) — remove the stale override for ${spec.endpoint}`);
+      }
+      priceOverrides.set(spec.endpoint, {
+        vb: constant.value,
+        source: `${fileLabel} ${spec.constant} — server charge (CREDIT_COSTS registry entry is stale)`,
+      });
+    } else {
+      const src = read(path.join(API_SRC, spec.file));
+      const start = src.indexOf(`router.post("${spec.handler}"`);
+      if (start < 0) throw new Error(`price overrides: ${fileLabel} no longer serves ${spec.handler}`);
+      const rest = src.slice(start);
+      const next = rest.slice(1).search(/\n\s*router\.(get|post|put|patch|delete)\(/);
+      const slice = next < 0 ? rest : rest.slice(0, next + 1);
+      if (/chargeCredits\s*\(|deductCredits\s*\(/.test(slice)) {
+        throw new Error(`price overrides: ${spec.handler} in ${fileLabel} now charges credits — remove the free override for ${spec.endpoint} and record the real price`);
+      }
+      if (registry.cost === 0) {
+        throw new Error(`price overrides: CREDIT_COSTS ${spec.endpoint}=0 now agrees the rail is free — remove the stale override for ${spec.endpoint}`);
+      }
+      priceOverrides.set(spec.endpoint, {
+        vb: 0,
+        source: `${fileLabel} ${spec.handler} handler — no credit charge (CREDIT_COSTS registry entry is stale)`,
+      });
+    }
+  }
+
   const deskByRoute = new Map(); // full route (incl ?tab) -> { desk, module|null }
   for (const desk of desks) {
     deskByRoute.set(desk.route, { desk, module: null });
@@ -1260,11 +1339,12 @@ function main() {
       const hit = priceFor(ep, creditCosts);
       if (hit && !byKey.has(hit.key)) {
         const tiered = tieredPrices.get(hit.key);
+        const override = priceOverrides.get(hit.key);
         byKey.set(hit.key, {
           feature: hit.feature,
-          vb: hit.cost,
+          vb: override ? override.vb : hit.cost,
           endpoint: hit.key,
-          source: CREDIT_COSTS_SOURCE,
+          source: override ? override.source : CREDIT_COSTS_SOURCE,
           ...(tiered ? { tiers: tiered.tiers, tiersSource: tiered.tiersSource } : {}),
         });
       }

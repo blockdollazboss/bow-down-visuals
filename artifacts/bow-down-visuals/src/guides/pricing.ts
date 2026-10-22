@@ -4,7 +4,7 @@ export const pricingGuide: PageGuide = {
   route: "/pricing",
   pageName: "Pricing",
   summary:
-    "Pick the plan that matches your grind — monthly Visual Bucs for AI generations, with VIP and MVP tiers for creators who want it all.",
+    "Pick the plan that matches your grind — Visual Bucs packs for AI generations, with Creator Pro and Creator Elite tiers for creators who want it all.",
   steps: [
     {
       target: "main h1",
