@@ -76,8 +76,15 @@ const EN = CATALOGS.en!;
    (every signed-in user's first surfaces), myShop (shop-owner flows),
    nav (global chrome) and retention (streak/bonus widgets) — existed
    only partially in the nine catalogs (retention in none of them), so
-   non-English users silently fell back to English across all five. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
+   non-English users silently fell back to English across all five.
+   "outreach" came with the Stack-24 locale-parity-6 lane (Oct 22
+   2026): the sponsorship outreach surface (pitch kit, sponsor read,
+   invoice generator) existed in full only in en.json — ar/de/es/fr
+   carried 49 of 127 leaves, every one of them byte-identical English,
+   and hi/it/ja/ko/pt had none of it (947 missing + 196 residue values)
+   — now translated ×9 and pinned here. The namespace has no array
+   leaves, so the string checks below judge every leaf directly. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "outreach"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -136,8 +143,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill and the Stack-24 outreach fill (2596 keys)", () => {
+    expect(REQUIRED.length).toBe(2596);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -234,6 +241,158 @@ describe("playlistPitch — no untranslated English residue", () => {
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `playlistPitch.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+/* Legit-identical outreach values per locale — keys whose correct
+   value in that language IS the en string, so the residue check below
+   must not flag them. Everything not listed here has to differ from
+   en. The seven shared entries are example/placeholder content, kept
+   byte-identical in every catalog by the same convention the older
+   namespaces already use (cf. auth.emailPlaceholder staying
+   "you@example.com" in ar):
+   - creatorNamePlaceholder "King Shark": the house character's name.
+   - audiencePlaceholder "50K": the universal compact figure format.
+   - brandNamePlaceholder "Wave Energy" and productPlaceholder
+     "Wave Energy Drink": the fictional example brand/product names.
+   - contactPlaceholder "Alex Rivera": the example contact name.
+   - invoice.brandEmailPlaceholder "billing@brand.com" and
+     invoice.creatorEmailPlaceholder "you@example.com": example
+     e-mail addresses.
+   Locale-specific entries:
+   - de: "Engagement (optional)" — both words are spelled identically
+     in German (Engagement is the standard marketing term and
+     "(optional)" is German UI spelling); heroTitleAccent "Outreach"
+     and sponsorReadHook "Hook" are established anglicisms in German
+     marketing (the catalog keeps Follower/Plays/Tracker likewise).
+   - es: invoice.total "Total" is the Spanish word, spelled
+     identically; sponsorReadToneCasual "Casual" is the standard
+     Spanish tone word.
+   - fr: invoice.total "Total" and nicheLabel "Niche" are the French
+     words, spelled identically.
+   - it: heroTitleAccent "Outreach" is the established marketing
+     loanword; sponsorReadCta "Call to action" is the standard term
+     in Italian marketing, kept in English.
+   - pt: invoice.total "Total" is the Portuguese word, spelled
+     identically; sponsorReadToneCasual "Casual" is the standard
+     pt-BR tone word. */
+const OUTREACH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+  ],
+  de: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "engagementLabel",
+    "heroTitleAccent",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+    "sponsorReadHook",
+  ],
+  es: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "invoice.total",
+    "productPlaceholder",
+    "sponsorReadToneCasual",
+  ],
+  fr: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "invoice.total",
+    "nicheLabel",
+    "productPlaceholder",
+  ],
+  hi: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+  ],
+  it: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "heroTitleAccent",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+    "sponsorReadCta",
+  ],
+  ja: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+  ],
+  ko: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "productPlaceholder",
+  ],
+  pt: [
+    "audiencePlaceholder",
+    "brandNamePlaceholder",
+    "contactPlaceholder",
+    "creatorNamePlaceholder",
+    "invoice.brandEmailPlaceholder",
+    "invoice.creatorEmailPlaceholder",
+    "invoice.total",
+    "productPlaceholder",
+    "sponsorReadToneCasual",
+  ],
+};
+
+describe("outreach — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const OUT_KEYS = Object.keys(EN).filter((k) => k.startsWith("outreach."));
+
+  it.each(NON_EN)("%s outreach values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((OUTREACH_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `outreach.${k}`));
+    const residue = OUT_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated outreach values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the outreach residue allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(OUTREACH_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `outreach.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }
