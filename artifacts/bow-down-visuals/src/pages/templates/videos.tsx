@@ -42,7 +42,7 @@ export default function VideoTemplates() {
   const { getAccessToken } = useAuth();
   usePageTitle(
     "Video Edit Templates — Pro Auto Edits",
-    "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
+    "Video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more — 18 ready-made cuts in all. Pick a template, drop in your clips, get an auto-edited video.",
   );
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");

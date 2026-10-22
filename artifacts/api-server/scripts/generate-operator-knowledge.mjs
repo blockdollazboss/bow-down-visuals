@@ -912,6 +912,8 @@ const CREDIT_COSTS_SOURCE = "artifacts/bow-down-visuals/src/lib/credit-costs.ts 
     Values verified against the code when this generator was written. */
 const SERVER_PRICE_LINKS = [
   { constant: "GEN45_CREDIT_COST", endpoint: "/api/generate-runway-clip" },
+  { constant: "TEMPLATE_COST", endpoint: "/api/video-template/apply" },
+  { constant: "REFRAME_COST", endpoint: "/api/auto-reframe" },
   { constant: "PUBLISH_COST", endpoint: "/api/bio-publish" },
   { constant: "ALBUM_PUBLISH_COST", endpoint: "/api/album-publish" },
   { constant: "WEBSITE_BUILD_CREDITS", endpoint: "/api/website-builder/generate" },
@@ -966,6 +968,15 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/export-quality/estimate",
     attachToFeatureIds: ["video-editor", "desk-lyric-video", "desk-promo-clips", "desk-repurpose", "desk-translate", "desk-upscale"],
   },
+  /* The video-template apply rail: the editor page's own scan already
+     finds it (the editor is where applying happens), but creators ask
+     the price from the gallery — and the gallery page never calls the
+     rail itself, it hands off into the editor. Without this link the
+     gallery entry carried no price and its page copy read as free. */
+  {
+    endpoint: "/api/video-template/apply",
+    attachToFeatureIds: ["templates-videos"],
+  },
 ];
 
 /** Docked surfaces: real features that live as a tab, panel, or mode
@@ -1015,7 +1026,7 @@ const DOCKED_FEATURES = [
     path: "/go-live",
     hostPath: "/go-live",
     description: {
-      text: "Your stream key lets an outside streaming or DJ program send its picture into your Go Live studio. It is shown once when made — only a fingerprint is kept — and you can revoke or remake it anytime. On the current hosting, outside programs cannot reach it yet: ready and waiting, not live.",
+      text: "Streaming from other software isn't open yet — it arrives with the launch setup. Until then the site won't hand out a stream key that can't connect; a key made earlier can still be revoked. Your built-in Go Live studio works today.",
     },
     endpoints: ["/api/live-streams/ingest-key", "/api/live-streams/ingest-key/regenerate", "/api/live-streams/ingest-key/reveal", "/api/live-streams/ingest-key/revoke"],
     pricedEndpoints: ["/api/live-streams/ingest-key"],
@@ -1091,7 +1102,86 @@ const DOCKED_FEATURES = [
     endpoints: ["/api/export-final-video", "/api/export-quality", "/api/export-quality/estimate"],
     pricedEndpoints: ["/api/export-final-video", "/api/export-quality", "/api/export-quality/estimate"],
   },
+  {
+    /* The Smart Reframe card docked in the editor's Export tab
+       (Stack-20): no route of its own, and the editor page's one-hop
+       endpoint scan never reaches the card's rail — without this entry
+       the base had no reframe feature at all, and the 200 VB rail was
+       invisible to the operator. Name + prose are the card's own
+       en.json fields (videoEditor.subjectReframe), including its
+       centre-crop honesty note. */
+    id: "smart-reframe",
+    name: { ns: "videoEditor", field: "subjectReframe.title" },
+    path: "/video-editor",
+    hostPath: "/video-editor",
+    description: { nsFields: [["videoEditor", "subjectReframe.subtitle"], ["videoEditor", "subjectReframe.trackingNote"]] },
+    endpoints: ["/api/auto-reframe"],
+    pricedEndpoints: ["/api/auto-reframe"],
+  },
+  {
+    /* Thy Cheat Code's morning brief: a panel inside the dashboard's
+       command center, no route of its own. Its description rides the
+       command namespace's own prose — including the fallback line the
+       panel itself shows when the written narrative can't be produced
+       (Stack-20: the brief then serves the real numbers digest,
+       flagged, instead of failing). The endpoint charges nothing and
+       has no registry row, so pricedEndpoints stays empty — the
+       paid-series precedent. */
+    id: "morning-brief",
+    name: { ns: "command", field: "brief_label" },
+    path: "/dashboard",
+    hostPath: "/dashboard",
+    description: { nsFields: [["command", "subtitle"], ["command", "brief_narrative_unavailable"], ["command", "brief_draft_note"]] },
+    endpoints: ["/api/command/brief"],
+    pricedEndpoints: [],
+  },
+  {
+    /* Email automations: a section inside the Email List page, no
+       route of its own. The intro is the surface's own prose and
+       carries the whole truth — the three triggers (a purchase, an
+       unfinished checkout, an ended membership), off until switched
+       on, forward-only, unsubscribes never emailed. The rail charges
+       nothing (no charge call exists on the automations path), so
+       pricedEndpoints stays empty. */
+    id: "email-automations",
+    name: { ns: "email-list", field: "automations" },
+    path: "/email-list",
+    hostPath: "/email-list",
+    description: { nsFields: [["email-list", "automations_intro"]] },
+    endpoints: ["/api/email-list/lists/:param/automations/:param"],
+    pricedEndpoints: [],
+  },
+  {
+    /* The playlist pitch packet: a panel inside the Playlist Pitch
+       mode that builds itself from the release record — links
+       included (the presave / smartlink is the record's real one,
+       resolved by the canonical presave URL builder; Stack-20 made
+       the packet read it instead of a stale copy). Its intro is the
+       panel's own prose: real data only, gaps listed as missing,
+       never made up. Building a packet charges nothing — the 200 VB
+       rail on this mode is the pitch kit, a different endpoint. */
+    id: "playlist-pitch-packet",
+    name: { ns: "playlistPitch", field: "packetTitle" },
+    path: "/label-pitch?mode=playlists",
+    hostPath: "/label-pitch",
+    description: { nsFields: [["playlistPitch", "packetIntro"]] },
+    endpoints: ["/api/playlist-pitch/packet/:param"],
+    pricedEndpoints: [],
+  },
 ];
+
+/** en.json lookup for a docked spec field: a plain key, or a dotted
+    path ("subjectReframe.title") into a nested namespace object —
+    surfaces whose copy lives in a sub-namespace (the editor's cards)
+    still extract from their own designated prose. */
+function enField(en, ns, field) {
+  let node = en[ns];
+  for (const part of field.split(".")) {
+    if (node === null || typeof node !== "object") return undefined;
+    node = node[part];
+  }
+  return node;
+}
 
 function resolvePageFile(spec) {
   const base = path.join(REPO_ROOT, spec);
@@ -1508,7 +1598,7 @@ function main() {
     }
     let name, nameSource;
     if (spec.name.ns) {
-      const raw = en[spec.name.ns]?.[spec.name.field];
+      const raw = enField(en, spec.name.ns, spec.name.field);
       if (typeof raw !== "string" || !raw.trim()) {
         throw new Error(`docked features: en.json "${spec.name.ns}.${spec.name.field}" (name for "${spec.id}") is missing`);
       }
@@ -1521,7 +1611,7 @@ function main() {
     let description, descriptionSource;
     if (spec.description.nsFields) {
       const parts = spec.description.nsFields.map(([ns, field]) => {
-        const v = en[ns]?.[field];
+        const v = enField(en, ns, field);
         if (typeof v !== "string") {
           throw new Error(`docked features: en.json "${ns}.${field}" (description for "${spec.id}") is missing`);
         }

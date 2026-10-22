@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "5dc70ff2022a55be5578fcea663ca9f8cfc9d230",
+  "baseCommit": "3b35f92a972d4444415c1aece687dcef2f37c4de",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11,14 +11,14 @@
   "counts": {
     "routesInApp": 226,
     "pageFiles": 179,
-    "features": 231,
+    "features": 235,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
     "pricedActions": 216,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 221,
+    "withDescriptions": 225,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -50,6 +50,22 @@
       "serverValue": 400,
       "serverSource": "artifacts/api-server/src/routes/generate/clip-pricing.ts",
       "registryValue": 400,
+      "agree": true
+    },
+    {
+      "constant": "TEMPLATE_COST",
+      "endpoint": "/api/video-template/apply",
+      "serverValue": 250,
+      "serverSource": "artifacts/api-server/src/routes/generate/video-template.ts",
+      "registryValue": 250,
+      "agree": true
+    },
+    {
+      "constant": "REFRAME_COST",
+      "endpoint": "/api/auto-reframe",
+      "serverValue": 200,
+      "serverSource": "artifacts/api-server/src/routes/generate/auto-reframe.ts",
+      "registryValue": 200,
       "agree": true
     },
     {
@@ -6335,6 +6351,23 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"dashboard.metaDescription\""
     },
     {
+      "id": "morning-brief",
+      "name": "Thy Cheat Code’s morning brief",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"command.brief_label\"",
+      "path": "/dashboard",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/command/brief"
+      ],
+      "prices": [],
+      "description": "Your whole home business, one view. The written brief couldn’t be written just now — here are your numbers, straight from your business. A draft — you review and send it. Nothing goes out on its own.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"command.subtitle\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_narrative_unavailable\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_draft_note\"",
+      "nextSteps": []
+    },
+    {
       "id": "detector",
       "name": "Media Detector",
       "nameSource": "App.tsx component name",
@@ -6575,6 +6608,29 @@
       ],
       "description": "Own your audience: hosted signup pages, embeddable forms, AI newsletter drafts, and subscriber tools.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/email-list.tsx usePageTitle meta description"
+    },
+    {
+      "id": "email-automations",
+      "name": "Automations",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.automations\"",
+      "path": "/email-list",
+      "stage": "promote",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/email-list.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/email-list/lists/:param/automations/:param"
+      ],
+      "prices": [],
+      "description": "Emails that send themselves when a fan does something — buys, leaves a checkout unfinished, or lets a membership end. Each one stays off until you switch it on, and switching it on only covers what happens from that moment on, never the past. Fans who unsubscribed are never emailed.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.automations_intro\"",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "events",
@@ -7066,7 +7122,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "description": "Your stream key lets an outside streaming or DJ program send its picture into your Go Live studio. It is shown once when made — only a fingerprint is kept — and you can revoke or remake it anytime. On the current hosting, outside programs cannot reach it yet: ready and waiting, not live.",
+      "description": "Streaming from other software isn't open yet — it arrives with the launch setup. Until then the site won't hand out a stream key that can't connect; a key made earlier can still be revoked. Your built-in Go Live studio works today.",
       "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": [
         {
@@ -8073,6 +8129,23 @@
       ],
       "description": "AI analyzes your song, then writes a professional curator pitch — the email, the DM, and the follow-up. Pitching improves your odds; it never guarantees placement. Every pitch you're working toward, in one place — what's due next is always on top. Nothing here sends email; it's your board.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.heroDescription\" + artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.deadlinesIntro\"",
+      "nextSteps": []
+    },
+    {
+      "id": "playlist-pitch-packet",
+      "name": "Pitch packet",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.packetTitle\"",
+      "path": "/label-pitch?mode=playlists",
+      "stage": "studio",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/label-pitch.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/playlist-pitch/packet/:param"
+      ],
+      "prices": [],
+      "description": "Built from your release record — real data only. Anything the record doesn't have is listed as missing, never made up.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.packetIntro\"",
       "nextSteps": []
     },
     {
@@ -10409,9 +10482,16 @@
         "/api/retention/prefs",
         "/api/shares"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Apply Video Template",
+          "vb": 250,
+          "endpoint": "/api/video-template/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
-      "description": "Free video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more. Pick a template, drop in your clips, get an auto-edited video.",
+      "description": "Video edit templates: photo dump montages, lyric sync cuts, product promos, before/after reveals, travel recaps and more — 18 ready-made cuts in all. Pick a template, drop in your clips, get an auto-edited video.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/videos.tsx usePageTitle meta description"
     },
     {
@@ -11809,6 +11889,36 @@
       ],
       "description": "The editor's finishing door: export your final video in the pro finishing formats — ProRes and DNxHR in a MOV file, or an FCPXML timeline — with resolution, frame rate, and watermark control, instead of the standard web export.",
       "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": [
+        {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
+    },
+    {
+      "id": "smart-reframe",
+      "name": "Smart Reframe — Subject Tracking",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"videoEditor.subjectReframe.title\"",
+      "path": "/video-editor",
+      "stage": "create",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/video-editor.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/auto-reframe"
+      ],
+      "prices": [
+        {
+          "feature": "Smart Reframe — Subject Tracking",
+          "vb": 200,
+          "endpoint": "/api/auto-reframe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Re-crop one clip to a new shape — the frame follows your subject. Bow Down samples your clip, finds the subject, and moves the crop to keep them framed — the way a camera operator would. If no subject can be followed, you get a straight centre crop instead, and the result says so honestly.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"videoEditor.subjectReframe.subtitle\" + artifacts/bow-down-visuals/src/locales/en.json \"videoEditor.subjectReframe.trackingNote\"",
       "nextSteps": [
         {
           "label": "Branding Kit",
