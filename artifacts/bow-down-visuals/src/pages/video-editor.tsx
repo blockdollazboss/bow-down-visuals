@@ -1695,9 +1695,9 @@ export default function VideoEditor() {
       }
       if (recovered > 0 && synced === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? t("videoEditor.recoveredClipsMsg", { count: recovered, plural: recovered !== 1 ? "s" : "" }));
+        setSyncMsg(json.message ?? t("videoEditor.recoveredClipsMsg", { count: recovered }));
         toast({
-          title: t("videoEditor.clipsRecoveredTitle", { count: recovered, plural: recovered !== 1 ? "s" : "" }),
+          title: t("videoEditor.clipsRecoveredTitle", { count: recovered }),
           description: t("videoEditor.clipsRecoveredDesc"),
         });
         return;
@@ -1708,9 +1708,9 @@ export default function VideoEditor() {
         setScenes(json.scenes);
       }
       setSyncState("done");
-      setSyncMsg(t("videoEditor.syncedClipsMsg", { count: synced, plural: synced !== 1 ? "s" : "" }));
+      setSyncMsg(t("videoEditor.syncedClipsMsg", { count: synced }));
       toast({
-        title: t("videoEditor.clipsSyncedTitle", { count: synced, plural: synced !== 1 ? "s" : "" }),
+        title: t("videoEditor.clipsSyncedTitle", { count: synced }),
         description: t("videoEditor.clipsSyncedDesc"),
       });
     } catch (err) {
@@ -1919,7 +1919,7 @@ export default function VideoEditor() {
     setScenes(updated);
     toast({
       title: t("videoEditor.consistencyAppliedTitle"),
-      description: t("videoEditor.consistencyAppliedDesc", { count: scenes.length, plural: scenes.length !== 1 ? "s" : "" }),
+      description: t("videoEditor.consistencyAppliedDesc", { count: scenes.length }),
     });
   }
 
@@ -1935,10 +1935,10 @@ export default function VideoEditor() {
       ? t("videoEditor.tipNoCaptions")
       : null,
     settings.effects.length > 0
-      ? t("videoEditor.tipEffectsSelected", { count: settings.effects.length, plural: settings.effects.length !== 1 ? "s" : "" })
+      ? t("videoEditor.tipEffectsSelected", { count: settings.effects.length })
       : t("videoEditor.tipNoEffects"),
     approvedCount > 0
-      ? t("videoEditor.tipClipsApproved", { count: approvedCount, plural: approvedCount !== 1 ? "s" : "" })
+      ? t("videoEditor.tipClipsApproved", { count: approvedCount })
       : t("videoEditor.tipNoApprovedClips"),
   ].filter(Boolean) as string[];
 

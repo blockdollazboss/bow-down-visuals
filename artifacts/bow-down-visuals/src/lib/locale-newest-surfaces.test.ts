@@ -154,8 +154,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill and the Stack-23 wave9 fill (2985 keys)", () => {
-    expect(REQUIRED.length).toBe(2985);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill and the Stack-23 plural split (3045 keys)", () => {
+    /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
+       videoEditor/catalogImport/liveGuests/playlist into six CLDR
+       plural-suffixed keys each (−12 base + 72 suffixed = +60). */
+    expect(REQUIRED.length).toBe(3045);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

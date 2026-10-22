@@ -215,7 +215,6 @@ export default function CatalogImport() {
         r.listed > 0
           ? t("catalogImport.scanFound", {
               count: r.listed,
-              plural: r.listed === 1 ? "" : "s",
               platform: PLATFORM_LABEL[account.platform] ?? account.platform,
               skipped: r.skippedNonVideo ? ` ${t("catalogImport.scanSkipped", { count: r.skippedNonVideo })}` : "",
             })
@@ -298,7 +297,7 @@ export default function CatalogImport() {
         await call("POST", "/api/catalog-import/uploads", { files: done });
         setUploads(rows.map((r) => (r.state === "registering" ? { ...r, state: "home" } : r)));
         await refresh();
-        setNotice(t("catalogImport.uploadRegisteredNotice", { count: done.length, plural: done.length === 1 ? "" : "s" }));
+        setNotice(t("catalogImport.uploadRegisteredNotice", { count: done.length }));
       } catch (e) {
         setError(e instanceof Error ? e.message : t("catalogImport.registrationError"));
       }
@@ -390,7 +389,7 @@ export default function CatalogImport() {
                 </p>
                 {a.state === "ready" && (
                   <p className={`mt-1 text-xs ${sub}`}>
-                    {a.itemCount > 0 ? t("catalogImport.accountPieces", { count: a.itemCount, plural: a.itemCount === 1 ? "" : "s" }) : t("catalogImport.accountReady")}
+                    {a.itemCount > 0 ? t("catalogImport.accountPieces", { count: a.itemCount }) : t("catalogImport.accountReady")}
                   </p>
                 )}
                 {a.state !== "ready" && a.note && (

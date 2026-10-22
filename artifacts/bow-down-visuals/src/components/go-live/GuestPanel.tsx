@@ -187,7 +187,7 @@ export default function GuestPanel() {
       toast({
         title: tr("liveGuests.toastRevokedTitle"),
         description: data.sessions_ended
-          ? tr("liveGuests.toastRevokeEnded", { count: data.sessions_ended, plural: data.sessions_ended === 1 ? "" : "es" })
+          ? tr("liveGuests.toastRevokeEnded", { count: data.sessions_ended })
           : tr("liveGuests.toastRevokePlain"),
       });
     } catch (e) {
