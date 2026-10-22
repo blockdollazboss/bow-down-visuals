@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
-import { fulfillCreditPurchase } from "../lib/payment-record";
+import { fulfillCreditPurchase, getStripePaymentStatus } from "../lib/payment-record";
 import { createGuardedStripeClient } from "../lib/stripe-client";
 
 const router = Router();
@@ -169,9 +169,22 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
       );
       res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? "unknown";
       logger.error({ err, userId: req.userId }, "express_pay/verify: credit grant failed");
-      res.status(500).json({ error: `Payment verified but credits could not be applied: ${msg}` });
+      /* Reconcile before answering (D6, same as /checkout/verify): the
+         payment_intent.succeeded webhook may have completed this
+         payment while our grant attempt failed — "completed" is only
+         set after credits land, so report the granted state. Otherwise
+         the truthful pending message; never quote the internal error. */
+      const status = await getStripePaymentStatus(pi.id).catch(() => null);
+      if (status === "completed") {
+        res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
+        return;
+      }
+      res.status(500).json({
+        error:
+          "Your payment went through, but your Visual Bucs are still being applied. " +
+          "They should appear within a few minutes — refresh your balance, and if they're still missing, contact support.",
+      });
     }
   } catch (err) {
     logger.error({ err }, "Express payment verification failed");

@@ -227,10 +227,10 @@ export default function Dashboard() {
             refreshProfile();
             setTimeout(() => refreshProfile(), 3000);
           } else {
-            setPaymentToast({ type: "error", message: data.error ?? "Payment recorded but Visual Bucs could not be applied. Contact support." });
+            setPaymentToast({ type: "error", message: data.error ?? "We couldn't confirm your Visual Bucs yet. Your payment went through — check your balance in a moment, and contact support if they're still missing." });
           }
         } catch {
-          setPaymentToast({ type: "error", message: "Payment recorded but could not apply Visual Bucs. Try refreshing the page." });
+          setPaymentToast({ type: "error", message: "We couldn't reach the server to confirm your Visual Bucs. Refresh to check your balance — if they're missing, contact support." });
         }
       })();
     }

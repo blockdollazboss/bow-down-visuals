@@ -151,7 +151,7 @@ function ExpressPayInner({
               if (!vRes.ok || !vData.success) {
                 fail(
                   vData.error ??
-                    "Payment succeeded but credits could not be applied. Contact support."
+                    "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment, and contact support if they're still missing."
                 );
                 return;
               }

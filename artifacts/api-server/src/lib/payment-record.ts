@@ -41,6 +41,24 @@ export async function isPaymentAlreadyRecorded(stripeSessionId: string): Promise
   return rows.length > 0;
 }
 
+/**
+ * Read a payment row's claim status ("processing" | "completed" |
+ * "failed"), or null when no row exists. Sync verify endpoints use this
+ * to reconcile after a grant attempt throws: "completed" is only ever
+ * set AFTER credits land (markPaymentCompleted runs after the atomic
+ * grant), so a completed row means the money side is done regardless of
+ * which path — webhook or verify — won the claim.
+ */
+export async function getStripePaymentStatus(stripeSessionId: string): Promise<string | null> {
+  const rows = await db
+    .select({ status: stripePaymentsTable.status })
+    .from(stripePaymentsTable)
+    .where(eq(stripePaymentsTable.stripeSessionId, stripeSessionId))
+    .limit(1);
+
+  return rows[0]?.status ?? null;
+}
+
 /* ── Insert-first payment claiming (money-integrity) ─────────────────────
    Eliminates the check-then-insert double-grant race: the UNIQUE constraint
    on stripe_session_id is the arbiter, not a preceding SELECT.
@@ -61,9 +79,24 @@ export type PaymentClaimOutcome = "claimed" | "duplicate" | "inflight";
 
 const CLAIM_STALE_MS = 5 * 60 * 1000;
 
-function isUniqueViolation(err: unknown): boolean {
-  const code = (err as { code?: string })?.code;
-  return code === "23505";
+/**
+ * Detect a Postgres unique-violation (23505) through whatever wrapper the
+ * driver put around it. drizzle-orm's node-postgres session wraps EVERY
+ * driver error in a DrizzleQueryError ("Failed query: …") that carries the
+ * original pg error — the one with `.code` — on `.cause`, with no `.code`
+ * of its own. Checking only the top-level error therefore NEVER matches in
+ * production: the second claimant (webhook vs /checkout/verify) rethrew the
+ * conflict as a hard failure instead of seeing "duplicate" (D6, Oct 21:
+ * lying dashboard banner + webhook 500s on already-granted sessions).
+ * Walk the cause chain, mirroring payment-reversals.ts's detector.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  let cur: unknown = err;
+  for (let depth = 0; depth < 5 && cur != null; depth++) {
+    if ((cur as { code?: string }).code === "23505") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 export async function claimStripePayment(payment: PaymentRecord): Promise<PaymentClaimOutcome> {
