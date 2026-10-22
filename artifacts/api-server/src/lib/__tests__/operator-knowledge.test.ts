@@ -206,6 +206,16 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
   });
 });
 
+/* Stack-25 accuracy audit history: the audit found six endpoints where
+   the CREDIT_COSTS registry misrecorded the rail, and the knowledge base
+   temporarily took those prices from the server rails via the
+   generator's SERVER_PRICE_OVERRIDES. The follow-on price-registry
+   correction fixed CREDIT_COSTS itself to match the rails, the
+   overrides were retired (the generator's table stands empty), and the
+   three constant cross-checks agree again. The Stack-25 describe block
+   at the end of this file now pins registry == rail directly for all
+   six endpoints, re-derived from both source files. */
+
 describe("operator knowledge — sourced facts only", () => {
   it("every price names the registry as its source and is a whole VB figure", () => {
     let priced = 0;
@@ -609,5 +619,150 @@ describe("operator knowledge — Stack-20 surfaces", () => {
     const mode = byId("mode-playlist-pitch")!;
     expect(mode.prices.find((p) => p.endpoint === "/api/playlist-pitch/kit")!.vb).toBe(200);
     expect(mode.prices.some((p) => p.endpoint.includes("packet"))).toBe(false);
+  });
+});
+
+describe("operator knowledge — Stack-25 accuracy corrections", () => {
+  const API_SRC = path.resolve(HERE, "..", "..");
+
+  /** Independent re-derivation of a server cost constant — plain literal,
+      env-overridable default, and nullish-env forms — parsed from the
+      named server file itself, never from the generated base. */
+  function deriveServerConstant(rel: string, constant: string): number {
+    const src = read(path.join(API_SRC, rel));
+    const re = new RegExp(
+      `(?:export\\s+)?const\\s+${constant}\\s*(?::\\s*number)?\\s*=\\s*(?:Number\\(process\\.env\\[["'][A-Z0-9_]+["']\\](?:\\s*\\?\\?\\s*\\d+)?\\)\\s*\\|\\|\\s*)?(\\d+)\\b`,
+    );
+    const m = src.match(re);
+    expect(m, `${constant} in ${rel}`).toBeTruthy();
+    return Number(m![1]);
+  }
+
+  function kbPrices(endpoint: string) {
+    return OPERATOR_FEATURES.flatMap((f) => f.prices).filter((p) => p.endpoint === endpoint);
+  }
+
+  /** The displayed price: the CREDIT_COSTS registry entry in the
+      frontend's credit-costs.ts, parsed from the file itself. (Since the
+      Stack-25 price-registry correction the registry is the knowledge
+      base's only price source again — these pins assert it still agrees
+      with the rail it displays, in both directions.) */
+  function deriveRegistryCost(endpoint: string): number {
+    const registryFile = path.resolve(API_SRC, "..", "..", "bow-down-visuals", "src", "lib", "credit-costs.ts");
+    const src = read(registryFile);
+    const escaped = endpoint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = src.match(new RegExp(`"${escaped}":\\s*\\{\\s*cost:\\s*(\\d+)`));
+    expect(m, `CREDIT_COSTS entry for ${endpoint}`).toBeTruthy();
+    return Number(m![1]);
+  }
+
+  /* The audit found the registry at 200 VB against the rail's
+     JEWELRY_STL_CREDIT_COST = 400. The registry correction moved the
+     DISPLAY to the charge; this pin holds registry == rail so the two
+     can never drift apart silently again. */
+  it("jewelry STL export: the displayed registry price equals the server charge", () => {
+    const serverValue = deriveServerConstant("routes/generate/jewelry-pricing.ts", "JEWELRY_STL_CREDIT_COST");
+    expect(serverValue).toBe(400);
+    expect(deriveRegistryCost("/api/jewelry/export-stl")).toBe(serverValue);
+    const entries = kbPrices("/api/jewelry/export-stl");
+    expect(entries.length).toBeGreaterThan(0);
+    for (const p of entries) {
+      expect(p.vb).toBe(serverValue);
+      expect(p.source).toContain("credit-costs.ts");
+    }
+    // The sibling jewelry rails the registry records correctly stay pinned too.
+    expect(deriveServerConstant("routes/generate/jewelry-pricing.ts", "JEWELRY_PREVIEW_CREDIT_COST")).toBe(200);
+    expect(deriveServerConstant("routes/generate/jewelry-pricing.ts", "JEWELRY_CONSULT_CREDIT_COST")).toBe(100);
+    for (const p of kbPrices("/api/jewelry/design")) expect(p.vb).toBe(200);
+    for (const p of kbPrices("/api/jewelry/consult")) expect(p.vb).toBe(100);
+  });
+
+  /* The audit found the registry at 200 VB; pro-tools-ai.ts charges
+     PRO_TOOLS_AI_CREDITS (a single Visual Buc at the code default).
+     Wrong-looking but code-true: the display now matches what the rail
+     deducts, and this pin holds them together. */
+  it("auto grade: the displayed registry price equals the server charge", () => {
+    const serverValue = deriveServerConstant("routes/generate/pro-tools-ai.ts", "PRO_TOOLS_AI_CREDITS");
+    expect(serverValue).toBe(1);
+    expect(deriveRegistryCost("/api/pro-tools/auto-grade")).toBe(serverValue);
+    const entries = kbPrices("/api/pro-tools/auto-grade");
+    expect(entries.length).toBeGreaterThan(0);
+    for (const p of entries) {
+      expect(p.vb).toBe(serverValue);
+      expect(p.source).toContain("credit-costs.ts");
+    }
+    expect(KNOWN_VB_FIGURES.has(serverValue)).toBe(true);
+  });
+
+  /* The audit found the registry at 100 VB flat; the rail prices sample
+     packs by size (10/25/50 samples). The registry records the smallest
+     pack's price — its own base-price convention — now corrected to the
+     rail's 500, and the larger tiers are re-derived here so the table
+     can't drift silently. */
+  it("sample packs: the displayed registry base equals the smallest pack's server price", () => {
+    const base = deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_10_CREDITS");
+    expect(base).toBe(500);
+    expect(deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_25_CREDITS")).toBe(1200);
+    expect(deriveServerConstant("routes/generate/sample-pack-pricing.ts", "SAMPLE_PACK_50_CREDITS")).toBe(2000);
+    expect(deriveRegistryCost("/api/sample-pack/generate")).toBe(base);
+    const entries = kbPrices("/api/sample-pack/generate");
+    expect(entries.length).toBeGreaterThan(0);
+    for (const p of entries) {
+      expect(p.vb).toBe(base);
+      expect(p.source).toContain("credit-costs.ts");
+    }
+  });
+
+  /* Free rails the registry once priced anyway: the named handlers
+     perform no credit charge at all, re-derived by slicing each handler
+     out of its route file and scanning the slice for a charge call —
+     and the registry now records them at 0 to match. */
+  const FREE_RAILS = [
+    { endpoint: "/api/jewelry/estimate", file: "routes/generate/jewelry.ts", handler: "/jewelry/estimate" },
+    { endpoint: "/api/music/export", file: "routes/music-export.ts", handler: "/music/export" },
+    { endpoint: "/api/music/preview-render", file: "routes/music-export.ts", handler: "/music/preview-render" },
+  ];
+  for (const spec of FREE_RAILS) {
+    it(`${spec.endpoint} is free — its handler charges nothing and the registry says so`, () => {
+      const src = read(path.join(API_SRC, spec.file));
+      const start = src.indexOf(`router.post("${spec.handler}"`);
+      expect(start, `${spec.handler} in ${spec.file}`).toBeGreaterThanOrEqual(0);
+      const rest = src.slice(start);
+      const next = rest.slice(1).search(/\n\s*router\.(get|post|put|patch|delete)\(/);
+      const slice = next < 0 ? rest : rest.slice(0, next + 1);
+      expect(slice).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
+      expect(deriveRegistryCost(spec.endpoint)).toBe(0);
+      const entries = kbPrices(spec.endpoint);
+      expect(entries.length).toBeGreaterThan(0);
+      for (const p of entries) {
+        expect(p.vb).toBe(0);
+        expect(p.source).toContain("credit-costs.ts");
+      }
+    });
+  }
+
+  /* The pricing entry named VIP and MVP tiers; no such products exist.
+     The purchasable tiers are the platform-fees TIER_PLANS — re-derived
+     here — and the entry must name them instead. */
+  it("the pricing entry names the real purchasable tiers", () => {
+    const fees = read(path.join(API_SRC, "lib", "platform-fees.ts"));
+    expect(fees).toMatch(/name:\s*"Pro"[\s\S]{0,160}?priceUsdPerMonth:\s*12/);
+    expect(fees).toMatch(/name:\s*"Elite"[\s\S]{0,160}?priceUsdPerMonth:\s*29/);
+    const f = OPERATOR_FEATURES.find((x) => x.id === "pricing")!;
+    expect(f.description).toContain("Creator Pro");
+    expect(f.description).toContain("Creator Elite");
+    expect(f.description).not.toContain("VIP");
+    expect(f.description).not.toContain("MVP");
+  });
+
+  /* The templates hub called the templates free while applying a video
+     template costs 250 VB (pinned above). Browsing is free; generating
+     is not — the entry must carry the same honesty the caption packs
+     page states in its own body copy. */
+  it("the templates hub no longer calls generation free", () => {
+    const f = OPERATOR_FEATURES.find((x) => x.id === "templates")!;
+    expect(f.description).not.toContain("Free templates");
+    expect(f.description).toContain("Free to browse");
+    expect(f.description).toContain("credits apply when you generate");
   });
 });

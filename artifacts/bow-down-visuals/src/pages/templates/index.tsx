@@ -64,8 +64,8 @@ export default function TemplatesHub() {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   usePageTitle(
-    "Free Creator Templates — Thumbnails, Hooks & Captions",
-    "Free templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Click any template to generate it with AI."
+    "Creator Templates — Free to Browse — Thumbnails, Hooks & Captions",
+    "Templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Free to browse — click any template to generate it with AI; credits apply when you generate."
   );
 
   return (
@@ -76,7 +76,7 @@ export default function TemplatesHub() {
           "@type": "CollectionPage",
           name: "Creator Template Library",
           description:
-            "Free templates for creators: video edit templates, thumbnails, hooks, and captions.",
+            "Creator templates: video edit templates, thumbnails, hooks, and captions — free to browse, credits apply when you generate.",
           url: "https://bowdownvisuals.com/templates",
         }}
       />
