@@ -52,6 +52,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { isUniqueViolation } from "./pg-errors";
 
 /* ── Shapes ──────────────────────────────────────────────────────────── */
 
@@ -84,11 +85,9 @@ interface IdentifiedRail {
 
 const CLAIM_STALE_MS = 5 * 60 * 1000;
 
-function isUniqueViolation(err: unknown): boolean {
-  /* drizzle wraps driver errors: the pg code rides on .cause. */
-  const e = err as { code?: string; cause?: { code?: string } } | null;
-  return e?.code === "23505" || e?.cause?.code === "23505";
-}
+/* isUniqueViolation comes from ./pg-errors — the shared cause-chain
+ * walker (drizzle wraps driver errors: the pg code rides on .cause;
+ * the shared helper covers the top level and the whole chain). */
 
 type Row = Record<string, unknown>;
 const firstRow = (r: { rows: unknown[] }): Row | undefined => r.rows[0] as Row | undefined;

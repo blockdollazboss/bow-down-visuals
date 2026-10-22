@@ -11,9 +11,10 @@
  * Supabase PostgREST errors are NOT wrapped: their .code is top-level
  * and checks against them are correct without this helper.
  *
- * NOTE for integration: lib/payment-record.ts grows the same walker
- * on the lane-10 branch (stack21/verify-path-banner) — reconcile the
- * two into this shared helper when that lane lands. */
+ * RECONCILED at Stack-21 integration: this module is the single
+ * implementation — lib/payment-record.ts (which grew its own walker in
+ * the D6 fix) and lib/payment-reversals.ts (which had a one-level
+ * checker) both delegate here now. */
 
 export function pgErrorCode(err: unknown): string | undefined {
   let cur: unknown = err;

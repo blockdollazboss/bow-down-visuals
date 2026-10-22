@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { stripePaymentsTable, creditUsageTable, generationHistoryTable } from "@workspace/db";
 import { eq, desc, and, or, lt } from "drizzle-orm";
 import { logger } from "./logger";
+import { isUniqueViolation } from "./pg-errors";
 
 export interface PaymentRecord {
   stripeSessionId: string;
@@ -80,24 +81,17 @@ export type PaymentClaimOutcome = "claimed" | "duplicate" | "inflight";
 const CLAIM_STALE_MS = 5 * 60 * 1000;
 
 /**
- * Detect a Postgres unique-violation (23505) through whatever wrapper the
- * driver put around it. drizzle-orm's node-postgres session wraps EVERY
- * driver error in a DrizzleQueryError ("Failed query: …") that carries the
- * original pg error — the one with `.code` — on `.cause`, with no `.code`
- * of its own. Checking only the top-level error therefore NEVER matches in
- * production: the second claimant (webhook vs /checkout/verify) rethrew the
- * conflict as a hard failure instead of seeing "duplicate" (D6, Oct 21:
- * lying dashboard banner + webhook 500s on already-granted sessions).
- * Walk the cause chain, mirroring payment-reversals.ts's detector.
+ * Unique-violation detection lives in ./pg-errors (the shared cause-chain
+ * walker). This module originally grew its own copy when the D6 defect was
+ * fixed here (Oct 21: drizzle wraps every driver error in a
+ * DrizzleQueryError with the pg `.code` on `.cause`, so the old top-level
+ * check never matched in production — the second claimant, webhook vs
+ * /checkout/verify, rethrew the conflict as a hard failure instead of
+ * seeing "duplicate": lying dashboard banner + webhook 500s on
+ * already-granted sessions). Re-exported so existing importers and the
+ * error-shape pin tests keep their import path.
  */
-export function isUniqueViolation(err: unknown): boolean {
-  let cur: unknown = err;
-  for (let depth = 0; depth < 5 && cur != null; depth++) {
-    if ((cur as { code?: string }).code === "23505") return true;
-    cur = (cur as { cause?: unknown }).cause;
-  }
-  return false;
-}
+export { isUniqueViolation };
 
 export async function claimStripePayment(payment: PaymentRecord): Promise<PaymentClaimOutcome> {
   // Insert-first: try to become the owner of this payment.
