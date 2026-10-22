@@ -2621,14 +2621,26 @@ export class KingsHallScene {
     const def = PALACE_LAYOUT[COURTYARD_ID]!;
     const g = new THREE.Group();
     const { interior } = def;
-    const cz = (interior.minZ + interior.maxZ) / 2;
 
-    // Open air: the floor is stone under the sky — the same marble,
-    // rougher, no polish to mirror a ceiling that isn't there.
-    this.shellFloor(g, look, mats, interior, 0.78, 7);
+    /* Floors (Open World Phase 1): the plaza's interior now spans
+     * z to 34 across the full width, but the Creator Room template
+     * owns its own floor south-east (interior x 2.6..16.4,
+     * z 26.4..38) — one rect over both would z-fight it. Tile
+     * instead: the main grounds, then the promenade, abutting at
+     * z 26 with no overlap. Same rough outdoor finish as before. */
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, 0.78, 7);
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, 0.78, 7);
 
-    // Low marble walls with a gold cap on the three open sides (the
-    // fourth is the hall's own back wall + the arch through it).
+    // Low marble walls with a gold cap on the open sides (the
+    // fourth side is the hall's own back wall + the arch through
+    // it), rebuilt for the plaza plan. Two gates pierce them: a
+    // 2.2 m gap in the west wall at z ≈ 19.5 (Stage Grounds) and
+    // one in the south promenade wall at x ≈ 0 (the Boardwalk) —
+    // the walk rects end at ±27.85 / 33.6, so no gap can ever be
+    // walked through; each gate's gold bar (below) makes the
+    // closure visible. There is NO wall along z 26: the grounds
+    // flow into the promenade, and the Creator Rooms arch area
+    // (x 8.45..10.55 at z ≈ 26) stays open as it was.
     const lowWall = (w: number, d: number, x: number, z: number) => {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.05, d), mats.marble);
       wall.position.set(x, 0.525, z);
@@ -2638,17 +2650,19 @@ export class KingsHallScene {
       cap.position.set(x, 1.09, z);
       g.add(cap);
     };
-    lowWall(0.35, interior.maxZ - interior.minZ, -14.0, cz);
-    lowWall(0.35, interior.maxZ - interior.minZ, 14.0, cz);
-    /* The south wall runs in two pieces now (Ring 2, 3.5): the
-     * Creator Rooms arch at x 9.5 stands OPEN — a walkable gap in
-     * the low wall where the doorway portal crosses (floor plan:
-     * palace-layout's creator-room door, span x 8.45..10.55). */
-    lowWall(22.65, 0.35, -2.85, interior.maxZ);
-    lowWall(3.65, 0.35, 12.35, interior.maxZ);
+    // West wall x −28.2, z 12.4..34, split by the Stage Grounds gap.
+    lowWall(0.35, 6.0, -28.2, 15.4);
+    lowWall(0.35, 13.4, -28.2, 27.3);
+    // East wall x 28.2, z 12.4..26.0 (beyond that is the creator wing).
+    lowWall(0.35, 13.6, 28.2, 19.2);
+    // South wall z 34.0 across the promenade span, split by the
+    // Boardwalk gap at x −1.1..1.1.
+    lowWall(27.1, 0.35, -14.65, 34.0);
+    lowWall(1.25, 0.35, 1.725, 34.0);
 
     // Columns where the walls turn: plinth, marble shaft, gold cap —
-    // the hall's column language at garden scale.
+    // the hall's column language at garden scale, moved to the
+    // plaza's new corners (with a mid-wall column on each long side).
     const column = (x: number, z: number) => {
       const col = new THREE.Group();
       col.position.set(x, 0, z);
@@ -2664,34 +2678,141 @@ export class KingsHallScene {
       col.add(cap);
       g.add(col);
     };
-    for (const x of [-14.0, 14.0]) {
-      column(x, interior.minZ + 0.2);
-      column(x, cz);
-    }
-    for (const x of [-7, 7]) column(x, interior.maxZ);
+    column(-28.2, interior.minZ + 0.2);
+    column(28.2, interior.minZ + 0.2);
+    column(-28.2, interior.maxZ - 0.2);
+    column(2.35, interior.maxZ);
+    column(-28.2, 23.2);
+    column(28.2, 19.2);
 
-    // Planters along the side walls: marble troughs, green crowns.
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
-    for (const x of [-13.1, 13.1]) {
-      for (const z of [15.8, 22.6]) {
-        const trough = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.55, 2.0), mats.marble);
-        trough.position.set(x, 0.275, z);
-        g.add(trough);
-        for (const dz of [-0.5, 0.5]) {
-          const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.44, 1), leafMat);
-          crown.position.set(x, 0.82, z + dz);
-          crown.castShadow = QUALITY[this.quality].shadows;
-          g.add(crown);
+    /* Lawn panels on the east and west grounds — flat green fields
+     * flanking the marble heart of the plaza (the centre,
+     * |x| ≤ 6.5, stays marble). The green follows the look the way
+     * the braziers follow look.candles: deep in the midnight look
+     * (candles lit), a rich grass green in the golden-hour look. */
+    const lawnMat = new THREE.MeshStandardMaterial({
+      color: look.candles ? 0x1f4d26 : 0x478f36, roughness: 1, metalness: 0,
+    });
+    for (const sx of [-1, 1] as const) {
+      const lawn = new THREE.Mesh(new THREE.BoxGeometry(20.5, 0.05, 11.0), lawnMat);
+      lawn.position.set(sx * 16.75, 0.025, 19.2);
+      lawn.receiveShadow = QUALITY[this.quality].shadows;
+      g.add(lawn);
+    }
+
+    /* The marble path: from the hall arch (0, 12.4) south through
+     * the monument to the Boardwalk gate (0, 34) — a marble slab
+     * with gold edge strips, in the floor inlay's language. Two
+     * runs abutting the monument plinth (z 18.0 / 21.4), so the
+     * path reads as running through the monument's ground ring. */
+    const pathRun = (fromZ: number, toZ: number) => {
+      const len = toZ - fromZ;
+      const pcz = (fromZ + toZ) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.016, len), mats.marble);
+      slab.position.set(0, 0.022, pcz);
+      g.add(slab);
+      for (const sx of [-1.72, 1.72]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, len), mats.goldDark);
+        strip.position.set(sx, 0.028, pcz);
+        g.add(strip);
+      }
+    };
+    pathRun(12.4, 18.0);
+    pathRun(21.4, 34.0);
+
+    /* ── The Kingdom Board monument (0, 19.7), plaza centre ──────
+     * A stepped marble plinth, a gold-trimmed stele ~3.2 m tall
+     * wearing the board's engraved plate on its south face, gold
+     * finials at the plinth corners, and a gold ring inlay in the
+     * ground around it. A sign, not a data display — the live
+     * board opens in the station panel at the board station (its
+     * marker stands at the monument's south base, built by
+     * buildStationMarkers like every station). No mirror, no
+     * lights of its own. */
+    {
+      const monument = new THREE.Group();
+      monument.position.set(0, 0, 19.7);
+      const tier1 = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.22, 3.4), mats.marble);
+      tier1.position.y = 0.11;
+      tier1.castShadow = QUALITY[this.quality].shadows;
+      monument.add(tier1);
+      const tierTrim = new THREE.Mesh(new THREE.BoxGeometry(3.55, 0.05, 3.55), mats.goldDark);
+      tierTrim.position.y = 0.245;
+      monument.add(tierTrim);
+      const tier2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.22, 2.5), mats.marble);
+      tier2.position.y = 0.38;
+      monument.add(tier2);
+      const stele = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 0.42), mats.marble);
+      stele.position.y = 0.49 + 1.6;
+      stele.castShadow = QUALITY[this.quality].shadows;
+      monument.add(stele);
+      for (const trimY of [0.56, 3.62]) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.09, 0.5), mats.gold);
+        trim.position.y = trimY;
+        monument.add(trim);
+      }
+      const crownCap = new THREE.Mesh(new THREE.ConeGeometry(1.05, 0.5, 4), mats.gold);
+      crownCap.rotation.y = Math.PI / 4;
+      crownCap.position.y = 3.94;
+      monument.add(crownCap);
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.4, 1.96),
+        new THREE.MeshBasicMaterial({ map: kingdomBoardPlateTexture(look.theme), toneMapped: false }),
+      );
+      face.position.set(0, 2.09, 0.22);
+      monument.add(face);
+      for (const fx of [-1.5, 1.5]) {
+        for (const fz of [-1.5, 1.5]) {
+          const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mats.gold);
+          finial.position.set(fx, 0.31, fz);
+          monument.add(finial);
         }
       }
+      const ring = new THREE.Mesh(new THREE.RingGeometry(2.55, 2.65, 56), mats.goldDark);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.016;
+      ring.renderOrder = 3;
+      monument.add(ring);
+      g.add(monument);
     }
 
+    // Planters along the side walls and down the promenade: marble
+    // troughs, green crowns — the original construction, spread to
+    // the plaza's new scale (nine in all). Geometries are shared.
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
+    const troughGeoZ = new THREE.BoxGeometry(0.72, 0.55, 2.0);
+    const troughGeoX = new THREE.BoxGeometry(2.0, 0.55, 0.72);
+    const crownGeo = new THREE.IcosahedronGeometry(0.44, 1);
+    const planter = (x: number, z: number, alongZ: boolean) => {
+      const trough = new THREE.Mesh(alongZ ? troughGeoZ : troughGeoX, mats.marble);
+      trough.position.set(x, 0.275, z);
+      g.add(trough);
+      for (const off of [-0.5, 0.5]) {
+        const crown = new THREE.Mesh(crownGeo, leafMat);
+        crown.position.set(alongZ ? x : x + off, 0.82, alongZ ? z + off : z);
+        crown.castShadow = QUALITY[this.quality].shadows;
+        g.add(crown);
+      }
+    };
+    planter(-27.3, 15.8, true);
+    planter(-27.3, 22.6, true);
+    planter(27.3, 15.8, true);
+    planter(27.3, 22.6, true);
+    planter(-27.3, 28.8, true);
+    planter(-27.3, 32.3, true);
+    planter(2.2, 29.5, true);
+    planter(-20, 33.1, false);
+    planter(-8, 33.1, false);
+
     // Braziers in the dark look — the courtyard burns at night.
+    // The original pair keeps its place; a second pair flanks the
+    // monument. Point lights only on tiers that carry them, as
+    // everywhere in the hall; flames ride anim.flames as always.
     if (look.candles) {
       const bronze = new THREE.MeshStandardMaterial({ color: 0x4a3418, metalness: 0.85, roughness: 0.4 });
-      for (const x of [-4.6, 4.6]) {
+      for (const [bx, bz] of [[-4.6, 18.6], [4.6, 18.6], [-3.4, 19.7], [3.4, 19.7]] as Array<[number, number]>) {
         const brazier = new THREE.Group();
-        brazier.position.set(x, 0, 18.6);
+        brazier.position.set(bx, 0, bz);
         const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.5, 10), mats.darkMetal);
         pedestal.position.y = 0.25;
         brazier.add(pedestal);
@@ -2708,12 +2829,58 @@ export class KingsHallScene {
         g.add(brazier);
         if (QUALITY[this.quality].candleLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
-          light.position.set(x, 1.35, 18.6);
+          light.position.set(bx, 1.35, bz);
           g.add(light);
           anim.flickerLights.push({ light, base: 22, phase: Math.random() * 20 });
         }
       }
     }
+
+    /* ── District gates (visual only, Phase-2 teasers) ───────────
+     * Each gate: two marble posts taller than the low wall with
+     * gold caps and a gold header, its name plate in the house
+     * style, and a gold bar across at 0.55 m so it reads
+     * closed-for-now. The west and south gates stand in true wall
+     * gaps; the east gates stand proud of the east wall (their
+     * bars ride the wall's plaza face); the Gardens and Heights
+     * gates are freestanding signpost pairs. */
+    const gatePostGeo = new THREE.BoxGeometry(0.32, 1.9, 0.32);
+    const gateCapGeo = new THREE.BoxGeometry(0.46, 0.12, 0.46);
+    const districtGate = (
+      name: string, x: number, z: number, axis: "x" | "z", plateRotY: number,
+      barDx = 0, barDz = 0,
+    ) => {
+      for (const s of [-1.1, 1.1]) {
+        const px = axis === "x" ? x + s : x;
+        const pz = axis === "x" ? z : z + s;
+        const post = new THREE.Mesh(gatePostGeo, mats.marble);
+        post.position.set(px, 0.95, pz);
+        post.castShadow = QUALITY[this.quality].shadows;
+        g.add(post);
+        const cap = new THREE.Mesh(gateCapGeo, mats.gold);
+        cap.position.set(px, 1.96, pz);
+        g.add(cap);
+      }
+      const header = new THREE.Mesh(
+        axis === "x" ? new THREE.BoxGeometry(2.52, 0.12, 0.3) : new THREE.BoxGeometry(0.3, 0.12, 2.52),
+        mats.gold,
+      );
+      header.position.set(x, 1.8, z);
+      g.add(header);
+      const bar = new THREE.Mesh(
+        axis === "x" ? new THREE.BoxGeometry(2.2, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 2.2),
+        mats.gold,
+      );
+      bar.position.set(x + barDx, 0.55, z + barDz);
+      g.add(bar);
+      this.doorPlate(g, name, x, 2.33, z, plateRotY, 2.6);
+    };
+    districtGate("STAGE GROUNDS", -28.2, 19.5, "z", Math.PI / 2, 0.22, 0);
+    districtGate("THE BOARDWALK", 0, 34.0, "x", Math.PI);
+    districtGate("LISTENING GARDENS", -26, 33.8, "x", Math.PI);
+    districtGate("CREATION ROW", 28.2, 14.5, "z", -Math.PI / 2, -0.22, 0);
+    districtGate("THE ATELIERS", 28.2, 22.5, "z", -Math.PI / 2, -0.22, 0);
+    districtGate("CREATOR HEIGHTS", 13.5, 24.6, "x", Math.PI);
 
     // The way back, labeled from the courtyard side of the arch.
     this.doorPlate(g, "THE KING'S HALL", 0, PALACE_DOOR_HEIGHT + 0.66, 12.52, 0, 4.2);
@@ -2725,7 +2892,6 @@ export class KingsHallScene {
     group.add(g);
     this.shellGroups.set(COURTYARD_ID, g);
   }
-
   /** The Creator Rooms arch (Ring 2, 3.5): the grand arch on the
    *  far colonnade, OPEN — the seal and the shut slabs of the
    *  sealed years are gone, the double doors stand swung inward
