@@ -93,6 +93,7 @@ import {
 } from "@/lib/world/jukebox-sync";
 import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
 import {
+  COURTYARD_ID,
   GAME_ROOMS_ID,
   MUSIC_HALL_ID,
   isCreatorRoomId,
@@ -273,7 +274,7 @@ function ActionButton({
 }
 
 export default function WorldPage() {
-  usePageTitle("The World — The King's Hall", "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.");
+  usePageTitle("The World — The King's Plaza", "Step into the King's Plaza: the palace's front square — the hall's stage and big screen, and your people, are all right here.");
   const { user, getAccessToken } = useAuth();
   /* My Creator Level, as this device knows it — the input to the
      level-up detection below (the server keeps the record that
@@ -305,8 +306,12 @@ export default function WorldPage() {
      directory — who's in every room, the front-door signal that
      your people are here. Presence is per-room now; the count in
      the header is THIS room's. */
-  const [roomId, setRoomId] = useState<string>(HALL_ROOM_ID);
-  const [roomName, setRoomName] = useState("The King's Hall");
+  /* Admission lands on the King's Plaza (Open World Phase 1), so
+     the pre-welcome placeholder names the plaza, not the hall —
+     and the status handler below re-names it from the welcome's
+     own room the moment it lands. */
+  const [roomId, setRoomId] = useState<string>(COURTYARD_ID);
+  const [roomName, setRoomName] = useState("The King's Plaza");
   const [directory, setDirectory] = useState<PalaceDirectoryEntry[]>([]);
   const inHall = roomId === HALL_ROOM_ID;
   const [isGuest, setIsGuest] = useState(true);
@@ -1350,6 +1355,14 @@ export default function WorldPage() {
         if (cancelled) return;
         setStatus(s);
         if (s === "inside" && client.self) {
+          /* The welcome names the room I actually landed in (the
+             plaza since Open World Phase 1) — the first welcome
+             never fires onRoomChanged, so the header and the
+             hall-gated chrome take the room from here. */
+          if (client.room) {
+            setRoomId(client.room.id);
+            setRoomName(client.room.name);
+          }
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
           setMySlug(client.self.profileSlug);
@@ -1364,6 +1377,15 @@ export default function WorldPage() {
           scene.setSelfFigure(client.self);
           if (!spawnedRef.current) {
             spawnedRef.current = true;
+            /* The scene is born defaulting to the hall; confirm the
+               welcome's room BEFORE the spawn is placed, or the
+               spawn clamp files a plaza arrival (z 31.5) into the
+               hall's floor (z ≤ 11.1) and the body materializes at
+               the hall's south doors instead of on the promenade.
+               Movement, camera clamp and shell visibility all key
+               off the scene's room, so this one confirmation is
+               what makes the landing real. */
+            if (client.room) scene.setRoom(client.room.id);
             scene.setSpawn(client.self.x, client.self.z);
           }
         }
@@ -2481,7 +2503,7 @@ export default function WorldPage() {
         {overlay === "connecting" && !bootFailed && (
           <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/70"}`}>
             <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
-            <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>Entering the King's Hall…</p>
+            <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>Entering the King's Plaza…</p>
           </div>
         )}
         {reconnecting && overlay === null && (
@@ -2508,9 +2530,9 @@ export default function WorldPage() {
           <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`}>
             <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
               <Users className="mx-auto h-8 w-8 text-[#d4af37]" />
-              <h2 className="mt-3 text-lg font-black">The hall is full</h2>
+              <h2 className="mt-3 text-lg font-black">The palace is full</h2>
               <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                30 people are inside right now — that's everyone the hall holds at once. Give it a moment and try the door again.
+                Everyone the palace can hold is inside right now. Give it a moment and try the door again.
               </p>
               <div className="mt-4 flex justify-center gap-2">
                 <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">

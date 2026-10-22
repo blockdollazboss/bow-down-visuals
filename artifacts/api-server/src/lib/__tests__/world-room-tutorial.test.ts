@@ -82,11 +82,18 @@ function palaceWithSpy() {
 const move = (palace: WorldPalace, sock: FakeSocket, x: number, z: number, at: number) =>
   palace.handleFrame(sock, JSON.stringify({ type: "move", x, z, rotY: 0 }), at);
 
+/** Admission lands on the King's Plaza (Open World Phase 1); the
+ *  throne, the stage and the applause these tests exercise all
+ *  live in the hall — walk the peer in through the doors first. */
+const intoHall = (palace: WorldPalace, sock: FakeSocket, at: number) =>
+  palace.handleFrame(sock, JSON.stringify({ type: "room.enter", roomId: WORLD_ROOM_ID, x: 0, z: 9.5 }), at);
+
 describe("tutorial verbs in the rooms", () => {
   it("walking to the throne notes meet-king once per session; the middle of the hall notes nothing", () => {
     const { palace, note } = palaceWithSpy();
     const sock = fakeSocket();
     palace.enterHall(sock, member("New"));
+    intoHall(palace, sock, T0);
     move(palace, sock, 0, 0, T0); // the middle of the hall
     expect(note).not.toHaveBeenCalled();
     move(palace, sock, 2, -12, T0 + 100); // the throne zone
@@ -102,6 +109,7 @@ describe("tutorial verbs in the rooms", () => {
     const { palace, note } = palaceWithSpy();
     const sock = fakeSocket();
     palace.enterHall(sock, guest());
+    intoHall(palace, sock, T0);
     move(palace, sock, 0, -12, T0);
     expect(note).not.toHaveBeenCalled();
   });
@@ -123,6 +131,8 @@ describe("tutorial verbs in the rooms", () => {
     const fan = fakeSocket();
     palace.enterHall(star, member("Star"));
     palace.enterHall(fan, member("Fan"));
+    intoHall(palace, star, T0);
+    intoHall(palace, fan, T0);
     // Empty stage: clapping is just exercise.
     palace.handleFrame(fan, JSON.stringify({ type: "action", action: "clap" }), T0);
     expect(note).not.toHaveBeenCalled();
@@ -140,6 +150,8 @@ describe("tutorial verbs in the rooms", () => {
     const fan = fakeSocket();
     palace.enterHall(star, member("Star"));
     palace.enterHall(fan, member("Fan"));
+    intoHall(palace, star, T0);
+    intoHall(palace, fan, T0);
     palace.handleFrame(star, JSON.stringify({ type: "stage.live", streamId: "stream-1" }), T0);
     await flush();
     palace.handleFrame(fan, JSON.stringify({ type: "stage.tip", amountVb: 250 }), T0 + 100);

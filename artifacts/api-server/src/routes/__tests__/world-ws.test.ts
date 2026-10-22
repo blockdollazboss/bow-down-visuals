@@ -115,10 +115,12 @@ describe("WS /api/world/ws", () => {
     expect(welcomeB.peers.map((p: any) => p.peerId)).toContain(welcomeA.peerId);
     await waitFor(a, (m) => m.type === "peer.join" && m.peer.peerId === welcomeB.peerId);
 
-    a.ws.send(JSON.stringify({ type: "move", x: 2.5, z: -4, rotY: 0.5 }));
+    /* Both members stand on the King's Plaza (the front door
+     * since Open World Phase 1) — the move fans out plaza-side. */
+    a.ws.send(JSON.stringify({ type: "move", x: 2.5, z: 20, rotY: 0.5 }));
     const move = await waitFor(b, (m) => m.type === "peer.move" && m.peerId === welcomeA.peerId);
     expect(move.x).toBe(2.5);
-    expect(move.z).toBe(-4);
+    expect(move.z).toBe(20);
 
     // Despawn over the wire: A's close lands as B's peer.leave.
     a.ws.close();

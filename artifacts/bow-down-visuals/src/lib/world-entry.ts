@@ -10,9 +10,10 @@
    - the contextual action on artist profiles ("Visit in the World",
      in the ProfileActions row beside Follow / Tip / Share).
 
-   Both land the visitor in the King's Hall at /world — the shared room
-   that exists today. Neither may promise a per-creator room: Creator
-   Rooms are a later ring and do not exist yet. */
+   Both land the visitor in the World at /world — arriving on the
+   King's Plaza in front of the palace (the front door since Open
+   World Phase 1), with the King's Hall one walk through its open
+   doors and Creator Rooms through the plaza's arch. */
 
 export const WORLD_ROUTE = "/world";
 

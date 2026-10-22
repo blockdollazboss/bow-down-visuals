@@ -146,7 +146,9 @@ export interface PalaceDirectoryEntry {
   slug?: string;
 }
 
-/** The hall's id — the palace's front door and its one stage room. */
+/** The hall's id — the palace's one stage room. (The front door
+ *  is the King's Plaza since Open World Phase 1; admission is the
+ *  server's call, and the welcome names the room you land in.) */
 export const HALL_ROOM_ID = "world:kings-hall";
 
 /** The stage + big-screen state, mirrored from the room: who holds

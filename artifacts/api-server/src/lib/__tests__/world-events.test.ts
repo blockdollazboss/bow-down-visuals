@@ -166,6 +166,9 @@ describe("stage shows (3.1)", () => {
     });
     const fan = fakeSocket();
     enter(palace, fan, member("Fan"));
+    /* Admission lands on the plaza (Phase 1); the show is in the
+     * hall, so the fan walks in through the doors first. */
+    walkTo(palace, fan, WORLD_ROOM_ID);
 
     await scheduler.tick(T0);
     expect(store.rows[0]!.status).toBe("live");
@@ -181,9 +184,13 @@ describe("stage shows (3.1)", () => {
     const hallEntry = palace.directory().find((r) => r.id === WORLD_ROOM_ID);
     expect(hallEntry?.events?.[0]).toMatchObject({ id: "evt-1", status: "live", title: "Host's Big Night" });
 
-    // A late joiner's welcome carries the show.
+    // A late joiner who walks into the hall gets the show in the
+    // hall welcome (the plaza welcome carries no screen — the
+    // stage is the hall's, and the doors are one walk away).
     const late = fakeSocket();
     enter(palace, late, member("Late"));
+    late.sent = [];
+    walkTo(palace, late, WORLD_ROOM_ID);
     const welcome = late.sent.find((m) => m.type === "welcome");
     expect(welcome.screen.event).toEqual({ id: "evt-1", title: "Host's Big Night", hostName: "Host" });
     expect(welcome.screen.mode).toBe("video");
@@ -215,9 +222,11 @@ describe("stage shows (3.1)", () => {
 
     const host = fakeSocket();
     enter(palace, host, member("Host"));
+    walkTo(palace, host, WORLD_ROOM_ID);
     // Someone else cannot drive the booked screen.
     const other = fakeSocket();
     enter(palace, other, member("Other"));
+    walkTo(palace, other, WORLD_ROOM_ID);
     frame(palace, other, { type: "screen.reel" });
     expect(other.sent.filter((m) => m.type === "screen.denied")).toHaveLength(1);
 
@@ -246,6 +255,7 @@ describe("stage shows (3.1)", () => {
     });
     const walker = fakeSocket();
     enter(palace, walker, member("Walker"));
+    walkTo(palace, walker, WORLD_ROOM_ID);
     frame(palace, walker, { type: "stage.video", videoId: VIDEO.id });
     await flush();
     const hall = palace.room(WORLD_ROOM_ID)!;
@@ -440,7 +450,11 @@ describe("drop spectacles (3.4)", () => {
     enter(palace, inRoom, member("Alpha"));
     walkTo(palace, inRoom, COURTYARD);
     const inHall = fakeSocket();
-    enter(palace, inHall, member("Hallgoer")); // stays in the King's Hall
+    enter(palace, inHall, member("Hallgoer"));
+    /* Admission lands on the plaza — which IS the courtyard the
+     * chest fell in — so the "another room" member must actually
+     * walk into the King's Hall to be somewhere else. */
+    walkTo(palace, inHall, WORLD_ROOM_ID);
     await scheduler.tick(T0);
 
     // The palace heard the herald, but the Hall holds no chest:
