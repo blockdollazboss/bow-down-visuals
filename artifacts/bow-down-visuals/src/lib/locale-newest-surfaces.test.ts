@@ -136,8 +136,11 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, plus the Stack-23 plural split (2529 keys)", () => {
+    /* 2469 + 60: Stack-23 lane 2 split the 12 {{plural}} keys in
+       videoEditor/catalogImport/liveGuests/playlist into six CLDR
+       plural-suffixed keys each (−12 base + 72 suffixed = +60). */
+    expect(REQUIRED.length).toBe(2529);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

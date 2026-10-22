@@ -467,7 +467,7 @@ export default function StreamPlaylistPage() {
                 <span className="text-[#e8c86a] font-semibold">{ownerName}</span>
               )}
               <span className="mx-2 text-white/20">•</span>
-              {t("playlist.itemsCount", { count: items.length, plural: items.length === 1 ? "" : "s" })}
+              {t("playlist.itemsCount", { count: items.length })}
               {audioItems.length > 0 && videoCount > 0 && (
                 <span className="text-white/35"> {t("playlist.mixBreakdown", { audio: audioItems.length, video: videoCount })}</span>
               )}
