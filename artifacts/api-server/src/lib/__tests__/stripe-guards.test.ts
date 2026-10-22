@@ -62,6 +62,45 @@ describe("shared Stripe client guard (D2)", () => {
   });
 });
 
+describe("route-level Stripe client seams (D2 — the seven formerly unguarded rails)", () => {
+  /* The registry below proves these files mention a guarded entry point
+     somewhere; these pins prove the guarded call sits in the actual
+     client-construction seam of each rail, so a future edit cannot move
+     construction back behind an existence-only check unnoticed. */
+  const seam = (rel: string) => {
+    const src = readFileSync(new URL(`../../${rel}`, import.meta.url), "utf8");
+    const start = src.indexOf("function getStripe()");
+    expect(start, `${rel} getStripe seam`).toBeGreaterThanOrEqual(0);
+    return src.slice(start, start + 160);
+  };
+
+  it("credit packs (routes/stripe-payments.ts) construct through the guard", () => {
+    expect(seam("routes/stripe-payments.ts")).toContain("return createGuardedStripeClient();");
+    const src = readFileSync(new URL("../../routes/stripe-payments.ts", import.meta.url), "utf8");
+    expect(src).toContain("createGuardedStripeClient(secretKey)");
+  });
+  it("express pay (routes/express-pay.ts) constructs through the guard", () => {
+    expect(seam("routes/express-pay.ts")).toContain("return createGuardedStripeClient();");
+  });
+  it("storefront (routes/storefront.ts) constructs through the guard", () => {
+    expect(seam("routes/storefront.ts")).toContain("return createGuardedStripeClient();");
+  });
+  it("shoutouts (routes/generate/shoutouts.ts) constructs through the guard", () => {
+    expect(seam("routes/generate/shoutouts.ts")).toContain("return createGuardedStripeClient();");
+  });
+  it("tip jar (routes/generate/tip-jar.ts) constructs through the guard", () => {
+    expect(seam("routes/generate/tip-jar.ts")).toContain("return createGuardedStripeClient();");
+  });
+  it("sponsors (routes/generate/sponsors.ts) constructs through the guard", () => {
+    const src = readFileSync(new URL("../../routes/generate/sponsors.ts", import.meta.url), "utf8");
+    expect(src).toContain("const stripe = createGuardedStripeClient();");
+  });
+  it("branding shop (routes/generate/branding-shop.ts) asserts its explicit key through the guard", () => {
+    const src = readFileSync(new URL("../../routes/generate/branding-shop.ts", import.meta.url), "utf8");
+    expect(src).toContain("const stripe = createGuardedStripeClient(stripeKey);");
+  });
+});
+
 const SRC_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 function walkTsFiles(dir: string, prefix = ""): string[] {
