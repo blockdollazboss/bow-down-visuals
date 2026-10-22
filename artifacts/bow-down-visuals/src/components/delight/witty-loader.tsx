@@ -104,13 +104,13 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
           loop
           playsInline
           preload="auto"
-          poster="/images/loading-bg-light-throne.webp"
+          poster={mediaUrl("images/loading-bg-light-throne.webp")}
         />
       ) : (
         <div
           aria-hidden
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url(/media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp)" }}
+          style={{ backgroundImage: `url(${mediaUrl("media-generation-loading-bg-referral-v5-0-3fc90681-441f-4765-be51-9110960be106.webp")})` }}
         />
       )}
       {/* Cinematic gradient — DARK theme only. Light theme used to lay a
@@ -254,7 +254,7 @@ function CrownedLogo({ isLight }: { isLight: boolean }) {
         </div>
         {/* Bare mark — no box, no container. Light theme gets the ivory-ribbon logo. */}
         <img
-          src={isLight ? "/logo-light.webp" : "/logo-static.webp"}
+          src={mediaUrl(isLight ? "logo-light.webp" : "logo-static.webp")}
           alt="Bow Down Visuals"
           className="relative h-28 w-28 object-contain"
           style={{ filter: `drop-shadow(0 0 ${8 + proximity * 12}px rgba(212,175,55,${0.25 + proximity * 0.25}))` }}

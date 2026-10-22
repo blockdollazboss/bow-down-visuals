@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { mediaUrl } from "@/lib/media-cdn";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
   Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
@@ -147,7 +148,7 @@ export function HeroSection({ profile }: { profile: CreatorProfile }) {
                palace as its banner unless it ever sets its own. Shark
                armrests per the owner's correction (no lions) — the shark
                version is the default since 2026-10-13. */
-            backgroundImage: `url(${profile.banner_url ?? "/images/king-throne-room-shark.webp"})`,
+            backgroundImage: `url(${profile.banner_url ?? mediaUrl("images/king-throne-room-shark.webp")})`,
             opacity: 1 - profile.theme_config.banner.overlayOpacity,
           }}
         />

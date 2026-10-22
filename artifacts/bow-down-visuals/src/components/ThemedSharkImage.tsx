@@ -1,10 +1,11 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { mediaBaseUrl } from "@/lib/media-cdn";
 
 /* Theme-aware Shark King portrait: cream robe on light theme,
    black robe on dark. Swaps live when the theme flips. */
 export function ThemedSharkImage({ className = "" }: { className?: string }) {
   const isLight = useIsLightTheme();
-  const base = import.meta.env.BASE_URL;
+  const base = mediaBaseUrl();
   return (
     <img
       src={

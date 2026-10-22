@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SecretChallengePopup } from "./SecretChallengePopup";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { mediaBaseUrl } from "@/lib/media-cdn";
 
 /* Click-to-bow shark: reuses the hero bow sprite sheets (102 frames).
    Click → smooth timed bow (down, hold, up). */
@@ -34,7 +35,7 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   // Light theme has no bow sprite sheets (yet) — the canvas stays clear and
   // the cream-robed poster shows instead. The bow counter + secret popup
   // keep working; the poster dips via CSS while bowing for feedback.
-  const posterSrc = `${import.meta.env.BASE_URL}${isLight ? "hero-bow-poster-light.webp" : "hero-bow-poster.webp"}`;
+  const posterSrc = `${mediaBaseUrl()}${isLight ? "hero-bow-poster-light.webp" : "hero-bow-poster.webp"}`;
   const [rewardCredits, setRewardCredits] = useState<number | null>(null);
   const bowState = useRef({
     current: 0,

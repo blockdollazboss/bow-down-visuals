@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { mediaBaseUrl } from "@/lib/media-cdn";
 
 /* ─────────────────── Bowing shark hero ─────────────────── */
 /* Canvas sprite scrubber. The shark-king clip was keyed out with an AI
@@ -178,7 +179,7 @@ export function HeroLogo3D() {
     };
   }, [isLight]);
 
-  const base = import.meta.env.BASE_URL;
+  const base = mediaBaseUrl();
 
   return (
     <div ref={sectionRef} className="relative w-full max-w-[480px] aspect-square">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from "@/lib/cursor-settings";
+import { mediaUrl } from "@/lib/media-cdn";
 import { useTranslation } from "react-i18next";
 import { useCursorPalette } from "@/components/CustomCursor";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -42,7 +43,7 @@ function CursorPreview({ id }: { id: CursorId }) {
     case "bucs-coin":
       return (
         <div className={base}>
-          <img src="/images/visual-bucs-coin-transparent.png" alt="" className="w-12 h-12 object-contain" style={{ filter: imgFilter }} draggable={false} />
+          <img src={mediaUrl("images/visual-bucs-coin-transparent.png")} alt="" className="w-12 h-12 object-contain" style={{ filter: imgFilter }} draggable={false} />
         </div>
       );
     case "gold-trail":
@@ -68,7 +69,7 @@ function CursorPreview({ id }: { id: CursorId }) {
       return (
         <div className={base} style={{ overflow: "visible" }}>
           <img
-            src="/images/thy-cheat-code-8bit-transparent.png"
+            src={mediaUrl("images/thy-cheat-code-8bit-transparent.png")}
             alt=""
             className="w-12 h-12 object-contain"
             style={{ imageRendering: "pixelated", animation: "shark-swim 2s ease-in-out infinite", filter: imgFilter }}

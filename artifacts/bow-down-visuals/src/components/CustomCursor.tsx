@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getCursorChoice, type CursorId } from "@/lib/cursor-settings";
+import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Site-wide custom cursor ───
@@ -187,7 +188,7 @@ function BucsCoin() {
       {/* Gentle float + slow shine, no frantic spin */}
       <div className="animate-[float_3s_ease-in-out_infinite]">
         <img
-          src="/images/visual-bucs-coin-transparent.png"
+          src={mediaUrl("images/visual-bucs-coin-transparent.png")}
           alt=""
           className="object-contain transition-all duration-200"
           style={{
@@ -310,7 +311,7 @@ function PixelShark() {
       ))}
       {/* Shark with swim animation */}
       <img
-        src="/images/thy-cheat-code-8bit-transparent.png"
+        src={mediaUrl("images/thy-cheat-code-8bit-transparent.png")}
         alt=""
         className="object-contain"
         style={{

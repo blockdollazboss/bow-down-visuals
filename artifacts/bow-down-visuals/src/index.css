@@ -290,7 +290,7 @@ html, body {
   background-color: #FAF7F0;
   background-image:
     linear-gradient(rgba(250, 247, 240, 0.88), rgba(250, 247, 240, 0.93)),
-    url("/images/subpage-bg-ivory-palace-v1.webp");
+    url("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/images/subpage-bg-ivory-palace-v1.webp");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
@@ -1384,7 +1384,7 @@ html, body {
   background-color: #050505;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),
-    url("/images/subpage-bg-throne-v3.webp");
+    url("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/images/subpage-bg-throne-v3.webp");
 }
 .light [data-dark-lock].bg-black,
 .light [data-dark-lock] .bg-black,
@@ -1474,7 +1474,7 @@ html, body {
   background-color: #050505;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),
-    url("/images/subpage-bg-throne-v3.webp");
+    url("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/images/subpage-bg-throne-v3.webp");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;

@@ -530,7 +530,7 @@ export function ThyCheatCodeChat() {
               className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.07]"
             >
               <img
-                src="/thy-cheat-code-8bit.webp"
+                src={mediaUrl("thy-cheat-code-8bit.webp")}
                 alt=""
                 draggable={false}
                 className="h-64 w-64 object-cover"

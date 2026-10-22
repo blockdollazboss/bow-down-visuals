@@ -16,6 +16,7 @@
    Text travels as shortcode tokens (`:king-laugh:`, `:gif-king-bow:`)
    stored as plain text and rendered client-side — no protocol or
    schema change anywhere this module is used. */
+import { mediaUrl } from "@/lib/media-cdn";
 
 export type KingArtTheme = "dark" | "light";
 
@@ -74,7 +75,7 @@ export function kingEmojiUrl(code: string, theme: KingArtTheme): string | null {
 /** Public URL for a GIF in the given theme; null for unknown codes. */
 export function kingGifUrl(code: string, theme: KingArtTheme): string | null {
   const def = GIF_BY_CODE.get(code);
-  return def ? `/gifs/${theme}/${def.file}` : null;
+  return def ? mediaUrl(`/gifs/${theme}/${def.file}`) : null;
 }
 
 /* ─── Reactions ──────────────────────────────────────────────────────────

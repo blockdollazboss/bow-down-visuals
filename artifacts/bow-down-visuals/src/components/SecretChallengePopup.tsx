@@ -1,6 +1,8 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
-import popupArt from "@/assets/bow-winner-popup.webp";
+import { mediaUrl } from "@/lib/media-cdn";
+
+const popupArt = mediaUrl("assets/bow-winner-popup.webp");
 
 /* ============================================================
    Winner popup — uses the exact approved mockup image.
