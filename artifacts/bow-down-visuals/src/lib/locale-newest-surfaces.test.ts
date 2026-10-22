@@ -76,8 +76,15 @@ const EN = CATALOGS.en!;
    (every signed-in user's first surfaces), myShop (shop-owner flows),
    nav (global chrome) and retention (streak/bonus widgets) — existed
    only partially in the nine catalogs (retention in none of them), so
-   non-English users silently fell back to English across all five. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
+   non-English users silently fell back to English across all five.
+   "contentIntelligence" came with the Stack-24 locale-parity lane
+   (Oct 22 2026): the five-analyst guided flow (validate idea, hook lab,
+   niche check, competitor gaps, calendar, plan) existed ONLY in
+   en.json — all 146 leaves absent from all nine catalogs — so every
+   non-English user got the whole surface in English. Now translated
+   ×9 and pinned here; the namespace carries no array leaves, so the
+   string emptiness/placeholder checks apply as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "contentIntelligence"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -136,8 +143,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, plus the Stack-24 contentIntelligence fill (2615 keys)", () => {
+    expect(REQUIRED.length).toBe(2615);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -234,6 +241,74 @@ describe("playlistPitch — no untranslated English residue", () => {
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `playlistPitch.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+/* Legit-identical contentIntelligence values per locale — keys whose
+   correct value in that language IS the en string (Stack-24 lane,
+   Oct 22 2026). Everything not listed here has to differ from en.
+   Shared by all nine:
+   - platformTikTok / platformInstagram / platformYouTube / platformX:
+     the platform brand names — functional destination names, spelled
+     identically in every language.
+   - compUrlPlaceholder "https://…": a URL placeholder literal, not
+     prose; there is nothing to translate.
+   - calendarFrom "{{from}} → {{to}}": a pure template of two
+     placeholders and an arrow — no words at all.
+   Per locale:
+   - de: heroBadge "Content Intelligence" is the product feature name,
+     kept in English in this catalog like its other feature badges;
+     nav6 "Plan" and alternative "Alternative" are spelled identically
+     in German (true cognates).
+   - es: nav6 "Plan" is spelled identically in Spanish.
+   - fr: nav6 "Plan", verdictLabel "Verdict" and alternative
+     "Alternative" are spelled identically in French. */
+const CI_PLATFORM_KEYS = [
+  "platformTikTok",
+  "platformInstagram",
+  "platformYouTube",
+  "platformX",
+  "compUrlPlaceholder",
+  "calendarFrom",
+] as const;
+const CI_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: [...CI_PLATFORM_KEYS],
+  de: [...CI_PLATFORM_KEYS, "heroBadge", "nav6", "alternative"],
+  es: [...CI_PLATFORM_KEYS, "nav6"],
+  fr: [...CI_PLATFORM_KEYS, "nav6", "verdictLabel", "alternative"],
+  hi: [...CI_PLATFORM_KEYS],
+  it: [...CI_PLATFORM_KEYS],
+  ja: [...CI_PLATFORM_KEYS],
+  ko: [...CI_PLATFORM_KEYS],
+  pt: [...CI_PLATFORM_KEYS],
+};
+
+describe("contentIntelligence — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const CI_KEYS = Object.keys(EN).filter((k) => k.startsWith("contentIntelligence."));
+
+  it("the namespace derives the full 146-key set from en", () => {
+    expect(CI_KEYS.length).toBe(146);
+  });
+
+  it.each(NON_EN)("%s contentIntelligence values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((CI_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `contentIntelligence.${k}`));
+    const residue = CI_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated contentIntelligence values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the residue allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(CI_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `contentIntelligence.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }
