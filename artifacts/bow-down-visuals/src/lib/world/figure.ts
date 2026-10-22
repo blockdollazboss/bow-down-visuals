@@ -113,10 +113,13 @@ export function figureWidthForHeight(height: number, aspect: number): number {
 /** The canvas a default figure's art is drawn onto: tall enough to
  *  stay crisp at life size, sized to the ART's aspect so the shared
  *  cover-fit drawing lands edge-to-edge with nothing cropped and
- *  nothing stretched. */
+ *  nothing stretched. Height 1536 (overhaul audit T9): the approved
+ *  guard art is ~2167 px tall — the old 768 cap discarded ~65% of it
+ *  before the GPU ever saw it. 1536 keeps most of the art while a
+ *  per-peer canvas stays ~4 MB. */
 export function defaultFigureCanvasSize(aspect: number): { w: number; h: number } {
   const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 0.5;
-  const h = 768;
+  const h = 1536;
   const w = Math.min(1024, Math.max(128, Math.round(h * a)));
   return { w, h };
 }

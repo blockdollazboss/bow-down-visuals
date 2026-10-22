@@ -216,6 +216,12 @@ const QUALITY = {
    Mirrored wrapping hides the tile seams of generated maps. */
 const textureCache = new Map<string, THREE.Texture>();
 
+/* The renderer's real anisotropy ceiling, captured at scene
+ * construction (overhaul audit T12: the hard-coded 8 smeared the
+ * plaza floor at the grazing angles the world is mostly viewed
+ * from — most current phones/desktops support 16). */
+let maxTextureAnisotropy = 8;
+
 function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Texture {
   const key = `${url}@${repeatX}x${repeatY}`;
   const hit = textureCache.get(key);
@@ -225,12 +231,29 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
   // bucket's CORS policy covers the site's origins, so WebGL uploads
   // stay clean. Absolute URLs (none today) pass through untouched.
   const path = url.startsWith("/") ? mediaUrl(url) : url;
-  const tex = new THREE.TextureLoader().load(path);
+  const tex = new THREE.TextureLoader().load(path, undefined, undefined, () => {
+    /* Overhaul audit T14: a slow/blocked/CORS-failed CDN copy used
+     * to leave the surface untextured black with no recovery. Fall
+     * back to the same asset on the site origin (the public/ copy
+     * still ships with the app); if that fails too, the material's
+     * own colour carries the surface instead of a black hole. */
+    if (path !== url) {
+      new THREE.ImageLoader().load(
+        url,
+        (img) => {
+          tex.image = img;
+          tex.needsUpdate = true;
+        },
+        undefined,
+        () => undefined,
+      );
+    }
+  });
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.MirroredRepeatWrapping;
   tex.wrapT = THREE.MirroredRepeatWrapping;
   tex.repeat.set(repeatX, repeatY);
-  tex.anisotropy = 8;
+  tex.anisotropy = maxTextureAnisotropy;
   textureCache.set(key, tex);
   return tex;
 }
@@ -1198,6 +1221,7 @@ export class KingsHallScene {
     this.theme = theme;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    maxTextureAnisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 8);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
