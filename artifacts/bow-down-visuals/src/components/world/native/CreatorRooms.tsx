@@ -1167,7 +1167,7 @@ function CreatorStorePanel({ detail, isLight }: { detail: CreatorRoomDetail; isL
       <p className={`inline-flex items-center gap-2 px-1 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
         <ShoppingBag className="h-4 w-4 text-[#d4af37]" />
         {detail.storefront
-          ? `${detail.displayName} also runs ${detail.storefront.name} — their shopfront stands in the Courtyard Marketplace too.`
+          ? `${detail.displayName} also runs ${detail.storefront.name} — their shopfront stands in the King's Plaza Marketplace too.`
           : `${detail.displayName}'s store, on their profile's own rails.`}
       </p>
       {failed ? (
