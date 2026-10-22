@@ -362,6 +362,85 @@ function doorPlateTexture(text: string): THREE.CanvasTexture {
   return tex;
 }
 
+/* ── The Kingdom Board monument plate (Open World Phase 1) ─────────
+   The stele at the plaza's heart wears a tall engraved plate in the
+   door plates' tradition: a crown mark, the board's name, and ruled
+   lines standing in for the word around the palace. It is a SIGN,
+   not a data display — the live board opens in the station panel
+   when a walker uses the board station at the monument's base.
+   Themed like the hall itself: gold on dark marble in the dark
+   look, dark bronze on cream in the light look. Cached per theme. */
+const kingdomBoardPlateCache = new Map<string, THREE.CanvasTexture>();
+
+function kingdomBoardPlateTexture(theme: HallTheme): THREE.CanvasTexture {
+  const hit = kingdomBoardPlateCache.get(theme);
+  if (hit) return hit;
+  const light = theme === "light";
+  const c = document.createElement("canvas");
+  c.width = 640;
+  c.height = 896;
+  const g = c.getContext("2d")!;
+  const grad = g.createLinearGradient(0, 0, 0, 896);
+  if (light) {
+    grad.addColorStop(0, "#f7ecd0");
+    grad.addColorStop(0.5, "#f0e2bd");
+    grad.addColorStop(1, "#e6d3a4");
+  } else {
+    grad.addColorStop(0, "#2b1f0c");
+    grad.addColorStop(0.5, "#1c1408");
+    grad.addColorStop(1, "#120d05");
+  }
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 640, 896);
+  const ink = light ? "#4a3410" : "#e8c86a";
+  const accent = light ? "#8a6a1f" : "#d4af37";
+  g.strokeStyle = light ? "rgba(138,106,31,0.9)" : "rgba(212,175,55,0.9)";
+  g.lineWidth = 6;
+  g.strokeRect(18, 18, 604, 860);
+  g.strokeStyle = light ? "rgba(138,106,31,0.35)" : "rgba(212,175,55,0.35)";
+  g.lineWidth = 2;
+  g.strokeRect(34, 34, 572, 828);
+  // The crown mark: three points on a band, drawn plain.
+  g.fillStyle = accent;
+  g.beginPath();
+  g.moveTo(230, 196);
+  g.lineTo(230, 118);
+  g.lineTo(278, 162);
+  g.lineTo(320, 100);
+  g.lineTo(362, 162);
+  g.lineTo(410, 118);
+  g.lineTo(410, 196);
+  g.closePath();
+  g.fill();
+  g.fillRect(230, 208, 180, 14);
+  for (const cx of [230, 320, 410]) {
+    g.beginPath();
+    g.arc(cx, cx === 320 ? 92 : 110, 11, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillStyle = ink;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = "700 64px Georgia, 'Times New Roman', serif";
+  g.fillText("THE KINGDOM", 320, 300);
+  g.fillText("BOARD", 320, 376);
+  g.fillStyle = accent;
+  g.font = "600 27px Georgia, serif";
+  g.fillText("T H E   W O R D   A R O U N D   T H E   P A L A C E", 320, 448);
+  // Engraved lines — the board's postings, ruled, never lettered:
+  // the live words belong to the station panel.
+  g.fillStyle = light ? "rgba(74,52,16,0.45)" : "rgba(232,200,106,0.42)";
+  const lineWidths = [440, 380, 420, 300, 400, 340];
+  lineWidths.forEach((w, i) => {
+    g.fillRect(320 - w / 2, 516 + i * 52, w, 7);
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  kingdomBoardPlateCache.set(theme, tex);
+  return tex;
+}
+
 /** Everything the name plate shows — when any of it changes the
  *  plate is redrawn (see upsertPeer's plate reconcile). */
 function namePlateKey(peer: WorldPeer, frontRow = false): string {
@@ -1460,6 +1539,36 @@ export class KingsHallScene {
     this.wallRunX(group, mats, 12.2, -2.2, 2.2, DH, H, -1);
     this.doorArchX(group, mats, 12.2, -2.2, 2.2);
     this.doorPlate(group, "COURTYARD", 0, DH + 0.66, 11.93, Math.PI, 4.2);
+    /* The arch's doors stand OPEN (Open World Phase 1): two
+     * gold-trimmed dark leaves on the Creator Rooms arch's exact
+     * construction (buildCreatorRoomsArch) — a hinged group at
+     * each jamb, the slab laid back toward its hinge — swung
+     * ~105° into the hall, so each leaf runs diagonally into the
+     * hall from its jamb and the doorway reads OPEN from the
+     * plaza. The hinges sit on the gold jambs (x ±2.24, inside
+     * the jamb span 2.2..2.4), so even the leaves' hinge corners
+     * stay at |x| ≥ 2.19 — outside the arch portal (|x| ≤ 2.15)
+     * — and the walkway through the arch stays clear; angled
+     * leaves touch the wall run only at the hinge line, so
+     * nothing z-fights the south-wall segments. */
+    {
+      const darkSlab = new THREE.MeshStandardMaterial({ color: 0x17110a, roughness: 0.55, metalness: 0.25 });
+      for (const sx of [-1, 1] as const) {
+        const leaf = new THREE.Group();
+        leaf.position.set(sx * 2.24, 0, 12.2);
+        leaf.rotation.y = sx * -1.83; // ~105° open, into the hall
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(2.14, 3.4, 0.1), darkSlab);
+        slab.position.set(sx * -1.07, 1.7, 0);
+        leaf.add(slab);
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.07, 0.12), mats.gold);
+        trim.position.set(sx * -1.07, 3.3, 0);
+        leaf.add(trim);
+        const handle = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mats.gold);
+        handle.position.set(sx * -1.9, 1.55, -0.08);
+        leaf.add(handle);
+        group.add(leaf);
+      }
+    }
     // The west wall — doors to the Treasury (z = -13.5, front),
     // the Music Hall (z = -2) and the Game Rooms (z = 5).
     this.wallRunZ(group, mats, -14.2, -18.4, -15, 0, H, 1);
@@ -3895,6 +4004,8 @@ export class KingsHallScene {
     textureCache.clear();
     for (const tex of doorPlateCache.values()) tex.dispose();
     doorPlateCache.clear();
+    for (const tex of kingdomBoardPlateCache.values()) tex.dispose();
+    kingdomBoardPlateCache.clear();
     flameTex?.dispose();
     flameTex = null;
     hazeTex?.dispose();
