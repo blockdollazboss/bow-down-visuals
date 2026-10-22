@@ -8135,6 +8135,7 @@
       "durationApprox": "~{{duration}}",
       "empty": "Seu episódio pronto chega aqui — MP3, capítulos e um feed RSS pronto para publicar.",
       "hostWord_one": "apresentador",
+      "hostWord_many": "apresentadores",
       "hostWord_other": "apresentadores",
       "musicBedTag": "· trilha musical",
       "publishFeed": "Publicar feed",
@@ -8150,6 +8151,7 @@
       "durationApprox": "~{{duration}}",
       "placeholder": "Cole o roteiro do seu episódio…\n\nDicas:\n• Títulos com # viram marcadores de capítulo\n• Dois apresentadores: prefixe as linhas com HOST: / COHOST:",
       "wordsCount_one": "{{count}} palavra",
+      "wordsCount_many": "{{count}} palavras",
       "wordsCount_other": "{{count}} palavras"
     },
     "startFrom": {

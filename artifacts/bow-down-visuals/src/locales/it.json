@@ -8135,6 +8135,7 @@
       "durationApprox": "~{{duration}}",
       "empty": "Il tuo episodio finito arriva qui — MP3, capitoli e un feed RSS pronto da pubblicare.",
       "hostWord_one": "conduttore",
+      "hostWord_many": "conduttori",
       "hostWord_other": "conduttori",
       "musicBedTag": "· base musicale",
       "publishFeed": "Pubblica feed",
@@ -8150,6 +8151,7 @@
       "durationApprox": "~{{duration}}",
       "placeholder": "Incolla il copione del tuo episodio…\n\nConsigli:\n• I titoli con # diventano segnalibri di capitolo\n• Doppio conduttore: fai precedere le righe da HOST: / COHOST:",
       "wordsCount_one": "{{count}} parola",
+      "wordsCount_many": "{{count}} parole",
       "wordsCount_other": "{{count}} parole"
     },
     "startFrom": {

@@ -89,8 +89,11 @@ beforeAll(async () => {
 
 /* One dummy bag for every placeholder the families use; the expected
    string is interpolated from the same bag, so an exact match proves the
-   render came from the asserted catalog entry — no fallback anywhere. */
-const BAG = { name: "سارة", cost: 7, tone: "ودود", price: 9 } as const;
+   render came from the asserted catalog entry — no fallback anywhere.
+   (Integration note: the Stack-23 plural split brought 12 more families
+   whose strings also interpolate platform / skipped / max — the bag
+   carries dummies for those too, so both paths substitute identically.) */
+const BAG = { name: "سارة", cost: 7, tone: "ودود", price: 9, max: 10, platform: "YouTube", skipped: "" } as const;
 const interpolate = (tpl: string, count: number): string =>
   tpl.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
     name === "count" ? String(count) : String(BAG[name as keyof typeof BAG] ?? ""),
@@ -99,8 +102,8 @@ const render = (lng: Locale, key: string, count: number): string =>
   i18n.t(key, { count, lng, ...BAG }) as string;
 
 describe("plural family enumeration", () => {
-  it("finds the catalog's plural families in en (23 at this base)", () => {
-    expect(FAMILIES.length).toBe(23);
+  it("finds the catalog's plural families in en (35 on the joined tree: 23 at this lane's base + the Stack-23 plural split's 12)", () => {
+    expect(FAMILIES.length).toBe(35);
     expect(FAMILIES).toContain("beats.beatCount");
     expect(FAMILIES).not.toContain("retentionDoctor.type");
   });
@@ -144,9 +147,9 @@ describe("arabic renders — catalog-wide, no English fallback", () => {
     [100, "other"],
   ];
 
-  it("ar carries all 20 families present at this base, each in all six forms", () => {
+  it("ar carries all 33 families present on the joined tree (20 at this lane's base + the 12 plural-split families + pressRelease.generateRelease filled by the press-kit lane), each in all six forms", () => {
     const arFams = FAMILIES.filter((f) => presentIn("ar", f));
-    expect(arFams.length).toBe(20);
+    expect(arFams.length).toBe(33);
     for (const fam of arFams) {
       for (const sfx of CLDR) {
         expect(typeof CATS.ar[`${fam}_${sfx}`], `ar missing ${fam}_${sfx}`).toBe("string");
