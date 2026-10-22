@@ -76,8 +76,17 @@ const EN = CATALOGS.en!;
    (every signed-in user's first surfaces), myShop (shop-owner flows),
    nav (global chrome) and retention (streak/bonus widgets) — existed
    only partially in the nine catalogs (retention in none of them), so
-   non-English users silently fell back to English across all five. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention"] as const;
+   non-English users silently fell back to English across all five.
+   "captionSuite" came with the Stack-24 locale-parity-7 lane
+   (Oct 22 2026): the Caption Suite's whole guided flow (generate /
+   style / translate, 110 leaves) existed in NO non-en catalog — the
+   analytics lane's gap survey flagged it as a guard-external gap —
+   so every non-English user silently got English for the entire
+   surface. All 110 leaves are now translated ×9 and pinned here,
+   and the captionSuite residue describe at the bottom pins the
+   values too. The namespace carries no array leaves, so the plain
+   string checks below judge it as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "captionSuite"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "wave9.cameraMovePlanner.",
@@ -136,8 +145,8 @@ const tokens = (s: string): string[] => [...s.matchAll(/\{\{[^}]+\}\}/g)].map((m
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill (2469 keys)", () => {
-    expect(REQUIRED.length).toBe(2469);
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill and the Stack-24 captionSuite fill (2579 keys)", () => {
+    expect(REQUIRED.length).toBe(2579);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -234,6 +243,63 @@ describe("playlistPitch — no untranslated English residue", () => {
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `playlistPitch.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+/* Legit-identical captionSuite values per locale — keys whose correct
+   value in that language IS the en string, so the residue check below
+   must not flag them. Everything not listed here has to differ from en.
+   - credits / generateCost / burnModeHint (all nine): the strings are
+     the currency's brand name alone ("Visual Bucs" — common.visualBucs
+     carries the identical string in every catalog), a bare number plus
+     that name ("300 Visual Bucs"), and a bare placeholder plus that
+     name ("{{cost}} Visual Bucs") — there is nothing else to translate.
+   - endCardText (all nine): the literal branded outro line that gets
+     burned into videos; every locale's endCardDesc quotes it verbatim
+     in English, so the rendered line stays the brand line everywhere.
+   - share_facebook / share_whatsapp / share_telegram (all nine): the
+     platforms' proper names — functional destination names stay.
+   - positionLabel (de/fr): "Position" is spelled identically in
+     German and in French.
+   - stepStyle (fr): "Style" is the French noun, spelled identically
+     (the same class as fr playlistPitch's "Description" / "Genre").
+   - brandBadge (it): "Brand" is the established Italian marketing
+     term — the same kept-loan family as it playlistPitch's
+     "follow-up" and analyticsHub's "Focus". */
+const CS_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+  de: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram", "positionLabel"],
+  es: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+  fr: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram", "positionLabel", "stepStyle"],
+  hi: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+  it: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram", "brandBadge"],
+  ja: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+  ko: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+  pt: ["credits", "generateCost", "burnModeHint", "endCardText", "share_facebook", "share_whatsapp", "share_telegram"],
+};
+
+describe("captionSuite — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const CS_KEYS = Object.keys(EN).filter((k) => k.startsWith("captionSuite."));
+
+  it.each(NON_EN)("%s captionSuite values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((CS_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `captionSuite.${k}`));
+    const residue = CS_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated captionSuite values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the captionSuite allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(CS_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `captionSuite.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }
