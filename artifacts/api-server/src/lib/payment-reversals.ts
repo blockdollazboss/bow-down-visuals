@@ -23,9 +23,14 @@
  *     BEFORE any money moves; a completed row with no new work is a
  *     duplicate; a failed/stale row is reclaimed atomically; a fresh
  *     in-flight row answers 'inflight' so the webhook 500s and Stripe
- *     retries after it settles. A webhook replay can never
- *     double-claw: credits_clawed is cumulative and every step
- *     computes only its delta.
+ *     retries after it settles. "No new work" is checked per leg —
+ *     pack credits, entitlement, dispute flag, AND the referral
+ *     share (referral_credits_clawed vs the award's target): a row
+ *     whose pack leg finished but whose referral leg did not is
+ *     reclaimed, never answered 'duplicate' (defect D7's live state).
+ *     A webhook replay can never double-claw: credits_clawed and
+ *     referral_credits_clawed are cumulative and every step computes
+ *     only its delta.
  *   - VB claws back pro-rata on partial refunds (the divisible rail);
  *     entitlements and seller ledgers reverse only on a FULL refund
  *     or a lost dispute (a partial refund leaves the buyer partially
@@ -592,6 +597,71 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
   }
 }
 
+/* ── The referral award a purchase paid (the reversal's second leg) ── */
+
+interface ReferralAward {
+  payoutId: string;
+  awarded: number;
+  referrerId: string;
+}
+
+/**
+ * Resolve the referral award a credit-pack purchase paid, from the
+ * same grant record the award side wrote. referral_payouts carries
+ * NO referrer id of its own: the referrer is
+ * referrals.referrer_user_id, reached through the payout's
+ * referral_id — the same two-step awardReferralPayout
+ * (routes/referrals) walks forward when it pays the award. (Selecting
+ * referrer_user_id off referral_payouts directly can never succeed
+ * against the real schema — that was defect D7: the pack claw landed,
+ * this read threw, and the webhook 500'd on every Stripe retry.)
+ *
+ * Returns null when the purchase paid no award (no payout row, or a
+ * zero award). A FAILED read throws — never a silent null — so the
+ * reversal fails, the webhook 500s, and the Stripe retry re-runs the
+ * leg; an award whose referral row does not resolve throws too (the
+ * payout's FK, referral_id → referrals.id ON DELETE CASCADE, makes a
+ * dangling payout impossible on a schema-faithful database, so an
+ * unresolvable referrer is data corruption, not "no award").
+ */
+async function lookupReferralAward(sessionId: string): Promise<ReferralAward | null> {
+  const admin = getSupabaseAdmin();
+  const { data: payout, error: payoutErr } = await admin
+    .from("referral_payouts")
+    .select("id, referral_id, referrer_credits_awarded")
+    .eq("stripe_session_id", sessionId)
+    .single();
+  if (payoutErr && payoutErr.code !== "PGRST116") {
+    throw new Error(`referral payout lookup failed: ${payoutErr.message}`);
+  }
+  if (!payout) return null;
+  const awarded = Number(
+    (payout as { referrer_credits_awarded?: number }).referrer_credits_awarded ?? 0,
+  );
+  if (awarded <= 0) return null;
+  const referralId = String((payout as { referral_id?: string }).referral_id ?? "");
+  const { data: referral, error: referralErr } = await admin
+    .from("referrals")
+    .select("referrer_user_id")
+    .eq("id", referralId)
+    .single();
+  if (referralErr && referralErr.code !== "PGRST116") {
+    throw new Error(`referral lookup failed: ${referralErr.message}`);
+  }
+  const referrerId =
+    (referral as { referrer_user_id?: string } | null)?.referrer_user_id ?? null;
+  if (!referrerId) {
+    throw new Error(
+      `referral payout ${String((payout as { id?: string }).id ?? "")} references referral ${referralId}, which does not resolve to a referrer`,
+    );
+  }
+  return {
+    payoutId: String((payout as { id?: string }).id ?? ""),
+    awarded,
+    referrerId,
+  };
+}
+
 /* ── The engine ─────────────────────────────────────────────────────── */
 
 export async function processChargeReversal(input: {
@@ -661,8 +731,28 @@ export async function processChargeReversal(input: {
       fullReversal && ident.grantedCredits === 0 && row["entitlement_revoked"] !== true;
     const disputeWork = disputeLost && row["dispute_lost"] !== true;
     const upgradeWork = String(row["status"]) === "needs_manual_review";
-    if (!creditsWork && !entitlementWork && !disputeWork && !upgradeWork) {
-      return { outcome: "duplicate" };
+    /* A 'failed' row never finished by definition — always reclaim
+       it and let the delta-driven execute converge (every step
+       computes only its remaining delta, so re-running is safe). */
+    const failedWork = String(row["status"]) === "failed";
+    if (!creditsWork && !entitlementWork && !disputeWork && !upgradeWork && !failedWork) {
+      /* The referral leg's remaining work is invisible to the checks
+         above: a reversal that clawed the pack in full and then
+         failed (or shortfell) on the referral share has NO credits
+         work left, yet its referral target can still exceed what was
+         clawed. Without this check the retry would be answered
+         'duplicate' and the referral leg would never run — the D7
+         charge sat in exactly that state. A failed read here throws
+         (lookupReferralAward's posture), so the webhook 500s and the
+         next retry decides with a working read. */
+      let referralWork = false;
+      if (ident.rail === "credit_pack" && ident.sessionId) {
+        const award = await lookupReferralAward(ident.sessionId);
+        referralWork =
+          award !== null &&
+          Math.floor(award.awarded * fraction) > Number(row["referral_credits_clawed"] ?? 0);
+      }
+      if (!referralWork) return { outcome: "duplicate" };
     }
     const cutoff = new Date(Date.now() - CLAIM_STALE_MS).toISOString();
     const reclaimed = await db.execute(sql`
@@ -717,31 +807,16 @@ export async function processChargeReversal(input: {
 
       /* The purchase also paid a 25% referral share — reverse the
          same fraction of it, from the same grant record the award
-         wrote (referral_payouts, keyed on the grant's idempotency
-         key = the stripe_payments session key). */
+         wrote (see lookupReferralAward). */
       if (ident.sessionId) {
-        const admin = getSupabaseAdmin();
-        const { data: payout, error: payoutErr } = await admin
-          .from("referral_payouts")
-          .select("id, referrer_user_id, referrer_credits_awarded")
-          .eq("stripe_session_id", ident.sessionId)
-          .single();
-        if (payoutErr && payoutErr.code !== "PGRST116") {
-          /* Not "no award" — a failed read. Fail the reversal so the
-             Stripe retry re-runs it with the referral leg intact. */
-          throw new Error(`referral payout lookup failed: ${payoutErr.message}`);
-        }
-        const awarded = Number(
-          (payout as { referrer_credits_awarded?: number } | null)?.referrer_credits_awarded ?? 0,
-        );
-        const referrerId = (payout as { referrer_user_id?: string } | null)?.referrer_user_id ?? null;
-        if (payout && referrerId && awarded > 0) {
-          const refTarget = Math.floor(awarded * fraction);
+        const award = await lookupReferralAward(ident.sessionId);
+        if (award) {
+          const refTarget = Math.floor(award.awarded * fraction);
           const refDelta = refTarget - referralClawed;
-          details["referralPayoutId"] = String((payout as { id?: string }).id ?? "");
-          details["referralAwarded"] = awarded;
+          details["referralPayoutId"] = award.payoutId;
+          details["referralAwarded"] = award.awarded;
           if (refDelta > 0) {
-            const { debited, shortfall: refShortfall } = await debitCreditsUpTo(referrerId, refDelta);
+            const { debited, shortfall: refShortfall } = await debitCreditsUpTo(award.referrerId, refDelta);
             referralClawed += debited;
             shortfall += refShortfall;
             await db.execute(sql`
@@ -751,7 +826,7 @@ export async function processChargeReversal(input: {
             `);
             if (debited > 0) {
               await writeClawbackLedgerRow({
-                userId: referrerId,
+                userId: award.referrerId,
                 action: disputeLost ? "Referral Share Clawback (chargeback)" : "Referral Share Clawback (refund)",
                 creditsUsed: debited,
                 idempotencyKey: `clawback:${charge.id}:referral:${referralClawed}`,

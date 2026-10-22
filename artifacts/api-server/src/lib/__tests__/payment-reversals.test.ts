@@ -23,6 +23,14 @@
  *    machine must not un-print, park there identified);
  *  - a mid-reversal failure marks the row 'failed' and throws, and
  *    the Stripe retry reclaims it and finishes the job.
+ *  - the referral lookup runs against the REAL schema shapes (D7):
+ *    referral_payouts has no referrer_user_id — the referrer resolves
+ *    through referral_id → referrals — and the fake Supabase enforces
+ *    the drizzle schema's column sets, so a phantom-column select
+ *    fails here instead of in production;
+ *  - a reversal whose pack leg finished but whose referral leg did
+ *    not is reclaimed on retry (the claim gate checks referral work),
+ *    never answered 'duplicate' with the referral claw outstanding.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -39,17 +47,47 @@ vi.mock("@workspace/db", async (importOriginal) => {
   };
 });
 
-/* ── Fake Supabase (profiles balances + referral_payouts) ──────────── */
+/* ── Fake Supabase (profiles balances + referral tables) ─────────────
+   SCHEMA-FAITHFUL since D7: the old fake ignored the select() column
+   list entirely, so payment-reversals could select a column that does
+   not exist (referral_payouts.referrer_user_id) and every test stayed
+   green while production 500'd. This fake now validates every
+   requested column against the table's REAL column set and projects
+   only the requested columns into the returned row, exactly like
+   PostgREST. The referral-table sets below are pinned against the
+   drizzle schema objects by the "schema pins" test in this file —
+   if the schema changes, that test fails until this list follows.
+   `profiles` has no drizzle table (Supabase is its system of record);
+   its list is the verified set the reversal engine touches (base
+   table + supabase/migrations/0054 bonus columns). */
 const sb = vi.hoisted(() => ({
   profiles: new Map<string, Record<string, unknown>>(),
   referralPayouts: [] as Array<Record<string, unknown>>,
+  referrals: [] as Array<Record<string, unknown>>,
   profileUpdateFails: false,
+  referralLookupFails: false,
+  tableColumns: {
+    profiles: [
+      "id", "credits", "bonus_credits", "bonus_credits_expires_at",
+      "daily_streak", "last_daily_claim", "last_wheel_spin",
+    ],
+    referral_payouts: [
+      "id", "referral_id", "stripe_session_id", "referee_credits_purchased",
+      "referrer_credits_awarded", "created_at",
+    ],
+    referrals: [
+      "id", "referrer_user_id", "referee_user_id", "referrer_credits_awarded",
+      "referee_credits_awarded", "revenue_share_pct", "share_expires_at",
+      "total_referrer_earned", "created_at",
+    ],
+  } as Record<string, string[]>,
 }));
 
 vi.mock("../supabase-admin", () => {
   function rowsFor(table: string): Array<Record<string, unknown>> {
     if (table === "profiles") return [...sb.profiles.values()];
     if (table === "referral_payouts") return sb.referralPayouts;
+    if (table === "referrals") return sb.referrals;
     return [];
   }
   return {
@@ -58,7 +96,11 @@ vi.mock("../supabase-admin", () => {
         const q: Record<string, unknown> = {
           _filters: {} as Record<string, unknown>,
           _update: null as Record<string, unknown> | null,
-          select() {
+          _selectCols: null as string[] | null,
+          select(cols?: unknown) {
+            if (typeof cols === "string") {
+              q._selectCols = cols.split(",").map((s) => s.trim()).filter(Boolean);
+            }
             return q;
           },
           update(obj: Record<string, unknown>) {
@@ -70,10 +112,31 @@ vi.mock("../supabase-admin", () => {
             return q;
           },
           async single() {
+            if (table === "referrals" && sb.referralLookupFails) {
+              return { data: null, error: { message: "referral read failed (fake)", code: "PGRST000" } };
+            }
+            /* PostgREST column validation: an unknown column in the
+               select list is an error (42703), never silent data —
+               this is the exact failure production produced for D7. */
+            const cols = q._selectCols as string[] | null;
+            const known = sb.tableColumns[table];
+            if (cols && known) {
+              for (const c of cols) {
+                if (!known.includes(c)) {
+                  return {
+                    data: null,
+                    error: { message: `column ${table}.${c} does not exist`, code: "42703" },
+                  };
+                }
+              }
+            }
             const f = q._filters as Record<string, unknown>;
             const row = rowsFor(table).find((r) => Object.entries(f).every(([k, v]) => r[k] === v));
             if (!row) return { data: null, error: { message: "no rows", code: "PGRST116" } };
-            return { data: row, error: null };
+            if (!cols) return { data: row, error: null };
+            const projected: Record<string, unknown> = {};
+            for (const c of cols) projected[c] = row[c];
+            return { data: projected, error: null };
           },
           then(resolve: (v: unknown) => void) {
             if (q._update) {
@@ -103,7 +166,9 @@ vi.mock("../logger", () => ({
 
 import { createTestDb } from "./test-db";
 import { processChargeReversal, type ReversalCharge } from "../payment-reversals";
-import { sql } from "drizzle-orm";
+import { sql, getTableColumns } from "drizzle-orm";
+import { referralPayoutsTable, referralsTable } from "@workspace/db";
+import { getSupabaseAdmin } from "../supabase-admin";
 import { DataType } from "pg-mem";
 import { randomUUID } from "crypto";
 
@@ -350,7 +415,9 @@ beforeEach(() => {
   testState.db = t.db;
   sb.profiles.clear();
   sb.referralPayouts = [];
+  sb.referrals = [];
   sb.profileUpdateFails = false;
+  sb.referralLookupFails = false;
   sessionsByPi.clear();
   vi.clearAllMocks();
 });
@@ -434,13 +501,20 @@ describe("credit packs — the VB rail", () => {
     await seedPack();
     setBalance(BUYER, 6000);
     setBalance(REFERRER, 2000);
+    /* Seeded in the REAL schema shape (D7): the payout row carries
+       NO referrer id — the referrer lives on the referrals row the
+       payout's referral_id points at. */
     sb.referralPayouts.push({
       id: "rp_1",
       referral_id: "ref_1",
       stripe_session_id: "cs_pack_1",
       referee_credits_purchased: 5000,
-      referrer_user_id: REFERRER,
       referrer_credits_awarded: 1250,
+    });
+    sb.referrals.push({
+      id: "ref_1",
+      referrer_user_id: REFERRER,
+      referee_user_id: BUYER,
     });
     const out = await processChargeReversal({
       stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
@@ -452,6 +526,126 @@ describe("credit packs — the VB rail", () => {
     const refLedger = await q(sql`SELECT * FROM credit_usage WHERE user_id = ${REFERRER}`);
     expect(refLedger).toHaveLength(1);
     expect(refLedger[0]).toMatchObject({ credits_used: 1250 });
+  });
+
+  it("schema pins: the fake's referral column sets ARE the drizzle schema's (the D7 guard)", async () => {
+    const payoutCols = Object.values(getTableColumns(referralPayoutsTable)).map((c) => c.name).sort();
+    const referralCols = Object.values(getTableColumns(referralsTable)).map((c) => c.name).sort();
+    expect([...(sb.tableColumns["referral_payouts"] ?? [])].sort()).toEqual(payoutCols);
+    expect([...(sb.tableColumns["referrals"] ?? [])].sort()).toEqual(referralCols);
+    /* The D7 fact itself: the payout table has no referrer column —
+       the referrer is reachable only through referral_id. */
+    expect(payoutCols).not.toContain("referrer_user_id");
+    expect(payoutCols).toContain("referral_id");
+    expect(referralCols).toContain("referrer_user_id");
+
+    /* And the harness bites: selecting the phantom column off the
+       payout table errors exactly like PostgREST did in production,
+       so a regression of the D7 select fails this suite, not a deploy. */
+    const admin = getSupabaseAdmin() as unknown as {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (k: string, v: string) => {
+            single: () => Promise<{ data: unknown; error: { message: string; code: string } | null }>;
+          };
+        };
+      };
+    };
+    const bad = await admin
+      .from("referral_payouts")
+      .select("id, referrer_user_id, referrer_credits_awarded")
+      .eq("stripe_session_id", "cs_pack_1")
+      .single();
+    expect(bad.data).toBeNull();
+    expect(bad.error?.code).toBe("42703");
+    expect(bad.error?.message).toBe("column referral_payouts.referrer_user_id does not exist");
+  });
+
+  it("a full reversal run twice moves BOTH balances exactly once (pack + referral legs)", async () => {
+    await seedPack();
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 2000);
+    sb.referralPayouts.push({
+      id: "rp_1",
+      referral_id: "ref_1",
+      stripe_session_id: "cs_pack_1",
+      referee_credits_purchased: 5000,
+      referrer_credits_awarded: 1250,
+    });
+    sb.referrals.push({ id: "ref_1", referrer_user_id: REFERRER, referee_user_id: BUYER });
+
+    const first = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(first).toMatchObject({ outcome: "reversed", creditsClawed: 5000 });
+    expect(balance(BUYER)).toBe(1000);
+    expect(balance(REFERRER)).toBe(750);
+
+    const second = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_1", trigger: "charge.refunded", charge: charge({}),
+    });
+    expect(second).toEqual({ outcome: "duplicate" });
+    expect(balance(BUYER)).toBe(1000);
+    expect(balance(REFERRER)).toBe(750);
+    const buyerLedger = await q(sql`SELECT * FROM credit_usage WHERE user_id = ${BUYER}`);
+    expect(buyerLedger).toHaveLength(1);
+    const refLedger = await q(sql`SELECT * FROM credit_usage WHERE user_id = ${REFERRER}`);
+    expect(refLedger).toHaveLength(1);
+  });
+
+  it("D7 replay: pack claw landed, referral leg failed — the retry runs the referral leg only, nothing claws twice", async () => {
+    /* The live incident's exact shape: a $9 pack (1,000 VB granted,
+       250 VB referral share), refunded after the endpoint subscribed
+       to charge.refunded. */
+    await seedPack("pi_1", "cs_pack_1", 1000);
+    setBalance(BUYER, 6000);
+    setBalance(REFERRER, 1000);
+    sb.referralPayouts.push({
+      id: "rp_9",
+      referral_id: "ref_9",
+      stripe_session_id: "cs_pack_1",
+      referee_credits_purchased: 1000,
+      referrer_credits_awarded: 250,
+    });
+    sb.referrals.push({ id: "ref_9", referrer_user_id: REFERRER, referee_user_id: BUYER });
+    const nineDollar = charge({ amountCents: 900, refundedCents: 900 });
+
+    /* First delivery: the pack claw lands and persists, then the
+       referral read fails — the reversal throws (webhook 500). */
+    sb.referralLookupFails = true;
+    await expect(
+      processChargeReversal({ stripe: stripeFake, eventId: "evt_r1", trigger: "charge.refunded", charge: nineDollar }),
+    ).rejects.toThrow("referral lookup failed");
+    expect(balance(BUYER)).toBe(5000);
+    expect(balance(REFERRER)).toBe(1000);
+    let rows = await q(sql`SELECT * FROM payment_reversals WHERE stripe_charge_id = 'ch_1'`);
+    expect(rows[0]).toMatchObject({ status: "failed", credits_clawed: 1000, referral_credits_clawed: 0 });
+
+    /* Stripe's retry: the claim gate must see the referral leg's
+       remaining work (the pack leg has none) and reclaim — a
+       'duplicate' answer here is the second half of defect D7. */
+    sb.referralLookupFails = false;
+    const retry = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_r2", trigger: "charge.refunded", charge: nineDollar,
+    });
+    expect(retry).toMatchObject({ outcome: "reversed", creditsClawed: 1000 });
+    expect(balance(BUYER)).toBe(5000);
+    expect(balance(REFERRER)).toBe(750);
+    rows = await q(sql`SELECT * FROM payment_reversals WHERE stripe_charge_id = 'ch_1'`);
+    expect(rows[0]).toMatchObject({ status: "completed", credits_clawed: 1000, referral_credits_clawed: 250 });
+    const buyerLedger = await q(sql`SELECT * FROM credit_usage WHERE user_id = ${BUYER}`);
+    expect(buyerLedger).toHaveLength(1);
+    const refLedger = await q(sql`SELECT * FROM credit_usage WHERE user_id = ${REFERRER}`);
+    expect(refLedger).toHaveLength(1);
+    expect(refLedger[0]).toMatchObject({ credits_used: 250, idempotency_key: "clawback:ch_1:referral:250" });
+
+    /* A third delivery is a plain duplicate; nothing moves. */
+    const third = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_r3", trigger: "charge.refunded", charge: nineDollar,
+    });
+    expect(third).toEqual({ outcome: "duplicate" });
+    expect(balance(BUYER)).toBe(5000);
+    expect(balance(REFERRER)).toBe(750);
   });
 
   it("express packs (payment row keyed on the PI itself) claw back through the same lookup", async () => {
