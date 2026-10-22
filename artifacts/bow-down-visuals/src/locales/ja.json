@@ -10749,5 +10749,174 @@
     "toastPublished": "公開しました！",
     "toastPublishedDesc": "あなたの作品がショーケースで公開されました。",
     "viewLink": "ショーケースで見る"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "クレジットはプロジェクトと一緒に旅をします — すべてのツールからのすべてのエクスポートと共有に付いてきます。無料エクスポートとボーナスエクスポートではデフォルトでオンです。",
+    "attributionOn": "クレジット表示",
+    "attributionOff": "クレジット非表示",
+    "songSavedTitle": "プロジェクトに保存しました",
+    "songSavedDesc": "歌詞、コンセプト、音声がハブプロジェクトに入りました — 下のすべてのツールが自動的に引き継ぎます。",
+    "handoffs": {
+      "title": "次のステップへ送る",
+      "subtitle": "ワンタップでこのアセットに次のツールを実行します。結果は自動的にプロジェクトに戻ります。",
+      "copyShare": "共有リンクをコピー",
+      "copyShareTitle": "紹介用共有リンクをコピー",
+      "copied": "コピーしました！",
+      "copyFailedTitle": "コピーできませんでした",
+      "preparing": "準備中…",
+      "working": "{{tool}}を実行中…",
+      "measuringAudio": "音声の長さを読み取り中…",
+      "doneTitle": "完了！",
+      "doneDesc": "{{tool}}が完了しました — プロジェクトに保存済みです。",
+      "failed": "生成に失敗しました。もう一度お試しください。",
+      "noOutput": "ツールから出力が返されませんでした。",
+      "outOfCredits": "Visual Bucsが不足しています — チャージして制作を続けましょう。",
+      "openFull": "フルサイズで開く",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "歌詞が必要です",
+      "karaokeNeedsLyricsDesc": "先にソングパッケージを生成すると、歌詞がプロジェクトと一緒に旅をします。",
+      "audiogramNeedsCoverTitle": "カバーアートが必要です",
+      "audiogramNeedsCoverDesc": "先にカバーアートを作成してください（カバーアートページ）— 自動的にプロジェクトに入ります。",
+      "karaoke": {
+        "label": "カラオケ動画",
+        "blurb": "トラックに同期した歌詞動画 · 300 VB"
+      },
+      "audiogram": {
+        "label": "オーディオグラム",
+        "blurb": "カバーアートの上に波形ビジュアライザー · 250 VB"
+      },
+      "loop": {
+        "label": "ループ動画",
+        "blurb": "クロスフェード付きシームレス3倍ループ · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "自動字幕",
+        "blurb": "単語同期のゴールド字幕を焼き込み · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "A/Bサムネイル",
+        "blurb": "テスト用のスタイルバリエーション3種 · 300 VB",
+        "variantLabel": "サムネイルバリエーション {{n}}"
+      },
+      "clipDescription": {
+        "label": "クリップ説明文",
+        "blurb": "YouTube対応の説明文＋チャプター · 50 VB",
+        "resultLabel": "クリップ説明文 · {{topic}}"
+      },
+      "meme": {
+        "label": "ミーム",
+        "blurb": "アートワークをミームに · 100 VB",
+        "topPlaceholder": "上のテキスト…",
+        "bottomPlaceholder": "下のテキスト…"
+      },
+      "socialKit": {
+        "label": "ソーシャルキット",
+        "blurb": "プロフィール、バナー、ハイライトカバー · 400 VB",
+        "assetLabel": "ソーシャルキットアセット {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "バリエーション {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "説明文 · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "使用",
+      "useInEditor": "エディターに追加",
+      "prefillTitle": "プロジェクトから自動入力済み",
+      "songLoaded": "プロジェクトからトラックを読み込みました",
+      "clipAdded": "クリップをエディターのタイムラインに追加しました"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "プロジェクトのミュージックビデオのアイデアからプロンプトを入力しました。"
+    },
+    "socialKit": {
+      "title": "ソーシャルメディアキット",
+      "blurb": "SNS向けのフルブランドキット — プロフィール画像、YouTubeバナー、Xヘッダー、Instagramハイライトカバー。プロジェクトから自動入力されます。",
+      "brandLabel": "ブランド名",
+      "brandPlaceholder": "例：Lil Nova",
+      "taglineLabel": "タグライン",
+      "taglinePlaceholder": "例：コンテンツ制作のチートコード",
+      "styleGold": "ゴールドラグジュアリー",
+      "styleNeon": "ネオンポップ",
+      "styleMinimal": "ミニマル",
+      "generate": "キットを生成 · 400 Visual Bucs",
+      "generating": "キットを作成中…",
+      "costNote": "400 Visual Bucs — 生成に失敗した場合は自動で返金されます。",
+      "failed": "ソーシャルキットの生成に失敗しました。もう一度お試しください。",
+      "doneTitle": "ソーシャルキットが完成しました！",
+      "doneDesc": "{{count}}件のブランドアセットをプロジェクトに保存しました。",
+      "resultsTitle": "あなたのブランドキット",
+      "assetLabel": "ソーシャルキットアセット {{n}}",
+      "downloadAria": "アセットをダウンロード"
+    },
+    "promoCards": {
+      "title": "リリースプロモカード",
+      "priceBadge": "100 Visual Bucs / パック",
+      "blurb": "AIがデザインするリリース当日のSNSカード — スタイルを選ぶと、カバーアート、リリースタイトル、投稿準備完了のキャプション付きで、3つのプラットフォームサイズ（1:1、9:16、16:9）がすべて揃います。",
+      "releaseLabel": "リリースタイトル",
+      "releasePlaceholder": "例：Midnight Gold",
+      "artistLabel": "アーティスト名",
+      "artistPlaceholder": "例：Lil Nova",
+      "styleLabel": "カードスタイル",
+      "styles": {
+        "announcement": "アナウンス",
+        "out-now": "配信中",
+        "pre-save": "プレセーブ",
+        "milestone": "マイルストーン"
+      },
+      "styleBlurb": {
+        "announcement": "リリースを予告 — 「もうすぐ」の熱気",
+        "out-now": "リリース当日のカード — あらゆるサービスで配信中",
+        "pre-save": "リリース日前にプレセーブを伸ばす",
+        "milestone": "再生数とチャートの成果を祝う"
+      },
+      "milestoneLabel": "マイルストーンテキスト",
+      "sizesLabel": "プラットフォームサイズ",
+      "sizeHint": {
+        "1x1": "フィード",
+        "9x16": "ストーリーズ／リール",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "カバーアート（プロジェクトから）",
+      "coverNone": "カバーアートなし — AI背景のみ",
+      "coverPlaceholder": "カバーアート画像のURLを貼り付け（任意）",
+      "coverPreview": "すべてのカードにフレーム付きで配置",
+      "attributionLabel": "「Made with Bow Down Visuals」のマイクロ表記を含める（無料、カードの拡散を助けます）",
+      "generate": "パックを生成 · 100 Visual Bucs",
+      "generating": "カードをデザイン中…（約1分）",
+      "costNote": "3枚パックで100 Visual Bucs — 生成に失敗した場合は自動で返金されます。",
+      "failed": "プロモカードの生成に失敗しました。もう一度お試しください。",
+      "doneTitle": "プロモカードが完成しました！",
+      "doneDesc": "{{count}}枚のカードを生成しました。",
+      "resultsTitle": "あなたのプロモカード",
+      "cardAlt": "{{style}}プロモカード（{{size}}）",
+      "assetLabel": "プロモカード — {{style}}（{{size}}）",
+      "download": "ダウンロード",
+      "schedule": "スケジュール",
+      "share": "共有",
+      "addToAssets": "アセットに追加",
+      "addAll": "すべてリリースアセットに追加",
+      "addedTitle": "プロジェクトに保存しました",
+      "addedDesc": "{{count}}枚のプロモカードをリリースアセットに追加しました。",
+      "captionLabel": "おすすめキャプション（編集可能）",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "historyTitle": "あなたのプロモカード",
+      "historyLoading": "カードを読み込み中…",
+      "historyFailed": "プロモカードを読み込めませんでした。",
+      "historyRetry": "再試行",
+      "historyEmpty": "プロモカードはまだありません — 上で最初のパックを生成すると、ここに表示されます。",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "フルサイズで開く",
+      "historyDelete": "削除",
+      "historyConfirmDelete": "削除しますか？",
+      "historyDeleted": "プロモカードを削除しました",
+      "historyDeleteFailed": "そのカードを削除できませんでした — もう一度お試しください。",
+      "historyMoreNote": "最新のカード{{limit}}枚を表示しています。"
+    }
   }
 }

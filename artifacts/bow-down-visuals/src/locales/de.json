@@ -6997,7 +6997,14 @@
     "videoLinkLoadedDesc": "Dein Clip liegt auf der Timeline — trimme ihn, füge Captions hinzu, exportiere ihn.",
     "videoLinkLoadedTitle": "Video in den Editor geladen",
     "voiceEditsDesc": "Steuere deine Edits mit deiner Stimme — beschreibe einfach die Änderung.",
-    "voiceEditsTitle": "Voice-Edits"
+    "voiceEditsTitle": "Voice-Edits",
+    "clipsRecoveredTitle": "{{count}} Clip{{plural}} wiederhergestellt!",
+    "clipsSyncedTitle": "{{count}} Clip{{plural}} synchronisiert!",
+    "consistencyAppliedDesc": "Konsistenz-Prompt zu {{count}} Szenen-Prompt{{plural}} hinzugefügt.",
+    "recoveredClipsMsg": "{{count}} Clip{{plural}} wiederhergestellt.",
+    "syncedClipsMsg": "{{count}} Clip{{plural}} synchronisiert.",
+    "tipClipsApproved": "{{count}} Clip{{plural}} freigegeben. Geh zu Export, wenn du bereit bist.",
+    "tipEffectsSelected": "{{count}} Effekt{{plural}} ausgewählt. Schau im Effekte-Tab die Live-CSS-Vorschau an."
   },
   "viralityCheck": {
     "bestPostingTime": "Beste Posting-Zeit",
@@ -11243,7 +11250,10 @@
     "viewOriginal": "Original ansehen",
     "waitingNote": "Diese Dateien sind auf Bow Down-Speicher, aber noch ist nichts veröffentlicht. Baue die Details neu auf, die ein erneutes Hochladen gekostet hätte — dann genehmige jedes Stück oder die ganze bereite Charge auf einmal.",
     "waitingTitle": "Zuhause — wartet auf dein Wort",
-    "yourUpload": "Dein Upload"
+    "yourUpload": "Dein Upload",
+    "accountPieces": "{{count}} Post{{plural}} in deiner Importliste.",
+    "scanFound": "{{count}} Post{{plural}} neu auf {{platform}} gefunden{{skipped}}. Wähle unten, was nach Hause kommt.",
+    "uploadRegisteredNotice": "{{count}} Upload{{plural}} zuhause. Baue unten ihre Details neu auf und genehmige dann jede einzeln."
   },
   "liveGuests": {
     "backToBackstage": "Zurück hinter die Bühne",
@@ -11355,7 +11365,8 @@
     "watchInstead": "Stattdessen den Stream ansehen",
     "watchShow": "Die Show ansehen",
     "youHostBackstage": "Du (Host) · hinter der Bühne",
-    "youWord": "Du"
+    "youWord": "Du",
+    "toastRevokeEnded": "Der Link ist tot und {{count}} Gäste-Pässe{{plural}} endeten mit ihm."
   },
   "moveHome": {
     "answersSaved": "Antworten gespeichert — sie formen deine Entwürfe.",
@@ -11550,7 +11561,8 @@
     "signInToFollow": "Anmelden zum Folgen",
     "unfollowTitle": "Playlist nicht mehr folgen",
     "untitled": "Ohne Titel",
-    "uploadFirstDrop": "Lade deinen ersten Drop hoch"
+    "uploadFirstDrop": "Lade deinen ersten Drop hoch",
+    "itemsCount": "{{count}} Eintr{{plural}}"
   },
   "proFinishing": {
     "cappedSuffix": " · auf das Upload-Limit begrenzt",
@@ -11843,5 +11855,174 @@
     "toastPublished": "Veröffentlicht!",
     "toastPublishedDesc": "Deine Kreation ist jetzt im Showcase live.",
     "viewLink": "Im Showcase ansehen"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "Dein Credit reist mit dem Projekt — jeder Export und jedes Teilen aus jedem Tool trägt ihn. Standardmäßig an für kostenlose und Bonus-Exporte.",
+    "attributionOn": "Credit an",
+    "attributionOff": "Credit aus",
+    "songSavedTitle": "In deinem Projekt gespeichert",
+    "songSavedDesc": "Songtexte, Konzept und Audio sind jetzt in deinem Hub-Projekt — jedes Tool unten greift automatisch darauf zu.",
+    "handoffs": {
+      "title": "Zum nächsten Schritt senden",
+      "subtitle": "Ein Tipp führt das nächste Tool auf diesem Asset aus. Das Ergebnis landet automatisch wieder in deinem Projekt.",
+      "copyShare": "Freigabelink kopieren",
+      "copyShareTitle": "Deinen Empfehlungs-Freigabelink kopieren",
+      "copied": "Kopiert!",
+      "copyFailedTitle": "Kopieren nicht möglich",
+      "preparing": "Wird vorbereitet…",
+      "working": "{{tool}} läuft…",
+      "measuringAudio": "Audiolänge wird gelesen…",
+      "doneTitle": "Fertig!",
+      "doneDesc": "{{tool}} ist fertig — in deinem Projekt gespeichert.",
+      "failed": "Generierung fehlgeschlagen. Bitte versuch es erneut.",
+      "noOutput": "Das Tool hat kein Ergebnis geliefert.",
+      "outOfCredits": "Nicht genug Visual Bucs — lade auf, um weiter zu erstellen.",
+      "openFull": "In voller Größe öffnen",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "Songtexte nötig",
+      "karaokeNeedsLyricsDesc": "Generiere zuerst das Song-Paket, damit die Songtexte mit dem Projekt reisen.",
+      "audiogramNeedsCoverTitle": "Cover-Art nötig",
+      "audiogramNeedsCoverDesc": "Erstelle zuerst Cover-Art (Seite „Cover-Art“) — sie landet automatisch in deinem Projekt.",
+      "karaoke": {
+        "label": "Karaoke-Video",
+        "blurb": "Songtext-Video, synchron zu deinem Track · 300 VB"
+      },
+      "audiogram": {
+        "label": "Audiogramm",
+        "blurb": "Wellenform-Visualisierung über deiner Cover-Art · 250 VB"
+      },
+      "loop": {
+        "label": "Loop-Video",
+        "blurb": "Nahtloser 3-fach-Loop mit Überblendung · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "Automatische Untertitel",
+        "blurb": "Wortgenau synchronisierte goldene Untertitel, eingebrannt · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "A/B-Thumbnails",
+        "blurb": "3 Stil-Varianten zum Testen · 300 VB",
+        "variantLabel": "Thumbnail-Variante {{n}}"
+      },
+      "clipDescription": {
+        "label": "Clip-Beschreibung",
+        "blurb": "YouTube-fertige Beschreibung + Kapitel · 50 VB",
+        "resultLabel": "Clip-Beschreibung · {{topic}}"
+      },
+      "meme": {
+        "label": "Meme",
+        "blurb": "Mach dein Artwork zum Meme · 100 VB",
+        "topPlaceholder": "Text oben…",
+        "bottomPlaceholder": "Text unten…"
+      },
+      "socialKit": {
+        "label": "Social-Kit",
+        "blurb": "Profil, Banner, Highlight-Cover · 400 VB",
+        "assetLabel": "Social-Kit-Asset {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "Variante {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "Beschreibung · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "Verwenden",
+      "useInEditor": "Zum Editor hinzufügen",
+      "prefillTitle": "Aus deinem Projekt vorausgefüllt",
+      "songLoaded": "Track aus deinem Projekt geladen",
+      "clipAdded": "Clip zur Editor-Timeline hinzugefügt"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "Prompt aus der Musikvideo-Idee deines Projekts ausgefüllt."
+    },
+    "socialKit": {
+      "title": "Social-Media-Kit",
+      "blurb": "Ein komplettes Marken-Kit für deine Socials — Profilbild, YouTube-Banner, X-Header und Instagram-Highlight-Cover. Aus deinem Projekt vorausgefüllt.",
+      "brandLabel": "Markenname",
+      "brandPlaceholder": "z. B. Lil Nova",
+      "taglineLabel": "Slogan",
+      "taglinePlaceholder": "z. B. Der Cheat-Code für Content-Erstellung",
+      "styleGold": "Gold-Luxus",
+      "styleNeon": "Neon-Pop",
+      "styleMinimal": "Minimalistisch",
+      "generate": "Kit generieren · 400 Visual Bucs",
+      "generating": "Dein Kit wird gebaut…",
+      "costNote": "400 Visual Bucs — bei Fehlschlag der Generierung automatisch erstattet.",
+      "failed": "Die Generierung des Social-Kits ist fehlgeschlagen. Bitte versuch es erneut.",
+      "doneTitle": "Social-Kit ist fertig!",
+      "doneDesc": "{{count}} Marken-Assets in deinem Projekt gespeichert.",
+      "resultsTitle": "Dein Marken-Kit",
+      "assetLabel": "Social-Kit-Asset {{n}}",
+      "downloadAria": "Asset herunterladen"
+    },
+    "promoCards": {
+      "title": "Promo-Karten zum Release",
+      "priceBadge": "100 Visual Bucs / Paket",
+      "blurb": "KI-designte Social-Karten für den Release-Tag — wähle einen Stil und erhalte alle drei Plattformgrößen (1:1, 9:16, 16:9) mit deiner Cover-Art, deinem Release-Titel und einer postfertigen Caption.",
+      "releaseLabel": "Release-Titel",
+      "releasePlaceholder": "z. B. Midnight Gold",
+      "artistLabel": "Künstlername",
+      "artistPlaceholder": "z. B. Lil Nova",
+      "styleLabel": "Kartenstil",
+      "styles": {
+        "announcement": "Ankündigung",
+        "out-now": "Jetzt draußen",
+        "pre-save": "Vorab speichern",
+        "milestone": "Meilenstein"
+      },
+      "styleBlurb": {
+        "announcement": "Den Drop anteasern — Energie wie vor dem Release",
+        "out-now": "Karte für den Release-Tag — überall im Streaming",
+        "pre-save": "Pre-Saves vor dem Release-Tag antreiben",
+        "milestone": "Streams & Chart-Erfolge feiern"
+      },
+      "milestoneLabel": "Meilenstein-Text",
+      "sizesLabel": "Plattformgrößen",
+      "sizeHint": {
+        "1x1": "Feed",
+        "9x16": "Storys / Reels",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "Cover-Art (aus deinem Projekt)",
+      "coverNone": "Keine Cover-Art — nur KI-Hintergrund",
+      "coverPlaceholder": "URL eines Cover-Art-Bildes einfügen (optional)",
+      "coverPreview": "Auf jede Karte gerahmt",
+      "attributionLabel": "„Made with Bow Down Visuals“-Mikro-Attribution einfügen (kostenlos, hilft den Karten zu reisen)",
+      "generate": "Paket generieren · 100 Visual Bucs",
+      "generating": "Deine Karten werden designt… (etwa eine Minute)",
+      "costNote": "100 Visual Bucs pro Paket mit 3 Karten — bei Fehlschlag der Generierung automatisch erstattet.",
+      "failed": "Die Generierung der Promo-Karten ist fehlgeschlagen. Bitte versuch es erneut.",
+      "doneTitle": "Promo-Karten sind fertig!",
+      "doneDesc": "{{count}} Karten generiert.",
+      "resultsTitle": "Deine Promo-Karten",
+      "cardAlt": "{{style}}-Promo-Karte ({{size}})",
+      "assetLabel": "Promo-Karte — {{style}} ({{size}})",
+      "download": "Herunterladen",
+      "schedule": "Planen",
+      "share": "Teilen",
+      "addToAssets": "Zu den Assets hinzufügen",
+      "addAll": "Alle zu den Release-Assets hinzufügen",
+      "addedTitle": "In deinem Projekt gespeichert",
+      "addedDesc": "{{count}} Promo-Karten zu deinen Release-Assets hinzugefügt.",
+      "captionLabel": "Caption-Vorschlag (bearbeitbar)",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "historyTitle": "Deine Promo-Karten",
+      "historyLoading": "Deine Karten werden geladen…",
+      "historyFailed": "Deine Promo-Karten konnten nicht geladen werden.",
+      "historyRetry": "Erneut versuchen",
+      "historyEmpty": "Noch keine Promo-Karten — generiere oben dein erstes Paket, dann lebt es hier.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "In voller Größe öffnen",
+      "historyDelete": "Löschen",
+      "historyConfirmDelete": "Löschen?",
+      "historyDeleted": "Promo-Karte gelöscht",
+      "historyDeleteFailed": "Diese Karte konnte nicht gelöscht werden — versuch es erneut.",
+      "historyMoreNote": "Zeigt deine {{limit}} neuesten Karten."
+    }
   }
 }

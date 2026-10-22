@@ -146,8 +146,16 @@ const EN = CATALOGS.en!;
    en.json — all 146 leaves absent from all nine catalogs — so every
    non-English user got the whole surface in English. Now translated
    ×9 and pinned here; the namespace carries no array leaves, so the
-   string emptiness/placeholder checks apply as-is. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence"] as const;
+   string emptiness/placeholder checks apply as-is.
+   "hubSpine" came with the Stack-24 locale-parity lane (Oct 22 2026):
+   the hub spine surface (attribution toggle, song-saved banner, the
+   handoffs rail, Social Kit, Release Promo Cards — 131 leaves) existed
+   in NO non-en catalog at all, so every non-English creator silently
+   got English across the whole hub. All 131 leaves are now translated
+   ×9 and pinned here, and the hubSpine residue describe at the bottom
+   pins the values too. The namespace carries no array leaves, so the
+   plain string checks below judge it as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence", "hubSpine"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -209,11 +217,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill and the Stack-24 contentIntelligence fill (3931 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill and the Stack-24 hubSpine fill (4062 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
-    expect(REQUIRED.length).toBe(3931);
+    expect(REQUIRED.length).toBe(4062);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -850,6 +858,124 @@ describe("contentIntelligence — no untranslated English residue", () => {
       const cat = CATALOGS[locale]!;
       for (const k of keys) {
         const fk = `contentIntelligence.${k}`;
+        expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+/* Legit-identical hubSpine values per locale — keys whose correct
+   value in that language IS the en string, so the residue check below
+   must not flag them. Everything not listed here has to differ from en.
+   - madeWith + attributionTitle (all nine): the en value IS the brand
+     attribution lockup "Made with Bow Down Visuals" — the literal text
+     stamped on exports in every market (promoCards.attributionLabel
+     quotes it verbatim inside translated prose), so there is nothing
+     to translate.
+   - handoffs.resultLabel "{{tool}} · {{source}}" and
+     promoCards.historyForRelease "{{title}} — {{artist}}" (all nine):
+     the values are placeholders joined by a separator only — the same
+     nothing-to-translate class as analyticsHub's milestones.loggedFrom.
+   - promoCards.sizeHint.16x9 "YouTube" (all nine): the platform name.
+   - handoffs.meme.label "Meme" (de/es/fr/it/pt): the established,
+     identically-spelled loanword in all five languages.
+   - fr clipDescription.resultLabel "Description · {{topic}}":
+     "Description" is spelled identically in French (the same class as
+     fr playlistPitch's packetDescription); the rest is placeholders.
+   - fr promoCards.priceBadge: "pack" is the established French
+     commerce loanword for a bundle of cards (the same kept-loan class
+     as fr playlistPitch's "Playlists"). */
+const HS_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  de: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "handoffs.meme.label",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  es: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "handoffs.meme.label",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  fr: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "handoffs.meme.label",
+    "clipDescription.resultLabel",
+    "promoCards.historyForRelease",
+    "promoCards.priceBadge",
+    "promoCards.sizeHint.16x9",
+  ],
+  hi: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  it: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "handoffs.meme.label",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  ja: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  ko: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+  pt: [
+    "madeWith",
+    "attributionTitle",
+    "handoffs.resultLabel",
+    "handoffs.meme.label",
+    "promoCards.historyForRelease",
+    "promoCards.sizeHint.16x9",
+  ],
+};
+
+describe("hubSpine — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const HS_KEYS = Object.keys(EN).filter((k) => k.startsWith("hubSpine."));
+
+  it.each(NON_EN)("%s hubSpine values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((HS_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `hubSpine.${k}`));
+    const residue = HS_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated hubSpine values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the hubSpine allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(HS_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `hubSpine.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
       }
     }

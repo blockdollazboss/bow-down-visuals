@@ -10749,5 +10749,174 @@
     "toastPublished": "प्रकाशित हुआ!",
     "toastPublishedDesc": "आपकी रचना अब शोकेस में लाइव है।",
     "viewLink": "शोकेस में देखें"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "आपका क्रेडिट प्रोजेक्ट के साथ यात्रा करता है — हर टूल से होने वाला हर एक्सपोर्ट और शेयर इसे साथ ले जाता है। मुफ़्त और बोनस एक्सपोर्ट के लिए डिफ़ॉल्ट रूप से चालू।",
+    "attributionOn": "क्रेडिट चालू",
+    "attributionOff": "क्रेडिट बंद",
+    "songSavedTitle": "आपके प्रोजेक्ट में सहेजा गया",
+    "songSavedDesc": "गीत के बोल, कॉन्सेप्ट और ऑडियो अब आपके हब प्रोजेक्ट में हैं — नीचे का हर टूल उन्हें खुद-ब-खुद उठा लेता है।",
+    "handoffs": {
+      "title": "अगले चरण पर भेजें",
+      "subtitle": "एक टैप इस एसेट पर अगला टूल चलाता है। नतीजा खुद-ब-खुद आपके प्रोजेक्ट में वापस आ जाता है।",
+      "copyShare": "शेयर लिंक कॉपी करें",
+      "copyShareTitle": "अपना रेफ़रल शेयर लिंक कॉपी करें",
+      "copied": "कॉपी हो गया!",
+      "copyFailedTitle": "कॉपी नहीं हो सका",
+      "preparing": "तैयार हो रहा है…",
+      "working": "{{tool}} चल रहा है…",
+      "measuringAudio": "ऑडियो की लंबाई पढ़ी जा रही है…",
+      "doneTitle": "हो गया!",
+      "doneDesc": "{{tool}} पूरा हुआ — आपके प्रोजेक्ट में सहेजा गया।",
+      "failed": "जनरेशन विफल रहा। कृपया फिर से कोशिश करें।",
+      "noOutput": "टूल ने कोई आउटपुट नहीं दिया।",
+      "outOfCredits": "Visual Bucs पर्याप्त नहीं हैं — बनाते रहने के लिए टॉप अप करें।",
+      "openFull": "पूरा आकार खोलें",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "गीत के बोल चाहिए",
+      "karaokeNeedsLyricsDesc": "पहले गाने का पैकेज बनाएं ताकि बोल प्रोजेक्ट के साथ यात्रा करें।",
+      "audiogramNeedsCoverTitle": "कवर आर्ट चाहिए",
+      "audiogramNeedsCoverDesc": "पहले कवर आर्ट बनाएं (कवर आर्ट पेज) — वह खुद-ब-खुद आपके प्रोजेक्ट में आ जाता है।",
+      "karaoke": {
+        "label": "कराओके वीडियो",
+        "blurb": "आपके ट्रैक के साथ सिंक किया गया लिरिक वीडियो · 300 VB"
+      },
+      "audiogram": {
+        "label": "ऑडियोग्राम",
+        "blurb": "आपके कवर आर्ट पर वेवफ़ॉर्म विज़ुअलाइज़र · 250 VB"
+      },
+      "loop": {
+        "label": "लूप वीडियो",
+        "blurb": "क्रॉसफ़ेड के साथ सहज 3x लूप · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "ऑटो कैप्शन",
+        "blurb": "शब्द-दर-शब्द सिंक किए गए सुनहरे कैप्शन, वीडियो में जड़े हुए · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "A/B थंबनेल",
+        "blurb": "आज़माने के लिए 3 स्टाइल वेरिएंट · 300 VB",
+        "variantLabel": "थंबनेल वेरिएंट {{n}}"
+      },
+      "clipDescription": {
+        "label": "क्लिप विवरण",
+        "blurb": "YouTube के लिए तैयार विवरण + चैप्टर · 50 VB",
+        "resultLabel": "क्लिप विवरण · {{topic}}"
+      },
+      "meme": {
+        "label": "मीम",
+        "blurb": "अपने आर्टवर्क को मीम बनाएं · 100 VB",
+        "topPlaceholder": "ऊपर का टेक्स्ट…",
+        "bottomPlaceholder": "नीचे का टेक्स्ट…"
+      },
+      "socialKit": {
+        "label": "सोशल किट",
+        "blurb": "प्रोफ़ाइल, बैनर, हाइलाइट कवर · 400 VB",
+        "assetLabel": "सोशल किट एसेट {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "वेरिएंट {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "विवरण · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "उपयोग करें",
+      "useInEditor": "एडिटर में जोड़ें",
+      "prefillTitle": "आपके प्रोजेक्ट से पहले से भरा हुआ",
+      "songLoaded": "ट्रैक आपके प्रोजेक्ट से लोड हुआ",
+      "clipAdded": "क्लिप एडिटर टाइमलाइन में जोड़ा गया"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "प्रॉम्प्ट आपके प्रोजेक्ट के म्यूज़िक वीडियो आइडिया से भरा गया।"
+    },
+    "socialKit": {
+      "title": "सोशल मीडिया किट",
+      "blurb": "आपके सोशल्स के लिए पूरा ब्रांड किट — प्रोफ़ाइल तस्वीर, YouTube बैनर, X हेडर और Instagram हाइलाइट कवर। आपके प्रोजेक्ट से पहले से भरा हुआ।",
+      "brandLabel": "ब्रांड का नाम",
+      "brandPlaceholder": "जैसे Lil Nova",
+      "taglineLabel": "टैगलाइन",
+      "taglinePlaceholder": "जैसे कंटेंट क्रिएशन का चीट कोड",
+      "styleGold": "गोल्ड लग्ज़री",
+      "styleNeon": "निऑन पॉप",
+      "styleMinimal": "मिनिमल",
+      "generate": "किट बनाएं · 400 Visual Bucs",
+      "generating": "आपका किट बन रहा है…",
+      "costNote": "400 Visual Bucs — जनरेशन विफल होने पर खुद-ब-खुद रिफ़ंड।",
+      "failed": "सोशल किट जनरेशन विफल रहा। कृपया फिर से कोशिश करें।",
+      "doneTitle": "सोशल किट तैयार है!",
+      "doneDesc": "{{count}} ब्रांड एसेट आपके प्रोजेक्ट में सहेजे गए।",
+      "resultsTitle": "आपका ब्रांड किट",
+      "assetLabel": "सोशल किट एसेट {{n}}",
+      "downloadAria": "एसेट डाउनलोड करें"
+    },
+    "promoCards": {
+      "title": "रिलीज़ प्रोमो कार्ड",
+      "priceBadge": "100 Visual Bucs / पैक",
+      "blurb": "AI द्वारा डिज़ाइन किए गए रिलीज़-डे सोशल कार्ड — एक स्टाइल चुनें और तीनों प्लेटफ़ॉर्म आकार (1:1, 9:16, 16:9) अपने कवर आर्ट, रिलीज़ शीर्षक और पोस्ट करने के लिए तैयार कैप्शन के साथ पाएं।",
+      "releaseLabel": "रिलीज़ शीर्षक",
+      "releasePlaceholder": "जैसे Midnight Gold",
+      "artistLabel": "कलाकार का नाम",
+      "artistPlaceholder": "जैसे Lil Nova",
+      "styleLabel": "कार्ड स्टाइल",
+      "styles": {
+        "announcement": "घोषणा",
+        "out-now": "अभी उपलब्ध",
+        "pre-save": "प्री-सेव",
+        "milestone": "मील का पत्थर"
+      },
+      "styleBlurb": {
+        "announcement": "ड्रॉप का टीज़र — जल्द आ रहा है वाली ऊर्जा",
+        "out-now": "रिलीज़-डे कार्ड — हर जगह स्ट्रीमिंग",
+        "pre-save": "रिलीज़ दिवस से पहले प्री-सेव बढ़ाएं",
+        "milestone": "स्ट्रीम और चार्ट जीत का जश्न मनाएं"
+      },
+      "milestoneLabel": "मील के पत्थर का टेक्स्ट",
+      "sizesLabel": "प्लेटफ़ॉर्म आकार",
+      "sizeHint": {
+        "1x1": "फ़ीड",
+        "9x16": "स्टोरीज़ / रील्स",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "कवर आर्ट (आपके प्रोजेक्ट से)",
+      "coverNone": "कोई कवर आर्ट नहीं — केवल AI बैकग्राउंड",
+      "coverPlaceholder": "कवर आर्ट छवि का URL चिपकाएं (वैकल्पिक)",
+      "coverPreview": "हर कार्ड पर फ़्रेम किया गया",
+      "attributionLabel": "“Made with Bow Down Visuals” माइक्रो-एट्रिब्यूशन शामिल करें (मुफ़्त, कार्डों को यात्रा करने में मदद करता है)",
+      "generate": "पैक बनाएं · 100 Visual Bucs",
+      "generating": "आपके कार्ड डिज़ाइन हो रहे हैं… (लगभग एक मिनट)",
+      "costNote": "प्रति 3 के पैक 100 Visual Bucs — जनरेशन विफल होने पर खुद-ब-खुद रिफ़ंड।",
+      "failed": "प्रोमो कार्ड जनरेशन विफल रहा। कृपया फिर से कोशिश करें।",
+      "doneTitle": "प्रोमो कार्ड तैयार हैं!",
+      "doneDesc": "{{count}} कार्ड बनाए गए।",
+      "resultsTitle": "आपके प्रोमो कार्ड",
+      "cardAlt": "{{style}} प्रोमो कार्ड ({{size}})",
+      "assetLabel": "प्रोमो कार्ड — {{style}} ({{size}})",
+      "download": "डाउनलोड करें",
+      "schedule": "शेड्यूल करें",
+      "share": "शेयर करें",
+      "addToAssets": "एसेट में जोड़ें",
+      "addAll": "सभी को रिलीज़ एसेट में जोड़ें",
+      "addedTitle": "आपके प्रोजेक्ट में सहेजा गया",
+      "addedDesc": "{{count}} प्रोमो कार्ड आपके रिलीज़ एसेट में जोड़े गए।",
+      "captionLabel": "सुझाया गया कैप्शन (संपादन योग्य)",
+      "copy": "कॉपी करें",
+      "copied": "कॉपी हो गया",
+      "historyTitle": "आपके प्रोमो कार्ड",
+      "historyLoading": "आपके कार्ड लोड हो रहे हैं…",
+      "historyFailed": "आपके प्रोमो कार्ड लोड नहीं हो सके।",
+      "historyRetry": "फिर से कोशिश करें",
+      "historyEmpty": "अभी कोई प्रोमो कार्ड नहीं — ऊपर अपना पहला पैक बनाएं और वह यहीं रहेगा।",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "पूरा आकार खोलें",
+      "historyDelete": "हटाएं",
+      "historyConfirmDelete": "हटाएं?",
+      "historyDeleted": "प्रोमो कार्ड हटाया गया",
+      "historyDeleteFailed": "वह कार्ड हटाया नहीं जा सका — फिर से कोशिश करें।",
+      "historyMoreNote": "आपके {{limit}} सबसे हाल के कार्ड दिखाए जा रहे हैं।"
+    }
   }
 }

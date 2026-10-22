@@ -7009,7 +7009,14 @@
     "videoLinkLoadedDesc": "Tu clip está en la línea de tiempo — recórtalo, subtitúlalo, expórtalo.",
     "videoLinkLoadedTitle": "Video cargado en el editor",
     "voiceEditsDesc": "Dirige tus ediciones con tu voz — solo describe el cambio.",
-    "voiceEditsTitle": "Ediciones por Voz"
+    "voiceEditsTitle": "Ediciones por Voz",
+    "clipsRecoveredTitle": "¡{{count}} clip{{plural}} recuperado(s)!",
+    "clipsSyncedTitle": "¡{{count}} clip{{plural}} sincronizado(s)!",
+    "consistencyAppliedDesc": "Prompt de consistencia agregado a {{count}} prompt{{plural}} de escena.",
+    "recoveredClipsMsg": "{{count}} clip{{plural}} recuperado(s).",
+    "syncedClipsMsg": "{{count}} clip{{plural}} sincronizado(s).",
+    "tipClipsApproved": "{{count}} clip{{plural}} aprobado(s). Ve a Exportar cuando estés listo.",
+    "tipEffectsSelected": "{{count}} efecto{{plural}} seleccionado(s). Revisa la pestaña de Efectos para ver la vista previa CSS en vivo."
   },
   "viralityCheck": {
     "bestPostingTime": "Mejor Hora de Publicación",
@@ -11264,7 +11271,10 @@
     "viewOriginal": "Ver original",
     "waitingNote": "Estos archivos están en el almacenamiento de Bow Down, pero aún no se publica nada. Reconstruye los detalles que te habría costado volver a subir — luego aprueba cada pieza, o todo el lote listo de una vez.",
     "waitingTitle": "En casa — esperando tu aprobación",
-    "yourUpload": "Tu subida"
+    "yourUpload": "Tu subida",
+    "accountPieces": "{{count}} pieza{{plural}} en tu lista de importación.",
+    "scanFound": "Novedades en {{platform}}: {{count}} pieza{{plural}}{{skipped}}. Elige abajo qué viene a casa.",
+    "uploadRegisteredNotice": "{{count}} archivo{{plural}} en casa. Reconstruye sus detalles abajo y luego aprueba cada uno."
   },
   "liveGuests": {
     "backToBackstage": "Volver a bastidores",
@@ -11376,7 +11386,8 @@
     "watchInstead": "Ver la transmisión en su lugar",
     "watchShow": "Ver el show",
     "youHostBackstage": "Tú (anfitrión) · bastidores",
-    "youWord": "Tú"
+    "youWord": "Tú",
+    "toastRevokeEnded": "El enlace está muerto y {{count}} pase{{plural}} de invitado terminaron con él."
   },
   "moveHome": {
     "answersSaved": "Respuestas guardadas — darán forma a tus borradores.",
@@ -11571,7 +11582,8 @@
     "signInToFollow": "Inicia sesión para seguir",
     "unfollowTitle": "Dejar de seguir la lista",
     "untitled": "Sin título",
-    "uploadFirstDrop": "Sube tu primer lanzamiento"
+    "uploadFirstDrop": "Sube tu primer lanzamiento",
+    "itemsCount": "{{count}} elemento{{plural}}"
   },
   "proFinishing": {
     "cappedSuffix": " · limitado al tope de subida",
@@ -11864,5 +11876,174 @@
     "toastPublished": "¡Publicado!",
     "toastPublishedDesc": "Tu creación ya está en vivo en la vitrina.",
     "viewLink": "Ver en la vitrina"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "Tu crédito viaja con el proyecto: cada exportación y cada publicación desde cualquier herramienta lo lleva. Activado por defecto en exportaciones gratuitas y de bonificación.",
+    "attributionOn": "Crédito activado",
+    "attributionOff": "Crédito desactivado",
+    "songSavedTitle": "Guardado en tu proyecto",
+    "songSavedDesc": "La letra, el concepto y el audio ya están en tu proyecto central: cada herramienta de abajo los usa automáticamente.",
+    "handoffs": {
+      "title": "Enviar al siguiente paso",
+      "subtitle": "Un toque ejecuta la siguiente herramienta sobre este recurso. El resultado vuelve a tu proyecto automáticamente.",
+      "copyShare": "Copiar enlace para compartir",
+      "copyShareTitle": "Copiar tu enlace de referido para compartir",
+      "copied": "¡Copiado!",
+      "copyFailedTitle": "No se pudo copiar",
+      "preparing": "Preparando…",
+      "working": "Ejecutando {{tool}}…",
+      "measuringAudio": "Leyendo la duración del audio…",
+      "doneTitle": "¡Listo!",
+      "doneDesc": "{{tool}} terminó: guardado en tu proyecto.",
+      "failed": "La generación falló. Inténtalo de nuevo.",
+      "noOutput": "La herramienta no devolvió ningún resultado.",
+      "outOfCredits": "Visual Bucs insuficientes: recarga para seguir creando.",
+      "openFull": "Abrir a tamaño completo",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "Se necesita la letra",
+      "karaokeNeedsLyricsDesc": "Genera primero el paquete de la canción para que la letra viaje con el proyecto.",
+      "audiogramNeedsCoverTitle": "Se necesita la portada",
+      "audiogramNeedsCoverDesc": "Crea primero la portada (página de arte de portada): llega a tu proyecto automáticamente.",
+      "karaoke": {
+        "label": "Video de karaoke",
+        "blurb": "Video con letra sincronizada con tu pista · 300 VB"
+      },
+      "audiogram": {
+        "label": "Audiograma",
+        "blurb": "Visualizador de forma de onda sobre tu portada · 250 VB"
+      },
+      "loop": {
+        "label": "Video en bucle",
+        "blurb": "Bucle continuo x3 con fundido cruzado · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "Subtítulos automáticos",
+        "blurb": "Subtítulos dorados sincronizados palabra a palabra, incrustados · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "Miniaturas A/B",
+        "blurb": "3 variantes de estilo para probar · 300 VB",
+        "variantLabel": "Variante de miniatura {{n}}"
+      },
+      "clipDescription": {
+        "label": "Descripción del clip",
+        "blurb": "Descripción lista para YouTube + capítulos · 50 VB",
+        "resultLabel": "Descripción del clip · {{topic}}"
+      },
+      "meme": {
+        "label": "Meme",
+        "blurb": "Convierte tu arte en un meme · 100 VB",
+        "topPlaceholder": "Texto superior…",
+        "bottomPlaceholder": "Texto inferior…"
+      },
+      "socialKit": {
+        "label": "Kit social",
+        "blurb": "Perfil, banners, portadas de destacados · 400 VB",
+        "assetLabel": "Recurso del kit social {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "Variante {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "Descripción · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "Usar",
+      "useInEditor": "Añadir al editor",
+      "prefillTitle": "Precargado desde tu proyecto",
+      "songLoaded": "Pista cargada desde tu proyecto",
+      "clipAdded": "Clip añadido a la línea de tiempo del editor"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "Prompt completado desde la idea de video musical de tu proyecto."
+    },
+    "socialKit": {
+      "title": "Kit de redes sociales",
+      "blurb": "Un kit de marca completo para tus redes: foto de perfil, banner de YouTube, encabezado de X y portadas de destacados de Instagram. Precargado desde tu proyecto.",
+      "brandLabel": "Nombre de la marca",
+      "brandPlaceholder": "p. ej., Lil Nova",
+      "taglineLabel": "Eslogan",
+      "taglinePlaceholder": "p. ej., El código secreto de la creación de contenido",
+      "styleGold": "Lujo dorado",
+      "styleNeon": "Neón pop",
+      "styleMinimal": "Minimalista",
+      "generate": "Generar kit · 400 Visual Bucs",
+      "generating": "Creando tu kit…",
+      "costNote": "400 Visual Bucs: reembolso automático si la generación falla.",
+      "failed": "La generación del kit social falló. Inténtalo de nuevo.",
+      "doneTitle": "¡Kit social listo!",
+      "doneDesc": "{{count}} recursos de marca guardados en tu proyecto.",
+      "resultsTitle": "Tu kit de marca",
+      "assetLabel": "Recurso del kit social {{n}}",
+      "downloadAria": "Descargar recurso"
+    },
+    "promoCards": {
+      "title": "Tarjetas promocionales del lanzamiento",
+      "priceBadge": "100 Visual Bucs / paquete",
+      "blurb": "Tarjetas sociales para el día del lanzamiento diseñadas por IA: elige un estilo y recibe los tres tamaños de plataforma (1:1, 9:16, 16:9) con tu portada, el título del lanzamiento y un texto listo para publicar.",
+      "releaseLabel": "Título del lanzamiento",
+      "releasePlaceholder": "p. ej., Midnight Gold",
+      "artistLabel": "Nombre del artista",
+      "artistPlaceholder": "p. ej., Lil Nova",
+      "styleLabel": "Estilo de tarjeta",
+      "styles": {
+        "announcement": "Anuncio",
+        "out-now": "Ya disponible",
+        "pre-save": "Pre-guardado",
+        "milestone": "Hito"
+      },
+      "styleBlurb": {
+        "announcement": "Anticípate al lanzamiento: energía de «muy pronto»",
+        "out-now": "Tarjeta del día del lanzamiento: en streaming en todas partes",
+        "pre-save": "Impulsa los pre-guardados antes del día del lanzamiento",
+        "milestone": "Celebra reproducciones y logros en las listas"
+      },
+      "milestoneLabel": "Texto del hito",
+      "sizesLabel": "Tamaños de plataforma",
+      "sizeHint": {
+        "1x1": "Feed",
+        "9x16": "Historias / reels",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "Portada (de tu proyecto)",
+      "coverNone": "Sin portada: solo fondo de IA",
+      "coverPlaceholder": "Pega la URL de una imagen de portada (opcional)",
+      "coverPreview": "Enmarcada en cada tarjeta",
+      "attributionLabel": "Incluir la microatribución «Made with Bow Down Visuals» (gratis, ayuda a que las tarjetas viajen)",
+      "generate": "Generar paquete · 100 Visual Bucs",
+      "generating": "Diseñando tus tarjetas… (aprox. un minuto)",
+      "costNote": "100 Visual Bucs por paquete de 3: reembolso automático si la generación falla.",
+      "failed": "La generación de tarjetas promocionales falló. Inténtalo de nuevo.",
+      "doneTitle": "¡Tarjetas promocionales listas!",
+      "doneDesc": "{{count}} tarjetas generadas.",
+      "resultsTitle": "Tus tarjetas promocionales",
+      "cardAlt": "Tarjeta promocional {{style}} ({{size}})",
+      "assetLabel": "Tarjeta promocional — {{style}} ({{size}})",
+      "download": "Descargar",
+      "schedule": "Programar",
+      "share": "Compartir",
+      "addToAssets": "Añadir a los recursos",
+      "addAll": "Añadir todo a los recursos del lanzamiento",
+      "addedTitle": "Guardado en tu proyecto",
+      "addedDesc": "{{count}} tarjetas promocionales añadidas a los recursos de tu lanzamiento.",
+      "captionLabel": "Texto sugerido (editable)",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "historyTitle": "Tus tarjetas promocionales",
+      "historyLoading": "Cargando tus tarjetas…",
+      "historyFailed": "No se pudieron cargar tus tarjetas promocionales.",
+      "historyRetry": "Reintentar",
+      "historyEmpty": "Aún no tienes tarjetas promocionales: genera tu primer paquete arriba y vivirá aquí.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "Abrir a tamaño completo",
+      "historyDelete": "Eliminar",
+      "historyConfirmDelete": "¿Eliminar?",
+      "historyDeleted": "Tarjeta promocional eliminada",
+      "historyDeleteFailed": "No se pudo eliminar esa tarjeta: inténtalo de nuevo.",
+      "historyMoreNote": "Mostrando tus {{limit}} tarjetas más recientes."
+    }
   }
 }

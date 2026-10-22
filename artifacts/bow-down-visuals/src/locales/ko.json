@@ -10749,5 +10749,174 @@
     "toastPublished": "게시됐습니다!",
     "toastPublishedDesc": "작품이 쇼케이스에 공개됐습니다.",
     "viewLink": "쇼케이스에서 보기"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "크레딧은 프로젝트와 함께 이동합니다 — 모든 도구에서 내보내고 공유할 때마다 함께 표시됩니다. 무료 및 보너스 내보내기에서는 기본으로 켜져 있습니다.",
+    "attributionOn": "크레딧 표시",
+    "attributionOff": "크레딧 숨김",
+    "songSavedTitle": "프로젝트에 저장됨",
+    "songSavedDesc": "가사, 콘셉트, 오디오가 이제 허브 프로젝트에 있습니다 — 아래의 모든 도구가 자동으로 가져갑니다.",
+    "handoffs": {
+      "title": "다음 단계로 보내기",
+      "subtitle": "한 번의 탭으로 이 에셋에 다음 도구를 실행합니다. 결과는 자동으로 프로젝트에 돌아옵니다.",
+      "copyShare": "공유 링크 복사",
+      "copyShareTitle": "추천 공유 링크 복사",
+      "copied": "복사됨!",
+      "copyFailedTitle": "복사할 수 없음",
+      "preparing": "준비 중…",
+      "working": "{{tool}} 실행 중…",
+      "measuringAudio": "오디오 길이를 읽는 중…",
+      "doneTitle": "완료!",
+      "doneDesc": "{{tool}} 완료 — 프로젝트에 저장되었습니다.",
+      "failed": "생성에 실패했습니다. 다시 시도해 주세요.",
+      "noOutput": "도구가 결과를 반환하지 않았습니다.",
+      "outOfCredits": "Visual Bucs가 부족합니다 — 계속 만들려면 충전하세요.",
+      "openFull": "전체 크기로 열기",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "가사가 필요합니다",
+      "karaokeNeedsLyricsDesc": "먼저 노래 패키지를 생성하면 가사가 프로젝트와 함께 이동합니다.",
+      "audiogramNeedsCoverTitle": "커버 아트가 필요합니다",
+      "audiogramNeedsCoverDesc": "먼저 커버 아트를 만드세요(커버 아트 페이지) — 자동으로 프로젝트에 들어갑니다.",
+      "karaoke": {
+        "label": "노래방 영상",
+        "blurb": "트랙에 동기화된 가사 영상 · 300 VB"
+      },
+      "audiogram": {
+        "label": "오디오그램",
+        "blurb": "커버 아트 위의 파형 비주얼라이저 · 250 VB"
+      },
+      "loop": {
+        "label": "루프 영상",
+        "blurb": "크로스페이드가 있는 매끄러운 3배 루프 · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "자동 자막",
+        "blurb": "단어 단위로 동기화된 골드 자막을 영상에 삽입 · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "A/B 썸네일",
+        "blurb": "테스트할 스타일 변형 3종 · 300 VB",
+        "variantLabel": "썸네일 변형 {{n}}"
+      },
+      "clipDescription": {
+        "label": "클립 설명",
+        "blurb": "YouTube용 설명 + 챕터 · 50 VB",
+        "resultLabel": "클립 설명 · {{topic}}"
+      },
+      "meme": {
+        "label": "밈",
+        "blurb": "아트워크를 밈으로 만들기 · 100 VB",
+        "topPlaceholder": "위쪽 텍스트…",
+        "bottomPlaceholder": "아래쪽 텍스트…"
+      },
+      "socialKit": {
+        "label": "소셜 키트",
+        "blurb": "프로필, 배너, 하이라이트 커버 · 400 VB",
+        "assetLabel": "소셜 키트 에셋 {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "변형 {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "설명 · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "사용",
+      "useInEditor": "편집기에 추가",
+      "prefillTitle": "프로젝트에서 미리 채워짐",
+      "songLoaded": "프로젝트에서 트랙을 불러옴",
+      "clipAdded": "클립이 편집기 타임라인에 추가됨"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "프로젝트의 뮤직비디오 아이디어로 프롬프트가 채워졌습니다."
+    },
+    "socialKit": {
+      "title": "소셜 미디어 키트",
+      "blurb": "소셜을 위한 완전한 브랜드 키트 — 프로필 사진, YouTube 배너, X 헤더, Instagram 하이라이트 커버. 프로젝트에서 미리 채워집니다.",
+      "brandLabel": "브랜드 이름",
+      "brandPlaceholder": "예: Lil Nova",
+      "taglineLabel": "태그라인",
+      "taglinePlaceholder": "예: 콘텐츠 제작의 치트 코드",
+      "styleGold": "골드 럭셔리",
+      "styleNeon": "네온 팝",
+      "styleMinimal": "미니멀",
+      "generate": "키트 생성 · 400 Visual Bucs",
+      "generating": "키트를 만드는 중…",
+      "costNote": "400 Visual Bucs — 생성에 실패하면 자동으로 환불됩니다.",
+      "failed": "소셜 키트 생성에 실패했습니다. 다시 시도해 주세요.",
+      "doneTitle": "소셜 키트 준비 완료!",
+      "doneDesc": "브랜드 에셋 {{count}}개가 프로젝트에 저장되었습니다.",
+      "resultsTitle": "내 브랜드 키트",
+      "assetLabel": "소셜 키트 에셋 {{n}}",
+      "downloadAria": "에셋 다운로드"
+    },
+    "promoCards": {
+      "title": "발매 프로모 카드",
+      "priceBadge": "100 Visual Bucs / 팩",
+      "blurb": "AI가 디자인한 발매일 소셜 카드 — 스타일을 고르면 커버 아트, 발매 제목, 바로 올릴 수 있는 캡션과 함께 세 가지 플랫폼 크기(1:1, 9:16, 16:9)를 모두 받습니다.",
+      "releaseLabel": "발매 제목",
+      "releasePlaceholder": "예: Midnight Gold",
+      "artistLabel": "아티스트 이름",
+      "artistPlaceholder": "예: Lil Nova",
+      "styleLabel": "카드 스타일",
+      "styles": {
+        "announcement": "공지",
+        "out-now": "지금 공개",
+        "pre-save": "사전 저장",
+        "milestone": "마일스톤"
+      },
+      "styleBlurb": {
+        "announcement": "발매를 예고하세요 — 곧 공개되는 에너지",
+        "out-now": "발매일 카드 — 모든 곳에서 스트리밍 중",
+        "pre-save": "발매일 전에 사전 저장을 늘리세요",
+        "milestone": "스트리밍과 차트 성과를 축하하세요"
+      },
+      "milestoneLabel": "마일스톤 텍스트",
+      "sizesLabel": "플랫폼 크기",
+      "sizeHint": {
+        "1x1": "피드",
+        "9x16": "스토리 / 릴스",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "커버 아트(프로젝트에서)",
+      "coverNone": "커버 아트 없음 — AI 배경만",
+      "coverPlaceholder": "커버 아트 이미지 URL 붙여넣기(선택)",
+      "coverPreview": "모든 카드에 프레임으로 표시",
+      "attributionLabel": "“Made with Bow Down Visuals” 마이크로 표기 포함(무료, 카드 확산에 도움)",
+      "generate": "팩 생성 · 100 Visual Bucs",
+      "generating": "카드를 디자인하는 중…(약 1분)",
+      "costNote": "3개 팩당 100 Visual Bucs — 생성에 실패하면 자동으로 환불됩니다.",
+      "failed": "프로모 카드 생성에 실패했습니다. 다시 시도해 주세요.",
+      "doneTitle": "프로모 카드 준비 완료!",
+      "doneDesc": "카드 {{count}}개가 생성되었습니다.",
+      "resultsTitle": "내 프로모 카드",
+      "cardAlt": "{{style}} 프로모 카드({{size}})",
+      "assetLabel": "프로모 카드 — {{style}}({{size}})",
+      "download": "다운로드",
+      "schedule": "예약",
+      "share": "공유",
+      "addToAssets": "에셋에 추가",
+      "addAll": "모두 발매 에셋에 추가",
+      "addedTitle": "프로젝트에 저장됨",
+      "addedDesc": "프로모 카드 {{count}}개가 발매 에셋에 추가되었습니다.",
+      "captionLabel": "추천 캡션(편집 가능)",
+      "copy": "복사",
+      "copied": "복사됨",
+      "historyTitle": "내 프로모 카드",
+      "historyLoading": "카드를 불러오는 중…",
+      "historyFailed": "프로모 카드를 불러올 수 없습니다.",
+      "historyRetry": "다시 시도",
+      "historyEmpty": "아직 프로모 카드가 없습니다 — 위에서 첫 팩을 생성하면 여기에 표시됩니다.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "전체 크기로 열기",
+      "historyDelete": "삭제",
+      "historyConfirmDelete": "삭제할까요?",
+      "historyDeleted": "프로모 카드가 삭제됨",
+      "historyDeleteFailed": "그 카드를 삭제할 수 없습니다 — 다시 시도해 주세요.",
+      "historyMoreNote": "최근 카드 {{limit}}개를 표시하고 있습니다."
+    }
   }
 }

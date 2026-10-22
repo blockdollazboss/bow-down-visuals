@@ -10766,5 +10766,174 @@
     "toastPublished": "Publicado!",
     "toastPublishedDesc": "Sua criação está ao vivo na vitrine.",
     "viewLink": "Ver na vitrine"
+  },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "Seu crédito acompanha o projeto — cada exportação e compartilhamento de qualquer ferramenta o carrega. Ativado por padrão nas exportações gratuitas e de bônus.",
+    "attributionOn": "Crédito ativado",
+    "attributionOff": "Crédito desativado",
+    "songSavedTitle": "Salvo no seu projeto",
+    "songSavedDesc": "Letra, conceito e áudio agora estão no seu projeto central — cada ferramenta abaixo os usa automaticamente.",
+    "handoffs": {
+      "title": "Enviar para a próxima etapa",
+      "subtitle": "Um toque executa a próxima ferramenta neste item. O resultado volta para o seu projeto automaticamente.",
+      "copyShare": "Copiar link de compartilhamento",
+      "copyShareTitle": "Copiar seu link de indicação para compartilhar",
+      "copied": "Copiado!",
+      "copyFailedTitle": "Não foi possível copiar",
+      "preparing": "Preparando…",
+      "working": "Executando {{tool}}…",
+      "measuringAudio": "Lendo a duração do áudio…",
+      "doneTitle": "Pronto!",
+      "doneDesc": "{{tool}} terminou — salvo no seu projeto.",
+      "failed": "A geração falhou. Tente novamente.",
+      "noOutput": "A ferramenta não retornou nenhum resultado.",
+      "outOfCredits": "Visual Bucs insuficientes — recarregue para continuar criando.",
+      "openFull": "Abrir em tamanho real",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "Letra necessária",
+      "karaokeNeedsLyricsDesc": "Gere primeiro o pacote da música para que a letra acompanhe o projeto.",
+      "audiogramNeedsCoverTitle": "Capa necessária",
+      "audiogramNeedsCoverDesc": "Crie primeiro a capa (página de Capa) — ela chega ao seu projeto automaticamente.",
+      "karaoke": {
+        "label": "Vídeo de karaokê",
+        "blurb": "Vídeo com letra sincronizada à sua faixa · 300 VB"
+      },
+      "audiogram": {
+        "label": "Audiograma",
+        "blurb": "Visualizador de forma de onda sobre a sua capa · 250 VB"
+      },
+      "loop": {
+        "label": "Vídeo em loop",
+        "blurb": "Loop contínuo de 3x com crossfade · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "Legendas automáticas",
+        "blurb": "Legendas douradas sincronizadas palavra a palavra, gravadas no vídeo · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "Miniaturas A/B",
+        "blurb": "3 variantes de estilo para testar · 300 VB",
+        "variantLabel": "Variante de miniatura {{n}}"
+      },
+      "clipDescription": {
+        "label": "Descrição do clipe",
+        "blurb": "Descrição pronta para o YouTube + capítulos · 50 VB",
+        "resultLabel": "Descrição do clipe · {{topic}}"
+      },
+      "meme": {
+        "label": "Meme",
+        "blurb": "Transforme sua arte em meme · 100 VB",
+        "topPlaceholder": "Texto de cima…",
+        "bottomPlaceholder": "Texto de baixo…"
+      },
+      "socialKit": {
+        "label": "Kit social",
+        "blurb": "Perfil, banners, capas de destaques · 400 VB",
+        "assetLabel": "Item do kit social {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "Variante {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "Descrição · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "Usar",
+      "useInEditor": "Adicionar ao editor",
+      "prefillTitle": "Preenchido a partir do seu projeto",
+      "songLoaded": "Faixa carregada do seu projeto",
+      "clipAdded": "Clipe adicionado à linha do tempo do editor"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "Prompt preenchido a partir da ideia de videoclipe do seu projeto."
+    },
+    "socialKit": {
+      "title": "Kit de redes sociais",
+      "blurb": "Um kit de marca completo para suas redes — foto de perfil, banner do YouTube, cabeçalho do X e capas de destaques do Instagram. Preenchido a partir do seu projeto.",
+      "brandLabel": "Nome da marca",
+      "brandPlaceholder": "ex.: Lil Nova",
+      "taglineLabel": "Slogan",
+      "taglinePlaceholder": "ex.: O código secreto da criação de conteúdo",
+      "styleGold": "Luxo dourado",
+      "styleNeon": "Pop neon",
+      "styleMinimal": "Minimalista",
+      "generate": "Gerar kit · 400 Visual Bucs",
+      "generating": "Montando seu kit…",
+      "costNote": "400 Visual Bucs — reembolso automático se a geração falhar.",
+      "failed": "A geração do kit social falhou. Tente novamente.",
+      "doneTitle": "Kit social pronto!",
+      "doneDesc": "{{count}} itens de marca salvos no seu projeto.",
+      "resultsTitle": "Seu kit de marca",
+      "assetLabel": "Item do kit social {{n}}",
+      "downloadAria": "Baixar item"
+    },
+    "promoCards": {
+      "title": "Cards promocionais de lançamento",
+      "priceBadge": "100 Visual Bucs / pacote",
+      "blurb": "Cards sociais para o dia do lançamento criados por IA — escolha um estilo e receba os três tamanhos de plataforma (1:1, 9:16, 16:9) com sua capa, o título do lançamento e uma legenda pronta para postar.",
+      "releaseLabel": "Título do lançamento",
+      "releasePlaceholder": "ex.: Midnight Gold",
+      "artistLabel": "Nome do artista",
+      "artistPlaceholder": "ex.: Lil Nova",
+      "styleLabel": "Estilo do card",
+      "styles": {
+        "announcement": "Anúncio",
+        "out-now": "Já disponível",
+        "pre-save": "Pré-salvamento",
+        "milestone": "Marco"
+      },
+      "styleBlurb": {
+        "announcement": "Aqueça o lançamento — energia de novidade a caminho",
+        "out-now": "Card do dia do lançamento — no streaming em todo lugar",
+        "pre-save": "Impulsione os pré-salvamentos antes do dia do lançamento",
+        "milestone": "Comemore streams e conquistas nas paradas"
+      },
+      "milestoneLabel": "Texto do marco",
+      "sizesLabel": "Tamanhos de plataforma",
+      "sizeHint": {
+        "1x1": "Feed",
+        "9x16": "Stories / reels",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "Capa (do seu projeto)",
+      "coverNone": "Sem capa — apenas fundo de IA",
+      "coverPlaceholder": "Cole a URL de uma imagem de capa (opcional)",
+      "coverPreview": "Emoldurada em cada card",
+      "attributionLabel": "Incluir a microatribuição “Made with Bow Down Visuals” (grátis, ajuda os cards a viajarem)",
+      "generate": "Gerar pacote · 100 Visual Bucs",
+      "generating": "Criando seus cards… (cerca de um minuto)",
+      "costNote": "100 Visual Bucs por pacote de 3 — reembolso automático se a geração falhar.",
+      "failed": "A geração dos cards promocionais falhou. Tente novamente.",
+      "doneTitle": "Cards promocionais prontos!",
+      "doneDesc": "{{count}} cards gerados.",
+      "resultsTitle": "Seus cards promocionais",
+      "cardAlt": "Card promocional {{style}} ({{size}})",
+      "assetLabel": "Card promocional — {{style}} ({{size}})",
+      "download": "Baixar",
+      "schedule": "Agendar",
+      "share": "Compartilhar",
+      "addToAssets": "Adicionar aos itens",
+      "addAll": "Adicionar tudo aos itens do lançamento",
+      "addedTitle": "Salvo no seu projeto",
+      "addedDesc": "{{count}} cards promocionais adicionados aos itens do seu lançamento.",
+      "captionLabel": "Legenda sugerida (editável)",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "historyTitle": "Seus cards promocionais",
+      "historyLoading": "Carregando seus cards…",
+      "historyFailed": "Não foi possível carregar seus cards promocionais.",
+      "historyRetry": "Tentar novamente",
+      "historyEmpty": "Nenhum card promocional ainda — gere seu primeiro pacote acima e ele ficará aqui.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "Abrir em tamanho real",
+      "historyDelete": "Excluir",
+      "historyConfirmDelete": "Excluir?",
+      "historyDeleted": "Card promocional excluído",
+      "historyDeleteFailed": "Não foi possível excluir esse card — tente novamente.",
+      "historyMoreNote": "Mostrando seus {{limit}} cards mais recentes."
+    }
   }
 }
