@@ -41,7 +41,7 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    expect(PALACE_STATIONS.length).toBe(30);
+    expect(PALACE_STATIONS.length).toBe(31);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -66,9 +66,10 @@ describe("the station registry", () => {
     }
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
-     * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24),
+     * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
+     * + the plaza monument's Kingdom Board (Open World Phase 1),
      * born world-native like the six — they never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(9);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(10);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -128,6 +129,7 @@ describe("the station registry", () => {
       "branding-kit-desk": "/branding-kit",
       "branding-shop-desk": "/branding-kit?tab=shop",
       "press-kit-desk": "/press-kit",
+      "kingdom-board-plaza": null,
       marketplace: "/storefronts",
       "community-hall": "/community",
       "promote-room": "/promote",
@@ -178,6 +180,37 @@ describe("the station registry", () => {
     expect(byId("post-office").roomId).toBe("world:kings-hall");
     expect(byId("marketplace").roomId).toBe("world:courtyard");
     expect(byId("get-paid-room").roomId).toBe("world:courtyard");
+  });
+
+  it("the plaza monument carries the Kingdom Board too (Open World Phase 1)", () => {
+    const hall = STATION_BY_ID.get("kingdom-board")!;
+    const plaza = STATION_BY_ID.get("kingdom-board-plaza")!;
+    expect(plaza.roomId).toBe("world:courtyard");
+    expect(plaza.name).toBe(hall.name);
+    /* The same panel id as the hall board — StationPanel dispatch
+     * on the id hands both stations the identical live board. */
+    expect(plaza.panel).toEqual(hall.panel);
+    expect(plaza.panel).toEqual({ kind: "custom", id: "kingdom-board" });
+    /* Guests may look, matching the hall board — and, like every
+     * custom, it never had a website page to transfer to. */
+    expect(plaza.membersOnly).toBe(false);
+    expect(plaza.websitePath).toBe(hall.websitePath);
+    /* The monument stands at (0, 19.7); the station point is its
+     * south face, where a walker stands to read it. */
+    expect(plaza.x).toBe(0);
+    expect(plaza.z).toBe(21.4);
+    /* The plaza census: the monument board plus the colonnade
+     * five, in registry order — nothing moved, nothing lost. */
+    expect(stationsInRoom("world:courtyard").map((s) => s.id)).toEqual([
+      "kingdom-board-plaza",
+      "marketplace",
+      "community-hall",
+      "promote-room",
+      "get-paid-room",
+      "creator-rooms",
+    ]);
+    /* Standing at the monument's south face offers the board. */
+    expect(nearestStation("world:courtyard", 0, 21.4)?.id).toBe("kingdom-board-plaza");
   });
 
   it("guests never reach the create desks — every create station is members-only (stack-20 round 2, #3/#4 gate)", () => {
