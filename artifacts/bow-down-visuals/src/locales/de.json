@@ -8053,103 +8053,193 @@
   },
   "podcast": {
     "episode": {
-      "descriptionPlaceholder": "Short description for your RSS feed (optional)",
+      "descriptionPlaceholder": "Kurzbeschreibung für deinen RSS-Feed (optional)",
       "title": "Episode",
-      "titlePlaceholder": "Episode title — e.g. “How I blew up on TikTok”"
+      "titlePlaceholder": "Episodentitel — z. B. „Wie ich auf TikTok durchgestartet bin“"
     },
     "errors": {
-      "coHostVoiceRequired": "Pick a co-host voice first.",
-      "copyFailed": "Couldn't copy to clipboard — use the download button instead.",
-      "generationFailed": "Podcast generation failed — try again.",
-      "hostVoiceRequired": "Pick a host voice first.",
-      "scriptRequired": "Paste your script first.",
-      "titleRequired": "Give your episode a title first.",
-      "topicRequired": "Give a topic first.",
-      "videoRequired": "Paste a video URL first.",
-      "voicesDifferent": "Host and co-host should be different voices."
+      "coHostVoiceRequired": "Wähle zuerst eine Co-Host-Stimme.",
+      "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen — nutze stattdessen den Download-Button.",
+      "generationFailed": "Podcast-Erstellung fehlgeschlagen — versuch es erneut.",
+      "hostVoiceRequired": "Wähle zuerst eine Host-Stimme.",
+      "scriptRequired": "Füge zuerst dein Skript ein.",
+      "titleRequired": "Gib deiner Episode zuerst einen Titel.",
+      "topicRequired": "Gib zuerst ein Thema an.",
+      "videoRequired": "Füge zuerst eine Video-URL ein.",
+      "voicesDifferent": "Host und Co-Host sollten unterschiedliche Stimmen haben."
     },
     "finishing": {
-      "musicBedLabel": "Intro / outro music bed",
-      "musicBedNote": "A generated ambient synth bed under the open and close — included free with the episode.",
-      "title": "Finishing touches"
+      "musicBedLabel": "Musikbett für Intro / Outro",
+      "musicBedNote": "Ein generiertes ambientes Synth-Bett unter Anfang und Schluss — kostenlos in der Episode enthalten.",
+      "title": "Der letzte Schliff"
     },
     "generate": {
-      "billedOnLength": "billed on actual audio length",
+      "billedOnLength": "abgerechnet nach tatsächlicher Audiolänge",
       "creditsEstimate": "{{credits}} Visual Bucs",
-      "featureName": "Generate Podcast",
-      "produceEpisode": "Produce episode",
-      "producing": "Producing your episode…",
-      "signIn": "Sign in",
-      "signInPrompt": "to produce episodes."
+      "featureName": "Podcast generieren",
+      "produceEpisode": "Episode produzieren",
+      "producing": "Deine Episode wird produziert…",
+      "signIn": "Anmelden",
+      "signInPrompt": "um Episoden zu produzieren."
     },
     "hero": {
-      "badge": "AI Podcast Studio",
-      "subtitle": "Script, topic, or video in — finished episode out. AI hosts, intro/outro music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.",
-      "titleAccent": "produced by AI",
-      "titleStart": "Your show,"
+      "badge": "Podcast-Studio",
+      "subtitle": "Skript, Thema oder Video rein — fertige Episode raus. KI-Hosts, Intro-/Outro-Musik, Kapitel und ein veröffentlichungsfertiger RSS-Feed. 300 Visual Bucs pro 10 Minuten.",
+      "titleAccent": "von KI produziert",
+      "titleStart": "Deine Show,"
     },
     "hosts": {
-      "coHostVoiceLabel": "Co-host voice",
+      "coHostVoiceLabel": "Co-Host-Stimme",
       "duo": "Duo",
-      "hostVoiceLabel": "Host voice",
-      "prefixHintAfter": "— or leave them off and paragraphs will alternate automatically.",
-      "prefixHintAnd": "and",
-      "prefixHintBefore": "Prefix script lines with",
-      "signIn": "Sign in",
-      "signInPrompt": "to browse the voice library.",
+      "hostVoiceLabel": "Host-Stimme",
+      "prefixHintAfter": "voran — oder lass sie weg, dann wechseln sich die Absätze automatisch ab.",
+      "prefixHintAnd": "und",
+      "prefixHintBefore": "Stelle den Skriptzeilen",
+      "signIn": "Anmelden",
+      "signInPrompt": "um die Stimmenbibliothek zu durchsuchen.",
       "solo": "Solo",
       "title": "Hosts"
     },
     "modes": {
-      "scriptBlurb": "You write it — AI voices read it.",
-      "scriptLabel": "Script",
-      "topicBlurb": "AI writes the script, then voices it.",
-      "topicLabel": "Topic",
-      "videoBlurb": "Extract your video's audio as the episode.",
-      "videoLabel": "Video"
+      "scriptBlurb": "Du schreibst es — KI-Stimmen lesen es vor.",
+      "scriptLabel": "Skript",
+      "topicBlurb": "Die KI schreibt das Skript und vertont es dann.",
+      "topicLabel": "Thema",
+      "videoBlurb": "Das Audio deines Videos als Episode extrahieren.",
+      "videoLabel": "Video",
+      "dialogueLabel": "Dialog",
+      "dialogueBlurb": "Gespräch mit mehreren Sprechern — eine KI-Stimme pro Figur."
     },
     "result": {
       "apple": "Apple Podcasts Connect",
-      "chapters": "Chapters",
-      "copied": "Copied",
-      "copyRss": "Copy RSS",
-      "creditsNote": "Used {{used}} Visual Bucs · {{remaining}} remaining.",
-      "downloadMp3": "Download MP3",
+      "chapters": "Kapitel",
+      "copied": "Kopiert",
+      "copyRss": "RSS kopieren",
+      "creditsNote": "{{used}} Visual Bucs verbraucht · {{remaining}} übrig.",
+      "downloadMp3": "MP3 herunterladen",
       "durationApprox": "~{{duration}}",
-      "empty": "Your finished episode lands here — MP3, chapters, and a publish-ready RSS feed.",
-      "hostWord_one": "host",
-      "hostWord_other": "hosts",
-      "musicBedTag": "· music bed",
-      "publishFeed": "Publish feed",
+      "empty": "Deine fertige Episode landet hier — MP3, Kapitel und ein veröffentlichungsfertiger RSS-Feed.",
+      "hostWord_one": "Host",
+      "hostWord_other": "Hosts",
+      "musicBedTag": "· Musikbett",
+      "publishFeed": "Feed veröffentlichen",
       "spotify": "Spotify for Podcasters",
-      "submitFeedAfter": "to go live.",
-      "submitFeedAnd": "and",
-      "submitFeedBefore": "Submit this feed to",
-      "title": "Your episode",
-      "viewScript": "View AI-written script"
+      "submitFeedAfter": "um live zu gehen.",
+      "submitFeedAnd": "und",
+      "submitFeedBefore": "Reiche diesen Feed ein bei",
+      "title": "Deine Episode",
+      "viewScript": "KI-Skript ansehen"
     },
     "script": {
       "creditsCost": "{{credits}} Visual Bucs",
       "durationApprox": "~{{duration}}",
-      "placeholder": "Paste your episode script…\n\nTips:\n• # Headings become chapter markers\n• Dual-host: prefix lines with HOST: / COHOST:",
-      "wordsCount_one": "{{count}} word",
-      "wordsCount_other": "{{count}} words"
+      "placeholder": "Füge hier das Skript deiner Episode ein…\n\nTipps:\n• # Überschriften werden zu Kapitelmarken\n• Zwei Hosts: Zeilen mit HOST: / COHOST: beginnen",
+      "wordsCount_one": "{{count}} Wort",
+      "wordsCount_other": "{{count}} Wörter"
     },
     "startFrom": {
-      "title": "Start from"
+      "title": "Starte mit"
     },
     "topic": {
-      "note": "AI writes an ~8–10 minute script for you (~{{credits}} Visual Bucs of audio). You can review the script after generation.",
-      "placeholder": "e.g. “5 monetization mistakes new creators make”"
+      "note": "Die KI schreibt ein ~8–10 Minuten langes Skript für dich (~{{credits}} Visual Bucs Audio). Du kannst das Skript nach der Erstellung prüfen.",
+      "placeholder": "z. B. „5 Monetarisierungsfehler, die neue Creator machen“"
     },
     "video": {
-      "note": "We extract your video's audio track and master it as the episode — your own recording, no AI voices. Billed on the actual audio length.",
-      "placeholder": "https://… — direct link to your video file"
+      "note": "Wir extrahieren die Audiospur deines Videos und mastern sie als Episode — deine eigene Aufnahme, keine KI-Stimmen. Abgerechnet wird nach der tatsächlichen Audiolänge.",
+      "placeholder": "https://… — direkter Link zu deiner Videodatei"
     },
     "voicePicker": {
-      "error": "Couldn't load voices — check your connection and refresh.",
-      "loading": "Loading voices…",
-      "previewAria": "Preview {{name}}"
+      "error": "Stimmen konnten nicht geladen werden — prüfe deine Verbindung und lade die Seite neu.",
+      "loading": "Stimmen werden geladen…",
+      "previewAria": "{{name}} anhören"
+    },
+    "guestQuestions": {
+      "tab": "Gastfragen",
+      "studioTab": "Podcast-Studio",
+      "form": {
+        "title": "Gastfragen",
+        "subtitle": "Gast und Thema eintragen — in Sekunden ein scharfes Fragenset auf Produzentenniveau. Recherche kommt nur aus dem, was du unten einfügst; wir durchsuchen niemals das Web.",
+        "guestNameLabel": "Name des Gastes",
+        "guestNamePh": "z. B. „Ada Rivers“",
+        "topicLabel": "Thema der Episode",
+        "topicPh": "z. B. „Eine Community von null aufbauen“",
+        "bioLabel": "Gastrecherche (optional — Bio, Links oder Notizen einfügen)",
+        "bioPh": "Füge hier Bio, Pressenotizen oder Linktexte ein. Wir arbeiten nur mit dem, was du einfügst — es wird nichts online nachgeschlagen.",
+        "honestyNote": "Keine erfundenen Fakten: Ohne eingefügte Recherche bleiben die Fragen auf Themenebene, damit du sie live anpassen kannst.",
+        "generate": "Fragen generieren",
+        "generating": "Dein Fragenset wird geschrieben…"
+      },
+      "sections": {
+        "warmup": "Aufwärmen",
+        "deepDive": "Vertiefung",
+        "rapidFire": "Schnellrunde",
+        "closer": "Abschluss",
+        "whyLabel": "Warum es wirkt"
+      },
+      "results": {
+        "forGuest": "Interviewfragen für {{guest}}",
+        "aboutTopic": "Thema: {{topic}}",
+        "questionsCount": "{{count}} Fragen",
+        "copyAll": "Alles kopieren",
+        "copied": "Kopiert",
+        "downloadTxt": ".txt herunterladen",
+        "creditsNote": "{{used}} Visual Bucs verbraucht · {{remaining}} übrig"
+      },
+      "chain": {
+        "title": "Die Interview-Kette",
+        "subtitle": "Jeder Schritt speist den nächsten — Vorbereitung → Interview → Veröffentlichung.",
+        "scriptWriter": "An den Skript-Autor senden",
+        "scriptWriterBlurb": "Macht aus diesen Fragen ein komplettes Interviewskript mit Teleprompter.",
+        "generateIntro": "Intro generieren",
+        "generateIntroBlurb": "Podcast-Intro-Voiceover + Musikbett, mit deinem Gast eingebaut.",
+        "afterInterview": "Nach dem Interview",
+        "afterInterviewBlurb": "Schreibe Shownotes aus deinem Transkript und schneide dann ein Audiogramm.",
+        "writeShowNotes": "Shownotes schreiben",
+        "makeAudiogram": "Audiogramm erstellen",
+        "introTaglinePh": "Tagline — z. B. „Die Show, in der Creator die Wahrheit sagen“",
+        "introPodcastName": "Podcast-Name",
+        "introHostName": "Host-Name",
+        "introStyle": "Musikstil",
+        "introGenerate": "Intro generieren · {{cost}} Visual Bucs",
+        "showNotesTitle": "Episodentitel",
+        "showNotesTranscript": "Transkript (oder unten eine Audio-URL einfügen)",
+        "showNotesAudioUrl": "Audio-URL (optional — wird transkribiert, wenn kein Transkript da ist)",
+        "showNotesContext": "Kontext (automatisch aus deiner Vorbereitung gefüllt)",
+        "showNotesGenerate": "Shownotes schreiben · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "Audio-URL (Episode oder Clip)",
+        "audiogramCoverUrl": "Cover-Art-URL",
+        "audiogramWaveColor": "Wellenfarbe",
+        "audiogramStyle": "Visualizer-Stil",
+        "audiogramGenerate": "Audiogramm erstellen · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "Trage zuerst den Namen deines Gastes ein.",
+        "topicRequired": "Verrate uns, worum es im Interview geht.",
+        "generationFailed": "Im Studio gab es einen Schluckauf — versuch es erneut.",
+        "copyFailed": "Kopieren nicht möglich — dein Browser hat es blockiert.",
+        "introNameRequired": "Trage zuerst deinen Podcast- und Host-Namen ein.",
+        "notesInputRequired": "Füge einen Episodentitel und ein Transkript oder eine Audio-URL hinzu.",
+        "audiogramInputRequired": "Füge eine Audio-URL und eine Cover-Art-URL hinzu."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "Stimmen pro Sprecher",
+      "scriptPlaceholder": "ALEX: Willkommen zurück zur Show.\nJORDAN: Danke für die Einladung!\n\nMarkiere jede Zeile mit einem Sprechernamen — jeder Sprecher bekommt seine eigene KI-Stimme.",
+      "scriptHint": "Markiere jede Zeile so:  NAME: deine Zeile hier.  Zeilen ohne Markierung werden übersprungen.",
+      "loadSample": "Beispieldialog laden",
+      "noSpeakersYet": "Markiere mindestens zwei Sprecher in deinem Skript (NAME: Zeile), um Stimmen zuzuweisen.",
+      "statsSpeakers": "{{count}} Sprecher",
+      "untaggedWarning": "{{count}} unmarkierte Zeile(n) werden übersprungen — markiere sie so:  NAME: Text.",
+      "disabledTitle": "Dialoge mit mehreren Sprechern kommen bald.",
+      "disabledPricing": "Es ist gebaut, aber der Preis ist noch nicht freigegeben — es wird hier freigeschaltet, sobald der Preis bestätigt ist. Es wird nichts berechnet.",
+      "disabledKey": "Der Stimmendienst ist auf diesem Server noch nicht verbunden — Dialoge werden automatisch freigeschaltet, sobald er es ist.",
+      "resultSpeakers": "{{count}} Sprecher",
+      "generateFeature": "Dialog generieren",
+      "errors": {
+        "twoSpeakers": "Ein Dialog braucht mindestens 2 markierte Sprecher — markiere Zeilen so:  ALEX: deine Zeile hier.",
+        "tooManySpeakers": "Dialoge unterstützen bis zu {{max}} Sprecher.",
+        "voiceFor": "Wähle zuerst eine Stimme für „{{name}}“."
+      }
     }
   },
   "presave": {
