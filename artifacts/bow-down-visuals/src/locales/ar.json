@@ -9397,6 +9397,175 @@
     "errorAttachFailed": "Attach failed",
     "errorDelete": "Delete failed"
   },
+  "hubSpine": {
+    "madeWith": "Made with Bow Down Visuals",
+    "attributionTitle": "Made with Bow Down Visuals",
+    "attributionDesc": "يرافق ائتمانك المشروع — كل تصدير ومشاركة من كل أداة يحمله معه. مفعّل افتراضيًا للتصديرات المجانية والمكافآت.",
+    "attributionOn": "الائتمان مفعّل",
+    "attributionOff": "الائتمان معطّل",
+    "songSavedTitle": "تم الحفظ في مشروعك",
+    "songSavedDesc": "أصبحت الكلمات والفكرة والصوت الآن في مشروعك المركزي — كل أداة بالأسفل تلتقطها تلقائيًا.",
+    "handoffs": {
+      "title": "إرسال إلى الخطوة التالية",
+      "subtitle": "نقرة واحدة تشغّل الأداة التالية على هذا العنصر. تصل النتيجة إلى مشروعك تلقائيًا.",
+      "copyShare": "نسخ رابط المشاركة",
+      "copyShareTitle": "نسخ رابط مشاركة الإحالة الخاص بك",
+      "copied": "تم النسخ!",
+      "copyFailedTitle": "تعذّر النسخ",
+      "preparing": "جارٍ التحضير…",
+      "working": "جارٍ تشغيل {{tool}}…",
+      "measuringAudio": "جارٍ قراءة مدة الصوت…",
+      "doneTitle": "تم!",
+      "doneDesc": "انتهى {{tool}} — تم الحفظ في مشروعك.",
+      "failed": "فشل الإنشاء. حاول مرة أخرى.",
+      "noOutput": "لم تُرجع الأداة أي نتيجة.",
+      "outOfCredits": "Visual Bucs غير كافية — اشحن لمواصلة الإنشاء.",
+      "openFull": "فتح بالحجم الكامل",
+      "resultLabel": "{{tool}} · {{source}}",
+      "karaokeNeedsLyricsTitle": "الكلمات مطلوبة",
+      "karaokeNeedsLyricsDesc": "أنشئ حزمة الأغنية أولًا حتى ترافق الكلمات المشروع.",
+      "audiogramNeedsCoverTitle": "صورة الغلاف مطلوبة",
+      "audiogramNeedsCoverDesc": "اصنع صورة الغلاف أولًا (صفحة صورة الغلاف) — تصل إلى مشروعك تلقائيًا.",
+      "karaoke": {
+        "label": "فيديو كاريوكي",
+        "blurb": "فيديو كلمات متزامن مع مقطوعتك · 300 VB"
+      },
+      "audiogram": {
+        "label": "أوديوجرام",
+        "blurb": "مصوّر موجات فوق صورة غلافك · 250 VB"
+      },
+      "loop": {
+        "label": "فيديو متكرر",
+        "blurb": "تكرار سلس ×3 مع تلاشٍ متقاطع · 150 VB"
+      },
+      "autoCaptions": {
+        "label": "ترجمة تلقائية",
+        "blurb": "ترجمة ذهبية متزامنة كلمة بكلمة ومحروقة في الفيديو · 300 VB"
+      },
+      "thumbnailAb": {
+        "label": "صور مصغّرة A/B",
+        "blurb": "3 نسخ بأنماط مختلفة للاختبار · 300 VB",
+        "variantLabel": "نسخة الصورة المصغّرة {{n}}"
+      },
+      "clipDescription": {
+        "label": "وصف المقطع",
+        "blurb": "وصف جاهز ليوتيوب + فصول · 50 VB",
+        "resultLabel": "وصف المقطع · {{topic}}"
+      },
+      "meme": {
+        "label": "ميم",
+        "blurb": "حوّل عملك الفني إلى ميم · 100 VB",
+        "topPlaceholder": "النص العلوي…",
+        "bottomPlaceholder": "النص السفلي…"
+      },
+      "socialKit": {
+        "label": "حزمة التواصل",
+        "blurb": "الملف الشخصي واللافتات وأغلفة المميزة · 400 VB",
+        "assetLabel": "عنصر حزمة التواصل {{n}}"
+      }
+    },
+    "thumbnailAb": {
+      "variantLabel": "النسخة {{n}}"
+    },
+    "clipDescription": {
+      "resultLabel": "الوصف · {{topic}}"
+    },
+    "flowBar": {
+      "useSongInVideo": "استخدام",
+      "useInEditor": "إضافة إلى المحرر",
+      "prefillTitle": "مملوء مسبقًا من مشروعك",
+      "songLoaded": "تم تحميل المقطوعة من مشروعك",
+      "clipAdded": "تمت إضافة المقطع إلى الخط الزمني للمحرر"
+    },
+    "videoStudio": {
+      "projectPromptApplied": "تم ملء التوجيه من فكرة الفيديو الموسيقي لمشروعك."
+    },
+    "socialKit": {
+      "title": "حزمة وسائل التواصل الاجتماعي",
+      "blurb": "حزمة علامة كاملة لحساباتك — صورة الملف الشخصي ولافتة يوتيوب وترويسة X وأغلفة قصص إنستغرام المميزة. مملوءة مسبقًا من مشروعك.",
+      "brandLabel": "اسم العلامة",
+      "brandPlaceholder": "مثال: Lil Nova",
+      "taglineLabel": "الشعار",
+      "taglinePlaceholder": "مثال: الحيلة السرية لصناعة المحتوى",
+      "styleGold": "فاخر ذهبي",
+      "styleNeon": "نيون بوب",
+      "styleMinimal": "بسيط",
+      "generate": "إنشاء الحزمة · 400 Visual Bucs",
+      "generating": "جارٍ بناء حزمتك…",
+      "costNote": "400 Visual Bucs — تُسترد تلقائيًا إذا فشل الإنشاء.",
+      "failed": "فشل إنشاء حزمة التواصل. حاول مرة أخرى.",
+      "doneTitle": "حزمة التواصل جاهزة!",
+      "doneDesc": "تم حفظ {{count}} من عناصر العلامة في مشروعك.",
+      "resultsTitle": "حزمة علامتك",
+      "assetLabel": "عنصر حزمة التواصل {{n}}",
+      "downloadAria": "تنزيل العنصر"
+    },
+    "promoCards": {
+      "title": "بطاقات ترويج الإصدار",
+      "priceBadge": "100 Visual Bucs / حزمة",
+      "blurb": "بطاقات اجتماعية ليوم الإصدار مصممة بالذكاء الاصطناعي — اختر نمطًا واحصل على أحجام المنصات الثلاثة (1:1 و9:16 و16:9) مع صورة غلافك وعنوان الإصدار وتعليق جاهز للنشر.",
+      "releaseLabel": "عنوان الإصدار",
+      "releasePlaceholder": "مثال: Midnight Gold",
+      "artistLabel": "اسم الفنان",
+      "artistPlaceholder": "مثال: Lil Nova",
+      "styleLabel": "نمط البطاقة",
+      "styles": {
+        "announcement": "إعلان",
+        "out-now": "متاح الآن",
+        "pre-save": "حفظ مسبق",
+        "milestone": "إنجاز"
+      },
+      "styleBlurb": {
+        "announcement": "شوّق للإصدار — طاقة «قادم قريبًا»",
+        "out-now": "بطاقة يوم الإصدار — يُبث في كل مكان",
+        "pre-save": "ادفع الحفظ المسبق قبل يوم الإصدار",
+        "milestone": "احتفل بالمشاهدات وانتصارات القوائم"
+      },
+      "milestoneLabel": "نص الإنجاز",
+      "sizesLabel": "أحجام المنصات",
+      "sizeHint": {
+        "1x1": "الخلاصة",
+        "9x16": "القصص / الريلز",
+        "16x9": "YouTube"
+      },
+      "coverLabel": "صورة الغلاف (من مشروعك)",
+      "coverNone": "لا توجد صورة غلاف — خلفية ذكاء اصطناعي فقط",
+      "coverPlaceholder": "الصق رابط صورة غلاف (اختياري)",
+      "coverPreview": "مؤطرة على كل بطاقة",
+      "attributionLabel": "تضمين الإسناد المصغّر “Made with Bow Down Visuals” (مجاني، يساعد البطاقات على الانتشار)",
+      "generate": "إنشاء الحزمة · 100 Visual Bucs",
+      "generating": "جارٍ تصميم بطاقاتك… (حوالي دقيقة)",
+      "costNote": "100 Visual Bucs لكل حزمة من 3 — تُسترد تلقائيًا إذا فشل الإنشاء.",
+      "failed": "فشل إنشاء البطاقات الترويجية. حاول مرة أخرى.",
+      "doneTitle": "البطاقات الترويجية جاهزة!",
+      "doneDesc": "تم إنشاء {{count}} بطاقات.",
+      "resultsTitle": "بطاقاتك الترويجية",
+      "cardAlt": "بطاقة ترويجية {{style}} ({{size}})",
+      "assetLabel": "بطاقة ترويجية — {{style}} ({{size}})",
+      "download": "تنزيل",
+      "schedule": "جدولة",
+      "share": "مشاركة",
+      "addToAssets": "إضافة إلى العناصر",
+      "addAll": "إضافة الكل إلى عناصر الإصدار",
+      "addedTitle": "تم الحفظ في مشروعك",
+      "addedDesc": "تمت إضافة {{count}} بطاقات ترويجية إلى عناصر إصدارك.",
+      "captionLabel": "تعليق مقترح (قابل للتحرير)",
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "historyTitle": "بطاقاتك الترويجية",
+      "historyLoading": "جارٍ تحميل بطاقاتك…",
+      "historyFailed": "تعذّر تحميل بطاقاتك الترويجية.",
+      "historyRetry": "إعادة المحاولة",
+      "historyEmpty": "لا توجد بطاقات ترويجية بعد — أنشئ حزمتك الأولى أعلاه وستعيش هنا.",
+      "historyForRelease": "{{title}} — {{artist}}",
+      "historyOpen": "فتح بالحجم الكامل",
+      "historyDelete": "حذف",
+      "historyConfirmDelete": "حذف؟",
+      "historyDeleted": "تم حذف البطاقة الترويجية",
+      "historyDeleteFailed": "تعذّر حذف تلك البطاقة — حاول مرة أخرى.",
+      "historyMoreNote": "عرض أحدث {{limit}} بطاقات لديك."
+    }
+  },
   "syncPitch": {
     "tabSync": "Sync Pitch Kit",
     "subTabOneSheet": "One-Sheets",
