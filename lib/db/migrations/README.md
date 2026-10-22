@@ -58,6 +58,23 @@ stack's whole block was renumbered +1 with `git mv`, contents byte-identical
 files are now `0182_promo_cards_brand_snapshot.sql` …
 `0203_social_proof.sql` in their original relative order. Next free: `0204`.
 
+## Inserted 2026-10-21 (production boot fix)
+
+Production's first boot of the promoted build died at
+`0065_hub_project_attribution.sql`: `hub_projects` does not exist there.
+Its creators (`0045_hub_projects.sql`, `0046_hub_project_concept.sql`) are
+<= BASELINE, so the runner skips them on set-up databases, and they never
+reached production in the manual era (staging got the table via the
+retired push). `artist_vaults` carries the same risk one step later
+(push-only until `0122`; unguarded ALTER at `0105`).
+
+Fix: `0063_foundation_tables_reapply.sql` recreates both tables with
+`IF NOT EXISTS` DDL (hub_projects = 0045 verbatim + 0046's columns;
+artist_vaults = 0122 verbatim). The 0063 slot has been free since the
+2026-10-07 renumber; the file is > BASELINE (so production's runner
+applies it), sorts before both first consumers (0065, 0105), is in no
+ledger, and is a harmless no-op on staging.
+
 ## What the runner does
 
 - `BASELINE = 55`: files `<= 0055` were applied manually before the runner
