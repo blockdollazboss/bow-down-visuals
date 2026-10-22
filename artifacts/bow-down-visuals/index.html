@@ -25,8 +25,35 @@
     <link rel="canonical" href="https://bowdownvisuals.com/" />
     <link rel="icon" type="image/gif" href="/favicon.gif" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preload" as="image" type="image/webp" href="/hero-bow-poster.webp" fetchpriority="high" />
-    <link rel="preload" as="image" type="image/webp" href="/hero-bow-sheet-0.webp" fetchpriority="high" />
+    <!-- Hero preloads are HOME-ONLY. The bow poster (53 KB) and sprite
+         sheet 0 (1.78 MB) are preloaded solely for the homepage hero
+         (CinematicHero); as static tags they were fetched on EVERY route —
+         all of them — for a hero that never renders there (measured,
+         Stack-21 lane 8). index.html is a single static document served
+         verbatim for every route (vite preview + the API server's sendFile
+         fallback), and the app has no per-route head mechanism, so the
+         smallest standard scoping is this parse-time script: it inserts the
+         exact same preload hints, at the exact same head position, only
+         when the document was loaded at "/" (or "/index.html", the
+         Capacitor webview's start page). Client-side route changes are
+         unaffected — BowTestLogo/CinematicHero fetch their own assets when
+         they mount, exactly as before. -->
+    <script>
+      (function () {
+        var p = window.location.pathname;
+        if (p !== "/" && p !== "/index.html") return;
+        var hrefs = ["/hero-bow-poster.webp", "/hero-bow-sheet-0.webp"];
+        for (var i = 0; i < hrefs.length; i++) {
+          var link = document.createElement("link");
+          link.setAttribute("rel", "preload");
+          link.setAttribute("as", "image");
+          link.setAttribute("type", "image/webp");
+          link.setAttribute("href", hrefs[i]);
+          link.setAttribute("fetchpriority", "high");
+          document.head.appendChild(link);
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..800;1,400..700&display=swap" rel="stylesheet">
