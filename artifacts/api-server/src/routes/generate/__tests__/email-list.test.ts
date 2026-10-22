@@ -216,3 +216,30 @@ describe("buildEmbedSnippet", () => {
     expect(html).toContain('type="email"');
   });
 });
+
+describe("unsubscribe page brand mark", () => {
+  /* The unsubscribe landing page renders its own header logo from
+     EMAIL_LOGO_URL — the same URL the email shell (lib/email.ts) serves.
+     That URL is the full illustrated lockup (public/logo-email.png), so
+     this header must present it the way the shell does — 240×240 and
+     square — never shrunk to 64×64 with rounded corners that clip the
+     lockup's banner text, and never the app icon. */
+  const src = fs.readFileSync(
+    path.join(__dirname, "..", "email-list.ts"),
+    "utf8"
+  );
+  const logoImgStart = src.indexOf("<img src=\"${EMAIL_LOGO_URL}\"");
+  const logoImg = src.slice(logoImgStart, src.indexOf(">", logoImgStart) + 1);
+
+  it("renders the email logo at the shell's size, square and unclipped", () => {
+    expect(logoImgStart).toBeGreaterThan(-1);
+    expect(logoImg).toContain('width="240" height="240"');
+    expect(logoImg).toContain("width:240px;height:240px;");
+    expect(logoImg).not.toContain("border-radius");
+    expect(logoImg).not.toContain("64px");
+  });
+
+  it("never renders the app icon as a logo anywhere in the route", () => {
+    expect(src).not.toMatch(/icon-\d+\.png/);
+  });
+});

@@ -230,7 +230,7 @@ router.get("/email-list/unsubscribe/:token", publicApiLimiter, async (req, res) 
       `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Unsubscribe — Bow Down Visuals</title></head>` +
         `<body style="margin:0;background:#0a0a0a;color:#eee;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;">` +
         `<div style="max-width:480px;margin:80px auto;padding:32px 24px;text-align:center;">` +
-        `<img src="${EMAIL_LOGO_URL}" alt="Thy Cheat Code — Bow Down Visuals" width="64" height="64" style="width:64px;height:64px;border-radius:14px;">` +
+        `<img src="${EMAIL_LOGO_URL}" alt="Bow Down Visuals — The Content Creator's Cheat Code" width="240" height="240" style="width:240px;height:240px;">` +
         (ok
           ? `<h1 style="color:#d4af37;font-size:20px;">You're unsubscribed</h1><p style="color:#aaa;line-height:1.6;">You won't get campaign or welcome emails from this list anymore.</p>`
           : `<h1 style="color:#d4af37;font-size:20px;">Link not recognized</h1><p style="color:#aaa;line-height:1.6;">This unsubscribe link is invalid or has expired.</p>`) +
