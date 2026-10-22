@@ -202,8 +202,12 @@ function detectQuality(): QualityTier {
 
 const QUALITY = {
   high: { pixelRatio: 2, reflectorSize: 1024, shadows: true, candleLights: true },
-  medium: { pixelRatio: 1.75, reflectorSize: 512, shadows: true, candleLights: true },
-  low: { pixelRatio: 1.5, reflectorSize: 0, shadows: false, candleLights: false },
+  /* Overhaul stage 3 (perf audit E2): the phone rung was 1.75 with
+   * MSAA always on — the most expensive default a tiled phone GPU
+   * can be handed. 1.5 keeps the picture crisp above native CSS
+   * pixels on most phones; low gets a genuine weak-hardware rung. */
+  medium: { pixelRatio: 1.5, reflectorSize: 512, shadows: true, candleLights: true },
+  low: { pixelRatio: 1.25, reflectorSize: 0, shadows: false, candleLights: false },
 } as const;
 
 /* ── Texture maps (public assets, lazy with the world chunk) ─────────
@@ -734,7 +738,23 @@ function buildCapsuleBody(tintHex: string): THREE.Group {
   );
   visor.position.set(0, 1.86, -0.19);
   body.add(visor);
+  // Grounding blob (overhaul stage 3, audit B5): every figure stands
+  // ON the floor, never floats over it — the capsule gets the same
+  // painted shadow the house figure wears.
+  body.add(floorBlob(1.0));
   return body;
+}
+
+/** The soft painted floor shadow every figure stands on. */
+function floorBlob(size: number): THREE.Mesh {
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.015;
+  shadow.renderOrder = 1;
+  return shadow;
 }
 
 /** Draw the portrait (cover-fit) plus — only when the landmarks found
@@ -870,6 +890,8 @@ function buildPortraitFigure(image: HTMLImageElement, mouth: MouthBox | null): B
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, PORTRAIT_BASE_Y - 0.02, 10), goldMat);
   post.position.y = (PORTRAIT_BASE_Y - 0.02) / 2 + 0.02;
   body.add(post);
+  // Grounding blob under the easel (overhaul stage 3, audit B5).
+  body.add(floorBlob(0.95));
 
   drawPortraitCanvas(portrait, 0);
   return { body, portrait };
@@ -1165,6 +1187,10 @@ export class KingsHallScene {
   private lookAnim: LookAnim = EMPTY_ANIM;
   private floorReflector: Reflector | null = null;
   private envTarget: THREE.WebGLRenderTarget | null = null;
+  /* The one directional (sun by day, moon by night), re-aimed per
+   * area by aimSun() — see buildLights. */
+  private sunLight: THREE.DirectionalLight | null = null;
+  private sunTarget: THREE.Object3D | null = null;
 
   constructor(private canvas: HTMLCanvasElement, theme: HallTheme = "dark") {
     this.quality = detectQuality();
@@ -1177,6 +1203,12 @@ export class KingsHallScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = q.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    /* Overhaul stage 3 (perf audit E4): every shadow caster in the
+     * palace is architecture — static — and figures ground with
+     * painted blobs, so the shadow map is rendered on demand
+     * (aimSun/applyLook set needsUpdate) instead of re-rendered
+     * every frame for a sun that never moves within an area. */
+    this.renderer.shadowMap.autoUpdate = false;
     this.renderer.xr.enabled = true;
     try {
       this.renderer.xr.setReferenceSpaceType("local");
@@ -1245,6 +1277,9 @@ export class KingsHallScene {
     this.buildLook(group, look);
     this.scene.add(group);
     this.lookGroup = group;
+    // Fresh lights + fog for the room we stand in (aimSun also
+    // requests the one shadow-map render the frozen map needs).
+    this.applyAreaAtmosphere();
   }
 
   private disposeLookGroup(group: THREE.Group): void {
@@ -1937,24 +1972,96 @@ export class KingsHallScene {
     house.position.set(0, 5.6, 2);
     group.add(house);
 
-    if (look.sun.present) {
-      const sun = new THREE.DirectionalLight(look.sun.color, look.sun.intensity);
+    /* The palace's ONE directional — sun by day, moon by night —
+     * re-aimed per area by aimSun() (overhaul stage 3, audit
+     * B1/B2/B3: the shipped build aimed it at the hall stage only,
+     * with a 40 m shadow box that never covered the plaza, and the
+     * dark look had no directional at all, so the night plaza had
+     * zero shadow-casting light). Always built; intensity decides
+     * whether it shines. aimSun() runs at the end of applyLook and
+     * on every room change, so the values set here are just the
+     * indoor starting aim. */
+    const sun = new THREE.DirectionalLight(look.sun.color, look.sun.present ? look.sun.intensity : 0);
+    sun.position.set(-13.5, 10.5, -1);
+    sun.target.position.set(7, 0, -5);
+    if (QUALITY[this.quality].shadows) {
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(this.quality === "high" ? 2048 : 1024, this.quality === "high" ? 2048 : 1024);
+      sun.shadow.camera.left = -20;
+      sun.shadow.camera.right = 20;
+      sun.shadow.camera.top = 20;
+      sun.shadow.camera.bottom = -20;
+      sun.shadow.camera.near = 1;
+      sun.shadow.camera.far = 45;
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.03;
+    }
+    group.add(sun);
+    group.add(sun.target);
+    this.sunLight = sun;
+    this.sunTarget = sun.target;
+  }
+
+  /** Aim the one directional + the fog for the area the visitor
+   *  stands in. Indoors: the standing hall rig (window sun by day,
+   *  dark at night, hall fog). On the plaza: a real sun over the
+   *  grounds by day (or cool moonlight at night) with a shadow
+   *  camera fitted to the plaza plan, and outdoor fog distances —
+   *  the hall's fog (dark 16–46 m) otherwise swallows the palace
+   *  from its own front door (audit C1). One light, re-aimed: no
+   *  second shadow pass, no spill into the hall. */
+  private aimSun(): void {
+    const sun = this.sunLight;
+    const tgt = this.sunTarget;
+    if (!sun || !tgt) return;
+    const look = hallLookFor(this.theme);
+    const cam = sun.shadow.camera;
+    if (this.currentRoom === COURTYARD_ID && look.sun.present) {
+      // Day on the plaza: sun high in the southern sky, so the
+      // palace facade and the monument throw real shadows.
+      sun.position.set(16, 25, 47);
+      tgt.position.set(0, 0, 20);
+      sun.color.set(look.sun.color);
+      sun.intensity = look.sun.intensity;
+      cam.left = -36; cam.right = 36; cam.top = 36; cam.bottom = -36;
+      cam.near = 1; cam.far = 120;
+    } else if (this.currentRoom === COURTYARD_ID) {
+      // Night on the plaza: moonlight — cool, dim, shadow-casting.
+      sun.position.set(-14, 27, 42);
+      tgt.position.set(0, 0, 20);
+      sun.color.set(0x93a7d4);
+      sun.intensity = 0.6;
+      cam.left = -36; cam.right = 36; cam.top = 36; cam.bottom = -36;
+      cam.near = 1; cam.far = 120;
+    } else {
       sun.position.set(-13.5, 10.5, -1);
-      sun.target.position.set(7, 0, -5);
-      if (QUALITY[this.quality].shadows) {
-        sun.castShadow = true;
-        sun.shadow.mapSize.set(this.quality === "high" ? 2048 : 1024, this.quality === "high" ? 2048 : 1024);
-        sun.shadow.camera.left = -20;
-        sun.shadow.camera.right = 20;
-        sun.shadow.camera.top = 20;
-        sun.shadow.camera.bottom = -20;
-        sun.shadow.camera.near = 1;
-        sun.shadow.camera.far = 45;
-        sun.shadow.bias = -0.0004;
-        sun.shadow.normalBias = 0.03;
-      }
-      group.add(sun);
-      group.add(sun.target);
+      tgt.position.set(7, 0, -5);
+      sun.color.set(look.sun.color);
+      sun.intensity = look.sun.present ? look.sun.intensity : 0;
+      cam.left = -20; cam.right = 20; cam.top = 20; cam.bottom = -20;
+      cam.near = 1; cam.far = 45;
+    }
+    cam.updateProjectionMatrix();
+    tgt.updateMatrixWorld();
+    // The casters are static per aim — one fresh shadow render.
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  /** Fog + sun for the current room, called whenever the room or
+   *  the look changes. Indoor fog stays exactly the look's; the
+   *  plaza gets distances that keep the palace legible from the
+   *  promenade (spawn sits ~19 m from the doors). */
+  private applyAreaAtmosphere(): void {
+    this.aimSun();
+    const fog = this.scene.fog;
+    if (!(fog instanceof THREE.Fog)) return;
+    const look = hallLookFor(this.theme);
+    if (this.currentRoom === COURTYARD_ID) {
+      fog.near = look.theme === "light" ? 48 : 34;
+      fog.far = look.theme === "light" ? 140 : 115;
+    } else {
+      fog.near = look.fogNear;
+      fog.far = look.fogFar;
     }
   }
 
@@ -2630,6 +2737,12 @@ export class KingsHallScene {
      * z 26 with no overlap. Same rough outdoor finish as before. */
     this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, 0.78, 7);
     this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, 0.78, 7);
+    /* The south-east patch (overhaul stage 3): east of the Creator
+     * Room's floor and south of the main grounds, the shipped plan
+     * laid NO floor at all — background void showed under the east
+     * lawn's edge. This rect abuts the creator floor (x 16.4) and
+     * the main grounds (z 26) without overlapping either. */
+    this.shellFloor(g, look, mats, { minX: 16.4, maxX: 28.2, minZ: 26.0, maxZ: 34.0 }, 0.78, 7);
 
     // Low marble walls with a gold cap on the open sides (the
     // fourth side is the hall's own back wall + the arch through
@@ -2819,6 +2932,13 @@ export class KingsHallScene {
         const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.18, 0.3, 18), bronze);
         bowl.position.y = 0.65;
         brazier.add(bowl);
+        /* Coals + halo, the hall braziers' full build (overhaul
+         * stage 3, audit D3: the courtyard set was a downgrade —
+         * flame sprite only, reading as a glow dot). */
+        const coals = new THREE.Mesh(new THREE.CircleGeometry(0.4, 20), new THREE.MeshBasicMaterial({ color: 0xff7a26 }));
+        coals.rotation.x = -Math.PI / 2;
+        coals.position.y = 0.79;
+        brazier.add(coals);
         const flame = new THREE.Sprite(new THREE.SpriteMaterial({
           map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         }));
@@ -2826,6 +2946,12 @@ export class KingsHallScene {
         flame.position.y = 1.18;
         brazier.add(flame);
         anim.flames.push({ sprite: flame, baseX: 0.6, baseY: 0.95, phase: Math.random() * 20 });
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: flameTexture(), transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending,
+        }));
+        glow.scale.set(1.7, 1.7, 1);
+        glow.position.y = 1.15;
+        brazier.add(glow);
         g.add(brazier);
         if (QUALITY[this.quality].candleLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
@@ -3448,6 +3574,7 @@ export class KingsHallScene {
         (isCreatorRoomId(this.currentRoom) || this.currentRoom === COURTYARD_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible;
     }
+    this.applyAreaAtmosphere();
   }
 
   /** Every peer figure out — a room change despawns the old room's

@@ -58,6 +58,12 @@ export interface PalaceRoomLayout {
    *  must touch or overlap `walk`, because a step may only pass
    *  through walkable ground. */
   grounds?: PalaceRect[];
+  /** Solid footprints inside the walkable ground — furniture and
+   *  monuments a body cannot pass through (overhaul stage 3: the
+   *  shipped plaza let walkers stroll straight through the Kingdom
+   *  Board monument's plinth). A point inside a blocked rect is
+   *  not walkable even when it stands in `walk`/`grounds`. */
+  blocked?: PalaceRect[];
   /** The room's physical interior (wall face to wall face) — the
    *  shell builder floors and ceilings to this. */
   interior: PalaceRect;
@@ -152,6 +158,11 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     name: "The King's Plaza",
     walk: { minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 },
     grounds: [{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }],
+    /* The Kingdom Board monument's plinth (3.55 m trim square at
+     * (0, 19.7)) is solid — its board station point stands on the
+     * plinth's south face (0, 21.4), still inside prompt radius of
+     * a walker stopped at the face. */
+    blocked: [{ minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 }],
     interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
     spawn: { x: 0, z: 31.5 },
@@ -357,9 +368,10 @@ export function pointInRect(x: number, z: number, r: PalaceRect): boolean {
 }
 
 /** Standing room: inside some room's walk rect (or its grounds),
- *  or in a doorway. */
+ *  or in a doorway — and never inside a solid footprint. */
 export function isWalkable(x: number, z: number): boolean {
   for (const room of allRooms()) {
+    if (room.blocked?.some((b) => pointInRect(x, z, b))) return false;
     if (pointInRect(x, z, room.walk)) return true;
     if (room.grounds?.some((g) => pointInRect(x, z, g))) return true;
   }
@@ -383,6 +395,7 @@ export function roomAt(x: number, z: number, fallback: string): string {
     }
   }
   for (const room of allRooms()) {
+    if (room.blocked?.some((b) => pointInRect(x, z, b))) continue;
     if (pointInRect(x, z, room.walk)) return room.id;
     if (room.grounds?.some((g) => pointInRect(x, z, g))) return room.id;
   }

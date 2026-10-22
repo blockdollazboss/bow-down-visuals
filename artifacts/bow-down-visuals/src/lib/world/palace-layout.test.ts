@@ -51,7 +51,7 @@ describe("walkability", () => {
     expect(isWalkable(-14.2, -2)).toBe(true); // inside the music doorway
     expect(isWalkable(-14.2, 1)).toBe(false); // the west wall, away from doors
     expect(isWalkable(-20, 3.3)).toBe(false); // the music/game shared wall
-    expect(isWalkable(0, 20)).toBe(true); // courtyard
+    expect(isWalkable(0, 24)).toBe(true); // courtyard, on the path south of the monument
     expect(isWalkable(0, -15)).toBe(false); // the stage is not floor
   });
 
@@ -133,11 +133,30 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     expect(roomAt(-24, 20, HALL_ROOM_ID)).toBe(COURTYARD_ID);
     expect(roomAt(0, 31.5, HALL_ROOM_ID)).toBe(COURTYARD_ID);
     /* A walk from the promenade up to the palace doors never
-     * crosses a room line — no doorway fires inside the grounds. */
-    const stroll = resolvePalaceMove({ x: 0, z: 31, room: COURTYARD_ID }, 0, 20);
+     * crosses a room line — no doorway fires inside the grounds.
+     * (The stroll's end stands south of the monument: the plinth
+     * itself is solid since the overhaul — see the next test.) */
+    const stroll = resolvePalaceMove({ x: 0, z: 31, room: COURTYARD_ID }, 0, 23.5);
     expect(stroll.room).toBe(COURTYARD_ID);
     expect(stroll.entered).toBeNull();
-    expect(stroll.z).toBe(20);
+    expect(stroll.z).toBe(23.5);
+  });
+
+  it("the Kingdom Board monument is solid — no walking through the plinth", () => {
+    /* Overhaul stage 3 (clipping fix): the monument's footprint is
+     * a blocked rect in the plaza's layout. */
+    expect(isWalkable(0, 19.7)).toBe(false); // the stele itself
+    expect(isWalkable(0, 21.4)).toBe(false); // the station point stands ON the plinth face
+    expect(isWalkable(0, 21.7)).toBe(true); // a walker's stance at the face — prompt radius reaches
+    /* A step aimed into the plinth stops dead (the bonk)… */
+    const bonk = resolvePalaceMove({ x: 0, z: 21.9, room: COURTYARD_ID }, 0, 21.3);
+    expect(bonk.x).toBe(0);
+    expect(bonk.z).toBe(21.9);
+    /* …and a diagonal step slides along its face like a wall. */
+    const slide = resolvePalaceMove({ x: 0.5, z: 22.5, room: COURTYARD_ID }, -0.5, 21.2);
+    expect(slide.x).toBe(-0.5);
+    expect(slide.z).toBe(22.5);
+    expect(slide.room).toBe(COURTYARD_ID);
   });
 
   it("the promenade stops at the creator wing's wall — the arch is the only way in", () => {
