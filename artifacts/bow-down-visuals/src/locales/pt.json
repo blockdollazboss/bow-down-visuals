@@ -827,7 +827,7 @@
     "ownerOnly": "Controles exclusivos do dono.",
     "notAuthorized": "Não autorizado.",
     "jackpot": {
-      "title": "Cheat Code Jackpot",
+      "title": "Jackpot Cheat Code",
       "description": "O jackpot se vira sozinho todo mês — o servidor cria o evento de cada mês com um novo código aleatório automaticamente. Use este painel para pausar um mês ou rodar um evento manual especial com um código à sua escolha (só o hash de um código manual é armazenado).",
       "errorMinMoves": "Toque pelo menos 4 direções no D-pad para definir o código.",
       "errorPrizeRange": "O prêmio deve ser entre 100 e 1,000,000 Visual Bucs.",
@@ -926,7 +926,119 @@
     "bowRaceLoadError": "Não foi possível carregar os dados da corrida de bows: {{reason}}",
     "networkError": "erro de rede",
     "errorSaveFailed": "Falha ao salvar.",
-    "bowRaceUpdated": "Corrida de bows atualizada."
+    "bowRaceUpdated": "Corrida de bows atualizada.",
+    "spotlight": {
+      "title": "Caixa de entrada do Spotlight",
+      "description": "Leads de anúncios takeover — revise cada consulta e mova-a pelo pipeline.",
+      "empty": "Ainda nenhuma consulta do Spotlight.",
+      "loadError": "Não foi possível carregar as consultas do Spotlight.",
+      "statusError": "Não foi possível atualizar o status da consulta.",
+      "videoLink": "Assistir ao vídeo",
+      "targetLink": "Link de destino",
+      "status": {
+        "new": "Novo",
+        "contacted": "Contatado",
+        "approved": "Aprovado",
+        "rejected": "Rejeitado"
+      }
+    },
+    "contact": {
+      "title": "Caixa de entrada de contato",
+      "description": "Mensagens do formulário de contato — as mais recentes primeiro.",
+      "empty": "Ainda nenhuma mensagem de contato.",
+      "loadError": "Não foi possível carregar as mensagens de contato.",
+      "statusError": "Não foi possível atualizar a mensagem.",
+      "markRead": "Marcar como lida",
+      "markUnread": "Marcar como não lida"
+    },
+    "dmca": {
+      "title": "Relatórios DMCA",
+      "description": "Relatórios de remoção por direitos autorais enviados pelo canal de denúncias do site — os mais recentes primeiro. Revise o relatório e depois leve-o a uma decisão.",
+      "empty": "Ainda nenhum relatório de remoção.",
+      "loadError": "Não foi possível carregar os relatórios de remoção.",
+      "statusError": "Não foi possível atualizar o status do relatório.",
+      "infringingLabel": "Links denunciados",
+      "originalsLabel": "Obra original",
+      "status": {
+        "new": "Novo",
+        "reviewing": "Em análise",
+        "actioned": "Tratado",
+        "dismissed": "Descartado"
+      }
+    },
+    "reports": {
+      "title": "Denúncias de conteúdo",
+      "description": "Denúncias que os membros fizeram sobre publicações, comentários e perfis — as mais recentes primeiro. Uma denúncia apenas coloca o conteúdo na fila de revisão; ela nunca oculta nem bane nada por si só.",
+      "empty": "Ainda nenhuma denúncia de conteúdo.",
+      "loadError": "Não foi possível carregar as denúncias de conteúdo.",
+      "statusError": "Não foi possível atualizar o status da denúncia.",
+      "reportedByLabel": "Denunciado por",
+      "contentByLabel": "Conteúdo de",
+      "unknownUser": "desconhecido",
+      "target": {
+        "post": "Publicação",
+        "comment": "Comentário",
+        "profile": "Perfil"
+      },
+      "status": {
+        "new": "Novo",
+        "reviewing": "Em análise",
+        "actioned": "Tratado",
+        "dismissed": "Descartado"
+      }
+    },
+    "removal": {
+      "title": "Remoção de conteúdo",
+      "description": "Remova uma publicação ou comentário pelo ID ou link — ou restaure um. Uma remoção oculta o conteúdo de todos, exceto do seu autor, que vê o motivo. Nada é excluído, e toda remoção pode ser desfeita.",
+      "inputPlaceholder": "ID da publicação ou do comentário, ou um link /post/…",
+      "lookupButton": "Consultar",
+      "lookupError": "Não foi possível consultar isso. Verifique o ID e tente novamente.",
+      "notFound": "Nenhuma publicação ou comentário com esse ID.",
+      "kindPost": "Publicação",
+      "kindComment": "Comentário",
+      "liveLabel": "Ao vivo",
+      "removedLabel": "Removido",
+      "removedBy": "Removido por {email}",
+      "reasonLabel": "Motivo — exibido ao autor",
+      "noteLabel": "Nota (opcional, apenas registro do admin)",
+      "notePlaceholder": "O que o registro deve dizer?",
+      "removeButton": "Remover conteúdo",
+      "restoreButton": "Restaurar conteúdo",
+      "reasonRequired": "Escolha primeiro um motivo — ele é exibido ao autor.",
+      "actionError": "Não foi possível atualizar esse conteúdo. Tente novamente.",
+      "recentTitle": "Removidos no momento",
+      "recentEmpty": "Nada está removido no momento.",
+      "recentLoadError": "Não foi possível carregar o registro de remoções.",
+      "reasons": {
+        "spam": "Spam",
+        "harassment": "Assédio",
+        "hate_speech": "Discurso de ódio",
+        "violence": "Violência ou ameaças",
+        "sexual_content": "Conteúdo sexual",
+        "copyright": "Direitos autorais",
+        "impersonation": "Falsidade ideológica",
+        "other": "Outra violação das regras"
+      }
+    },
+    "users": {
+      "title": "Gerenciamento de usuários",
+      "description": "Consulte um cliente pelo e-mail. Um banimento o bloqueia do site.",
+      "emailPlaceholder": "customer@email.com",
+      "lookupButton": "Consultar",
+      "lookupError": "A consulta falhou. Tente novamente.",
+      "notFound": "Nenhum usuário encontrado com esse e-mail.",
+      "plan": "Plano",
+      "credits": "Visual Bucs",
+      "since": "Cliente desde",
+      "userId": "ID do usuário",
+      "banned": "Banido",
+      "active": "Ativo",
+      "ban": "Banir usuário",
+      "unban": "Desbanir usuário",
+      "banConfirm": "Banir {email}? Ele será impedido de entrar.",
+      "unbanConfirm": "Desbanir {email}?",
+      "banError": "Não foi possível atualizar o status de banimento."
+    }
   },
   "analyticsHub": {
     "pageTitle": "Central de Análises — Painel Multiplataforma",
