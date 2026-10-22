@@ -105,8 +105,20 @@ const EN = CATALOGS.en!;
    carried 49 of 127 leaves, every one of them byte-identical English,
    and hi/it/ja/ko/pt had none of it (947 missing + 196 residue values)
    — now translated ×9 and pinned here. The namespace has no array
-   leaves, so the string checks below judge every leaf directly. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach"] as const;
+   leaves, so the string checks below judge every leaf directly.
+   "press-kit" came with the Stack-24 locale-parity-7 lane (Oct 22 2026):
+   the Press Kit Builder + Press Release Generator blocks (129 leaves)
+   existed only partially in ar/de/es/fr (70 leaves, every one of them
+   untranslated English; the layout, tabs and pressRelease blocks absent)
+   and not at all in hi/it/ja/ko/pt — all 129 are now translated ×9 and
+   pinned here. The three count families (generateKit, refreshBio,
+   pressRelease.generateRelease) keep their suffixed plural variants:
+   Arabic carries the full six-form CLDR sets (the generateKit/refreshBio
+   forms preserved verbatim from the plural-categories lane), and
+   es/fr/it/pt carry the _many form alongside _one/_other. The namespace
+   carries no array leaves, so the plain string checks below judge it
+   as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -168,11 +180,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill and the Stack-24 outreach fill (3319 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill and the Stack-24 press-kit fill (3448 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
-    expect(REQUIRED.length).toBe(3319);
+    expect(REQUIRED.length).toBe(3448);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -424,6 +436,121 @@ describe("outreach — no untranslated English residue", () => {
       for (const k of keys) {
         const fk = `outreach.${k}`;
         expect(cat[fk], `${locale} allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+});
+
+/* Legit-identical press-kit values per locale — keys whose correct value
+   in that language IS the en string, so the residue check below must not
+   flag them. Everything not listed here has to differ from en.
+   Shared by all nine: pdf (the universal format abbreviation);
+   placeholders.artistName "Thy Cheat Code" (the house artist's name —
+   a proper-noun example); placeholders.bookingEmail and
+   pressRelease.placeholders.contactEmail (example email addresses are
+   not translated); placeholders.handle "shark-king" (a URL-slug
+   example — slugs stay Latin); placeholders.url "https://…" (a URL
+   stub) and pressRelease.placeholders.contactPhone "555-0100" (a
+   fictional phone-number example).
+   - de: "Genre" (form.genre), "Tagline" (form.tagline) and "Website"
+     (form.website) are established anglicisms spelled identically in
+     German; sections.bio "Bio", pressRelease.optional "optional",
+     types.single "Single" and types.album "Album" are spelled
+     identically in German; placeholders.location is the US place-name
+     example, kept as written.
+   - es: sections.bio "Bio" and placeholders.genre "Hip-hop" are spelled
+     identically in Spanish; placeholders.location as for de.
+   - fr: form.genre "Genre", sections.bio "Bio", sections.photos
+     "Photos" and placeholders.source "Source…" are spelled identically
+     in French; types.single "Single" and types.album "Album" are
+     French music-industry usage; placeholders.genre/location as above.
+   - it: form.tagline "Tagline" and tabs.kit "Press Kit" are established
+     loanwords (cf. the playlistPitch it loanwords above); sections.bio
+     "Bio", types.album "Album" and types.tour "Tour" are spelled
+     identically in Italian; placeholders.genre/location as above.
+   - pt: sections.bio "Bio" is spelled identically in Portuguese;
+     types.single "Single" is the pt-BR music-industry loanword;
+     placeholders.genre/location as above.
+   - ko: form.socialUrl "{{platform}} URL" — Korean keeps the trailing
+     Latin "URL" after the noun (cf. artistVault.imageUrlPlaceholder
+     "이미지 URL (https://…)"). */
+const PRESSKIT_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
+  ar: ["pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url", "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone"],
+  de: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "form.genre", "form.tagline", "form.website", "sections.bio", "placeholders.location",
+    "pressRelease.optional", "pressRelease.types.single", "pressRelease.types.album",
+  ],
+  es: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "sections.bio", "placeholders.genre", "placeholders.location",
+  ],
+  fr: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "form.genre", "sections.bio", "sections.photos", "placeholders.genre", "placeholders.location",
+    "placeholders.source", "pressRelease.types.single", "pressRelease.types.album",
+  ],
+  hi: ["pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url", "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone"],
+  it: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "form.tagline", "sections.bio", "tabs.kit", "placeholders.genre", "placeholders.location",
+    "pressRelease.types.album", "pressRelease.types.tour",
+  ],
+  ja: ["pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url", "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone"],
+  ko: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "form.socialUrl",
+  ],
+  pt: [
+    "pdf", "placeholders.artistName", "placeholders.bookingEmail", "placeholders.handle", "placeholders.url",
+    "pressRelease.placeholders.contactEmail", "pressRelease.placeholders.contactPhone",
+    "sections.bio", "placeholders.genre", "placeholders.location", "pressRelease.types.single",
+  ],
+};
+
+describe("press-kit — no untranslated English residue", () => {
+  const NON_EN = ALL.filter((l) => l !== "en");
+  const PK_KEYS = Object.keys(EN).filter((k) => k.startsWith("press-kit."));
+
+  it.each(NON_EN)("%s press-kit values differ from en outside the allowlist", (locale) => {
+    const cat = CATALOGS[locale]!;
+    const allow = new Set((PRESSKIT_RESIDUE_ALLOWLIST[locale] ?? []).map((k) => `press-kit.${k}`));
+    const residue = PK_KEYS.filter((k) => k in cat && cat[k] === EN[k] && !allow.has(k));
+    expect(
+      residue,
+      `${locale} has untranslated press-kit values: ${residue.slice(0, 10).join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("the press-kit residue allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const [locale, keys] of Object.entries(PRESSKIT_RESIDUE_ALLOWLIST)) {
+      const cat = CATALOGS[locale]!;
+      for (const k of keys) {
+        const fk = `press-kit.${k}`;
+        expect(cat[fk], `${locale} press-kit allowlist entry ${fk} no longer matches en — drop it`).toBe(EN[fk]);
+      }
+    }
+  });
+
+  it("ar carries the full six-form CLDR sets for the three press-kit count families", () => {
+    const cat = CATALOGS.ar!;
+    for (const fam of ["press-kit.generateKit", "press-kit.refreshBio", "press-kit.pressRelease.generateRelease"]) {
+      for (const form of ["zero", "one", "two", "few", "many", "other"]) {
+        expect(typeof cat[`${fam}_${form}`], `ar missing ${fam}_${form}`).toBe("string");
+      }
+    }
+  });
+
+  it("es/fr/it/pt carry the _many form for the three press-kit count families", () => {
+    for (const locale of ["es", "fr", "it", "pt"] as const) {
+      const cat = CATALOGS[locale]!;
+      for (const fam of ["press-kit.generateKit", "press-kit.refreshBio", "press-kit.pressRelease.generateRelease"]) {
+        expect(typeof cat[`${fam}_many`], `${locale} missing ${fam}_many`).toBe("string");
       }
     }
   });
