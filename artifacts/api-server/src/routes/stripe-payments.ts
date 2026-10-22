@@ -4,7 +4,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { fulfillCreditPurchase } from "../lib/payment-record";
-import { countCompletedCreditPurchases, getPaymentHistory } from "../lib/payment-record";
+import { countCompletedCreditPurchases, getPaymentHistory, getStripePaymentStatus } from "../lib/payment-record";
 import {
   buildCheckoutSessionIdempotencyKey,
   createGuardedStripeClient,
@@ -247,9 +247,27 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     );
     res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
   } catch (err: unknown) {
-    const msg = (err as { message?: string })?.message ?? "unknown";
-    logger.error({ err, msg, userId: req.userId }, "checkout/verify: credit grant failed");
-    res.status(500).json({ error: `Credits verified but could not be applied: ${msg}` });
+    logger.error({ err, userId: req.userId }, "checkout/verify: credit grant failed");
+    /* Reconcile before answering (D6): the webhook may have completed
+       this payment while our grant attempt failed — "completed" is only
+       set after credits land, so report the granted state, never a
+       failure the member didn't have. When the grant genuinely hasn't
+       landed, say exactly that much truth: the payment went through
+       (the session was verified paid above) and the grant is still
+       pending — the row is marked failed/processing and the webhook's
+       Stripe retries or a later verify reclaim and complete it. Never
+       quote the internal error to the member. */
+    const status = await getStripePaymentStatus(sessionId).catch(() => null);
+    if (status === "completed") {
+      logger.info({ sessionId, userId: req.userId }, "checkout/verify: grant failed locally but payment already completed elsewhere");
+      res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
+      return;
+    }
+    res.status(500).json({
+      error:
+        "Your payment went through, but your Visual Bucs are still being applied. " +
+        "They should appear within a few minutes — refresh your balance, and if they're still missing, contact support.",
+    });
   }
 });
 
