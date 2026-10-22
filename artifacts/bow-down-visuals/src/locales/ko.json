@@ -7725,6 +7725,197 @@
     "websiteVersionMeta": "버전 {{version}} · 파일 {{count}}개",
     "failedOpenHubProject": "허브 프로젝트를 열지 못했습니다. 다시 시도해 주세요."
   },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "RSS 피드용 짧은 설명 (선택 사항)",
+      "title": "에피소드",
+      "titlePlaceholder": "에피소드 제목 — 예: “TikTok에서 뜬 방법”"
+    },
+    "errors": {
+      "coHostVoiceRequired": "먼저 공동 진행자 목소리를 선택하세요.",
+      "copyFailed": "클립보드에 복사하지 못했습니다 — 대신 다운로드 버튼을 사용하세요.",
+      "generationFailed": "팟캐스트 생성에 실패했습니다 — 다시 시도하세요.",
+      "hostVoiceRequired": "먼저 진행자 목소리를 선택하세요.",
+      "scriptRequired": "먼저 대본을 붙여넣으세요.",
+      "titleRequired": "먼저 에피소드에 제목을 붙이세요.",
+      "topicRequired": "먼저 주제를 입력하세요.",
+      "videoRequired": "먼저 동영상 URL을 붙여넣으세요.",
+      "voicesDifferent": "진행자와 공동 진행자는 서로 다른 목소리여야 합니다."
+    },
+    "finishing": {
+      "musicBedLabel": "인트로 / 아웃트로 음악 베드",
+      "musicBedNote": "오프닝과 클로징 아래에 생성되는 앰비언트 신스 베드 — 에피소드에 무료로 포함됩니다.",
+      "title": "마무리 터치"
+    },
+    "generate": {
+      "billedOnLength": "실제 오디오 길이를 기준으로 청구됩니다",
+      "creditsEstimate": "{{credits}} Visual Bucs",
+      "featureName": "팟캐스트 생성",
+      "produceEpisode": "에피소드 제작",
+      "producing": "에피소드를 제작하는 중…",
+      "signIn": "로그인",
+      "signInPrompt": "하면 에피소드를 제작할 수 있습니다."
+    },
+    "hero": {
+      "badge": "팟캐스트 스튜디오",
+      "subtitle": "대본, 주제 또는 동영상을 넣으면 — 완성된 에피소드가 나옵니다. AI 진행자, 인트로/아웃트로 음악, 챕터, 게시 가능한 RSS 피드. 10분당 300 Visual Bucs.",
+      "titleAccent": "AI가 제작합니다",
+      "titleStart": "당신의 쇼를,"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "공동 진행자 목소리",
+      "duo": "듀오",
+      "hostVoiceLabel": "진행자 목소리",
+      "prefixHintAfter": "를 붙이세요. 붙이지 않으면 단락이 자동으로 번갈아 진행됩니다.",
+      "prefixHintAnd": "와",
+      "prefixHintBefore": "대본 줄 앞에",
+      "signIn": "로그인",
+      "signInPrompt": "하면 음성 라이브러리를 둘러볼 수 있습니다.",
+      "solo": "솔로",
+      "title": "진행자"
+    },
+    "modes": {
+      "scriptBlurb": "당신이 쓰면 — AI 목소리가 읽습니다.",
+      "scriptLabel": "대본",
+      "topicBlurb": "AI가 대본을 쓰고, 그 다음 목소리를 입힙니다.",
+      "topicLabel": "주제",
+      "videoBlurb": "동영상의 오디오를 에피소드로 추출하세요.",
+      "videoLabel": "동영상",
+      "dialogueLabel": "대화",
+      "dialogueBlurb": "여러 화자의 대화 — 캐릭터마다 하나의 AI 목소리."
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "챕터",
+      "copied": "복사됨",
+      "copyRss": "RSS 복사",
+      "creditsNote": "{{used}} Visual Bucs 사용 · {{remaining}} 남음.",
+      "downloadMp3": "MP3 다운로드",
+      "durationApprox": "~{{duration}}",
+      "empty": "완성된 에피소드가 여기에 도착합니다 — MP3, 챕터, 게시 가능한 RSS 피드.",
+      "hostWord_one": "진행자",
+      "hostWord_other": "진행자",
+      "musicBedTag": "· 음악 베드",
+      "publishFeed": "피드 게시",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "에 제출해 공개하세요.",
+      "submitFeedAnd": "와",
+      "submitFeedBefore": "이 피드를",
+      "title": "내 에피소드",
+      "viewScript": "AI가 쓴 대본 보기"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "에피소드 대본을 붙여넣으세요…\n\n팁:\n• # 제목은 챕터 마커가 됩니다\n• 진행자 2명: 줄 앞에 HOST: / COHOST: 를 붙이세요",
+      "wordsCount_one": "{{count}} 단어",
+      "wordsCount_other": "{{count}} 단어"
+    },
+    "startFrom": {
+      "title": "시작 방식"
+    },
+    "topic": {
+      "note": "AI가 약 8~10분 분량의 대본을 써 드립니다 (약 {{credits}} Visual Bucs 분량의 오디오). 생성 후 대본을 검토할 수 있습니다.",
+      "placeholder": "예: “새 크리에이터가 흔히 하는 수익화 실수 5가지”"
+    },
+    "video": {
+      "note": "동영상의 오디오 트랙을 추출해 에피소드로 마스터링합니다 — 본인의 녹음이며 AI 목소리는 없습니다. 실제 오디오 길이를 기준으로 청구됩니다.",
+      "placeholder": "https://… — 동영상 파일로의 직접 링크"
+    },
+    "voicePicker": {
+      "error": "목소리를 불러오지 못했습니다 — 연결을 확인하고 새로고침하세요.",
+      "loading": "목소리를 불러오는 중…",
+      "previewAria": "{{name}} 미리 듣기"
+    },
+    "guestQuestions": {
+      "tab": "게스트 질문",
+      "studioTab": "팟캐스트 스튜디오",
+      "form": {
+        "title": "게스트 질문",
+        "subtitle": "게스트와 주제를 넣으면 — 몇 초 만에 프로듀서급으로 날카로운 질문 세트를 받습니다. 리서치는 아래에 붙여넣은 내용에서만 가져오며, 웹은 절대 탐색하지 않습니다.",
+        "guestNameLabel": "게스트 이름",
+        "guestNamePh": "예: “Ada Rivers”",
+        "topicLabel": "에피소드 주제",
+        "topicPh": "예: “제로에서 청중 만들기”",
+        "bioLabel": "게스트 리서치 (선택 사항 — 소개, 링크, 노트를 붙여넣으세요)",
+        "bioPh": "소개, 보도 자료, 링크 텍스트를 여기에 붙여넣으세요. 붙여넣은 내용만 사용하며 — 온라인에서 아무것도 찾지 않습니다.",
+        "honestyNote": "지어낸 사실은 없습니다: 붙여넣은 리서치가 없으면 질문은 주제 수준에 머물러, 방송 중 바로 적응할 수 있습니다.",
+        "generate": "질문 생성",
+        "generating": "질문 세트를 작성하는 중…"
+      },
+      "sections": {
+        "warmup": "워밍업",
+        "deepDive": "심층 탐구",
+        "rapidFire": "속전속결",
+        "closer": "마무리",
+        "whyLabel": "효과적인 이유"
+      },
+      "results": {
+        "forGuest": "{{guest}} 님 인터뷰 질문",
+        "aboutTopic": "주제: {{topic}}",
+        "questionsCount": "질문 {{count}}개",
+        "copyAll": "모두 복사",
+        "copied": "복사됨",
+        "downloadTxt": ".txt 다운로드",
+        "creditsNote": "{{used}} Visual Bucs 사용 · {{remaining}} 남음"
+      },
+      "chain": {
+        "title": "인터뷰 체인",
+        "subtitle": "각 단계가 다음 단계로 이어집니다 — 준비 → 인터뷰 → 게시.",
+        "scriptWriter": "대본 작가에게 보내기",
+        "scriptWriterBlurb": "이 질문들을 텔레프롬프터가 포함된 완전한 인터뷰 대본으로 바꿉니다.",
+        "generateIntro": "인트로 생성",
+        "generateIntroBlurb": "게스트가 포함된 팟캐스트 인트로 보이스오버 + 음악 베드.",
+        "afterInterview": "인터뷰 이후",
+        "afterInterviewBlurb": "전사본으로 쇼 노트를 쓰고, 오디오그램을 자르세요.",
+        "writeShowNotes": "쇼 노트 쓰기",
+        "makeAudiogram": "오디오그램 만들기",
+        "introTaglinePh": "태그라인 — 예: “크리에이터가 진실을 말하는 쇼”",
+        "introPodcastName": "팟캐스트 이름",
+        "introHostName": "진행자 이름",
+        "introStyle": "음악 스타일",
+        "introGenerate": "인트로 생성 · {{cost}} Visual Bucs",
+        "showNotesTitle": "에피소드 제목",
+        "showNotesTranscript": "전사본 (또는 아래에 오디오 URL 붙여넣기)",
+        "showNotesAudioUrl": "오디오 URL (선택 사항 — 전사본이 없으면 전사합니다)",
+        "showNotesContext": "맥락 (준비 내용에서 자동 입력됨)",
+        "showNotesGenerate": "쇼 노트 쓰기 · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "오디오 URL (에피소드 또는 클립)",
+        "audiogramCoverUrl": "커버 아트 URL",
+        "audiogramWaveColor": "파형 색상",
+        "audiogramStyle": "비주얼라이저 스타일",
+        "audiogramGenerate": "오디오그램 만들기 · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "먼저 게스트 이름을 추가하세요.",
+        "topicRequired": "인터뷰가 무엇에 대한 것인지 알려주세요.",
+        "generationFailed": "스튜디오에 문제가 생겼습니다 — 다시 시도하세요.",
+        "copyFailed": "복사할 수 없습니다 — 브라우저가 차단했습니다.",
+        "introNameRequired": "먼저 팟캐스트 이름과 진행자 이름을 추가하세요.",
+        "notesInputRequired": "에피소드 제목과 전사본 또는 오디오 URL을 추가하세요.",
+        "audiogramInputRequired": "오디오 URL과 커버 아트 URL을 추가하세요."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "화자별 목소리",
+      "scriptPlaceholder": "ALEX: 쇼에 다시 오신 것을 환영합니다.\nJORDAN: 초대해 주셔서 감사합니다!\n\n각 줄에 화자 이름 태그를 붙이세요 — 화자마다 전용 AI 목소리가 배정됩니다.",
+      "scriptHint": "각 줄을 이렇게 태그하세요:  NAME: 여기에 대사.  태그가 없는 줄은 건너뜁니다.",
+      "loadSample": "샘플 대화 불러오기",
+      "noSpeakersYet": "목소리를 배정하려면 대본에서 최소 두 명의 화자에게 태그를 붙이세요 (NAME: 대사).",
+      "statsSpeakers": "화자 {{count}}명",
+      "untaggedWarning": "태그 없는 줄 {{count}}개는 건너뜁니다 — 이렇게 태그하세요:  NAME: 텍스트.",
+      "disabledTitle": "여러 화자 대화가 곧 출시됩니다.",
+      "disabledPricing": "구현은 완료됐지만 가격이 아직 승인되지 않았습니다 — 가격이 확정되면 여기서 열립니다. 요금은 부과되지 않습니다.",
+      "disabledKey": "이 서버에는 음성 서비스가 아직 연결되지 않았습니다 — 연결되면 대화가 자동으로 열립니다.",
+      "resultSpeakers": "화자 {{count}}명",
+      "generateFeature": "대화 생성",
+      "errors": {
+        "twoSpeakers": "대화에는 태그된 화자가 최소 2명 필요합니다 — 줄을 이렇게 태그하세요:  ALEX: 여기에 대사.",
+        "tooManySpeakers": "대화는 최대 {{max}}명의 화자를 지원합니다.",
+        "voiceFor": "먼저 “{{name}}”의 목소리를 선택하세요."
+      }
+    }
+  },
   "presave": {
     "tracklistTitle": "트랙 목록"
   },

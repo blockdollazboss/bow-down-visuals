@@ -7725,6 +7725,197 @@
     "websiteVersionMeta": "संस्करण {{version}} · {{count}} फ़ाइलें",
     "failedOpenHubProject": "हब प्रोजेक्ट खोला नहीं जा सका. कृपया फिर कोशिश करें."
   },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "आपके RSS फ़ीड के लिए छोटा विवरण (वैकल्पिक)",
+      "title": "एपिसोड",
+      "titlePlaceholder": "एपिसोड शीर्षक — जैसे “मैं TikTok पर कैसे छा गया”"
+    },
+    "errors": {
+      "coHostVoiceRequired": "पहले सह-मेज़बान की आवाज़ चुनें।",
+      "copyFailed": "क्लिपबोर्ड पर कॉपी नहीं हो सका — इसके बजाय डाउनलोड बटन का उपयोग करें।",
+      "generationFailed": "पॉडकास्ट बनाना विफल — फिर से प्रयास करें।",
+      "hostVoiceRequired": "पहले मेज़बान की आवाज़ चुनें।",
+      "scriptRequired": "पहले अपनी स्क्रिप्ट चिपकाएँ।",
+      "titleRequired": "पहले अपने एपिसोड को शीर्षक दें।",
+      "topicRequired": "पहले कोई विषय दें।",
+      "videoRequired": "पहले वीडियो URL चिपकाएँ।",
+      "voicesDifferent": "मेज़बान और सह-मेज़बान की आवाज़ें अलग-अलग होनी चाहिए।"
+    },
+    "finishing": {
+      "musicBedLabel": "इंट्रो / आउट्रो संगीत बेड",
+      "musicBedNote": "शुरुआत और अंत के नीचे बना एक एम्बिएंट सिंथ बेड — एपिसोड के साथ मुफ़्त शामिल।",
+      "title": "अंतिम स्पर्श"
+    },
+    "generate": {
+      "billedOnLength": "वास्तविक ऑडियो लंबाई पर शुल्क लगता है",
+      "creditsEstimate": "{{credits}} Visual Bucs",
+      "featureName": "पॉडकास्ट बनाएँ",
+      "produceEpisode": "एपिसोड बनाएँ",
+      "producing": "आपका एपिसोड बनाया जा रहा है…",
+      "signIn": "साइन इन करें",
+      "signInPrompt": "एपिसोड बनाने के लिए।"
+    },
+    "hero": {
+      "badge": "पॉडकास्ट स्टूडियो",
+      "subtitle": "स्क्रिप्ट, विषय या वीडियो अंदर — तैयार एपिसोड बाहर। AI मेज़बान, इंट्रो/आउट्रो संगीत, अध्याय और प्रकाशित करने योग्य RSS फ़ीड। हर 10 मिनट पर 300 Visual Bucs।",
+      "titleAccent": "AI द्वारा निर्मित",
+      "titleStart": "आपका शो,"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "सह-मेज़बान की आवाज़",
+      "duo": "जोड़ी",
+      "hostVoiceLabel": "मेज़बान की आवाज़",
+      "prefixHintAfter": "— या उन्हें छोड़ दें और पैराग्राफ़ अपने आप बारी-बारी आएँगे।",
+      "prefixHintAnd": "और",
+      "prefixHintBefore": "स्क्रिप्ट की पंक्तियों की शुरुआत इससे करें",
+      "signIn": "साइन इन करें",
+      "signInPrompt": "आवाज़ लाइब्रेरी देखने के लिए।",
+      "solo": "एकल",
+      "title": "मेज़बान"
+    },
+    "modes": {
+      "scriptBlurb": "आप लिखते हैं — AI आवाज़ें पढ़ती हैं।",
+      "scriptLabel": "स्क्रिप्ट",
+      "topicBlurb": "AI स्क्रिप्ट लिखता है, फिर उसे आवाज़ देता है।",
+      "topicLabel": "विषय",
+      "videoBlurb": "अपने वीडियो के ऑडियो को एपिसोड के रूप में निकालें।",
+      "videoLabel": "वीडियो",
+      "dialogueLabel": "संवाद",
+      "dialogueBlurb": "कई वक्ताओं की बातचीत — हर किरदार के लिए एक AI आवाज़।"
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "अध्याय",
+      "copied": "कॉपी हो गया",
+      "copyRss": "RSS कॉपी करें",
+      "creditsNote": "{{used}} Visual Bucs उपयोग हुए · {{remaining}} शेष।",
+      "downloadMp3": "MP3 डाउनलोड करें",
+      "durationApprox": "~{{duration}}",
+      "empty": "आपका तैयार एपिसोड यहाँ आएगा — MP3, अध्याय और प्रकाशित करने योग्य RSS फ़ीड।",
+      "hostWord_one": "मेज़बान",
+      "hostWord_other": "मेज़बान",
+      "musicBedTag": "· संगीत बेड",
+      "publishFeed": "फ़ीड प्रकाशित करें",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "लाइव होने के लिए।",
+      "submitFeedAnd": "और",
+      "submitFeedBefore": "इस फ़ीड को यहाँ सबमिट करें",
+      "title": "आपका एपिसोड",
+      "viewScript": "AI द्वारा लिखी स्क्रिप्ट देखें"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "अपने एपिसोड की स्क्रिप्ट चिपकाएँ…\n\nसुझाव:\n• # शीर्षक अध्याय मार्कर बन जाते हैं\n• दो मेज़बान: पंक्तियों की शुरुआत HOST: / COHOST: से करें",
+      "wordsCount_one": "{{count}} शब्द",
+      "wordsCount_other": "{{count}} शब्द"
+    },
+    "startFrom": {
+      "title": "यहाँ से शुरू करें"
+    },
+    "topic": {
+      "note": "AI आपके लिए ~8–10 मिनट की स्क्रिप्ट लिखता है (~{{credits}} Visual Bucs का ऑडियो)। बनाने के बाद आप स्क्रिप्ट की समीक्षा कर सकते हैं।",
+      "placeholder": "जैसे “5 कमाई की गलतियाँ जो नए क्रिएटर करते हैं”"
+    },
+    "video": {
+      "note": "हम आपके वीडियो का ऑडियो ट्रैक निकालकर उसे एपिसोड के रूप में मास्टर करते हैं — आपकी अपनी रिकॉर्डिंग, कोई AI आवाज़ नहीं। शुल्क वास्तविक ऑडियो लंबाई पर लगता है।",
+      "placeholder": "https://… — आपकी वीडियो फ़ाइल का सीधा लिंक"
+    },
+    "voicePicker": {
+      "error": "आवाज़ें लोड नहीं हो सकीं — अपना कनेक्शन जांचें और रीफ़्रेश करें।",
+      "loading": "आवाज़ें लोड हो रही हैं…",
+      "previewAria": "{{name}} की झलक सुनें"
+    },
+    "guestQuestions": {
+      "tab": "अतिथि प्रश्न",
+      "studioTab": "पॉडकास्ट स्टूडियो",
+      "form": {
+        "title": "अतिथि प्रश्न",
+        "subtitle": "अपने अतिथि और विषय डालें — सेकंडों में निर्माता-स्तर का धारदार प्रश्न-सेट पाएँ। शोध केवल उसी से आता है जो आप नीचे चिपकाते हैं; हम कभी वेब नहीं खंगालते।",
+        "guestNameLabel": "अतिथि का नाम",
+        "guestNamePh": "जैसे “Ada Rivers”",
+        "topicLabel": "एपिसोड विषय",
+        "topicPh": "जैसे “शून्य से दर्शक बनाना”",
+        "bioLabel": "अतिथि शोध (वैकल्पिक — बायो, लिंक या नोट्स चिपकाएँ)",
+        "bioPh": "उनका बायो, प्रेस नोट्स या लिंक टेक्स्ट यहाँ चिपकाएँ। हम केवल उसी पर काम करते हैं जो आप चिपकाते हैं — ऑनलाइन कुछ नहीं खोजा जाता।",
+        "honestyNote": "कोई गढ़े हुए तथ्य नहीं: चिपकाए गए शोध के बिना, प्रश्न विषय-स्तर के रहते हैं ताकि आप उन्हें लाइव ढाल सकें।",
+        "generate": "प्रश्न बनाएँ",
+        "generating": "आपका प्रश्न-सेट लिखा जा रहा है…"
+      },
+      "sections": {
+        "warmup": "वार्म-अप",
+        "deepDive": "गहराई से",
+        "rapidFire": "तेज़ रफ़्तार",
+        "closer": "समापन",
+        "whyLabel": "यह क्यों काम करता है"
+      },
+      "results": {
+        "forGuest": "{{guest}} के लिए साक्षात्कार प्रश्न",
+        "aboutTopic": "विषय: {{topic}}",
+        "questionsCount": "{{count}} प्रश्न",
+        "copyAll": "सब कॉपी करें",
+        "copied": "कॉपी हो गया",
+        "downloadTxt": ".txt डाउनलोड करें",
+        "creditsNote": "{{used}} Visual Bucs उपयोग हुए · {{remaining}} शेष"
+      },
+      "chain": {
+        "title": "साक्षात्कार शृंखला",
+        "subtitle": "हर कदम अगले को आगे बढ़ाता है — तैयारी → साक्षात्कार → प्रकाशन।",
+        "scriptWriter": "स्क्रिप्ट लेखक को भेजें",
+        "scriptWriterBlurb": "इन प्रश्नों को टेलीप्रॉम्प्टर के साथ पूर्ण साक्षात्कार स्क्रिप्ट में बदलता है।",
+        "generateIntro": "इंट्रो बनाएँ",
+        "generateIntroBlurb": "पॉडकास्ट इंट्रो वॉइसओवर + संगीत बेड, आपके अतिथि के साथ।",
+        "afterInterview": "साक्षात्कार के बाद",
+        "afterInterviewBlurb": "अपनी ट्रांसक्रिप्ट से शो नोट्स लिखें, फिर एक ऑडियोग्राम काटें।",
+        "writeShowNotes": "शो नोट्स लिखें",
+        "makeAudiogram": "ऑडियोग्राम बनाएँ",
+        "introTaglinePh": "टैगलाइन — जैसे “वह शो जहाँ क्रिएटर सच कहते हैं”",
+        "introPodcastName": "पॉडकास्ट का नाम",
+        "introHostName": "मेज़बान का नाम",
+        "introStyle": "संगीत शैली",
+        "introGenerate": "इंट्रो बनाएँ · {{cost}} Visual Bucs",
+        "showNotesTitle": "एपिसोड शीर्षक",
+        "showNotesTranscript": "ट्रांसक्रिप्ट (या नीचे ऑडियो URL चिपकाएँ)",
+        "showNotesAudioUrl": "ऑडियो URL (वैकल्पिक — ट्रांसक्रिप्ट न हो तो ट्रांसक्राइब होगा)",
+        "showNotesContext": "संदर्भ (आपकी तैयारी से अपने आप भरा गया)",
+        "showNotesGenerate": "शो नोट्स लिखें · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "ऑडियो URL (एपिसोड या क्लिप)",
+        "audiogramCoverUrl": "कवर आर्ट URL",
+        "audiogramWaveColor": "वेव रंग",
+        "audiogramStyle": "विज़ुअलाइज़र शैली",
+        "audiogramGenerate": "ऑडियोग्राम बनाएँ · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "पहले अपने अतिथि का नाम जोड़ें।",
+        "topicRequired": "बताएँ कि साक्षात्कार किस बारे में है।",
+        "generationFailed": "स्टूडियो अटक गया — फिर से प्रयास करें।",
+        "copyFailed": "कॉपी नहीं हो सका — आपके ब्राउज़र ने रोक दिया।",
+        "introNameRequired": "पहले अपने पॉडकास्ट और मेज़बान के नाम जोड़ें।",
+        "notesInputRequired": "एपिसोड शीर्षक और ट्रांसक्रिप्ट या ऑडियो URL जोड़ें।",
+        "audiogramInputRequired": "ऑडियो URL और कवर आर्ट URL जोड़ें।"
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "प्रति वक्ता आवाज़ें",
+      "scriptPlaceholder": "ALEX: शो में फिर से स्वागत है।\nJORDAN: बुलाने के लिए धन्यवाद!\n\nहर पंक्ति को वक्ता के नाम से टैग करें — हर वक्ता को अपनी AI आवाज़ मिलेगी।",
+      "scriptHint": "हर पंक्ति को ऐसे टैग करें:  NAME: आपकी पंक्ति यहाँ।  बिना टैग वाली पंक्तियाँ छोड़ दी जाएँगी।",
+      "loadSample": "नमूना संवाद लोड करें",
+      "noSpeakersYet": "आवाज़ें देने के लिए अपनी स्क्रिप्ट में कम से कम दो वक्ताओं को टैग करें (NAME: पंक्ति)।",
+      "statsSpeakers": "{{count}} वक्ता",
+      "untaggedWarning": "{{count}} बिना टैग वाली पंक्ति(याँ) छोड़ दी जाएँगी — उन्हें ऐसे टैग करें:  NAME: टेक्स्ट।",
+      "disabledTitle": "कई वक्ताओं वाला संवाद जल्द आ रहा है।",
+      "disabledPricing": "यह बना हुआ है, लेकिन कीमत अभी स्वीकृत नहीं है — कीमत की पुष्टि होते ही यह यहाँ खुल जाएगा। कुछ भी शुल्क नहीं लगता।",
+      "disabledKey": "इस सर्वर पर आवाज़ सेवा अभी जुड़ी नहीं है — जुड़ते ही संवाद अपने आप खुल जाएगा।",
+      "resultSpeakers": "{{count}} वक्ता",
+      "generateFeature": "संवाद बनाएँ",
+      "errors": {
+        "twoSpeakers": "संवाद के लिए कम से कम 2 टैग किए वक्ता चाहिए — पंक्तियों को ऐसे टैग करें:  ALEX: आपकी पंक्ति यहाँ।",
+        "tooManySpeakers": "संवाद अधिकतम {{max}} वक्ताओं तक का समर्थन करता है।",
+        "voiceFor": "पहले “{{name}}” के लिए आवाज़ चुनें।"
+      }
+    }
+  },
   "presave": {
     "tracklistTitle": "ट्रैक सूची"
   },

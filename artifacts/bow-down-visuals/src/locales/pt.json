@@ -7737,6 +7737,197 @@
     "websiteVersionMeta": "Versão {{version}} · {{count}} arquivos",
     "failedOpenHubProject": "Falha ao abrir o projeto do hub. Tente novamente, por favor."
   },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "Descrição curta para seu feed RSS (opcional)",
+      "title": "Episódio",
+      "titlePlaceholder": "Título do episódio — ex.: “Como eu bombei no TikTok”"
+    },
+    "errors": {
+      "coHostVoiceRequired": "Primeiro escolha uma voz de co-apresentador.",
+      "copyFailed": "Não foi possível copiar para a área de transferência — use o botão de download.",
+      "generationFailed": "A geração do podcast falhou — tente de novo.",
+      "hostVoiceRequired": "Primeiro escolha uma voz de apresentador.",
+      "scriptRequired": "Primeiro cole seu roteiro.",
+      "titleRequired": "Primeiro dê um título ao seu episódio.",
+      "topicRequired": "Primeiro indique um tema.",
+      "videoRequired": "Primeiro cole a URL de um vídeo.",
+      "voicesDifferent": "Apresentador e co-apresentador devem ter vozes diferentes."
+    },
+    "finishing": {
+      "musicBedLabel": "Trilha musical de abertura / encerramento",
+      "musicBedNote": "Uma trilha ambiente de sintetizador gerada sob a abertura e o encerramento — incluída gratuitamente no episódio.",
+      "title": "Toques finais"
+    },
+    "generate": {
+      "billedOnLength": "cobrado pela duração real do áudio",
+      "creditsEstimate": "{{credits}} Visual Bucs",
+      "featureName": "Gerar podcast",
+      "produceEpisode": "Produzir episódio",
+      "producing": "Produzindo seu episódio…",
+      "signIn": "Entrar",
+      "signInPrompt": "para produzir episódios."
+    },
+    "hero": {
+      "badge": "Estúdio de Podcast",
+      "subtitle": "Roteiro, tema ou vídeo entra — episódio pronto sai. Apresentadores de IA, música de abertura/encerramento, capítulos e um feed RSS pronto para publicar. 300 Visual Bucs a cada 10 minutos.",
+      "titleAccent": "produzido por IA",
+      "titleStart": "Seu programa,"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "Voz do co-apresentador",
+      "duo": "Dupla",
+      "hostVoiceLabel": "Voz do apresentador",
+      "prefixHintAfter": "— ou deixe sem prefixo e os parágrafos se alternarão automaticamente.",
+      "prefixHintAnd": "e",
+      "prefixHintBefore": "Prefixe as linhas do roteiro com",
+      "signIn": "Entrar",
+      "signInPrompt": "para navegar pela biblioteca de vozes.",
+      "solo": "Solo",
+      "title": "Apresentadores"
+    },
+    "modes": {
+      "scriptBlurb": "Você escreve — as vozes de IA leem.",
+      "scriptLabel": "Roteiro",
+      "topicBlurb": "A IA escreve o roteiro e depois dá voz a ele.",
+      "topicLabel": "Tema",
+      "videoBlurb": "Extraia o áudio do seu vídeo como episódio.",
+      "videoLabel": "Vídeo",
+      "dialogueLabel": "Diálogo",
+      "dialogueBlurb": "Conversa com vários participantes — uma voz de IA por personagem."
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "Capítulos",
+      "copied": "Copiado",
+      "copyRss": "Copiar RSS",
+      "creditsNote": "{{used}} Visual Bucs usados · {{remaining}} restantes.",
+      "downloadMp3": "Baixar MP3",
+      "durationApprox": "~{{duration}}",
+      "empty": "Seu episódio pronto chega aqui — MP3, capítulos e um feed RSS pronto para publicar.",
+      "hostWord_one": "apresentador",
+      "hostWord_other": "apresentadores",
+      "musicBedTag": "· trilha musical",
+      "publishFeed": "Publicar feed",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "para ir ao ar.",
+      "submitFeedAnd": "e",
+      "submitFeedBefore": "Envie este feed para",
+      "title": "Seu episódio",
+      "viewScript": "Ver roteiro escrito pela IA"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "Cole o roteiro do seu episódio…\n\nDicas:\n• Títulos com # viram marcadores de capítulo\n• Dois apresentadores: prefixe as linhas com HOST: / COHOST:",
+      "wordsCount_one": "{{count}} palavra",
+      "wordsCount_other": "{{count}} palavras"
+    },
+    "startFrom": {
+      "title": "Começar de"
+    },
+    "topic": {
+      "note": "A IA escreve um roteiro de ~8–10 minutos para você (~{{credits}} Visual Bucs de áudio). Você pode revisar o roteiro após a geração.",
+      "placeholder": "ex.: “5 erros de monetização que criadores novos cometem”"
+    },
+    "video": {
+      "note": "Extraímos a faixa de áudio do seu vídeo e a masterizamos como episódio — sua própria gravação, sem vozes de IA. Cobrado pela duração real do áudio.",
+      "placeholder": "https://… — link direto para o arquivo do seu vídeo"
+    },
+    "voicePicker": {
+      "error": "Não foi possível carregar as vozes — verifique sua conexão e atualize a página.",
+      "loading": "Carregando vozes…",
+      "previewAria": "Ouvir {{name}}"
+    },
+    "guestQuestions": {
+      "tab": "Perguntas ao convidado",
+      "studioTab": "Estúdio de Podcast",
+      "form": {
+        "title": "Perguntas ao convidado",
+        "subtitle": "Informe seu convidado e o tema — e receba em segundos um conjunto de perguntas afiado, em nível de produtor. A pesquisa vem só do que você cola abaixo; nunca navegamos na web.",
+        "guestNameLabel": "Nome do convidado",
+        "guestNamePh": "ex.: “Ada Rivers”",
+        "topicLabel": "Tema do episódio",
+        "topicPh": "ex.: “Construir uma audiência do zero”",
+        "bioLabel": "Pesquisa do convidado (opcional — cole bio, links ou anotações)",
+        "bioPh": "Cole aqui a bio, notas de imprensa ou textos de links. Trabalhamos só com o que você cola — nada é pesquisado online.",
+        "honestyNote": "Nenhum fato inventado: sem pesquisa colada, as perguntas ficam no nível do tema, para você adaptá-las ao vivo.",
+        "generate": "Gerar perguntas",
+        "generating": "Escrevendo seu conjunto de perguntas…"
+      },
+      "sections": {
+        "warmup": "Aquecimento",
+        "deepDive": "Mergulho profundo",
+        "rapidFire": "Perguntas rápidas",
+        "closer": "Encerramento",
+        "whyLabel": "Por que funciona"
+      },
+      "results": {
+        "forGuest": "Perguntas de entrevista para {{guest}}",
+        "aboutTopic": "Sobre: {{topic}}",
+        "questionsCount": "{{count}} perguntas",
+        "copyAll": "Copiar tudo",
+        "copied": "Copiado",
+        "downloadTxt": "Baixar .txt",
+        "creditsNote": "{{used}} Visual Bucs usados · {{remaining}} restantes"
+      },
+      "chain": {
+        "title": "A cadeia da entrevista",
+        "subtitle": "Cada etapa alimenta a próxima — preparação → entrevista → publicação.",
+        "scriptWriter": "Enviar ao Escritor de roteiros",
+        "scriptWriterBlurb": "Transforma estas perguntas em um roteiro de entrevista completo com teleprompter.",
+        "generateIntro": "Gerar abertura",
+        "generateIntroBlurb": "Locução de abertura do podcast + trilha musical, com seu convidado embutido.",
+        "afterInterview": "Depois da entrevista",
+        "afterInterviewBlurb": "Escreva as notas do episódio a partir da sua transcrição e depois corte um audiograma.",
+        "writeShowNotes": "Escrever notas do episódio",
+        "makeAudiogram": "Criar audiograma",
+        "introTaglinePh": "Slogan — ex.: “O programa em que criadores falam a verdade”",
+        "introPodcastName": "Nome do podcast",
+        "introHostName": "Nome do apresentador",
+        "introStyle": "Estilo musical",
+        "introGenerate": "Gerar abertura · {{cost}} Visual Bucs",
+        "showNotesTitle": "Título do episódio",
+        "showNotesTranscript": "Transcrição (ou cole a URL de um áudio abaixo)",
+        "showNotesAudioUrl": "URL do áudio (opcional — transcrito se não houver transcrição)",
+        "showNotesContext": "Contexto (preenchido automaticamente a partir da sua preparação)",
+        "showNotesGenerate": "Escrever notas do episódio · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "URL do áudio (episódio ou clipe)",
+        "audiogramCoverUrl": "URL da arte da capa",
+        "audiogramWaveColor": "Cor da onda",
+        "audiogramStyle": "Estilo do visualizador",
+        "audiogramGenerate": "Criar audiograma · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "Primeiro adicione o nome do seu convidado.",
+        "topicRequired": "Conte para nós sobre o que é a entrevista.",
+        "generationFailed": "O estúdio engasgou — tente de novo.",
+        "copyFailed": "Não foi possível copiar — seu navegador bloqueou.",
+        "introNameRequired": "Primeiro adicione o nome do podcast e do apresentador.",
+        "notesInputRequired": "Adicione um título de episódio e uma transcrição ou a URL de um áudio.",
+        "audiogramInputRequired": "Adicione a URL de um áudio e a URL de uma arte de capa."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "Vozes por participante",
+      "scriptPlaceholder": "ALEX: Bem-vindos de volta ao programa.\nJORDAN: Obrigado pelo convite!\n\nMarque cada linha com o nome de um participante — cada um recebe sua própria voz de IA.",
+      "scriptHint": "Marque cada linha assim:  NAME: sua linha aqui.  Linhas sem marcação são puladas.",
+      "loadSample": "Carregar diálogo de exemplo",
+      "noSpeakersYet": "Marque pelo menos dois participantes no seu roteiro (NAME: linha) para atribuir vozes.",
+      "statsSpeakers": "{{count}} participantes",
+      "untaggedWarning": "{{count}} linha(s) sem marcação serão puladas — marque-as assim:  NAME: texto.",
+      "disabledTitle": "O diálogo com vários participantes chega em breve.",
+      "disabledPricing": "Está pronto, mas o preço ainda não foi aprovado — ele desbloqueia aqui assim que o preço for confirmado. Nada é cobrado.",
+      "disabledKey": "O serviço de voz ainda não está conectado neste servidor — o diálogo desbloqueia automaticamente assim que estiver.",
+      "resultSpeakers": "{{count}} participantes",
+      "generateFeature": "Gerar diálogo",
+      "errors": {
+        "twoSpeakers": "O diálogo precisa de pelo menos 2 participantes marcados — marque as linhas assim:  ALEX: sua linha aqui.",
+        "tooManySpeakers": "O diálogo suporta até {{max}} participantes.",
+        "voiceFor": "Primeiro escolha uma voz para “{{name}}”."
+      }
+    }
+  },
   "presave": {
     "tracklistTitle": "Lista de faixas"
   },

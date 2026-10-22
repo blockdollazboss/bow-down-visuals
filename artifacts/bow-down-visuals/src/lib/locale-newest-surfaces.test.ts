@@ -91,8 +91,15 @@ const EN = CATALOGS.en!;
    existed only in en.json — 222 leaves absent from all nine catalogs
    (1,998 values) — now translated ×9 and pinned here; the ninth block
    (cameraMovePlanner) was already pinned via BLOCK_PREFIXES below
-   and is subsumed by the whole-namespace pin. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9"] as const;
+   and is subsumed by the whole-namespace pin.
+   "podcast" came with the Stack-24 locale-parity-5 lane (Oct 22 2026):
+   the Podcast Studio + Guest Questions + multi-speaker dialogue blocks
+   (147 leaves) existed only partially in ar/de/es/fr (73 leaves, all of
+   them untranslated English or stale copy; guestQuestions and dialogue
+   absent) and not at all in hi/it/ja/ko/pt — all 147 are now translated
+   ×9 and pinned here. The namespace carries no array leaves, so the
+   plain string checks below judge it as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -154,11 +161,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill and the Stack-23 plural split (3045 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split and the Stack-24 podcast fill (3192 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
-    expect(REQUIRED.length).toBe(3045);
+    expect(REQUIRED.length).toBe(3192);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

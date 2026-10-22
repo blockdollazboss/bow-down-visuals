@@ -8136,89 +8136,91 @@
   },
   "podcast": {
     "episode": {
-      "descriptionPlaceholder": "Short description for your RSS feed (optional)",
-      "title": "Episode",
-      "titlePlaceholder": "Episode title — e.g. “How I blew up on TikTok”"
+      "descriptionPlaceholder": "وصف قصير لخلاصة RSS الخاصة بك (اختياري)",
+      "title": "الحلقة",
+      "titlePlaceholder": "عنوان الحلقة — مثال: «كيف اشتهرت على TikTok»"
     },
     "errors": {
-      "coHostVoiceRequired": "Pick a co-host voice first.",
-      "copyFailed": "Couldn't copy to clipboard — use the download button instead.",
-      "generationFailed": "Podcast generation failed — try again.",
-      "hostVoiceRequired": "Pick a host voice first.",
-      "scriptRequired": "Paste your script first.",
-      "titleRequired": "Give your episode a title first.",
-      "topicRequired": "Give a topic first.",
-      "videoRequired": "Paste a video URL first.",
-      "voicesDifferent": "Host and co-host should be different voices."
+      "coHostVoiceRequired": "اختر صوت المضيف المشارك أولًا.",
+      "copyFailed": "تعذّر النسخ إلى الحافظة — استخدم زر التنزيل بدلًا من ذلك.",
+      "generationFailed": "فشل إنشاء البودكاست — حاول مرة أخرى.",
+      "hostVoiceRequired": "اختر صوت المضيف أولًا.",
+      "scriptRequired": "الصق النص أولًا.",
+      "titleRequired": "امنح حلقتك عنوانًا أولًا.",
+      "topicRequired": "حدّد موضوعًا أولًا.",
+      "videoRequired": "الصق رابط فيديو أولًا.",
+      "voicesDifferent": "يجب أن يكون للمضيف والمضيف المشارك صوتان مختلفان."
     },
     "finishing": {
-      "musicBedLabel": "Intro / outro music bed",
-      "musicBedNote": "A generated ambient synth bed under the open and close — included free with the episode.",
-      "title": "Finishing touches"
+      "musicBedLabel": "الخلفية الموسيقية للمقدمة / الخاتمة",
+      "musicBedNote": "خلفية سينث محيطية مولّدة تحت الافتتاح والختام — مشمولة مجانًا مع الحلقة.",
+      "title": "اللمسات الأخيرة"
     },
     "generate": {
-      "billedOnLength": "billed on actual audio length",
+      "billedOnLength": "يُحتسب بناءً على طول الصوت الفعلي",
       "creditsEstimate": "{{credits}} Visual Bucs",
-      "featureName": "Generate Podcast",
-      "produceEpisode": "Produce episode",
-      "producing": "Producing your episode…",
-      "signIn": "Sign in",
-      "signInPrompt": "to produce episodes."
+      "featureName": "إنشاء بودكاست",
+      "produceEpisode": "إنتاج الحلقة",
+      "producing": "جارٍ إنتاج حلقتك…",
+      "signIn": "تسجيل الدخول",
+      "signInPrompt": "لإنتاج الحلقات."
     },
     "hero": {
-      "badge": "AI Podcast Studio",
-      "subtitle": "Script, topic, or video in — finished episode out. AI hosts, intro/outro music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.",
-      "titleAccent": "produced by AI",
-      "titleStart": "Your show,"
+      "badge": "استوديو البودكاست",
+      "subtitle": "نص أو موضوع أو فيديو يدخل — حلقة جاهزة تخرج. مضيفون بالذكاء الاصطناعي، موسيقى مقدمة وخاتمة، فصول، وخلاصة RSS جاهزة للنشر. 300 Visual Bucs لكل 10 دقائق.",
+      "titleAccent": "من إنتاج الذكاء الاصطناعي",
+      "titleStart": "برنامجك،"
     },
     "hosts": {
-      "coHostVoiceLabel": "Co-host voice",
-      "duo": "Duo",
-      "hostVoiceLabel": "Host voice",
-      "prefixHintAfter": "— or leave them off and paragraphs will alternate automatically.",
-      "prefixHintAnd": "and",
-      "prefixHintBefore": "Prefix script lines with",
-      "signIn": "Sign in",
-      "signInPrompt": "to browse the voice library.",
-      "solo": "Solo",
-      "title": "Hosts"
+      "coHostVoiceLabel": "صوت المضيف المشارك",
+      "duo": "ثنائي",
+      "hostVoiceLabel": "صوت المضيف",
+      "prefixHintAfter": "— أو اتركها دون بادئة وستتناوب الفقرات تلقائيًا.",
+      "prefixHintAnd": "و",
+      "prefixHintBefore": "ابدأ أسطر النص بـ",
+      "signIn": "تسجيل الدخول",
+      "signInPrompt": "لتصفح مكتبة الأصوات.",
+      "solo": "فردي",
+      "title": "المضيفون"
     },
     "modes": {
-      "scriptBlurb": "You write it — AI voices read it.",
-      "scriptLabel": "Script",
-      "topicBlurb": "AI writes the script, then voices it.",
-      "topicLabel": "Topic",
-      "videoBlurb": "Extract your video's audio as the episode.",
-      "videoLabel": "Video"
+      "scriptBlurb": "أنت تكتبه — وأصوات الذكاء الاصطناعي تقرؤه.",
+      "scriptLabel": "النص",
+      "topicBlurb": "الذكاء الاصطناعي يكتب النص ثم يقرؤه صوتيًا.",
+      "topicLabel": "الموضوع",
+      "videoBlurb": "استخرج صوت الفيديو الخاص بك كحلقة.",
+      "videoLabel": "فيديو",
+      "dialogueLabel": "الحوار",
+      "dialogueBlurb": "محادثة متعددة المتحدثين — صوت ذكاء اصطناعي لكل شخصية."
     },
     "result": {
       "apple": "Apple Podcasts Connect",
-      "chapters": "Chapters",
-      "copied": "Copied",
-      "copyRss": "Copy RSS",
-      "creditsNote": "Used {{used}} Visual Bucs · {{remaining}} remaining.",
-      "downloadMp3": "Download MP3",
+      "chapters": "الفصول",
+      "copied": "تم النسخ",
+      "copyRss": "نسخ RSS",
+      "creditsNote": "تم استخدام {{used}} Visual Bucs · تبقّى {{remaining}}.",
+      "downloadMp3": "تنزيل MP3",
       "durationApprox": "~{{duration}}",
-      "empty": "Your finished episode lands here — MP3, chapters, and a publish-ready RSS feed.",
+      "empty": "تصل حلقتك الجاهزة هنا — MP3 وفصول وخلاصة RSS جاهزة للنشر.",
       "hostWord_zero": "مضيفون",
       "hostWord_one": "مضيف",
       "hostWord_two": "مضيفان",
       "hostWord_few": "مضيفون",
       "hostWord_many": "مضيفون",
       "hostWord_other": "مضيفون",
-      "musicBedTag": "· music bed",
-      "publishFeed": "Publish feed",
+      "musicBedTag": "· خلفية موسيقية",
+      "publishFeed": "نشر الخلاصة",
       "spotify": "Spotify for Podcasters",
-      "submitFeedAfter": "to go live.",
-      "submitFeedAnd": "and",
-      "submitFeedBefore": "Submit this feed to",
-      "title": "Your episode",
-      "viewScript": "View AI-written script"
+      "submitFeedAfter": "للبث المباشر.",
+      "submitFeedAnd": "و",
+      "submitFeedBefore": "أرسل هذه الخلاصة إلى",
+      "title": "حلقتك",
+      "viewScript": "عرض النص المكتوب بالذكاء الاصطناعي"
     },
     "script": {
       "creditsCost": "{{credits}} Visual Bucs",
       "durationApprox": "~{{duration}}",
-      "placeholder": "Paste your episode script…\n\nTips:\n• # Headings become chapter markers\n• Dual-host: prefix lines with HOST: / COHOST:",
+      "placeholder": "الصق نص حلقتك…\n\nنصائح:\n• عناوين # تصبح علامات فصول\n• مضيفان: ابدأ الأسطر بـ HOST: / COHOST:",
       "wordsCount_zero": "{{count}} كلمات",
       "wordsCount_one": "{{count}} كلمة",
       "wordsCount_two": "{{count}} كلمتين",
@@ -8227,20 +8229,108 @@
       "wordsCount_other": "{{count}} كلمة"
     },
     "startFrom": {
-      "title": "Start from"
+      "title": "ابدأ من"
     },
     "topic": {
-      "note": "AI writes an ~8–10 minute script for you (~{{credits}} Visual Bucs of audio). You can review the script after generation.",
-      "placeholder": "e.g. “5 monetization mistakes new creators make”"
+      "note": "يكتب الذكاء الاصطناعي نصًا من ~8–10 دقائق لك (~{{credits}} Visual Bucs من الصوت). يمكنك مراجعة النص بعد الإنشاء.",
+      "placeholder": "مثال: «5 أخطاء في تحقيق الدخل يقع فيها المبدعون الجدد»"
     },
     "video": {
-      "note": "We extract your video's audio track and master it as the episode — your own recording, no AI voices. Billed on the actual audio length.",
-      "placeholder": "https://… — direct link to your video file"
+      "note": "نستخرج المسار الصوتي من الفيديو الخاص بك ونعالجه كحلقة — تسجيلك الخاص، دون أصوات ذكاء اصطناعي. يُحتسب بناءً على طول الصوت الفعلي.",
+      "placeholder": "https://… — رابط مباشر لملف الفيديو الخاص بك"
     },
     "voicePicker": {
-      "error": "Couldn't load voices — check your connection and refresh.",
-      "loading": "Loading voices…",
-      "previewAria": "Preview {{name}}"
+      "error": "تعذّر تحميل الأصوات — تحقق من اتصالك وحدّث الصفحة.",
+      "loading": "جارٍ تحميل الأصوات…",
+      "previewAria": "معاينة {{name}}"
+    },
+    "guestQuestions": {
+      "tab": "أسئلة الضيف",
+      "studioTab": "استوديو البودكاست",
+      "form": {
+        "title": "أسئلة الضيف",
+        "subtitle": "أدخل ضيفك وموضوعك — واحصل في ثوانٍ على مجموعة أسئلة حادة بمستوى المنتجين. تأتي الأبحاث فقط مما تلصقه أدناه؛ لا نتصفح الويب أبدًا.",
+        "guestNameLabel": "اسم الضيف",
+        "guestNamePh": "مثال: «Ada Rivers»",
+        "topicLabel": "موضوع الحلقة",
+        "topicPh": "مثال: «بناء جمهور من الصفر»",
+        "bioLabel": "أبحاث الضيف (اختياري — الصق السيرة أو الروابط أو الملاحظات)",
+        "bioPh": "الصق هنا سيرته أو ملاحظات الصحافة أو نصوص الروابط. نعمل فقط مما تلصقه — لا يُبحث عن أي شيء عبر الإنترنت.",
+        "honestyNote": "لا حقائق مختلقة: دون أبحاث ملصوقة، تبقى الأسئلة على مستوى الموضوع حتى تتمكن من تكييفها مباشرة.",
+        "generate": "إنشاء الأسئلة",
+        "generating": "جارٍ كتابة مجموعة أسئلتك…"
+      },
+      "sections": {
+        "warmup": "الإحماء",
+        "deepDive": "التعمق",
+        "rapidFire": "الجولة السريعة",
+        "closer": "الختام",
+        "whyLabel": "لماذا ينجح"
+      },
+      "results": {
+        "forGuest": "أسئلة مقابلة لـ {{guest}}",
+        "aboutTopic": "حول: {{topic}}",
+        "questionsCount": "{{count}} أسئلة",
+        "copyAll": "نسخ الكل",
+        "copied": "تم النسخ",
+        "downloadTxt": "تنزيل .txt",
+        "creditsNote": "تم استخدام {{used}} Visual Bucs · تبقّى {{remaining}}"
+      },
+      "chain": {
+        "title": "سلسلة المقابلة",
+        "subtitle": "كل خطوة تغذي التالية — التحضير → المقابلة → النشر.",
+        "scriptWriter": "إرسال إلى كاتب النصوص",
+        "scriptWriterBlurb": "يحوّل هذه الأسئلة إلى نص مقابلة كامل مع ملقّن.",
+        "generateIntro": "إنشاء المقدمة",
+        "generateIntroBlurb": "تعليق صوتي لمقدمة البودكاست + خلفية موسيقية، مع ضيفك مدمجًا.",
+        "afterInterview": "بعد المقابلة",
+        "afterInterviewBlurb": "اكتب ملاحظات الحلقة من النص المفرّغ، ثم قصّ أوديوغرامًا.",
+        "writeShowNotes": "كتابة ملاحظات الحلقة",
+        "makeAudiogram": "إنشاء أوديوغرام",
+        "introTaglinePh": "شعار — مثال: «البرنامج الذي يقول فيه المبدعون الحقيقة»",
+        "introPodcastName": "اسم البودكاست",
+        "introHostName": "اسم المضيف",
+        "introStyle": "الأسلوب الموسيقي",
+        "introGenerate": "إنشاء المقدمة · {{cost}} Visual Bucs",
+        "showNotesTitle": "عنوان الحلقة",
+        "showNotesTranscript": "النص المفرّغ (أو الصق رابط صوت أدناه)",
+        "showNotesAudioUrl": "رابط الصوت (اختياري — يُفرّغ إذا لم يوجد نص)",
+        "showNotesContext": "السياق (يُملأ تلقائيًا من تحضيرك)",
+        "showNotesGenerate": "كتابة ملاحظات الحلقة · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "رابط الصوت (حلقة أو مقطع)",
+        "audiogramCoverUrl": "رابط صورة الغلاف",
+        "audiogramWaveColor": "لون الموجة",
+        "audiogramStyle": "أسلوب المؤثر البصري",
+        "audiogramGenerate": "إنشاء أوديوغرام · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "أضف اسم ضيفك أولًا.",
+        "topicRequired": "أخبرنا عمّا تدور المقابلة.",
+        "generationFailed": "تعثّر الاستوديو — حاول مرة أخرى.",
+        "copyFailed": "تعذّر النسخ — حظره متصفحك.",
+        "introNameRequired": "أضف اسمي البودكاست والمضيف أولًا.",
+        "notesInputRequired": "أضف عنوان حلقة ونصًا مفرّغًا أو رابط صوت.",
+        "audiogramInputRequired": "أضف رابط صوت ورابط صورة غلاف."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "الأصوات لكل متحدث",
+      "scriptPlaceholder": "ALEX: مرحبًا بعودتكم إلى البرنامج.\nJORDAN: شكرًا على الاستضافة!\n\nوسم كل سطر باسم متحدث — يحصل كل متحدث على صوت ذكاء اصطناعي خاص به.",
+      "scriptHint": "وسم كل سطر هكذا:  NAME: سطرك هنا.  الأسطر دون وسم يتم تخطيها.",
+      "loadSample": "تحميل حوار نموذجي",
+      "noSpeakersYet": "وسم متحدثَين على الأقل في نصك (NAME: سطر) لتعيين الأصوات.",
+      "statsSpeakers": "{{count}} متحدث",
+      "untaggedWarning": "سيتم تخطي {{count}} سطر غير موسوم — وسّمها هكذا:  NAME: نص.",
+      "disabledTitle": "الحوار متعدد المتحدثين قادم قريبًا.",
+      "disabledPricing": "إنه مبني، لكن السعر لم يُعتمد بعد — سيُفتح هنا بمجرد تأكيد التسعير. لا يُحتسب أي شيء.",
+      "disabledKey": "خدمة الصوت غير متصلة على هذا الخادم بعد — سيُفتح الحوار تلقائيًا بمجرد اتصالها.",
+      "resultSpeakers": "{{count}} متحدث",
+      "generateFeature": "إنشاء الحوار",
+      "errors": {
+        "twoSpeakers": "يحتاج الحوار إلى متحدثَين موسومَين على الأقل — وسّم الأسطر هكذا:  ALEX: سطرك هنا.",
+        "tooManySpeakers": "يدعم الحوار حتى {{max}} متحدثين.",
+        "voiceFor": "اختر صوتًا لـ «{{name}}» أولًا."
+      }
     }
   },
   "presave": {

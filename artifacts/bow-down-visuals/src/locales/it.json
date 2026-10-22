@@ -7737,6 +7737,197 @@
     "websiteVersionMeta": "Versione {{version}} · {{count}} file",
     "failedOpenHubProject": "Impossibile aprire il progetto dell'hub. Riprova, per favore."
   },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "Breve descrizione per il tuo feed RSS (facoltativo)",
+      "title": "Episodio",
+      "titlePlaceholder": "Titolo dell'episodio — es. «Come sono esploso su TikTok»"
+    },
+    "errors": {
+      "coHostVoiceRequired": "Prima scegli una voce per il co-conduttore.",
+      "copyFailed": "Impossibile copiare negli appunti — usa invece il pulsante di download.",
+      "generationFailed": "Generazione del podcast non riuscita — riprova.",
+      "hostVoiceRequired": "Prima scegli una voce per il conduttore.",
+      "scriptRequired": "Prima incolla il tuo copione.",
+      "titleRequired": "Prima dai un titolo al tuo episodio.",
+      "topicRequired": "Prima indica un argomento.",
+      "videoRequired": "Prima incolla l'URL di un video.",
+      "voicesDifferent": "Conduttore e co-conduttore dovrebbero avere voci diverse."
+    },
+    "finishing": {
+      "musicBedLabel": "Base musicale intro / outro",
+      "musicBedNote": "Una base synth ambientale generata sotto apertura e chiusura — inclusa gratis con l'episodio.",
+      "title": "Tocchi finali"
+    },
+    "generate": {
+      "billedOnLength": "fatturato sulla durata effettiva dell'audio",
+      "creditsEstimate": "{{credits}} Visual Bucs",
+      "featureName": "Genera podcast",
+      "produceEpisode": "Produci episodio",
+      "producing": "Produzione del tuo episodio…",
+      "signIn": "Accedi",
+      "signInPrompt": "per produrre episodi."
+    },
+    "hero": {
+      "badge": "Studio Podcast",
+      "subtitle": "Copione, argomento o video dentro — episodio finito fuori. Conduttori IA, musica di intro/outro, capitoli e un feed RSS pronto da pubblicare. 300 Visual Bucs ogni 10 minuti.",
+      "titleAccent": "prodotto dall'IA",
+      "titleStart": "Il tuo show,"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "Voce del co-conduttore",
+      "duo": "Duo",
+      "hostVoiceLabel": "Voce del conduttore",
+      "prefixHintAfter": "— oppure lasciale senza prefisso e i paragrafi si alterneranno automaticamente.",
+      "prefixHintAnd": "e",
+      "prefixHintBefore": "Fai precedere le righe del copione da",
+      "signIn": "Accedi",
+      "signInPrompt": "per sfogliare la libreria di voci.",
+      "solo": "Solo",
+      "title": "Conduttori"
+    },
+    "modes": {
+      "scriptBlurb": "Lo scrivi tu — le voci IA lo leggono.",
+      "scriptLabel": "Copione",
+      "topicBlurb": "L'IA scrive il copione, poi lo doppia.",
+      "topicLabel": "Argomento",
+      "videoBlurb": "Estrai l'audio del tuo video come episodio.",
+      "videoLabel": "Video",
+      "dialogueLabel": "Dialogo",
+      "dialogueBlurb": "Conversazione con più interlocutori — una voce IA per personaggio."
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "Capitoli",
+      "copied": "Copiato",
+      "copyRss": "Copia RSS",
+      "creditsNote": "{{used}} Visual Bucs usati · {{remaining}} rimanenti.",
+      "downloadMp3": "Scarica MP3",
+      "durationApprox": "~{{duration}}",
+      "empty": "Il tuo episodio finito arriva qui — MP3, capitoli e un feed RSS pronto da pubblicare.",
+      "hostWord_one": "conduttore",
+      "hostWord_other": "conduttori",
+      "musicBedTag": "· base musicale",
+      "publishFeed": "Pubblica feed",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "per andare in onda.",
+      "submitFeedAnd": "e",
+      "submitFeedBefore": "Invia questo feed a",
+      "title": "Il tuo episodio",
+      "viewScript": "Vedi il copione scritto dall'IA"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "Incolla il copione del tuo episodio…\n\nConsigli:\n• I titoli con # diventano segnalibri di capitolo\n• Doppio conduttore: fai precedere le righe da HOST: / COHOST:",
+      "wordsCount_one": "{{count}} parola",
+      "wordsCount_other": "{{count}} parole"
+    },
+    "startFrom": {
+      "title": "Parti da"
+    },
+    "topic": {
+      "note": "L'IA scrive per te un copione da ~8–10 minuti (~{{credits}} Visual Bucs di audio). Puoi rivedere il copione dopo la generazione.",
+      "placeholder": "es. «5 errori di monetizzazione che fanno i nuovi creatori»"
+    },
+    "video": {
+      "note": "Estraiamo la traccia audio del tuo video e la masterizziamo come episodio — la tua registrazione, niente voci IA. Fatturato sulla durata effettiva dell'audio.",
+      "placeholder": "https://… — link diretto al tuo file video"
+    },
+    "voicePicker": {
+      "error": "Impossibile caricare le voci — controlla la connessione e aggiorna la pagina.",
+      "loading": "Caricamento voci…",
+      "previewAria": "Ascolta {{name}}"
+    },
+    "guestQuestions": {
+      "tab": "Domande per l'ospite",
+      "studioTab": "Studio Podcast",
+      "form": {
+        "title": "Domande per l'ospite",
+        "subtitle": "Inserisci ospite e argomento — e ricevi in pochi secondi un set di domande affilato, da vero produttore. La ricerca viene solo da ciò che incolli qui sotto; non navighiamo mai sul web.",
+        "guestNameLabel": "Nome dell'ospite",
+        "guestNamePh": "es. «Ada Rivers»",
+        "topicLabel": "Argomento dell'episodio",
+        "topicPh": "es. «Costruire un pubblico da zero»",
+        "bioLabel": "Ricerca sull'ospite (facoltativo — incolla bio, link o note)",
+        "bioPh": "Incolla qui la sua bio, note stampa o testi dei link. Lavoriamo solo su ciò che incolli — non viene cercato nulla online.",
+        "honestyNote": "Nessun fatto inventato: senza ricerca incollata, le domande restano a livello di argomento, così puoi adattarle dal vivo.",
+        "generate": "Genera domande",
+        "generating": "Scrittura del tuo set di domande…"
+      },
+      "sections": {
+        "warmup": "Riscaldamento",
+        "deepDive": "Approfondimenti",
+        "rapidFire": "Fuoco rapido",
+        "closer": "Chiusura",
+        "whyLabel": "Perché funziona"
+      },
+      "results": {
+        "forGuest": "Domande di intervista per {{guest}}",
+        "aboutTopic": "Argomento: {{topic}}",
+        "questionsCount": "{{count}} domande",
+        "copyAll": "Copia tutto",
+        "copied": "Copiato",
+        "downloadTxt": "Scarica .txt",
+        "creditsNote": "{{used}} Visual Bucs usati · {{remaining}} rimanenti"
+      },
+      "chain": {
+        "title": "La catena dell'intervista",
+        "subtitle": "Ogni passo alimenta il successivo — preparazione → intervista → pubblicazione.",
+        "scriptWriter": "Invia allo Scrittore di copioni",
+        "scriptWriterBlurb": "Trasforma queste domande in un copione di intervista completo con teleprompter.",
+        "generateIntro": "Genera intro",
+        "generateIntroBlurb": "Voce fuori campo dell'intro del podcast + base musicale, con il tuo ospite già dentro.",
+        "afterInterview": "Dopo l'intervista",
+        "afterInterviewBlurb": "Scrivi le note dell'episodio dalla tua trascrizione, poi taglia un audiogramma.",
+        "writeShowNotes": "Scrivi le note dell'episodio",
+        "makeAudiogram": "Crea audiogramma",
+        "introTaglinePh": "Payoff — es. «Lo show in cui i creatori dicono la verità»",
+        "introPodcastName": "Nome del podcast",
+        "introHostName": "Nome del conduttore",
+        "introStyle": "Stile musicale",
+        "introGenerate": "Genera intro · {{cost}} Visual Bucs",
+        "showNotesTitle": "Titolo dell'episodio",
+        "showNotesTranscript": "Trascrizione (o incolla sotto l'URL di un audio)",
+        "showNotesAudioUrl": "URL audio (facoltativo — trascritto se manca la trascrizione)",
+        "showNotesContext": "Contesto (compilato in automatico dalla tua preparazione)",
+        "showNotesGenerate": "Scrivi le note · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "URL audio (episodio o clip)",
+        "audiogramCoverUrl": "URL della copertina",
+        "audiogramWaveColor": "Colore dell'onda",
+        "audiogramStyle": "Stile del visualizzatore",
+        "audiogramGenerate": "Crea audiogramma · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "Prima aggiungi il nome del tuo ospite.",
+        "topicRequired": "Dicci di cosa parla l'intervista.",
+        "generationFailed": "Lo studio ha avuto un intoppo — riprova.",
+        "copyFailed": "Copia non riuscita — il tuo browser l'ha bloccata.",
+        "introNameRequired": "Prima aggiungi il nome del podcast e del conduttore.",
+        "notesInputRequired": "Aggiungi un titolo dell'episodio e una trascrizione o l'URL di un audio.",
+        "audiogramInputRequired": "Aggiungi l'URL di un audio e l'URL di una copertina."
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "Voci per interlocutore",
+      "scriptPlaceholder": "ALEX: Bentornati allo show.\nJORDAN: Grazie per l'invito!\n\nEtichetta ogni riga con il nome di un interlocutore — ognuno riceve la sua voce IA.",
+      "scriptHint": "Etichetta ogni riga così:  NAME: la tua riga qui.  Le righe senza etichetta vengono saltate.",
+      "loadSample": "Carica dialogo di esempio",
+      "noSpeakersYet": "Etichetta almeno due interlocutori nel tuo copione (NAME: riga) per assegnare le voci.",
+      "statsSpeakers": "{{count}} interlocutori",
+      "untaggedWarning": "{{count}} riga/righe senza etichetta verranno saltate — etichettale così:  NAME: testo.",
+      "disabledTitle": "Il dialogo multi-interlocutore arriva presto.",
+      "disabledPricing": "È pronto, ma il prezzo non è ancora approvato — si sbloccherà qui appena il prezzo sarà confermato. Non viene addebitato nulla.",
+      "disabledKey": "Il servizio vocale non è ancora collegato su questo server — il dialogo si sbloccherà automaticamente appena lo sarà.",
+      "resultSpeakers": "{{count}} interlocutori",
+      "generateFeature": "Genera dialogo",
+      "errors": {
+        "twoSpeakers": "Il dialogo richiede almeno 2 interlocutori etichettati — etichetta le righe così:  ALEX: la tua riga qui.",
+        "tooManySpeakers": "Il dialogo supporta fino a {{max}} interlocutori.",
+        "voiceFor": "Prima scegli una voce per «{{name}}»."
+      }
+    }
+  },
   "presave": {
     "tracklistTitle": "Elenco tracce"
   },

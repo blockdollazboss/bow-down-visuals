@@ -7725,6 +7725,197 @@
     "websiteVersionMeta": "バージョン {{version}} · {{count}} ファイル",
     "failedOpenHubProject": "ハブプロジェクトを開けませんでした。もう一度お試しください。"
   },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "RSSフィード用の短い説明（任意）",
+      "title": "エピソード",
+      "titlePlaceholder": "エピソードのタイトル — 例：「TikTokでバズった方法」"
+    },
+    "errors": {
+      "coHostVoiceRequired": "まず共同ホストの声を選んでください。",
+      "copyFailed": "クリップボードにコピーできませんでした — 代わりにダウンロードボタンを使ってください。",
+      "generationFailed": "ポッドキャストの生成に失敗しました — もう一度お試しください。",
+      "hostVoiceRequired": "まずホストの声を選んでください。",
+      "scriptRequired": "まず台本を貼り付けてください。",
+      "titleRequired": "まずエピソードにタイトルを付けてください。",
+      "topicRequired": "まずトピックを入力してください。",
+      "videoRequired": "まず動画URLを貼り付けてください。",
+      "voicesDifferent": "ホストと共同ホストは別の声にしてください。"
+    },
+    "finishing": {
+      "musicBedLabel": "イントロ／アウトロのBGMベッド",
+      "musicBedNote": "オープニングとクロージングの下に生成されるアンビエント・シンセのベッド — エピソードに無料で含まれます。",
+      "title": "仕上げ"
+    },
+    "generate": {
+      "billedOnLength": "実際の音声の長さで課金されます",
+      "creditsEstimate": "{{credits}} Visual Bucs",
+      "featureName": "ポッドキャストを生成",
+      "produceEpisode": "エピソードを制作",
+      "producing": "エピソードを制作中…",
+      "signIn": "サインイン",
+      "signInPrompt": "してエピソードを制作。"
+    },
+    "hero": {
+      "badge": "ポッドキャストスタジオ",
+      "subtitle": "台本、トピック、動画を入れるだけ — 完成したエピソードが出てきます。AIホスト、イントロ／アウトロの音楽、チャプター、公開可能なRSSフィード。10分あたり300 Visual Bucs。",
+      "titleAccent": "AIが制作",
+      "titleStart": "あなたの番組を、"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "共同ホストの声",
+      "duo": "デュオ",
+      "hostVoiceLabel": "ホストの声",
+      "prefixHintAfter": "を付けてください。付けなければ段落が自動で交互になります。",
+      "prefixHintAnd": "と",
+      "prefixHintBefore": "台本の行の先頭に",
+      "signIn": "サインイン",
+      "signInPrompt": "してボイスライブラリを見る。",
+      "solo": "ソロ",
+      "title": "ホスト"
+    },
+    "modes": {
+      "scriptBlurb": "あなたが書く — AIの声が読み上げます。",
+      "scriptLabel": "台本",
+      "topicBlurb": "AIが台本を書いて、それを読み上げます。",
+      "topicLabel": "トピック",
+      "videoBlurb": "動画の音声をエピソードとして抽出。",
+      "videoLabel": "動画",
+      "dialogueLabel": "ダイアログ",
+      "dialogueBlurb": "複数スピーカーの会話 — キャラクターごとに1つのAIボイス。"
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "チャプター",
+      "copied": "コピーしました",
+      "copyRss": "RSSをコピー",
+      "creditsNote": "{{used}} Visual Bucs使用 · 残り{{remaining}}。",
+      "downloadMp3": "MP3をダウンロード",
+      "durationApprox": "~{{duration}}",
+      "empty": "完成したエピソードはここに届きます — MP3、チャプター、公開可能なRSSフィード。",
+      "hostWord_one": "ホスト",
+      "hostWord_other": "ホスト",
+      "musicBedTag": "· BGMベッド付き",
+      "publishFeed": "フィードを公開",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "に提出して公開。",
+      "submitFeedAnd": "と",
+      "submitFeedBefore": "このフィードを",
+      "title": "あなたのエピソード",
+      "viewScript": "AIが書いた台本を見る"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "エピソードの台本を貼り付け…\n\nヒント：\n• # 見出しはチャプターマーカーになります\n• 2人ホスト：行の先頭に HOST: / COHOST: を付ける",
+      "wordsCount_one": "{{count}} 語",
+      "wordsCount_other": "{{count}} 語"
+    },
+    "startFrom": {
+      "title": "始める方法"
+    },
+    "topic": {
+      "note": "AIが約8〜10分の台本を書きます（約{{credits}} Visual Bucs分の音声）。生成後に台本を確認できます。",
+      "placeholder": "例：「新しいクリエイターがやりがちな収益化のミス5選」"
+    },
+    "video": {
+      "note": "動画の音声トラックを抽出し、エピソードとしてマスタリングします — あなた自身の録音で、AIボイスは使いません。実際の音声の長さで課金されます。",
+      "placeholder": "https://… — 動画ファイルへの直接リンク"
+    },
+    "voicePicker": {
+      "error": "ボイスを読み込めませんでした — 接続を確認して再読み込みしてください。",
+      "loading": "ボイスを読み込み中…",
+      "previewAria": "{{name}}をプレビュー"
+    },
+    "guestQuestions": {
+      "tab": "ゲスト質問",
+      "studioTab": "ポッドキャストスタジオ",
+      "form": {
+        "title": "ゲスト質問",
+        "subtitle": "ゲストとトピックを入れるだけ — 数秒でプロデューサー級の鋭い質問セットが手に入ります。リサーチは下に貼った内容だけが情報源で、ウェブは一切見に行きません。",
+        "guestNameLabel": "ゲスト名",
+        "guestNamePh": "例：「Ada Rivers」",
+        "topicLabel": "エピソードのトピック",
+        "topicPh": "例：「ゼロからオーディエンスを築く」",
+        "bioLabel": "ゲストのリサーチ（任意 — プロフィール、リンク、メモを貼り付け）",
+        "bioPh": "プロフィール、プレスノート、リンクのテキストをここに貼ってください。貼った内容だけを使います — オンラインで調べることはありません。",
+        "honestyNote": "事実の捏造なし：貼り付けたリサーチがなければ、質問はトピックレベルにとどめ、その場でアレンジできます。",
+        "generate": "質問を生成",
+        "generating": "質問セットを作成中…"
+      },
+      "sections": {
+        "warmup": "ウォームアップ",
+        "deepDive": "深掘り",
+        "rapidFire": "ラピッドファイア",
+        "closer": "クロージング",
+        "whyLabel": "効く理由"
+      },
+      "results": {
+        "forGuest": "{{guest}}へのインタビュー質問",
+        "aboutTopic": "トピック：{{topic}}",
+        "questionsCount": "質問 {{count}} 件",
+        "copyAll": "すべてコピー",
+        "copied": "コピーしました",
+        "downloadTxt": ".txtをダウンロード",
+        "creditsNote": "{{used}} Visual Bucs使用 · 残り{{remaining}}"
+      },
+      "chain": {
+        "title": "インタビューチェーン",
+        "subtitle": "各ステップが次へつながります — 準備 → インタビュー → 公開。",
+        "scriptWriter": "台本ライターへ送る",
+        "scriptWriterBlurb": "これらの質問を、テレプロンプター付きの完全なインタビュー台本に変えます。",
+        "generateIntro": "イントロを生成",
+        "generateIntroBlurb": "ゲストを織り込んだ、ポッドキャストのイントロ読み上げ＋BGMベッド。",
+        "afterInterview": "インタビューの後",
+        "afterInterviewBlurb": "文字起こしから番組ノートを書き、オーディオグラムを切り出します。",
+        "writeShowNotes": "番組ノートを書く",
+        "makeAudiogram": "オーディオグラムを作る",
+        "introTaglinePh": "キャッチコピー — 例：「クリエイターが本音を語る番組」",
+        "introPodcastName": "ポッドキャスト名",
+        "introHostName": "ホスト名",
+        "introStyle": "音楽スタイル",
+        "introGenerate": "イントロを生成 · {{cost}} Visual Bucs",
+        "showNotesTitle": "エピソードのタイトル",
+        "showNotesTranscript": "文字起こし（または下に音声URLを貼り付け）",
+        "showNotesAudioUrl": "音声URL（任意 — 文字起こしがなければ文字起こしします）",
+        "showNotesContext": "コンテキスト（準備内容から自動入力）",
+        "showNotesGenerate": "番組ノートを書く · {{cost}} Visual Bucs",
+        "audiogramAudioUrl": "音声URL（エピソードまたはクリップ）",
+        "audiogramCoverUrl": "カバーアートURL",
+        "audiogramWaveColor": "波形の色",
+        "audiogramStyle": "ビジュアライザーのスタイル",
+        "audiogramGenerate": "オーディオグラムを作る · {{cost}} Visual Bucs"
+      },
+      "errors": {
+        "guestRequired": "まずゲストの名前を追加してください。",
+        "topicRequired": "インタビューの内容を教えてください。",
+        "generationFailed": "スタジオで問題が発生しました — もう一度お試しください。",
+        "copyFailed": "コピーできませんでした — ブラウザにブロックされました。",
+        "introNameRequired": "まずポッドキャスト名とホスト名を追加してください。",
+        "notesInputRequired": "エピソードのタイトルと、文字起こしまたは音声URLを追加してください。",
+        "audiogramInputRequired": "音声URLとカバーアートURLを追加してください。"
+      }
+    },
+    "dialogue": {
+      "speakersTitle": "スピーカーごとのボイス",
+      "scriptPlaceholder": "ALEX: 番組へおかえりなさい。\nJORDAN: 招待ありがとうございます！\n\n各行にスピーカー名のタグを付けてください — スピーカーごとに専用のAIボイスが割り当てられます。",
+      "scriptHint": "各行を次のようにタグ付けしてください：  NAME: ここにセリフ。  タグのない行はスキップされます。",
+      "loadSample": "サンプルのダイアログを読み込む",
+      "noSpeakersYet": "ボイスを割り当てるには、台本で少なくとも2人のスピーカーにタグを付けてください（NAME: セリフ）。",
+      "statsSpeakers": "スピーカー {{count}} 人",
+      "untaggedWarning": "タグのない行 {{count}} 件はスキップされます — 次のようにタグを付けてください：  NAME: テキスト。",
+      "disabledTitle": "複数スピーカーのダイアログは近日公開です。",
+      "disabledPricing": "実装済みですが、価格がまだ承認されていません — 価格が確定し次第、ここで解放されます。課金はされません。",
+      "disabledKey": "このサーバーではボイスサービスがまだ接続されていません — 接続され次第、ダイアログが自動で解放されます。",
+      "resultSpeakers": "スピーカー {{count}} 人",
+      "generateFeature": "ダイアログを生成",
+      "errors": {
+        "twoSpeakers": "ダイアログにはタグ付きスピーカーが2人以上必要です — 行を次のようにタグ付けしてください：  ALEX: ここにセリフ。",
+        "tooManySpeakers": "ダイアログは最大{{max}}人まで対応しています。",
+        "voiceFor": "まず「{{name}}」のボイスを選んでください。"
+      }
+    }
+  },
   "presave": {
     "tracklistTitle": "トラックリスト"
   },
