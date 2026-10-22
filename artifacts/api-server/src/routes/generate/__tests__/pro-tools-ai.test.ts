@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 
 /* Offline tests for the AI Auto-Grade endpoint contract.
@@ -69,8 +70,18 @@ describe("auto-grade correction parsing", () => {
 });
 
 describe("auto-grade endpoint contract", () => {
-  it("charges 1 credit per the money rules", () => {
-    // PRO_TOOLS_AI_CREDITS defaults to 1; every AI feature costs credits.
-    expect(1).toBe(1);
+  it("charges 100 credits per the money rules", () => {
+    // PRO_TOOLS_AI_CREDITS defaults to 100 — the owner set the price on
+    // Oct 22, 2026 (the original default of 1 was a pre-x100 leftover).
+    // The env default and the || fallback are both pinned in the route
+    // source; the live charge path against the real router is exercised
+    // in pro-tools-ai-charge.test.ts.
+    const src = readFileSync(new URL("../pro-tools-ai.ts", import.meta.url), "utf8");
+    const m = src.match(
+      /PRO_TOOLS_AI_CREDITS\s*=\s*Number\(process\.env\["PRO_TOOLS_AI_CREDITS"\] \?\? (\d+)\) \|\| (\d+)/,
+    );
+    expect(m).toBeTruthy();
+    expect(Number(m![1])).toBe(100);
+    expect(Number(m![2])).toBe(100);
   });
 });

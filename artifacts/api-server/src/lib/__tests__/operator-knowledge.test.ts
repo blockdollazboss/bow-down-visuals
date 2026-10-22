@@ -677,13 +677,16 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
     for (const p of kbPrices("/api/jewelry/consult")) expect(p.vb).toBe(100);
   });
 
-  /* The audit found the registry at 200 VB; pro-tools-ai.ts charges
-     PRO_TOOLS_AI_CREDITS (a single Visual Buc at the code default).
-     Wrong-looking but code-true: the display now matches what the rail
-     deducts, and this pin holds them together. */
+  /* The audit found the registry at 200 VB against a rail charge of
+     1 VB — PRO_TOOLS_AI_CREDITS still carried its pre-x100 default.
+     The registry correction first moved the DISPLAY to the charge;
+     the owner then ruled the price itself (Oct 22, 2026): the rail
+     default is now 100, the one-click AI-assist tier, and the display
+     moved with it. This pin holds registry == rail at the ruled
+     price. */
   it("auto grade: the displayed registry price equals the server charge", () => {
     const serverValue = deriveServerConstant("routes/generate/pro-tools-ai.ts", "PRO_TOOLS_AI_CREDITS");
-    expect(serverValue).toBe(1);
+    expect(serverValue).toBe(100);
     expect(deriveRegistryCost("/api/pro-tools/auto-grade")).toBe(serverValue);
     const entries = kbPrices("/api/pro-tools/auto-grade");
     expect(entries.length).toBeGreaterThan(0);
