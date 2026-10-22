@@ -64,6 +64,12 @@ export interface PalaceRoomLayout {
    *  Board monument's plinth). A point inside a blocked rect is
    *  not walkable even when it stands in `walk`/`grounds`. */
   blocked?: PalaceRect[];
+  /** The subset of `blocked` tall enough to reach the third-person
+   *  camera (which rides at 2.45 m): the camera pull-in (item 44)
+   *  collides with these only — low walls, planters and braziers
+   *  pass under the lens and must never yank it. Absent = the
+   *  room's whole `blocked` list is camera-tall. */
+  camBlocked?: PalaceRect[];
   /** The room's physical interior (wall face to wall face) — the
    *  shell builder floors and ceilings to this. */
   interior: PalaceRect;
@@ -240,6 +246,17 @@ export const PLAZA_BLOCKED: PalaceRect[] = [
   ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
 ];
 
+/** The plaza's camera-tall solids (item 44): the monument (stele
+ *  to ~4.2 m), the column piers (cap at ~4.0 m) and the arch
+ *  pillars (cap at ~4.1 m). Everything else solid on the plaza —
+ *  low walls (1.12 m), planters (~1.3 m), braziers (0.8 m), gate
+ *  posts (2.0 m) — passes under the 2.45 m camera. */
+export const PLAZA_TALL_BLOCKED: PalaceRect[] = [
+  { minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 },
+  ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
+  ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
+];
+
 export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
   [HALL_ROOM_ID]: {
     id: HALL_ROOM_ID,
@@ -339,6 +356,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
      * edge — plus every planter, column pier, brazier, gate and
      * wall run on the plaza (item 39). */
     blocked: PLAZA_BLOCKED,
+    camBlocked: PLAZA_TALL_BLOCKED,
     interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
     spawn: { x: 0, z: 31.5 },
@@ -639,10 +657,11 @@ export function resolvePalaceMove(
  * camClamp (the walls), but a clamp box knows nothing of props:
  * back toward the monument and the camera used to sink straight
  * into the stele. A camera point is FREE when it stands inside
- * the room's camClamp and clear of every room's solid footprints
- * (inflated by CAMERA_PROP_MARGIN, so the near plane never kisses
- * a surface). Walls need no entry here: each room's camClamp
- * already keeps its camera on its own side of every wall. */
+ * the room's camClamp and clear of every room's CAMERA-TALL
+ * footprints (inflated by CAMERA_PROP_MARGIN, so the near plane
+ * never kisses a surface). Walls need no entry here: each room's
+ * camClamp already keeps its camera on its own side of every
+ * wall, and low furniture passes under the lens by design. */
 
 /** How far the camera keeps off a prop's footprint (m). */
 export const CAMERA_PROP_MARGIN = 0.3;
@@ -652,7 +671,7 @@ export function cameraPointFree(roomId: string, x: number, z: number): boolean {
   if (!room) return false;
   if (!pointInRect(x, z, room.camClamp)) return false;
   for (const r of allRooms()) {
-    for (const b of r.blocked ?? []) {
+    for (const b of r.camBlocked ?? r.blocked ?? []) {
       if (
         x >= b.minX - CAMERA_PROP_MARGIN &&
         x <= b.maxX + CAMERA_PROP_MARGIN &&
