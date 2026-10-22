@@ -7047,6 +7047,9 @@
     "voiceEditsDesc": "وجّه تحريراتك بصوتك — صف التغيير فقط.",
     "voiceEditsTitle": "تحريرات صوتية"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs للتطبيق"
+  },
   "viralityCheck": {
     "bestPostingTime": "أفضل وقت للنشر",
     "captionLabel": "التعليق",

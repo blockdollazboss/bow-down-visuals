@@ -4,6 +4,7 @@
  * The render recipes themselves live server-side
  * (api-server/src/data/video-templates.ts); this file is display-only.
  */
+import { getCreditCost } from "@/lib/credit-costs";
 
 export interface VideoTemplateMeta {
   key: string;
@@ -251,3 +252,18 @@ export const VIDEO_TEMPLATE_CATEGORIES = [
 export function getVideoTemplateMeta(key: string): VideoTemplateMeta | null {
   return VIDEO_TEMPLATE_METAS.find((t) => t.key === key) ?? null;
 }
+
+/**
+ * Flat price of applying any template in this gallery, in Visual Bucs.
+ * Read from the central CREDIT_COSTS registry — the same entry the
+ * editor's pre-spend confirmation dialog quotes for
+ * POST /api/video-template/apply — never a second hardcoded copy, so
+ * the gallery card cannot drift from the charge: the rail's
+ * TEMPLATE_COST is pinned equal to the registry in
+ * credit-costs-rail-truth.test.ts, and this export is pinned to the
+ * rail in video-template-gallery-price.test.ts. Null only if the
+ * registry entry ever disappears; the gallery then renders no price
+ * chip rather than a wrong price.
+ */
+export const VIDEO_TEMPLATE_APPLY_COST: number | null =
+  getCreditCost("/api/video-template/apply")?.cost ?? null;

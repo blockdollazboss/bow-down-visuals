@@ -7011,6 +7011,9 @@
     "voiceEditsDesc": "Dirige tes montages à la voix — décris simplement le changement.",
     "voiceEditsTitle": "Montages vocaux"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs pour appliquer"
+  },
   "viralityCheck": {
     "bestPostingTime": "Meilleur moment de publication",
     "captionLabel": "Légende",

@@ -7011,6 +7011,9 @@
     "voiceEditsDesc": "Dirigi i tuoi montaggi con la voce — descrivi semplicemente la modifica.",
     "voiceEditsTitle": "Modifiche Vocali"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs per applicare"
+  },
   "viralityCheck": {
     "bestPostingTime": "Orario migliore di pubblicazione",
     "captionLabel": "Didascalia",

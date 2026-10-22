@@ -7833,6 +7833,7 @@
     "makeAnother": "Make another"
   },
   "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs to apply",
     "copyFailed": "Could not copy the link.",
     "ctaButton": "Open Visual Vibes",
     "ctaSub": "Every template applies in one tap inside Visual Vibes — map your clips to the slots, edit the text, and get a finished video with captions, thumbnail, clips, and scheduling handoffs built in.",
