@@ -54,6 +54,7 @@ import { nameplateSub, nameplateTitle, starsMark } from "./nameplate";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
 import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
+import { mediaUrl } from "../media-cdn";
 import {
   coverTransform,
   mouthOpennessForLevel,
@@ -215,7 +216,11 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
   const key = `${url}@${repeatX}x${repeatY}`;
   const hit = textureCache.get(key);
   if (hit) return hit;
-  const path = `${import.meta.env.BASE_URL}${url.replace(/^\//, "")}`;
+  // Site assets resolve through the media CDN — TextureLoader requests
+  // in CORS mode ('anonymous' is three's ImageLoader default) and the
+  // bucket's CORS policy covers the site's origins, so WebGL uploads
+  // stay clean. Absolute URLs (none today) pass through untouched.
+  const path = url.startsWith("/") ? mediaUrl(url) : url;
   const tex = new THREE.TextureLoader().load(path);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.MirroredRepeatWrapping;

@@ -38,20 +38,26 @@
          Capacitor webview's start page). Client-side route changes are
          unaffected — BowTestLogo/CinematicHero fetch their own assets when
          they mount, exactly as before. (Integration note: the poster href
-         below carries Stack-21 lane 3's R2 repoint; sheet 0 stays local —
-         lane 3 deliberately did not repoint the canvas-drawn sprite
-         sheets.) -->
+         below carries Stack-21 lane 3's R2 repoint; sheet 0 joined it in
+         Stack-22 once the bucket gained a CORS policy — the components
+         load the sheets in CORS mode, so sheet 0's preload carries
+         crossorigin="anonymous" to match their request and be reused
+         instead of downloading the sheet twice.) -->
     <script>
       (function () {
         var p = window.location.pathname;
         if (p !== "/" && p !== "/index.html") return;
-        var hrefs = ["https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-poster.webp", "/hero-bow-sheet-0.webp"];
-        for (var i = 0; i < hrefs.length; i++) {
+        var assets = [
+          { href: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-poster.webp", cors: false },
+          { href: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-sheet-0.webp", cors: true }
+        ];
+        for (var i = 0; i < assets.length; i++) {
           var link = document.createElement("link");
           link.setAttribute("rel", "preload");
           link.setAttribute("as", "image");
           link.setAttribute("type", "image/webp");
-          link.setAttribute("href", hrefs[i]);
+          link.setAttribute("href", assets[i].href);
+          if (assets[i].cors) link.setAttribute("crossorigin", "anonymous");
           link.setAttribute("fetchpriority", "high");
           document.head.appendChild(link);
         }

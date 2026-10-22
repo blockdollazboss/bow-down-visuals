@@ -27,13 +27,19 @@
  * carries it with the noise-cancelling stages bypassed).
  */
 
-/* RNNoise assets are VENDORED same-origin (public/engines/rnnoise —
+import { mediaUrl } from "../media-cdn";
+
+/* RNNoise assets are VENDORED (public/engines/rnnoise —
    @sapphi-red/web-noise-suppressor 0.4.1 dist build), lazy-loaded only
    when Noise Cancellation Max is switched on; the pinned CDN build is
    the fallback if the local copy fails to serve. (The old loader asked
    the CDN for index.min.js, a file that exists only through the CDN's
-   auto-minify — the vendored file is index.js.) */
-export const RNNOISE_LOCAL_BASE = "/engines/rnnoise";
+   auto-minify — the vendored file is index.js.) The first base below
+   is the site's own media bucket serving those vendored files (its
+   CORS policy covers the site's origins; the module import, WASM
+   fetch and AudioWorklet module load all already run cross-origin
+   against the CDN fallback). */
+export const RNNOISE_LOCAL_BASE = mediaUrl("engines/rnnoise");
 export const RNNOISE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist";
 const RNNOISE_BASES = [RNNOISE_LOCAL_BASE, RNNOISE_CDN_BASE] as const;
 

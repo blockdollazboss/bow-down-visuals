@@ -47,7 +47,7 @@ export function HeroLogo3D() {
       if (posterRef.current) posterRef.current.style.display = "";
     }
 
-    const base = import.meta.env.BASE_URL;
+    const base = mediaBaseUrl();
     const sheets: (HTMLImageElement | null)[] = new Array(SHEETS).fill(null);
     let sheetsReady = 0;
 
@@ -87,6 +87,10 @@ export function HeroLogo3D() {
       if (isLight) break;
       const img = new Image();
       img.decoding = "async";
+      // CORS mode: the sheets come from the media bucket now, and the
+      // canvas must stay untainted (the bucket's CORS policy covers
+      // the site's origins).
+      img.crossOrigin = "anonymous";
       img.onload = () => {
         sheets[s] = img;
         sheetsReady++;

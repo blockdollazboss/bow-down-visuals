@@ -7,6 +7,7 @@ import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { mediaUrl } from "@/lib/media-cdn";
 
 /* ── AI Background Replace ───────────────────────────────────────────────
  * For talking-head clips shot WITHOUT a green screen: pick a background
@@ -39,13 +40,17 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * DOCK: video-editor rail (Beat Sync / Edit Recipes / Voice Edits area).
  */
 
-/* The engine is vendored same-origin (public/engines/selfie-segmentation,
+/* The engine is vendored (public/engines/selfie-segmentation,
    @mediapipe/selfie_segmentation 0.1.1675465747) — the previous pin named
    a version that does not exist in the npm registry, so its CDN URL
-   failed everywhere. The CDN build is only a fallback now, and
-   locateFile follows whichever base served the script. */
+   failed everywhere. The first base below is the site's own media
+   bucket serving those vendored files (its CORS policy covers the
+   site's origins; the classic script tag + locateFile fetches already
+   run cross-origin against the fallback). The CDN build is only a
+   fallback now, and locateFile follows whichever base served the
+   script. */
 const MEDIAPIPE_VERSION = "0.1.1675465747";
-const MEDIAPIPE_LOCAL = "/engines/selfie-segmentation";
+const MEDIAPIPE_LOCAL = mediaUrl("engines/selfie-segmentation");
 const MEDIAPIPE_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@${MEDIAPIPE_VERSION}`;
 const MEDIAPIPE_BASES = [MEDIAPIPE_LOCAL, MEDIAPIPE_CDN];
 let mediapipeBase = MEDIAPIPE_LOCAL;

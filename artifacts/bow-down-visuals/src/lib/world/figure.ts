@@ -24,6 +24,8 @@
  * three.js lifting.
  */
 
+import { mediaUrl } from "../media-cdn";
+
 /** The asset slot for the approved male palace-guard art (public/). */
 export const DEFAULT_CHARACTER_PATH = "/world/default-character.png";
 
@@ -82,16 +84,22 @@ export function figureKindFor(hasCharacter: boolean, defaultArt: DefaultArtState
   return defaultArt === "ready" ? "default" : "capsule";
 }
 
-/** The male slot path resolved the way the hall resolves its textures
- *  (BASE_URL-aware). */
+/** The male slot path resolved the way the hall resolves its textures:
+ *  through the media CDN (the bucket's CORS policy covers the site's
+ *  origins, so the hall's crossOrigin="anonymous" loads stay clean).
+ *  The baseUrl argument is retained for call-site compatibility; media
+ *  paths resolve through mediaUrl(), which is itself BASE_URL-aware
+ *  when no CDN is configured. */
 export function defaultCharacterUrl(baseUrl: string): string {
-  return `${baseUrl}${DEFAULT_CHARACTER_PATH.replace(/^\//, "")}`;
+  void baseUrl;
+  return mediaUrl(DEFAULT_CHARACTER_PATH);
 }
 
 /** A guard slot path resolved the way the hall resolves its textures
- *  (BASE_URL-aware). */
+ *  (media CDN — see defaultCharacterUrl). */
 export function guardCharacterUrl(baseUrl: string, variant: GuardVariant): string {
-  return `${baseUrl}${GUARD_CHARACTER_PATHS[variant].replace(/^\//, "")}`;
+  void baseUrl;
+  return mediaUrl(GUARD_CHARACTER_PATHS[variant]);
 }
 
 /** Width for a standing figure of `height` from the art's aspect

@@ -2,15 +2,18 @@
  * avatar-face-engine.ts — MediaPipe Face Landmarker behind a small,
  * testable wrapper: the Avatar source's face-tracking engine.
  *
- * The runtime is @mediapipe/tasks-vision 1.1.1, VENDORED same-origin
+ * The runtime is @mediapipe/tasks-vision 1.1.1, VENDORED
  * (public/engines/face-landmarker) and lazy-loaded only when an
  * avatar source asks for face drive — a creator's broadcast must
  * never depend on a third-party CDN being reachable from their
  * browser. The version was verified against the npm registry before
  * pinning (1.1.1 is the latest stable; 1.2.0 is release candidates
- * only). The CDN copy of the same build is the last-resort fallback
- * for the JS/WASM; the model falls back to its canonical Google
- * storage URL.
+ * only). The first base below is the site's own media bucket serving
+ * those vendored files (its CORS policy covers the site's origins;
+ * the module import, wasm fileset fetch and model fetch all already
+ * run cross-origin against the fallbacks). The CDN copy of the same
+ * build is the last-resort fallback for the JS/WASM; the model falls
+ * back to its canonical Google storage URL.
  *
  * Output per frame: the blendshape categories (blink / jaw / brow /
  * gaze) and the facial transformation matrix (head pose). All the
@@ -22,9 +25,11 @@
  * camera — tracking input only.
  */
 
-export const VISION_LOCAL_BASE = "/engines/face-landmarker";
+import { mediaUrl } from "../media-cdn";
+
+export const VISION_LOCAL_BASE = mediaUrl("engines/face-landmarker");
 export const VISION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1";
-export const FACE_MODEL_LOCAL_URL = "/engines/face-landmarker/face_landmarker.task";
+export const FACE_MODEL_LOCAL_URL = mediaUrl("engines/face-landmarker/face_landmarker.task");
 export const FACE_MODEL_REMOTE_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 

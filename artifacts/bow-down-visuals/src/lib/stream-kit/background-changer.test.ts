@@ -495,10 +495,10 @@ describe("one-engine truth (source contract)", () => {
 describe("rnnoise asset urls", () => {
   it("point at the real package files (index.js — no CDN-only .min.js)", () => {
     const urls = rnnoiseUrls(RNNOISE_LOCAL_BASE);
-    expect(urls.index).toBe("/engines/rnnoise/index.js");
-    expect(urls.wasm).toBe("/engines/rnnoise/rnnoise.wasm");
-    expect(urls.wasmSimd).toBe("/engines/rnnoise/rnnoise_simd.wasm");
-    expect(urls.worklet).toBe("/engines/rnnoise/rnnoise/workletProcessor.js");
+    expect(urls.index).toBe(`${RNNOISE_LOCAL_BASE}/index.js`);
+    expect(urls.wasm).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise.wasm`);
+    expect(urls.wasmSimd).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise_simd.wasm`);
+    expect(urls.worklet).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise/workletProcessor.js`);
   });
 });
 

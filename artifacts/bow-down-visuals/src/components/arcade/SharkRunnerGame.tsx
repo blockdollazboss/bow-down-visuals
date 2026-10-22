@@ -7,6 +7,7 @@ import {
   type ArcadeRunResult,
 } from "@/lib/arcade-games";
 import { gameSfx } from "@/lib/game-sound";
+import { mediaUrl } from "@/lib/media-cdn";
 import GameSoundToggle from "@/components/GameSoundToggle";
 
 /* ─── Shark King Endless Runner ───────────────────────────────────────────
@@ -166,10 +167,14 @@ export default function SharkRunnerGame({
   /* ── Images (brand assets; shape fallback if a load fails) ── */
   useEffect(() => {
     const avatar = new Image();
-    avatar.src = "/cheat-code-avatar.webp";
+    // CORS mode: sprites come from the media bucket; keep the game
+    // canvas untainted (bucket CORS covers the site's origins).
+    avatar.crossOrigin = "anonymous";
+    avatar.src = mediaUrl("cheat-code-avatar.webp");
     avatar.onload = () => { imagesRef.current.avatar = avatar; };
     const coin = new Image();
-    coin.src = "/images/visual-bucs-coin-transparent.png";
+    coin.crossOrigin = "anonymous";
+    coin.src = mediaUrl("images/visual-bucs-coin-transparent.png");
     coin.onload = () => { imagesRef.current.coin = coin; };
     // A standing state so the ready screen shows the King in the hall.
     if (!stateRef.current) stateRef.current = freshState();
