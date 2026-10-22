@@ -327,7 +327,7 @@ router.get("/world/directory", publicApiLimiter, (_req, res) => {
           { id: "world:music-hall", name: "Music Hall", count: 0, members: [], live: false },
           { id: "world:game-rooms", name: "Game Rooms", count: 0, members: [], live: false },
           { id: "world:create-wing", name: "Create Wing", count: 0, members: [], live: false },
-          { id: "world:courtyard", name: "Courtyard", count: 0, members: [], live: false },
+          { id: "world:courtyard", name: "The King's Plaza", count: 0, members: [], live: false },
           { id: "world:treasury", name: "Treasury", count: 0, members: [], live: false },
           { id: "world:royal-court", name: "Royal Court Chamber", count: 0, members: [], live: false },
           { id: "world:branding-atelier", name: "Branding Atelier", count: 0, members: [], live: false },
