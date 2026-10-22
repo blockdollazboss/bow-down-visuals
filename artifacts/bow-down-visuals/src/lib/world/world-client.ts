@@ -107,7 +107,16 @@ export interface WorldPeer {
   rotY: number;
 }
 
-export type WorldStatus = "connecting" | "inside" | "full" | "error" | "closed" | "removed" | "replaced";
+export type WorldStatus =
+  | "connecting"
+  | "inside"
+  | "full"
+  | "error"
+  | "closed"
+  | "removed"
+  | "replaced"
+  | "locked-out"
+  | "door-locked";
 
 /** The room this client stands in, as the server named it. */
 export interface PalaceRoomInfo {
@@ -443,6 +452,48 @@ export function defaultWorldSocketUrl(
  *  must never evict each other in a loop. */
 export const WORLD_REPLACED_CLOSE_CODE = 4414;
 
+/** Close code when a door refuses a member who is personally
+ *  locked out of the room (mirror of the server's
+ *  WORLD_LOCKED_OUT_CLOSE_CODE in lib/world-room.ts). Terminal:
+ *  retrying would only be refused again — the page shows its
+ *  honest "locked out" card instead of the generic failure card. */
+export const WORLD_LOCKED_OUT_CLOSE_CODE = 4415;
+
+/** Close code when a room's locked door refuses a new entry
+ *  (mirror of the server's WORLD_DOOR_LOCKED_CLOSE_CODE in
+ *  lib/world-room.ts). Terminal like the person lock: the honest
+ *  "door is locked" card, never the failure card. */
+export const WORLD_DOOR_LOCKED_CLOSE_CODE = 4416;
+
+/** A lock's refusal, as the room stated it (the `room.locked`
+ *  frame that precedes the 4415/4416 close at a door, and the
+ *  same frame alone when a doorway transfer is refused and the
+ *  walker keeps their place). `untilMs` is when a PERSON lock
+ *  lifts (epoch ms, server-stated) — null for door locks, which
+ *  carry no expiry, and whenever the server didn't say: the page
+ *  never invents a time the server didn't give it. */
+export interface WorldLockRefusal {
+  kind: "person" | "door";
+  roomId: string;
+  name: string;
+  untilMs: number | null;
+}
+
+/** The remaining time on a lock, in the visitor's own language:
+ *  the largest whole unit (minutes under two hours, hours under
+ *  two days, days above), formatted by Intl so the unit's grammar
+ *  is the locale's own — no plural tables to drift. A lock whose
+ *  end has already passed reads as a minute, never zero or
+ *  negative: the door is being tried again, not audited. */
+export function formatLockDuration(remainingMs: number, locale: string): string {
+  const minutes = Math.max(1, Math.round(remainingMs / 60_000));
+  const fmt = (value: number, unit: "minute" | "hour" | "day") =>
+    new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "long" }).format(value);
+  if (minutes < 120) return fmt(minutes, "minute");
+  if (minutes < 60 * 48) return fmt(Math.round(minutes / 60), "hour");
+  return fmt(Math.round(minutes / (60 * 24)), "day");
+}
+
 const WORLD_GUEST_SESSION_KEY = "bdv.world.guestSession";
 const GUEST_ID_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -488,8 +539,12 @@ export function worldGuestSessionId(): string {
 
 /** The page overlay for a client status — null means "you're inside,
  *  no overlay". Error and full are honest dead-ends with their own
- *  cards; closed (deliberate leave) shows nothing. */
-export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | "error" | "removed" | "replaced" | null {
+ *  cards; the two lock states are honest dead-ends too (a locked
+ *  door is not a broken connection, and the card must say so);
+ *  closed (deliberate leave) shows nothing. */
+export function worldOverlay(
+  status: WorldStatus,
+): "connecting" | "room-full" | "error" | "removed" | "replaced" | "locked-out" | "door-locked" | null {
   switch (status) {
     case "connecting":
       return "connecting";
@@ -501,6 +556,10 @@ export function worldOverlay(status: WorldStatus): "connecting" | "room-full" | 
       return "removed";
     case "replaced":
       return "replaced";
+    case "locked-out":
+      return "locked-out";
+    case "door-locked":
+      return "door-locked";
     default:
       return null;
   }
@@ -547,6 +606,11 @@ export class WorldClient {
   announce: WorldAnnouncement | null = null;
   /** The room this client stands in (set by every welcome). */
   room: PalaceRoomInfo | null = null;
+  /** The last lock refusal a door stated (the `room.locked`
+   *  frame), entry or transfer. The page's lock cards read the
+   *  person lock's `untilMs` from here; a welcome clears it — a
+   *  landed entry supersedes any refusal that came before. */
+  lockRefusal: WorldLockRefusal | null = null;
   /** The palace directory — who's where — as last broadcast (and
    *  re-sent inside every transfer). Empty until the first frame. */
   directory: PalaceDirectoryEntry[] = [];
@@ -632,6 +696,12 @@ export class WorldClient {
   /** A doorway transfer was refused: the destination is at its
    *  presence cap. I never left the room I'm in. */
   onRoomUnavailable: ((info: { roomId: string; name: string; cap: number }) => void) | null = null;
+  /** A doorway transfer was refused by a LOCK (a person lock on
+   *  me, or the room's locked door). I never left the room I'm
+   *  in — the page says why and steps me back through the door.
+   *  An ENTRY refusal never fires this: it lands on the lock's
+   *  terminal status instead (see the room.locked frame case). */
+  onRoomLocked: ((info: WorldLockRefusal) => void) | null = null;
 
   private socket: WorldSocketLike | null = null;
   private lastMoveSentAt = 0;
@@ -846,7 +916,39 @@ export class WorldClient {
       this.setStatus("replaced");
       return;
     }
-    if (this.status === "full" || this.status === "removed" || this.status === "replaced") return; // already explained itself
+    /* A lock refused this door (4415 person / 4416 door): terminal,
+     * like the replacement — retrying inside the budget would only
+     * be refused again, and the generic error card would call a
+     * locked door a broken connection. The room.locked frame
+     * normally lands first and leaves the refusal (with the person
+     * lock's until) on the client; the code alone must be enough,
+     * so a refusal of the code's own kind stands when no frame
+     * did. This runs before the drop handling on purpose: a peer
+     * locked out of the room they stood in is locked out, not
+     * "dropped" — no quiet reconnect walks them back to the same
+     * shut door. */
+    if (ev.code === WORLD_LOCKED_OUT_CLOSE_CODE || ev.code === WORLD_DOOR_LOCKED_CLOSE_CODE) {
+      const kind = ev.code === WORLD_LOCKED_OUT_CLOSE_CODE ? "person" : "door";
+      if (!this.lockRefusal || this.lockRefusal.kind !== kind) {
+        this.lockRefusal = {
+          kind,
+          roomId: this.lockRefusal?.roomId ?? "",
+          name: this.lockRefusal?.name ?? "That room",
+          untilMs: null,
+        };
+      }
+      this.clearConnectTimers();
+      this.setStatus(kind === "person" ? "locked-out" : "door-locked");
+      return;
+    }
+    if (
+      this.status === "full" ||
+      this.status === "removed" ||
+      this.status === "replaced" ||
+      this.status === "locked-out" ||
+      this.status === "door-locked"
+    )
+      return; // already explained itself
     if (this.inSequence && !this.everInside) {
       /* A close before this sequence's welcome — clean (1000/1005,
        * a draining server) or abnormal (1006, a killed handshake) —
@@ -1272,6 +1374,10 @@ export class WorldClient {
          * here. */
         this.everInside = true;
         this.sessionEstablished = true;
+        /* A landed entry supersedes any lock refusal that came
+         * before it — the door opened, so no card may quote the
+         * old refusal. */
+        this.lockRefusal = null;
         const completedReconnect = this.sequenceIsReconnect;
         this.inSequence = false;
         this.sequenceIsReconnect = false;
@@ -1353,6 +1459,43 @@ export class WorldClient {
           name: typeof frame["name"] === "string" ? frame["name"] : "That room",
           cap: typeof frame["cap"] === "number" ? frame["cap"] : 30,
         });
+        return;
+      }
+      case "room.locked": {
+        /* A lock refused a door. The frame carries the truth the
+         * card needs: which lock, which room, and for a person
+         * lock the moment it lifts (ISO; a missing or malformed
+         * one reads as "not stated", never as a guessed time).
+         * Two arrivals share this frame:
+         * - ENTRY (a connect sequence is running): the close with
+         *   the lock's own code follows immediately. Land on the
+         *   lock's terminal status now — the same discipline as
+         *   room_full — so no retry burns the budget against a
+         *   door that would only refuse again, and the close
+         *   finds the status already explained.
+         * - TRANSFER (inside, walking a doorway): no close
+         *   follows; I keep my place in the room I'm in. The page
+         *   hears it through onRoomLocked and says why. */
+        const kind =
+          frame["kind"] === "person" ? "person" : frame["kind"] === "door" ? "door" : null;
+        if (!kind) return;
+        const untilParsed = typeof frame["until"] === "string" ? Date.parse(frame["until"]) : NaN;
+        const info: WorldLockRefusal = {
+          kind,
+          roomId: String(frame["roomId"] ?? ""),
+          name: typeof frame["name"] === "string" ? frame["name"] : "That room",
+          untilMs: kind === "person" && Number.isFinite(untilParsed) ? untilParsed : null,
+        };
+        this.lockRefusal = info;
+        if (this.inSequence) {
+          this.inSequence = false;
+          this.sequenceIsReconnect = false;
+          this.setReconnecting(false);
+          this.clearConnectTimers();
+          this.setStatus(kind === "person" ? "locked-out" : "door-locked");
+        } else {
+          this.onRoomLocked?.(info);
+        }
         return;
       }
       case "peer.character": {

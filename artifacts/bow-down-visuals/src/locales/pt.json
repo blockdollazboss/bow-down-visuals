@@ -11047,5 +11047,16 @@
     "copied": "Copiado",
     "oneLanguage": "idioma",
     "manyLanguages": "idiomas"
+  },
+  "world": {
+    "lockedOutTitle": "Você está bloqueado fora desta sala por enquanto",
+    "lockedOutBody": "Quem colocou este bloqueio foi o palácio, e não é uma falha: esta porta continua fechada para você até o bloqueio ser retirado. O resto do site continua seu: os shows, a sua página, a sua gente.",
+    "lockedOutRemaining": "Faltam cerca de {{duration}} para este bloqueio terminar.",
+    "doorLockedTitle": "A porta desta sala está trancada agora",
+    "doorLockedBody": "O palácio trancou esta porta: quem está dentro fica, e ninguém novo entra até ela abrir de novo. O resto do site continua seu: os shows, a sua página, a sua gente.",
+    "lockedTryAgain": "Tentar a porta de novo",
+    "lockedGoLive": "Voltar ao Go Live",
+    "lockedOutNotice": "{{name}} está bloqueada para você por enquanto — você ainda está em {{room}}.",
+    "doorLockedNotice": "A porta de {{name}} está trancada agora — você ainda está em {{room}}."
   }
 }

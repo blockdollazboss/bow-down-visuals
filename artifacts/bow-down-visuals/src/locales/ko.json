@@ -11030,5 +11030,16 @@
     "copied": "복사됨",
     "oneLanguage": "언어",
     "manyLanguages": "언어"
+  },
+  "world": {
+    "lockedOutTitle": "지금은 이 방에 들어갈 수 없어요",
+    "lockedOutBody": "이 잠금은 팰리스가 건 것으로, 오류가 아니에요. 잠금이 풀릴 때까지 이 문은 당신에게 열리지 않아요. 사이트의 나머지는 여전히 당신의 것입니다: 쇼, 당신의 페이지, 당신의 사람들.",
+    "lockedOutRemaining": "이 잠금은 약 {{duration}} 남았어요.",
+    "doorLockedTitle": "이 방의 문은 지금 잠겨 있어요",
+    "doorLockedBody": "팰리스가 이 문을 잠갔어요 — 안에 있는 사람은 그대로 있고, 다시 열릴 때까지 새로 들어올 수 없어요. 사이트의 나머지는 여전히 당신의 것입니다: 쇼, 당신의 페이지, 당신의 사람들.",
+    "lockedTryAgain": "문 다시 시도하기",
+    "lockedGoLive": "Go Live로 돌아가기",
+    "lockedOutNotice": "지금은 {{name}}에 들어갈 수 없어요 — 당신은 아직 {{room}}에 있어요.",
+    "doorLockedNotice": "{{name}}의 문은 지금 잠겨 있어요 — 당신은 아직 {{room}}에 있어요."
   }
 }

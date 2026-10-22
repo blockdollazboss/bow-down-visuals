@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
-  Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
+  Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import {
 import {
   WorldClient,
   worldOverlay,
+  formatLockDuration,
   defaultWorldSocketUrl,
   worldGuestSessionId,
   fetchWorldDirectory,
@@ -47,6 +49,7 @@ import {
   type WorldJukeboxState,
   type WorldKingMomentState,
   type WorldDropState,
+  type WorldLockRefusal,
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
 import {
@@ -276,6 +279,9 @@ function ActionButton({
 export default function WorldPage() {
   usePageTitle("The World — The King's Plaza", "Step into the King's Plaza: the palace's front square — the hall's stage and big screen, and your people, are all right here.");
   const { user, getAccessToken } = useAuth();
+  /* The lock cards speak the visitor's language (world.* keys) —
+   * the one part of this page's chrome on the translation rails. */
+  const { t, i18n } = useTranslation();
   /* My Creator Level, as this device knows it — the input to the
      level-up detection below (the server keeps the record that
      actually gets witnessed; see runLevelCheck). */
@@ -293,6 +299,11 @@ export default function WorldPage() {
 
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<WorldStatus>("connecting");
+  /* The lock refusal behind a locked-out / door-locked status —
+   * the cards read the person lock's remaining time from it. The
+   * client states it before it states the status, so the status
+   * handler below can lift it straight across. */
+  const [lockRefusal, setLockRefusal] = useState<WorldLockRefusal | null>(null);
   /* The quiet-reconnect interlude: the client stays "inside" while
      it re-enters; the page shows a slim notice, never a card. */
   const [reconnecting, setReconnecting] = useState(false);
@@ -1354,6 +1365,10 @@ export default function WorldPage() {
       client.onStatus = (s) => {
         if (cancelled) return;
         setStatus(s);
+        /* A lock status carries its refusal with it (the client
+         * stated it first) — the card renders the person lock's
+         * remaining time from the refusal, never a guess. */
+        if (s === "locked-out" || s === "door-locked") setLockRefusal(client.lockRefusal);
         if (s === "inside" && client.self) {
           /* The welcome names the room I actually landed in (the
              plaza since Open World Phase 1) — the first welcome
@@ -1453,6 +1468,28 @@ export default function WorldPage() {
         scene.returnThroughDoor();
         setVoiceNote(
           `The ${name} is full right now — ${cap} people inside. You're still in the ${client.room?.name ?? "King's Hall"}.`,
+        );
+      };
+      /* A LOCK refused the doorway: I never left either. Same step
+         back through the door, and the note says it was a lock —
+         with the person lock's remaining time when the server
+         stated one. (An ENTRY refusal never reaches this handler:
+         it lands on the lock's card instead.) */
+      client.onRoomLocked = (info) => {
+        if (cancelled) return;
+        scene.setRoom(client.room?.id ?? HALL_ROOM_ID);
+        scene.returnThroughDoor();
+        const here = client.room?.name ?? "The King's Plaza";
+        const line =
+          info.kind === "person"
+            ? t("world.lockedOutNotice", { name: info.name, room: here })
+            : t("world.doorLockedNotice", { name: info.name, room: here });
+        setVoiceNote(
+          info.kind === "person" && info.untilMs != null
+            ? `${line} ${t("world.lockedOutRemaining", {
+                duration: formatLockDuration(info.untilMs - Date.now(), i18n.language),
+              })}`
+            : line,
         );
       };
       client.onPeerJoin = (peer) => scene.upsertPeer(peer);
@@ -2584,6 +2621,53 @@ export default function WorldPage() {
               <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 <RotateCcw className="h-4 w-4" /> Re-enter here
               </button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "locked-out" && (
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`} data-testid="world-locked-out-card">
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
+              <Lock className="mx-auto h-8 w-8 text-[#d4af37]" />
+              <h2 className="mt-3 text-lg font-black">{t("world.lockedOutTitle")}</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                {t("world.lockedOutBody")}
+              </p>
+              {lockRefusal?.kind === "person" && lockRefusal.untilMs != null && (
+                <p className={`mt-2 text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                  {t("world.lockedOutRemaining", {
+                    duration: formatLockDuration(lockRefusal.untilMs - Date.now(), i18n.language),
+                  })}
+                </p>
+              )}
+              <div className="mt-4 flex justify-center gap-2">
+                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                  <RotateCcw className="h-4 w-4" /> {t("world.lockedTryAgain")}
+                </button>
+                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
+                  {t("world.lockedGoLive")}
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {overlay === "door-locked" && (
+          <div className={`absolute inset-0 z-10 flex items-center justify-center px-4 ${isLight ? "bg-[#f7ecd2]/85" : "bg-black/80"}`} data-testid="world-door-locked-card">
+            <div className={`max-w-sm rounded-2xl border p-6 text-center ${isLight ? "border-[#C9A84C]/60 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-[#d4af37]/40 bg-[#0a0908]"}`}>
+              <DoorClosed className="mx-auto h-8 w-8 text-[#d4af37]" />
+              <h2 className="mt-3 text-lg font-black">{t("world.doorLockedTitle")}</h2>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                {t("world.doorLockedBody")}
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                  <RotateCcw className="h-4 w-4" /> {t("world.lockedTryAgain")}
+                </button>
+                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
+                  {t("world.lockedGoLive")}
+                </Link>
+              </div>
             </div>
           </div>
         )}

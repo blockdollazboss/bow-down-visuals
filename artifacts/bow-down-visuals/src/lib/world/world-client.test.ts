@@ -18,15 +18,19 @@ import { describe, it, expect } from "vitest";
 import {
   WorldClient,
   worldOverlay,
+  formatLockDuration,
   defaultWorldSocketUrl,
   worldGuestSessionId,
   newWorldGuestSessionId,
   WORLD_REPLACED_CLOSE_CODE,
+  WORLD_LOCKED_OUT_CLOSE_CODE,
+  WORLD_DOOR_LOCKED_CLOSE_CODE,
   WORLD_CONNECT_MAX_ATTEMPTS,
   WORLD_FIRST_WELCOME_WATCHDOG_MS,
   WORLD_WELCOME_WATCHDOG_MS,
   WORLD_KEEPALIVE_INTERVAL_MS,
   WORLD_LIVENESS_TIMEOUT_MS,
+  type WorldLockRefusal,
   type WorldSocketLike,
   type WorldStatus,
 } from "./world-client";
@@ -414,6 +418,9 @@ describe("worldOverlay — the page's honest states", () => {
     expect(worldOverlay("inside")).toBeNull();
     expect(worldOverlay("closed")).toBeNull();
     expect(worldOverlay("removed")).toBe("removed");
+    expect(worldOverlay("replaced")).toBe("replaced");
+    expect(worldOverlay("locked-out")).toBe("locked-out");
+    expect(worldOverlay("door-locked")).toBe("door-locked");
   });
 });
 
@@ -1707,6 +1714,207 @@ describe("presence truth — guest session id + the replaced state", () => {
     expect(client.reconnecting).toBe(false);
     expect(statuses).not.toContain("error");
     expect(client.status).toBe("replaced");
+  });
+});
+
+describe("locks — the honest cards (4415 person / 4416 door)", () => {
+  /* Timers driven by hand, same idiom as the retry describes:
+   * a lock's terminality is asserted against the timer queue —
+   * no watchdog, no backoff, no second socket may survive it. */
+  function manualTimers() {
+    let nextId = 1;
+    const timers = new Map<number, { fn: () => void; ms: number }>();
+    return {
+      setTimer: (fn: () => void, ms: number) => {
+        const id = nextId++;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      clearTimer: (handle: unknown) => {
+        timers.delete(handle as number);
+      },
+      pendingDelays: () => [...timers.values()].map((t) => t.ms),
+    };
+  }
+
+  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  function makeLockClient() {
+    const timers = manualTimers();
+    const sockets: FakeSocket[] = [];
+    const statuses: WorldStatus[] = [];
+    const client = new WorldClient({
+      getAccessToken: async () => "token-abc",
+      socketUrl: (token) => `ws://hall/api/world/ws${token ? `?token=${token}` : ""}`,
+      openSocket: () => {
+        const s = new FakeSocket();
+        sockets.push(s);
+        return s;
+      },
+      setTimer: timers.setTimer,
+      clearTimer: timers.clearTimer,
+    });
+    client.onStatus = (s) => statuses.push(s);
+    return { client, sockets, timers, statuses };
+  }
+
+  const UNTIL_ISO = "2027-01-01T01:00:00.000Z";
+
+  it("a person lock at entry lands on the locked-out card — frame first, the 4415 close behind it can't stomp it into an error", async () => {
+    const { client, sockets, timers, statuses } = makeLockClient();
+    await client.connect();
+    expect(timers.pendingDelays()).toEqual([WORLD_FIRST_WELCOME_WATCHDOG_MS]);
+
+    sockets[0]!.receive({
+      type: "room.locked",
+      kind: "person",
+      roomId: "world:kings-hall",
+      name: "The King's Hall",
+      until: UNTIL_ISO,
+    });
+    expect(client.status).toBe("locked-out");
+    expect(worldOverlay(client.status)).toBe("locked-out");
+    /* The refusal rides the client with the server's own until —
+     * parsed, never invented. */
+    expect(client.lockRefusal).toEqual({
+      kind: "person",
+      roomId: "world:kings-hall",
+      name: "The King's Hall",
+      untilMs: Date.parse(UNTIL_ISO),
+    });
+    /* Terminal: the watchdog is gone and no backoff stands — the
+     * retry budget is not burned against a door that would only
+     * refuse again. */
+    expect(timers.pendingDelays()).toEqual([]);
+
+    sockets[0]!.onclose?.({ code: WORLD_LOCKED_OUT_CLOSE_CODE });
+    await flush();
+    expect(client.status).toBe("locked-out");
+    expect(client.lockRefusal?.untilMs).toBe(Date.parse(UNTIL_ISO));
+    expect(sockets).toHaveLength(1); // no retry socket ever opened
+    expect(statuses).not.toContain("error");
+  });
+
+  it("a door lock at entry lands on the door-locked card, with no until — door locks carry no expiry", async () => {
+    const { client, sockets, timers, statuses } = makeLockClient();
+    await client.connect();
+    sockets[0]!.receive({
+      type: "room.locked",
+      kind: "door",
+      roomId: "world:music-hall",
+      name: "Music Hall",
+    });
+    expect(client.status).toBe("door-locked");
+    expect(worldOverlay(client.status)).toBe("door-locked");
+    expect(client.lockRefusal).toEqual({
+      kind: "door",
+      roomId: "world:music-hall",
+      name: "Music Hall",
+      untilMs: null,
+    });
+    expect(timers.pendingDelays()).toEqual([]);
+
+    sockets[0]!.onclose?.({ code: WORLD_DOOR_LOCKED_CLOSE_CODE });
+    await flush();
+    expect(client.status).toBe("door-locked");
+    expect(sockets).toHaveLength(1);
+    expect(statuses).not.toContain("error");
+  });
+
+  it("a bare 4415 close — frame lost on the way out — still lands on locked-out, never on error or a retry", async () => {
+    const { client, sockets, timers, statuses } = makeLockClient();
+    await client.connect();
+    sockets[0]!.onclose?.({ code: WORLD_LOCKED_OUT_CLOSE_CODE });
+    await flush();
+    expect(client.status).toBe("locked-out");
+    /* No frame, no until: the refusal stands with the code's own
+     * kind and NO time — the card shows no remaining line rather
+     * than inventing one. */
+    expect(client.lockRefusal?.kind).toBe("person");
+    expect(client.lockRefusal?.untilMs).toBeNull();
+    expect(timers.pendingDelays()).toEqual([]);
+    expect(sockets).toHaveLength(1);
+    expect(statuses).not.toContain("error");
+  });
+
+  it("a bare 4416 close lands on door-locked", async () => {
+    const { client, sockets, statuses } = makeLockClient();
+    await client.connect();
+    sockets[0]!.onclose?.({ code: WORLD_DOOR_LOCKED_CLOSE_CODE });
+    await flush();
+    expect(client.status).toBe("door-locked");
+    expect(client.lockRefusal?.kind).toBe("door");
+    expect(statuses).not.toContain("error");
+  });
+
+  it("a person lock slamming mid-visit is an ejection, not a drop: no quiet reconnect to the same shut door", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    expect(client.status).toBe("inside");
+    socket.onclose?.({ code: WORLD_LOCKED_OUT_CLOSE_CODE });
+    expect(client.status).toBe("locked-out");
+    expect(client.reconnecting).toBe(false);
+  });
+
+  it("a doorway transfer refused by a lock keeps my place: status stays inside, the page hears it via onRoomLocked", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const heard: WorldLockRefusal[] = [];
+    client.onRoomLocked = (info) => heard.push(info);
+
+    socket.receive({
+      type: "room.locked",
+      kind: "person",
+      roomId: "world:music-hall",
+      name: "Music Hall",
+      until: UNTIL_ISO,
+    });
+    expect(client.status).toBe("inside");
+    expect(heard).toEqual([
+      { kind: "person", roomId: "world:music-hall", name: "Music Hall", untilMs: Date.parse(UNTIL_ISO) },
+    ]);
+    expect(client.lockRefusal?.kind).toBe("person");
+
+    socket.receive({ type: "room.locked", kind: "door", roomId: "world:game-rooms", name: "Game Rooms" });
+    expect(client.status).toBe("inside");
+    expect(heard[1]).toEqual({ kind: "door", roomId: "world:game-rooms", name: "Game Rooms", untilMs: null });
+  });
+
+  it("a malformed room.locked frame is ignored — no kind, no card", async () => {
+    const { client, sockets, statuses } = makeLockClient();
+    await client.connect();
+    sockets[0]!.receive({ type: "room.locked", kind: "banana", roomId: "world:kings-hall" });
+    expect(client.status).toBe("connecting");
+    expect(client.lockRefusal).toBeNull();
+    expect(statuses).not.toContain("locked-out");
+    expect(statuses).not.toContain("door-locked");
+  });
+
+  it("a person lock whose until is malformed keeps the card but drops the time — never a guessed one", async () => {
+    const { client, sockets } = makeLockClient();
+    await client.connect();
+    sockets[0]!.receive({
+      type: "room.locked",
+      kind: "person",
+      roomId: "world:kings-hall",
+      name: "The King's Hall",
+      until: "whenever",
+    });
+    expect(client.status).toBe("locked-out");
+    expect(client.lockRefusal?.untilMs).toBeNull();
+  });
+
+  it("formatLockDuration speaks the largest whole unit, in the visitor's own grammar", () => {
+    expect(formatLockDuration(42 * 60_000, "en")).toBe("42 minutes");
+    expect(formatLockDuration(60_000, "en")).toBe("1 minute");
+    expect(formatLockDuration(90 * 60_000, "en")).toBe("90 minutes");
+    expect(formatLockDuration(5 * 3_600_000, "en")).toBe("5 hours");
+    expect(formatLockDuration(3 * 86_400_000, "en")).toBe("3 days");
+    /* A lock at (or past) its end never reads zero or negative. */
+    expect(formatLockDuration(0, "en")).toBe("1 minute");
+    expect(formatLockDuration(-5_000, "en")).toBe("1 minute");
+    /* Other locales carry their own unit grammar via Intl. */
+    expect(formatLockDuration(42 * 60_000, "de")).toBe("42 Minuten");
+    expect(formatLockDuration(42 * 60_000, "ja")).toContain("42");
+    expect(formatLockDuration(42 * 60_000, "ko")).toContain("42");
   });
 });
 

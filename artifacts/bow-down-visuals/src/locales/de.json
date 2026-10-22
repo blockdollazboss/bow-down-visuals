@@ -12124,5 +12124,16 @@
     "copied": "Kopiert",
     "oneLanguage": "Sprache",
     "manyLanguages": "Sprachen"
+  },
+  "world": {
+    "lockedOutTitle": "Du bist vorerst aus diesem Raum ausgesperrt",
+    "lockedOutBody": "Der Palast hat diese Sperre gesetzt, und es ist kein Fehler — diese Tür bleibt für dich geschlossen, bis die Sperre aufgehoben wird. Der Rest der Seite gehört weiter dir: die Shows, deine Seite, deine Leute.",
+    "lockedOutRemaining": "Diese Sperre dauert noch ungefähr {{duration}}.",
+    "doorLockedTitle": "Die Tür zu diesem Raum ist gerade abgeschlossen",
+    "doorLockedBody": "Der Palast hat diese Tür abgeschlossen — wer drinnen ist, bleibt, und niemand Neues kommt herein, bis sie wieder geöffnet wird. Der Rest der Seite gehört weiter dir: die Shows, deine Seite, deine Leute.",
+    "lockedTryAgain": "Die Tür erneut versuchen",
+    "lockedGoLive": "Zurück zu Go Live",
+    "lockedOutNotice": "{{name}} ist für dich vorerst gesperrt — du bist weiterhin in {{room}}.",
+    "doorLockedNotice": "Die Tür von {{name}} ist gerade abgeschlossen — du bist weiterhin in {{room}}."
   }
 }
