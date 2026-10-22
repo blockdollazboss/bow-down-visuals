@@ -19,6 +19,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { isUniqueViolation, pgErrorText } from "../lib/pg-errors";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 /* ─── Challenge engine 2.0 — prizes, judging, winners' circle ─────────────
@@ -337,7 +338,9 @@ router.post("/challenges/:slug/vote", requireAuth, voteLimiter, async (req, res)
         await tx.insert(challengeVotesTable).values({ challengeId: ch.id, videoId, userId });
       } catch (e) {
         // Raced with a double-tap: the unique constraint won elsewhere.
-        if (e instanceof Error && /duplicate|unique/i.test(e.message)) return { voted: false };
+        // (drizzle wraps the pg error — the code/message ride on .cause;
+        // see lib/pg-errors.)
+        if (isUniqueViolation(e) || (e instanceof Error && /duplicate|unique/i.test(pgErrorText(e)))) return { voted: false };
         throw e;
       }
       await tx

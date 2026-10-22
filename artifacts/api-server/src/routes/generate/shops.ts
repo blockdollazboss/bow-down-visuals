@@ -24,6 +24,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { isUniqueViolation, pgErrorText } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
@@ -707,8 +708,8 @@ router.post("/shops/:id/discounts", publicApiLimiter, requireAuth, async (req, r
       RETURNING id, shop_id, code, percent_off, max_uses, used_count, expires_at, is_active, created_at
     `);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/duplicate key|unique/i.test(msg)) {
+    const msg = err instanceof Error ? pgErrorText(err) : String(err);
+    if (isUniqueViolation(err) || /duplicate key|unique/i.test(msg)) {
       res.status(409).json({ error: "CODE_TAKEN", message: "This shop already has a code with that name." });
       return;
     }

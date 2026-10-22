@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
+import { isUniqueViolation } from "../lib/pg-errors";
 import { publicApiLimiter } from "../lib/rate-limit";
 import {
   getConnectStripe,
@@ -289,8 +290,7 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
       payoutId = String(payoutRow["id"]);
       payoutCreatedAt = new Date(payoutRow["created_at"] as string).toISOString();
     } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === "23505") {
+      if (isUniqueViolation(err)) {
         res.status(409).json({ error: "PAYOUT_IN_FLIGHT", message: "A payout is already processing." });
         return;
       }

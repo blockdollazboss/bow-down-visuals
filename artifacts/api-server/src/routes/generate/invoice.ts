@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { isUniqueViolation } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
@@ -169,8 +170,7 @@ router.post("/generate-invoice", publicApiLimiter, requireAuth, async (req, res)
           .returning();
         inserted = rows[0] ?? null;
       } catch (dbErr) {
-        const code = (dbErr as { code?: string } | null)?.code;
-        if (code === "23505") {
+        if (isUniqueViolation(dbErr)) {
           // invoice_number collision — bump and retry
           invoiceNumber = buildInvoiceNumber(
             new Date().getFullYear(),
