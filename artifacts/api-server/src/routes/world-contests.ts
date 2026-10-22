@@ -44,6 +44,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { isKingFrontRowMember, sanitizeEventPayload } from "../lib/world-events";
+import { isUniqueViolation as isPgUniqueViolation } from "../lib/pg-errors";
 import { heraldContestWinners } from "../lib/operator-duties";
 import {
   contestAcceptsEntries,
@@ -176,10 +177,11 @@ function toDto(
 }
 
 /** Is this Postgres' unique-violation (the raced twin of a friendly
- *  pre-check)? */
+ *  pre-check)? Delegates to the shared chain-walking helper — drizzle
+ *  wraps the pg error, so the 23505 rides on .cause, never top-level
+ *  (see lib/pg-errors). */
 function isUniqueViolation(err: unknown): boolean {
-  const code = (err as { code?: unknown } | null)?.code;
-  return code === "23505";
+  return isPgUniqueViolation(err);
 }
 
 /* ── Host a contest ─────────────────────────────────────────────── */

@@ -15,6 +15,7 @@ import {
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { isUniqueViolation } from "../lib/pg-errors";
 import {
   createLiveInput,
   deleteLiveInput,
@@ -650,7 +651,7 @@ async function startRtmpIngestStream(input: {
     void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
     return { ok: true, streamId: row.id };
   } catch (err) {
-    if ((err as { code?: string })?.code === "23505") {
+    if (isUniqueViolation(err)) {
       return {
         ok: false,
         message: "You're already live. End that stream before your program can take the stage.",
@@ -816,8 +817,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
         res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
         return;
       } catch (err) {
-        const code = (err as { code?: string })?.code;
-        if (code === "23505") {
+        if (isUniqueViolation(err)) {
           const liveNow = await getLiveStreamForUser(req.userId!);
           res.status(409).json({
             error: "You're already live. End that stream before starting a new one.",
@@ -871,8 +871,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
     } catch (err) {
       // Lost a race against the one-live-per-user unique index: clean up
       // the provider input we just made and report the real live stream.
-      const code = (err as { code?: string })?.code;
-      if (code === "23505") {
+      if (isUniqueViolation(err)) {
         await deleteLiveInput(input.providerInputId).catch(() => undefined);
         const liveNow = await getLiveStreamForUser(req.userId!);
         res.status(409).json({

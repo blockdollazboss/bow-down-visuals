@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { isUniqueViolation } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { db } from "@workspace/db";
@@ -1617,8 +1618,10 @@ router.post("/distribution/releases/:id/splits/share-link", requireAuth, async (
         res.json({ slug, url: `${APP_PUBLIC_URL}/splits/${slug}` });
         return;
       } catch (err) {
-        /* Slug collision — astronomically unlikely; retry. */
-        if ((err as { code?: string })?.code !== "23505") throw err;
+        /* Slug collision — astronomically unlikely; retry. (drizzle
+           wraps the pg error: the 23505 rides on .cause — see
+           lib/pg-errors.) */
+        if (!isUniqueViolation(err)) throw err;
       }
     }
     res.status(500).json({ error: "Couldn't mint a share link — try again." });

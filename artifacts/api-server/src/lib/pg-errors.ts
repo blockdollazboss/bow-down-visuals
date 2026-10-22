@@ -1,0 +1,51 @@
+/* Postgres error-shape helpers.
+ *
+ * @workspace/db runs on drizzle-orm/node-postgres, which wraps EVERY
+ * driver error in a DrizzleQueryError: the pg error (with its .code,
+ * e.g. "23505") rides on .cause, the wrapper itself has NO .code, and
+ * its message is just "Failed query: …". Any check that reads a
+ * top-level err.code — or regexes the top-level message — therefore
+ * NEVER fires on a drizzle path in production (the D6 lesson). These
+ * helpers walk the cause chain (≤5 levels) to the real pg error.
+ *
+ * Supabase PostgREST errors are NOT wrapped: their .code is top-level
+ * and checks against them are correct without this helper.
+ *
+ * NOTE for integration: lib/payment-record.ts grows the same walker
+ * on the lane-10 branch (stack21/verify-path-banner) — reconcile the
+ * two into this shared helper when that lane lands. */
+
+export function pgErrorCode(err: unknown): string | undefined {
+  let cur: unknown = err;
+  for (let depth = 0; depth < 5 && cur != null; depth++) {
+    const code = (cur as { code?: unknown }).code;
+    if (typeof code === "string" && code !== "") return code;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+/** Postgres unique-violation (23505), wherever it hides in the chain. */
+export function isUniqueViolation(err: unknown): boolean {
+  return pgErrorCode(err) === "23505";
+}
+
+/** Postgres undefined-table (42P01), wherever it hides in the chain. */
+export function isUndefinedTable(err: unknown): boolean {
+  return pgErrorCode(err) === "42P01";
+}
+
+/* Every message along the cause chain, outermost first. For checks
+ * written against the raw pg message ("duplicate key value violates
+ * unique constraint …", "relation \"x\" does not exist") — on a
+ * drizzle path that text survives only on the wrapped error's cause. */
+export function pgErrorText(err: unknown): string {
+  const parts: string[] = [];
+  let cur: unknown = err;
+  for (let depth = 0; depth < 5 && cur != null; depth++) {
+    const msg = (cur as { message?: unknown }).message;
+    if (typeof msg === "string" && msg !== "") parts.push(msg);
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return parts.join(" ");
+}

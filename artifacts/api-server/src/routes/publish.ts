@@ -30,6 +30,7 @@ import {
   refreshSupabaseStorageUrlsDeep,
 } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
 
 const router = Router();
 
@@ -172,7 +173,9 @@ function publishError(res: Response, req: Request, err: unknown, ctx: string): v
       ? ((err as { status?: number }).status as number)
       : undefined;
   // Worker 1's tables may not exist yet — surface that as 503, not a crash.
-  if (/relation .* does not exist|undefined_table/i.test(msg)) {
+  // (drizzle wraps the pg error: the 42P01 code and the "relation …
+  // does not exist" message ride on .cause — see lib/pg-errors.)
+  if (isUndefinedTable(err) || /relation .* does not exist|undefined_table/i.test(pgErrorText(err))) {
     req.log.warn({ ctx, msg }, "[publish] contract tables not ready yet");
     res.status(503).json({
       error: "publish_not_ready",

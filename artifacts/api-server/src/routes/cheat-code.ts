@@ -41,6 +41,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { addCreditsToProfile, getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { isUniqueViolation, pgErrorText } from "../lib/pg-errors";
 
 const router = Router();
 
@@ -622,7 +623,7 @@ router.post(
       const rows = result.rows as unknown as CheatCodeEventRow[];
       res.status(201).json({ event: adminEventShape(rows[0]) });
     } catch (err: unknown) {
-      if (err instanceof Error && /duplicate key|unique/i.test(err.message)) {
+      if (isUniqueViolation(err) || (err instanceof Error && /duplicate key|unique/i.test(pgErrorText(err)))) {
         res
           .status(409)
           .json({ error: "An event with that name already exists." });
