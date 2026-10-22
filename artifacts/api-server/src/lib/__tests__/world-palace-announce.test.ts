@@ -197,6 +197,9 @@ describe("room moments cross the walls", () => {
     palace.enterHall(inMusic, member("Beta"));
     walkTo(palace, inMusic, MUSIC);
     palace.enterHall(performer, member("Alpha"));
+    /* The stage is the hall's — admission lands on the plaza
+     * (Phase 1), so the performer walks in before claiming it. */
+    walkTo(palace, performer, WORLD_ROOM_ID);
     inMusic.sent = [];
 
     frame(palace, performer, { type: "stage.live", streamId: "s1" }, 2_000_000);

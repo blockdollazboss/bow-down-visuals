@@ -207,9 +207,11 @@ describe("cold room.enter resolution", () => {
     a.sent = [];
     frame(palace, a, { type: "room.enter", roomId: "creator:secret-creator" });
     await flush();
-    expect(palace.roomOf(a)).toBe(palace.hallRoom);
+    /* The walker keeps their place — the plaza, where admission
+     * lands since Open World Phase 1. */
+    expect(palace.roomOf(a)).toBe(palace.plazaRoom);
     expect(palace.creatorRoom("secret-creator")).toBeUndefined();
-    expect(a.sent.some((m) => m.type === "welcome" && m.room?.id !== WORLD_ROOM_ID)).toBe(false);
+    expect(a.sent.some((m) => m.type === "welcome" && m.room?.id !== "world:courtyard")).toBe(false);
   });
 
   it("a burst of enters for one cold room resolves the profile once", async () => {
@@ -239,6 +241,6 @@ describe("cold room.enter resolution", () => {
     palace.enterHall(a, member("Alpha"));
     frame(palace, a, { type: "room.enter", roomId: "creator:nova-reyes" });
     await flush();
-    expect(palace.roomOf(a)).toBe(palace.hallRoom);
+    expect(palace.roomOf(a)).toBe(palace.plazaRoom);
   });
 });
