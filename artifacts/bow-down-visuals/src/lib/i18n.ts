@@ -14,6 +14,28 @@ import en from "../locales/en.json";
  * Each non-English catalog is now a lazily imported chunk, fetched on
  * demand: once at startup when a stored choice names it, and whenever the
  * user picks it in the language switcher.
+ *
+ * Stack-28 #48 — EN-FALLBACK REQUIREMENT (documented, deliberate):
+ * en.json (~218 KB gzip) stays statically inlined in the entry chunk and
+ * is NOT split out, because this i18n stack requires a synchronous
+ * fallback catalog:
+ *   1. i18next is initialised synchronously at module import with
+ *      `fallbackLng: "en"` and the en resources inline — every other
+ *      locale's strings resolve through en while its chunk is in flight
+ *      (ensureLocaleLoaded above, and the untranslated-key fallback in
+ *      every non-en catalog). Without inline en, a returning non-English
+ *      visitor would paint raw keys / blank strings until the en chunk
+ *      arrived.
+ *   2. First visit is ALWAYS English (detector reads only an explicit
+ *      stored choice), so the default-language UI must be renderable on
+ *      the very first synchronous paint — no async bootstrap exists in
+ *      main.tsx, and adding one would delay/flash every first paint to
+ *      save bytes only non-first paints could avoid.
+ * Splitting en into a separate chunk would not save the bytes either:
+ * as a static dependency of the entry it would still be modulepreloaded
+ * and fetched before first paint. The honest saving is the one already
+ * shipped: the other nine catalogs (~1.44 MB gzip combined) are async.
+ * Revisit ONLY if i18n init moves behind an async bootstrap.
  */
 const localeLoaders: Record<string, () => Promise<{ default: unknown }>> = {
   es: () => import("../locales/es.json"),
