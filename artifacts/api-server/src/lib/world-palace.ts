@@ -156,6 +156,21 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: 13.0, maxX: 27.8, minZ: 3.6, maxZ: 11.4 },
     spawn: { x: 16.5, z: 5 },
   },
+  {
+    /* Stage C item 31: THE STAGE GROUNDS — the first built
+     * district, an outdoor stage quarter west of the plaza
+     * through the west wall's gate (a true passage since this
+     * batch). Bounds + spawn mirror the client floor plan
+     * (lib/world/stage-grounds.ts via palace-layout.ts), a touch
+     * generous at the gate apron like every room's. The district
+     * is public look/listen space like the plaza: NO stage and
+     * NO jukebox here — the palace's one stage stays in the hall
+     * and its one jukebox in the Music Hall. */
+    roomId: "world:stage-grounds",
+    name: "Stage Grounds",
+    bounds: { minX: -54.4, maxX: -27.8, minZ: 9.6, maxZ: 36.4 },
+    spawn: { x: -30.2, z: 19.5 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration
