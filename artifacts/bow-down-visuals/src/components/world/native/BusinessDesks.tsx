@@ -18,6 +18,7 @@ import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
 import { PostAssistBlock } from "./PostAssist";
+import { UgcAdsStation } from "./UgcAdsStation";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
@@ -2208,6 +2209,12 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           the full distribution wizard + the smartlink surface
           complete here on the /distribute page's own rails. */}
       <ReleaseDeskSection isLight={isLight} />
+
+      {/* UGC Product Ads, docked in Promote (Stack-100 #56): the
+          maker (script / persona 100 VB / ad video 400 VB /
+          pin-to-product) and the briefs board complete here on the
+          website panel's own seam and rails. */}
+      <UgcAdsStation isLight={isLight} />
 
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
