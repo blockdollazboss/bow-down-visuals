@@ -282,3 +282,93 @@ describe("it-W2 (Stack-28 #84) — sponsors/retention/create-entry namespaces fu
     }
   });
 });
+
+/* ------------------------------ it-W3 (item 93) ------------------------------ */
+const W3_NAMESPACES = [
+  "motionGraphics", "cartoonStudio", "bgStudio", "headshotStudio", "colorGrade",
+  "photoEnhance", "speedRamp", "captionTemplates", "videoTemplatesPage",
+  "photoShoot", "makeVideo", "songAndVideo", "upscale", "avatarPresenter",
+  "thumbnail", "thumbnailMaker", "logoMaker", "thumbnailStudio", "captionStyler",
+  "clipMaker", "thumbnailTest", "thumbnails", "watermarkRemoval", "mixMaster",
+  "harmony", "deverb",
+];
+
+/* Legit identicals (§1.4): genres, platforms, house/feature names (Mix &
+   Master, Cartoon Studio, Logo Maker, Speed Ramp, Color Grade, Photo
+   Enhance, Headshot, Avatar Presenter, De-Reverb, Podcast Studio), numbers /
+   formats only, Italian cognates & loanwords (Video, Radio, Club, Streaming,
+   Avatar, Studio, Stage, Stem, Beat, FX, Vibe, Hype, Tagline, Gaming,
+   Minimal, Premium, Standard, Turbo, Anime, Vintage, Neon, Karaoke…). */
+const W3_LEGIT = new Set([
+  "harmony.buttonCost", "harmony.vb", "harmony.modeAiShort", "harmony.partsLine",
+  "songAndVideo.simpleTabLabel",
+  "mixMaster.title", "mixMaster.tabMaster", "mixMaster.tabMix",
+  "mixMaster.genres.hip-hop.label", "mixMaster.genres.pop.label",
+  "mixMaster.genres.rnb.label", "mixMaster.genres.edm.label",
+  "mixMaster.genres.rock.label", "mixMaster.genres.lofi.label",
+  "mixMaster.genres.afrobeat.label", "mixMaster.genres.gospel.label",
+  "mixMaster.genres.podcast.label", "mixMaster.genres.trap.label",
+  "mixMaster.loudness.streaming.label", "mixMaster.loudness.club.label",
+  "mixMaster.loudness.radio.label", "mixMaster.stemTypes.fx",
+  "mixMaster.stemTypes.beat", "mixMaster.stemTypes.other",
+  "cartoonStudio.pageTitle", "cartoonStudio.title", "cartoonStudio.styleAnimeName",
+  "motionGraphics.templates.typewriter",
+  "avatarPresenter.title", "avatarPresenter.avatarLabel",
+  "headshotStudio.presetNames.studio", "headshotStudio.presetNames.stage",
+  "headshotStudio.presetNames.street", "headshotStudio.presetNames.luxury",
+  "headshotStudio.featureName", "headshotStudio.visualBucs",
+  "photoEnhance.featureName", "photoEnhance.ops.upscale",
+  "photoShoot.scenePacks.packs.neonStage.name",
+  "photoShoot.scenePacks.packs.rooftopGolden.name",
+  "photoShoot.scenePacks.packs.studioNoir.name",
+  "photoShoot.scenePacks.packs.streetLuxury.name",
+  "photoShoot.scenePacks.packs.palaceThrone.name",
+  "speedRamp.title", "colorGrade.title",
+  "deverb.featureName", "deverb.handoffPodcast",
+  "captionStyler.styles.hormozi.label", "captionStyler.styles.karaoke.label",
+  "captionStyler.styles.luxuryGold.label", "captionStyler.styles.minimal.label",
+  "captionStyler.styles.neon.label",
+  "clipMaker.secondsLabel", "clipMaker.vibe", "clipMaker.vibeHypeLabel",
+  "logoMaker.pageTitle", "logoMaker.title", "logoMaker.taglineLabel",
+  "logoMaker.styleGaming", "logoMaker.styleMinimal", "logoMaker.modelPremium",
+  "logoMaker.modelStandard", "logoMaker.vb",
+  "makeVideo.priceBadge", "makeVideo.unknownStep", "makeVideo.clipFallback",
+  "makeVideo.refundedNoticeSuffix",
+  "makeVideo.genreHipHop", "makeVideo.genreDrill", "makeVideo.genreTrap",
+  "makeVideo.genreRB", "makeVideo.genrePop", "makeVideo.genreAfrobeats",
+  "makeVideo.genreDancehall", "makeVideo.genreGospel", "makeVideo.genreRock",
+  "makeVideo.genreCountry", "makeVideo.videoStyleBrooklynDrill",
+  "makeVideo.platformTiktok",
+  "songAndVideo.costBadge",
+  "songAndVideo.genreAfrobeats", "songAndVideo.genreCountry",
+  "songAndVideo.genreDancehall", "songAndVideo.genreDrill",
+  "songAndVideo.genreGospel", "songAndVideo.genreHipHop", "songAndVideo.genrePop",
+  "songAndVideo.genreRB", "songAndVideo.genreRock", "songAndVideo.genreTrap",
+  "songAndVideo.platformTiktokReels", "songAndVideo.summaryVideo",
+  "songAndVideo.videoStyleBrooklynDrill",
+  "thumbnail.artStyleAnime", "thumbnail.artStyleVintage",
+  "thumbnail.platformAppleMusic", "thumbnail.platformSoundCloud",
+  "thumbnail.platformSpotify", "thumbnail.platformYouTube",
+  "thumbnailMaker.portraitBlurb", "thumbnailMaker.styleGamingName",
+  "thumbnailMaker.styleVlogName",
+  "upscale.tabVideoShort", "upscale.target1080p", "upscale.target4k",
+]);
+
+describe("it-W3 (Stack-28 #93) — create video/image + audio namespaces fully Italian", () => {
+  const r = checkWave(W3_NAMESPACES, [...W3_LEGIT]);
+  it("covers every en key in the wave namespaces", () => {
+    expect(r.missing).toEqual([]);
+    expect(r.empty).toEqual([]);
+  });
+  it("preserves {{placeholders}} exactly", () => {
+    expect(r.badPlaceholders).toEqual([]);
+  });
+  it("leaves no REAL untranslated identicals", () => {
+    expect(r.realIdentical).toEqual([]);
+  });
+  it("carries thumbnailTest.filesSkipped plurals whole (_one/_other/_many)", () => {
+    for (const suffix of ["_one", "_other", "_many"]) {
+      expect(typeof IT[`thumbnailTest.filesSkipped${suffix}`], `filesSkipped${suffix}`).toBe("string");
+    }
+  });
+});
