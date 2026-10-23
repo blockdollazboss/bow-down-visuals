@@ -4,6 +4,7 @@
  *   WS  /api/world/ws?token=<session?>   presence + voice signaling
  *   GET /api/world/screen                what the hall's big screen plays
  *   GET /api/world/directory             who's in which palace room
+ *   GET /api/world/voice-config          voice ICE servers (members)
  *
  * Presence is socket state (lib/world-room.ts, one instance per
  * palace room, registered in lib/world-palace.ts) on the shared live
@@ -41,6 +42,7 @@ import {
   ROOM_DRESSING_CONFIG_KEY,
   type WorldRoomDressingDto,
 } from "../lib/world-room-dressing";
+import { buildWorldVoiceConfig } from "../lib/world-voice-config";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
@@ -419,6 +421,15 @@ function lockBodyString(body: unknown, key: string): string | null {
   const v = (body as Record<string, unknown>)[key];
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
 }
+
+/* Voice ICE config (item 100): the ICE servers a member's voice
+ * mesh should use — a TURN relay when the owner has stood one up
+ * (WORLD_TURN_* env, lib/world-voice-config), an honest empty list
+ * until then. Members only: voice is members-only, so the relay
+ * coordinates never serve to guests or the public. */
+router.get("/world/voice-config", requireAuth, (_req, res) => {
+  res.json(buildWorldVoiceConfig(process.env));
+});
 
 router.get("/world/locks", requireAuth, (req, res) => {
   if (!requireWorldAdmin(req, res)) return;

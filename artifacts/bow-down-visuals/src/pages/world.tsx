@@ -149,8 +149,12 @@ import {
   createBrowserPeerConnection,
   createBrowserVoiceSink,
   createLocalLevelTap,
+  summarizeVoiceConnections,
+  voiceConnectionHeadline,
+  type VoicePeerConnectionState,
   type VoiceSignalData,
 } from "@/lib/world/voice";
+import { fetchVoiceIceServers } from "@/lib/world/voice-ice";
 import {
   loadViewMode,
   storeViewMode,
@@ -443,6 +447,12 @@ export default function WorldPage() {
   const [voiceProfile, setVoiceProfile] = useState<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
   const voiceProfileRef = useRef<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  /* Honest voice connection state (item 100): the mesh reports every
+     pair's real connection state; the footer shows the aggregate and
+     a failed pair gets plain words + a retry, never silent dead air.
+     Members only — this state only ever exists inside a voice
+     session, which guests can't start. */
+  const [voiceConnStates, setVoiceConnStates] = useState<Map<string, VoicePeerConnectionState>>(new Map());
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
@@ -1383,6 +1393,17 @@ export default function WorldPage() {
     micStreamRef.current = null;
     clientRef.current?.leaveVoice();
     setMuted(false);
+    setVoiceConnStates(new Map());
+  };
+
+  /* Retry every pair the browser gave up on (item 100): each failed
+     connection is torn down and offered fresh by the mesh. */
+  const retryFailedVoicePeers = () => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    for (const peerId of summarizeVoiceConnections(voiceConnStates).failedPeerIds) {
+      void mesh.retryPeer(peerId).catch(() => undefined);
+    }
   };
 
   const dispatchVoice = (action: VoiceToggleAction) => {
@@ -2053,10 +2074,20 @@ export default function WorldPage() {
         shapingParamsFor(currentVoiceProfile(), charVoiceRef.current),
       ).catch(() => null);
       shaperRef.current = shaper;
+      /* ICE servers for this session (item 100): the server's voice
+         config — STUN as always, plus a TURN relay when the owner
+         has one configured. The fetch fails open to the STUN-only
+         default, so a config hiccup never costs working voice. */
+      const token = await getAccessToken().catch(() => null);
+      const iceServers = await fetchVoiceIceServers(
+        (url, init) => fetch(url, init),
+        token,
+      );
       const mesh = new VoiceMesh({
         sendSignal: (to, data) => client.sendSignal(to, data),
-        createPeerConnection: createBrowserPeerConnection,
+        createPeerConnection: () => createBrowserPeerConnection(iceServers),
         createSink: createBrowserVoiceSink,
+        onPeerConnectionStates: (states) => setVoiceConnStates(new Map(states)),
       });
       meshRef.current = mesh;
       mesh.start(shaper?.outputStream ?? stream);
@@ -2134,6 +2165,10 @@ export default function WorldPage() {
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"
     }`;
+  /* The voice connection truth for the footer (item 100): rolled up
+     from the mesh's per-pair states — never assumed from "in voice". */
+  const voiceConnSummary = summarizeVoiceConnections(voiceConnStates);
+  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary);
   /* The voice modes in the words the control speaks them. */
   const voiceModeLabels: Record<VoiceMode, string> = {
     off: "Off",
@@ -3616,6 +3651,41 @@ export default function WorldPage() {
                   <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                     Deafened — you hear nobody, and your mic is muted. Your name plate shows it.
                   </span>
+                )}
+                {/* Honest connection state (item 100): while in voice,
+                    the footer says how the mesh is actually doing —
+                    connecting, connected, or plainly failed with the
+                    reason and a retry — instead of silent dead air.
+                    Alone in voice there is nobody to connect to, so
+                    no chip shows at all. */}
+                {voiceSwitch.inVoice && voiceConnHeadline && (
+                  <span
+                    data-testid="world-voice-conn-state"
+                    data-state={voiceConnSummary.state}
+                    className={`inline-flex max-w-xs items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${
+                      voiceConnSummary.state === "failed" || voiceConnSummary.state === "partial"
+                        ? "border-red-400/40 bg-red-500/10 text-red-300"
+                        : voiceConnSummary.state === "connected"
+                          ? isLight
+                            ? "border-emerald-700/30 bg-emerald-600/10 text-emerald-800"
+                            : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                          : isLight
+                            ? "border-[#7A5A12]/30 bg-black/5 text-[#6B5B36]"
+                            : "border-white/15 bg-white/5 text-white/60"
+                    }`}
+                  >
+                    {voiceConnHeadline}
+                  </span>
+                )}
+                {voiceSwitch.inVoice && voiceConnSummary.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={retryFailedVoicePeers}
+                    data-testid="world-voice-retry"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                  >
+                    Retry connection
+                  </button>
                 )}
                 {hostMuted && !voiceSwitch.inVoice && (
                   <span className="inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-300" data-testid="world-host-muted-badge">
