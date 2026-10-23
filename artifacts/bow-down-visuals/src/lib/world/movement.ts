@@ -87,6 +87,33 @@ export function createMover(x: number, z: number): MoverState {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/* ── Figure height (Stack-100 #2 items 50/55) ───────────────────
+ * A figure's y is its standing height above the room floor — the
+ * ground truth is palace-layout's groundHeightAt (step zones at
+ * their authored tops, 0 elsewhere), and movement's step limits
+ * (STEP_UP_MAX / STEP_DOWN_MAX, enforced per-sample by the
+ * layout's segmentWalkable) decide which grounds a step may
+ * reach at all. What remains for the body is the FOLLOW: ease
+ * the rendered height toward the ground under the figure, fast
+ * enough that a tread registers as a step, smooth enough that
+ * it never reads as a teleport pop. Settling (spawn, doorway
+ * landings) is NOT eased — the placement code sets the height
+ * outright; the ease is for walking only. */
+
+/** Height-follow rate (1/s): at 60 fps a 0.36 m step is ~90%
+ *  ridden within a quarter second — a step, felt as a step. */
+export const HEIGHT_EASE_RATE = 10;
+
+/** Ease a figure's height toward the ground under it. Snaps the
+ *  last millimetre so a standing figure rests exactly on its
+ *  ground (and height reports settle to the authored number). */
+export function easeFigureHeight(current: number, ground: number, dt: number): number {
+  if (!(dt > 0)) return current;
+  const step = Math.min(dt, 0.05);
+  const next = current + (ground - current) * (1 - Math.exp(-HEIGHT_EASE_RATE * step));
+  return Math.abs(ground - next) < 0.001 ? ground : next;
+}
+
 /**
  * Advance the body one frame.
  *

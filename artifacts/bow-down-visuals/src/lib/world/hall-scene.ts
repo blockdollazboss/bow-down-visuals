@@ -148,6 +148,7 @@ import {
   isCreatorRoomId,
   palaceRoomLayout,
   resolvePalaceMove,
+  groundHeightAt,
   pullInCamera,
   clampToRoom,
   PLAZA_WALL_RUNS,
@@ -222,7 +223,7 @@ import {
   actionPoseAt,
   type WorldActionId,
 } from "./actions";
-import { createMover, stepMover, type MoverState } from "./movement";
+import { createMover, stepMover, easeFigureHeight, type MoverState } from "./movement";
 import {
   MARBLE_METRES_PER_TILE,
   FABRIC_METRES_PER_TILE,
@@ -906,6 +907,12 @@ interface AvatarRig {
    *  stride bob, lean, stop settle — fed the figure's real
    *  positions, so the gait tells the truth about the motion. */
   mover: MoverState;
+  /** The ground height this figure currently STANDS at (item 54):
+   *  eased toward target.y for peers; for my own figure it mirrors
+   *  the walk rig's y. applyActionPose composes it under the
+   *  stride bob + action pose lift — a figure on a terrace stands
+   *  ON the terrace, never snapped to the room floor. */
+  groundY: number;
   /** The floor ring (brightened + widened for Front Row members). */
   ring: THREE.Mesh;
   /** Whether the Front Row treatment is currently applied. */
@@ -913,7 +920,7 @@ interface AvatarRig {
   /** Signature of what the name plate currently shows. */
   plateKey: string;
   tint: string;
-  target: { x: number; z: number; rotY: number };
+  target: { x: number; y: number; z: number; rotY: number };
   /** The character the standing figure currently shows (null = capsule). */
   characterId: string | null;
   /** The character the presence payload wants. A portrait load is in
@@ -1251,7 +1258,7 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
   const body = buildCapsuleBody(peer.tint);
   group.add(body);
 
-  group.position.set(peer.x, 0, peer.z);
+  group.position.set(peer.x, peer.y, peer.z);
   group.rotation.y = peer.rotY;
   return {
     group,
@@ -1268,11 +1275,12 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     poseY: 0,
     poseSpinY: 0,
     mover: createMover(peer.x, peer.z),
+    groundY: peer.y,
     ring,
     frontRow: false,
     plateKey: namePlateKey(peer),
     tint: peer.tint,
-    target: { x: peer.x, z: peer.z, rotY: peer.rotY },
+    target: { x: peer.x, y: peer.y, z: peer.z, rotY: peer.rotY },
     characterId: null,
     requestedId: null,
     swapSeq: 0,
@@ -1379,7 +1387,7 @@ const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes
 /* ── The scene ──────────────────────────────────────────────────────── */
 
 export class KingsHallScene {
-  onPose: ((x: number, z: number, rotY: number) => void) | null = null;
+  onPose: ((x: number, z: number, rotY: number, y: number) => void) | null = null;
   /** The walker just crossed a doorway plane into another room —
    *  the page answers by asking the server to transfer presence
    *  (the scene has already flipped its own room: movement, camera
@@ -1466,7 +1474,7 @@ export class KingsHallScene {
   private pitch = 0;
   private lookDrag: { id: number; lastX: number; lastY: number } | null = null;
   private stick: { id: number; ox: number; oy: number; dx: number; dy: number } | null = null;
-  private lastPose = { x: Number.NaN, z: Number.NaN, rotY: Number.NaN };
+  private lastPose = { x: Number.NaN, y: Number.NaN, z: Number.NaN, rotY: Number.NaN };
   private video: HTMLVideoElement | null = null;
   private videoTexture: THREE.VideoTexture | null = null;
   private screenMaterial: THREE.MeshBasicMaterial;
@@ -4280,11 +4288,13 @@ export class KingsHallScene {
     /* Elevation (Stage C item 38): ceremonial steps flanking the
      * hall-arch approach and stepped terraces massing the
      * grounds' east/west edges — visual elevation AROUND the walk
-     * paths. The movement plane stays flat (no Y in
-     * resolvePalaceMove; climbable steps are parked, not faked):
-     * the path itself stays clear, and every mass stands behind
-     * an honest blocked rect derived from this same data in
-     * palace-layout (HALL_STEPS_BLOCKED / TERRACE_BLOCKED). */
+     * paths; the path itself stays clear. Stack-100 #2 finished
+     * the climbable-Y the round-1 build parked: palace-layout
+     * derives climbable step zones from this same data
+     * (HALL_STEP_ZONES / TERRACE_ZONES at the masses' authored
+     * tops), movement carries a real Y, and the blocked lists
+     * (HALL_STEPS_BLOCKED / TERRACE_BLOCKED) remain the masses'
+     * footprint record. */
     {
       const shadows = QUALITY[this.quality].shadows;
       const dummy = new THREE.Object3D();
@@ -7707,7 +7717,7 @@ export class KingsHallScene {
   upsertPeer(peer: WorldPeer): void {
     const existing = this.avatars.get(peer.peerId);
     if (existing) {
-      existing.target = { x: peer.x, z: peer.z, rotY: peer.rotY };
+      existing.target = { x: peer.x, y: peer.y, z: peer.z, rotY: peer.rotY };
       this.reconcileFigure(existing, peer);
       this.reconcilePlate(existing, peer);
       // A snapshot can carry an action already in progress (a
@@ -7770,7 +7780,10 @@ export class KingsHallScene {
     rig.poseTiltZ += ((pose?.tiltZ ?? 0) - rig.poseTiltZ) * blend;
     rig.poseY += ((pose?.y ?? 0) - rig.poseY) * blend;
     rig.poseSpinY = pose?.spinY ?? 0;
-    rig.group.position.y = mover.bobY + rig.poseY;
+    /* The figure stands ON its ground (item 54): ground height
+     * under the stride bob + the action's own lift — never
+     * instead of them. */
+    rig.group.position.y = rig.groundY + mover.bobY + rig.poseY;
     rig.body.rotation.x = rig.poseTiltX + mover.leanPitch;
     rig.body.rotation.z = rig.poseTiltZ + mover.leanRoll;
     if (!rig.portrait) rig.body.rotation.y = rig.poseSpinY;
@@ -8015,9 +8028,9 @@ export class KingsHallScene {
     rig.speechTarget = mouthOpennessForLevel(level);
   }
 
-  setPeerTarget(peerId: string, x: number, z: number, rotY: number): void {
+  setPeerTarget(peerId: string, x: number, z: number, rotY: number, y?: number): void {
     const rig = this.avatars.get(peerId);
-    if (rig) rig.target = { x, z, rotY };
+    if (rig) rig.target = { x, y: y ?? rig.target.y, z, rotY };
   }
 
   removePeer(peerId: string): void {
@@ -8032,7 +8045,11 @@ export class KingsHallScene {
 
   setSpawn(x: number, z: number): void {
     const p = clampToRoom(this.currentRoom, x, z);
-    this.rig.position.set(p.x, 0, p.z);
+    /* Item 53: a spawn is a placement, not a walk — the figure
+     * materializes ON the destination's ground (a lawn spawn
+     * stands on the grass, a Boardwalk arrival on the deck),
+     * never sunk to the room floor or floating over it. */
+    this.rig.position.set(p.x, groundHeightAt(p.x, p.z), p.z);
     // The body re-anchors with the spawn — no stride, no settle
     // carried across a teleport.
     this.selfMover = createMover(p.x, p.z);
@@ -8072,6 +8089,9 @@ export class KingsHallScene {
     const p = clampToRoom(this.currentRoom, this.rig.position.x, this.rig.position.z);
     this.rig.position.x = p.x;
     this.rig.position.z = p.z;
+    /* The step back is a settle too (item 53): land on this
+     * side's ground at the clamped point, at its own height. */
+    this.rig.position.y = groundHeightAt(p.x, p.z);
     // The step back is a placement, not a walk — the body follows.
     this.selfMover.px = p.x;
     this.selfMover.pz = p.z;
@@ -8434,8 +8454,8 @@ export class KingsHallScene {
     this.selfRig.speechTarget = mouthOpennessForLevel(level);
   }
 
-  localPose(): { x: number; z: number; rotY: number } {
-    return { x: this.rig.position.x, z: this.rig.position.z, rotY: this.yaw };
+  localPose(): { x: number; y: number; z: number; rotY: number } {
+    return { x: this.rig.position.x, y: this.rig.position.y, z: this.rig.position.z, rotY: this.yaw };
   }
 
   /* ── VR ── */
@@ -8552,7 +8572,11 @@ export class KingsHallScene {
     // and in XR the headset's own camera rules stand (a body parked
     // at the eye point would fill the view), so it steps aside.
     if (this.selfRig) {
-      this.selfRig.group.position.set(this.rig.position.x, 0, this.rig.position.z);
+      /* My figure stands at my walk rig's height (item 54):
+       * groundY mirrors it, and applyActionPose composes the
+       * bob + pose lift on top below. */
+      this.selfRig.groundY = this.rig.position.y;
+      this.selfRig.group.position.set(this.rig.position.x, this.rig.position.y, this.rig.position.z);
       this.selfRig.group.rotation.y = this.yaw;
       this.selfRig.group.visible = !presenting && this.viewMode === "third";
       // Your own name plate never hangs over your own third-person
@@ -8586,6 +8610,9 @@ export class KingsHallScene {
         rig.group.position.x = rig.target.x;
         rig.group.position.z = rig.target.z;
         rig.mover = createMover(rig.target.x, rig.target.z);
+        /* A teleport carries its height outright — no gliding
+         * down from a terrace the peer no longer stands on. */
+        rig.groundY = rig.target.y;
       }
       let desiredVx = 0;
       let desiredVz = 0;
@@ -8597,6 +8624,11 @@ export class KingsHallScene {
       stepMover(rig.mover, rig.group.position, desiredVx, desiredVz, rig.group.rotation.y, dt);
       rig.group.position.x += rig.mover.vx * dt;
       rig.group.position.z += rig.mover.vz * dt;
+      /* Height (item 54): the standing height eases toward the
+       * height the peer's presence reports — a creator on a
+       * terrace renders on the terrace for everyone, climbing
+       * and settling with the same follow my own figure uses. */
+      rig.groundY = easeFigureHeight(rig.groundY, rig.target.y, dt);
       rig.group.rotation.y = angleLerp(rig.group.rotation.y, rig.target.rotY, k);
       // A held toggle ends when the figure actually starts walking
       // — read off the body's measured speed (the server's
@@ -8713,14 +8745,19 @@ export class KingsHallScene {
     }
 
     // Report my pose when it meaningfully changed (client throttles).
+    // Height rides along (item 48): a pure Y change — settling onto
+    // a lawn's edge as the ease finishes — reports too, at a finer
+    // threshold, so the room's truth converges to the authored
+    // number instead of stranding a centimetre off.
     const pose = this.localPose();
     if (
       Math.abs(pose.x - this.lastPose.x) > 0.03 ||
       Math.abs(pose.z - this.lastPose.z) > 0.03 ||
+      Math.abs(pose.y - this.lastPose.y) > 0.01 ||
       Math.abs(pose.rotY - this.lastPose.rotY) > 0.03
     ) {
       this.lastPose = pose;
-      this.onPose?.(pose.x, pose.z, pose.rotY);
+      this.onPose?.(pose.x, pose.z, pose.rotY, pose.y);
     }
 
     /* Item 18: the frozen shadow map re-renders on the slow
@@ -9115,6 +9152,19 @@ export class KingsHallScene {
     );
     this.rig.position.x = res.x;
     this.rig.position.z = res.z;
+    /* Height (items 50/55): my y eases toward the ground under
+     * the resolved step. The resolver already refused any step
+     * whose rise or drop exceeds the step limits (its samples
+     * are height-gated), so the ground here is always honestly
+     * reachable: treads and tiers are climbed by their steps, a
+     * step off an edge resolves down within the step-down rule,
+     * and an edge beyond it never resolves at all — no void
+     * falls, no teleport pops. */
+    this.rig.position.y = easeFigureHeight(
+      this.rig.position.y,
+      groundHeightAt(res.x, res.z),
+      dt,
+    );
     // Actually walking ends a held toggle (dance/sit) on my own
     // figure — the same rule the server applies to my move frames,
     // so what I see and what the room sees agree.

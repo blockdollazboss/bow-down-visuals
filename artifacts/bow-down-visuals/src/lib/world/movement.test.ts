@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMover,
   stepMover,
+  easeFigureHeight,
   MOVER_WALK_SPEED,
   BOB_AMP_M,
 } from "./movement";
@@ -177,5 +178,32 @@ describe("teleports re-anchor cleanly", () => {
     expect(s.vx).toBe(0);
     expect(s.bobY).toBe(0);
     expect(s.px).toBe(40);
+  });
+});
+
+describe("figure height follow (Stack-100 #2 items 50/55)", () => {
+  it("eases toward the ground — most of a step within a quarter second, never past it", () => {
+    let y = 0;
+    for (let i = 0; i < 15; i++) y = easeFigureHeight(y, 0.36, 1 / 60); // 0.25 s up a 0.36 step
+    expect(y).toBeGreaterThan(0.3);
+    expect(y).toBeLessThanOrEqual(0.36);
+    /* And it settles exactly onto the authored number. */
+    for (let i = 0; i < 240; i++) y = easeFigureHeight(y, 0.36, 1 / 60);
+    expect(y).toBe(0.36);
+  });
+
+  it("eases down as honestly as up (stepping off a lawn, down the tiers)", () => {
+    let y = 0.95;
+    for (let i = 0; i < 15; i++) y = easeFigureHeight(y, 0.62, 1 / 60);
+    expect(y).toBeLessThan(0.7);
+    expect(y).toBeGreaterThanOrEqual(0.62);
+    for (let i = 0; i < 240; i++) y = easeFigureHeight(y, 0.62, 1 / 60);
+    expect(y).toBe(0.62);
+  });
+
+  it("a zero or negative frame time changes nothing; an at-ground figure rests", () => {
+    expect(easeFigureHeight(0.24, 0.36, 0)).toBe(0.24);
+    expect(easeFigureHeight(0.24, 0.36, -1)).toBe(0.24);
+    expect(easeFigureHeight(0.05, 0.05, 1 / 60)).toBe(0.05);
   });
 });

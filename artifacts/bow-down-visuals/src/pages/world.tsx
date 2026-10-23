@@ -1564,7 +1564,7 @@ export default function WorldPage() {
       const bootMode = loadVoiceMode();
       if (bootMode === "off") client.setVoiceOff(true);
       if (bootMode === "deafen") client.setVoiceDeaf(true);
-      scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
+      scene.onPose = (x, z, rotY, y) => client.sendMove(x, z, rotY, y);
       /* A doorway crossing: the scene already flipped its own room
          (the body is through the door); the presence follows by
          transfer, landing at the crossing point. */
