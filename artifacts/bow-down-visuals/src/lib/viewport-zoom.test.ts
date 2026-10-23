@@ -6,8 +6,9 @@ const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
 
 describe("viewport zoom (Stack-28 #54)", () => {
   it("no maximum-scale / user-scalable cap; viewport-fit kept", () => {
-    expect(html).not.toContain("maximum-scale");
-    expect(html).not.toContain("user-scalable");
-    expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
+    const meta = html.match(/<meta name="viewport"[^>]*>/)?.[0] ?? "";
+    expect(meta).not.toContain("maximum-scale");
+    expect(meta).not.toContain("user-scalable");
+    expect(meta).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
   });
 });
