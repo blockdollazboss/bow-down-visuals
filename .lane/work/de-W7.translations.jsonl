@@ -1,0 +1,203 @@
+{"lufs.waveformUnavailable": "Wellenform nicht verfügbar"}
+{"lufs.errorJobNotFound": "Job nicht gefunden — möglicherweise abgelaufen."}
+{"lufs.errorNormalizeFailed": "Normalisierung fehlgeschlagen — du wurdest erstattet."}
+{"lufs.analyzeError": "Diese Datei konnte nicht analysiert werden. Versuche eine andere Audiodatei."}
+{"lufs.errorNetwork": "Netzwerkfehler — versuche es erneut."}
+{"lufs.errorAudioType": "Wähle eine Audiodatei (MP3, WAV, M4A, AAC, OGG, FLAC)."}
+{"lufs.errorFileTooLarge": "Diese Datei ist über 50 MB. Kürze sie oder wähle eine kleinere."}
+{"lufs.errorStartFailed": "Normalisierung konnte nicht gestartet werden. Versuche es erneut."}
+{"lufs.meterDecodeError": "Diese Datei konnte für die Live-Messung nicht dekodiert werden."}
+{"lufs.title": "LUFS-Lautheitsmesser"}
+{"lufs.subtitle": "Miss die echte Lautheit und normalisiere dann auf Streaming-Ziele — {cost} VB pro Normalisierung. Die Analyse ist kostenlos."}
+{"lufs.honestIntro": "Lautheit wird in LUFS gemessen — wie laut sich dein Track wirklich anfühlt, nicht nur sein Spitzenpegel."}
+{"lufs.honestStrong": "Die Analyse ist kostenlos; die Normalisierung misst die Ausgabe erneut, damit die Zahlen echt sind."}
+{"lufs.dropPrompt": "Lege dein Audio hier ab oder tippe zum Hochladen"}
+{"lufs.dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — bis 50 MB"}
+{"lufs.changeFile": "Datei wechseln"}
+{"lufs.statIntegrated": "Integriert"}
+{"lufs.statLra": "Lautheitsbereich"}
+{"lufs.statTruePeak": "True Peak"}
+{"lufs.eburLabel": "Momentan / Kurzzeit (serverseitig gemessen)"}
+{"lufs.momentary": "Momentan"}
+{"lufs.shortTerm": "Kurzzeit"}
+{"lufs.eburHint": "Max / Durchschnitt über den ganzen Track."}
+{"lufs.liveMeterTitle": "Live-Messer (Browser)"}
+{"lufs.liveMeterNote": "K-gewichtete Echtzeit-Schätzung, während die Datei läuft — ohne Gating, zum Fühlen. Die integrierte Zahl des Servers oben ist die offizielle."}
+{"lufs.liveMeterStop": "Stopp"}
+{"lufs.liveMeterPlay": "Live-Messer abspielen"}
+{"lufs.targetLabel": "Normalisierungsziel"}
+{"lufs.formatLabel": "Ausgabeformat"}
+{"lufs.normalizeButton": "Auf {target} LUFS normalisieren · {cost} VB"}
+{"lufs.creditsRemaining": "{n} Visual Bucs übrig"}
+{"lufs.statusUploading": "Wird hochgeladen…"}
+{"lufs.statusQueued": "In der Warteschlange — der Job läuft auf dem Server, du kannst diesen Tab verlassen."}
+{"lufs.statusProcessing": "Normalisiere auf {target} LUFS…"}
+{"lufs.progressNote": "Zwei-Pass-Lautheitsnormalisierung: messen, korrigieren, Ausgabe erneut messen."}
+{"lufs.analyzing": "Lautheit wird gemessen…"}
+{"lufs.normalizeComplete": "Auf {target} LUFS normalisiert"}
+{"lufs.before": "Vorher"}
+{"lufs.after": "Nachher"}
+{"lufs.abOriginal": "Original"}
+{"lufs.abNormalized": "Normalisiert"}
+{"lufs.pause": "Pause"}
+{"lufs.play": "Abspielen"}
+{"lufs.labelOriginal": "Original"}
+{"lufs.labelNormalized": "Normalisiert"}
+{"lufs.abHint": "Wechsle zwischen beiden — die Abspielposition bleibt."}
+{"lufs.downloadButton": "Herunterladen"}
+{"lufs.newButton": "Neue Datei"}
+{"lufs.handoffTitle": "Nächster Schritt"}
+{"lufs.handoffMaster": "An den Master-Tab senden →"}
+{"lufs.handoffDistribute": "Vertreiben →"}
+{"presave.badgeOut": "Jetzt draußen"}
+{"presave.dropsSoon": "Veröffentlichungsdatum folgt bald"}
+{"presave.outNow": "Jetzt draußen — hör es dir an!"}
+{"presave.cdDays": "Tage"}
+{"presave.cdHours": "Stunden"}
+{"presave.cdMins": "Min"}
+{"presave.cdSecs": "Sek"}
+{"presave.fansCount": "Fans haben vorgespeichert"}
+{"presave.sharesCount": "Shares"}
+{"presave.followCta": "Vorspeichern + am Release-Tag benachrichtigt werden"}
+{"presave.followCtaOut": "Tritt der Fan-Liste für Neuigkeiten bei"}
+{"presave.followBlurb": "Hinterlasse deine E-Mail — wir setzen dich auf die Fan-Liste des Künstlers (kostenlos)."}
+{"presave.emailPlaceholder": "Deine E-Mail"}
+{"presave.namePlaceholder": "Dein Name (optional)"}
+{"presave.followBtn": "Mich vorspeichern"}
+{"presave.followBtnOut": "Der Liste beitreten"}
+{"presave.saving": "Wird gespeichert…"}
+{"presave.followed": "Du bist auf der Liste! {{artist}} schreibt dir am Release-Tag."}
+{"presave.alreadyFollowing": "Du bist schon auf {{artist}}s Liste — wir sehen uns am Release-Tag!"}
+{"presave.notifyNote": "Du bekommst genau eine E-Mail, wenn die Musik erscheint. Kein Spam, niemals."}
+{"presave.invalidEmail": "Gib eine gültige E-Mail ein."}
+{"presave.followFailed": "Dein Pre-Save konnte nicht gespeichert werden — versuche es erneut."}
+{"presave.platformsCta": "Folge am Release-Tag"}
+{"presave.streamNowOn": "Jetzt streamen"}
+{"presave.streamOn": "Auf {{platform}} streamen"}
+{"presave.followOn": "Auf {{platform}} holen"}
+{"presave.shareTitle": "Erzähl es weiter"}
+{"presave.shareToUnlock": "Teile, um Bonusinhalte freizuschalten"}
+{"presave.unlockBlurb": "Teile diesen Release irgendwo und schalte exklusive Bonusinhalte des Künstlers frei."}
+{"presave.openBonus": "Deine Bonusinhalte öffnen"}
+{"presave.shareText": "\"{{title}}\" von {{artist}} erscheint bald — speichere es vor"}
+{"presave.shareTextOut": "\"{{title}}\" von {{artist}} ist JETZT DRAUSSEN — hör es dir an"}
+{"presave.copyLink": "Link kopieren"}
+{"presave.copied": "Kopiert!"}
+{"presave.postToX": "Auf X posten"}
+{"presave.shareRelease": "Diesen Release teilen"}
+{"presave.artistCta": "Bist du der Künstler?"}
+{"presave.promoteRelease": "Diesen Release bewerben →"}
+{"presave.artworkAlt": "Artwork von \"{{title}}\""}
+{"presave.badge": "Pre-Save"}
+{"presave.drops": "Erscheint am {{date}}"}
+{"presave.errors.loadFailed": "Dieser Release konnte nicht geladen werden."}
+{"presave.errors.notFound": "Dieser Pre-Save-Link existiert nicht."}
+{"presave.footer": "Betrieben von Thy Cheat Code — dem Content-Creator-Cheat-Code."}
+{"presave.loading": "Release wird geladen…"}
+{"presave.platformsTitle": "Am Release-Tag überall verfügbar"}
+{"stabilize.title": "Stabilisieren"}
+{"stabilize.subtitle": "Verwackelte Videos glätten — Zwei-Pass-vidstab, ein Tippen"}
+{"stabilize.priceBadge": "{cost} VB / Stabilisierung"}
+{"stabilize.noClipsTitle": "Keine Clips zum Stabilisieren"}
+{"stabilize.noClipsBody": "Füge zuerst einen Videoclip zu einer Szene hinzu, dann glätte die Wackler."}
+{"stabilize.clipToStabilize": "Clip zum Stabilisieren"}
+{"stabilize.fineTune": "Feintuning (optional)"}
+{"stabilize.resetDefaults": "Standardwerte zurücksetzen"}
+{"stabilize.shakeHandling": "Wackel-Behandlung"}
+{"stabilize.shakeHelp": "Höher behandelt mehr Wackeln."}
+{"stabilize.shakeHigh": "Maximale Wackel-Behandlung"}
+{"stabilize.shakeMid": "Ausgewogene Wackel-Behandlung"}
+{"stabilize.shakeLow": "Leichte Berührung"}
+{"stabilize.smoothness": "Glätte"}
+{"stabilize.smoothHelp": "Glatter, aber schneidet mehr zu."}
+{"stabilize.smoothHigh": "Butterweich (mehr Zuschnitt)"}
+{"stabilize.smoothMid": "Ausgewogene Glätte"}
+{"stabilize.smoothLow": "Subtile Glättung"}
+{"stabilize.stabilizeButton": "Stabilisieren · {cost} VB"}
+{"stabilize.stabilizingButton": "Wird stabilisiert…"}
+{"stabilize.stabilizingNote": "Die Zwei-Pass-Stabilisierung kann eine Minute dauern."}
+{"stabilize.resultTitle": "Stabilisiert"}
+{"stabilize.useInEditor": "Im Editor verwenden"}
+{"stabilize.attaching": "Wird angehängt…"}
+{"stabilize.useInExport": "Im Export verwenden"}
+{"stabilize.download": "Herunterladen"}
+{"stabilize.successToast": "Clip stabilisiert"}
+{"stabilize.successToastDesc": "Dein geglätteter Clip ist fertig."}
+{"stabilize.timelineToast": "Zur Timeline hinzugefügt"}
+{"stabilize.timelineToastDesc": "Der stabilisierte Clip hat den Szenen-Clip ersetzt."}
+{"stabilize.errorGeneric": "Stabilisierung fehlgeschlagen — versuche es erneut."}
+{"create.pageTitle": "Erstellen"}
+{"create.pageDescription": "Beginne mit allem: einem Song + Video, einem Song, einem Video oder dem geführten Creation Hub."}
+{"create.subtitle": "Ein Studio, zehn Wege anzufangen. Wähle eine Spur — jedes fertige Stück fließt in seinen natürlichen nächsten Schritt."}
+{"create.backToDashboard": "Zurück zum Dashboard"}
+{"create.modes.songVideo": "Song + Video"}
+{"create.modes.songVideoBlurb": "Track plus Visuals, ein Flow"}
+{"create.modes.song": "Song"}
+{"create.modes.songBlurb": "KI-Song aus einem Prompt"}
+{"create.modes.video": "Video"}
+{"create.modes.videoBlurb": "Clips, gemacht für deinen Sound"}
+{"create.modes.hub": "Creation Hub"}
+{"create.modes.hubBlurb": "Alle Tools, ein Board"}
+{"create.modes.cartoon": "Cartoon"}
+{"create.modes.cartoonBlurb": "Cartoon Studio"}
+{"create.modes.coverArt": "Cover Art"}
+{"create.modes.coverArtBlurb": "Cover Art, das heraussticht"}
+{"create.modes.dreamCollab": "Dream Collab"}
+{"create.modes.dreamCollabBlurb": "Erschaffe mit KI-Künstlern"}
+{"create.modes.linkToHit": "Vom Link zum Hit"}
+{"create.modes.linkToHitBlurb": "Verwandle jeden Link in einen Hit"}
+{"create.modes.coverMotion": "Cover Motion"}
+{"create.modes.coverMotionBlurb": "Erwecke Cover Art zum Leben"}
+{"release.crossLinks.distribute": "ihn vertreiben"}
+{"release.badge": "Thy Cheat Code Release-Tools"}
+{"release.titleSuffix": "Checkliste"}
+{"release.hero": "Der Release-Tag wird in den Wochen davor gewonnen. Die KI baut deinen Schlachtplan Woche für Woche — Vertrieb, Playlists, Teaser, Presse, Pre-Saves — und du hakst ab, während du ausführst."}
+{"release.whatDropping": "Was veröffentlichst du?"}
+{"release.types.single.blurb": "Ein Track, ein Moment"}
+{"release.types.ep.blurb": "3–6 Tracks"}
+{"release.types.album.blurb": "7+ Tracks, eine Ära"}
+{"release.releaseTitle": "Release-Titel"}
+{"release.titlePlaceholder": "z. B. Bow Down Anthem"}
+{"release.genreVibe": "Genre / Vibe"}
+{"release.genrePlaceholder": "z. B. Hip-Hop, R&B…"}
+{"release.releaseDate": "Release-Datum"}
+{"release.building": "Dein Schlachtplan wird gebaut…"}
+{"release.buildPlan": "Meinen Release-Plan bauen"}
+{"release.signInToBuild": "Melde dich an, um deinen Release-Plan zu bauen"}
+{"release.costNote": "{{cost}} Visual Bucs pro KI-Plan · Aufgaben abhaken ist kostenlos · betrieben von Thy Cheat Code"}
+{"release.tasksDone": "{{done}} von {{total}} Aufgaben erledigt"}
+{"release.preSaveTitle": "Pre-Save-Meisterzug"}
+{"release.rebuild": "Plan neu bauen ({{cost}} Visual Bucs)"}
+{"release.tools.playlist-pitcher": "Playlist-Pitcher öffnen"}
+{"release.tools.content-scheduler": "Content-Scheduler öffnen"}
+{"release.tools.press-kit": "Press-Kit-Builder öffnen"}
+{"release.tools.cover-art": "Cover-Art-Generator öffnen"}
+{"release.tools.email-list": "E-Mail-Listen-Builder öffnen"}
+{"release.crossLinks.p1": "Führst du deinen Plan aus? Pitche Playlists mit dem"}
+{"release.crossLinks.playlistPitcher": "Playlist-Pitcher"}
+{"release.crossLinks.p2": "und plane deine Teaser mit dem"}
+{"release.crossLinks.scheduler": "Content-Scheduler"}
+{"release.error.noTitle": "Gib deinem Release zuerst einen Titel — der Plan baut sich darum."}
+{"release.error.noDate": "Wähle ein Release-Datum, damit die Checkliste davon zurückzählen kann."}
+{"release.error.pastDate": "Das Release-Datum muss in der Zukunft liegen — eine Checkliste für die Vergangenheit hilft niemandem."}
+{"release.error.planFailed": "Release-Plan fehlgeschlagen — versuche es erneut."}
+{"press-public.backHome": "Zurück zur Startseite"}
+{"press-public.cheatCodeTagline": "— der Content-Creator-Cheat-Code."}
+{"press-public.downloadPdf": "Als PDF herunterladen"}
+{"press-public.epkLabel": "Elektronisches Press Kit"}
+{"press-public.madeWith": "Erstellt mit"}
+{"press-public.notFoundMessage": "Dieses Press Kit existiert nicht oder ist nicht öffentlich."}
+{"press-public.notFoundTitle": "Press Kit nicht gefunden"}
+{"press-public.photoAlt": "Foto {{index}} von {{name}}"}
+{"press-public.sections.achievements": "Erfolge"}
+{"press-public.sections.bookingContact": "Booking & Kontakt"}
+{"press-public.sections.photos": "Fotos"}
+{"press-public.sections.press": "Presse"}
+{"press-public.sections.topTracks": "Top-Tracks"}
+{"press-public.website": "Webseite"}
+{"review.madeWith": "Erstellt mit"}
+{"moveHome.title": "Zuhause verlegen"}
+{"cover-art.useSong": "Song verwenden"}
+{"brandingKit.tabs.headshots.label": "Headshots"}
+{"lufs.formatWav": "WAV (16-bit)"}
+{"lufs.formatMp3": "MP3 (320k)"}
