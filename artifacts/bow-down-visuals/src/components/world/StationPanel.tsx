@@ -504,7 +504,13 @@ function useAuthHeaders() {
   };
 }
 
-function TreasuryDaily({ isLight }: { isLight: boolean }) {
+function TreasuryDaily({
+  isLight,
+  onOpenStation,
+}: {
+  isLight: boolean;
+  onOpenStation?: (stationId: string) => void;
+}) {
   const authHeaders = useAuthHeaders();
   const { refreshProfile } = useAuth();
   const [status, setStatus] = useState<BonusStatus | null>(null);
@@ -625,7 +631,7 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
       <DailyDropCard inWorld />
       {/* The whole slate under the day's card (STACK-20 R2 #18):
           use any template, archive the ones you don't want. */}
-      <DailyDropCatalog isLight={isLight} />
+      <DailyDropCatalog isLight={isLight} onOpenStation={onOpenStation} />
     </div>
   );
 }
@@ -1779,7 +1785,7 @@ export default function StationPanel(props: StationPanelProps) {
           case "winners-circle":
             return <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />;
           case "treasury-daily":
-            return <TreasuryDaily isLight={isLight} />;
+            return <TreasuryDaily isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "treasury-shark":
             return <TreasuryShark isLight={isLight} />;
           case "treasury-quests":

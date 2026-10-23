@@ -9,6 +9,7 @@ import {
   DAILY_DROP_CATALOG_PATH,
   DAILY_DROP_UNARCHIVE_PATH,
   applyDropArchive,
+  dailyDropStationForKind,
   normalizeDailyDropCatalog,
   splitDailyDropCatalog,
   type DailyDropCatalog as DropCatalog,
@@ -25,10 +26,12 @@ import {
 
    This section is the whole slate, docked in the Treasury under the
    day's drop card:
-   • USE — every row's Use is the def's real tool href, followed as
-     an explicit new-tab transfer (the in-world law), exactly how
-     today's drop has always been used. Nothing is applied
-     client-side; the tool on the other end does the work.
+   • USE — opens the matching NATIVE desk in-world (stack-100 item
+     97): a thumbnail drop opens the Thumbnail Desk, a video drop
+     opens the Visual Vibes Editor door where the video templates
+     live. Hook and caption drops keep the def's real tool href as
+     an explicit new-tab transfer — Hook Studio has no native desk
+     yet, and a fake door would be worse than an honest transfer.
    • ARCHIVE — per-member tidy-up (daily_drop_archives, migration
      0161): the row moves to the Archived list below and stays
      usable; unarchive brings it back. Archiving filters the
@@ -80,7 +83,15 @@ const tidyBtn = (isLight: boolean) =>
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 
-export function DailyDropCatalog({ isLight }: { isLight: boolean }) {
+export function DailyDropCatalog({
+  isLight,
+  onOpenStation,
+}: {
+  isLight: boolean;
+  /** Open another station's panel in-world (the page's panel swap)
+   *  — a drop whose kind has a native desk "Uses" into it (item 97). */
+  onOpenStation?: (stationId: string) => void;
+}) {
   const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
@@ -155,15 +166,29 @@ export function DailyDropCatalog({ isLight }: { isLight: boolean }) {
       highlighted={entry.isToday}
       action={
         <span className="inline-flex items-center gap-1.5">
-          <a
-            href={entry.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid={`world-daily-drop-use-${entry.key}`}
-            className={useBtn}
-          >
-            Use <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          {(() => {
+            const stationId = dailyDropStationForKind(entry.kind);
+            return stationId && onOpenStation ? (
+              <button
+                type="button"
+                onClick={() => onOpenStation(stationId)}
+                data-testid={`world-daily-drop-use-${entry.key}`}
+                className={useBtn}
+              >
+                Use <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <a
+                href={entry.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`world-daily-drop-use-${entry.key}`}
+                className={useBtn}
+              >
+                Use <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            );
+          })()}
           <button
             type="button"
             disabled={busyKey === entry.key}
