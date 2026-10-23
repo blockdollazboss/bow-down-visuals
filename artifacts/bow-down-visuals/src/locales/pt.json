@@ -2291,7 +2291,8 @@
     "vibeHypeBlurb": "Jogadas clutch e grandes vitórias",
     "vibeHypeLabel": "Hype",
     "vibeWholesomeBlurb": "Momentos feel-good",
-    "vibeWholesomeLabel": "Fofo"
+    "vibeWholesomeLabel": "Fofo",
+    "addCaptions": "Adicionar legendas"
   },
   "coach": {
     "buildPlan": "Montar meu plano de dinheiro",
@@ -4482,7 +4483,7 @@
     "noScenes": "Ainda sem cenas — volte ao passo 4 e gere seu plano.",
     "backToCreatePlan": "← Voltar para Criar Plano",
     "sceneAssetLabel": "Cena {{n}} — {{section}}",
-    "clipFallback": "clip",
+    "clipFallback": "clipe",
     "sceneAssetDetail": "Clip de cena por IA",
     "step6Label": "Baixar e Compartilhar",
     "step6Short": "Compartilhar",
@@ -5666,7 +5667,9 @@
     "whatYouGetVocalDirection": "Direção Vocal",
     "discardDraftButton": "Descartar Rascunho",
     "projectSaved": "Projeto Salvo",
-    "recoveryFailedTitle": "Falha na Recuperação"
+    "recoveryFailedTitle": "Falha na Recuperação",
+    "guidedTabLabel": "Guiado",
+    "simpleTabLabel": "Turbo"
   },
   "songs": {
     "cancelButton": "Cancelar",
@@ -5894,11 +5897,16 @@
     "styleVlogDesc": "Claro, amigável, vibe lifestyle",
     "styleVlogName": "Vlog",
     "thumbnailDefault": "Thumbnail por IA",
-    "thumbnailWithText": "Thumbnail — {{text}}",
+    "thumbnailWithText": "Miniatura — {{text}}",
     "uploadFace": "Enviar foto do rosto",
     "variationAlt": "Variação {{n}} da thumbnail",
     "variationBadge": "Variação {{n}}",
-    "variationDetail": "{{count}} thumb{{suffix}} · {{aspectRatio}}"
+    "variationDetail": "{{count}} thumb{{suffix}} · {{aspectRatio}}",
+    "artworkModeLabel": "Pacote de Arte",
+    "removeVideoReference": "Remover referência de vídeo",
+    "sendToVideoStudio": "Enviar para o Estúdio de Vídeo",
+    "useAsThumbnail": "Usar como miniatura para…",
+    "videoReferenceAttached": "Vídeo anexado como referência"
   },
   "thumbnailTest": {
     "analyzing": "Analisando…",
@@ -5935,18 +5943,21 @@
     "subtitleNote": "Uma previsão baseada em boas práticas, não uma garantia.",
     "testDifferent": "Testar outras thumbnails",
     "testFailed": "Teste falhou",
-    "thumbnailAlt": "Thumbnail {{n}}",
+    "thumbnailAlt": "Miniatura {{n}}",
     "titlePlaceholder": "Título do vídeo (opcional — ajuda a IA a julgar a curiosidade)",
     "uploadCta": "Solte de 2 a 4 thumbnails aqui ou clique para procurar",
     "uploadFormats": "PNG/JPG/WebP · {{uploaded}}/{{max}} enviadas",
     "weaknessesLabel": "Pontos fracos",
-    "winnerBadge": "Vencedora"
+    "winnerBadge": "Vencedora",
+    "filesSkipped_one": "1 arquivo foi ignorado — só imagens, até 10 MB cada, máx. de {{max}} arquivos.",
+    "filesSkipped_other": "{{count}} arquivos foram ignorados — só imagens, até 10 MB cada, máx. de {{max}} arquivos.",
+    "filesSkipped_many": "{{count}} arquivos foram ignorados — só imagens, até 10 MB cada, máx. de {{max}} arquivos."
   },
   "thumbnails": {
     "backToDashboard": "Voltar ao Painel",
     "closeAria": "Fechar",
     "confirmRemove": "Confirmar remoção",
-    "defaultTitle": "thumbnail",
+    "defaultTitle": "miniatura",
     "deleteFailedToast": "Não foi possível excluir",
     "download": "Baixar",
     "emptyBody": "Gere sua primeira thumbnail IA e ela viverá aqui para sempre.",
@@ -5966,7 +5977,8 @@
     "removedToast": "Removida da biblioteca",
     "removing": "Removendo…",
     "untitled": "Thumbnail sem título",
-    "viewFullSize": "Ver {{title}} em tamanho real"
+    "viewFullSize": "Ver {{title}} em tamanho real",
+    "fromProject": "Deste projeto"
   },
   "tipPage": {
     "amountRequired": "Escolha ou insira um valor primeiro.",
@@ -6308,7 +6320,21 @@
     "videoUpscaleComplete": "Upscale concluído — {{target}}",
     "videoUpscaleFailedRefunded": "Upscale falhou — seus 300 Visual Bucs foram reembolsados.",
     "videoUpscalerSub": "Eleve seus clips para 1080p ou 4K — {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "Ampliador de Vídeos"
+    "videoUpscalerTitle": "Ampliador de Vídeos",
+    "genButton": "Upscale generativo para {{target}} (1500 VB — preço a definir)",
+    "genChecking": "Verificando o provedor de upscale generativo…",
+    "genDisabledTitle": "Conecte uma chave de provedor para ativar",
+    "genFraming": "O upscale generativo por IA é um produto diferente do upscaler clássico acima: um modelo reconstrói detalhes plausíveis em vez de só reamostrar pixels. Preço premium, resultado premium — o upscale clássico de 300 VB com ffmpeg continua disponível ao lado.",
+    "genNotConfigured": "O upscale generativo por IA ainda não está conectado — o dono do site precisa adicionar uma chave de provedor. O upscaler clássico com ffmpeg acima funciona agora mesmo. Você não será cobrado.",
+    "genPriceNote": "Preço provisório — o preço real precisa da aprovação do dono antes de ir ao ar. O upscale clássico com ffmpeg continua 300 VB.",
+    "genStatusFailed": "Não foi possível alcançar o serviço de upscale.",
+    "modeClassic": "Clássico (ffmpeg)",
+    "modeClassicDesc": "Reamostragem rápida de pixels",
+    "modeGenerative": "IA Generativa",
+    "modeGenerativeDesc": "Reconstrução de detalhes por IA (premium)",
+    "modeLabel": "Modo de upscale",
+    "tabEnhance": "Aprimorar",
+    "tabEnhanceShort": "Aprimorar"
   },
   "videoEditor": {
     "activeSceneNoClip": "A cena ativa não tem clipe — o áudio continua tocando",
@@ -7054,7 +7080,34 @@
     "voiceEditsTitle": "Edições por Voz"
   },
   "videoTemplatesPage": {
-    "applyPrice": "{{count}} Visual Bucs para aplicar"
+    "applyPrice": "{{count}} Visual Bucs para aplicar",
+    "clearSearch": "Limpar busca",
+    "copyFailed": "Não foi possível copiar o link.",
+    "copyShareLink": "Copiar link de compartilhamento",
+    "ctaButton": "Abrir o Visual Vibes",
+    "ctaSub": "Cada modelo se aplica com um toque dentro do Visual Vibes — mapeie seus clipes nos espaços, edite o texto e receba um vídeo pronto com legendas, miniatura, clipes e passagens de agendamento incorporadas.",
+    "ctaTitle": "Pronto para fazer o seu?",
+    "kicker": "Galeria de modelos grátis",
+    "linkCopied": "Link de compartilhamento copiado — ele leva seu código de indicação",
+    "noResultsSub": "Experimente outra palavra ou limpe a busca para explorar a biblioteca completa.",
+    "noResultsTitle": "Nenhum modelo corresponde a essa busca",
+    "outcomeLabel": "Feito para",
+    "remake": "Refazer este",
+    "resultsCount": "{{count}} modelos",
+    "searchPlaceholder": "Busque modelos — experimente “letra”, “promoção”, “viagem”…",
+    "seoP1": "Modelos de edição são o caminho mais rápido para um vídeo pronto: os cortes, as transições e os tratamentos de texto são pré-desenhados, então você só solta seus próprios clipes e fotos. Cada modelo acima renderiza no servidor com transições estilo broadcast — slides, wipes, revelações em íris e cortes radiais impactantes — além de tratamentos de texto dourados e ousados, então o resultado parece desenhado, não padronizado.",
+    "seoP2": "Escolha qualquer modelo para abri-lo no Visual Vibes com o modelo pré-selecionado. Mapeie sua mídia nos espaços, reescreva os textos sobrepostos, adicione uma trilha musical opcional e aplique — um toque renderiza a edição completa. De lá, passe o vídeo pronto direto para legendas, o criador de miniaturas, clipes inteligentes ou o agendador social.",
+    "seoTitle": "Por que modelos de edição dominam a internet",
+    "shareTemplate": "Compartilhar este modelo",
+    "slotsLabel": "{{count}} espaços de mídia",
+    "sortAz": "Nome A–Z",
+    "sortFeatured": "Em destaque — nossas escolhas",
+    "sortMostClips": "Mais clipes primeiro",
+    "sortShortest": "Mais curtos primeiro",
+    "sub": "Escolha um modelo, solte seus clipes e fotos e receba um vídeo elegante editado automaticamente — cortes, transições e texto incorporados. Grátis para explorar com sua conta; Visual Bucs se aplicam quando você renderiza.",
+    "titleA": "Modelos de",
+    "titleB": "Edição de Vídeo",
+    "useTemplate": "Usar este modelo"
   },
   "viralityCheck": {
     "bestPostingTime": "Melhor Horário de Postagem",
@@ -7294,7 +7347,8 @@
     "toolSub": "Limpe logos dos seus próprios vídeos — {{cost}} Visual Bucs",
     "toolTitle": "Remoção de Marca d'Água",
     "videoFileError": "Escolha um arquivo de vídeo.",
-    "videoSizeError": "Este vídeo excede o limite de envio de 80 MB."
+    "videoSizeError": "Este vídeo excede o limite de envio de 80 MB.",
+    "sendToVideoEditor": "Enviar para o Visual Vibes"
   },
   "websiteBuilder": {
     "applyEditButton": "Aplicar edição — {{cost}} Visual Bucs",
@@ -9704,7 +9758,16 @@
     "title": "Estúdio de Áudio"
   },
   "thumbnailStudio": {
-    "title": "Estúdio de Miniaturas"
+    "title": "Estúdio de Miniaturas",
+    "subtitle": "Gere miniaturas que param a rolagem, teste-as em A/B com IA e explore sua biblioteca — tudo em um só estúdio.",
+    "tabs": {
+      "abtest": "Teste A/B",
+      "aria": "Seções do estúdio de miniaturas",
+      "background": "Fundo",
+      "enhance": "Aprimorar",
+      "generate": "Gerar",
+      "library": "Biblioteca"
+    }
   },
   "wave9": {
     "directEdit": {
@@ -12430,5 +12493,721 @@
     "textColor": "Cor do texto",
     "textLine": "Texto",
     "titleField": "Título / subtítulo"
+  },
+  "cartoonStudio": {
+    "alsoTry": "Experimente também",
+    "alsoTryEditRecipe": "Receita de Edição Infantil / Cartoon",
+    "alsoTryMusicVideo": "Estilo Videoclipe Cartoon",
+    "aspectLabel": "Proporção",
+    "backToDashboard": "Voltar ao painel",
+    "cartoonizeButton": "Cartoonizar foto ({{cost}} VB)",
+    "cartoonizeFeatureName": "Cartoonizar Foto",
+    "cartoonizeResultAlt": "Foto cartoonizada",
+    "characterFeatureName": "Folha de Personagem Cartoon",
+    "characterLabel": "Descreva seu personagem cartoon",
+    "characterPlaceholder": "Um barista robô sonolento com uma antena torta, barriga redonda, olhos grandes e gentis…",
+    "characterResultAlt": "Folha de personagem cartoon gerada",
+    "costBadge": "Vídeo 400 VB · Imagens 200 VB",
+    "download": "Baixar",
+    "durationLabel": "Duração",
+    "generateCharacter": "Gerar folha de personagem ({{cost}} VB)",
+    "generateVideo": "Gerar vídeo cartoon ({{cost}} VB)",
+    "generating": "Gerando…",
+    "generationFailed": "Falha na geração. Os Visual Bucs não foram cobrados.",
+    "networkError": "Erro de rede durante a geração. Os Visual Bucs não foram cobrados.",
+    "pageDescription": "Faça vídeos cartoon, desenhe personagens cartoon e cartoonize fotos — tudo em um só estúdio.",
+    "pageTitle": "Estúdio Cartoon",
+    "promptLabel": "Descreva seu vídeo cartoon",
+    "removePhoto": "Remover foto",
+    "style3dToonName": "Toon 3D",
+    "styleClassic2dName": "2D Clássico",
+    "styleComicName": "Quadrinhos",
+    "styleLabel": "Estilo cartoon",
+    "subtitle": "Cartoons fazem parte da criação de conteúdo. Gere clipes cartoon, desenhe personagens ou cartoonize qualquer foto — um fluxo suave.",
+    "tabCartoonize": "Cartoonizar",
+    "tabCharacters": "Personagens",
+    "tabVideo": "Vídeo Cartoon",
+    "tabsAria": "Seções do estúdio cartoon",
+    "title": "Estúdio Cartoon",
+    "uploadPreviewAlt": "Foto para cartoonizar",
+    "uploadPrompt": "Toque para enviar uma foto para cartoonizar",
+    "videoFeatureName": "Vídeo Cartoon",
+    "videoPromptPlaceholder": "Um valente capitão tubarão navegando por um oceano de doces neon, gaivotas feitas de pipoca…",
+    "videoStarted": "Vídeo cartoon iniciado",
+    "videoStartedDesc": "Renderizando seu clipe cartoon — leva um ou dois minutos.",
+    "styleAnimeName": "Anime"
+  },
+  "bgStudio": {
+    "advanced": "Manual: força da remoção",
+    "after": "Depois",
+    "aggressiveness": "Força da remoção",
+    "aggressivenessHint": "Mais alto remove mais pixels das bordas — use para fundos difusos ou com sombras.",
+    "aiNotConnected": "Os fundos de IA ainda não estão conectados neste servidor. Escolha uma cor sólida ou uma cena predefinida.",
+    "backdropFailed": "Falha na geração do fundo.",
+    "before": "Antes",
+    "changePhoto": "Trocar foto",
+    "checkingAi": "Verificando disponibilidade da IA…",
+    "composeFailed": "Não foi possível compor a imagem final.",
+    "compositing": "Compondo…",
+    "custom": "Personalizado",
+    "customPrompt": "Prompt de fundo personalizado",
+    "detectedColor": "Cor de fundo detectada",
+    "download": "Baixar PNG",
+    "dropHint": "Solte uma foto aqui ou toque para escolher uma",
+    "generateCta": "Gerar fundo",
+    "generating": "Gerando fundo…",
+    "kind": {
+      "ai": "Fundo de IA",
+      "color": "Cor",
+      "gradient": "Gradiente"
+    },
+    "noOutput": "Nenhuma imagem de saída retornada.",
+    "photoReady": "Foto pronta",
+    "priceTbdNote": "Preço provisório — não final. Cores e gradientes grátis nunca custam nada.",
+    "promptPlaceholder": "Descreva o fundo — ex.: dunas douradas do deserto ao amanhecer, luz suave",
+    "provider": "Modelo",
+    "removeCta": "Remover fundo",
+    "removeFailed": "Falha na remoção do fundo.",
+    "removing": "Removendo fundo…",
+    "result": "Sua nova foto",
+    "startOver": "Recomeçar",
+    "step1": "Envie uma foto",
+    "step2": "Remova o fundo",
+    "step3": "Substitua o fundo",
+    "uploadFailed": "Falha no envio. Tente novamente.",
+    "uploadNotImage": "Escolha um arquivo de imagem.",
+    "uploadedDesc": "Agora remova o fundo.",
+    "uploadedTitle": "Foto enviada",
+    "uploading": "Enviando…"
+  },
+  "headshotStudio": {
+    "autopilot": {
+      "blurb": "Um toque. A IA escolhe automaticamente o visual de estúdio mais lisonjeiro — iluminação, fundo, enquadramento, tudo.",
+      "costNote": "Cobrado só se o headshot der certo."
+    },
+    "costNote": "Cobrado só se o headshot der certo.",
+    "download": "Baixar",
+    "errors": {
+      "describeFirst": "Descreva primeiro o visual do headshot.",
+      "failed": "Falha na geração do headshot. Os Visual Bucs não foram cobrados.",
+      "outOfCredits": "Visual Bucs insuficientes. Compre mais Visual Bucs para continuar.",
+      "tryOtherEngine": "Experimente o outro mecanismo acima — ou peça ao dono para conectar a chave da API."
+    },
+    "eyebrow": "Fotos de perfil",
+    "featureName": "Headshot",
+    "flows": {
+      "autopilot": "Modo Turbo",
+      "manual": "Prompt manual",
+      "preset": "Predefinições de estilo"
+    },
+    "generate": "Gerar headshot",
+    "generating": "Gerando…",
+    "manualLabel": "Seu prompt — controle total",
+    "manualPlaceholder": "ex.: headshot dramático em preto e branco, sombras duras, clima de filme noir, olhando para fora da câmera…",
+    "modelLabel": "Mecanismo",
+    "models": {
+      "ideogram": "Render de Retrato",
+      "ideogramHint": "Estilo de render alternativo",
+      "nano": "Render Turbo",
+      "nanoHint": "Rápido · trava seu rosto"
+    },
+    "presetNames": {
+      "luxury": "Luxo",
+      "stage": "Palco",
+      "street": "Rua",
+      "studio": "Estúdio"
+    },
+    "presets": {
+      "luxury": "Editorial de luxo — mármore, ouro, moda de alto padrão.",
+      "stage": "Visual de palco — holofotes e energia da multidão atrás de você.",
+      "street": "Editorial de rua — hora dourada, urbano, confiante.",
+      "studio": "Retrato clássico de estúdio — fundo limpo, iluminação profissional suave."
+    },
+    "refLabel": "Referência de rosto (opcional)",
+    "refPlaceholder": "Cole a URL de uma foto para travar sua identidade — o headshot mantém seu rosto.",
+    "resultAlt": "Headshot gerado por IA",
+    "resultLabel": "Seu headshot",
+    "styleLabel": "Estilo",
+    "subtitle": "Uma foto de perfil que parece cara. Escolha um fluxo — a IA cuida do resto.",
+    "title": "Headshots",
+    "visualBucs": "Visual Bucs"
+  },
+  "colorGrade": {
+    "autoGrade": "Gradação automática · {cost} VB",
+    "autoGradeDone": "Gradação automática concluída",
+    "autoGradeNote": "Escolhe o melhor visual para o feed — Vibrante se destaca nas redes sociais.",
+    "burnManual": "Gravar visual manual · {cost} VB",
+    "burnManualNote": "As rodas manuais pré-visualizam ao vivo; a gravação aplica a predefinição de IA mais próxima.",
+    "clipToGrade": "Clipe para graduar",
+    "contrast": "Contraste",
+    "contrastHint": "Plano ↔ Impactante",
+    "copyLink": "Copiar link",
+    "download": "Baixar",
+    "exposure": "Exposição",
+    "exposureHint": "Escuro ↔ Claro",
+    "freePreview": "Prévia grátis",
+    "gradeBurnedIn": "Gradação gravada",
+    "gradedWith": "Graduado com {preset}",
+    "gradingFailed": "Falha na gradação de cor — nenhum Visual Buc foi gasto.",
+    "linkCopied": "Link copiado",
+    "loadingPresets": "Carregando predefinições…",
+    "manualTitle": "Rodas manuais — prévia ao vivo",
+    "noClips": "Nenhum clipe na linha do tempo ainda",
+    "noClipsHint": "Adicione um clipe a uma cena primeiro, depois gradue-o.",
+    "presetGridTitle": "Gradações de um toque — gravadas ao tocar",
+    "priceBadge": "{cost} VB / gradação · prévia grátis",
+    "replaceSceneClip": "Substituir clipe da cena",
+    "reset": "Redefinir",
+    "saturation": "Saturação",
+    "saturationHint": "Suave ↔ Vívido",
+    "shareNote": "Compartilhamento de um clique feito para viajar — a atribuição ao Bow Down Visuals acompanha cada saída.",
+    "subtitle": "Gradações de cor por IA — um toque, gravadas no clipe",
+    "temp": "Temperatura",
+    "tempHint": "Frio ↔ Quente",
+    "tint": "Matiz",
+    "tintHint": "Verde ↔ Magenta",
+    "title": "Gradação de Cor",
+    "useInExport": "Usar na exportação",
+    "userCancelled": "Cancelado — sem cobrança."
+  },
+  "photoEnhance": {
+    "advanced": "Avançado — controles de força",
+    "after": "Depois",
+    "applied": "Aplicado: {{ops}}",
+    "autopilotButton": "Aprimorar tudo",
+    "autopilotHint": "Um toque: amplia, remove ruído e repara danos — a IA escolhe o resto.",
+    "autopilotTitle": "Aprimorar tudo",
+    "before": "Antes",
+    "beforeAfter": "Antes / Depois — arraste o divisor",
+    "colorizeHint": "Colorir só se aplica a fotos em preto e branco. Restaurar repara arranhões, poeira e desbotamento.",
+    "compareSlider": "Comparar antes e depois",
+    "costNote": "{{cost}} Visual Bucs por aprimoramento",
+    "download": "Baixar",
+    "enhancing": "Aprimorando sua foto…",
+    "errorCredits": "Visual Bucs insuficientes. Compre mais Visual Bucs para continuar.",
+    "errorFailed": "Falha no aprimoramento. Os Visual Bucs não foram cobrados.",
+    "errorNoOps": "Escolha pelo menos uma operação.",
+    "errorNoPhoto": "Envie uma foto primeiro.",
+    "errorNotConnected": "O Aprimorar Foto ainda não está conectado — o serviço de imagens de IA ainda precisa ser configurado no servidor.",
+    "errorNotImage": "Esse arquivo não é uma imagem.",
+    "errorTooLarge": "Esse arquivo é grande demais (máx. 12 MB).",
+    "errorUpload": "Falha no envio. Tente novamente.",
+    "featureName": "Aprimorar Foto",
+    "ops": {
+      "colorize": "Colorir",
+      "denoise": "Remover Ruído",
+      "restore": "Restaurar",
+      "upscale": "Ampliar"
+    },
+    "pickOps": "Ou escolha as operações",
+    "previewOriginal": "Sua foto",
+    "runSelected": "Aprimorar com as selecionadas",
+    "startOver": "Recomeçar",
+    "title": "Envie uma foto para aprimorar",
+    "uploadHint": "JPG ou PNG, até 12 MB. Fotos antigas, ruidosas ou em preto e branco são bem-vindas.",
+    "uploadTitle": "Envie uma foto para aprimorar"
+  },
+  "speedRamp": {
+    "applyPreset": "Aplicar",
+    "applyPresetDesc": "Aplicar esta velocidade",
+    "attaching": "Anexando…",
+    "clipToRetime": "Clipe para retemporizar",
+    "download": "Baixar",
+    "errors": {
+      "loadingPresets": "Carregando predefinições…",
+      "slowmoFailed": "Falha na câmera lenta — nenhum Visual Buc foi gasto.",
+      "speedFailed": "Falha na mudança de velocidade — nenhum Visual Buc foi gasto."
+    },
+    "inTimeline": "Na linha do tempo",
+    "multiRatioExport": "Exportação multiformato",
+    "noClips": "Nenhum clipe na linha do tempo ainda",
+    "noClipsHint": "Adicione um clipe a uma cena primeiro, depois retemporize-o aqui.",
+    "presets": {
+      "desc": "Velocidades constantes de 0.25x a 4x.",
+      "title": "Predefinições de velocidade"
+    },
+    "priceBadge": "{slow} VB câmera lenta · {preset} VB predefinições",
+    "ramps": {
+      "desc": "Curvas de velocidade animadas — entra devagar, sai em explosão.",
+      "presetOnlyNote": "Rampas são curvas predefinidas por enquanto — curvas desenhadas sob medida precisam de uma atualização futura.",
+      "title": "Rampas de velocidade"
+    },
+    "rendering": "Renderizando…",
+    "result": {
+      "applied": "Velocidade aplicada",
+      "rampApplied": "Rampa aplicada"
+    },
+    "slowmo": {
+      "buttery": "Suave",
+      "desc": "Câmera lenta com fluxo óptico. Um toque, {cost} VB cada.",
+      "dramatic": "Dramático",
+      "extreme": "Extremo",
+      "rendered": "Câmera lenta renderizada",
+      "renderedDesc": "Seu clipe em câmera lenta está pronto.",
+      "simple": "Simples",
+      "title": "Câmera lenta suave"
+    },
+    "subtitle": "Câmera lenta, predefinições de velocidade e rampas animadas — estilo profissional",
+    "title": "Rampa de Velocidade",
+    "useInEditor": "Usar no editor"
+  },
+  "captionTemplates": {
+    "applied": "Aplicado",
+    "appliesAs": "Aplica-se como",
+    "apply": "Aplicar",
+    "badge": "Novo",
+    "demoTimingLive": "Tempos de palavra ao vivo",
+    "demoTimingSynth": "Tempos de demonstração",
+    "gotoClips": "Fazer clipes promocionais",
+    "gotoExport": "Ir para a exportação",
+    "handoffDesc": "Leve seu vídeo legendado direto para clipes promocionais ou exportação.",
+    "handoffTitle": "Legendas → clipes",
+    "subtitle": "Estilos animados palavra por palavra — toque para aplicar",
+    "title": "Modelos de Legendas Animadas",
+    "tpl": {
+      "bounce-words": {
+        "desc": "As palavras saltam uma a uma",
+        "name": "Palavras Saltitantes"
+      },
+      "glow-sweep": {
+        "desc": "Um brilho varre cada palavra",
+        "name": "Varredura de Brilho"
+      },
+      "highlight-box": {
+        "desc": "Palavra ativa em uma caixa de destaque",
+        "name": "Caixa de Destaque"
+      },
+      "neon-pulse": {
+        "desc": "Destaques neon pulsantes nas palavras",
+        "name": "Pulso Neon"
+      },
+      "pop-words": {
+        "desc": "Animação divertida de palavras que estouram",
+        "name": "Palavras Pop"
+      },
+      "punch-words": {
+        "desc": "As palavras entram batendo com impacto",
+        "name": "Palavras Impactantes"
+      },
+      "slide-words": {
+        "desc": "As palavras deslizam para cima até o lugar",
+        "name": "Palavras Deslizantes"
+      },
+      "typewriter-words": {
+        "desc": "Revelação palavra por palavra estilo máquina de escrever",
+        "name": "Máquina de Escrever"
+      }
+    }
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "packs": {
+        "neonStage": {
+          "blurb": "Foto elétrica de energia ao vivo — calibre de arte de capa, feita para a capa do single.",
+          "name": "Palco Neon"
+        },
+        "palaceThrone": {
+          "blurb": "Realeza total do Bow Down — trono, salão dourado, raios divinos. A foto de identidade principal.",
+          "name": "Trono do Palácio"
+        },
+        "rooftopGolden": {
+          "blurb": "Foto editorial quente para kit de imprensa — luz dourada suave, skyline da cidade atrás de você.",
+          "name": "Terraço na Hora Dourada"
+        },
+        "streetLuxury": {
+          "blurb": "Ostentação urbana noturna para redes sociais — asfalto molhado, brilho neon, carro de luxo no quadro.",
+          "name": "Luxo de Rua"
+        },
+        "studioNoir": {
+          "blurb": "Retrato sombrio de estúdio preto — aquele para sua foto de perfil e identidade de stream.",
+          "name": "Estúdio Noir"
+        }
+      },
+      "tags": {
+        "albumArt": "Arte do álbum",
+        "announcementGraphics": "Gráficos de anúncio",
+        "bioPhoto": "Foto da bio",
+        "dropAnnouncements": "Anúncios de lançamento",
+        "heroBranding": "Identidade principal",
+        "logoAdjacent": "Junto ao logo",
+        "magazineStyle": "Estilo revista",
+        "merchTieIn": "Conexão com merch",
+        "pressKit": "Kit de imprensa",
+        "profilePic": "Foto de perfil",
+        "singleCover": "Capa do single",
+        "socialContent": "Conteúdo social",
+        "streamBranding": "Identidade de stream",
+        "tourPromo": "Promoção de turnê"
+      },
+      "title": "Pacotes de cena"
+    }
+  },
+  "avatarPresenter": {
+    "avatarLabel": "Avatar",
+    "avatarPlaceholder": "Escolha um avatar…",
+    "checking": "Verificando o provedor de avatar…",
+    "modeAvatar": "Apresentador avatar de IA",
+    "modeNone": "Sem apresentador",
+    "notConfigured": "Os avatares de IA ainda não estão conectados — o dono do site precisa adicionar uma chave de API HeyGen ou Hedra antes que apresentadores talking-head possam gerar. Seu plano de vídeo anotará a escolha do apresentador para depois.",
+    "ready": "Provedor de avatar conectado.",
+    "savedNote": "Sua escolha de apresentador é salva com o plano de vídeo. A geração em si fica desativada até a chave do provedor ser adicionada — você não será cobrado.",
+    "scriptLabel": "Roteiro do apresentador",
+    "scriptPlaceholder": "O que o apresentador deve dizer? (salvo com seu plano — a geração desbloqueia quando o provedor estiver conectado)",
+    "subtitle": "Um apresentador talking-head que apresenta seu vídeo.",
+    "title": "Apresentador Avatar"
+  },
+  "mixMaster": {
+    "after": "Depois",
+    "back": "Voltar",
+    "before": "Antes",
+    "beforeAfter": "Antes / Depois",
+    "dropMixHint": "Solte sua mix finalizada aqui",
+    "dropStemsHint": "Solte seus stems aqui",
+    "dynamicRange": "Alcance dinâmico",
+    "errorAudioFile": "Escolha um arquivo de áudio (WAV, MP3, AIFF, FLAC, M4A, OGG).",
+    "errorFileTooLarge": "Esse arquivo passa de 100 MB — use uma mix menor.",
+    "errorNetwork": "Erro de rede — tente novamente.",
+    "errorNotAudio": "Esses arquivos não são áudio — use WAV, MP3, AIFF, FLAC, M4A ou OGG.",
+    "fileTypes": "MP3, WAV, FLAC · até 100 MB",
+    "genreLabel": "Som do gênero",
+    "genres": {
+      "afrobeat": {
+        "blurb": "Percussão saltitante, log drums.",
+        "label": "Afrobeat"
+      },
+      "edm": {
+        "blurb": "Energia máxima, enorme e ampla.",
+        "label": "EDM"
+      },
+      "gospel": {
+        "blurb": "Clareza de coral grande e edificante.",
+        "label": "Gospel"
+      },
+      "hip-hop": {
+        "blurb": "Graves pesados, vocais à frente.",
+        "label": "Hip-Hop"
+      },
+      "lofi": {
+        "blurb": "Empoeirado, quente, suave.",
+        "label": "Lo-Fi"
+      },
+      "podcast": {
+        "blurb": "Clareza de palavra falada — dinâmica gentil.",
+        "label": "Podcast"
+      },
+      "pop": {
+        "blurb": "Polido, brilhante, brilho de rádio.",
+        "label": "Pop"
+      },
+      "rnb": {
+        "blurb": "Vocais suaves, quentes e sedosos.",
+        "label": "R&B"
+      },
+      "rock": {
+        "blurb": "Guitarras ásperas, bateria à frente.",
+        "label": "Rock"
+      },
+      "trap": {
+        "blurb": "808s impactantes — peso pesado de graves.",
+        "label": "Trap"
+      }
+    },
+    "honestFraming": "Um pipeline DSP real — organização de ganho por stem, EQ, compressão, panorâmica por gênero e depois uma cadeia completa de masterização com limitação de pico real. Ele",
+    "honestFramingBold": "monta e polia ótimas gravações; não corrige clipagem, vocais desafinados ou um arranjo ruim.",
+    "honestFramingEnd": "Confie nos seus ouvidos no A/B com volume igualado antes de lançar.",
+    "intensities": {
+      "aggressive": {
+        "blurb": "Alto, impactante, na sua cara.",
+        "label": "Agressivo"
+      },
+      "balanced": {
+        "blurb": "O ponto ideal para a maioria das faixas.",
+        "label": "Equilibrado"
+      },
+      "subtle": {
+        "blurb": "Polimento gentil, dinâmica intacta.",
+        "label": "Sutil"
+      }
+    },
+    "intensityLabel": "Intensidade do processamento",
+    "listeningTo": "Ouvindo",
+    "loudness": {
+      "club": {
+        "blurb": "Alto e impactante para sistemas grandes.",
+        "label": "Club"
+      },
+      "radio": {
+        "blurb": "Consistência amigável para transmissão.",
+        "label": "Rádio"
+      },
+      "streaming": {
+        "blurb": "Pronto para Spotify / Apple Music.",
+        "label": "Streaming"
+      }
+    },
+    "loudnessLabel": "Volume alvo",
+    "masterReport": "Relatório da master",
+    "referenceHint": "Escolha uma faixa de referência",
+    "referenceLoudness": "Volume da referência",
+    "referenceTrack": "Faixa de referência",
+    "stemTypes": {
+      "bass": "Baixo",
+      "drums": "Bateria",
+      "guitar": "Guitarra",
+      "keys": "Teclas",
+      "strings": "Cordas",
+      "vocals": "Vocais",
+      "fx": "FX",
+      "beat": "Beat",
+      "other": "Stem"
+    },
+    "subtitle": "Som profissional, sem engenheiro necessário",
+    "tabMixStems": "· Stems",
+    "tabQuick": "Master Expressa",
+    "tabQuickDesc": "Envie uma mix estéreo finalizada — escolha uma predefinição, receba uma master pronta para rádio por 400 Visual Bucs. Rápido, sem botões.",
+    "vocalBuried": "Escondido",
+    "vocalLevel": "Nível vocal",
+    "vocalUpfront": "Em Destaque",
+    "title": "Mix & Master",
+    "tabMaster": "Master",
+    "tabMix": "Mix"
+  },
+  "harmony": {
+    "addToAlbum": "Adicionar ao álbum",
+    "aiCheckNote": "Disponibilidade verificada ao vivo com o estúdio",
+    "aiNeedsSetup": "⚠ Precisa de configuração de voz do estúdio — peça ao suporte",
+    "aiNotConfigured": "As harmonias de IA ainda não estão ligadas no estúdio — as vozes dos backing vocals não estão configuradas. As dobras clássicas funcionam agora mesmo e soam ótimas.",
+    "alwaysAvailable": "✓ Sempre disponível",
+    "buttonCost": "300 Visual Bucs",
+    "buttonLabel": "Adicionar harmonias — backing vocals",
+    "close": "Fechar",
+    "confirmFeature": "Gerador de Harmonias ({{mode}})",
+    "copied": "Copiado!",
+    "copyFailedDesc": "Seu navegador bloqueou o acesso à área de transferência.",
+    "copyFailedTitle": "Falha ao copiar",
+    "coverArt": "Desenhar arte de capa",
+    "coverArtAlt": "Arte de capa de {{title}}",
+    "coverArtFailed": "Falha na arte de capa. Tente novamente.",
+    "coverArtMood": "Arte de capa para uma faixa vocal rica em harmonias",
+    "coverArtReady": "Arte de capa pronta",
+    "createdDesc": "“{{title}}” está na sua biblioteca de músicas.",
+    "createdTitle": "Harmonias construídas",
+    "done": "Concluído",
+    "download": "Baixar",
+    "engineLabel": "Mecanismo de harmonia",
+    "generateCta": "Construir harmonias · {{cost}} Visual Bucs",
+    "generateFailed": "Falha na geração de harmonias. Tente novamente.",
+    "generating": "Construindo harmonias para “{{title}}”…",
+    "generatingAiHint": "Transpondo as partes, revozando cada backing vocal e depois mixando — mantenha aberto.",
+    "generatingClassicHint": "Transpondo as dobras e mixando — mantenha aberto.",
+    "hubMixDetail": "Mix de harmonias",
+    "hubStemDetail": "Stem de harmonias",
+    "keyHintHint": "Salvo com a harmonia como contexto do arranjo.",
+    "keyHintLabel": "Dica de tom",
+    "keyHintPlaceholder": "ex.: C, Am, F#",
+    "loadingStyles": "Carregando estilos…",
+    "lrcFailed": "Não foi possível construir o tempo das letras a partir da letra.",
+    "lyricVideo": "Fazer vídeo de letra",
+    "lyricVideoFailed": "Falha no vídeo de letra. Tente novamente.",
+    "lyricVideoReady": "Vídeo de letra pronto",
+    "lyricsLabel": "Letra",
+    "lyricsNeededDesc": "Adicione a letra da música acima para fazer um vídeo de letra.",
+    "lyricsNeededTitle": "Letra necessária",
+    "lyricsOptional": "(para a passagem ao vídeo de letra)",
+    "lyricsPlaceholder": "Cole a letra para desbloquear vídeos de letra de um clique…",
+    "mixHigh": "Em Destaque",
+    "mixIntoSong": "Mixar na música",
+    "mixLabel": "Nível da mix de harmonias",
+    "mixLabelShort": "Mix de harmonias",
+    "mixLow": "Sutil",
+    "mixedIn": "Mixado",
+    "mixedIntoSongDesc": "A mix de harmonias é agora a versão de trabalho da sua música no projeto.",
+    "mixedIntoSongDetail": "Versão de trabalho com harmonias",
+    "mixedIntoSongTitle": "Harmonias mixadas",
+    "modeAiBlurb": "Cada parte de harmonia é revozada em uma voz distinta de backing vocal por IA — soa como cantores reais, não clones.",
+    "modeAiLabel": "Harmonias de IA",
+    "modeAiShort": "IA",
+    "modeClassicBlurb": "Dobras da mesma voz preservando o tom — terças, quintas, oitavas acima ou abaixo. Qualidade de estúdio, sempre disponível.",
+    "modeClassicLabel": "Dobras clássicas",
+    "modeClassicShort": "Clássico",
+    "needAudio": "As harmonias precisam de uma URL de áudio reproduzível do resultado da música.",
+    "optional": "(opcional)",
+    "outOfCredits": "Visual Bucs insuficientes para isto ({{cost}}). Recarregue seu saldo para continuar criando.",
+    "sendToMixMaster": "Enviar para Mix & Master",
+    "share": "Copiar link de compartilhamento",
+    "shareCopiedDesc": "Cole em qualquer lugar — seu link de indicação está dentro.",
+    "shareCopiedTitle": "Texto de compartilhamento copiado",
+    "shareText": "“{{title}}” — harmonias novinhas {{madeWith}} 🎵\n{{mixUrl}}\nPegue o código secreto: {{link}}",
+    "stemsLabel": "Stems de harmonias",
+    "styleLabel": "Estilo de harmonia",
+    "subtitle": "Harmonias de backing vocal para “{{title}}”",
+    "title": "Gerador de Harmonias",
+    "unknownArtist": "Artista Desconhecido",
+    "useClassicInstead": "Construir dobras clássicas · {{cost}} Visual Bucs",
+    "vb": "Visual Bucs",
+    "partsLine": "{{parts}}"
+  },
+  "deverb": {
+    "abCleaned": "Sem reverberação",
+    "abHint": "Alterne para lá e para cá — a diferença de eco vive nas caudas.",
+    "abOriginal": "Original",
+    "checkingAvailability": "Verificando disponibilidade…",
+    "creditsRemaining": "{n} Visual Bucs restantes",
+    "deverbButton": "Remover Eco · {cost} VB",
+    "deverbComplete": "Remoção de reverberação concluída — compare com o original abaixo.",
+    "downloadButton": "Baixar",
+    "dropFormats": "MP3, WAV, M4A, AAC, OGG, FLAC · até 50 MB",
+    "dropPrompt": "Solte áudio com eco aqui ou clique para explorar",
+    "errorAudioType": "Só arquivos de áudio são permitidos (MP3, WAV, M4A, AAC, OGG, FLAC).",
+    "errorDeverbFailed": "O trabalho de remoção de reverberação falhou. Você foi reembolsado.",
+    "errorFileTooLarge": "Esse arquivo é grande demais — envios de remoção de reverberação são limitados a 50 MB.",
+    "errorJobNotFound": "Trabalho não encontrado — pode ter expirado.",
+    "errorNetwork": "Erro de rede — verifique sua conexão e tente novamente.",
+    "errorPricingPending": "O preço da remoção de reverberação ainda não foi aprovado, então a ferramenta está desativada. Nenhum crédito foi cobrado.",
+    "errorProviderNotConfigured": "A remoção de reverberação ainda não está disponível — o provedor de IA não foi conectado. Nenhum crédito foi cobrado.",
+    "errorStartFailed": "Não foi possível iniciar o trabalho de remoção de reverberação. Tente novamente.",
+    "fileSizeChange": "{size} MB — clique para escolher outro arquivo",
+    "gatedPricingPending": "O provedor de remoção de reverberação está conectado, mas o preço por trabalho ainda não foi aprovado. Esta aba desbloqueia quando o preço for aprovado.",
+    "gatedProviderMissing": "O provedor de IA de remoção de reverberação não foi conectado — o servidor não tem sua chave de provedor (DEVERB_API_KEY). Esta aba desbloqueia automaticamente quando o provedor for ligado e o preço aprovado.",
+    "gatedTeaser": "Envie áudio de sala com eco — podcasts, locuções, clipes de stream ou tomadas vocais — e receba diálogo e vocais secos, com som de microfone próximo. Nada a pagar até o recurso ir ao ar.",
+    "gatedTitle": "A Remoção de Reverberação ainda não está disponível",
+    "gatedUnknown": "A remoção de reverberação está indisponível no momento. Volte em breve.",
+    "handoffLabel": "Use em seguida",
+    "handoffPodcast": "Estúdio de Podcast",
+    "handoffSong": "Fluxo de Música",
+    "handoffVoiceover": "Estúdio de Locução",
+    "honestIntro": "A remoção de reverberação por IA remove o eco da sala, não o ruído —",
+    "honestRest": ". Combine com a aba Limpeza primeiro se sua tomada estiver chiando, depois remova a reverberação aqui.",
+    "honestStrong": "ela não corrige distorção nem ruído de fundo pesado",
+    "labelCleaned": "Sem reverberação",
+    "labelOriginal": "Original",
+    "modeDialogueBlurb": "Podcasts, locuções, clipes de stream. Retira o tom da sala e o eco da fala.",
+    "modeDialogueLabel": "Isolar Diálogo",
+    "modeLabel": "Modo de remoção de reverberação",
+    "modeVocalBlurb": "Vocais de música gravados em uma sala. Seca a tomada para a mixagem.",
+    "modeVocalLabel": "Remoção de Reverberação Vocal",
+    "newDeverbButton": "Novo",
+    "pause": "Pausar",
+    "play": "Reproduzir",
+    "progressNote": "Trabalho no servidor — pode trocar de aba ou fechar esta página enquanto roda.",
+    "statusProcessing": "A remoção de reverberação está retirando o eco da sala…",
+    "statusQueued": "Na fila — seu trabalho de remoção aguarda sua vez",
+    "statusUploading": "Enviando…",
+    "subtitle": "Retire o eco da sala de diálogos e vocais · {cost} VB por trabalho",
+    "title": "Remoção de Reverberação / Isolar Diálogo",
+    "waveformUnavailable": "Forma de onda indisponível",
+    "whyNoDsp": "Por que não há uma versão grátis instantânea? Remover o eco da sala é trabalho de IA — filtros comuns de ruído só cortam chiado e ronco, não conseguem desrebater o som das paredes. Em vez de lançar uma farsa, esta ferramenta espera o provedor real de IA de remoção de reverberação.",
+    "featureName": "De-Reverb"
+  },
+  "fillerRemover": {
+    "add": "Adicionar",
+    "analyzeButton": "Encontrar vícios · {{cost}} Visual Bucs",
+    "creditsRemaining": "{{n}} Visual Bucs restantes",
+    "customWordsLabel": "Suas palavras",
+    "customWordsPlaceholder": "ex.: tipo, literalmente…",
+    "cutsFound": "{{n}} cortes encontrados",
+    "doneTitle": "Concluído — {{n}} cortes removidos, {{saved}} economizados",
+    "download": "Baixar",
+    "errorAnalyze": "Não foi possível analisar o vídeo — tente novamente.",
+    "errorRender": "A renderização falhou e seus Visual Bucs foram reembolsados.",
+    "groupClassic": "Vícios clássicos",
+    "groupHedges": "Frases de hesitação",
+    "groupRisky": "Palavras arriscadas",
+    "hubAssetDetail": "Removedor de Vícios de Linguagem · {{n}} cortes · {{saved}} economizados",
+    "hubAssetLabel": "Vídeo limpo",
+    "kindFiller": "vício",
+    "kindSilence": "pausa",
+    "minPauseLabel": "Pausa mín.",
+    "newRun": "Nova execução",
+    "nextDesc": "Seu vídeo limpo está no projeto do hub. Abra a aba Legendas para legendas de IA, depois Exportar para versões multiformato, depois agende-o no Agendador.",
+    "nextTitle": "O que vem a seguir",
+    "noClip": "Adicione um clipe de vídeo a uma cena para desbloquear o removedor de vícios.",
+    "noCutsDesc": "Nenhum vício de linguagem ou pausa longa encontrado — esta tomada está enxuta.",
+    "noCutsTitle": "Já está limpo",
+    "ofDuration": "{{d}} no total",
+    "progressNote": "Isso roda nos nossos servidores — pode fechar esta aba. A lista de cortes estará esperando aqui.",
+    "removeWord": "Remover palavra",
+    "renderButton": "Renderizar vídeo limpo · {{n}} cortes",
+    "renderCompleteDesc": "Salvo no seu projeto do hub — legendas são o próximo passo.",
+    "renderCompleteTitle": "Vídeo limpo pronto",
+    "renderStagecutting": "Cortando os vícios…",
+    "renderStagedownloading": "Baixando seu vídeo…",
+    "renderStagequeued": "Na fila de renderização…",
+    "renderStageuploading": "Enviando o vídeo limpo…",
+    "riskyHint": "desligado por padrão — estas também são palavras reais",
+    "selectAll": "Todos",
+    "selectNone": "Nenhum",
+    "silenceLabel": "Cortar pausas de ar morto",
+    "stagedetecting": "Encontrando vícios de linguagem e ar morto…",
+    "stagedownloading": "Baixando seu vídeo…",
+    "stageextracting-audio": "Extraindo áudio…",
+    "stagequeued": "Na fila…",
+    "stagetranscribing": "Transcrevendo com IA — ouvindo cada 'ãh' e 'éh'…",
+    "startOver": "Recomeçar",
+    "subtitle": "Corte 'ums', 'uhs' e ar morto automaticamente — {{cost}} Visual Bucs",
+    "timeSaved": "economizado em {{n}} cortes",
+    "title": "Removedor de Vícios de Linguagem",
+    "useInEditor": "Usar no editor",
+    "usedInEditorDesc": "O vídeo limpo substituiu o clipe da cena.",
+    "usedInEditorTitle": "Adicionado ao editor"
+  },
+  "mastering": {
+    "after": "Depois",
+    "back": "Voltar",
+    "before": "Antes",
+    "beforeAfter": "Antes / Depois",
+    "creditsRemaining": "{{count}} Visual Bucs restantes",
+    "dropHint": "Solte sua mix aqui ou clique para explorar",
+    "dynamicRange": "Alcance dinâmico (mix): {{value}} LU — preservado pela cadeia, não esmagado.",
+    "errorAudioFile": "Escolha um arquivo de áudio (WAV, MP3, AIFF, FLAC, M4A, OGG).",
+    "errorFailed": "Falha na masterização — seus Visual Bucs foram reembolsados.",
+    "errorFileTooLarge": "Esse arquivo passa de 100 MB — use uma mix menor.",
+    "errorNetwork": "Erro de rede — tente novamente.",
+    "errorStartFailed": "Não foi possível iniciar a masterização.",
+    "fileSize": "{{size}} MB — clique para trocar",
+    "fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — até 100 MB",
+    "honestFraming": "Uma cadeia DSP real — limpeza subsônica, compressão cola, EQ de adoçamento, alargamento estéreo e depois normalização de volume em duas passagens com limitação de pico real. Ela",
+    "honestFramingBold": "polia uma boa mix; não corrige uma ruim.",
+    "honestFramingEnd": "Confie nos seus ouvidos na comparação A/B antes de lançar.",
+    "listeningTo": "Ouvindo:",
+    "loudnessReport": "Relatório de volume",
+    "masterAnother": "Masterizar outra faixa",
+    "masterButton": "Masterizar minha faixa — {{cost}} Visual Bucs",
+    "masterComplete": "Master concluída — compare com seu original abaixo.",
+    "masterLoudness": "Volume da master",
+    "masteredVersion": "a versão masterizada",
+    "mixLoudness": "Volume da mix",
+    "originalMix": "sua mix original",
+    "positionPreserved": "— a posição é preservada quando você alterna.",
+    "presetLabel": "Predefinição de masterização",
+    "presets": {
+      "club": {
+        "blurb": "Alto e impactante para sistemas de som grandes.",
+        "label": "Club"
+      },
+      "lofi": {
+        "blurb": "Gentil, quente e dinâmico, com topo suave.",
+        "label": "Lo-Fi"
+      },
+      "radio": {
+        "blurb": "Presença vocal amigável para transmissão.",
+        "label": "Rádio"
+      },
+      "streaming": {
+        "blurb": "Pronto para Spotify / Apple Music — limpo e dinâmico.",
+        "label": "Streaming"
+      }
+    },
+    "processingDetail": "Analisando volume → normalização em duas passagens → renderizando WAV + MP3. Pode fechar esta aba — o trabalho roda no servidor.",
+    "signInToMaster": "Entre para masterizar",
+    "statusProcessing": "Masterização em andamento…",
+    "statusQueued": "Na fila — aquecendo a cadeia…",
+    "statusUploading": "Enviando sua mix…",
+    "subtitle": "Masters prontos para lançamento a partir da sua mix — {{cost}} Visual Bucs",
+    "targetCeiling": "Teto alvo",
+    "title": "Masterização",
+    "truePeakMix": "Pico real (mix)",
+    "downloadWav": "WAV (24-bit)",
+    "downloadMp3": "MP3 (320k)"
   }
 }
