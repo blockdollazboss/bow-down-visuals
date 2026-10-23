@@ -1,0 +1,14 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w28-feel/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/world/step-dust.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/world/movement.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 20:12:30
+[2m   Duration [22m 1.01s[2m (transform 66%, import 16%, tests 14%, worker 4%)[22m
+
+[2m    Isolate [22m [33m2 workers spawned[39m[2m · ~300ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~300ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
