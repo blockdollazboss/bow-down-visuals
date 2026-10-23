@@ -36,6 +36,10 @@
  *     it rings passes near the quarter's south edge).
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { BOARDWALK_WHEEL, STALL_KIT, wheelAngleAt } from "./boardwalk";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 import {
   BOARDWALK_ID,
   COURTYARD_ID,
@@ -347,5 +351,50 @@ describe("The Boardwalk — the timber deck and the water (item 35)", () => {
     const moatSouthZ = BACKDROP.moatCenter.z + BACKDROP.moatInnerR;
     expect(moatSouthZ - BOARDWALK_INTERIOR.maxZ).toBeGreaterThan(0);
     expect(moatSouthZ - BOARDWALK_INTERIOR.maxZ).toBeLessThan(10);
+  });
+});
+
+describe("Boardwalk — Stack-100 #2 finishing (items 27–30)", () => {
+  it("item 27 verified: every stall canopy stands on posts whose tops meet it — nothing floats", () => {
+    /* The scene instances the posts from the same list the
+     * layout blocks, at the kit's full post height, and the
+     * canopy sits on those post tops. */
+    expect(sceneSrc).toContain("BOARDWALK_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z }))");
+    expect(STALL_KIT.postH).toBeGreaterThanOrEqual(STALL_KIT.canopyY - 0.1);
+    expect(BOARDWALK_STALL_POSTS.length).toBe(24);
+  });
+
+  it("item 28: the stall counters (workbenches) collide — their centres are unwalkable, from the same data", () => {
+    for (const b of BOARDWALK_STALL_BENCHES) {
+      expect(isWalkable(b.cx, b.cz)).toBe(false);
+      expect(BOARDWALK_BLOCKED).toContainEqual({
+        minX: b.cx - b.w / 2, maxX: b.cx + b.w / 2, minZ: b.cz - b.d / 2, maxZ: b.cz + b.d / 2,
+      });
+    }
+  });
+
+  it("item 29: the prize wheel stands on the deck, solid, clear of the bandstand's blocked footprint", () => {
+    expect(isWalkable(BOARDWALK_WHEEL.x, BOARDWALK_WHEEL.z)).toBe(false);
+    const inBandstand = BOARDWALK_WHEEL.x > BANDSTAND_BLOCKED.minX && BOARDWALK_WHEEL.x < BANDSTAND_BLOCKED.maxX
+      && BOARDWALK_WHEEL.z > BANDSTAND_BLOCKED.minZ && BOARDWALK_WHEEL.z < BANDSTAND_BLOCKED.maxZ;
+    expect(inBandstand).toBe(false);
+    expect(sceneSrc).toContain("anim.spinners.push({ obj: wheel, angleAt: wheelAngleAt })");
+  });
+
+  it("item 29: the wheel's motion is real — idle creep plus one eased full spin per cycle, continuous across cycles", () => {
+    expect(wheelAngleAt(0)).toBe(0);
+    /* Idle only before the spin window: pure creep. */
+    expect(wheelAngleAt(4)).toBeCloseTo(0.48, 6);
+    /* By the spin's end (t=14) it has turned two full turns past the creep. */
+    expect(wheelAngleAt(14)).toBeCloseTo(14 * 0.12 + Math.PI * 4, 6);
+    /* The angle never jumps at the cycle seam. */
+    expect(Math.abs(wheelAngleAt(24) - wheelAngleAt(23.999))).toBeLessThan(0.01);
+    /* And it keeps turning: later cycles sit ahead of earlier ones. */
+    expect(wheelAngleAt(40)).toBeGreaterThan(wheelAngleAt(20));
+  });
+
+  it("item 30: the boardwalk's banners hang from sway pivots, registered like the hall's", () => {
+    expect(sceneSrc).toContain("bannerPivot.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.2, p.z)");
+    expect(sceneSrc).toContain("anim.bannerSways.push({ pivot: bannerPivot");
   });
 });

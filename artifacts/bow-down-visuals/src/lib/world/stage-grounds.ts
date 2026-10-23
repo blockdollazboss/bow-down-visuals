@@ -206,6 +206,28 @@ export const STAGE_LAMPS: ReadonlyArray<{ x: number; z: number }> = [
   { x: -45.0, z: 32.6 },
 ];
 
+/* ── Stack-100 #2: the arrival arch (item 39) ─────────────────────
+ * The district's threshold gets the proscenium's language at
+ * garden scale: two marble columns flanking the entry path just
+ * inside the gate, a gold arch band spanning them at 3.4 m, and
+ * the district's name plate on the band facing the arriving
+ * walker — the threshold reads as an entrance to a stage, not a
+ * plain lintel in open floor. The columns are solid from this
+ * same data; the band rides above the walker's head (its columns
+ * are the collision, like every canopy in the world). */
+
+export const STAGE_ARRIVAL_ARCH = {
+  x: -29.8,
+  /** The columns flank the entry path (its edges are z 18.4 and
+   *  20.6 on the gate's line, cz 19.5). */
+  columnZs: [17.6, 21.4] as readonly number[],
+  columnH: 3.4,
+  blockHalf: 0.3,
+  /** The arch band's height and the name plate's seat on it. */
+  bandY: 3.52,
+  plateY: 3.52,
+} as const;
+
 /* ── The batch's collision, derived ───────────────────────────────
  * Every solid above, as blocked rects — palace-layout registers
  * this list as the room's `blocked`, so the stage, its shell, the
@@ -225,6 +247,7 @@ export const STAGE_BLOCKED: readonly PalaceRect[] = [
   ...BANNER_POLES.map((p) => rectAround(p.x, p.z, BANNER_POLE.blockHalf, BANNER_POLE.blockHalf)),
   ...STAGE_BENCHES.map((b) => rectAround(b.x, b.z, BENCH.blockHalfZ, BENCH.blockHalfX)),
   ...STAGE_LAMPS.map((l) => rectAround(l.x, l.z, LAMP.blockHalf, LAMP.blockHalf)),
+  ...STAGE_ARRIVAL_ARCH.columnZs.map((z) => rectAround(STAGE_ARRIVAL_ARCH.x, z, STAGE_ARRIVAL_ARCH.blockHalf, STAGE_ARRIVAL_ARCH.blockHalf)),
 ];
 
 /** The district's camera-tall solids (item 44's rule): the shell
@@ -234,6 +257,7 @@ export const STAGE_BLOCKED: readonly PalaceRect[] = [
  *  them). The platform (0.9 m), benches, lamps and low walls pass
  *  under the lens. */
 export const STAGE_TALL_BLOCKED: readonly PalaceRect[] = [
+  ...STAGE_ARRIVAL_ARCH.columnZs.map((z) => rectAround(STAGE_ARRIVAL_ARCH.x, z, STAGE_ARRIVAL_ARCH.blockHalf, STAGE_ARRIVAL_ARCH.blockHalf)),
   rectOf(STAGE_SHELL_BACK),
   ...STAGE_SHELL_RETURNS.map(rectOf),
   ...TRUSS.postZs.map((z) => rectAround(TRUSS.postX, z, TRUSS.blockHalf, TRUSS.blockHalf)),

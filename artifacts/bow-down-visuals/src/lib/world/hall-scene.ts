@@ -157,16 +157,19 @@ import {
 } from "./palace-layout";
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
+import { HOUSE_TRIM, roomTrimProfile, type RoomTrimProfile } from "./room-trim";
 import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
 import {
   STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
   TRUSS, BANNER_POLES, BANNER_POLE, AUDIENCE_LAWN, STAGE_BENCHES, ENTRY_PATH, STAGE_LAMPS,
+  STAGE_ARRIVAL_ARCH,
 } from "./stage-grounds";
 import {
   GARDENS_INTERIOR, GARDENS_WALL_RUNS, GARDENS_PIERS, PARTERRE_LAWN, RILL,
   RILL_BENCHES, GARDEN_HEDGES, NOOK_BENCHES, PAVILION, PAVILION_POSTS,
   GARDENS_ENTRY_PATH, GARDENS_LAMPS, GARDENS_BANNER_POLES, GARDENS_BANNER_POLE,
+  GARDENS_FOUNTAIN,
 } from "./listening-gardens";
 import {
   ROW_INTERIOR, ROW_WALL_RUNS, ROW_PIERS, ROW_STREET, ROW_STALLS, STALL_KIT,
@@ -180,6 +183,7 @@ import {
   ATELIER_PLINTHS, ATELIER_PLINTH, ATELIER_CRATES, ATELIER_CRATE, ATELIER_STONE_STACKS,
   ATELIER_TOOL_BENCHES, ATELIERS_PLANTERS, ATELIERS_PLANTER_CROWNS, ATELIERS_LAMPS,
   ATELIERS_BANNER_POLES, ATELIERS_BANNER_POLE,
+  ATELIER_MANNEQUINS, MANNEQUIN, ATELIER_FABRIC_BOLTS, ATELIER_CASCADE,
 } from "./ateliers";
 import {
   BOARDWALK_FLOOR_RECTS, BOARDWALK_WALL_RUNS, BOARDWALK_PIERS, BOARDWALK_DECK_PLANKS,
@@ -187,12 +191,15 @@ import {
   BANDSTAND, BANDSTAND_POSTS, BANDSTAND_STEPS, BOARDWALK_BASIN, BOARDWALK_RAILING,
   BOARDWALK_RAILING_POSTS, BOARDWALK_BENCHES, BOARDWALK_PLANTERS, BOARDWALK_PLANTER_CROWNS,
   BOARDWALK_LAMPS, BOARDWALK_BANNER_POLES, BOARDWALK_BANNER_POLE,
+  BOARDWALK_WHEEL, wheelAngleAt,
 } from "./boardwalk";
 import {
   HEIGHTS_INTERIOR, HEIGHTS_WALL_RUNS, HEIGHTS_PIERS, HEIGHTS_WALKWAY, HEIGHTS_FRONTS, FRONT_KIT,
   HEIGHTS_FRONT_POSTS, HEIGHTS_FRONT_DOORS, HEIGHTS_TERRACES, HEIGHTS_TERRACE_STEPS,
   HEIGHTS_TERRACE_CROWNS, HEIGHTS_BENCHES, HEIGHTS_PLANTERS, HEIGHTS_PLANTER_CROWNS,
   HEIGHTS_LAMPS, HEIGHTS_BANNER_POLES, HEIGHTS_BANNER_POLE,
+  HEIGHTS_PLATES, HEIGHTS_PLATE, heightsPlateLines, heightsRosterSignature,
+  HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD,
 } from "./creator-heights";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
@@ -667,6 +674,12 @@ const kingdomBoardPlateCache = new Map<string, THREE.CanvasTexture>();
  * like the creator-room registration: the scene's shells (rebuilt
  * per theme) and the page's data seam read the same words. */
 let monumentBoardCurrent: MonumentBoardData = EMPTY_MONUMENT_BOARD;
+
+/* The Heights roster the residence plates currently letter
+ * (Stack-100 #2 item 20) — module state like the monument's:
+ * the scene's shells (rebuilt per theme) and the page's roster
+ * seam read the same names. Empty = every front VACANT. */
+let heightsRosterCurrent: readonly string[] = [];
 
 function kingdomBoardPlateTexture(theme: HallTheme): THREE.CanvasTexture {
   const key = `${theme}|${monumentBoardSignature(monumentBoardCurrent)}`;
@@ -1330,9 +1343,14 @@ interface LookAnim {
   bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
   pollen: { points: THREE.Points; field: PollenMote[] } | null;
   waters: Array<{ tex: THREE.Texture; jet: THREE.Mesh | null }>;
+  /* Stack-100 #2 item 29: spinning dressing (the boardwalk prize
+   * wheel) — the tick sets each spinner's z-rotation from its
+   * angle function; registered in both looks, never under
+   * reduced motion. */
+  spinners: Array<{ obj: THREE.Group; angleAt: (t: number) => number }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1437,6 +1455,11 @@ export class KingsHallScene {
    *  re-registers them, and setMonumentBoardData re-maps them
    *  when the board's words change. */
   private monumentFaceMats: THREE.MeshBasicMaterial[] = [];
+  /** The Heights roster plates' materials (Stack-100 #2 item 20):
+   *  every look build re-registers them, and setHeightsRoster
+   *  re-letters them when the room's live roster changes. */
+  private heightsPlateMats: THREE.MeshBasicMaterial[] = [];
+  private heightsRosterSig = "";
   /** The honored seat arc before the stage, shown while a show runs. */
   private stageSeats: THREE.Group | null = null;
   /** The house guards' art (both approved slots): each loads once
@@ -1725,8 +1748,9 @@ export class KingsHallScene {
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
     this.monumentFaceMats = [];
+    this.heightsPlateMats = [];
     this.lodItems = [];
     /* The hall's own build rides in ONE subgroup (item 23 portal
      * culling): from the plaza the interior is visible only through
@@ -2188,6 +2212,7 @@ export class KingsHallScene {
   private wallRunX(
     group: THREE.Group, mats: LookMaterials,
     z: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+    trimProfile: RoomTrimProfile = HOUSE_TRIM,
   ): void {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
@@ -2196,10 +2221,16 @@ export class KingsHallScene {
     wall.position.set(cx, y0 + (y1 - y0) / 2, z);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
-    if (y0 <= 5.7 && y1 >= 5.7) {
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.06), mats.gold);
-      trim.position.set(cx, 5.7, z + inward * 0.24);
+    if (y0 <= trimProfile.y && y1 >= trimProfile.y) {
+      const trimMat = trimProfile.dark ? mats.goldDark : mats.gold;
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.06), trimMat);
+      trim.position.set(cx, trimProfile.y, z + inward * 0.24);
       group.add(trim);
+      if (trimProfile.double) {
+        const second = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.06), trimMat);
+        second.position.set(cx, trimProfile.y - 0.18, z + inward * 0.24);
+        group.add(second);
+      }
     }
     if (y0 === 0) {
       const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.3, 0.05), mats.goldDark);
@@ -2211,6 +2242,7 @@ export class KingsHallScene {
   private wallRunZ(
     group: THREE.Group, mats: LookMaterials,
     x: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+    trimProfile: RoomTrimProfile = HOUSE_TRIM,
   ): void {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
@@ -2219,10 +2251,16 @@ export class KingsHallScene {
     wall.position.set(x, y0 + (y1 - y0) / 2, cz);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
-    if (y0 <= 5.7 && y1 >= 5.7) {
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, len), mats.gold);
-      trim.position.set(x + inward * 0.24, 5.7, cz);
+    if (y0 <= trimProfile.y && y1 >= trimProfile.y) {
+      const trimMat = trimProfile.dark ? mats.goldDark : mats.gold;
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, len), trimMat);
+      trim.position.set(x + inward * 0.24, trimProfile.y, cz);
       group.add(trim);
+      if (trimProfile.double) {
+        const second = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, len), trimMat);
+        second.position.set(x + inward * 0.24, trimProfile.y - 0.18, cz);
+        group.add(second);
+      }
     }
     if (y0 === 0) {
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, len), mats.goldDark);
@@ -3156,14 +3194,18 @@ export class KingsHallScene {
     // leave a gap. Room bands: Music −8.6..3.1, Game 3.5..11.9,
     // Treasury −17.9..−9.2, Create −8.6..3.1, Royal Court
     // −17.9..−9.2, Branding 3.5..11.9.
+    /* Stack-100 #2 item 41: each room wears its OWN trim —
+     * height, profile and accent from room-trim.ts — so the six
+     * wing rooms stop reading as one shell re-skinned. */
+    const trim = roomTrimProfile(roomId);
     if (west) {
-      this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.maxZ + 0.2, -28.4, -14.2, 0, 6.5, -1);
+      this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, -28.4, -14.2, 0, 6.5, -1, trim);
     } else {
-      this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1);
-      this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.maxZ + 0.2, 14.2, 28.4, 0, 6.5, -1);
+      this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1, trim);
+      this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, 14.2, 28.4, 0, 6.5, -1, trim);
     }
 
     // The way back, labeled from inside: the plate names the hall.
@@ -3177,6 +3219,25 @@ export class KingsHallScene {
     // dressing, waiting for its lane like everything else here.
     if (west) this.shellPanelFrame(g, mats, interior.minX + 0.06, cz, Math.PI / 2);
     else this.shellPanelFrame(g, mats, interior.maxX - 0.06, cz, -Math.PI / 2);
+
+    /* Interior dressing parity (Stack-100 #2, items 39–47 tail):
+     * every wing room — Treasury, Royal Court, Branding Atelier
+     * and their west-side siblings — carries the same floor
+     * dressing from this one builder: a fabric rug inlay with a
+     * gold border at the room's heart, sized from its own
+     * interior. Flat inlay like every palace path — no collision,
+     * and no room is left barer than another. */
+    {
+      const rugW = (interior.maxX - interior.minX) * 0.52;
+      const rugD = (interior.maxZ - interior.minZ) * 0.52;
+      const border = new THREE.Mesh(new THREE.BoxGeometry(rugW + 0.24, 0.014, rugD + 0.24), mats.goldDark);
+      border.position.set(cx, 0.028, cz);
+      g.add(border);
+      const rug = new THREE.Mesh(new THREE.BoxGeometry(rugW, 0.018, rugD), mats.fabric);
+      rug.position.set(cx, 0.032, cz);
+      rug.receiveShadow = QUALITY[this.quality].shadows;
+      g.add(rug);
+    }
 
     // The room's door-stations: walk up, and the feature opens.
     this.buildStationMarkers(g, mats, roomId);
@@ -4063,7 +4124,6 @@ export class KingsHallScene {
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
     const troughGeoZ = new THREE.BoxGeometry(0.72, 0.55, 2.0);
     const troughGeoX = new THREE.BoxGeometry(2.0, 0.55, 0.72);
-    const crownGeo = new THREE.IcosahedronGeometry(0.44, 1);
     /* Trough bodies instance (item 25): one draw per orientation,
      * matrices carrying each trough's item-18 jitter (rotation +
      * uniform scale) — variation survives instancing because it
@@ -4111,11 +4171,25 @@ export class KingsHallScene {
         const cv = propVariation("crown", index * 2 + ci);
         const crownMat = leafMat.clone();
         crownMat.color.offsetHSL(cv.hueShift, 0, cv.lightnessShift);
-        const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.set(p.alongZ ? p.x : p.x + off, 0.82, p.alongZ ? p.z + off : p.z);
+        /* Stack-100 #2 item 47: shaped planting, not a blob —
+         * each trough crown is a small cluster in the gardens'
+         * manner: a clipped centre cone with two rounded side
+         * mounds, varied as one plant. */
+        const crown = new THREE.Group();
+        crown.position.set(p.alongZ ? p.x : p.x + off, 0.55, p.alongZ ? p.z + off : p.z);
         crown.rotation.y = cv.rotY;
         crown.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
-        crown.castShadow = QUALITY[this.quality].shadows;
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 10), crownMat);
+        cone.position.y = 0.31;
+        cone.castShadow = QUALITY[this.quality].shadows;
+        crown.add(cone);
+        for (const sideOff of [-0.24, 0.24]) {
+          const mound = new THREE.Mesh(new THREE.SphereGeometry(0.21, 10, 8), crownMat);
+          mound.position.set(p.alongZ ? 0 : sideOff, 0.16, p.alongZ ? sideOff : 0);
+          mound.scale.y = 0.75;
+          mound.castShadow = QUALITY[this.quality].shadows;
+          crown.add(mound);
+        }
         g.add(crown);
       });
     });
@@ -4503,10 +4577,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 0.7 + (p.x + p.z) });
     }
 
     /* The audience lawn (the plaza lawns' construction: stone
@@ -4577,6 +4657,37 @@ export class KingsHallScene {
         strip.position.set(cx, 0.028, ENTRY_PATH.cz + sz);
         g.add(strip);
       }
+    }
+
+    /* Stack-100 #2 item 39: the arrival arch — two marble
+     * columns flanking the entry path just inside the gate, a
+     * gold band spanning them, and the district's name plate on
+     * the band facing the arriving walker: the proscenium's
+     * language at garden scale. The columns are solid from
+     * STAGE_ARRIVAL_ARCH's own data; the band rides above. */
+    {
+      const a = STAGE_ARRIVAL_ARCH;
+      for (const z of a.columnZs) {
+        const col = new THREE.Group();
+        col.position.set(a.x, 0, z);
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.28, 0.72), mats.marble);
+        plinth.position.y = 0.14;
+        col.add(plinth);
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.25, a.columnH - 0.46, 12), mats.marble);
+        shaft.position.y = 0.28 + (a.columnH - 0.46) / 2;
+        shaft.castShadow = shadows;
+        col.add(shaft);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.18, 0.66), mats.gold);
+        cap.position.y = a.columnH - 0.09;
+        col.add(cap);
+        g.add(col);
+      }
+      const span = a.columnZs[1]! - a.columnZs[0]!;
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, span + 0.7), mats.gold);
+      band.position.set(a.x, a.bandY, ENTRY_PATH.cz);
+      band.castShadow = shadows;
+      g.add(band);
+      this.doorPlate(g, "STAGE GROUNDS", a.x + 0.19, a.plateY, ENTRY_PATH.cz, Math.PI / 2, 2.4);
     }
 
     /* The quarter's lamp standards — plaza-life's LAMP build,
@@ -4830,6 +4941,76 @@ export class KingsHallScene {
       anim.waters.push({ tex: waterTex, jet: null });
     }
 
+    /* Stack-100 #2 item 36: the gardens' fountain — a round
+     * stone basin at the rill's centre (the plaza pool
+     * fountain's construction, turned round): a rim ring with a
+     * gold trim, animated water just under its lip (a cloned
+     * texture the tick scrolls), a centre column, an upper
+     * bowl, a rising jet the tick pulses, and a falling-water
+     * cone from the bowl back to the basin. Soundless motion;
+     * the whole footprint is GARDENS_FOUNTAIN_BLOCKED. */
+    {
+      const f = GARDENS_FOUNTAIN;
+      const baseY = PARTERRE_LAWN.topY;
+      const rim = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.rimR, f.rimR * 1.04, f.rimH, 28, 1, true),
+        mats.stoneFor(3, 0.4),
+      );
+      rim.position.set(f.cx, baseY + f.rimH / 2, f.cz);
+      rim.castShadow = shadows;
+      rim.receiveShadow = shadows;
+      g.add(rim);
+      const rimTop = new THREE.Mesh(new THREE.TorusGeometry(f.rimR - 0.04, 0.045, 8, 36), mats.goldDark);
+      rimTop.rotation.x = Math.PI / 2;
+      rimTop.position.set(f.cx, baseY + f.rimH, f.cz);
+      g.add(rimTop);
+      const tint = poolWaterTint(look.theme);
+      const waterTex = hallTexture(look.waterTextureUrl, 1, 1).clone();
+      waterTex.needsUpdate = true;
+      const water = new THREE.Mesh(
+        new THREE.CircleGeometry(f.rimR - 0.08, 28),
+        new THREE.MeshStandardMaterial({
+          map: waterTex, color: tint.color, roughness: tint.roughness,
+          metalness: 0.35, envMapIntensity: 0.9,
+        }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(f.cx, baseY + f.waterY, f.cz);
+      g.add(water);
+      const column = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.18, f.columnTopY - 0.2, 12), mats.stoneFor(0.4, 0.8),
+      );
+      column.position.set(f.cx, baseY + (f.columnTopY - 0.2) / 2 + 0.1, f.cz);
+      column.castShadow = shadows;
+      g.add(column);
+      const bowl = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.bowlR, f.bowlR * 0.72, 0.16, 20), mats.stoneFor(1.2, 0.4),
+      );
+      bowl.position.set(f.cx, baseY + f.columnTopY, f.cz);
+      bowl.castShadow = shadows;
+      g.add(bowl);
+      const jetMat = new THREE.MeshBasicMaterial({
+        color: look.theme === "dark" ? 0x9fc4d8 : 0xeaf6ff, transparent: true,
+        opacity: 0.5, depthWrite: false, side: THREE.DoubleSide,
+      });
+      const jet = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.14, f.jetTopY - f.jetBaseY, 10, 1, true), jetMat,
+      );
+      jet.position.set(f.cx, baseY + (f.jetBaseY + f.jetTopY) / 2, f.cz);
+      jet.renderOrder = 4;
+      g.add(jet);
+      /* The falling water: a translucent cone sheet from the
+       * bowl's rim back down to the basin's surface. */
+      const fall = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.bowlR * 0.92, f.bowlR * 1.5, f.columnTopY - f.waterY - 0.05, 20, 1, true),
+        jetMat,
+      );
+      fall.position.set(f.cx, baseY + (f.columnTopY + f.waterY) / 2, f.cz);
+      fall.renderOrder = 4;
+      g.add(fall);
+      anim.waters.push({ tex: waterTex, jet });
+    }
+
     /* The hedged listening nooks: clipped hedge runs (instanced
      * unit boxes scaled to each run, foliage-tinted per run by
      * item-18 variation) forming four three-sided enclosures
@@ -4951,10 +5132,16 @@ export class KingsHallScene {
       arm.rotation.z = Math.PI / 2;
       arm.position.set(p.x, GARDENS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, GARDENS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
-      banner.position.set(p.x, GARDENS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 2.3 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5131,15 +5318,23 @@ export class KingsHallScene {
         new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
         ROW_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
       );
-      for (const s of ROW_STALLS) {
+      ROW_STALLS.forEach((s, si) => {
         const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
         trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
         g.add(trim);
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        /* Stack-100 #2 item 35: stall variety within the item-18
+         * system — each canopy takes its own cloth tint and a
+         * whisper of scale from propVariation("stall"); the posts
+         * and the blocked rect are never varied. */
+        const sv = propVariation("stall", si + (0));
+        const canopyMat = mats.fabric.clone();
+        canopyMat.color.offsetHSL(sv.hueShift, 0, sv.lightnessShift);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), canopyMat);
         canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
+        canopy.scale.set(sv.scale, sv.scaleY, sv.scale);
         canopy.castShadow = shadows;
         g.add(canopy);
-      }
+      });
       instanced(
         new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
         ROW_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
@@ -5252,10 +5447,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, ROW_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, ROW_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, ROW_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 3.9 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5477,6 +5678,87 @@ export class KingsHallScene {
       );
     }
 
+    /* Stack-100 #2 items 31–33: the dress-form mannequins and
+     * the fabric bolts. One mannequin per bay stands in its
+     * mouth: a tripod stand, a cloth torso, a neck, and a real
+     * HEAD FORM — a smooth matte head proportioned like a
+     * tailor's form (item 32), never a textured sphere. The
+     * forms are solid from ATELIER_MANNEQUINS' own data. On
+     * every worktable lie three fabric bolts, varied in length,
+     * radius and colour (item 33), and at the first bay's table
+     * edge one bolt stands unrolled, its cloth draping to the
+     * floor — the cascade. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.26, 0.3, 0.06, 12), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: 0.03, z: m.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.03, 0.03, MANNEQUIN.torsoY - 0.35, 8), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: (MANNEQUIN.torsoY - 0.35) / 2 + 0.06, z: m.z })),
+      );
+      instanced(
+        new THREE.CapsuleGeometry(0.17, 0.32, 6, 12), mats.fabric,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: MANNEQUIN.torsoY, z: m.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.045, 0.05, 0.12, 8), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: MANNEQUIN.headY - 0.14, z: m.z })),
+      );
+      const headGeo = new THREE.SphereGeometry(1, 18, 14);
+      const heads = new THREE.InstancedMesh(
+        headGeo,
+        new THREE.MeshStandardMaterial({ color: 0xd8c9a8, roughness: 0.65, metalness: 0 }),
+        ATELIER_MANNEQUINS.length,
+      );
+      ATELIER_MANNEQUINS.forEach((m, i) => {
+        dummy.position.set(m.x, MANNEQUIN.headY, m.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(MANNEQUIN.headRx, MANNEQUIN.headRy, MANNEQUIN.headRz);
+        dummy.updateMatrix();
+        heads.setMatrixAt(i, dummy.matrix);
+      });
+      heads.instanceMatrix.needsUpdate = true;
+      heads.castShadow = shadows;
+      g.add(heads);
+
+      /* The bolts: unit cylinders scaled per bolt (length along
+       * X, its own radius), coloured per instance. */
+      const boltGeo = new THREE.CylinderGeometry(1, 1, 1, 14);
+      const bolts = new THREE.InstancedMesh(
+        boltGeo,
+        new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 }),
+        ATELIER_FABRIC_BOLTS.length,
+      );
+      const boltColor = new THREE.Color();
+      ATELIER_FABRIC_BOLTS.forEach((b, i) => {
+        dummy.position.set(b.x, b.y, b.z);
+        dummy.rotation.set(0, 0, Math.PI / 2);
+        dummy.scale.set(b.r, b.len, b.r);
+        dummy.updateMatrix();
+        bolts.setMatrixAt(i, dummy.matrix);
+        bolts.setColorAt(i, boltColor.setHex(b.color));
+      });
+      bolts.instanceMatrix.needsUpdate = true;
+      if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true;
+      bolts.castShadow = shadows;
+      g.add(bolts);
+
+      /* The cascade: a standing bolt at the first table's edge
+       * and its cloth fall to the floor. */
+      const c = ATELIER_CASCADE;
+      const cascadeMat = new THREE.MeshStandardMaterial({ color: c.color, roughness: 0.9, metalness: 0 });
+      const standing = new THREE.Mesh(new THREE.CylinderGeometry(c.boltR, c.boltR, 1.3, 14), cascadeMat);
+      standing.rotation.z = Math.PI / 2;
+      standing.position.set(c.boltX, BAY_KIT.tableH + c.boltR, c.boltZ);
+      standing.castShadow = shadows;
+      g.add(standing);
+      const drape = new THREE.Mesh(new THREE.BoxGeometry(c.drapeW, c.drapeH, 0.03), cascadeMat);
+      drape.position.set(c.drapeX, c.drapeH / 2, c.drapeZ);
+      drape.castShadow = shadows;
+      g.add(drape);
+    }
+
     /* The display vitrines: stone pedestals (instanced) carrying
      * an open gold-dark case — bottom and top slabs — with a
      * small made thing in gold inside and a glass pane over its
@@ -5610,10 +5892,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, ATELIERS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, ATELIERS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, ATELIERS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 5.5 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5793,15 +6081,23 @@ export class KingsHallScene {
         new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
         BOARDWALK_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
       );
-      for (const s of BOARDWALK_STALLS) {
+      BOARDWALK_STALLS.forEach((s, si) => {
         const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
         trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
         g.add(trim);
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        /* Stack-100 #2 item 35: stall variety within the item-18
+         * system — each canopy takes its own cloth tint and a
+         * whisper of scale from propVariation("stall"); the posts
+         * and the blocked rect are never varied. */
+        const sv = propVariation("stall", si + (100));
+        const canopyMat = mats.fabric.clone();
+        canopyMat.color.offsetHSL(sv.hueShift, 0, sv.lightnessShift);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), canopyMat);
         canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
+        canopy.scale.set(sv.scale, sv.scaleY, sv.scale);
         canopy.castShadow = shadows;
         g.add(canopy);
-      }
+      });
       instanced(
         new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
         BOARDWALK_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
@@ -5863,6 +6159,52 @@ export class KingsHallScene {
       const finial = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), mats.gold);
       finial.position.set(BANDSTAND.cx, BANDSTAND.roofY + BANDSTAND.roofH + 0.1, BANDSTAND.cz);
       g.add(finial);
+    }
+
+    /* Stack-100 #2 item 29: the prize wheel — the boardwalk's
+     * game stand, west of the bandstand: a stone base, a dark
+     * post, and a gold-rimmed wheel with segment pegs and a
+     * pointer, turning on wheelAngleAt (idle creep + a full
+     * eased spin every cycle) — registered as a spinner in
+     * both looks, never under reduced motion. The stand is
+     * solid from BOARDWALK_WHEEL's own data. */
+    {
+      const w = BOARDWALK_WHEEL;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 1.1), mats.stoneFor(1.1, 0.3));
+      base.position.set(w.x, 0.11, w.z);
+      base.castShadow = shadows;
+      g.add(base);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, w.axleY, 10), mats.darkMetal);
+      post.position.set(w.x, w.axleY / 2 + 0.2, w.z);
+      post.castShadow = shadows;
+      g.add(post);
+      const wheel = new THREE.Group();
+      wheel.position.set(w.x, w.axleY, w.z);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(w.r, w.r, 0.09, 28), mats.fabric);
+      disc.rotation.x = Math.PI / 2;
+      disc.castShadow = shadows;
+      wheel.add(disc);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(w.r, 0.045, 8, 36), mats.gold);
+      wheel.add(rim);
+      for (let i = 0; i < w.pegs; i++) {
+        const a = (i / w.pegs) * Math.PI * 2;
+        const peg = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), mats.gold);
+        peg.position.set(Math.cos(a) * (w.r - 0.09), Math.sin(a) * (w.r - 0.09), 0.07);
+        wheel.add(peg);
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.05, w.r - 0.12, 0.04), mats.goldDark);
+        spoke.rotation.z = a - Math.PI / 2;
+        spoke.position.set(Math.cos(a) * (w.r / 2 - 0.03), Math.sin(a) * (w.r / 2 - 0.03), 0.05);
+        wheel.add(spoke);
+      }
+      const hub = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), mats.gold);
+      hub.position.z = 0.07;
+      wheel.add(hub);
+      g.add(wheel);
+      const pointer = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), mats.gold);
+      pointer.rotation.x = Math.PI;
+      pointer.position.set(w.x, w.axleY + w.r + 0.14, w.z);
+      g.add(pointer);
+      if (!this.reducedMotion) anim.spinners.push({ obj: wheel, angleAt: wheelAngleAt });
     }
 
     /* The water basin: a stone rim slab along the south edge
@@ -5979,10 +6321,16 @@ export class KingsHallScene {
       arm.rotation.z = Math.PI / 2;
       arm.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
-      banner.position.set(p.x, BOARDWALK_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 7.1 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP
@@ -6300,10 +6648,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, HEIGHTS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, HEIGHTS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, HEIGHTS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 8.7 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -6348,6 +6702,107 @@ export class KingsHallScene {
         HEIGHTS_LAMPS.forEach((l, i) => {
           this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.61);
         });
+      }
+    }
+
+    /* Stack-100 #2 item 20: the residents' roster plates — a
+     * gold-framed plate over each residence door, lettered with
+     * the resident's real name from the room's live roster
+     * (creator-heights' shaping; VACANT until a resident stands
+     * there). The materials register in heightsPlateMats so
+     * setHeightsRoster re-letters them when the roster changes,
+     * the monument board's discipline. */
+    {
+      const lines = heightsPlateLines(heightsRosterCurrent);
+      HEIGHTS_PLATES.forEach((p, i) => {
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(HEIGHTS_PLATE.w + 0.1, HEIGHTS_PLATE.h + 0.1, 0.04), mats.goldDark,
+        );
+        frame.position.set(p.x, HEIGHTS_PLATE.y, p.z - 0.03);
+        g.add(frame);
+        const mat = new THREE.MeshBasicMaterial({ map: doorPlateTexture(lines[i]!), toneMapped: false });
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(HEIGHTS_PLATE.w, HEIGHTS_PLATE.h), mat);
+        plate.position.set(p.x, HEIGHTS_PLATE.y, p.z);
+        g.add(plate);
+        this.heightsPlateMats.push(mat);
+      });
+    }
+
+    /* Stack-100 #2 item 21: the front desk, dressed — a stone
+     * counter with a gold trim on the court west of the Slate,
+     * its bell, lamp and papers on top, the keeper's chair
+     * behind it. Desk and chair are solid from HEIGHTS_DESK's
+     * own data (HEIGHTS_BLOCKED); the dressing rides the
+     * counter. The lamp glows by emissive glass — no real light. */
+    {
+      const d = HEIGHTS_DESK;
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(d.w, d.h, d.d), mats.stoneFor(d.w, d.h));
+      counter.position.set(d.cx, d.h / 2, d.cz);
+      counter.castShadow = shadows;
+      counter.receiveShadow = shadows;
+      g.add(counter);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(d.w, 0.05, 0.05), mats.gold);
+      trim.position.set(d.cx, d.h - 0.06, d.cz + d.d / 2 + 0.01);
+      g.add(trim);
+      const bell = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mats.gold);
+      bell.position.set(d.cx + d.bellDx, d.h + 0.04, d.cz);
+      g.add(bell);
+      const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.22, 8), mats.darkMetal);
+      lampPost.position.set(d.cx + d.lampDx, d.h + 0.11, d.cz);
+      g.add(lampPost);
+      const glassStyle = lampGlassStyle(look.theme);
+      const lampGlass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.13, 0.11),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+      );
+      lampGlass.position.set(d.cx + d.lampDx, d.h + 0.28, d.cz);
+      g.add(lampGlass);
+      for (const [off, rot] of [[0, 0.12], [0.09, -0.2]] as const) {
+        const paper = new THREE.Mesh(
+          new THREE.BoxGeometry(0.3, 0.012, 0.4),
+          new THREE.MeshStandardMaterial({ color: 0xe9e2d0, roughness: 0.9, metalness: 0 }),
+        );
+        paper.position.set(d.cx + d.papersDx + off, d.h + 0.008, d.cz);
+        paper.rotation.y = rot;
+        g.add(paper);
+      }
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.07, 0.5), mats.stoneFor(0.6, 0.3));
+      seat.position.set(d.chair.x, 0.46, d.chair.z);
+      seat.castShadow = shadows;
+      g.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.55, 0.07), mats.stoneFor(0.6, 0.6));
+      back.position.set(d.chair.x, 0.78, d.chair.z - 0.24);
+      g.add(back);
+      for (const endOff of [-0.22, 0.22]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.06), mats.darkMetal);
+        leg.position.set(d.chair.x + endOff, 0.23, d.chair.z);
+        g.add(leg);
+      }
+    }
+
+    /* Stack-100 #2 items 25–26: the court runner (a fabric strip
+     * over the walkway's marble) and the arrival threshold (a
+     * flat gold band + flanking stones just inside the gate) —
+     * flat inlay both, no collision, by the arrival law. */
+    {
+      const len = HEIGHTS_RUNNER.toX - HEIGHTS_RUNNER.fromX;
+      const runner = new THREE.Mesh(new THREE.BoxGeometry(len, 0.008, HEIGHTS_RUNNER.w), mats.fabric);
+      runner.position.set((HEIGHTS_RUNNER.fromX + HEIGHTS_RUNNER.toX) / 2, 0.036, HEIGHTS_RUNNER.cz);
+      runner.receiveShadow = shadows;
+      g.add(runner);
+      const band = HEIGHTS_THRESHOLD.band;
+      const bandMesh = new THREE.Mesh(new THREE.BoxGeometry(band.w, 0.012, band.d), mats.gold);
+      bandMesh.position.set(band.x, 0.03, band.z);
+      g.add(bandMesh);
+      for (const s of HEIGHTS_THRESHOLD.stones) {
+        const stone = new THREE.Mesh(
+          new THREE.BoxGeometry(HEIGHTS_THRESHOLD.stoneW, 0.012, HEIGHTS_THRESHOLD.stoneD), mats.stoneFor(1, 0.2),
+        );
+        stone.position.set(s.x, 0.03, s.z);
+        g.add(stone);
       }
     }
 
@@ -6826,6 +7281,22 @@ export class KingsHallScene {
       mat.map = tex;
       mat.needsUpdate = true;
     }
+  }
+
+  /** The Heights roster seam (Stack-100 #2 item 20): the page
+   *  hands the residents' real names — the room's live roster,
+   *  in front order — and the plates over the residence doors
+   *  re-letter when (and only when) the words change. */
+  setHeightsRoster(roster: readonly string[]): void {
+    const sig = heightsRosterSignature(roster);
+    if (sig === this.heightsRosterSig && heightsRosterCurrent.length > 0) return;
+    this.heightsRosterSig = sig;
+    heightsRosterCurrent = roster;
+    const lines = heightsPlateLines(roster);
+    this.heightsPlateMats.forEach((mat, i) => {
+      mat.map = doorPlateTexture(lines[i] ?? "VACANT");
+      mat.needsUpdate = true;
+    });
   }
 
   setFrontRowSlugs(slugs: ReadonlySet<string>): void {
@@ -7779,6 +8250,11 @@ export class KingsHallScene {
       const sway = bannerSwayAt(t, b.phase);
       b.pivot.rotation.x = sway.rotX;
       b.pivot.rotation.z = sway.rotZ;
+    }
+    /* Stack-100 #2 item 29: the spinners (the boardwalk prize
+     * wheel) turn on their own angle functions. */
+    for (const sp of anim.spinners) {
+      sp.obj.rotation.z = sp.angleAt(t);
     }
     if (anim.pollen) {
       const attr = anim.pollen.points.geometry.getAttribute("position") as THREE.BufferAttribute;

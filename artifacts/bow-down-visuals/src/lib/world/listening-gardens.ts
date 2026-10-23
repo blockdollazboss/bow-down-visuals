@@ -139,6 +139,40 @@ export const RILL = {
 
 export const RILL_BLOCKED: PalaceRect = rectAround(RILL.cx, RILL.cz, RILL.w / 2, RILL.d / 2);
 
+/* ── Stack-100 #2: a real fountain (item 36) ──────────────────────
+ * [PICK] — the conservative build inside the picked Living Night
+ * Palace direction, mirroring the plaza pool's fountain (item 28's
+ * construction): a round stone basin ringed at the rill's centre
+ * — the rill visually runs through it — with a column, an upper
+ * bowl, a rising jet the tick pulses, and a falling-water cone
+ * from the bowl back to the basin. Animated water material via
+ * the shared waters registry (a cloned texture the tick scrolls);
+ * soundless motion only. The basin is solid like the rill: a
+ * walker rounds it, never wades. (A grander redesign was NOT
+ * taken — reported to the coordinator as the pick instead.) */
+
+export const GARDENS_FOUNTAIN = {
+  cx: -26.0,
+  cz: 47.0,
+  /** The basin's outer rim radius and rim height (above the
+   *  lawn's top). */
+  rimR: 1.6,
+  rimH: 0.32,
+  /** The basin water's height — just under the rim's top. */
+  waterY: 0.26,
+  /** The centre column and upper bowl. */
+  columnTopY: 0.95,
+  bowlR: 0.55,
+  /** The jet: base at the bowl, top above it. */
+  jetBaseY: 1.0,
+  jetTopY: 1.55,
+  /** Blocked half-extent: the rim plus a walker's clearance. */
+  blockHalf: 1.75,
+} as const;
+
+export const GARDENS_FOUNTAIN_BLOCKED: PalaceRect =
+  rectAround(GARDENS_FOUNTAIN.cx, GARDENS_FOUNTAIN.cz, GARDENS_FOUNTAIN.blockHalf, GARDENS_FOUNTAIN.blockHalf);
+
 /** Benches on the lawn flanking the rill, facing it (their
  *  length runs along Z, backs away from the water): the sitting
  *  the quarter is furnished for — you sit and listen across the
@@ -273,6 +307,7 @@ export const GARDENS_BLOCKED: readonly PalaceRect[] = [
   ...GARDENS_WALL_RUNS.map((r) => rectAround(r.x, r.z, r.w / 2, r.d / 2)),
   ...GARDENS_PIERS.map((p) => rectAround(p.x, p.z, 0.45, 0.45)),
   RILL_BLOCKED,
+  GARDENS_FOUNTAIN_BLOCKED,
   ...GARDEN_HEDGES.map(rectOf),
   ...NOOK_BENCHES.map((b) => rectAround(b.x, b.z, BENCH.blockHalfZ, BENCH.blockHalfX)),
   ...RILL_BENCHES.map((b) => rectAround(b.x, b.z, BENCH.blockHalfZ, BENCH.blockHalfX)),

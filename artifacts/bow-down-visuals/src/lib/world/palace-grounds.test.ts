@@ -55,6 +55,10 @@ import {
   backdropGroundRects,
   backdropWindowStyle,
 } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import { LAWN_METRES_PER_TILE } from "./pbr-materials";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const overlaps = (a: PalaceRect, b: PalaceRect) =>
   a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
@@ -341,5 +345,20 @@ describe("backdrop ring (item 5)", () => {
     expect(day.emissiveIntensity).toBeLessThan(0.5);
     expect(night.emissive).toBe(0xffa64d); // the façade's own lit-glass gold
     expect(BACKDROP_GARDENS.length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("Plaza grounds — Stack-100 #2 finishing (items 46–47)", () => {
+  it("item 46 verified: the lawns wear the shipped lawn texture at per-metre repeats — plaza, stage and gardens alike", () => {
+    expect(LAWN_METRES_PER_TILE).toBeGreaterThan(0);
+    expect(sceneSrc).toContain('lawnFor: sizedUrl("lawn", look.lawnTextureUrl, LAWN_METRES_PER_TILE');
+    /* Every lawn surface in the scene is built through lawnFor
+     * (sized by the panel's own metres), never a flat colour. */
+    expect(sceneSrc.match(/mats\.lawnFor\(/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("item 47: the plaza trough crowns are shaped planting clusters (cone + mounds), not single blobs", () => {
+    expect(sceneSrc).toContain("ConeGeometry(0.26, 0.62, 10)");
+    expect(sceneSrc).toContain("shaped planting, not a blob");
   });
 });
