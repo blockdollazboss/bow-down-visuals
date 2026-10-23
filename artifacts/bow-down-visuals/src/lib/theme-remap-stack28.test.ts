@@ -152,3 +152,19 @@ describe("item 40 — SiteMode shell carries the theme toggle + themed splash/no
     expect(siteMode).not.toContain("justify-center gap-3 bg-black px-4");
   });
 });
+
+describe("item 41 — homepage demo panels carry the solid .content-panel ground (A4-F2)", () => {
+  const home = readFileSync(new URL("../pages/home.tsx", import.meta.url), "utf8");
+
+  it("both demo stage panels use content-panel, not ghost glass", () => {
+    const panels = home.split('className="demo-anim content-panel rounded-2xl p-6"').length - 1;
+    expect(panels).toBe(2);
+    expect(home).not.toContain("border-white/[0.07] bg-black/40");
+  });
+
+  it("the .content-panel pattern itself is the sanctioned solid ground in both themes", () => {
+    expect(css).toContain(".content-panel {");
+    expect(css).toContain("background: rgba(0, 0, 0, 0.72);");
+    expect(css).toContain(`.light .content-panel${GUARDED} {`);
+  });
+});

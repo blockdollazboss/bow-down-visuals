@@ -704,8 +704,14 @@ function CheatCodeDemo() {
 
             {vibe && (
               <div className="space-y-5">
+                {/* Stack-28 (A4-F2): the demo stage panels carry the
+                    shell's sanctioned .content-panel ground (solid
+                    ~72% black + blur + gold border in dark; ivory
+                    invitation gradient in light) — they were ghost
+                    glass (bg-black/40 + a 7% hairline) floating on the
+                    stage photo, against the owner's solid-panel law. */}
                 {stage >= 1 && (
-                  <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                  <div className="demo-anim content-panel rounded-2xl p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">{t("home.demoLyricsLabel")}</span>
                       {stage === 1 && running && (
@@ -722,7 +728,7 @@ function CheatCodeDemo() {
                 )}
 
                 {stage >= 2 && (
-                  <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                  <div className="demo-anim content-panel rounded-2xl p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">{t("home.demoTreatmentLabel")}</span>
                       {stage === 2 && running && (
