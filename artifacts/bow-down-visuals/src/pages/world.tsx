@@ -118,11 +118,13 @@ import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/statio
 import {
   COURTYARD_ID,
   GAME_ROOMS_ID,
+  HEIGHTS_ID,
   MUSIC_HALL_ID,
   isCreatorRoomId,
   creatorSlugFromRoomId,
   registerCreatorRoomLayout,
 } from "@/lib/world/palace-layout";
+import { heightsRosterFromDirectory } from "@/lib/world/creator-heights";
 import {
   creatorRoomId,
   fetchCreatorRoomDetail,
@@ -1157,6 +1159,13 @@ export default function WorldPage() {
       nowMs: Date.now(),
     }));
   }, [directory, monumentEvents, monumentLeaderboard, status]);
+
+  /* Stack-100 #2 item 20: the Heights residence plates letter
+     the room's live roster — the directory's members for the
+     Heights room, re-lettered by the scene when they change. */
+  useEffect(() => {
+    sceneRef.current?.setHeightsRoster(heightsRosterFromDirectory(directory, HEIGHTS_ID));
+  }, [directory, status]);
 
   /* Front Row honors: while a show runs, the seat arc shows before
      the stage, and the performer's Front Row members (their public

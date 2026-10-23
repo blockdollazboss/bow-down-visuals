@@ -193,6 +193,8 @@ import {
   HEIGHTS_FRONT_POSTS, HEIGHTS_FRONT_DOORS, HEIGHTS_TERRACES, HEIGHTS_TERRACE_STEPS,
   HEIGHTS_TERRACE_CROWNS, HEIGHTS_BENCHES, HEIGHTS_PLANTERS, HEIGHTS_PLANTER_CROWNS,
   HEIGHTS_LAMPS, HEIGHTS_BANNER_POLES, HEIGHTS_BANNER_POLE,
+  HEIGHTS_PLATES, HEIGHTS_PLATE, heightsPlateLines, heightsRosterSignature,
+  HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD,
 } from "./creator-heights";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
@@ -667,6 +669,12 @@ const kingdomBoardPlateCache = new Map<string, THREE.CanvasTexture>();
  * like the creator-room registration: the scene's shells (rebuilt
  * per theme) and the page's data seam read the same words. */
 let monumentBoardCurrent: MonumentBoardData = EMPTY_MONUMENT_BOARD;
+
+/* The Heights roster the residence plates currently letter
+ * (Stack-100 #2 item 20) — module state like the monument's:
+ * the scene's shells (rebuilt per theme) and the page's roster
+ * seam read the same names. Empty = every front VACANT. */
+let heightsRosterCurrent: readonly string[] = [];
 
 function kingdomBoardPlateTexture(theme: HallTheme): THREE.CanvasTexture {
   const key = `${theme}|${monumentBoardSignature(monumentBoardCurrent)}`;
@@ -1437,6 +1445,11 @@ export class KingsHallScene {
    *  re-registers them, and setMonumentBoardData re-maps them
    *  when the board's words change. */
   private monumentFaceMats: THREE.MeshBasicMaterial[] = [];
+  /** The Heights roster plates' materials (Stack-100 #2 item 20):
+   *  every look build re-registers them, and setHeightsRoster
+   *  re-letters them when the room's live roster changes. */
+  private heightsPlateMats: THREE.MeshBasicMaterial[] = [];
+  private heightsRosterSig = "";
   /** The honored seat arc before the stage, shown while a show runs. */
   private stageSeats: THREE.Group | null = null;
   /** The house guards' art (both approved slots): each loads once
@@ -1727,6 +1740,7 @@ export class KingsHallScene {
     const mats = this.makeMaterials(look);
     const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
     this.monumentFaceMats = [];
+    this.heightsPlateMats = [];
     this.lodItems = [];
     /* The hall's own build rides in ONE subgroup (item 23 portal
      * culling): from the plaza the interior is visible only through
@@ -6351,6 +6365,107 @@ export class KingsHallScene {
       }
     }
 
+    /* Stack-100 #2 item 20: the residents' roster plates — a
+     * gold-framed plate over each residence door, lettered with
+     * the resident's real name from the room's live roster
+     * (creator-heights' shaping; VACANT until a resident stands
+     * there). The materials register in heightsPlateMats so
+     * setHeightsRoster re-letters them when the roster changes,
+     * the monument board's discipline. */
+    {
+      const lines = heightsPlateLines(heightsRosterCurrent);
+      HEIGHTS_PLATES.forEach((p, i) => {
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(HEIGHTS_PLATE.w + 0.1, HEIGHTS_PLATE.h + 0.1, 0.04), mats.goldDark,
+        );
+        frame.position.set(p.x, HEIGHTS_PLATE.y, p.z - 0.03);
+        g.add(frame);
+        const mat = new THREE.MeshBasicMaterial({ map: doorPlateTexture(lines[i]!), toneMapped: false });
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(HEIGHTS_PLATE.w, HEIGHTS_PLATE.h), mat);
+        plate.position.set(p.x, HEIGHTS_PLATE.y, p.z);
+        g.add(plate);
+        this.heightsPlateMats.push(mat);
+      });
+    }
+
+    /* Stack-100 #2 item 21: the front desk, dressed — a stone
+     * counter with a gold trim on the court west of the Slate,
+     * its bell, lamp and papers on top, the keeper's chair
+     * behind it. Desk and chair are solid from HEIGHTS_DESK's
+     * own data (HEIGHTS_BLOCKED); the dressing rides the
+     * counter. The lamp glows by emissive glass — no real light. */
+    {
+      const d = HEIGHTS_DESK;
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(d.w, d.h, d.d), mats.stoneFor(d.w, d.h));
+      counter.position.set(d.cx, d.h / 2, d.cz);
+      counter.castShadow = shadows;
+      counter.receiveShadow = shadows;
+      g.add(counter);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(d.w, 0.05, 0.05), mats.gold);
+      trim.position.set(d.cx, d.h - 0.06, d.cz + d.d / 2 + 0.01);
+      g.add(trim);
+      const bell = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mats.gold);
+      bell.position.set(d.cx + d.bellDx, d.h + 0.04, d.cz);
+      g.add(bell);
+      const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.22, 8), mats.darkMetal);
+      lampPost.position.set(d.cx + d.lampDx, d.h + 0.11, d.cz);
+      g.add(lampPost);
+      const glassStyle = lampGlassStyle(look.theme);
+      const lampGlass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.13, 0.11),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+      );
+      lampGlass.position.set(d.cx + d.lampDx, d.h + 0.28, d.cz);
+      g.add(lampGlass);
+      for (const [off, rot] of [[0, 0.12], [0.09, -0.2]] as const) {
+        const paper = new THREE.Mesh(
+          new THREE.BoxGeometry(0.3, 0.012, 0.4),
+          new THREE.MeshStandardMaterial({ color: 0xe9e2d0, roughness: 0.9, metalness: 0 }),
+        );
+        paper.position.set(d.cx + d.papersDx + off, d.h + 0.008, d.cz);
+        paper.rotation.y = rot;
+        g.add(paper);
+      }
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.07, 0.5), mats.stoneFor(0.6, 0.3));
+      seat.position.set(d.chair.x, 0.46, d.chair.z);
+      seat.castShadow = shadows;
+      g.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.55, 0.07), mats.stoneFor(0.6, 0.6));
+      back.position.set(d.chair.x, 0.78, d.chair.z - 0.24);
+      g.add(back);
+      for (const endOff of [-0.22, 0.22]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.06), mats.darkMetal);
+        leg.position.set(d.chair.x + endOff, 0.23, d.chair.z);
+        g.add(leg);
+      }
+    }
+
+    /* Stack-100 #2 items 25–26: the court runner (a fabric strip
+     * over the walkway's marble) and the arrival threshold (a
+     * flat gold band + flanking stones just inside the gate) —
+     * flat inlay both, no collision, by the arrival law. */
+    {
+      const len = HEIGHTS_RUNNER.toX - HEIGHTS_RUNNER.fromX;
+      const runner = new THREE.Mesh(new THREE.BoxGeometry(len, 0.008, HEIGHTS_RUNNER.w), mats.fabric);
+      runner.position.set((HEIGHTS_RUNNER.fromX + HEIGHTS_RUNNER.toX) / 2, 0.036, HEIGHTS_RUNNER.cz);
+      runner.receiveShadow = shadows;
+      g.add(runner);
+      const band = HEIGHTS_THRESHOLD.band;
+      const bandMesh = new THREE.Mesh(new THREE.BoxGeometry(band.w, 0.012, band.d), mats.gold);
+      bandMesh.position.set(band.x, 0.03, band.z);
+      g.add(bandMesh);
+      for (const s of HEIGHTS_THRESHOLD.stones) {
+        const stone = new THREE.Mesh(
+          new THREE.BoxGeometry(HEIGHTS_THRESHOLD.stoneW, 0.012, HEIGHTS_THRESHOLD.stoneD), mats.stoneFor(1, 0.2),
+        );
+        stone.position.set(s.x, 0.03, s.z);
+        g.add(stone);
+      }
+    }
+
     // The way back, labeled from the district side of the gate.
     this.doorPlate(g, "THE KING'S PLAZA", 13.75, PALACE_DOOR_HEIGHT + 0.66, 24.6, Math.PI / 2, 2.6);
 
@@ -6826,6 +6941,22 @@ export class KingsHallScene {
       mat.map = tex;
       mat.needsUpdate = true;
     }
+  }
+
+  /** The Heights roster seam (Stack-100 #2 item 20): the page
+   *  hands the residents' real names — the room's live roster,
+   *  in front order — and the plates over the residence doors
+   *  re-letter when (and only when) the words change. */
+  setHeightsRoster(roster: readonly string[]): void {
+    const sig = heightsRosterSignature(roster);
+    if (sig === this.heightsRosterSig && heightsRosterCurrent.length > 0) return;
+    this.heightsRosterSig = sig;
+    heightsRosterCurrent = roster;
+    const lines = heightsPlateLines(roster);
+    this.heightsPlateMats.forEach((mat, i) => {
+      mat.map = doorPlateTexture(lines[i] ?? "VACANT");
+      mat.needsUpdate = true;
+    });
   }
 
   setFrontRowSlugs(slugs: ReadonlySet<string>): void {

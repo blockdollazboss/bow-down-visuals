@@ -292,6 +292,14 @@ export const HEIGHTS_BENCHES: ReadonlyArray<{ x: number; z: number; facing: 1 | 
 export const HEIGHTS_PLANTERS: readonly GroundsBox[] = [
   { cx: 15.9, cy: 0.275, cz: 20.8, w: 1.2, h: 0.55, d: 4.4 },
   { cx: 26.6, cy: 0.275, cz: 17.6, w: 2.2, h: 0.55, d: 1.2 },
+  /* Stack-100 #2 item 23: wall-bay planting parity — one dressed
+   * bed per wall bay, matching the Boardwalk's trough standard.
+   * The east wall's two bays (between the corner bed and the
+   * south-east lamp) each gain a bed; the north bays are the
+   * residence fronts themselves and the south bays are the
+   * terraces, so the east run completes the circuit. */
+  { cx: 27.5, cy: 0.275, cz: 18.6, w: 0.9, h: 0.55, d: 1.6 },
+  { cx: 27.5, cy: 0.275, cz: 22.2, w: 0.9, h: 0.55, d: 1.6 },
 ];
 
 /** Planting crowns along each bed's top — placed as a list so
@@ -301,6 +309,9 @@ export const HEIGHTS_PLANTERS: readonly GroundsBox[] = [
 export const HEIGHTS_PLANTER_CROWNS: ReadonlyArray<{ x: number; z: number }> = [
   ...[0, 1, 2, 3].map((i) => ({ x: 15.9, z: 19.15 + i * 1.1 })),
   ...[0, 1, 2].map((i) => ({ x: 25.9 + i * 0.7, z: 17.6 })),
+  /* The item-23 east-bay beds' crowns, running along Z. */
+  ...[0, 1, 2].map((i) => ({ x: 27.5, z: 18.1 + i * 0.5 })),
+  ...[0, 1, 2].map((i) => ({ x: 27.5, z: 21.7 + i * 0.5 })),
 ];
 
 /** The quarter's lantern standards (plaza-life's LAMP
@@ -324,6 +335,100 @@ export const HEIGHTS_BANNER_POLES: ReadonlyArray<{ x: number; z: number }> = [
 ];
 export const HEIGHTS_BANNER_POLE = { h: 4.2, blockHalf: 0.2 } as const;
 
+/* ── Stack-100 #2: the roster plates (item 20) ────────────────────
+ * A gold name plate over each residence door, lettered with the
+ * resident's REAL name from the room's live roster — the monument
+ * board's pattern (monument-board.ts): the page hands the scene
+ * the roster through setHeightsRoster and the plates re-letter
+ * when (and only when) the words change. A front with no resident
+ * yet reads VACANT — the plate is never blank. The shaping lives
+ * here as pure data so it is pinned without a renderer. */
+
+export const HEIGHTS_PLATE = { w: 1.5, h: 0.3, y: 2.47 } as const;
+
+/** One plate per front, centred over its door, on the door's
+ *  face line — derived from the fronts, never hand-placed. */
+export const HEIGHTS_PLATES: ReadonlyArray<{ x: number; z: number }> =
+  HEIGHTS_FRONTS.map((f) => ({
+    x: f.x,
+    z: f.z - FRONT_KIT.doorBackOff + FRONT_KIT.doorD / 2 + 0.06,
+  }));
+
+/** The line one plate letters: the resident's name, trimmed to
+ *  the plate's measure, or VACANT when the front has no resident
+ *  (or the roster has not reached this front yet). */
+export function heightsPlateLine(roster: readonly string[], index: number): string {
+  const raw = (roster[index] ?? "").trim().replace(/\s+/g, " ");
+  if (!raw) return "VACANT";
+  return raw.length > 18 ? `${raw.slice(0, 17)}…` : raw;
+}
+
+/** Every plate's line, in front order. */
+export function heightsPlateLines(roster: readonly string[]): string[] {
+  return HEIGHTS_FRONTS.map((_, i) => heightsPlateLine(roster, i));
+}
+
+/** The roster's signature — the scene repaints only when this
+ *  changes (the monument board's discipline). */
+export function heightsRosterSignature(roster: readonly string[]): string {
+  return heightsPlateLines(roster).join("|");
+}
+
+/** The room's live roster from the palace directory — the same
+ *  read the monument's WHO'S HERE line makes: the members the
+ *  directory names for the Heights room, in directory order.
+ *  Absent entry (nobody there, or no read yet) = empty roster,
+ *  and every plate reads VACANT. */
+export function heightsRosterFromDirectory(
+  directory: readonly { id: string; members: readonly string[] }[],
+  heightsRoomId: string,
+): string[] {
+  const entry = directory.find((r) => r.id === heightsRoomId);
+  return entry ? [...entry.members] : [];
+}
+
+/* ── Stack-100 #2: the front desk, dressed (item 21) ───────────────
+ * The quarter's front desk stands on the court west of the Slate,
+ * facing the gate walkway: a stone counter with a gold trim, and
+ * its dressing ON it — a brass bell, a small lamp (emissive glass,
+ * no real light), a spread of papers — with the keeper's chair
+ * behind it. The desk and the chair are solid from this same data;
+ * the dressing rides on the counter and needs no rects of its own. */
+
+export const HEIGHTS_DESK = {
+  cx: 16.4, cz: 22.3, w: 1.9, d: 0.75, h: 0.95,
+  /** The keeper's chair, behind the desk (north of it). */
+  chair: { x: 16.4, z: 21.5, blockHalf: 0.3 },
+  /** The dressing on the counter, as offsets from the desk's
+   *  centre: the bell west, the lamp east, the papers between. */
+  bellDx: -0.62,
+  lampDx: 0.68,
+  papersDx: 0.05,
+} as const;
+
+/* ── Stack-100 #2: court runner + arrival threshold (items 25–26) ──
+ * Item 25: a fabric runner in the look's cloth laid over the gate
+ * walkway's marble, from just inside the gate to the court's
+ * heart — the carpet continuity that makes the enclave read as a
+ * finished court. Item 26: the arrival threshold at the gate —
+ * a flat gold band across the passage inside the wall, with flat
+ * threshold stones flanking it, the spawn-arrival standard
+ * (plaza-life item 40) at district scale. Both are FLAT inlay:
+ * no collision, by the arrival-dressing law — dressing at a
+ * threshold must never trip the arriving walker. */
+
+export const HEIGHTS_RUNNER = { fromX: 13.85, toX: 20.6, cz: 24.6, w: 1.35 } as const;
+
+export const HEIGHTS_THRESHOLD = {
+  band: { x: 13.95, z: 24.6, w: 0.55, d: 2.1 },
+  stones: [
+    { x: 14.35, z: 23.35 },
+    { x: 14.35, z: 25.85 },
+  ] as ReadonlyArray<{ x: number; z: number }>,
+  stoneW: 0.7,
+  stoneD: 0.45,
+} as const;
+
 /* ── The batch's collision, derived ───────────────────────────────
  * Every solid above, as blocked rects — palace-layout registers
  * this list as the room's `blocked`, so the quarter's walls,
@@ -343,6 +448,8 @@ export const HEIGHTS_BLOCKED: readonly PalaceRect[] = [
   ...HEIGHTS_TERRACES.map(rectOf),
   ...HEIGHTS_BENCHES.map((b) => rectAround(b.x, b.z, BENCH.blockHalfX, BENCH.blockHalfZ)),
   ...HEIGHTS_PLANTERS.map(rectOf),
+  rectAround(HEIGHTS_DESK.cx, HEIGHTS_DESK.cz, HEIGHTS_DESK.w / 2, HEIGHTS_DESK.d / 2),
+  rectAround(HEIGHTS_DESK.chair.x, HEIGHTS_DESK.chair.z, HEIGHTS_DESK.chair.blockHalf, HEIGHTS_DESK.chair.blockHalf),
   ...HEIGHTS_LAMPS.map((l) => rectAround(l.x, l.z, LAMP.blockHalf, LAMP.blockHalf)),
   ...HEIGHTS_BANNER_POLES.map((p) => rectAround(p.x, p.z, HEIGHTS_BANNER_POLE.blockHalf, HEIGHTS_BANNER_POLE.blockHalf)),
 ];
