@@ -180,6 +180,7 @@ import {
   gainPolicyForMode,
   loadVoiceMode,
   nextVoiceMode,
+  prevVoiceMode,
   storeVoiceMode,
   VOICE_MODES,
   type VoiceMode,
@@ -1578,6 +1579,11 @@ export default function WorldPage() {
          the voice mode; Y flips the view. */
       scene.onPadToggleVoice = () => {
         if (!cancelled) setVoiceMode(nextVoiceMode(voiceSwitchRef.current.mode));
+      };
+      /* LT steps the same voice ring backward, through the same
+         page control A steps forward (item 59). */
+      scene.onPadVoiceBack = () => {
+        if (!cancelled) setVoiceMode(prevVoiceMode(voiceSwitchRef.current.mode));
       };
       scene.onPadToggleView = () => {
         if (!cancelled) toggleViewMode();

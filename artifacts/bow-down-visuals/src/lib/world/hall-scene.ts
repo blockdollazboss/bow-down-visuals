@@ -1450,6 +1450,9 @@ export class KingsHallScene {
   private padEdges: GamepadEdges = IDLE_GAMEPAD_EDGES;
   /** A controller's voice press (the page steps its voice mode). */
   onPadToggleVoice: (() => void) | null = null;
+  /** A controller's LT press (the page steps its voice mode
+   *  BACKWARD — the A button's reverse, item 59). */
+  onPadVoiceBack: (() => void) | null = null;
   /** A controller's view-toggle press (first/third person). */
   onPadToggleView: (() => void) | null = null;
   /** A controller's action press (D-pad / face buttons — the page
@@ -9160,6 +9163,7 @@ export class KingsHallScene {
       this.pitch = clamp(this.pitch - intent.lookY * 2.2 * dt, -1.15, 1.15);
       if (intent.sprint) run = true;
       if (intent.toggleVoice) this.onPadToggleVoice?.();
+      if (intent.voiceBack) this.onPadVoiceBack?.();
       if (intent.toggleView) this.onPadToggleView?.();
       if (intent.action) this.onPadAction?.(intent.action);
       if (intent.interact) this.onPadInteract?.();
