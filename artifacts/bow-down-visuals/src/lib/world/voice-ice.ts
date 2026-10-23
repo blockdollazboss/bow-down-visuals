@@ -20,6 +20,18 @@
  * bad URL or a missing credential half would fail silently, which is
  * the exact failure mode this item exists to end.
  *
+ * The served pair may be a short-lived per-session credential
+ * (Stack-100 #2 item 100: when WORLD_TURN_SECRET is set server-side,
+ * the rail signs coturn-REST-style ephemeral credentials) — this
+ * seam neither knows nor cares: it consumes what it is served,
+ * exactly as the turn-evaluation upgrade path promised.
+ *
+ * SIBLING-MESH NOTE (Stack-100 #2 item 67 — note only): the go-live
+ * guest mesh (lib/go-live/guest-mesh.ts) and the stage-room mesh
+ * (components/trust/StageRooms.tsx) share this STUN-only shape and
+ * may reuse this rail + this builder the same way; their surfaces
+ * are the site stack's to wire, not this module's.
+ *
  * Pure except the one fetch helper (fetch is injected), so the whole
  * seam is unit-tested in node.
  */
