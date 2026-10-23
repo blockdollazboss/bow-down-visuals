@@ -18,3 +18,14 @@ hero derivation cap; gold per-metre; relief table; day glass env; monument lit
 plate + 4-face relief; gate identity/leaves/lantern mesh/backed plates; rung
 shadowRadius + 4096 high + local brazier shadow lights (high only); animated-
 caster shadow refresh cadence; theme crossfade; fake light pools.
+
+## FINAL STATUS (lane complete)
+- Commits: 33077982 (sky 1-2), bb2f706a (water 5-7), 15ea71de (materials 8-12),
+  f50ab5bb (monument+gates), 0be466f0 (light 13-19 + crossfade).
+- Item 40: PARKED with evidence (no lions / fountain dams / compass rose
+  exist as built solids in the tree; pool+fountain already in PLAZA_BLOCKED).
+- Final verification: FE world suites 99 files / 1,808 tests ALL PASS
+  (.lane/sky-final-world.log; baseline 99/1,770 => +38 new, 0 regressions);
+  FE typecheck exit 0 (.lane/sky-typecheck-final.log).
+- Pin corrections (2): listening-gardens item-36 waters-push pin (bb2f706a);
+  quality.test high shadowMapSize 2048->4096 (0be466f0, item-15-ordered).
