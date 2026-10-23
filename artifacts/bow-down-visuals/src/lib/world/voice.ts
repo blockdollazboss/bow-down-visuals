@@ -149,6 +149,33 @@ export function summarizeVoiceConnections(
   return { total, connected, connecting, failed, failedPeerIds, state };
 }
 
+/**
+ * A memoizing summarizer (Stack-100 #2 item 66): the mesh emits a
+ * fresh snapshot Map on every peer change and the page re-renders
+ * for many unrelated reasons, so rolling the summary up from
+ * scratch on every snapshot/render — including join/partway states
+ * where nothing changed — is wasted work and, worse, a NEW summary
+ * object each time, which defeats any downstream memo on it. This
+ * summarizer returns the SAME summary object while the snapshot's
+ * contents are unchanged (same peers, same states), and recomputes
+ * only when they actually differ. Contents are compared, not Map
+ * identity — the page copies the mesh's Map into state.
+ */
+export function createVoiceConnectionSummarizer(): (
+  states: ReadonlyMap<string, VoicePeerConnectionState>,
+) => VoiceConnectionSummary {
+  let lastKey: string | null = null;
+  let lastSummary: VoiceConnectionSummary | null = null;
+  return (states) => {
+    let key = "";
+    for (const [peerId, s] of states) key += `${peerId}=${s};`;
+    if (lastSummary !== null && key === lastKey) return lastSummary;
+    lastKey = key;
+    lastSummary = summarizeVoiceConnections(states);
+    return lastSummary;
+  };
+}
+
 /** The headline the voice UI shows for a summary — plain words, no
  *  dead air dressed up as success. Empty state reads as no headline. */
 export function voiceConnectionHeadline(summary: VoiceConnectionSummary): string {
