@@ -93,7 +93,9 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
     expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(100);
     expect(getCreditCost("/api/thumbnail-generator")?.cost).toBe(200);
     expect(getCreditCost("/api/generate-runway-clip")?.cost).toBe(400);
-    expect(getCreditCost("/api/generate-video")?.cost).toBe(400);
+    // S27-73: the "/api/generate-video" registry entry was removed — that
+    // endpoint never existed; the 400 clip price is pinned above against the
+    // real rail (/api/generate-runway-clip) and the API rail constant.
   });
 
   it("HelpPanel carries no stale figures and derives its prices from the registry", () => {
