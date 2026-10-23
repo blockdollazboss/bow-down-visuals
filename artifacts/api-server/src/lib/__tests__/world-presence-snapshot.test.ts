@@ -51,10 +51,10 @@ describe("WorldPalace.presenceSnapshot", () => {
     const music = snap.rooms.find((r) => r.id === "world:music-hall")!;
     expect(music.count).toBe(1);
     expect(music.members).toEqual(["Cy the Guest"]);
-    // the ten palace rooms always list, empty ones at zero
-    // (ten since item 32 added the Listening Gardens district;
-    // nine was item 31's Stage Grounds count)
-    expect(snap.rooms).toHaveLength(10);
+    // the eleven palace rooms always list, empty ones at zero
+    // (eleven since item 33 added the Creation Row district;
+    // ten was item 32's Listening Gardens count)
+    expect(snap.rooms).toHaveLength(11);
     expect(snap.rooms.find((r) => r.id === "world:treasury")!.count).toBe(0);
   });
 

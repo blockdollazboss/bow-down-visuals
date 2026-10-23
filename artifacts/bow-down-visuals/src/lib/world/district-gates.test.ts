@@ -3,11 +3,11 @@
  *
  * Pins:
  * - the six Phase-1 district names survive, exactly six;
- * - only three thresholds are "gate"s, and each stands centred
+ * - only four thresholds are "gate"s, and each stands centred
  *   in a REAL wall gap (DISTRICT_GATE_GAPS) — a gate at a solid
  *   wall is the dishonesty this item removes;
- * - the three others are "marker"s (signposts, not doorways) —
- *   including the east pair, which used to be painted onto the
+ * - the two others are "marker"s (signposts, not doorways) —
+ *   including the Ateliers, which used to be painted onto the
  *   unbroken east wall (x 28.2): markers stand OFF that wall on
  *   open floor, and no marker carries gate parts in the data
  *   (no bar offsets);
@@ -39,8 +39,11 @@ describe("district-gates", () => {
     const gates = DISTRICT_THRESHOLDS.filter((d) => d.kind === "gate");
     /* DELIBERATELY moved in item 32: the Listening Gardens gate
      * joined — its district is built, through a real new gap in
-     * the south wall on its old marker's line. */
-    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK", "LISTENING GARDENS"]);
+     * the south wall on its old marker's line. DELIBERATELY
+     * moved again in item 33: the Creation Row gate joined —
+     * its district is built, through a real new gap in the east
+     * wall on its old marker's line. */
+    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK", "CREATION ROW", "LISTENING GARDENS"]);
     for (const gate of gates) {
       const gap = DISTRICT_GATE_GAPS[gate.name]!;
       expect(gap.axis).toBe(gate.axis);
@@ -51,12 +54,13 @@ describe("district-gates", () => {
     }
   });
 
-  it("the other three are grounded markers, not doorways", () => {
+  it("the other two are grounded markers, not doorways", () => {
     const markers = DISTRICT_THRESHOLDS.filter((d) => d.kind === "marker");
     /* DELIBERATELY moved in item 32: LISTENING GARDENS left the
-     * markers — it is an open gate now (below). */
+     * markers — it is an open gate now (below). DELIBERATELY
+     * moved in item 33: CREATION ROW left the markers the same
+     * way. */
     expect(markers.map((m) => m.name)).toEqual([
-      "CREATION ROW",
       "THE ATELIERS",
       "CREATOR HEIGHTS",
     ]);
@@ -65,16 +69,17 @@ describe("district-gates", () => {
       expect(m.barDx).toBeUndefined();
       expect(m.barDz).toBeUndefined();
     }
-    /* The east pair no longer touch the east wall (x 28.2, plaza
-     * face 28.025): they stand on open floor in front of it. */
-    for (const name of ["CREATION ROW", "THE ATELIERS"]) {
+    /* The Ateliers no longer touches the east wall (x 28.2,
+     * plaza face 28.025): it stands on open floor in front of
+     * it. */
+    for (const name of ["THE ATELIERS"]) {
       const m = DISTRICT_THRESHOLDS.find((d) => d.name === name)!;
       expect(m.x).toBeLessThan(28.0);
       expect(m.x).toBeGreaterThan(25);
     }
   });
 
-  it("items 31+32: the Stage Grounds and Listening Gardens gates are OPEN — their districts are built; every other threshold is not open", () => {
+  it("items 31+32+33: the Stage Grounds, Listening Gardens and Creation Row gates are OPEN — their districts are built; every other threshold is not open", () => {
     const stage = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
     expect(stage.kind).toBe("gate");
     expect(stage.open).toBe(true);
@@ -85,8 +90,15 @@ describe("district-gates", () => {
     expect(gardens.open).toBe(true);
     expect(gardens.x).toBe(-26);
     expect(gardens.z).toBe(34.0);
+    /* Item 33: the Row's marker was reclassified to an open
+     * gate in the east wall on its own line (x 28.2, z 14.5). */
+    const row = DISTRICT_THRESHOLDS.find((d) => d.name === "CREATION ROW")!;
+    expect(row.kind).toBe("gate");
+    expect(row.open).toBe(true);
+    expect(row.x).toBe(28.2);
+    expect(row.z).toBe(14.5);
     for (const d of DISTRICT_THRESHOLDS) {
-      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS") {
+      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS" && d.name !== "CREATION ROW") {
         expect(d.open ?? false, d.name).toBe(false);
       }
     }
