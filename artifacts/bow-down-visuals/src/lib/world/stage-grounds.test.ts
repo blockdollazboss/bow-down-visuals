@@ -55,6 +55,10 @@ import {
   TRUSS,
 } from "./stage-grounds";
 import { pavingSlabsFor, backdropGroundRects } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import { STAGE_ARRIVAL_ARCH } from "./stage-grounds";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const room = PALACE_LAYOUT[STAGE_GROUNDS_ID]!;
 
@@ -218,5 +222,29 @@ describe("Stage Grounds — the outdoor ground system (item 31)", () => {
       expect(overlaps(r, STAGE_GROUNDS_INTERIOR), JSON.stringify(r)).toBe(false);
       expect(overlaps(r, STAGE_GROUNDS_WALK), JSON.stringify(r)).toBe(false);
     }
+  });
+});
+
+describe("Stage Grounds — Stack-100 #2 finishing (item 39)", () => {
+  it("item 39: the arrival arch's columns flank the entry path, solid and camera-tall, and the path still walks between them", () => {
+    for (const z of STAGE_ARRIVAL_ARCH.columnZs) {
+      expect(isWalkable(STAGE_ARRIVAL_ARCH.x, z)).toBe(false);
+      expect(STAGE_TALL_BLOCKED).toContainEqual({
+        minX: STAGE_ARRIVAL_ARCH.x - STAGE_ARRIVAL_ARCH.blockHalf,
+        maxX: STAGE_ARRIVAL_ARCH.x + STAGE_ARRIVAL_ARCH.blockHalf,
+        minZ: z - STAGE_ARRIVAL_ARCH.blockHalf,
+        maxZ: z + STAGE_ARRIVAL_ARCH.blockHalf,
+      });
+    }
+    /* The columns clear the path's edges (18.4 / 20.6). */
+    expect(STAGE_ARRIVAL_ARCH.columnZs[0]! + STAGE_ARRIVAL_ARCH.blockHalf).toBeLessThan(18.4);
+    expect(STAGE_ARRIVAL_ARCH.columnZs[1]! - STAGE_ARRIVAL_ARCH.blockHalf).toBeGreaterThan(20.6);
+    /* The spawn and the path between the columns walk. */
+    expect(isWalkable(-30.2, 19.5)).toBe(true);
+    expect(isWalkable(STAGE_ARRIVAL_ARCH.x, 19.5)).toBe(true);
+    /* The band rides above a walker's head. */
+    expect(STAGE_ARRIVAL_ARCH.bandY).toBeGreaterThan(3.2);
+    expect(sceneSrc).toContain("STAGE_ARRIVAL_ARCH");
+    expect(sceneSrc).toContain('doorPlate(g, "STAGE GROUNDS"');
   });
 });

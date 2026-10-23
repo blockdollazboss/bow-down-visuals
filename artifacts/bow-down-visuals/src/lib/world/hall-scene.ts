@@ -157,11 +157,13 @@ import {
 } from "./palace-layout";
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
+import { HOUSE_TRIM, roomTrimProfile, type RoomTrimProfile } from "./room-trim";
 import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
 import {
   STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
   TRUSS, BANNER_POLES, BANNER_POLE, AUDIENCE_LAWN, STAGE_BENCHES, ENTRY_PATH, STAGE_LAMPS,
+  STAGE_ARRIVAL_ARCH,
 } from "./stage-grounds";
 import {
   GARDENS_INTERIOR, GARDENS_WALL_RUNS, GARDENS_PIERS, PARTERRE_LAWN, RILL,
@@ -2210,6 +2212,7 @@ export class KingsHallScene {
   private wallRunX(
     group: THREE.Group, mats: LookMaterials,
     z: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+    trimProfile: RoomTrimProfile = HOUSE_TRIM,
   ): void {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
@@ -2218,10 +2221,16 @@ export class KingsHallScene {
     wall.position.set(cx, y0 + (y1 - y0) / 2, z);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
-    if (y0 <= 5.7 && y1 >= 5.7) {
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.06), mats.gold);
-      trim.position.set(cx, 5.7, z + inward * 0.24);
+    if (y0 <= trimProfile.y && y1 >= trimProfile.y) {
+      const trimMat = trimProfile.dark ? mats.goldDark : mats.gold;
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.06), trimMat);
+      trim.position.set(cx, trimProfile.y, z + inward * 0.24);
       group.add(trim);
+      if (trimProfile.double) {
+        const second = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.06), trimMat);
+        second.position.set(cx, trimProfile.y - 0.18, z + inward * 0.24);
+        group.add(second);
+      }
     }
     if (y0 === 0) {
       const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.3, 0.05), mats.goldDark);
@@ -2233,6 +2242,7 @@ export class KingsHallScene {
   private wallRunZ(
     group: THREE.Group, mats: LookMaterials,
     x: number, from: number, to: number, y0: number, y1: number, inward: 1 | -1,
+    trimProfile: RoomTrimProfile = HOUSE_TRIM,
   ): void {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
@@ -2241,10 +2251,16 @@ export class KingsHallScene {
     wall.position.set(x, y0 + (y1 - y0) / 2, cz);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
-    if (y0 <= 5.7 && y1 >= 5.7) {
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, len), mats.gold);
-      trim.position.set(x + inward * 0.24, 5.7, cz);
+    if (y0 <= trimProfile.y && y1 >= trimProfile.y) {
+      const trimMat = trimProfile.dark ? mats.goldDark : mats.gold;
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, len), trimMat);
+      trim.position.set(x + inward * 0.24, trimProfile.y, cz);
       group.add(trim);
+      if (trimProfile.double) {
+        const second = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, len), trimMat);
+        second.position.set(x + inward * 0.24, trimProfile.y - 0.18, cz);
+        group.add(second);
+      }
     }
     if (y0 === 0) {
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, len), mats.goldDark);
@@ -3178,14 +3194,18 @@ export class KingsHallScene {
     // leave a gap. Room bands: Music −8.6..3.1, Game 3.5..11.9,
     // Treasury −17.9..−9.2, Create −8.6..3.1, Royal Court
     // −17.9..−9.2, Branding 3.5..11.9.
+    /* Stack-100 #2 item 41: each room wears its OWN trim —
+     * height, profile and accent from room-trim.ts — so the six
+     * wing rooms stop reading as one shell re-skinned. */
+    const trim = roomTrimProfile(roomId);
     if (west) {
-      this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.maxZ + 0.2, -28.4, -14.2, 0, 6.5, -1);
+      this.wallRunZ(g, mats, -28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.minZ - 0.2, -28.4, -14.2, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, -28.4, -14.2, 0, 6.5, -1, trim);
     } else {
-      this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1);
-      this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1);
-      this.wallRunX(g, mats, interior.maxZ + 0.2, 14.2, 28.4, 0, 6.5, -1);
+      this.wallRunZ(g, mats, 28.4, interior.minZ - 0.2, interior.maxZ + 0.2, 0, 6.5, -1, trim);
+      this.wallRunX(g, mats, interior.minZ - 0.2, 14.2, 28.4, 0, 6.5, 1, trim);
+      this.wallRunX(g, mats, interior.maxZ + 0.2, 14.2, 28.4, 0, 6.5, -1, trim);
     }
 
     // The way back, labeled from inside: the plate names the hall.
@@ -4085,7 +4105,6 @@ export class KingsHallScene {
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
     const troughGeoZ = new THREE.BoxGeometry(0.72, 0.55, 2.0);
     const troughGeoX = new THREE.BoxGeometry(2.0, 0.55, 0.72);
-    const crownGeo = new THREE.IcosahedronGeometry(0.44, 1);
     /* Trough bodies instance (item 25): one draw per orientation,
      * matrices carrying each trough's item-18 jitter (rotation +
      * uniform scale) — variation survives instancing because it
@@ -4133,11 +4152,25 @@ export class KingsHallScene {
         const cv = propVariation("crown", index * 2 + ci);
         const crownMat = leafMat.clone();
         crownMat.color.offsetHSL(cv.hueShift, 0, cv.lightnessShift);
-        const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.set(p.alongZ ? p.x : p.x + off, 0.82, p.alongZ ? p.z + off : p.z);
+        /* Stack-100 #2 item 47: shaped planting, not a blob —
+         * each trough crown is a small cluster in the gardens'
+         * manner: a clipped centre cone with two rounded side
+         * mounds, varied as one plant. */
+        const crown = new THREE.Group();
+        crown.position.set(p.alongZ ? p.x : p.x + off, 0.55, p.alongZ ? p.z + off : p.z);
         crown.rotation.y = cv.rotY;
         crown.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
-        crown.castShadow = QUALITY[this.quality].shadows;
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 10), crownMat);
+        cone.position.y = 0.31;
+        cone.castShadow = QUALITY[this.quality].shadows;
+        crown.add(cone);
+        for (const sideOff of [-0.24, 0.24]) {
+          const mound = new THREE.Mesh(new THREE.SphereGeometry(0.21, 10, 8), crownMat);
+          mound.position.set(p.alongZ ? 0 : sideOff, 0.16, p.alongZ ? sideOff : 0);
+          mound.scale.y = 0.75;
+          mound.castShadow = QUALITY[this.quality].shadows;
+          crown.add(mound);
+        }
         g.add(crown);
       });
     });
@@ -4605,6 +4638,37 @@ export class KingsHallScene {
         strip.position.set(cx, 0.028, ENTRY_PATH.cz + sz);
         g.add(strip);
       }
+    }
+
+    /* Stack-100 #2 item 39: the arrival arch — two marble
+     * columns flanking the entry path just inside the gate, a
+     * gold band spanning them, and the district's name plate on
+     * the band facing the arriving walker: the proscenium's
+     * language at garden scale. The columns are solid from
+     * STAGE_ARRIVAL_ARCH's own data; the band rides above. */
+    {
+      const a = STAGE_ARRIVAL_ARCH;
+      for (const z of a.columnZs) {
+        const col = new THREE.Group();
+        col.position.set(a.x, 0, z);
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.28, 0.72), mats.marble);
+        plinth.position.y = 0.14;
+        col.add(plinth);
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.25, a.columnH - 0.46, 12), mats.marble);
+        shaft.position.y = 0.28 + (a.columnH - 0.46) / 2;
+        shaft.castShadow = shadows;
+        col.add(shaft);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.18, 0.66), mats.gold);
+        cap.position.y = a.columnH - 0.09;
+        col.add(cap);
+        g.add(col);
+      }
+      const span = a.columnZs[1]! - a.columnZs[0]!;
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, span + 0.7), mats.gold);
+      band.position.set(a.x, a.bandY, ENTRY_PATH.cz);
+      band.castShadow = shadows;
+      g.add(band);
+      this.doorPlate(g, "STAGE GROUNDS", a.x + 0.19, a.plateY, ENTRY_PATH.cz, Math.PI / 2, 2.4);
     }
 
     /* The quarter's lamp standards — plaza-life's LAMP build,
