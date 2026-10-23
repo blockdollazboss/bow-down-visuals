@@ -294,7 +294,7 @@ export function WallpapersDesk() {
         ? brandPalette
         : await extractPalette(currentArt);
       setPack({ phoneUrl: phone.url, desktopUrl: desktop.url, palette });
-      setRenders((prev) => [phone, desktop, ...prev]);
+      setRenders((prev) => [phone!, desktop, ...prev]);
       if (!listTitle) setListTitle(t("wallpapers.listDefaultTitle", { defaultValue: "My wallpaper & theme pack" }));
     } catch (e) {
       // A paid phone render survives a failed desktop render: it stays
