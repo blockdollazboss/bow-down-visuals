@@ -435,6 +435,40 @@ export const BOARDWALK_BANNER_POLES: ReadonlyArray<{ x: number; z: number }> = [
 ];
 export const BOARDWALK_BANNER_POLE = { h: 4.2, blockHalf: 0.2 } as const;
 
+/* ── Stack-100 #2: the prize wheel (item 29) ──────────────────────
+ * The boardwalk's game stand, west of the bandstand: a gold-rimmed
+ * wheel on a dark post over a stone base, segment pegs around its
+ * rim and a pointer at its head. It MOVES — the boardwalk's first
+ * animated game: an idle creep, and a full spin on a slow cycle
+ * (wheelAngleAt below — pure, so the motion is pinned without a
+ * renderer). The stand is solid from this same data. */
+
+export const BOARDWALK_WHEEL = {
+  x: -9.5,
+  z: 47.0,
+  /** The wheel's radius and its axle height. */
+  r: 0.85,
+  axleY: 1.55,
+  /** Segment pegs around the rim. */
+  pegs: 12,
+  blockHalf: 0.55,
+} as const;
+
+/** The wheel's angle (radians) at time `t` seconds: a gentle idle
+ *  creep, plus one eased full spin inside every 24 s cycle (the
+ *  spin runs t mod 24 ∈ [8, 14), smoothstepped so it starts and
+ *  settles without a jolt). Deterministic — the same t always
+ *  letters the same angle, in both looks. */
+export function wheelAngleAt(t: number): number {
+  const cycle = ((t % 24) + 24) % 24;
+  let spin = 0;
+  if (cycle >= 8) {
+    const u = Math.min(1, (cycle - 8) / 6);
+    spin = u * u * (3 - 2 * u) * Math.PI * 4;
+  }
+  return t * 0.12 + spin + Math.floor(t / 24) * Math.PI * 4;
+}
+
 /* ── The batch's collision, derived ───────────────────────────────
  * Every solid above, as blocked rects — palace-layout registers
  * this list as the room's `blocked`, so the quarter's walls,
@@ -460,6 +494,7 @@ export const BOARDWALK_BLOCKED: readonly PalaceRect[] = [
   ...BOARDWALK_PLANTERS.map(rectOf),
   ...BOARDWALK_LAMPS.map((l) => rectAround(l.x, l.z, LAMP.blockHalf, LAMP.blockHalf)),
   ...BOARDWALK_BANNER_POLES.map((p) => rectAround(p.x, p.z, BOARDWALK_BANNER_POLE.blockHalf, BOARDWALK_BANNER_POLE.blockHalf)),
+  rectAround(BOARDWALK_WHEEL.x, BOARDWALK_WHEEL.z, BOARDWALK_WHEEL.blockHalf, BOARDWALK_WHEEL.blockHalf),
 ];
 
 /** The district's camera-tall solids (item 44's rule): the wall

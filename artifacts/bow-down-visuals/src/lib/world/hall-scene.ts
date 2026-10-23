@@ -187,6 +187,7 @@ import {
   BANDSTAND, BANDSTAND_POSTS, BANDSTAND_STEPS, BOARDWALK_BASIN, BOARDWALK_RAILING,
   BOARDWALK_RAILING_POSTS, BOARDWALK_BENCHES, BOARDWALK_PLANTERS, BOARDWALK_PLANTER_CROWNS,
   BOARDWALK_LAMPS, BOARDWALK_BANNER_POLES, BOARDWALK_BANNER_POLE,
+  BOARDWALK_WHEEL, wheelAngleAt,
 } from "./boardwalk";
 import {
   HEIGHTS_INTERIOR, HEIGHTS_WALL_RUNS, HEIGHTS_PIERS, HEIGHTS_WALKWAY, HEIGHTS_FRONTS, FRONT_KIT,
@@ -1338,9 +1339,14 @@ interface LookAnim {
   bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
   pollen: { points: THREE.Points; field: PollenMote[] } | null;
   waters: Array<{ tex: THREE.Texture; jet: THREE.Mesh | null }>;
+  /* Stack-100 #2 item 29: spinning dressing (the boardwalk prize
+   * wheel) — the tick sets each spinner's z-rotation from its
+   * angle function; registered in both looks, never under
+   * reduced motion. */
+  spinners: Array<{ obj: THREE.Group; angleAt: (t: number) => number }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1738,7 +1744,7 @@ export class KingsHallScene {
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
     this.monumentFaceMats = [];
     this.heightsPlateMats = [];
     this.lodItems = [];
@@ -4517,10 +4523,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 0.7 + (p.x + p.z) });
     }
 
     /* The audience lawn (the plaza lawns' construction: stone
@@ -4965,10 +4977,16 @@ export class KingsHallScene {
       arm.rotation.z = Math.PI / 2;
       arm.position.set(p.x, GARDENS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, GARDENS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
-      banner.position.set(p.x, GARDENS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 2.3 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5266,10 +5284,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, ROW_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, ROW_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, ROW_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 3.9 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5624,10 +5648,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, ATELIERS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, ATELIERS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, ATELIERS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 5.5 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -5879,6 +5909,52 @@ export class KingsHallScene {
       g.add(finial);
     }
 
+    /* Stack-100 #2 item 29: the prize wheel — the boardwalk's
+     * game stand, west of the bandstand: a stone base, a dark
+     * post, and a gold-rimmed wheel with segment pegs and a
+     * pointer, turning on wheelAngleAt (idle creep + a full
+     * eased spin every cycle) — registered as a spinner in
+     * both looks, never under reduced motion. The stand is
+     * solid from BOARDWALK_WHEEL's own data. */
+    {
+      const w = BOARDWALK_WHEEL;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 1.1), mats.stoneFor(1.1, 0.3));
+      base.position.set(w.x, 0.11, w.z);
+      base.castShadow = shadows;
+      g.add(base);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, w.axleY, 10), mats.darkMetal);
+      post.position.set(w.x, w.axleY / 2 + 0.2, w.z);
+      post.castShadow = shadows;
+      g.add(post);
+      const wheel = new THREE.Group();
+      wheel.position.set(w.x, w.axleY, w.z);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(w.r, w.r, 0.09, 28), mats.fabric);
+      disc.rotation.x = Math.PI / 2;
+      disc.castShadow = shadows;
+      wheel.add(disc);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(w.r, 0.045, 8, 36), mats.gold);
+      wheel.add(rim);
+      for (let i = 0; i < w.pegs; i++) {
+        const a = (i / w.pegs) * Math.PI * 2;
+        const peg = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), mats.gold);
+        peg.position.set(Math.cos(a) * (w.r - 0.09), Math.sin(a) * (w.r - 0.09), 0.07);
+        wheel.add(peg);
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.05, w.r - 0.12, 0.04), mats.goldDark);
+        spoke.rotation.z = a - Math.PI / 2;
+        spoke.position.set(Math.cos(a) * (w.r / 2 - 0.03), Math.sin(a) * (w.r / 2 - 0.03), 0.05);
+        wheel.add(spoke);
+      }
+      const hub = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), mats.gold);
+      hub.position.z = 0.07;
+      wheel.add(hub);
+      g.add(wheel);
+      const pointer = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), mats.gold);
+      pointer.rotation.x = Math.PI;
+      pointer.position.set(w.x, w.axleY + w.r + 0.14, w.z);
+      g.add(pointer);
+      if (!this.reducedMotion) anim.spinners.push({ obj: wheel, angleAt: wheelAngleAt });
+    }
+
     /* The water basin: a stone rim slab along the south edge
      * holding real animated water (a cloned texture the tick
      * scrolls, the pool/rill law), and the railing on its deck
@@ -5993,10 +6069,16 @@ export class KingsHallScene {
       arm.rotation.z = Math.PI / 2;
       arm.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
-      banner.position.set(p.x, BOARDWALK_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 7.1 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP
@@ -6314,10 +6396,16 @@ export class KingsHallScene {
       arm.rotation.x = Math.PI / 2;
       arm.position.set(p.x, HEIGHTS_BANNER_POLE.h - 0.15, p.z);
       g.add(arm);
+      const bannerPivot = new THREE.Group();
+      bannerPivot.position.set(p.x, HEIGHTS_BANNER_POLE.h - 0.2, p.z);
       const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
-      banner.position.set(p.x, HEIGHTS_BANNER_POLE.h - 1.05, p.z);
+      banner.position.set(0, -0.85, 0);
       banner.castShadow = shadows;
-      g.add(banner);
+      bannerPivot.add(banner);
+      g.add(bannerPivot);
+      /* Stack-100 #2 item 30: district banners sway like the hall's —
+       * registered in both looks, never under reduced motion. */
+      if (!this.reducedMotion) anim.bannerSways.push({ pivot: bannerPivot, phase: 8.7 + (p.x + p.z) });
     }
 
     /* The quarter's lantern standards — plaza-life's LAMP build,
@@ -7910,6 +7998,11 @@ export class KingsHallScene {
       const sway = bannerSwayAt(t, b.phase);
       b.pivot.rotation.x = sway.rotX;
       b.pivot.rotation.z = sway.rotZ;
+    }
+    /* Stack-100 #2 item 29: the spinners (the boardwalk prize
+     * wheel) turn on their own angle functions. */
+    for (const sp of anim.spinners) {
+      sp.obj.rotation.z = sp.angleAt(t);
     }
     if (anim.pollen) {
       const attr = anim.pollen.points.geometry.getAttribute("position") as THREE.BufferAttribute;
