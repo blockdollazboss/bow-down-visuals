@@ -33,6 +33,7 @@ import {
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { GroupsDesk } from "@/components/world/native/GroupsDesk";
+import { ExploreDesk, MyProfileDesk } from "@/components/world/native/SocialWave2";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import {
   CreatorRoomsDirectory,
@@ -1723,6 +1724,10 @@ export default function StationPanel(props: StationPanelProps) {
               ) : station.id === "community-hall" ? (
                 <div className="flex flex-col gap-6">
                   <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                  {/* Explore + creator/work search (stack-100 #81):
+                      the blended scene and the discovery box, on the
+                      /api/explore + /api/discovery/search rails. */}
+                  <ExploreDesk isLight={isLight} />
                   {/* Groups + forums (stack-100 #76/#77): the Hall's
                       promised crews, on the /api/groups rails. */}
                   <GroupsDesk isLight={isLight} isGuest={isGuest} />
@@ -1763,7 +1768,14 @@ export default function StationPanel(props: StationPanelProps) {
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
               <EarningsBoard isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
-              <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+              <div className="flex flex-col gap-6">
+                <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                {/* My public page (stack-100 #83/#84): view as a
+                    visitor + the profile editor, on the creator-
+                    profile rails. Members only — a guest never
+                    reaches the board pattern (guest-pitch instead). */}
+                <MyProfileDesk isLight={isLight} />
+              </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
               <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (

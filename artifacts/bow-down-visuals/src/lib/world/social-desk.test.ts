@@ -17,7 +17,9 @@
  * - Ring 2 (2.17–2.19): attachment classification/presentation +
  *   thread search, the FULL thread (no preview cap), the reply
  *   bench's batching + server-priced seam, and the follow-on log
- *   keeping only moderation transfer-only;
+ *   (Social Wave II, stack-100 #79–#84, promoted the moderation
+ *   bench off it — the log is empty now and pinned empty; the
+ *   wave-2 seam itself is pinned in social-wave2.test.ts);
  * - STACK-20 R2 #6 (world half): thread search lights its matches
  *   in place (message words + the work's title) and states its
  *   loaded-window scope in the copy; guests resolve to the Post
@@ -530,11 +532,8 @@ describe("post reply drafts (STACK-20 R2 #8, 2.19) — the board composer's word
 });
 
 describe("the parity follow-on log", () => {
-  it("only moderation stays transfer-only — Ring 2 promoted the rest", () => {
-    const ids = SOCIAL_NATIVE_FOLLOW_ONS.map((f) => f.id);
-    expect(ids).toEqual(["moderation-bench"]);
-    const mod = SOCIAL_NATIVE_FOLLOW_ONS.find((f) => f.id === "moderation-bench")!;
-    expect(mod.label).toContain("/api/community/moderate");
+  it("is empty — Social Wave II (#82) promoted the moderation bench", () => {
+    expect(SOCIAL_NATIVE_FOLLOW_ONS.map((f) => f.id)).toEqual([]);
   });
 
   it("the Ring 2 promotions are recorded in the program's own numbering", () => {
@@ -551,7 +550,7 @@ describe("source pins — the desk and its host dispatch", () => {
     for (const needle of [
       "DM_CONVERSATIONS_PATH", "dmMessagesPath", "dmSendPath", "dmRequestActionPath",
       "profileResolvePath", "COMMUNITY_SUPERFANS_PATH", "COMMUNITY_SENTIMENT_PATH",
-      "GENERATE_COMMUNITY_POST_PATH", "POSTS_PATH", "feedPath", "postRepliesPath",
+      "GENERATE_COMMUNITY_POST_PATH", "POSTS_PATH", "feedPagePath", "postRepliesPath",
       "DM_ATTACHMENT_UPLOAD_PATH", "postReplyPath", "COMMENT_REPLIES_PATH",
       "COMMENT_REPLIES_META_PATH", "dmDraftPath",
     ]) {
@@ -604,9 +603,14 @@ describe("source pins — the desk and its host dispatch", () => {
     expect(deskSrc).not.toContain("setReplyCount");
   });
 
-  it("moderation is never called from the desk — transfer-only in v1", () => {
+  it("moderation is the ADMIN bench now (#82) — never the member AI scan", () => {
+    /* The charged member scan (POST /api/community/moderate) is not
+       the admin bench and is called from neither desk. The bench
+       itself docks at the board's foot, admin-gated inside
+       SocialWave2 (its internals are pinned in social-wave2.test.ts). */
     expect(deskSrc).not.toContain("/api/community/moderate");
-    expect(deskSrc).toContain("Moderation stays on the website");
+    expect(deskSrc).toContain("<ModerationBench");
+    expect(deskSrc).not.toContain("Moderation stays on the website");
   });
 
   it("the host dispatches pattern social by station id, inside the native branch", () => {
