@@ -17,6 +17,7 @@ import {
 import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
+import { PostAssistBlock } from "./PostAssist";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
@@ -1625,6 +1626,11 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [historyNote, setHistoryNote] = useState<string | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
 
+  /* Post Assist (#58) — the drafted caption, ready to hand to the
+     Scheduler compose below. */
+  const [assistDraft, setAssistDraft] = useState("");
+  const [assistNote, setAssistNote] = useState<string | null>(null);
+
   /* Coach row. */
   const [coachBusy, setCoachBusy] = useState(false);
   const [coach, setCoach] = useState<CoachTodayAction | null>(null);
@@ -1973,6 +1979,51 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
             ) : undefined
           }
         />
+      </NativeCard>
+
+      {/* Post Assist — "Write It For Me" (#58): the feed composer's
+          drafting hand, here in the Promote Room. The draft becomes
+          a caption the in-world Scheduler below posts — the flow
+          finishes in this room. */}
+      <NativeCard isLight={isLight} title="Post Assist — Write It For Me">
+        <PostAssistBlock isLight={isLight} onDraft={(draft) => { setAssistDraft(draft); setAssistNote(null); }} />
+        {assistDraft ? (
+          <div className="mt-2 space-y-2" data-testid="world-promote-assist-draft">
+            <textarea
+              aria-label="Your drafted post"
+              className={inputCls(isLight)}
+              rows={3}
+              maxLength={500}
+              value={assistDraft}
+              onChange={(e) => setAssistDraft(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                data-testid="world-promote-assist-schedule"
+                onClick={() => {
+                  setCardPrefill({ mediaUrl: "", mediaType: "video", caption: assistDraft });
+                  setCardPrefillNonce((n) => n + 1);
+                  setAssistNote("Loaded as the caption in the Scheduler below — add the post's video or image, pick a platform and a time, right here.");
+                }}
+                className={goldBtn}
+              >
+                <CalendarClock className="h-4 w-4" /> Load into the Scheduler
+              </button>
+              <button
+                type="button"
+                data-testid="world-promote-assist-copy"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(assistDraft).then(() => setAssistNote("Copied — paste it anywhere."));
+                }}
+                className={goldBtn}
+              >
+                <Share2 className="h-4 w-4" /> Copy the words
+              </button>
+            </div>
+            {assistNote ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{assistNote}</p> : null}
+          </div>
+        ) : null}
       </NativeCard>
 
       <NativeCard isLight={isLight} title="Promo cards">
