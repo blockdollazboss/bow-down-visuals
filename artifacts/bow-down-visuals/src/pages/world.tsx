@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
-  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
+  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem,
@@ -145,6 +145,12 @@ import {
   toggledViewMode,
   type HallViewMode,
 } from "@/lib/world/view-mode";
+import {
+  loadQualityPreference,
+  nextQualityPreference,
+  qualityPreferenceLabel,
+  type QualityPreference,
+} from "@/lib/world/quality";
 import {
   initialVoiceToggle,
   reduceVoiceToggle,
@@ -427,6 +433,7 @@ export default function WorldPage() {
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
+  const [qualityPref, setQualityPref] = useState<QualityPreference>(() => loadQualityPreference());
   /* The avatar action my figure is performing (the action bar's
      state; the scene reports its own endings — a finished bow,
      a walk that ended the dance — through onSelfAction). */
@@ -901,6 +908,13 @@ export default function WorldPage() {
     sceneRef.current?.setViewMode(viewMode);
   }, [viewMode]);
 
+  /* Quality preference (item 22): the scene persists it itself and
+   * pins (or un-pins) the adaptive ladder — the page just carries
+   * the choice, exactly like the view mode. */
+  useEffect(() => {
+    sceneRef.current?.setQualityPreference(qualityPref);
+  }, [qualityPref]);
+
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
 
   /* Fullscreen: the standard API on the room container. The
@@ -1341,6 +1355,7 @@ export default function WorldPage() {
       const scene = new KingsHallScene(canvas, currentHallTheme());
       sceneRef.current = scene;
       scene.setViewMode(loadViewMode());
+      scene.setQualityPreference(loadQualityPreference());
       void scene.isVrSupported().then((ok) => {
         if (!cancelled) setXrSupported(ok);
       });
@@ -3222,6 +3237,19 @@ export default function WorldPage() {
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {voiceNote && <span className={`max-w-xs text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{voiceNote}</span>}
+            {status === "inside" && (
+              <button
+                type="button"
+                onClick={() => setQualityPref((q) => nextQualityPreference(q))}
+                data-testid="world-quality-control"
+                aria-label="Graphics quality"
+                title="Graphics quality — Auto adapts to your device"
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+              >
+                <Gauge className="h-4 w-4" />
+                Quality: {qualityPreferenceLabel(qualityPref)}
+              </button>
+            )}
             {status === "inside" && (
               <button
                 type="button"

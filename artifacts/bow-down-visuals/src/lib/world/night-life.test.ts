@@ -65,7 +65,12 @@ describe("night-life embers", () => {
     const src = read("./hall-scene.ts");
     expect(src).toContain("emberCountForTier");
     expect(src).toContain("createEmberField");
-    /* The QUALITY table itself is untouched by this lane. */
-    expect(src).toContain('low: { pixelRatio: 1.25, reflectorSize: 0, shadows: false, candleLights: false }');
+    /* The rung fact the embers depend on — the low rung carries no
+     * candle lights, so emberCountForTier returns 0 there — now
+     * lives in quality.ts (item 99 rebuilt the ladder as its own
+     * module at Stage B integration; the pin follows the table). */
+    const ladder = read("./quality.ts");
+    expect(ladder).toContain("candleLights: false");
+    expect(ladder).toContain('tier: "low"');
   });
 });

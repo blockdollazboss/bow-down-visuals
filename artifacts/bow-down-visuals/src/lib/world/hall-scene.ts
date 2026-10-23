@@ -59,6 +59,24 @@ import { Reflector } from "three/addons/objects/Reflector.js";
 import type { WorldPeer } from "./world-client";
 import { nameplateSub, nameplateTitle, starsMark } from "./nameplate";
 import { selfPlateVisible, type HallViewMode } from "./view-mode";
+import {
+  QUALITY_RUNGS,
+  FrameTimeMonitor,
+  detectInitialTier,
+  loadQualityPreference,
+  resolveTier,
+  storeQualityPreference,
+  type QualityPreference,
+  type QualityTier,
+} from "./quality";
+import {
+  areaForRoom,
+  hallInteriorCulled,
+  lightScopedOff,
+  lodTierAt,
+  plazaDressingCulled,
+  reflectorShouldRender,
+} from "./visibility";
 import { capsuleBodyHex } from "./capsule-color";
 import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
 import { mediaUrl } from "../media-cdn";
@@ -216,12 +234,13 @@ function angleLerp(a: number, b: number, t: number): number {
 const SCRATCH_VEC = new THREE.Vector3();
 
 /* ── Quality ladder ───────────────────────────────────────────────────
-   high:   planar mirror floor, soft shadow maps, every light live.
-   medium: smaller mirror, shadow maps, candle points still live.
-   low:    no mirror (polished env-reflective floor only), no shadow
-           maps, candlelight is emissive-only. Pixel ratio steps down
-           with the tier. Touch devices start a rung lower. */
-type QualityTier = "high" | "medium" | "low";
+   The rung table, the persisted user preference and the adaptive
+   frame-time monitor live in quality.ts (items 22 + 99) — this
+   file only APPLIES a rung. In Auto the monitor steps the rung
+   down under sustained load and back up with headroom; an explicit
+   preference pins it. LOW keeps the brazier lights (the night
+   plaza's only lights) and cuts shadows/reflector/pixels first. */
+const QUALITY = QUALITY_RUNGS;
 
 /** The walker's reduced-motion preference (item 44): when set,
  *  the SELF mover's bob and settle are silenced at the source
@@ -239,19 +258,8 @@ function detectQuality(): QualityTier {
     ? window.matchMedia("(pointer: coarse)").matches
     : false;
   const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency ?? 4 : 4;
-  if (coarse) return cores >= 6 ? "medium" : "low";
-  return cores >= 4 ? "high" : "medium";
+  return detectInitialTier(coarse, cores);
 }
-
-const QUALITY = {
-  high: { pixelRatio: 2, reflectorSize: 1024, shadows: true, candleLights: true },
-  /* Overhaul stage 3 (perf audit E2): the phone rung was 1.75 with
-   * MSAA always on — the most expensive default a tiled phone GPU
-   * can be handed. 1.5 keeps the picture crisp above native CSS
-   * pixels on most phones; low gets a genuine weak-hardware rung. */
-  medium: { pixelRatio: 1.5, reflectorSize: 512, shadows: true, candleLights: true },
-  low: { pixelRatio: 1.25, reflectorSize: 0, shadows: false, candleLights: false },
-} as const;
 
 /* ── Texture maps (public assets, lazy with the world chunk) ─────────
    One cached instance per (url, repeat) — materials vary by repeat,
@@ -1232,6 +1240,22 @@ export class KingsHallScene {
   private quality: QualityTier;
   /** Reduced-motion preference, read once at construction. */
   private reducedMotion = detectReducedMotion();
+  private qualityPref: QualityPreference = "auto";
+  private frameMonitor: FrameTimeMonitor | null = null;
+  private frameIndex = 0;
+  /** The hall's own build (floor/walls/stage/lights) as one group,
+   *  so the portal cull (item 23) can rest the whole interior when
+   *  the arch provably cannot be seen from the plaza. */
+  private hallGroup: THREE.Group | null = null;
+  private floorOverlayMat: THREE.MeshPhysicalMaterial | null = null;
+  /** Every scoped point/spot light in the current look, with its
+   *  world position + range (item 24) — judged per room change. */
+  private scopedLights: Array<{ light: THREE.Light; x: number; z: number; range: number }> = [];
+  /** LOD-registered dressing (item 99): station markers today. */
+  private lodItems: Array<{ obj: THREE.Object3D; x: number; z: number; detail: THREE.Object3D[] }> = [];
+  /** The courtyard shell's room-change visibility, before the
+   *  per-frame portal cull has its say. */
+  private plazaBaseVisible = true;
   private theme: HallTheme;
   private lookGroup: THREE.Group | null = null;
   private lookAnim: LookAnim = EMPTY_ANIM;
@@ -1243,11 +1267,17 @@ export class KingsHallScene {
   private sunTarget: THREE.Object3D | null = null;
 
   constructor(private canvas: HTMLCanvasElement, theme: HallTheme = "dark") {
-    this.quality = detectQuality();
+    this.qualityPref = loadQualityPreference();
+    const detected = detectQuality();
+    this.frameMonitor = new FrameTimeMonitor(detected);
+    this.quality = resolveTier(this.qualityPref, detected);
     const q = QUALITY[this.quality];
     this.theme = theme;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    /* MSAA is construction-time (quality.ts): a scene built on a
+     * low rung gets no antialias; runtime ladder steps apply
+     * every other rung axis and MSAA follows on the next entry. */
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: "high-performance" });
     maxTextureAnisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 8);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1328,6 +1358,8 @@ export class KingsHallScene {
     this.buildLook(group, look);
     this.scene.add(group);
     this.lookGroup = group;
+    this.collectScopedLights(group);
+    this.applyLightScoping();
     // Fresh lights + fog for the room we stand in (aimSun also
     // requests the one shadow-map render the frozen map needs).
     this.applyAreaAtmosphere();
@@ -1434,19 +1466,27 @@ export class KingsHallScene {
     const mats = this.makeMaterials(look);
     const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [] };
     this.monumentFaceMats = [];
-    this.buildFloor(group, look, mats);
-    this.buildWalls(group, look, mats, anim);
-    this.buildCeiling(group, look, mats);
-    this.buildColumns(group, look, mats);
-    this.buildStage(group, look, mats);
-    this.buildScreen(group, mats);
-    this.buildSpeakersAndMic(group, mats);
-    this.buildLights(group, look);
-    if (look.chandeliers) this.buildChandeliers(group, mats);
-    if (look.candles) this.buildBraziers(group, mats, anim);
-    if (look.lightBeams) this.buildBeams(group);
-    if (look.dust) anim.dust = this.buildDust(group);
-    if (look.haze) this.buildHaze(group, anim);
+    this.lodItems = [];
+    /* The hall's own build rides in ONE subgroup (item 23 portal
+     * culling): from the plaza the interior is visible only through
+     * the arch, so the whole subgroup can rest when the arch
+     * provably cannot be in view. Shells stay siblings of it. */
+    const hall = new THREE.Group();
+    group.add(hall);
+    this.hallGroup = hall;
+    this.buildFloor(hall, look, mats);
+    this.buildWalls(hall, look, mats, anim);
+    this.buildCeiling(hall, look, mats);
+    this.buildColumns(hall, look, mats);
+    this.buildStage(hall, look, mats);
+    this.buildScreen(hall, mats);
+    this.buildSpeakersAndMic(hall, mats);
+    this.buildLights(hall, look);
+    if (look.chandeliers) this.buildChandeliers(hall, mats);
+    if (look.candles) this.buildBraziers(hall, mats, anim);
+    if (look.lightBeams) this.buildBeams(hall);
+    if (look.dust) anim.dust = this.buildDust(hall);
+    if (look.haze) this.buildHaze(hall, anim);
     this.buildRoomShells(group, look, mats, anim);
     this.lookAnim = anim;
   }
@@ -1491,6 +1531,7 @@ export class KingsHallScene {
     );
     overlay.rotation.x = -Math.PI / 2;
     overlay.position.set(0, 0.01, -3);
+    this.floorOverlayMat = overlay.material as THREE.MeshPhysicalMaterial;
     overlay.renderOrder = 2;
     overlay.receiveShadow = q.shadows;
     group.add(overlay);
@@ -2194,7 +2235,7 @@ export class KingsHallScene {
       brazier.add(glow);
       group.add(brazier);
       this.addEmbers(group, anim, x, 0.82, -11.3, `${x},-11.3`);
-      if (QUALITY[this.quality].candleLights) {
+      if (QUALITY[this.quality].brazierLights) {
         const light = new THREE.PointLight(0xff9040, 26, 13, 1.9);
         light.position.set(x, 1.35, -11.3);
         group.add(light);
@@ -2286,6 +2327,10 @@ export class KingsHallScene {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    /* Item 99: the rung's particle scale draws a prefix of the
+     * motes — geometry is built full-size so a step UP restores
+     * them without a rebuild (applyTierToRenderer re-ranges). */
+    geo.setDrawRange(0, Math.floor(count * QUALITY[this.quality].particleScale));
     const dust = new THREE.Points(geo, new THREE.PointsMaterial({
       map: hazeTexture(), size: 0.055, transparent: true, opacity: 0.5, color: 0xffe9bb,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
@@ -2829,6 +2874,9 @@ export class KingsHallScene {
       plate.position.y = 2.15;
       g.add(plate);
       group.add(g);
+      /* LOD foundation (item 99): markers are dressing — far ones
+       * simplify (gem + plate rest) and then hide, per rung. */
+      this.lodItems.push({ obj: g, x: s.x, z: s.z, detail: [gem, plate] });
     }
   }
 
@@ -3057,32 +3105,57 @@ export class KingsHallScene {
 
     // Planters along the side walls and down the promenade: marble
     // troughs, green crowns — the original construction, spread to
-    // the plaza's new scale (nine in all). Geometries are shared.
-    // Variation (item 18): every trough and crown takes its
-    // deterministic jitter from prop-variation.ts — crowns turn
-    // freely, stretch tall or squat, and wear their own tinted
-    // leaf material; troughs breathe in scale and take one of
-    // three rim treatments (plain, gold trim, dark trim). The
-    // ninth planter is not a clone of the first, on any visit.
+    // the plaza's new scale (nine in all). Trough bodies instance
+    // (item 25) with their jitter carried in the instance matrix;
+    // everything else takes its deterministic variation from
+    // prop-variation.ts (item 18) — crowns turn freely, stretch
+    // tall or squat, and wear their own tinted leaf material;
+    // troughs breathe in scale and take one of three rim
+    // treatments (plain, gold trim, dark trim). The ninth planter
+    // is not a clone of the first, on any visit.
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
     const troughGeoZ = new THREE.BoxGeometry(0.72, 0.55, 2.0);
     const troughGeoX = new THREE.BoxGeometry(2.0, 0.55, 0.72);
     const crownGeo = new THREE.IcosahedronGeometry(0.44, 1);
-    let planterIndex = 0;
-    const planter = (x: number, z: number, alongZ: boolean) => {
-      const index = planterIndex++;
+    /* Trough bodies instance (item 25): one draw per orientation,
+     * matrices carrying each trough's item-18 jitter (rotation +
+     * uniform scale) — variation survives instancing because it
+     * lives in the transform. Rim trims and crowns stay individual
+     * meshes: they carry cloned tinted materials and variant
+     * geometry that one shared material cannot express. */
+    const spotsZ = PLAZA_PLANTERS.filter((pl) => pl.alongZ);
+    const spotsX = PLAZA_PLANTERS.filter((pl) => !pl.alongZ);
+    const troughZInst = new THREE.InstancedMesh(troughGeoZ, mats.marble, spotsZ.length);
+    const troughXInst = new THREE.InstancedMesh(troughGeoX, mats.marble, spotsX.length);
+    troughZInst.frustumCulled = false;
+    troughXInst.frustumCulled = false;
+    {
+      const dummy = new THREE.Object3D();
+      const putTrough = (im: THREE.InstancedMesh, p: (typeof PLAZA_PLANTERS)[number], index: number) => {
+        const tv = propVariation("trough", index);
+        dummy.position.set(p.x, 0.275, p.z);
+        dummy.rotation.set(0, tv.rotY, 0);
+        dummy.scale.setScalar(tv.scale);
+        dummy.updateMatrix();
+        im.setMatrixAt(index, dummy.matrix);
+      };
+      spotsZ.forEach((pl, i) => putTrough(troughZInst, pl, PLAZA_PLANTERS.indexOf(pl)));
+      spotsX.forEach((pl, i) => putTrough(troughXInst, pl, PLAZA_PLANTERS.indexOf(pl)));
+      troughZInst.instanceMatrix.needsUpdate = true;
+      troughXInst.instanceMatrix.needsUpdate = true;
+    }
+    g.add(troughZInst);
+    g.add(troughXInst);
+    /* Positions are palace-layout's PLAZA_PLANTERS — the layout
+     * derives each trough's blocked rect from this same list. */
+    PLAZA_PLANTERS.forEach((p, index) => {
       const tv = propVariation("trough", index);
-      const trough = new THREE.Mesh(alongZ ? troughGeoZ : troughGeoX, mats.marble);
-      trough.position.set(x, 0.275, z);
-      trough.rotation.y = tv.rotY;
-      trough.scale.setScalar(tv.scale);
-      g.add(trough);
       if (tv.variant !== 0) {
         const trim = new THREE.Mesh(
-          alongZ ? new THREE.BoxGeometry(0.78, 0.05, 2.06) : new THREE.BoxGeometry(2.06, 0.05, 0.78),
+          p.alongZ ? new THREE.BoxGeometry(0.78, 0.05, 2.06) : new THREE.BoxGeometry(2.06, 0.05, 0.78),
           tv.variant === 1 ? mats.gold : mats.goldDark,
         );
-        trim.position.set(x, 0.56, z);
+        trim.position.set(p.x, 0.56, p.z);
         trim.rotation.y = tv.rotY;
         trim.scale.setScalar(tv.scale);
         g.add(trim);
@@ -3092,16 +3165,13 @@ export class KingsHallScene {
         const crownMat = leafMat.clone();
         crownMat.color.offsetHSL(cv.hueShift, 0, cv.lightnessShift);
         const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.set(alongZ ? x : x + off, 0.82, alongZ ? z + off : z);
+        crown.position.set(p.alongZ ? p.x : p.x + off, 0.82, p.alongZ ? p.z + off : p.z);
         crown.rotation.y = cv.rotY;
         crown.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
         crown.castShadow = QUALITY[this.quality].shadows;
         g.add(crown);
       });
-    };
-    /* Positions are palace-layout's PLAZA_PLANTERS — the layout
-     * derives each trough's blocked rect from this same list. */
-    for (const p of PLAZA_PLANTERS) planter(p.x, p.z, p.alongZ);
+    });
 
     // Braziers — the courtyard burns at night. The original pair
     // keeps its place; a second pair flanks the monument. The
@@ -3148,7 +3218,7 @@ export class KingsHallScene {
         }
         g.add(brazier);
         if (look.candles) this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
-        if (look.candles && QUALITY[this.quality].candleLights) {
+        if (look.candles && QUALITY[this.quality].brazierLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
           light.position.set(bx, 1.35, bz);
           g.add(light);
@@ -3835,7 +3905,153 @@ export class KingsHallScene {
         (isCreatorRoomId(this.currentRoom) || this.currentRoom === COURTYARD_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible;
     }
+    const plaza = this.shellGroups.get(COURTYARD_ID);
+    if (plaza) this.plazaBaseVisible = plaza.visible;
     this.applyAreaAtmosphere();
+    this.applyLightScoping();
+  }
+
+  /* ── Perf systems (items 23/24/99): scoped lights, portal culling,
+   * LOD, and runtime rung application. The RULES live in
+   * visibility.ts / quality.ts (pure, unit-tested); these methods
+   * only collect the scene's facts and apply the verdicts. ── */
+
+  /** Collect every point/spot light in the look with its world
+   *  position and range. Ambient/hemisphere/directional lights are
+   *  global by nature and never scoped. */
+  private collectScopedLights(group: THREE.Group): void {
+    this.scopedLights = [];
+    group.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    group.traverse((obj) => {
+      if (obj instanceof THREE.PointLight || obj instanceof THREE.SpotLight) {
+        obj.getWorldPosition(v);
+        this.scopedLights.push({ light: obj, x: v.x, z: v.z, range: obj.distance ?? 0 });
+      }
+    });
+  }
+
+  /** Item 24: switch off lights whose range provably cannot reach
+   *  the walker's current room (visibility.ts carries the proof);
+   *  everything that could reach stays on — the look inside an
+   *  area is unchanged. */
+  private applyLightScoping(): void {
+    for (const entry of this.scopedLights) {
+      entry.light.visible = !lightScopedOff(entry, this.currentRoom);
+    }
+  }
+
+  /** Item 23 portal culling + the reflector gate + item 99 LOD,
+   *  run per frame from the tick with the CAMERA's facts. */
+  private servicePerfSystems(presenting: boolean): void {
+    this.camera.getWorldPosition(SCRATCH_VEC);
+    const camX = SCRATCH_VEC.x;
+    const camZ = SCRATCH_VEC.z;
+    const area = areaForRoom(this.currentRoom);
+    if (this.hallGroup) {
+      this.hallGroup.visible = !hallInteriorCulled(camX, camZ, this.yaw, area);
+    }
+    const plaza = this.shellGroups.get(COURTYARD_ID);
+    if (plaza && this.plazaBaseVisible) {
+      plaza.visible = !plazaDressingCulled(camX, camZ, this.yaw, area);
+    }
+    if (this.floorReflector) {
+      const rung = QUALITY[this.quality];
+      this.floorReflector.visible = reflectorShouldRender({
+        camX,
+        camZ,
+        camYaw: this.yaw,
+        area,
+        reflectorSize: rung.reflectorSize,
+        glimpseEveryN: rung.reflectorGlimpseEveryN,
+        frameIndex: this.frameIndex,
+        presenting,
+      });
+    }
+    // LOD service on a slow cadence — dressing distances change
+    // at walking pace, not frame pace.
+    if (this.frameIndex % 10 === 0 && this.lodItems.length > 0) {
+      const draw = QUALITY[this.quality].lodDrawDistance;
+      for (const item of this.lodItems) {
+        const tier = lodTierAt(camX, camZ, item.x, item.z, draw);
+        item.obj.visible = tier !== "far";
+        for (const d of item.detail) d.visible = tier === "near";
+      }
+    }
+  }
+
+  /** The user's quality preference (world chrome control). An
+   *  explicit rung pins the ladder; Auto hands it back to the
+   *  frame-time monitor, which resumes from the current rung. */
+  setQualityPreference(pref: QualityPreference): void {
+    this.qualityPref = pref;
+    storeQualityPreference(pref);
+    if (pref === "auto") {
+      this.frameMonitor?.reset(this.quality, performance.now());
+      return;
+    }
+    this.frameMonitor?.reset(pref, performance.now());
+    this.applyTierToRenderer(pref);
+  }
+
+  get qualityPreference(): QualityPreference {
+    return this.qualityPref;
+  }
+
+  get currentQualityTier(): QualityTier {
+    return this.quality;
+  }
+
+  /** Apply a rung to the live renderer (item 22 steps + item 99
+   *  axes). Pixel ratio, shadow maps (size + on/off), the
+   *  reflector (size / overlay blend), anisotropy and particle
+   *  draw-range all move at runtime. Two build-time facts cannot:
+   *  MSAA (renderer construction) and which decorative lights
+   *  were BUILT (quality.ts documents both) — item 24's scoping
+   *  already keeps built lights from shading unreachable areas. */
+  private applyTierToRenderer(tier: QualityTier): void {
+    if (tier === this.quality) return;
+    this.quality = tier;
+    const rung = QUALITY[tier];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, rung.pixelRatio));
+    if (this.renderer.shadowMap.enabled !== rung.shadows) {
+      this.renderer.shadowMap.enabled = rung.shadows;
+      // Toggling shadow maps at runtime needs materials to recompile.
+      this.scene.traverse((obj) => {
+        const mat = (obj as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+        for (const m of mats) m.needsUpdate = true;
+      });
+    }
+    if (this.sunLight) {
+      this.sunLight.castShadow = rung.shadows;
+      if (rung.shadows && rung.shadowMapSize > 0) {
+        this.sunLight.shadow.mapSize.set(rung.shadowMapSize, rung.shadowMapSize);
+        this.sunLight.shadow.bias = -0.0004;
+        this.sunLight.shadow.normalBias = 0.03;
+        if (this.sunLight.shadow.map) {
+          this.sunLight.shadow.map.dispose();
+          this.sunLight.shadow.map = null;
+        }
+      }
+    }
+    this.renderer.shadowMap.needsUpdate = true;
+    if (this.floorReflector && rung.reflectorSize > 0) {
+      this.floorReflector.getRenderTarget().setSize(rung.reflectorSize, rung.reflectorSize);
+    }
+    if (this.floorOverlayMat) {
+      const look = hallLookFor(this.theme);
+      this.floorOverlayMat.opacity = rung.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97;
+    }
+    textureCache.forEach((tex) => {
+      tex.anisotropy = Math.min(rung.anisotropy, maxTextureAnisotropy);
+      tex.needsUpdate = true;
+    });
+    const dust = this.lookAnim.dust;
+    if (dust) {
+      const total = dust.geometry.getAttribute("position")?.count ?? 0;
+      dust.geometry.setDrawRange(0, Math.floor(total * rung.particleScale));
+    }
   }
 
   /** Every peer figure out — a room change despawns the old room's
@@ -3992,6 +4208,7 @@ export class KingsHallScene {
     if (this.disposed) return;
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
+    this.frameIndex++;
 
     const presenting = this.renderer.xr.isPresenting;
     if (presenting) {
@@ -4016,9 +4233,14 @@ export class KingsHallScene {
       // selfPlateVisible). Peers' plates are not touched.
       this.selfRig.sprite.visible = selfPlateVisible(this.viewMode);
     }
-    // The planar mirror rests while presenting — Reflector and XR
-    // don't mix; the polished overlay carries the floor in a headset.
-    if (this.floorReflector) this.floorReflector.visible = !this.renderer.xr.isPresenting;
+    // Perf systems (items 22/23/24/99): the Auto ladder watches
+    // frame time (XR excluded — the headset owns its budget), and
+    // the portal/reflector/LOD services run on the camera's facts.
+    if (this.qualityPref === "auto" && !presenting && this.frameMonitor) {
+      const stepped = this.frameMonitor.sample(dt * 1000, performance.now());
+      if (stepped) this.applyTierToRenderer(stepped);
+    }
+    this.servicePerfSystems(presenting);
 
     // Remote figures walk to their latest reported spots — as
     // bodies, not gliders: each rig's mover chases the target
