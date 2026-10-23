@@ -13,7 +13,8 @@
  *     step sequence crosses the promenade, the portal and the
  *     wall plane into the gardens (membership flips at the
  *     plane), and back again; the wall beside the gate stays
- *     solid and the still-unbuilt Boardwalk gate stays barred;
+ *     solid and the Boardwalk gate stayed barred then — it
+ *     opened in item 35, and this suite's pin moved with it;
  *   - every solid the scene builds from listening-gardens.ts
  *     (walls, piers, hedges, benches, lamps, poles, pavilion
  *     posts, the rill) is honestly blocked from the same data;
@@ -121,7 +122,7 @@ describe("Listening Gardens — the room and its door (item 32)", () => {
     expect(back.entered).toBe(COURTYARD_ID);
   });
 
-  it("the wall beside the gate stays solid, and the unbuilt Boardwalk gate stays barred", () => {
+  it("the wall beside the gate stays solid (the Boardwalk gate: opened in item 35 — see below)", () => {
     expect(isWalkable(-20, 34.0)).toBe(false);
     const bonk = resolvePalaceMove({ x: -20, z: 33.4, room: COURTYARD_ID }, -20, 34.2);
     expect(bonk.z).toBe(33.4);
@@ -130,7 +131,10 @@ describe("Listening Gardens — the room and its door (item 32)", () => {
      * BETWEEN them, never through them. */
     expect(isWalkable(-27.1, 34.0)).toBe(false);
     expect(isWalkable(-24.9, 34.0)).toBe(false);
-    expect(isWalkable(0, 34.0)).toBe(false);
+    /* DELIBERATELY moved in item 35: the Boardwalk gate is
+     * OPEN — its gap is a true passage now, so (0, 34.0) walks;
+     * the Boardwalk suite pins the passage end to end. */
+    expect(isWalkable(0, 34.0)).toBe(true);
   });
 });
 

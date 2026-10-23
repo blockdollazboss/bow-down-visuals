@@ -13,7 +13,8 @@
  *     step sequence crosses the plaza, the portal and the wall
  *     plane into the Row (membership flips at the plane), and
  *     back again; the wall beside the gate stays solid and the
- *     still-unbuilt Boardwalk gate stays barred;
+ *     Boardwalk gate stayed barred then — it opened in item 35,
+ *     and this suite's pin moved with it;
  *   - every solid the scene builds from creation-row.ts (walls,
  *     piers, stall posts and benches, plinths, crates, canvas
  *     stacks, tool benches, planters, lamps, poles) is honestly
@@ -121,7 +122,7 @@ describe("Creation Row — the room and its door (item 33)", () => {
     expect(back.entered).toBe(COURTYARD_ID);
   });
 
-  it("the wall beside the gate stays solid, and the unbuilt Boardwalk gate stays barred", () => {
+  it("the wall beside the gate stays solid (the Boardwalk gate: opened in item 35 — see below)", () => {
     expect(isWalkable(28.2, 18.0)).toBe(false);
     const bonk = resolvePalaceMove({ x: 27.6, z: 18.0, room: COURTYARD_ID }, 28.4, 18.0);
     expect(bonk.x).toBe(27.6);
@@ -130,7 +131,10 @@ describe("Creation Row — the room and its door (item 33)", () => {
      * BETWEEN them, never through them. */
     expect(isWalkable(28.2, 13.4)).toBe(false);
     expect(isWalkable(28.2, 15.6)).toBe(false);
-    expect(isWalkable(0, 34.0)).toBe(false);
+    /* DELIBERATELY moved in item 35: the Boardwalk gate is
+     * OPEN — its gap is a true passage now, so (0, 34.0) walks;
+     * the Boardwalk suite pins the passage end to end. */
+    expect(isWalkable(0, 34.0)).toBe(true);
   });
 });
 

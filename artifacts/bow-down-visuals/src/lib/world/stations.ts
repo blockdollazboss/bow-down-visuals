@@ -56,6 +56,7 @@ import {
   LISTENING_GARDENS_ID,
   CREATION_ROW_ID,
   ATELIERS_ID,
+  BOARDWALK_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -591,6 +592,29 @@ export const PALACE_STATIONS: PalaceStation[] = [
     tagline: "What's on at the palace — the live slate, read from the fine-work lane.",
     x: 32.8,
     z: 40.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── The Boardwalk (Stage C item 35) ─────────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * promenade, where the gate corridor opens onto the timber
+     * deck. It opens the Kingdom Board — the palace's live slate
+     * of what's on, who's where and what's live — the same panel
+     * the hall's, the monument's, the Stage Bill's, the Gardens
+     * Slate's, the Row Slate's and the Ateliers Slate's boards
+     * carry, born world-native like them (never a website page).
+     * The district is look/listen space: no stage authority
+     * docks here, and guests read the slate exactly like
+     * members. */
+    id: "boardwalk-slate",
+    roomId: BOARDWALK_ID,
+    name: "The Boardwalk Slate",
+    tagline: "What's on at the palace — the live slate, read from the waterfront deck.",
+    x: 0,
+    z: 39.8,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,

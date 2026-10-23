@@ -30,6 +30,7 @@ import {
   LISTENING_GARDENS_ID,
   CREATION_ROW_ID,
   ATELIERS_ID,
+  BOARDWALK_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   type PalaceRect,
@@ -43,9 +44,9 @@ export const ARCH = { planeZ: 12.2, spanMin: -2.2, spanMax: 2.2, centerX: 0 } as
  *  Atelier) are "indoor" like the hall; the plaza is "outdoor";
  *  a creator room is its own area south of the plaza. The Stage
  *  Grounds (item 31), the Listening Gardens (item 32),
- *  Creation Row (item 33) and the Ateliers (item 34) are
- *  outdoor like the plaza they open off — same sky, same fog
- *  law, same sun. */
+ *  Creation Row (item 33), the Ateliers (item 34) and the
+ *  Boardwalk (item 35) are outdoor like the plaza they open
+ *  off — same sky, same fog law, same sun. */
 export type WorldArea = "hall" | "indoor" | "plaza" | "creator";
 
 export function areaForRoom(roomId: string): WorldArea {
@@ -55,6 +56,7 @@ export function areaForRoom(roomId: string): WorldArea {
   if (roomId === LISTENING_GARDENS_ID) return "plaza";
   if (roomId === CREATION_ROW_ID) return "plaza";
   if (roomId === ATELIERS_ID) return "plaza";
+  if (roomId === BOARDWALK_ID) return "plaza";
   if (isCreatorRoomId(roomId)) return "creator";
   return "indoor";
 }

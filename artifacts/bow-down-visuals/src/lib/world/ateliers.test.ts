@@ -17,7 +17,8 @@
  *     step sequence crosses the plaza's south-east yard (walkable
  *     plaza ground since this batch), the portal and the wall
  *     plane into the Ateliers (membership flips at the plane),
- *     and back again; the still-unbuilt Boardwalk gate stays
+ *     and back again; the Boardwalk gate stayed barred then —
+ *     it opened in item 35, and this suite's pin moved with it;
  *     barred;
  *   - every solid the scene builds from ateliers.ts (walls,
  *     piers, bay posts, tables and glazed panels, vitrines,
@@ -180,7 +181,7 @@ describe("The Ateliers — the room and its door (item 34)", () => {
     expect(back.entered).toBe(COURTYARD_ID);
   });
 
-  it("the wall beside the gate stays solid, and the unbuilt Boardwalk gate stays barred", () => {
+  it("the wall beside the gate stays solid (the Boardwalk gate: opened in item 35 — see below)", () => {
     expect(isWalkable(28.2, 33.5)).toBe(false);
     const bonk = resolvePalaceMove({ x: 27.6, z: 33.5, room: COURTYARD_ID }, 28.4, 33.5);
     expect(bonk.x).toBe(27.6);
@@ -189,7 +190,10 @@ describe("The Ateliers — the room and its door (item 34)", () => {
      * BETWEEN them, never through them. */
     expect(isWalkable(28.2, 29.4)).toBe(false);
     expect(isWalkable(28.2, 31.6)).toBe(false);
-    expect(isWalkable(0, 34.0)).toBe(false);
+    /* DELIBERATELY moved in item 35: the Boardwalk gate is
+     * OPEN — its gap is a true passage now, so (0, 34.0) walks;
+     * the Boardwalk suite pins the passage end to end. */
+    expect(isWalkable(0, 34.0)).toBe(true);
   });
 });
 

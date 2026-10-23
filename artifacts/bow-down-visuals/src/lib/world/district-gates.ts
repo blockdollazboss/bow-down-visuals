@@ -34,8 +34,9 @@
  *
  * The six district names are Phase 1's and do not change. The
  * Stage Grounds (board item 31), the Listening Gardens
- * (board item 32), Creation Row (board item 33) and the
- * Ateliers (board item 34) are BUILT and their gates are open —
+ * (board item 32), Creation Row (board item 33), the
+ * Ateliers (board item 34) and the Boardwalk (board item 35)
+ * are BUILT and their gates are open —
  * the Gardens' marker was reclassified when its district was
  * built: it stood at (−26, 33.8) on the promenade, and the gate
  * now stands in a REAL new gap in the south wall on that same
@@ -50,8 +51,12 @@
  * Row's south wall) and its gate stands in a REAL new gap in
  * the east wall's south run (z 30.5, gap z 29.4…31.6), the one
  * east-wall line that opens into the quarter itself. The
- * remaining districts are later picks (board items 35–36) —
- * nothing beyond their gates or markers is built yet.
+ * Boardwalk was never a marker — it was the south wall's barred
+ * gate from the start, a real gap honestly closed; its bar now
+ * comes off on its own line (x 0, gap x −1.1…1.1) and the
+ * waterfront quarter stands beyond it. The one remaining
+ * district is a later pick (board item 36) — nothing beyond
+ * its marker is built yet.
  */
 
 export type DistrictThresholdKind = "gate" | "marker";
@@ -100,7 +105,11 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
    * a true passage through the west wall's real gap into the
    * stage quarter beyond. No bar; the sub-plate reads OPEN. */
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
-  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI },
+  /* The Boardwalk is BUILT (item 35): the south wall's barred
+   * gate is OPEN — its bar is off, a true passage through the
+   * wall's real gap into the waterfront quarter beyond. No bar;
+   * the sub-plate reads OPEN. */
+  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   /* The Creation Row is BUILT (item 33): the east pair's north
    * marker is reclassified — this gate is OPEN, a true passage
    * through a REAL new gap in the east wall on the marker's own

@@ -73,7 +73,7 @@ describe("district-gates", () => {
     }
   });
 
-  it("items 31+32+33+34: the Stage Grounds, Listening Gardens, Creation Row and Ateliers gates are OPEN — their districts are built; every other threshold is not open", () => {
+  it("items 31+32+33+34+35: the Stage Grounds, Listening Gardens, Creation Row, Ateliers and Boardwalk gates are OPEN — their districts are built; every other threshold is not open", () => {
     const stage = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
     expect(stage.kind).toBe("gate");
     expect(stage.open).toBe(true);
@@ -100,8 +100,16 @@ describe("district-gates", () => {
     expect(ateliers.open).toBe(true);
     expect(ateliers.x).toBe(28.2);
     expect(ateliers.z).toBe(30.5);
+    /* Item 35: the Boardwalk's barred gate opened on its own
+     * line (x 0, z 34) — it was always a gate in a real gap,
+     * honestly closed; now its district stands beyond it. */
+    const boardwalk = DISTRICT_THRESHOLDS.find((d) => d.name === "THE BOARDWALK")!;
+    expect(boardwalk.kind).toBe("gate");
+    expect(boardwalk.open).toBe(true);
+    expect(boardwalk.x).toBe(0);
+    expect(boardwalk.z).toBe(34.0);
     for (const d of DISTRICT_THRESHOLDS) {
-      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS" && d.name !== "CREATION ROW" && d.name !== "THE ATELIERS") {
+      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS" && d.name !== "CREATION ROW" && d.name !== "THE ATELIERS" && d.name !== "THE BOARDWALK") {
         expect(d.open ?? false, d.name).toBe(false);
       }
     }

@@ -60,6 +60,15 @@ import {
   ATELIERS_TALL_BLOCKED,
   ATELIERS_WALK,
 } from "./ateliers";
+import {
+  BOARDWALK_BLOCKED,
+  BOARDWALK_CAM_CLAMP,
+  BOARDWALK_GROUNDS,
+  BOARDWALK_INTERIOR,
+  BOARDWALK_SPAWN,
+  BOARDWALK_TALL_BLOCKED,
+  BOARDWALK_WALK,
+} from "./boardwalk";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -92,6 +101,11 @@ export const CREATION_ROW_ID = "world:creation-row";
  * through a new gap in the east wall's south run, now a true
  * passage. Its geometry lives in ateliers.ts. */
 export const ATELIERS_ID = "world:ateliers";
+/* The fifth built district (Stage C item 35): the waterfront
+ * quarter south of the plaza, between the Listening Gardens and
+ * the Ateliers — through the south wall's barred gate, now a
+ * true passage. Its geometry lives in boardwalk.ts. */
+export const BOARDWALK_ID = "world:boardwalk";
 
 export interface PalaceRect {
   minX: number;
@@ -162,11 +176,10 @@ export interface PlazaWallRun {
  *  walker can see through, no invisible wall where floor runs on.
  *  The gate gaps (Stage Grounds west, Boardwalk south,
  *  Listening Gardens south, Creation Row east, Ateliers east)
- *  are real gaps in the runs. The Boardwalk gap stays closed by
- *  its gate's gold bar and the walk rects end inside it; the
- *  Stage Grounds gap is a true passage since item 31, the
- *  Listening Gardens gap since item 32, the Creation Row gap
- *  since item 33 and the Ateliers gap since item 34 — the
+ *  are real gaps in the runs. The Stage Grounds gap is a true
+ *  passage since item 31, the Listening Gardens gap since
+ *  item 32, the Creation Row gap since item 33, the Ateliers
+ *  gap since item 34 and the Boardwalk gap since item 35 — the
  *  portals in PALACE_DOORS bridge them into the built districts
  *  beyond. */
 export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
@@ -296,12 +309,14 @@ export interface PlazaGate {
  *  line, because east of z 22.5 is Creation Row's built quarter;
  *  the gate stands at z 30.5, the one east-wall line that opens
  *  into the Ateliers quarter itself; the Boardwalk in the south
- *  wall — still barred, its district unbuilt). One is a marker:
- *  the Creator Heights marker keeps its Phase-1 spot. Every
- *  footprint below matches the body the scene builds. */
+ *  wall — OPEN since item 35, its district built: the one gate
+ *  that was always a gate, barred honestly until its quarter
+ *  stood beyond it). One is a marker: the Creator Heights
+ *  marker keeps its Phase-1 spot. Every footprint below matches
+ *  the body the scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
-  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0, open: true },
   { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   { name: "CREATION ROW", kind: "gate", x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   { name: "THE ATELIERS", kind: "gate", x: 28.2, z: 30.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
@@ -590,6 +605,33 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     camClamp: ATELIERS_CAM_CLAMP,
     spawn: { ...ATELIERS_SPAWN },
   },
+  /* ── Stage C item 35: THE BOARDWALK ────────────────────────────
+   * The fifth built district: a waterfront quarter south of the
+   * plaza, between the Listening Gardens and the Ateliers,
+   * through the south wall's gate — since this batch a true
+   * passage (the PALACE_DOORS portal below), its bar off. The
+   * quarter threads the Creator Rooms building, which stands
+   * in the strip south of the wall: an entry corridor west of
+   * the building and a pocket east of it ride as the room's
+   * `grounds`, and the main timber deck opens out south of the
+   * building down to the water basin at its south edge. One
+   * room, one presence, like every district: the quarter is
+   * public look/listen space exactly as the plaza is (no stage
+   * authority, no new verbs — the bandstand is a viewing
+   * platform, and the Boardwalk Slate is its one door). Its
+   * plan lives in boardwalk.ts; the server clamp box mirrors
+   * it (api-server lib/world-palace.ts). */
+  [BOARDWALK_ID]: {
+    id: BOARDWALK_ID,
+    name: "The Boardwalk",
+    walk: BOARDWALK_WALK,
+    grounds: [...BOARDWALK_GROUNDS],
+    blocked: [...BOARDWALK_BLOCKED],
+    camBlocked: [...BOARDWALK_TALL_BLOCKED],
+    interior: BOARDWALK_INTERIOR,
+    camClamp: BOARDWALK_CAM_CLAMP,
+    spawn: { ...BOARDWALK_SPAWN },
+  },
 };
 
 export interface PalaceDoor {
@@ -756,6 +798,25 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: 27.8, maxX: 28.6, minZ: 29.55, maxZ: 31.45 },
     negRoom: COURTYARD_ID,
     posRoom: ATELIERS_ID,
+  },
+  /* The Boardwalk gate (item 35): the south wall's real gap
+   * (x −1.1..1.1 at z 34.0), now a true passage — its gold bar
+   * is off. The portal spans the wall band with aprons on both
+   * faces; its x span stops inside the gate posts' footprints
+   * (posts at x −1.1 / 1.1, blocked in PLAZA_BLOCKED), so the
+   * walkable doorway is the honest opening between the posts.
+   * Membership flips at the wall plane: south of it is the
+   * district (its entry corridor, west of the Creator Rooms
+   * building), north the plaza. */
+  {
+    roomId: BOARDWALK_ID,
+    axis: "z",
+    plane: 34.0,
+    spanMin: -1.1,
+    spanMax: 1.1,
+    portal: { minX: -0.95, maxX: 0.95, minZ: 33.6, maxZ: 34.4 },
+    negRoom: COURTYARD_ID,
+    posRoom: BOARDWALK_ID,
   },
 ];
 
