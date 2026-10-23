@@ -1393,7 +1393,7 @@
     "photoShootLook": "Look do Ensaio Fotográfico",
     "backToDashboard": "Voltar ao Painel",
     "freeBadge": "Grátis",
-    "profilesTitle": "Creative Vault",
+    "profilesTitle": "Cofre Criativo",
     "profilesSubtitle": "Salve o look, o estilo, as cores e a marca do seu artista uma vez — depois carregue em qualquer ferramenta para manter todos os seus visuais consistentes.",
     "tagArtistDescription": "Descrição do Artista",
     "tagVisualStyle": "Estilo Visual",
@@ -1508,7 +1508,17 @@
     "identityUrlRequired": "Adicione uma URL de imagem válida (https://…) para a foto.",
     "identityRemoveTitle": "Remove só do conjunto: o arquivo da imagem é mantido",
     "identityRemoveAria": "Remover foto do conjunto de identidade",
-    "identityUploadAria": "Enviar foto de identidade"
+    "identityUploadAria": "Enviar foto de identidade",
+    "worldVoiceSection": "Voz do Mundo",
+    "worldVoiceHint": "Como este personagem soa quando você fala como ele no Mundo. Natural = a sua própria voz.",
+    "voicePresetDeep": "Grave",
+    "voicePresetNatural": "Natural",
+    "voicePresetBright": "Brilhante",
+    "voiceAdvanced": "Avançado",
+    "voicePitch": "Tom",
+    "voiceFormant": "Tamanho do corpo",
+    "voiceBody": "Ressonância",
+    "emptyProfilesTitle": "Seu cofre está vazio"
   },
   "audioCleanup": {
     "pageTitle": "Limpeza de Áudio",
@@ -2235,7 +2245,9 @@
     "spotlightBadge": "#{{n}} DESTAQUE",
     "startCreating": "Começar a Criar com Este Artista",
     "subtitle": "Escolha seu artista — luzes, câmera, e vamos combinar o visual, o som e a marca dele em tudo que você criar.",
-    "title": "Quem Está na Frente da Câmera?"
+    "title": "Quem Está na Frente da Câmera?",
+    "dragHint": "Arraste qualquer artista para um espaço de destaque para escolher quem brilha onde.",
+    "startCreatingWith": "Começar a criar com {{name}}"
   },
   "clipMaker": {
     "analyzeNote": "A IA transcreve seu VOD e encontra os momentos {{vibe}} que valem um clip. Você só paga quando destaques são encontrados.",
@@ -2425,7 +2437,9 @@
     "wantsLabel": "Quer: ",
     "watchOutFor": "Fique de Olho",
     "whyItWorks": "Por Que Funciona",
-    "youBadge": "VOCÊ"
+    "youBadge": "VOCÊ",
+    "brandDealsLink": "Parcerias com marcas",
+    "collabExplainer": "Parcerias de criador para criador — encontre colaboradores, não patrocinadores. Prefere o dinheiro das marcas? Veja "
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",
@@ -2533,7 +2547,11 @@
         "label": "Alerta de superfã",
         "desc": "Um apoiador de peso apareceu — agradeça"
       }
-    }
+    },
+    "replies": {
+      "scheduleLink": "Agendar posts no Agendador"
+    },
+    "messagesLink": "Abrir mensagens diretas →"
   },
   "contact": {
     "your_name": "Seu nome",
@@ -2615,7 +2633,9 @@
     "entries_the_draw_is_seeded_and_l": "inscrições. O sorteio tem seed e é registrado —\n                        publique a auditoria para que seus fãs possam verificar que foi justo.",
     "verify_at_least_one_entry_first": "Verifique pelo menos uma inscrição primeiro.",
     "ai_generated_gold_black_announce": "Gráfico de anúncio dourado/preto gerado por IA com o @ do vencedor — 100 Visual Bucs.",
-    "download": "Baixar"
+    "download": "Baixar",
+    "winnersCircle": "Círculo dos vencedores",
+    "share": "Compartilhar"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "Cole o contrato completo aqui — copie do PDF ou documento que te enviaram. Quanto mais completo, melhor a análise.",
@@ -3324,7 +3344,8 @@
       "video": "Vídeo",
       "song": "Música",
       "voice": "Voz"
-    }
+    },
+    "download": "Baixar"
   },
   "goLive": {
     "pageTitle": "Entrar ao Vivo",
@@ -3434,6 +3455,15 @@
       },
       "preflight": {
         "label": "Pré-voo de Viralidade"
+      },
+      "cta": {
+        "label": "Gerador de CTA"
+      },
+      "titles": {
+        "label": "Títulos"
+      },
+      "dice": {
+        "label": "Dados"
       }
     },
     "videoType": {
@@ -3508,7 +3538,60 @@
     "errNeedTitle": "Dê um título ao seu vídeo primeiro — é a primeira coisa que o pré-voo verifica.",
     "errHooksFailed": "Falha na geração de hooks — tente novamente.",
     "errCaptionsFailed": "Falha na geração de legendas — tente novamente.",
-    "errScoringFailed": "Falha na avaliação — tente novamente."
+    "errScoringFailed": "Falha na avaliação — tente novamente.",
+    "ctaSub": "Todo vídeo precisa de uma chamada para ação forte. Escolha seu objetivo e escreveremos 10 CTAs otimizados para conversão, os mais fortes primeiro.",
+    "ctaTopicLabel": "Sobre o que é o vídeo?",
+    "ctaTopicPlaceholder": "ex.: Meu novo single \"Golden Tide\" sai na sexta",
+    "ctaGoalLabel": "O que os espectadores devem fazer?",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "Inscrever-se"
+      },
+      "comment": {
+        "label": "Comentar"
+      },
+      "share": {
+        "label": "Compartilhar"
+      },
+      "follow": {
+        "label": "Seguir"
+      },
+      "buy": {
+        "label": "Comprar"
+      },
+      "stream": {
+        "label": "Ouvir"
+      }
+    },
+    "creditNoteCta": "50 Visual Bucs por geração · com tecnologia Thy Cheat Code",
+    "generateCtas": "Gerar CTAs",
+    "cookingCtas": "Escrevendo seus CTAs…",
+    "yourCtas": "Seus CTAs — classificados por força",
+    "ctaPlacement": {
+      "opener": {
+        "label": "Abertura"
+      },
+      "mid-roll": {
+        "label": "Meio do vídeo"
+      },
+      "closer": {
+        "label": "Fechamento"
+      },
+      "pinned-comment": {
+        "label": "Comentário fixado"
+      }
+    },
+    "ctaStrengthLabel": "Força",
+    "addToScript": "Adicionar ao roteiro",
+    "addedToScript": "No seu roteiro",
+    "ctaHandoffTip": "Toque em \"Adicionar ao roteiro\" para colocar um CTA no seu projeto Hub — o Script Writer e a Narração pegam de lá.",
+    "errNeedVideoTopic": "Conte-nos sobre o que é o vídeo primeiro.",
+    "errCtasFailed": "Não foi possível gerar os CTAs — tente de novo.",
+    "fullIntelligenceCheck": "Verificação completa de inteligência",
+    "sendToScriptWriter": "Enviar ao Script Writer",
+    "captions": {
+      "needBurnedIn": "Precisa de legendas embutidas no vídeo?"
+    }
   },
   "hub": {
     "removeAssetAria": "Remover {{label}}",
@@ -3597,7 +3680,8 @@
     "title": "Importador de Mídia",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "vídeos",
-    "worksWith": "Funciona com {{platforms}} e links diretos para arquivos de áudio/vídeo (MP3, MP4, WAV, …). Arquivos de até 500 MB."
+    "worksWith": "Funciona com {{platforms}} e links diretos para arquivos de áudio/vídeo (MP3, MP4, WAV, …). Arquivos de até 500 MB.",
+    "viewLibrary": "Meus clipes"
   },
   "interviewPrep": {
     "answerLabel": "Sua resposta — fale como se estivesse no microfone",
@@ -3648,7 +3732,7 @@
     "talkingPoints": "Pontos de fala",
     "talkingPointsHint": "Acerte estes, não importa o que perguntem.",
     "tightenUp": "Aprimorar",
-    "typeLiveStream": "Live Stream",
+    "typeLiveStream": "Transmissão ao vivo",
     "typeLiveStreamBlurb": "Caos de Q&A com fãs. Diversão em tiro rápido + esquivas afiadas.",
     "typePodcast": "Podcast",
     "typePodcastBlurb": "Longa duração, conversacional. Mergulhe fundo no ofício e nas histórias.",
@@ -5016,7 +5100,17 @@
     "regenerate": "Regenerar ({{cost}} Visual Bucs)",
     "retry": "Tentar Novamente",
     "themeLabel": "Tema",
-    "yourPack": "Seu pacote"
+    "yourPack": "Seu pacote",
+    "goLive": "Pacote pronto — configure sua live no Go Live",
+    "libraryTitle": "Sua biblioteca de pacotes de live",
+    "libraryNote": "Cada gráfico que você gera é salvo aqui. Adicione os que quiser ao seu estúdio Go Live — eles esperam na bandeja de pacotes do estúdio, prontos para cair em uma cena.",
+    "libraryEmpty": "Nada salvo ainda — gere um pacote acima e ele cai aqui.",
+    "libraryLoading": "Carregando sua biblioteca…",
+    "libraryError": "Sua biblioteca não pôde ser carregada.",
+    "libraryActionFailed": "Essa mudança não salvou — tente de novo.",
+    "addToStudio": "Adicionar ao meu estúdio",
+    "inStudio": "No meu estúdio",
+    "removeFromStudio": "Remover"
   },
   "team": {
     "accept": "Aceitar",
@@ -5138,7 +5232,26 @@
     "toneLabel": "Tom",
     "topicLabel": "Sobre o que é o vídeo?",
     "topicPlaceholder": "ex. Como produzi meu primeiro beat em uma noite",
-    "writeScriptButton": "Escrever meu roteiro · {{cost}} Visual Bucs"
+    "writeScriptButton": "Escrever meu roteiro · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ Abrir o teleprompter",
+    "teleprompterClose": "Fechar o teleprompter",
+    "teleprompterPlay": "Reproduzir",
+    "teleprompterPause": "Pausar",
+    "teleprompterRestart": "Recomeçar do início",
+    "teleprompterWpm": "Velocidade",
+    "teleprompterWpmValue": "{{wpm}} PPM",
+    "teleprompterFontSmaller": "Texto menor",
+    "teleprompterFontLarger": "Texto maior",
+    "teleprompterMirror": "Espelhar para hardware de teleprompter",
+    "teleprompterFullscreen": "Tela cheia",
+    "teleprompterWords": "{{count}} palavras",
+    "teleprompterReadTime": "~{{min}} min de leitura",
+    "teleprompterHint": "Espaço = reproduzir/pausar · ↑↓ = velocidade · +/− = tamanho do texto · Esc = fechar · clique no roteiro = pausar",
+    "hookHintLabel": "Gancho vencedor do seu plano de conteúdo",
+    "hookHintBlurb": "Abra com esta linha — foi feita para o loop viral.",
+    "dismiss": "Dispensar",
+    "sendToScheduler": "Agendador",
+    "sendToVoiceover": "Narração"
   },
   "setlist": {
     "addButton": "Adicionar",
@@ -5425,7 +5538,9 @@
     "viewDeliveredVideo": "Ver vídeo entregue",
     "yourNameLabel": "Seu nome",
     "yourNamePlaceholder": "Para quem é este shoutout?",
-    "yourShoutoutPage": "Sua página de shoutouts"
+    "yourShoutoutPage": "Sua página de shoutouts",
+    "paidTitle": "Pagamento concluído — shoutout reservado!",
+    "paidDesc": "Seu shoutout foi pago e aceito. O criador vai gravar e enviar dentro do prazo de entrega dele."
   },
   "shows": {
     "artistNameLabel": "Seu nome artístico",
@@ -5481,7 +5596,8 @@
     "windowNext30Days": "Próximos 30 Dias",
     "windowNext6Months": "Próximos 6 Meses",
     "windowNext90Days": "Próximos 90 Dias",
-    "yourStages": "Seus Palcos"
+    "yourStages": "Seus Palcos",
+    "setlistLink": "Monte sua setlist →"
   },
   "signup": {
     "agreeAnd": "e",
@@ -6088,7 +6204,7 @@
     "generateButton": "Gerar pacote do vídeo · {{cost}} Visual Bucs",
     "generationFailed": "Falha na geração do pacote do vídeo — tente novamente.",
     "keywordsLabel": "Palavras-chave",
-    "keywordsPlaceholder": "e.g. shark king, new music, studio vlog",
+    "keywordsPlaceholder": "ex.: shark king, música nova, vlog de estúdio",
     "optionalNote": "(opcional)",
     "pageSubtitle": "Pare de adivinhar o nome do vídeo. O Thy Cheat Code escreve 10 títulos ranqueados por cliques, uma descrição completa com timestamps e CTA, e 15 tags — afinados para a plataforma onde você vai postar.",
     "pageTitlePart1": "Título",
@@ -6119,7 +6235,8 @@
     "topicLabel": "Tema do vídeo",
     "topicPlaceholder": "ex.: \"meu novo single sobre ralar às 3h da manhã\" ou \"bastidores da minha primeira sessão de estúdio\"",
     "topicRequired": "Conte primeiro sobre o que é o vídeo.",
-    "topicSub": "Um tema entra, pacote completo do vídeo sai."
+    "topicSub": "Um tema entra, pacote completo do vídeo sai.",
+    "sendToScheduler": "Enviar ao agendador"
   },
   "tour": {
     "addDateFree": "Adicionar data da turnê · Grátis",
@@ -6193,7 +6310,8 @@
     "uncheckAria": "Desmarcar {{label}}",
     "venueLabel": "Local",
     "venuePlaceholder": "ex.: The Masquerade",
-    "yourDates": "Suas datas"
+    "yourDates": "Suas datas",
+    "setlistLink": "Monte sua setlist →"
   },
   "translate": {
     "badge": "Tradutor de Vídeo IA",
@@ -7657,67 +7775,71 @@
     "pipelineSubtitle": "Acompanhe cada acordo do pitch ao pagamento."
   },
   "repurpose": {
-    "badge": "Content Repurposer",
-    "titlePrefix": "One video in,",
-    "titleSuffix": "content calendar out",
-    "hero": "Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized descriptions for TikTok, Reels, Shorts, and X.",
-    "signInRequired": "Sign in to repurpose videos.",
+    "badge": "Reaproveitador de conteúdo",
+    "titlePrefix": "Um vídeo entra,",
+    "titleSuffix": "um calendário de conteúdo sai",
+    "hero": "Envie um vídeo — a IA assiste e monta um pacote de 10 peças: 3 clipes verticais cortados automaticamente, 3 miniaturas de IA, 5 conjuntos de legenda + hashtags, e descrições otimizadas por plataforma para TikTok, Reels, Shorts e X.",
+    "signInRequired": "Entre para reaproveitar vídeos.",
     "step1": {
-      "title": "Drop your video",
-      "blurb": "MP4, MOV, WebM · up to 80 MB",
-      "chooseFile": "Choose video file",
-      "fromCameraRoll": "From your camera roll or exports",
-      "orPasteUrl": "Or paste a video URL",
-      "urlPlaceholder": "https://… (from your project storage)",
-      "urlNote": "URLs must come from your project storage."
+      "title": "Coloque seu vídeo",
+      "blurb": "MP4, MOV, WebM · até 80 MB",
+      "chooseFile": "Escolher um arquivo de vídeo",
+      "fromCameraRoll": "Do seu rolo da câmera ou exportações",
+      "orPasteUrl": "Ou cole uma URL de vídeo",
+      "urlPlaceholder": "https://… (do armazenamento do seu projeto)",
+      "urlNote": "As URLs devem vir do armazenamento do seu projeto."
     },
-    "building": "Building your pack…",
-    "repurposeButton": "Repurpose my video · {{credits}} Visual Bucs",
-    "costNote": "{{pack}} Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails. Re-rolls are {{reroll}} Visual Buc each. Copying and downloading are free.",
-    "packReady": "pack pieces ready",
-    "renderingNote": "Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.",
+    "building": "Montando seu pacote…",
+    "repurposeButton": "Reaproveitar meu vídeo · {{credits}} Visual Bucs",
+    "costNote": "{{pack}} Visual Bucs cobrem tudo: transcrição, análise de IA, 3 clipes cortados automaticamente, 3 miniaturas de IA. Novas tentativas custam {{reroll}} Visual Bucs cada. Copiar e baixar é grátis.",
+    "packReady": "peças do pacote prontas",
+    "renderingNote": "Clipes e miniaturas renderizam em segundo plano — feche a aba, eles estarão esperando.",
     "clips": {
-      "title": "3 vertical clips",
-      "blurb": "Auto-cut 9:16 · ready for TikTok, Reels, Shorts",
-      "newMoments": "New moments · {{cost}}VB",
-      "cutFailed": "Cut failed",
-      "cutting": "Cutting…"
+      "title": "3 clipes verticais",
+      "blurb": "Corte automático 9:16 · prontos para TikTok, Reels, Shorts",
+      "newMoments": "Novos momentos · {{cost}}VB",
+      "cutFailed": "Corte falhou",
+      "cutting": "Cortando…"
     },
     "thumbs": {
-      "title": "3 AI thumbnails",
-      "blurb": "9:16 covers for your clips",
-      "newConcepts": "New concepts · {{cost}}VB",
-      "genFailed": "Generation failed",
-      "painting": "Painting…",
-      "alt": "Thumbnail concept {{n}}"
+      "title": "3 miniaturas de IA",
+      "blurb": "Capas 9:16 para seus clipes",
+      "newConcepts": "Novos conceitos · {{cost}}VB",
+      "genFailed": "Geração falhou",
+      "painting": "Pintando…",
+      "alt": "Conceito de miniatura {{n}}"
     },
     "captions": {
-      "title": "5 caption + hashtag sets",
-      "blurb": "Ready to post — copy any set free"
+      "title": "5 conjuntos de legenda + hashtags",
+      "blurb": "Prontos para postar — copie qualquer conjunto grátis"
     },
     "platforms": {
-      "title": "Platform descriptions",
-      "blurb": "Tuned for each algorithm",
-      "noDesc": "No description generated for this platform."
+      "title": "Descrições por plataforma",
+      "blurb": "Ajustadas a cada algoritmo",
+      "noDesc": "Nenhuma descrição gerada para esta plataforma."
     },
-    "download": "Download",
-    "copyAll": "Copy all",
-    "copy": "Copy",
-    "copied": "Copied",
-    "reroll": "Re-roll · {{cost}}VB",
+    "download": "Baixar",
+    "copyAll": "Copiar tudo",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "reroll": "Tentar de novo · {{cost}}VB",
     "error": {
-      "copyFailed": "Couldn't copy to clipboard.",
-      "noSource": "Upload a video file or paste a video URL first.",
-      "repurposeFailed": "Repurposing failed — try again.",
-      "clipJobFailed": "Clip job lookup failed.",
-      "thumbJobFailed": "Thumbnail job lookup failed.",
-      "clipCuttingFailed": "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.",
-      "thumbFailed": "Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.",
-      "lostJobs": "Lost track of the background jobs — refresh to check.",
-      "rerollFailed": "Re-roll failed — try again.",
-      "thumbRerollFailed": "Thumbnail re-roll failed — try again."
+      "copyFailed": "Não foi possível copiar para a área de transferência.",
+      "noSource": "Envie um arquivo de vídeo ou cole uma URL de vídeo primeiro.",
+      "repurposeFailed": "Reaproveitamento falhou — tente de novo.",
+      "clipJobFailed": "Busca do trabalho de clipe falhou.",
+      "thumbJobFailed": "Busca do trabalho de miniatura falhou.",
+      "clipCuttingFailed": "Corte do clipe falhou. Seus Visual Bucs do pacote cobrem as saídas de texto — os clipes podem ser recortados no editor de vídeo.",
+      "thumbFailed": "As imagens das miniaturas não puderam ser geradas — os prompts de miniatura abaixo funcionam com qualquer ferramenta de imagem.",
+      "lostJobs": "Perdeu o rastro dos trabalhos em segundo plano — atualize para verificar.",
+      "rerollFailed": "Nova tentativa falhou — tente de novo.",
+      "thumbRerollFailed": "Nova tentativa da miniatura falhou — tente de novo."
     },
-    "modeSmart": "Smart Clips"
+    "modeSmart": "Smart Clips",
+    "addCaptions": "Adicionar legendas",
+    "modeLabel": "Modo",
+    "modePack": "Pacote de conteúdo",
+    "modeStreamVod": "Stream VOD"
   },
   "smartClips": {
     "title": "Smart Clips: encontre os momentos primeiro",
@@ -8139,51 +8261,51 @@
     }
   },
   "randomizer": {
-    "badge": "Thy Cheat Code's dice",
-    "titlePrefix": "Content",
-    "titleSuffix": "Randomizer",
-    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let Thy Cheat Code AI cook up five fresh, made-for-you ideas for 100 Visual Bucs.",
-    "categoriesLabel": "Randomizer categories",
+    "badge": "Os dados do Thy Cheat Code",
+    "titlePrefix": "Randomizador",
+    "titleSuffix": "de Conteúdo",
+    "hero": "Travado olhando para uma página em branco? Jogue os dados por uma faísca grátis — ou deixe a IA do Thy Cheat Code cozinhar cinco ideias frescas feitas para você por 100 Visual Bucs.",
+    "categoriesLabel": "Categorias do randomizador",
     "categories": {
       "video-ideas": {
-        "label": "Video Ideas",
-        "blurb": "Fresh concepts for your next music video or content drop."
+        "label": "Ideias de vídeo",
+        "blurb": "Conceitos frescos para seu próximo videoclipe ou lançamento de conteúdo."
       },
       "hooks": {
-        "label": "Hooks",
-        "blurb": "First-3-second openers that stop the scroll."
+        "label": "Ganchos",
+        "blurb": "Aberturas dos primeiros 3 segundos que param a rolagem."
       },
       "thumbnails": {
-        "label": "Thumbnails",
-        "blurb": "High-click-through concepts for YouTube and beyond."
+        "label": "Miniaturas",
+        "blurb": "Conceitos de alto clique para o YouTube e além."
       },
       "song-concepts": {
-        "label": "Song Concepts",
-        "blurb": "Themes and angles worth writing your next track about."
+        "label": "Conceitos de música",
+        "blurb": "Temas e ângulos que valem a próxima faixa."
       },
       "niche-picker": {
-        "label": "Niche Picker",
-        "blurb": "Positioning angles you could own as a creator."
+        "label": "Seletor de nicho",
+        "blurb": "Ângulos de posicionamento que você pode dominar como criador."
       },
       "challenges": {
-        "label": "Challenges",
-        "blurb": "Forcing functions for output and growth."
+        "label": "Desafios",
+        "blurb": "Funções forçantes para produção e crescimento."
       }
     },
-    "rollDice": "Roll the dice",
-    "freeForever": "Free forever — roll as much as you want",
-    "yourRoll": "Your roll",
-    "orDeeper": "or go deeper",
-    "cooking": "Cooking up ideas…",
+    "rollDice": "Jogar os dados",
+    "freeForever": "Grátis para sempre — jogue quanto quiser",
+    "yourRoll": "Sua jogada",
+    "orDeeper": "ou vá mais fundo",
+    "cooking": "Cozinhando ideias…",
     "generateAi": "Generate 5 fresh with AI",
-    "signInToGenerate": "Sign in to generate with AI",
+    "signInToGenerate": "Entre para gerar com IA",
     "costPerRoll": "{{cost}} Visual Buc per AI roll · powered by Thy Cheat Code",
-    "freshFromAi": "Fresh from the AI",
+    "freshFromAi": "Fresco da IA",
     "reroll": "Re-roll ({{cost}} Visual Buc)",
     "crossLink": {
-      "p1": "Like an idea? Ask",
+      "p1": "Gostou de uma ideia? Peça ao",
       "name": "Thy Cheat Code",
-      "p2": "in the chat bubble to turn it into a full plan."
+      "p2": "no balão de chat para transformá-la em um plano completo."
     },
     "error": {
       "aiRollFailed": "AI roll failed — try again."
@@ -8254,7 +8376,93 @@
     "openInBuilder": "Abrir no criador",
     "tabWebsites": "Sites",
     "websiteVersionMeta": "Versão {{version}} · {{count}} arquivos",
-    "failedOpenHubProject": "Falha ao abrir o projeto do hub. Tente novamente, por favor."
+    "failedOpenHubProject": "Falha ao abrir o projeto do hub. Tente novamente, por favor.",
+    "pageDescription": "Todas as suas músicas, vídeos e projetos criativos em um só lugar.",
+    "subheading": "Projetos salvos, rascunhos não salvos e todos os seus clipes de cena gerados — tudo em um só lugar.",
+    "backToDashboard": "Voltar ao painel",
+    "tabProjects": "Projetos",
+    "tabDrafts": "Rascunhos",
+    "tabClips": "Clipes gerados",
+    "tabHistory": "Histórico de gerações",
+    "tryAgain": "Tentar de novo",
+    "noProjects": "Nenhum projeto salvo ainda",
+    "noProjectsHint": "Gere conteúdo e clique em Salvar projeto — ele aparecerá aqui.",
+    "goToDashboard": "Ir ao painel",
+    "noDrafts": "Nenhum rascunho salvo",
+    "noDraftsHint": "Os rascunhos são salvos automaticamente enquanto você trabalha. Comece um projeto e seu progresso aparecerá aqui.",
+    "startProject": "Começar um projeto",
+    "draftsHint": "Os rascunhos são salvos automaticamente enquanto você trabalha. Clique em Recuperar para voltar àquele projeto e continuar de onde parou.",
+    "noClips": "Nenhum clipe gerado ainda",
+    "noClipsHint": "Gere clipes de cena no seu projeto de videoclipe — eles serão salvos aqui automaticamente.",
+    "clipsSaved": "{{count}} clipes salvos — salvos automaticamente quando cada trabalho de clipe termina.",
+    "noHistory": "Nenhum histórico de geração ainda",
+    "noHistoryHint": "Nenhum histórico de geração ainda. Suas gerações de IA aparecerão aqui depois que você criar algo.",
+    "startGenerating": "Começar a gerar",
+    "generationsLogged": "{{count}} gerações registradas — as mais recentes primeiro.",
+    "failedLoadProjects": "Falha ao carregar os projetos",
+    "failedLoadDrafts": "Falha ao carregar os rascunhos",
+    "failedLoadClips": "Falha ao carregar os clipes",
+    "failedLoadHistory": "Falha ao carregar o histórico de gerações",
+    "failedDeleteProject": "Falha ao excluir o projeto. Tente novamente.",
+    "failedDeleteDraft": "Falha ao excluir o rascunho. Tente novamente.",
+    "failedDeleteClip": "Falha ao excluir o clipe. Tente novamente.",
+    "hubProjectsTitle": "Projetos do Hub",
+    "hubProjectsHint": "Cada projeto sincronizado do seu Hub, os mais recentes primeiro. O mais recente é o projeto aberto no seu Hub agora.",
+    "hubProjectsCurrent": "Atual",
+    "hubProjectsOpenInHub": "Abrir no Hub",
+    "hubProjectsCapNote": "Mostrando seus 100 projetos hub mais recentes.",
+    "noHubProjects": "Nenhum projeto hub sincronizado ainda. Os projetos que você criar no Hub aparecerão aqui.",
+    "failedLoadHubProjects": "Falha ao carregar os projetos hub",
+    "deleteHubProject": "Excluir projeto hub",
+    "deleteHubProjectConfirm": "Excluir o projeto hub \"{{name}}\" da sua conta? Isso remove a cópia sincronizada dele.",
+    "failedDeleteHubProject": "Falha ao excluir o projeto hub. Tente novamente.",
+    "typeStartFromScratch": "Começar do zero",
+    "typeVideoForMySong": "Vídeo para minha música",
+    "typeRunwayClip": "Clipe de vídeo IA",
+    "typeLipSyncClip": "Clipe de lip sync",
+    "typeThumbnail": "Miniatura",
+    "typeLyrics": "Letra",
+    "typeVideoPlan": "Plano de vídeo",
+    "typeScenePrompt": "Prompt de cena",
+    "typeCaptions": "Legendas",
+    "typePromoClip": "Promo Clip",
+    "typeThumbnailPrompt": "Prompt de miniatura",
+    "typeGeneration": "Geração",
+    "statusSaved": "Salvo",
+    "statusSaveFailed": "Falha ao salvar",
+    "statusGenerated": "Gerado",
+    "visualBucsRefunded": "Visual Bucs reembolsados",
+    "visualBucsUsed": "{{count}} Visual Bucs",
+    "previewClip": "Pré-visualizar clipe",
+    "openProject": "Abrir projeto",
+    "copyContent": "Copiar conteúdo",
+    "open": "Abrir",
+    "deleteProject": "Excluir projeto",
+    "deleteProjectConfirm": "Excluir \"{{title}}\"? Isso não pode ser desfeito.",
+    "runwayClipsSaved": "{{count}} clipes de cena salvos",
+    "unsavedDraft": "Rascunho não salvo",
+    "deleteDraftConfirm": "Excluir este rascunho? Isso não pode ser desfeito.",
+    "generatedContentIncluded": "Conteúdo gerado incluído",
+    "downloadBackupJson": "Baixar backup JSON",
+    "recover": "Recuperar",
+    "deleteClipConfirm": "Excluir este clipe? Isso não pode ser desfeito.",
+    "openVideoUrl": "Abrir URL do vídeo",
+    "editor": "Editor",
+    "hidePrompt": "Ocultar prompt ▲",
+    "showPrompt": "Mostrar prompt ▼",
+    "analysisFailed": "Análise falhou",
+    "analysisFailedRetry": "Análise falhou. Tente novamente.",
+    "copied": "Copiado!",
+    "copyAll": "Copiar tudo",
+    "analyzing": "Analisando...",
+    "reanalyzeSections": "Reanalisar seções",
+    "findHookVerses": "Encontrar gancho e versos",
+    "analysisComplete": "Análise completa",
+    "noContentSaved": "Nenhum conteúdo salvo.",
+    "generationsLink": "Histórico de gerações →",
+    "importLink": "Importar mídia →",
+    "tabMyClips": "Meus clipes",
+    "tabSongs": "Músicas"
   },
   "podcast": {
     "episode": {
@@ -10233,7 +10441,22 @@
     }
   },
   "library": {
-    "pageTitle": "Biblioteca"
+    "pageTitle": "Biblioteca",
+    "pageDescription": "Modelos, predefinições e fontes para criadores.",
+    "kicker": "Seu arsenal criativo",
+    "headingA": "Thy",
+    "headingB": "Biblioteca",
+    "sub": "Modelos, predefinições e fontes que se conectam direto às suas ferramentas. Escolha um, aperte Usar, continue criando.",
+    "searchPlaceholder": "Buscar modelos, predefinições, fontes…",
+    "tabTemplates": "Modelos",
+    "tabPresets": "Predefinições",
+    "tabFonts": "Fontes",
+    "recentlyUsed": "Usados recentemente",
+    "use": "Usar",
+    "useFont": "Copiar fonte",
+    "copied": "Copiado!",
+    "browse": "Navegar na biblioteca",
+    "noResults": "Nada encontrado — tente outra busca."
   },
   "retention": {
     "streak_title": "Sequência de Criação",
@@ -13641,5 +13864,364 @@
     "tuneButton": "Afinar meu vocal — {cost} Visual Bucs",
     "tuneComplete": "Afinação completa — {style}",
     "waveformUnavailable": "Forma de onda indisponível"
+  },
+  "weekly_contest": {
+    "aria": "Concurso semanal de criadores",
+    "label": "Concurso semanal de criadores",
+    "drops_in": "Começa em",
+    "ends_in": "Termina em",
+    "entries": "{{count}} participações",
+    "enter_now": "Participar agora",
+    "view_entries": "Ver participações",
+    "enter_hint": "Publique seu vídeo e ele entra automaticamente — os vencedores são pagos em Visual Bucs do fundo de {{cap}} desta semana.",
+    "judging_title": "Julgamento aberto — cada voto move a coroa",
+    "judging_sub": "As participações fecharam para \"{{title}}\". Junte votos para seus favoritos — a coroa da comunidade decide.",
+    "winners_in": "Vencedores em",
+    "vote_now": "Votar pela coroa",
+    "winners_dropped": "Os vencedores acabaram de sair",
+    "winners_sub": "\"{{title}}\" está coroado — prêmios pagos em Visual Bucs.",
+    "a_creator": "um criador",
+    "see_winners": "Ver o círculo dos vencedores",
+    "hall_of_fame": "Hall da fama",
+    "next_drop": "O próximo concurso cai na segunda",
+    "next_drop_sub": "Um tema. Uma semana. {{cap}} em jogo. Próximo: \"{{theme}}\" (#{{hashtag}}).",
+    "admin_nudge": "Admin: o concurso desta semana ainda não está ao vivo. Um toque lança \"{{theme}}\" com o fundo de {{cap}}.",
+    "launching": "Lançando…",
+    "launch_week": "Lançar o concurso desta semana",
+    "while_you_wait": "Enquanto espera: navegue no hall da fama",
+    "last_week": "Coroas da semana passada",
+    "see_all": "Ver tudo"
+  },
+  "catalogVault": {
+    "title": "Cofre do Catálogo",
+    "copy": "Deixe um legado. Um pagamento único de 200 Visual Bucs mantém a página de pré-save, a entrada na vitrine e os assets deste lançamento ao vivo na Bow Down Visuals — para sempre. Sem renovação, sem exclusão.",
+    "guarantee1": "A página de pré-save fica ao vivo para sempre",
+    "guarantee2": "A entrada na vitrine nunca expira",
+    "guarantee3": "Arte + assets de áudio preservados",
+    "vaultButton": "Guardar para sempre · 200 Visual Bucs",
+    "vaulting": "Guardando…",
+    "vaultFailed": "Não foi possível guardar este lançamento — tente de novo.",
+    "vaulted": "Guardado",
+    "vaultedCopy": "\"{{title}}\" foi guardado — sua página de pré-save, entrada na vitrine e assets ficam ao vivo na Bow Down Visuals para sempre."
+  },
+  "mashup": {
+    "tabCreate": "Criar",
+    "tabMashup": "Mashup",
+    "title": "Mashup de músicas",
+    "subtitle": "Escolha duas músicas — suas ou enviadas — e funda em uma faixa. Tempo combinado, batida travada, um clique.",
+    "priceBadge": "400 Visual Bucs",
+    "modeSimple": "Turbo",
+    "modeCustom": "Avançado",
+    "songA": "Música A",
+    "songB": "Música B",
+    "pickFromLibrary": "Escolha da sua biblioteca…",
+    "uploadInstead": "ou envie áudio",
+    "uploading": "Enviando…",
+    "styleLabel": "Estilo de mistura",
+    "styleCrossfade": "Crossfade",
+    "styleCrossfadeBlurb": "A some, B entra no ponto de mistura.",
+    "styleBeatMatch": "Sincronizado à batida",
+    "styleBeatMatchBlurb": "Tempo alinhado e batida travada — as duas músicas tocam juntas.",
+    "styleInterleave": "Alternância verso-refrão",
+    "styleInterleaveBlurb": "Seções alternadas — o verso de A, o refrão de B, ida e volta.",
+    "blendPointLabel": "Ponto de mistura",
+    "blendPointHint": "Onde na Música A a mistura acontece.",
+    "balanceLabel": "Balance",
+    "balanceHint": "Arraste para deixar uma música na frente da outra.",
+    "crossfadeLabel": "Duração do crossfade",
+    "titleLabel": "Título do mashup (opcional)",
+    "titlePlaceholder": "ex.: Midnight × Gold Rush",
+    "submitSimple": "Fazer mashup das minhas músicas",
+    "submitCustom": "Fundir estas músicas",
+    "needsTwoSongs": "Escolha duas músicas primeiro — da sua biblioteca ou envie áudio.",
+    "analyzing": "Analisando as batidas das duas músicas…",
+    "tempoMatching": "Combinando o tempo da Música B com a Música A…",
+    "blending": "Misturando seu mashup…",
+    "saving": "Salvando na sua biblioteca…",
+    "failed": "Mashup falhou — seus Visual Bucs foram reembolsados.",
+    "resultTitle": "Seu mashup está pronto",
+    "bpmUnknown": "—",
+    "handoffLyricVideo": "Fazer um vídeo de letra",
+    "handoffLyricVideoBlurb": "Vídeo estilo karaokê · 300 VB",
+    "handoffCoverArt": "Desenhar a arte da capa",
+    "handoffCoverArtBlurb": "Arte dourada de luxo · 200 VB",
+    "handoffAlbum": "Adicionar ao álbum",
+    "handoffAlbumBlurb": "Coloque em um álbum ou EP",
+    "handoffShare": "Compartilhar",
+    "handoffShareBlurb": "Um toque — seu link de indicação vai junto",
+    "working": "Trabalhando…",
+    "lyricVideoDone": "Vídeo de letra pronto",
+    "coverArtDone": "Arte da capa pronta",
+    "albumPick": "Escolha um álbum…",
+    "albumNew": "Título do novo álbum…",
+    "albumCreateAdd": "Criar e adicionar",
+    "albumAdd": "Adicionar ao álbum",
+    "albumAdded": "Adicionado ao álbum",
+    "albumLoadFailed": "Não foi possível carregar os álbuns.",
+    "copied": "Copiado!",
+    "shareText": "Confira meu mashup",
+    "coverArtist": "Mashup de músicas",
+    "tabHum": "Cantarolar"
+  },
+  "mediaDetector": {
+    "badge": "Detector de Mídia IA",
+    "titleStart": "Real ou",
+    "titleAi": "IA?",
+    "titleEnd": "Saiba com certeza.",
+    "subtitle": "Envie uma imagem, vídeo ou arquivo de áudio — ou cole um link — e receba um veredito forense de IA: veredito, pontuação de confiança e os sinais exatos que ela encontrou.",
+    "costPerCheck": "{{cost}} Visual Bucs por verificação.",
+    "dropHint": "Solte os arquivos aqui ou clique para enviar",
+    "filesSkipped_one": "1 arquivo foi ignorado — tipo não suportado ou mais de 25 MB.",
+    "filesSkipped_other": "{{count}} arquivos foram ignorados — tipo não suportado ou mais de 25 MB.",
+    "fileTypes": "Imagens, vídeo, áudio — até 25 MB cada. Lotes suportados.",
+    "urlPlaceholder": "…ou cole uma URL de imagem",
+    "add": "Adicionar",
+    "queueStatus": "{{count}} arquivos · {{done}} verificados",
+    "clearAll": "Limpar tudo",
+    "checkAll": "Verificar tudo ({{cost}} Visual Bucs)",
+    "remove": "Remover",
+    "analyze": "Analisar · {{cost}} Visual Bucs",
+    "analyzing": "Analisando sinais de IA…",
+    "analyzingVideo": "Extraindo quadros, depois analisando…",
+    "retry": "Tentar de novo",
+    "emptyTitle": "Nada para verificar ainda",
+    "emptySubtitle": "Envie um arquivo ou cole uma URL para rodar sua primeira detecção.",
+    "verdictAi": "Provavelmente gerado por IA",
+    "verdictHuman": "Provavelmente criado por humano",
+    "verdictUncertain": "Incerto",
+    "detectedSignals": "Sinais detectados",
+    "pointsToAi": "aponta para IA",
+    "pointsToHuman": "aponta para humano",
+    "errorOutOfCredits": "Sem Visual Bucs.",
+    "errorDetectionFailed": "Detecção falhou. Tente de novo.",
+    "errorDetectionFailedShort": "Detecção falhou.",
+    "filesSkipped_many": "Arquivos ignorados — tipo não suportado ou mais de 25 MB."
+  },
+  "nfcCards": {
+    "orderFailed": "Pedido falhou",
+    "orderFailedRetry": "Pedido falhou — tente novamente.",
+    "saveFailed": "Falha ao salvar",
+    "heroBadge": "Cartões de visita inteligentes NFC",
+    "heroTitle": "Seu cartão de visita,",
+    "heroTitleAccent": "mas ele encosta.",
+    "heroDescription": "Um cartão físico premium com um chip NFC dentro. Encoste em qualquer telefone e seu cartão digital abre instantaneamente — links, agendamentos, redes sociais, tudo. Atualize a qualquer momento sem reimprimir.",
+    "how1t": "1. Desenhe seu cartão",
+    "how1d": "Escolha um estilo, adicione seu nome, links e foto.",
+    "how2t": "2. Nós codificamos",
+    "how2d": "Seu chip NFC + QR são programados para o seu cartão digital.",
+    "how3t": "3. Encoste e conecte",
+    "how3d": "Enviado para sua casa. Encoste em telefones, escaneie QRs, feche clientes.",
+    "reservedTitle": "Cartão reservado!",
+    "reservedDescription": "Seu cartão digital já está ao vivo. Entraremos em contato para confirmar a produção e receber o pagamento — nada é cobrado hoje.",
+    "viewDigitalCard": "Ver seu cartão digital",
+    "alreadyReserved": "Esta reserva já foi feita — nenhuma duplicata foi criada.",
+    "orderAnother": "Pedir outro cartão",
+    "buildYourCard": "Monte seu cartão",
+    "quantity": "Quantidade",
+    "total": "Total",
+    "detailsHint": "É isso que as pessoas veem quando encostam no seu cartão. Você pode mudar a qualquer momento.",
+    "displayNamePlaceholder": "Nome de exibição *",
+    "titlePlaceholder": "Cargo — ex.: Corretor, Barbeiro, Fotógrafo",
+    "bioPlaceholder": "Bio curta",
+    "linksLabel": "Links (Instagram, agenda, site…)",
+    "linkLabelPlaceholder": "Rótulo",
+    "addLink": "Adicionar link",
+    "fullNamePlaceholder": "Nome completo *",
+    "phonePlaceholder": "Telefone",
+    "emailPlaceholder": "E-mail *",
+    "streetPlaceholder": "Endereço *",
+    "cityPlaceholder": "Cidade *",
+    "statePlaceholder": "Estado *",
+    "zipPlaceholder": "CEP *",
+    "shippingPrivacy": "Suas informações são usadas apenas para fazer e enviar seu cartão.",
+    "reviewStyle": "Estilo",
+    "reviewQuantity": "Quantidade",
+    "reviewDigitalCardFor": "Cartão digital para",
+    "reviewShipTo": "Enviar para",
+    "reviewTotal": "Total devido na confirmação",
+    "reserveFreeNote": "Reservar é grátis — nada é cobrado hoje. Confirmaremos seu cartão com nosso parceiro de produção e então receberemos o pagamento antes do envio.",
+    "back": "Voltar",
+    "continue": "Continuar",
+    "reserving": "Reservando…",
+    "reserveFree": "Reservar meu cartão — grátis",
+    "signInPromptPrefix": "Será solicitado que você",
+    "signIn": "entre",
+    "signInPromptSuffix": "para reservar seu cartão.",
+    "mySmartCards": "Meus cartões inteligentes",
+    "noCardsYet": "Nenhum cartão ainda — monte o primeiro acima.",
+    "taps": "{{count}} toques",
+    "editCard": "Editar cartão",
+    "qrSvg": "QR SVG",
+    "preview": "Pré-visualização",
+    "orderHistory": "Histórico de pedidos",
+    "questions": "Perguntas",
+    "faq1q": "Como funciona o toque?",
+    "faq1a": "Cada cartão tem um chip NFC NTAG213 dentro. Encoste em qualquer telefone moderno e seu cartão digital abre instantaneamente — nenhum app necessário. Telefones mais antigos podem escanear o QR impresso no verso.",
+    "faq2q": "Posso mudar meus links depois de pedir?",
+    "faq2a": "Sim — esse é o ponto. Seu cartão aponta para seu perfil digital, que você pode editar a qualquer momento: links, cargo, bio, foto. O cartão físico nunca fica desatualizado.",
+    "faq3q": "Quando eu pago?",
+    "faq3a": "Você reserva hoje sem custo. Quando seu cartão for confirmado com nosso parceiro de produção, receberemos o pagamento e seu cartão será enviado diretamente para você.",
+    "faq4q": "Quanto tempo até eu receber meu cartão?",
+    "faq4a": "Os cartões são feitos sob encomenda. Calcule 2 a 3 semanas para produção e envio após a confirmação do pagamento. Manteremos você atualizado em cada etapa.",
+    "faq5q": "Posso pedir de novo ou cartões para minha equipe?",
+    "faq5a": "Sim — peça qualquer quantidade, e cada cartão recebe seu próprio perfil digital. Pacotes de equipe são ótimos para corretores, barbeiros, salões e agências.",
+    "editDigitalCard": "Editar cartão digital",
+    "displayName": "Nome de exibição",
+    "title": "Cargo",
+    "bio": "Bio",
+    "cancel": "Cancelar",
+    "save": "Salvar"
+  },
+  "myClips": {
+    "pageTitle": "Meus clipes",
+    "pageDescription": "Sua biblioteca de clipes promocionais gerados.",
+    "title": "Meus clipes gerados",
+    "generateNew": "Gerar novo clipe",
+    "backToProjects": "Voltar aos meus projetos",
+    "noClips": "Nenhum clipe ainda",
+    "noClipsHint": "Os clipes de cena gerados são salvos aqui automaticamente. Gere seu primeiro clipe no Estúdio de Cenas.",
+    "videoForSong": "Vídeo para minha música",
+    "use": "Usar",
+    "clipReady": "Clipe pronto",
+    "ready": "Pronto",
+    "done": "Feito",
+    "attachToScene": "Anexar a uma cena do projeto",
+    "noCharge": "Nenhum Visual Bucs cobrado",
+    "noProjects": "Nenhum projeto com cenas encontrado",
+    "noProjectsHint": "Abra o Visual Vibes e recrie as cenas primeiro.",
+    "project": "Projeto",
+    "noScenes": "Nenhuma cena salva ainda",
+    "noScenesHint": "Abra o Visual Vibes, carregue suas cenas, depois volte e anexe este clipe.",
+    "openEditor": "Abrir Visual Vibes",
+    "scene": "Cena",
+    "hasClip": "Tem clipe",
+    "cancel": "Cancelar",
+    "attaching": "Anexando…",
+    "attachClip": "Anexar clipe",
+    "deleteConfirm": "Excluir?",
+    "yes": "Sim",
+    "copied": "Copiado",
+    "copyUrl": "Copiar URL",
+    "clipAttached": "Clipe anexado — Clipe pronto!",
+    "attachedDesc": "Anexado à Cena {{index}}{{section}}. Abra o Visual Vibes para ver.",
+    "clipDeleted": "Clipe excluído",
+    "errorLoadProjects": "Não foi possível carregar os projetos",
+    "errorAttach": "Não foi possível anexar o clipe",
+    "errorAttachFailed": "Falha ao anexar",
+    "errorDelete": "Falha ao excluir",
+    "extractAudio": "Extrair áudio",
+    "extractAudioCost": "50 Visual Bucs",
+    "extractAudioDone": "Áudio extraído",
+    "extractAudioFailed": "Extração de áudio falhou",
+    "extractAudioRefunded": "Você foi reembolsado automaticamente.",
+    "extracting": "Extraindo…",
+    "downloadMp3": "Baixar MP3"
+  },
+  "linkInBio": {
+    "tab": "Link na bio",
+    "hero": {
+      "badge": "Link na bio",
+      "title": "Uma página.",
+      "titleAccent": "Todos os seus links.",
+      "subtitle": "Monte uma página link-na-bio dourada e luxuosa para seus fãs. Escrever é grátis — publicar custa {{cost}} Visual Bucs."
+    },
+    "profile": {
+      "title": "Cabeçalho do perfil",
+      "prefill": "Preencher do Artist Vault",
+      "prefillDone": "Preenchido do cofre",
+      "noVaults": "Nenhum cofre de artista ainda — crie um no Artist Vault para preencher instantaneamente.",
+      "displayName": "Nome de exibição",
+      "displayNamePlaceholder": "Seu nome artístico",
+      "headline": "Título",
+      "headlinePlaceholder": "Cantor · Compositor · Contador de histórias",
+      "bio": "Bio",
+      "bioPlaceholder": "Duas linhas que fazem um fã querer seguir.",
+      "avatarUrl": "URL da imagem do avatar",
+      "avatarUrlPlaceholder": "https://…",
+      "slug": "Identificador da página",
+      "slugHint": "Sua URL pública: bowdownvisuals.com/bio/{{slug}}",
+      "slugInvalid": "O identificador deve ter letras minúsculas, números e traços."
+    },
+    "theme": {
+      "title": "Tema",
+      "goldRoyal": "Ouro Real",
+      "goldRoyalBlurb": "Preto + ouro radiante — o visual assinatura da Bow Down",
+      "midnightGold": "Ouro da Meia-Noite",
+      "midnightGoldBlurb": "Azul-preto profundo com detalhes em ouro quente",
+      "onyxMinimal": "Onyx Minimal",
+      "onyxMinimalBlurb": "Preto puro, linhas finas de ouro — ultra limpo"
+    },
+    "links": {
+      "title": "Links",
+      "add": "Adicionar link",
+      "titlePlaceholder": "Título do link (ex.: Novo single)",
+      "urlPlaceholder": "https://…",
+      "icon": "Ícone",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "remove": "Remover link",
+      "empty": "Nenhum link ainda — adicione o primeiro acima.",
+      "needOne": "Adicione pelo menos um link antes de publicar."
+    },
+    "socials": {
+      "title": "Ícones sociais",
+      "hint": "Cole as URLs dos seus perfis — os ícones aparecem na sua página."
+    },
+    "featured": {
+      "title": "Trabalho em destaque",
+      "hint": "Puxe trabalhos de destaque do seu projeto hub — os fãs chegam direto à sua vitrine e aos clipes.",
+      "fromHub": "Do projeto hub",
+      "noAssets": "Nenhum asset no seu projeto hub ainda — crie algo primeiro.",
+      "added": "Adicionado",
+      "add": "Adicionar",
+      "empty": "Nada em destaque ainda. Destaque uma música, vídeo ou miniatura.",
+      "remove": "Remover"
+    },
+    "tipJar": {
+      "title": "Caixinha de gorjetas",
+      "hint": "Vincule sua página de gorjetas para os fãs mostrarem carinho (ex.: /tips/your-handle).",
+      "placeholder": "https://bowdownvisuals.com/tips/your-handle"
+    },
+    "actions": {
+      "saveDraft": "Salvar rascunho",
+      "saving": "Salvando…",
+      "publish": "Publicar · {{cost}} Visual Bucs",
+      "publishing": "Publicando…",
+      "unpublish": "Despublicar",
+      "unpublishing": "Despublicando…",
+      "viewPage": "Ver página ao vivo",
+      "share": "Compartilhar",
+      "copied": "Copiado!",
+      "copyLink": "Copiar link",
+      "draftSaved": "Rascunho salvo.",
+      "published": "Sua página está ao vivo!",
+      "unpublished": "Página despublicada.",
+      "alreadyPublished": "Esta página já está publicada.",
+      "statusLive": "Ao vivo — qualquer pessoa com o link pode ver esta página",
+      "statusDraft": "Rascunho — só você pode ver esta página",
+      "outOfCredits": "Visual Bucs insuficientes para publicar — recarregue para ir ao vivo."
+    },
+    "analytics": {
+      "title": "Análise de cliques",
+      "views": "Visualizações da página",
+      "clicks": "Cliques totais em links",
+      "last7d": "Cliques (7 dias)",
+      "perLink": "Cliques por link",
+      "noData": "Nenhum clique ainda — compartilhe sua página e veja acender."
+    },
+    "errors": {
+      "loadFailed": "Não foi possível carregar suas páginas de bio.",
+      "saveFailed": "Não foi possível salvar o rascunho.",
+      "publishFailed": "Não foi possível publicar a página.",
+      "needName": "Adicione um nome de exibição primeiro."
+    },
+    "public": {
+      "title": "Link na bio",
+      "description": "Páginas link-na-bio para criadores, feitas com Bow Down Visuals.",
+      "notFound": "Página não encontrada",
+      "notFoundDetail": "Esta página link-na-bio não existe ou foi tirada do ar.",
+      "share": "Compartilhar esta página"
+    },
+    "preview": "Pré-visualização"
   }
 }
