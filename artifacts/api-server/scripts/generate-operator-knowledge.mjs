@@ -938,6 +938,16 @@ const SERVER_PRICE_LINKS = [
   { constant: "JEWELRY_STL_CREDIT_COST", endpoint: "/api/jewelry/export-stl" },
   { constant: "PRO_TOOLS_AI_CREDITS", endpoint: "/api/pro-tools/auto-grade" },
   { constant: "SAMPLE_PACK_10_CREDITS", endpoint: "/api/sample-pack/generate" },
+  /* Stack-28 (A6-K1): the screensaver rail's constant agrees with the
+     registry (400 == 400), so this cross-check is safe and keeps the
+     pair pinned. CLEAN_RENDER_COST is deliberately NOT linked here:
+     the registry records /api/wallpapers/render at 0 (the branded
+     render is free) while the clean (unbranded) 400 rides the same
+     endpoint as an override variant — a naive cross-check against
+     the 0-cost registry entry would report a permanent false
+     disagreement. The clean variant is represented explicitly on the
+     wallpapers-desk entry instead (see its priceVariants). */
+  { constant: "SCREENSAVER_RENDER_COST", endpoint: "/api/wallpapers/screensaver-render" },
 ];
 
 /** Server-truth price overrides (mechanism from the Stack-25 accuracy
@@ -1033,6 +1043,11 @@ const FEATURE_PRICE_LINKS = [
                     CREDIT_COSTS, like any route entry; every endpoint
                     in pricedEndpoints MUST yield a price or generation
                     throws — a docked surface's price fact cannot rot
+      variants .... priceVariants: a second, override-form price the
+                    same endpoint charges (e.g. clean vs branded),
+                    extracted from the named server constant and
+                    carried on the base price as `variants`, never as
+                    a replacement for the registry's base price
     A missing host, a duplicate id, or an unusable description fails
     the whole generation — a stale docked entry is worse than none. */
 const DOCKED_FEATURES = [
@@ -1203,6 +1218,38 @@ const DOCKED_FEATURES = [
     description: { nsFields: [["playlistPitch", "packetIntro"]] },
     endpoints: ["/api/playlist-pitch/packet/:param"],
     pricedEndpoints: [],
+  },
+  {
+    /* Wallpapers & Themes (Stack-28, A6-K1): a desk docked into
+       /create as a panel and into the Branding Kit as a tab — no
+       route of its own, so the route table never discovered it and
+       the operator knew nothing about it: no entry, no price, no
+       endpoint. Name is the desk's own en.json title; the description
+       is a reviewed literal (the desk's prose is inline JSX plus its
+       short en.json subtitle, neither of which carries the King's Set
+       or the branded/clean truth). Prices ride the registry like any
+       entry: the branded render is 0 (free) and the screensaver loop
+       render is 400. The clean (unbranded) render is the SAME render
+       endpoint at 400 via the rail's overrideCost charge — it is
+       represented as a price VARIANT on the render price (sourced
+       from the server's CLEAN_RENDER_COST constant, verified at
+       generation time), never as a second registry price and never
+       as a cross-check against the 0-cost branded entry. Generating
+       art on the desk rides /api/generate-artist-image, whose
+       registry price attaches through the endpoint list like any
+       other entry's. */
+    id: "wallpapers-desk",
+    name: { ns: "wallpapers", field: "title" },
+    path: "/create?panel=wallpapers",
+    hostPath: "/create",
+    description: {
+      text: "Wallpapers, lock screens, screensavers and matched theme packs for phones, tablets and computers — pick or generate art, render it at exact device pixels, and build a profile theme from its colors. Branded renders are free, and the King's Set starter pack is waiting on the desk.",
+    },
+    endpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render", "/api/wallpapers/pack-download", "/api/generate-artist-image"],
+    pricedEndpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render"],
+    priceVariants: [
+      { endpoint: "/api/wallpapers/render", feature: "Wallpaper Render (clean — unbranded)", constant: "CLEAN_RENDER_COST" },
+    ],
   },
 ];
 
@@ -1714,6 +1761,38 @@ function main() {
       if (!prices.some((p) => p.endpoint === ep)) {
         throw new Error(`docked features: priced endpoint ${ep} for "${spec.id}" produced no price — is it in CREDIT_COSTS?`);
       }
+    }
+    /* Price variants (Stack-28, A6-K1): a variant is a second price
+       the SAME endpoint charges for an override form of the job —
+       the wallpapers render endpoint is free branded and 400 clean.
+       The variant's figure is EXTRACTED from the named server
+       constant (the exact value the rail charges for the variant),
+       never hand-typed, and it must still DISAGREE with the
+       registry's base price for the endpoint: agreement means the
+       registry now records the variant itself and the variant entry
+       is stale. The base price keeps the registry as its source —
+       the two prices are different facts about one endpoint, and
+       neither may overwrite the other. */
+    for (const variant of spec.priceVariants ?? []) {
+      const price = prices.find((p) => p.endpoint === variant.endpoint);
+      if (!price) {
+        throw new Error(`docked features: price variant endpoint ${variant.endpoint} for "${spec.id}" produced no base price — is it in CREDIT_COSTS?`);
+      }
+      const constant = serverConstants.find((c) => c.constant === variant.constant);
+      if (!constant) {
+        throw new Error(`docked features: price variant constant ${variant.constant} for "${spec.id}" is not extractable from the server sources`);
+      }
+      if (constant.value === price.vb) {
+        throw new Error(`docked features: price variant ${variant.constant}=${constant.value} now agrees with the registry base for ${variant.endpoint} — remove the stale variant for "${spec.id}"`);
+      }
+      price.variants = [
+        ...(price.variants ?? []),
+        {
+          feature: variant.feature,
+          vb: constant.value,
+          source: `${constant.file} ${variant.constant} — server charge for this variant of the endpoint (CREDIT_COSTS records the endpoint's base price)`,
+        },
+      ];
     }
     const entry = {
       id: spec.id,
