@@ -469,6 +469,15 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
           {ingest.has_key ? ` Current key ends …${ingest.key_hint ?? ""}.` : " You don't have a key yet."}
         </p>
       )}
+      {/* Stream-key honesty (Stack-100 #2 item 79): nothing here has
+          proven the key works — there is no handshake test on this
+          surface, so the key is labelled untested until a broadcast
+          actually connects. Never a silent "ready". */}
+      {ingest?.enabled && ingest.has_key ? (
+        <p className={`mt-1 text-xs ${muted}`} data-testid="world-live-ingest-untested">
+          This key is untested — it&rsquo;s proven the first time your encoder connects and the stream goes live.
+        </p>
+      ) : null}
       {ingest && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
