@@ -518,7 +518,14 @@ function SidebarMenuButton({
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      className={cn(
+        sidebarMenuButtonVariants({ variant, size }),
+        /* S27-09: nav rows are 32px (size default h-8) — too small to tap
+           in the mobile drawer. On mobile only, rows grow to a 40px
+           minimum; desktop density is untouched. */
+        isMobile && "min-h-[40px]",
+        className
+      )}
       {...props}
     />
   )
