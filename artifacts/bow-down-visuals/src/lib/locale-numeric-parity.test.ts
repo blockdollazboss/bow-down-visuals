@@ -172,7 +172,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "sponsorDealDetail.winsPlaceholder",
     ]],
     [T_KARAT, ["contests.e_g_24k_gold_chain_shoutout"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   de: grouped(
@@ -195,14 +194,12 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   hi: grouped(
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   it: grouped(
     ["LEGIT: en's '7pm' rendered on the 24-hour clock ('19:00') — verified value-equal", ["press-kit.pressRelease.placeholders.topic"]],
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
     [T_PCT, ["websiteBuilder.feeNote", "websiteBuilder.ownershipStrong"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   pt: grouped(
@@ -210,7 +207,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     [T_SPELL, ["collabs.matchDescription"]],
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
     [T_PCT, ["brandingShop.fulfillmentText"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   ja: grouped(
@@ -278,7 +274,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: 'quarter-second' numeralized as 0.25", ["videoExport.rangeTooShort"]],
     ["LEGIT: 'a couple' rendered as 2、3", ["collabs.templateCasualDmBody"]],
     ["LEGIT: prices corrected to 200/200 by the drift lane; the residual is per-unit counters (1回)", ["thumbnailTest.costNote"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   ko: grouped(
@@ -304,7 +299,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: 'three-quarter' numeralized as the fraction 3/4", [
       "artistVault.identityAngleThreeQuarterLeft", "artistVault.identityAngleThreeQuarterRight",
     ]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
 };

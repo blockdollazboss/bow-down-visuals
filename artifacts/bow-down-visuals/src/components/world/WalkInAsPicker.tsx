@@ -19,14 +19,21 @@
  * manage button that opens a strip under the row — rename and
  * remove, riding the vault's own rails (PUT / DELETE
  * /api/artist-vaults/:id). Team-shared characters get no button:
- * those verbs are the owner's alone. Appearance — portrait, look,
- * locked regalia, voice — is edited in the Creative Vault, never
- * here; the strip touches the name and the row's visibility only.
+ * those verbs are the owner's alone.
+ *
+ * Creation + appearance (stack-100 #98): the strip also restyles —
+ * portrait URL, look fields and theme — on the same PUT rail (the
+ * host round-trips the full row, so untouched fields survive), and
+ * a "New character" strip creates one on the vault's POST rail.
+ * What still lives only in the Creative Vault: generating portraits
+ * and living loops, identity photos and locked-regalia tooling —
+ * the strip says so rather than faking them.
  */
 import { useState } from "react";
 import { Link } from "wouter";
-import { Sparkles, Check, Pencil, X, Trash2 } from "lucide-react";
-import { characterMonogram, type VaultCharacter } from "@/lib/world/characters";
+import { Sparkles, Check, Pencil, X, Trash2, Plus, Palette } from "lucide-react";
+import { characterMonogram, type VaultCharacter, type VaultAppearance } from "@/lib/world/characters";
+import { CHARACTER_THEMES } from "@/lib/character-themes";
 import {
   HOUSE_GUARD_ID,
   HOUSE_GUARD_FEMALE_ID,
@@ -47,15 +54,120 @@ interface WalkInAsPickerProps {
   /** Remove one of the member's own characters (the vault DELETE
    *  rail — a soft delete: hidden everywhere, data kept). */
   onRemove?: (id: string) => Promise<void>;
+  /** Create a new character (the vault POST rail, #98). Omit and
+   *  the create tile keeps its Creative Vault link-out. */
+  onCreate?: (input: { artistName: string; appearance: Partial<VaultAppearance> }) => Promise<void>;
+  /** Read one character's stored appearance for the restyle form
+   *  (the vault list read, #98). */
+  onLoadAppearance?: (id: string) => Promise<{ name: string; appearance: VaultAppearance }>;
+  /** Save an appearance edit (the vault PUT rail, full round-trip
+   *  host-side, #98). Offered on own rows only, like rename. */
+  onSaveAppearance?: (id: string, patch: Partial<VaultAppearance>) => Promise<void>;
 }
 
-export default function WalkInAsPicker({ characters, loadFailed, selectedId, onSelect, isLight, onRename, onRemove }: WalkInAsPickerProps) {
+/* The appearance fields the restyle/create strips edit — the
+   character's look, in the vault form's own groupings. themeId is a
+   select over CHARACTER_THEMES and renders separately. */
+const APPEARANCE_TEXT_FIELDS: { key: keyof VaultAppearance; label: string; placeholder: string }[] = [
+  { key: "referenceImageUrl", label: "Portrait image URL", placeholder: "https://… — the face the hall stands in" },
+  { key: "artistType", label: "Type", placeholder: "Singer, rapper, producer…" },
+  { key: "genre", label: "Genre", placeholder: "Hip-hop, R&B, soul…" },
+  { key: "visualStyle", label: "Visual style", placeholder: "Luxury street royalty…" },
+  { key: "hair", label: "Hair", placeholder: "Style, color, length…" },
+  { key: "clothingStyle", label: "Clothing style", placeholder: "Signature outfits…" },
+  { key: "jewelry", label: "Jewelry", placeholder: "Chains, crowns, pieces…" },
+  { key: "tattoos", label: "Tattoos", placeholder: "Visible ink…" },
+  { key: "brandColors", label: "Brand colors", placeholder: "Gold and black…" },
+  { key: "voiceStyle", label: "Voice style", placeholder: "Deep, smooth, commanding…" },
+  { key: "personality", label: "Personality", placeholder: "How they carry themselves…" },
+  { key: "artistDescription", label: "Description", placeholder: "Who this character is…" },
+];
+
+type AppearanceDraft = Record<keyof VaultAppearance, string>;
+
+function emptyAppearanceDraft(): AppearanceDraft {
+  return {
+    artistType: "", genre: "", voiceStyle: "", visualStyle: "", hair: "",
+    tattoos: "", jewelry: "", clothingStyle: "", brandColors: "",
+    themeId: "gold-royalty", personality: "", artistDescription: "",
+    referenceImageUrl: "",
+  };
+}
+
+function appearanceDraftFrom(a: VaultAppearance): AppearanceDraft {
+  const draft = emptyAppearanceDraft();
+  (Object.keys(draft) as (keyof VaultAppearance)[]).forEach((k) => {
+    draft[k] = a[k] ?? "";
+  });
+  if (!draft.themeId) draft.themeId = "gold-royalty";
+  return draft;
+}
+
+function AppearanceFields({
+  draft, setDraft, isLight, testidPrefix,
+}: {
+  draft: AppearanceDraft;
+  setDraft: (d: AppearanceDraft) => void;
+  isLight: boolean;
+  testidPrefix: string;
+}) {
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+    isLight
+      ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]"
+      : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"
+  }`;
+  const labelCls = `block text-[11px] font-black uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {APPEARANCE_TEXT_FIELDS.map((f) => (
+        <label key={f.key} className={f.key === "referenceImageUrl" || f.key === "artistDescription" ? "sm:col-span-2" : ""}>
+          <span className={labelCls}>{f.label}</span>
+          <input
+            value={draft[f.key]}
+            onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
+            placeholder={f.placeholder}
+            className={`${inputCls} mt-1`}
+            data-testid={`${testidPrefix}-${f.key}`}
+            aria-label={f.label}
+          />
+        </label>
+      ))}
+      <label>
+        <span className={labelCls}>Theme</span>
+        <select
+          value={draft.themeId}
+          onChange={(e) => setDraft({ ...draft, themeId: e.target.value })}
+          className={`${inputCls} mt-1`}
+          data-testid={`${testidPrefix}-themeId`}
+          aria-label="Theme"
+        >
+          {CHARACTER_THEMES.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+export default function WalkInAsPicker({ characters, loadFailed, selectedId, onSelect, isLight, onRename, onRemove, onCreate, onLoadAppearance, onSaveAppearance }: WalkInAsPickerProps) {
   const canManage = Boolean(onRename || onRemove);
   const [manageId, setManageId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [manageBusy, setManageBusy] = useState(false);
   const [manageError, setManageError] = useState<string | null>(null);
+  /* #98 restyle state: the loaded appearance draft for the managed
+     character (null until "Restyle" opens and the row is read). */
+  const [restyleOpen, setRestyleOpen] = useState(false);
+  const [restyleDraft, setRestyleDraft] = useState<AppearanceDraft | null>(null);
+  const [restyleLoading, setRestyleLoading] = useState(false);
+  /* #98 create state. */
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createDraft, setCreateDraft] = useState<AppearanceDraft>(() => emptyAppearanceDraft());
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const manageChar =
     manageId && characters ? (characters.find((c) => c.id === manageId && c.isOwn) ?? null) : null;
@@ -65,12 +177,61 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
     setDraftName(c.name);
     setConfirmingRemove(false);
     setManageError(null);
+    setRestyleOpen(false);
+    setRestyleDraft(null);
   };
 
   const closeManage = () => {
     setManageId(null);
     setConfirmingRemove(false);
     setManageError(null);
+    setRestyleOpen(false);
+    setRestyleDraft(null);
+  };
+
+  const openRestyle = async () => {
+    if (!manageChar || !onLoadAppearance || restyleLoading) return;
+    setRestyleLoading(true);
+    setManageError(null);
+    try {
+      const { appearance } = await onLoadAppearance(manageChar.id);
+      setRestyleDraft(appearanceDraftFrom(appearance));
+      setRestyleOpen(true);
+    } catch (err) {
+      setManageError(err instanceof Error ? err.message : "Couldn't read the character's look. Please try again.");
+    } finally {
+      setRestyleLoading(false);
+    }
+  };
+
+  const saveRestyle = async () => {
+    if (!manageChar || !onSaveAppearance || !restyleDraft || manageBusy) return;
+    setManageBusy(true);
+    setManageError(null);
+    try {
+      await onSaveAppearance(manageChar.id, { ...restyleDraft });
+      closeManage();
+    } catch (err) {
+      setManageError(err instanceof Error ? err.message : "Couldn't save the new look. Please try again.");
+    } finally {
+      setManageBusy(false);
+    }
+  };
+
+  const submitCreate = async () => {
+    if (!onCreate || createBusy || !createName.trim()) return;
+    setCreateBusy(true);
+    setCreateError(null);
+    try {
+      await onCreate({ artistName: createName, appearance: { ...createDraft } });
+      setCreateOpen(false);
+      setCreateName("");
+      setCreateDraft(emptyAppearanceDraft());
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Couldn't create the character. Please try again.");
+    } finally {
+      setCreateBusy(false);
+    }
   };
 
   const saveRename = async () => {
@@ -275,22 +436,114 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
           })}
 
           {characters !== null && characters.length === 0 && !loadFailed ? (
-            <Link
-              href="/artist-vault"
+            onCreate ? (
+              <button
+                type="button"
+                onClick={() => { setCreateOpen(true); setCreateError(null); }}
+                className={`${tileBase} ${tileIdle}`}
+                data-testid="walk-in-create"
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isLight ? "bg-[#C9A84C]/20" : "bg-[#d4af37]/15"}`}>
+                  <Sparkles className="h-5 w-5 text-[#d4af37]" />
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-xs font-bold ${nameCls}`}>Create a character</span>
+                  <span className={`block truncate text-[11px] ${subCls}`}>Right here — name it, style it</span>
+                </span>
+              </button>
+            ) : (
+              <Link
+                href="/artist-vault"
+                className={`${tileBase} ${tileIdle}`}
+                data-testid="walk-in-create"
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isLight ? "bg-[#C9A84C]/20" : "bg-[#d4af37]/15"}`}>
+                  <Sparkles className="h-5 w-5 text-[#d4af37]" />
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-xs font-bold ${nameCls}`}>Create a character</span>
+                  <span className={`block truncate text-[11px] ${subCls}`}>In the Creative Vault</span>
+                </span>
+              </Link>
+            )
+          ) : null}
+
+          {onCreate && characters !== null && characters.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => { setCreateOpen((v) => !v); setCreateError(null); }}
               className={`${tileBase} ${tileIdle}`}
-              data-testid="walk-in-create"
+              data-testid="walk-in-create-new"
+              aria-expanded={createOpen}
             >
               <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isLight ? "bg-[#C9A84C]/20" : "bg-[#d4af37]/15"}`}>
-                <Sparkles className="h-5 w-5 text-[#d4af37]" />
+                <Plus className="h-5 w-5 text-[#d4af37]" />
               </span>
               <span className="min-w-0">
-                <span className={`block text-xs font-bold ${nameCls}`}>Create a character</span>
-                <span className={`block truncate text-[11px] ${subCls}`}>In the Creative Vault</span>
+                <span className={`block text-xs font-bold ${nameCls}`}>New character</span>
+                <span className={`block truncate text-[11px] ${subCls}`}>Make one, right here</span>
               </span>
-            </Link>
+            </button>
           ) : null}
         </div>
       </div>
+
+      {/* The create strip (#98) — a new character on the vault's
+          POST rail, named and styled right here. It appears in the
+          row the moment the host's re-read lands. */}
+      {onCreate && createOpen ? (
+        <div
+          className={`mt-3 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/30 bg-white/5"}`}
+          data-testid="walk-in-create-panel"
+        >
+          <div className="flex items-center gap-2">
+            <span className={`flex-1 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+              New character
+            </span>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(false)}
+              className={`flex h-6 w-6 items-center justify-center rounded-full ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
+              data-testid="walk-in-create-close"
+              aria-label="Close character creator"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <label className="mt-2 block">
+            <span className={`block text-[11px] font-black uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Name</span>
+            <input
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              maxLength={80}
+              placeholder="Who are they?"
+              className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${isLight ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]" : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"}`}
+              data-testid="walk-in-create-name"
+              aria-label="New character name"
+            />
+          </label>
+          <div className="mt-2">
+            <AppearanceFields draft={createDraft} setDraft={setCreateDraft} isLight={isLight} testidPrefix="walk-in-create-field" />
+          </div>
+          <button
+            type="button"
+            onClick={() => void submitCreate()}
+            disabled={createBusy || !createName.trim()}
+            className="mt-3 rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="walk-in-create-save"
+          >
+            {createBusy ? "Creating…" : "Create character"}
+          </button>
+          {createError ? (
+            <p role="alert" className={`mt-2 text-xs font-semibold ${isLight ? "text-red-800" : "text-red-300"}`}>{createError}</p>
+          ) : null}
+          <p className={`mt-2 text-[11px] ${subCls}`}>
+            Born in your Creative Vault the moment you save. Generating a portrait or a living
+            loop still happens in the Vault&rsquo;s studios — give it a portrait URL above and it
+            can stand in the hall right away.
+          </p>
+        </div>
+      ) : null}
 
       {/* The manage strip — rename / remove for the member's OWN
           character, on the vault's own rails. Only ever rendered for
@@ -391,6 +644,48 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             )
           ) : null}
 
+          {/* Restyle (#98) — the look itself, on the same PUT rail.
+              The form opens from the character's stored row, read
+              fresh by the host; saving round-trips every field, so
+              what you don't touch doesn't change. */}
+          {onLoadAppearance && onSaveAppearance ? (
+            restyleOpen && restyleDraft ? (
+              <div className="mt-3" data-testid="walk-in-restyle-panel">
+                <AppearanceFields draft={restyleDraft} setDraft={setRestyleDraft} isLight={isLight} testidPrefix="walk-in-restyle-field" />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveRestyle()}
+                    disabled={manageBusy}
+                    className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+                    data-testid="walk-in-restyle-save"
+                  >
+                    {manageBusy ? "Saving…" : "Save the look"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRestyleOpen(false); setRestyleDraft(null); }}
+                    disabled={manageBusy}
+                    className={`rounded-xl border px-3 py-2 text-xs font-bold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
+                    data-testid="walk-in-restyle-cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void openRestyle()}
+                disabled={restyleLoading || manageBusy}
+                className={`mt-3 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#7A5A12] hover:bg-[#C9A84C]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                data-testid="walk-in-restyle-open"
+              >
+                <Palette className="h-3.5 w-3.5" /> {restyleLoading ? "Reading the look…" : "Restyle — portrait, look, theme"}
+              </button>
+            )
+          ) : null}
+
           {manageError ? (
             <p role="alert" className={`mt-2 text-xs font-semibold ${isLight ? "text-red-800" : "text-red-300"}`}>
               {manageError}
@@ -398,7 +693,9 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
           ) : null}
 
           <p className={`mt-2 text-[11px] ${subCls}`}>
-            Portrait, look and voice are edited in the Creative Vault — this only renames or removes.
+            {onSaveAppearance
+              ? "Generating portraits and living loops still happens in the Creative Vault's studios — everything about the look itself saves right here."
+              : "Portrait, look and voice are edited in the Creative Vault — this only renames or removes."}
           </p>
         </div>
       ) : null}

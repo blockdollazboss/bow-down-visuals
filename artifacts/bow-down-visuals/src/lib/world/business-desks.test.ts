@@ -48,6 +48,17 @@ import {
   parseBioPages,
   bioPageStatusLine,
   parseBioAnalytics,
+  BIO_PAGE_THEMES,
+  BIO_PUBLISH_COST_VISUAL_BUCS,
+  bioDraftFromPage,
+  bioPublishBlocker,
+  buildBioSavePayload,
+  emptyBioDraft,
+  isBioAllowedUrl,
+  parseBioPageFull,
+  parseBioPublishResult,
+  validateBioDraft,
+  type BioPageDraft,
   buildPromoGeneratorPayload,
   parsePromoResult,
   buildPromoCardsPayload,
@@ -60,8 +71,25 @@ import {
   upcomingPosts,
   buildCoachPayload,
   parseCoachTodayAction,
+  pressKitDraftFromKit,
+  validatePressKitDraft,
+  buildPressKitSavePayload,
+  pressKitPublicPath,
+  brandKitDraftFromKit,
+  validateBrandKitDraft,
+  buildBrandKitSavePayload,
+  setBrandKitColorRole,
+  nextBrandKitColor,
+  COACH_NICHES,
+  COACH_PLATFORMS,
+  defaultCoachInputs,
+  coachFinalNiche,
+  validateCoachInputs,
+  buildMoneySnapshot,
+  parseMoneyEntries,
   BUSINESS_NATIVE_FOLLOW_ONS,
 } from "./business-desks";
+import type { BrandKit } from "@/lib/brand-kit";
 
 describe("costs — quoted up front, from the pages themselves", () => {
   it("logo tiers are the Logo Maker page's 200 / 100 Visual Bucs", () => {
@@ -291,6 +319,97 @@ describe("promote desk — bio pages + analytics", () => {
   });
 });
 
+describe("promote desk — link-in-bio full editing (#59)", () => {
+  const FULL = {
+    pages: [
+      {
+        id: "b1",
+        slug: "king",
+        displayName: "King Shark",
+        headline: "Bow down",
+        bio: "Creator.",
+        avatarUrl: "https://cdn.example/me.png",
+        links: [{ title: "Shop", url: "/shop", icon: "shopping-bag" }],
+        socials: { instagram: "https://instagram.com/king", tiktok: "" },
+        theme: "midnight-gold",
+        featured: [{ label: "Latest", url: "/track/1", kind: "track" }],
+        tipJarUrl: null,
+        isPublished: false,
+        viewCount: 9,
+        url: "https://bowdownvisuals.com/bio/king",
+        updatedAt: "2026-10-01T00:00:00Z",
+      },
+    ],
+  };
+
+  it("parses the full editable page from both the list and a save response", () => {
+    const full = parseBioPageFull(FULL)!;
+    expect(full.theme).toBe("midnight-gold");
+    expect(full.links).toEqual([{ title: "Shop", url: "/shop", icon: "shopping-bag" }]);
+    expect(full.socials.instagram).toBe("https://instagram.com/king");
+    expect(full.socials.youtube).toBe("");
+    expect(full.featuredCount).toBe(1);
+    const saved = parseBioPageFull({ ok: true, page: FULL.pages[0] })!;
+    expect(saved.id).toBe("b1");
+    expect(parseBioPageFull({ pages: [] })).toBeNull();
+    expect(parseBioPageFull(null)).toBeNull();
+  });
+
+  it("draft round-trips through the save payload in the route's own shape", () => {
+    const draft = bioDraftFromPage(parseBioPageFull(FULL)!);
+    const payload = buildBioSavePayload(draft);
+    expect(payload).toMatchObject({
+      displayName: "King Shark",
+      slug: "king",
+      theme: "midnight-gold",
+      avatarUrl: "https://cdn.example/me.png",
+      links: [{ title: "Shop", url: "/shop", icon: "shopping-bag" }],
+    });
+    expect((payload["socials"] as Record<string, string>).instagram).toBe("https://instagram.com/king");
+    // Blank rows drop; an empty slug is omitted entirely.
+    const blank = buildBioSavePayload({ ...emptyBioDraft(), displayName: "New", links: [{ title: "", url: "", icon: "link" }] });
+    expect(blank["links"]).toEqual([]);
+    expect("slug" in blank).toBe(false);
+  });
+
+  it("validation mirrors the route: name, slug shape, allowed URLs, publish blockers", () => {
+    const base: BioPageDraft = {
+      ...emptyBioDraft(),
+      displayName: "King",
+      slug: "king",
+      links: [{ title: "Shop", url: "/shop", icon: "link" }],
+    };
+    expect(validateBioDraft(base)).toBeNull();
+    expect(validateBioDraft({ ...base, displayName: " " })).toContain("display name");
+    expect(validateBioDraft({ ...base, slug: "Bad Slug!" })).toContain("slug");
+    expect(validateBioDraft({ ...base, links: [{ title: "X", url: "javascript:alert(1)", icon: "link" }] })).toContain("real link");
+    expect(validateBioDraft({ ...base, links: [{ title: "", url: "https://x.example", icon: "link" }] })).toContain("title");
+    expect(isBioAllowedUrl("/shop")).toBe(true);
+    expect(isBioAllowedUrl("//evil.example")).toBe(false);
+    expect(isBioAllowedUrl("mailto:hi@example.com")).toBe(true);
+    expect(bioPublishBlocker({ ...base, links: [] })).toContain("at least one link");
+    expect(bioPublishBlocker(base)).toBeNull();
+    expect(BIO_PUBLISH_COST_VISUAL_BUCS).toBe(100);
+    expect(BIO_PAGE_THEMES.map((t) => t.key)).toEqual(["gold-royal", "midnight-gold", "onyx-minimal"]);
+  });
+
+  it("publish result parses; the editor rides the real rails (source pins)", () => {
+    expect(parseBioPublishResult({ ok: true, url: "https://bowdownvisuals.com/bio/king", slug: "king" })).toEqual({
+      url: "https://bowdownvisuals.com/bio/king",
+      slug: "king",
+    });
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('data-testid="world-bio-editor"');
+    expect(desk).toContain('data-testid="world-bio-publish"');
+    expect(desk).toContain("confirmedFetch(`/api/bio-publish/${page.id}`");
+    expect(desk).toContain("`/api/bio-pages/${page.id}/unpublish`");
+    expect(desk).toContain('data-testid="world-bio-link-add"');
+    expect(desk).toContain('data-testid="world-bio-theme"');
+    expect(desk).toContain('data-testid="world-bio-slug"');
+    expect(desk).toContain('data-testid="world-bio-avatar"');
+  });
+});
+
 describe("promote desk — promo generator + promo cards", () => {
   it("generator payload is the promote page's shape", () => {
     expect(
@@ -383,12 +502,13 @@ describe("folded rows — release, scheduler, coach", () => {
     expect(upcomingPosts(posts, 1).map((p) => p.id)).toEqual(["p1"]);
   });
 
-  it("coach payload is the coach page's defaults; the action falls back honestly", () => {
+  it("coach payload with no answers is the coach page's opening state, snapshot null", () => {
     expect(buildCoachPayload()).toEqual({
       niche: "Music",
       platforms: ["youtube", "tiktok"],
       followers: { youtube: 0, tiktok: 0, instagram: 0 },
       cadence: 3,
+      moneySnapshot: null,
     });
     const parsed = parseCoachTodayAction({
       moneyMoves: ["Release a single this week"],
@@ -574,39 +694,58 @@ describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     for (const required of [
-      "release-wizard",
-      "scheduler-calendar",
-      "bio-page-layout-theme-editors",
-      "press-kit-layout-editing",
-      "branding-jewelry-bench",
+      "press-release-panel",
       "coach-full-page-depth",
-      "bio-page-publish-management",
     ]) {
       expect(ids, required).toContain(required);
     }
+    // Stage D Brand wave (Stack-100 #71–#75) graduated the press-kit
+    // editor, the jewelry bench, brand-kit manual editing and the
+    // logo save-back — all four leave the follow-on log.
+    expect(ids).not.toContain("press-kit-layout-editing");
+    expect(ids).not.toContain("branding-jewelry-bench");
+    expect(ids).not.toContain("brand-kit-generate-edit-apply");
+    expect(ids).not.toContain("generated-logo-save-to-kit");
+    // Link-in-bio graduated (Stack-100 #59): links/themes/slug/avatar
+    // editing, create, the 100 VB publish and unpublish are native at
+    // the Promote Desk, so both bio follow-ons leave the log.
+    expect(ids).not.toContain("bio-page-layout-theme-editors");
+    expect(ids).not.toContain("bio-page-publish-management");
+    // The Release wizard graduated (Stack-100 #53/#54): create/edit,
+    // metadata, splits, UPC/barcode, submit and the smartlink surface
+    // are native at the Promote Room's Release Desk, so it leaves the
+    // follow-on log.
+    expect(ids).not.toContain("release-wizard");
     // Headshots graduated: the bench is native at the Branding Kit Desk
     // now, so it leaves the follow-on log.
     expect(ids).not.toContain("branding-headshots-bench");
     // Stream pack graduated the same way: library + generate + apply
     // are native at the Branding Kit Desk, reading the same records.
     expect(ids).not.toContain("branding-stream-pack-bench");
+    // The Scheduler graduated too (Stack-100 #45): compose, calendar,
+    // best-time, edit and cancel are native at the Promote Desk.
+    expect(ids).not.toContain("scheduler-calendar");
     for (const f of BUSINESS_NATIVE_FOLLOW_ONS) {
       expect(f.title.startsWith("NATIVE FOLLOW-ON:"), f.id).toBe(true);
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
       expect(f.note.length, f.id).toBeGreaterThan(20);
     }
-    // The promo-cards gap is logged as a gap, not hidden.
-    expect(BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note).toContain("GAP");
   });
 
-  it("promo-card per-card actions are built, so the follow-on is resolved — and the list note tells the endpoint truth", () => {
+  it("promo-card actions AND the full history graduated (Stack-100 #60), so both follow-ons are resolved", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     expect(ids).not.toContain("promo-card-actions");
-    const listNote = BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note;
-    /* The endpoint exists (website history ships from it); the
-       remaining gap is only that this desk doesn't read it yet. */
-    expect(listNote).toContain("GET /api/promo-cards");
-    expect(listNote).not.toContain("no GET endpoint");
+    /* The desk now reads GET /api/promo-cards itself — the full
+       history shelf stands in-world, so the list follow-on leaves
+       the log like every graduated item before it. */
+    expect(ids).not.toContain("promo-cards-list-endpoint");
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('fetch("/api/promo-cards"');
+    expect(desk).toContain("normalizePromoCardHistory");
+    expect(desk).toContain('data-testid="world-promote-card-history"');
+    expect(desk).toContain('data-testid="world-promote-history-card"');
+    expect(desk).toContain('data-testid="world-promote-history-delete"');
+    expect(desk).toContain("removePromoCard(h.cards, c.id)");
   });
 });
 
@@ -619,7 +758,12 @@ describe("Promote Desk gallery actions (source pins)", () => {
     expect(desk).toContain('data-testid="world-promote-card-share"');
     expect(desk).toContain('data-testid="world-promote-card-assets"');
     expect(desk).toContain("downloadImage(c.url, promoCardFileName(c))");
-    expect(desk).toContain('scheduleHrefForMedia(c.url, "image", cardShareText())');
+    // #46: the card's Schedule action loads the in-world Scheduler
+    // compose — a prefill into SchedulerDeskSection, never the old
+    // scheduler-handoff href exit.
+    expect(desk).toContain('setCardPrefill({ mediaUrl: c.url, mediaType: "image", caption: cardShareText() })');
+    expect(desk).toContain("<SchedulerDeskSection");
+    expect(desk).not.toContain("scheduleHrefForMedia");
     expect(desk).toContain("promoCardSharePayload(c, channel)");
     expect(desk).toContain("addGalleryCardToAssets(c)");
   });
@@ -627,5 +771,253 @@ describe("Promote Desk gallery actions (source pins)", () => {
   it("the gallery copy no longer denies the saved shelf exists", () => {
     expect(desk).not.toContain("no saved card shelf yet");
     expect(desk).toContain("recorded to your promo card history");
+  });
+});
+
+/* ─── Stack-100 #71: press-kit FULL editing ──────────────────────── */
+describe("press kit full editing (Stack-100 #71)", () => {
+  const FULL_KIT = {
+    ...KIT,
+    website: "https://king.example",
+    instagram_url: "https://instagram.com/king",
+    tiktok_url: null,
+    youtube_url: "https://youtube.com/@king",
+    spotify_url: null,
+    layout: [
+      { key: "photos", visible: false },
+      { key: "bio", visible: true },
+    ],
+  };
+
+  it("the parser now carries socials, website and the saved layout (resolved to all six sections)", () => {
+    const kit = parsePressKits({ kits: [FULL_KIT] })[0]!;
+    expect(kit.website).toBe("https://king.example");
+    expect(kit.instagram_url).toBe("https://instagram.com/king");
+    expect(kit.tiktok_url).toBeNull();
+    expect(kit.layout.map((e) => e.key)).toEqual(["photos", "bio", "achievements", "press_quotes", "top_tracks", "contact"]);
+    expect(kit.layout[0]).toEqual({ key: "photos", visible: false });
+  });
+
+  it("the draft seeds every editable field from the kit", () => {
+    const kit = parsePressKits({ kits: [FULL_KIT] })[0]!;
+    const draft = pressKitDraftFromKit(kit);
+    expect(draft.handle).toBe("king-shark");
+    expect(draft.instagram_url).toBe("https://instagram.com/king");
+    expect(draft.achievements).toEqual(["Gold record"]);
+    expect(draft.is_public).toBe(true);
+    expect(draft.layout).toHaveLength(6);
+  });
+
+  it("validation speaks the route's refusals in words", () => {
+    const kit = parsePressKits({ kits: [FULL_KIT] })[0]!;
+    const ok = pressKitDraftFromKit(kit);
+    expect(validatePressKitDraft(ok)).toBeNull();
+    expect(validatePressKitDraft({ ...ok, handle: "ab" })).toContain("press address");
+    expect(validatePressKitDraft({ ...ok, artist_name: "  " })).toContain("artist name");
+    expect(validatePressKitDraft({ ...ok, booking_email: "not-an-email" })).toContain("booking email");
+    expect(validatePressKitDraft({ ...ok, instagram_url: "instagram.com/king" })).toContain("Instagram");
+    expect(validatePressKitDraft({ ...ok, press_quotes: [{ quote: "Words", source: "" }] })).toContain("press quote");
+    expect(validatePressKitDraft({ ...ok, top_tracks: [{ title: "Song", url: "notaurl" }] })).toContain("listen link");
+    expect(validatePressKitDraft({ ...ok, photo_urls: ["notaurl"] })).toContain("photo");
+  });
+
+  it("the save payload is the page's PUT body: slugified handle, blanks dropped the page's way", () => {
+    const kit = parsePressKits({ kits: [FULL_KIT] })[0]!;
+    const draft = {
+      ...pressKitDraftFromKit(kit),
+      handle: "King Shark 2",
+      achievements: [" Gold record ", ""],
+      press_quotes: [{ quote: "Great", source: "Mag" }, { quote: "Half", source: "" }],
+      top_tracks: [{ title: "Song", url: "https://x/s" }, { title: "", url: "https://x/skip" }],
+      photo_urls: [" https://x/p.jpg ", ""],
+      is_public: false,
+    };
+    const p = buildPressKitSavePayload(draft);
+    expect(p["handle"]).toBe("king-shark-2");
+    expect(p["achievements"]).toEqual(["Gold record"]);
+    expect(p["press_quotes"]).toEqual([{ quote: "Great", source: "Mag" }]);
+    expect(p["top_tracks"]).toEqual([{ title: "Song", url: "https://x/s" }]);
+    expect(p["photo_urls"]).toEqual(["https://x/p.jpg"]);
+    expect(p["is_public"]).toBe(false);
+    expect(p["layout"]).toHaveLength(6);
+    expect(pressKitPublicPath(kit)).toBe("/press/king-shark");
+  });
+
+  it("the desk wires the full editor on the page's rails (source pins)", () => {
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('data-testid="world-press-kit-editor"');
+    expect(desk).toContain('data-testid="world-press-kit-save"');
+    expect(desk).toContain('data-testid="world-press-kit-delete"');
+    expect(desk).toContain('data-testid="world-press-kit-public-toggle"');
+    expect(desk).toContain('data-testid="world-press-kit-pdf"');
+    expect(desk).toContain('data-testid="world-press-kit-copy-link"');
+    expect(desk).toContain('method: "PUT"');
+    expect(desk).toContain('method: "DELETE"');
+    expect(desk).toContain("buildPressKitSavePayload(pkDraft)");
+    expect(desk).not.toContain("Layout and theme editing for the kit lives on the website bench");
+  });
+});
+
+/* ─── Stack-100 #72/#73: brand-kit manual editing + logo save-back ── */
+describe("brand kit manual editing (Stack-100 #72) + logo save-back (#73)", () => {
+  const RECORD: BrandKit = {
+    brandName: "King Shark",
+    vibe: "royal",
+    industry: null,
+    colors: [
+      { hex: "#C9A84C", name: "Palace Gold", role: "primary" },
+      { hex: "#0B0B0F", name: "Smoke", role: "background" },
+    ],
+    fonts: [{ heading: "Cinzel", body: "Inter", usage: "Everywhere" }],
+    logoPrompt: "A crowned shark",
+    taglines: ["Bow down"],
+    selectedTagline: "Bow down",
+    logoUrl: null,
+    bioLines: ["Gold-standard studio."],
+    pressFacts: ["100k streams"],
+    generatedAt: null,
+    updatedAt: null,
+  };
+
+  it("the draft seeds name, logo, lines, palette and pairings", () => {
+    const draft = brandKitDraftFromKit(RECORD);
+    expect(draft.brandName).toBe("King Shark");
+    expect(draft.bioLines).toEqual(["Gold-standard studio."]);
+    expect(draft.colors).toHaveLength(2);
+    expect(draft.fonts[0]!.heading).toBe("Cinzel");
+  });
+
+  it("validation is the panel's rule: #RRGGBB + a name per color, heading + body per pairing", () => {
+    const draft = brandKitDraftFromKit(RECORD);
+    expect(validateBrandKitDraft(draft, true)).toBeNull();
+    expect(validateBrandKitDraft({ ...draft, colors: [{ hex: "gold", name: "G", role: "primary" }] }, true)).toContain("#RRGGBB");
+    expect(validateBrandKitDraft({ ...draft, fonts: [{ heading: "", body: "Inter", usage: "" }] }, true)).toContain("#RRGGBB");
+    // Pre-kit the panel skips the check — the palette doesn't ride that save.
+    expect(validateBrandKitDraft({ ...draft, colors: [{ hex: "gold", name: "", role: "primary" }] }, false)).toBeNull();
+  });
+
+  it("the save payload mirrors the panel: lines cleaned, palette/fonts only with a kit + non-empty", () => {
+    const draft = { ...brandKitDraftFromKit(RECORD), bioLines: [" Line ", ""], logoUrl: " https://x/logo.png " };
+    const p = buildBrandKitSavePayload(draft, true);
+    expect(p["bioLines"]).toEqual(["Line"]);
+    expect(p["logoUrl"]).toBe("https://x/logo.png");
+    expect(p["colors"]).toEqual(RECORD.colors);
+    expect(p["fonts"]).toEqual(RECORD.fonts);
+    const bare = buildBrandKitSavePayload(draft, false);
+    expect(bare["colors"]).toBeUndefined();
+    expect(bare["fonts"]).toBeUndefined();
+  });
+
+  it("role picks swap like the panel; a new color takes the first unused role", () => {
+    const swapped = setBrandKitColorRole(RECORD.colors, 1, "primary");
+    expect(swapped.map((c) => c.role)).toEqual(["background", "primary"]);
+    expect(nextBrandKitColor(RECORD.colors)).toEqual({ hex: "#C9A84C", name: "New color", role: "secondary" });
+    const full = ["primary", "secondary", "accent", "neutral", "background"].map((role) => ({ hex: "#000000", name: role, role }));
+    expect(nextBrandKitColor(full)).toBeNull();
+  });
+
+  it("the desk wires the editor + the logo save-back on the shared seams (source pins)", () => {
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('data-testid="world-brand-kit-editor"');
+    expect(desk).toContain('data-testid="world-brand-kit-edit-save"');
+    expect(desk).toContain("buildBrandKitSavePayload(editDraft, true)");
+    expect(desk).toContain("saveBrandKit(getAccessToken, buildBrandKitSavePayload(editDraft, true))");
+    expect(desk).toContain('data-testid="world-logo-save-to-kit"');
+    expect(desk).toContain("saveLogoToBrandKit(getAccessToken, logoUrl)");
+    expect(desk).not.toContain("Saving it into your brand kit is on the website bench for now");
+  });
+});
+
+/* ─── Stack-100 #75: the coach on the creator's REAL inputs ───────── */
+describe("coach on real inputs (Stack-100 #75)", () => {
+  it("the niche/platform lists are the coach page's own", () => {
+    expect(COACH_NICHES).toEqual(["Music", "Gaming", "Comedy", "Fitness", "Beauty & Fashion", "Tech", "Education", "Lifestyle"]);
+    expect(COACH_PLATFORMS.map((p) => p.key)).toEqual(["youtube", "tiktok", "instagram"]);
+    expect(defaultCoachInputs()).toEqual({
+      niche: "Music",
+      customNiche: "",
+      platforms: ["youtube", "tiktok"],
+      followers: { youtube: "", tiktok: "", instagram: "" },
+      cadence: "3",
+    });
+  });
+
+  it("the payload carries the creator's real answers — custom niche wins, counts parsed, cadence clamped", () => {
+    const inputs = {
+      niche: "Music",
+      customNiche: " Gospel drill ",
+      platforms: ["instagram" as const],
+      followers: { youtube: "", tiktok: "", instagram: "12500" },
+      cadence: "250",
+    };
+    expect(coachFinalNiche(inputs)).toBe("Gospel drill");
+    const snap = {
+      monthIncomeCents: 100, monthExpenseCents: 40, monthNetCents: 60,
+      allTimeIncomeCents: 100, allTimeExpenseCents: 40, allTimeNetCents: 60,
+      topIncomeCategory: "merch_sales", topExpenseCategory: null, monthLabel: "October 2026",
+    };
+    expect(buildCoachPayload(inputs, snap)).toEqual({
+      niche: "Gospel drill",
+      platforms: ["instagram"],
+      followers: { youtube: 0, tiktok: 0, instagram: 12500 },
+      cadence: 100,
+      moneySnapshot: snap,
+    });
+    expect(validateCoachInputs(inputs)).toBeNull();
+    expect(validateCoachInputs({ ...inputs, platforms: [] })).toContain("at least one platform");
+    expect(validateCoachInputs({ ...inputs, niche: "", customNiche: " " })).toContain("niche");
+  });
+
+  it("the money snapshot is the tracker panel's math on the creator's real entries", () => {
+    const entries = parseMoneyEntries({
+      entries: [
+        { entry_type: "income", category: "merch_sales", amount_cents: 5000, entry_date: "2026-10-03" },
+        { entry_type: "income", category: "sponsor_deals", amount_cents: 9000, entry_date: "2026-09-01" },
+        { entry_type: "expense", category: "ads", amount_cents: 1200, entry_date: "2026-10-20" },
+        { entry_type: "income", category: "merch_sales", amount_cents: "oops", entry_date: "2026-10-01" },
+        { entry_type: "income", category: "merch_sales", amount_cents: 100 },
+      ],
+    });
+    expect(entries).toHaveLength(3); // the malformed rows drop, never invent
+    const snap = buildMoneySnapshot(entries, new Date(2026, 9, 23));
+    expect(snap).toMatchObject({
+      monthIncomeCents: 5000,
+      monthExpenseCents: 1200,
+      monthNetCents: 3800,
+      allTimeIncomeCents: 14000,
+      allTimeExpenseCents: 1200,
+      allTimeNetCents: 12800,
+      topIncomeCategory: "merch_sales",
+      topExpenseCategory: "ads",
+      monthLabel: "October 2026",
+    });
+    expect(buildMoneySnapshot([], new Date())).toBeNull();
+  });
+
+  it("the plan reads back all its moves + eligibility, not just the first move", () => {
+    const parsed = parseCoachTodayAction({
+      moneyMoves: ["Move one", "Move two"],
+      eligibility: [
+        { platform: "YouTube", program: "Partner", threshold: "1,000 subs", progress: 42, status: "building", nextStep: "Post twice this week" },
+        { platform: "", program: "ghost" },
+      ],
+      earnings: { rpmNotes: "Music RPM guidance" },
+      nextAction: { label: "Distribute music", href: "/distribute" },
+    });
+    expect(parsed!.moves).toEqual(["Move one", "Move two"]);
+    expect(parsed!.eligibility).toHaveLength(1);
+    expect(parsed!.eligibility[0]).toMatchObject({ platform: "YouTube", progress: 42 });
+    expect(parsed!.earningsNote).toBe("Music RPM guidance");
+  });
+
+  it("the desk asks with the real inputs + the real snapshot (source pins)", () => {
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('fetch("/api/money"');
+    expect(desk).toContain("buildCoachPayload(coachInputs, coachSnapshot)");
+    expect(desk).toContain("buildMoneySnapshot(entries, new Date())");
+    expect(desk).toContain('data-testid="world-coach-form"');
+    expect(desk).toContain('data-testid="world-coach-niche"');
+    expect(desk).toContain('data-testid="world-coach-cadence"');
+    expect(desk).not.toContain("body: JSON.stringify(buildCoachPayload())");
   });
 });

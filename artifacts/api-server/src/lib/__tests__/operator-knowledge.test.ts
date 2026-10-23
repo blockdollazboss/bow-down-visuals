@@ -769,3 +769,157 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
     expect(f.description).toContain("credits apply when you generate");
   });
 });
+
+/* Stack-26 — the World after Open World Phase 1 (shipped to the gated
+   site Oct 22, 2026). Arrival moved out of the King's Hall: visitors
+   now spawn on The King's Plaza, the palace's open-air front square,
+   and walk through the hall's open doors. The World page's own meta
+   moved with the build, but the generated base was not regenerated
+   after the merge that carried the open world in, so the operator
+   kept greeting people at the hall door ("Step into the King's Hall:
+   one shared hall…"). Regeneration from the designated source — the
+   page's usePageTitle meta — is the correction; the audit behind it
+   verified every World fact the base touches against the shipped
+   world code, and these pins hold them: spawn, board locations,
+   caps, guest rules, and the honesty line on the districts. (The
+   district pin below was deliberately revisited after the owner's
+   Stack-100 order built all six districts open — see its comment.) */
+describe("operator knowledge — Stack-26 open-world corrections", () => {
+  const API_SRC = path.resolve(HERE, "..", "..");
+
+  const worldEntry = () => OPERATOR_FEATURES.find((f) => f.path === "/world")!;
+
+  /** A plain numeric constant, parsed from the named source text. */
+  function deriveConst(src: string, constant: string): number {
+    const m = src.match(new RegExp(`(?:export\\s+)?const\\s+${constant}\\s*=\\s*(\\d+)`));
+    expect(m, constant).toBeTruthy();
+    return Number(m![1]);
+  }
+
+  /* The description is the page's designated meta (deepening source:
+     usePageTitle's second argument), re-derived from world.tsx itself
+     so the base and the page can never drift apart silently again. */
+  it("the World description is the page's own plaza meta — arrival is the plaza, not the hall", () => {
+    const page = read(path.join(FE_SRC, "pages", "world.tsx"));
+    const meta = page.match(/usePageTitle\(\s*"[^"]*",\s*"([^"]+)"\)/)?.[1];
+    expect(meta).toBeTruthy();
+    const f = worldEntry();
+    expect(f.descriptionSource).toContain("world.tsx usePageTitle meta description");
+    expect(f.description).toBe(meta);
+    expect(f.description).toContain("King's Plaza");
+    expect(f.description).not.toContain("Step into the King's Hall");
+    expect(f.description).not.toContain("one shared hall");
+  });
+
+  /* Spawn, re-derived on both sides of the wire: the client's floor
+     plan names the courtyard room The King's Plaza and puts its spawn
+     on the promenade's head (0, 31.5), facing the palace; the server's
+     front door (enterPalace) attaches arrivals to that same room. */
+  it("visitors spawn on the King's Plaza — layout, spawn point and the server's front door agree", () => {
+    const layout = read(path.join(FE_SRC, "lib", "world", "palace-layout.ts"));
+    const courtyardId = layout.match(/export const COURTYARD_ID = "([^"]+)"/)?.[1];
+    expect(courtyardId).toBe("world:courtyard");
+    const start = layout.indexOf("[COURTYARD_ID]:");
+    expect(start).toBeGreaterThan(-1);
+    /* The overhaul's item-36 restructure grew the courtyard block
+       well past the old 800-char window — its grounds commentary
+       alone runs longer — and pushed the spawn line outside it.
+       The assertions below are unchanged; the window now covers
+       the whole block, sliced to the next top-level room entry. */
+    const nextRoom = layout.indexOf("\n  [", start + 1);
+    expect(nextRoom).toBeGreaterThan(start);
+    const block = layout.slice(start, nextRoom);
+    expect(block).toMatch(/name:\s*"The King's Plaza"/);
+    expect(block).toMatch(/spawn:\s*\{\s*x:\s*0,\s*z:\s*31\.5\s*\}/);
+
+    const palace = read(path.join(API_SRC, "lib", "world-palace.ts"));
+    const plazaId = palace.match(/export const WORLD_PLAZA_ROOM_ID = "([^"]+)"/)?.[1];
+    expect(plazaId).toBe(courtyardId);
+    expect(palace).toMatch(/enterPalace\(socket[\s\S]{0,400}?plazaRoom\.attach/);
+
+    expect(worldEntry().description).toContain("King's Plaza");
+  });
+
+  /* The board's two stands, re-derived from the station registry:
+     the hall's own and the plaza monument — the same live board on
+     the same panel id, and both open to guests (membersOnly false),
+     exactly as the plaza comment in stations.ts states. */
+  it("the Kingdom Board stands in the hall and on the plaza — same board, open to guests", () => {
+    const stations = read(path.join(FE_SRC, "lib", "world", "stations.ts"));
+    const stationWindow = (id: string): string => {
+      const i = stations.indexOf(`id: "${id}"`);
+      expect(i, `station ${id}`).toBeGreaterThan(-1);
+      return stations.slice(i, i + 500);
+    };
+    const hallBoard = stationWindow("kingdom-board");
+    expect(hallBoard).toContain("roomId: HALL_ROOM_ID");
+    expect(hallBoard).toContain("membersOnly: false");
+    expect(hallBoard).toContain('panel: { kind: "custom", id: "kingdom-board" }');
+    const plazaBoard = stationWindow("kingdom-board-plaza");
+    expect(plazaBoard).toContain("roomId: COURTYARD_ID");
+    expect(plazaBoard).toContain("membersOnly: false");
+    expect(plazaBoard).toContain('panel: { kind: "custom", id: "kingdom-board" }');
+  });
+
+  /* Per-room caps, re-derived from the room server's own constants:
+     30 present, 12 on the voice mesh — the stitched zone did not
+     merge or raise them. */
+  it("per-room caps stay 30 present / 12 voice, re-derived from the room server", () => {
+    const room = read(path.join(API_SRC, "lib", "world-room.ts"));
+    expect(deriveConst(room, "WORLD_PRESENCE_CAP")).toBe(30);
+    expect(deriveConst(room, "WORLD_VOICE_CAP")).toBe(12);
+  });
+
+  /* Guests enter and look — the room server refuses their say frames
+     outright and denies voice joins; the base's "public / open to
+     everyone" line for the World is the whole claim, and it holds. */
+  it("guests are look-only in the room server — no say, no voice", () => {
+    const room = read(path.join(API_SRC, "lib", "world-room.ts"));
+    expect(room).toMatch(/case "say":[\s\S]{0,400}?if \(peer\.guest\) return;/);
+    expect(room).toMatch(/case "voice\.join":[\s\S]{0,300}?voice\.denied", reason: "guests"/);
+    expect(worldEntry().access).toBe("public");
+  });
+
+  /* DELIBERATELY REVISITED — the pin this replaces said, in its own
+     words: "If a district ever opens, this pin is the one that
+     should be revisited — deliberately." The owner ordered all six
+     districts built and open (Stack-100 order, Oct 22, 2026;
+     overhaul items 31–36 delivered them), so this pin now holds the
+     delivered reality instead of the Phase-1 interim: each district
+     is a real room in the palace layout, each threshold an open
+     gate in a real wall gap, the closed districtGate( kit and its
+     "closed-for-now" bar gone from the scene builder — the same
+     facts the overhaul's own district-gates tests pin. The
+     honesty half survives unchanged in spirit: the base names none
+     of the districts, so the operator cannot describe them in any
+     way the code contradicts. */
+  it("the six districts are built and open, and the base does not contradict the code about them", () => {
+    const layout = read(path.join(FE_SRC, "lib", "world", "palace-layout.ts"));
+    for (const name of ["Stage Grounds", "Listening Gardens", "Creation Row", "The Ateliers", "The Boardwalk", "Creator Heights"]) {
+      expect(layout).toContain(`name: "${name}"`);
+    }
+
+    const gatesFile = read(path.join(FE_SRC, "lib", "world", "district-gates.ts"));
+    const openGates = [...gatesFile.matchAll(/\{\s*name: "([^"]+)", kind: "gate",[^\n]*open: true/g)].map((m) => m[1]);
+    expect(openGates).toEqual([
+      "STAGE GROUNDS",
+      "THE BOARDWALK",
+      "CREATION ROW",
+      "THE ATELIERS",
+      "LISTENING GARDENS",
+      "CREATOR HEIGHTS",
+    ]);
+    expect(gatesFile).not.toMatch(/\{\s*name: "[^"]+", kind: "marker"/);
+
+    const scene = read(path.join(FE_SRC, "lib", "world", "hall-scene.ts"));
+    expect(scene).toContain("DISTRICT_THRESHOLDS");
+    expect(scene).not.toContain("districtGate(");
+    expect(scene).not.toContain("closed-for-now");
+
+    const desc = worldEntry().description ?? "";
+    for (const name of ["Stage Grounds", "The Boardwalk", "Listening Gardens", "Creation Row", "The Ateliers", "Creator Heights"]) {
+      expect(desc).not.toContain(name);
+    }
+    expect(desc.toLowerCase()).not.toContain("closed");
+  });
+});

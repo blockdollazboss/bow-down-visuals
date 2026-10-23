@@ -45,4 +45,4 @@ export function shouldShowWorldEntry(pathname: string): boolean {
    door reads as part of the shell in both themes. Fixed top-left,
    directly under the theme toggle's default spot. */
 export const ENTER_WORLD_CLASSNAME =
-  "fixed left-4 top-[4.25rem] z-[9998] flex items-center gap-2 rounded-full border border-primary/30 bg-black/60 px-4 py-2 text-sm font-bold text-primary shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-black/80 light:bg-white/80 light:text-[#7A5A12] light:hover:bg-white";
+  "fixed left-4 top-[4.25rem] z-[9998] flex items-center gap-2 rounded-full border border-primary/30 bg-black/60 px-4 py-3 text-sm font-bold text-primary shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-black/80 light:bg-white/80 light:text-[#7A5A12] light:hover:bg-white";

@@ -32,6 +32,8 @@ import {
 } from "@/components/world/native";
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
+import { GroupsDesk } from "@/components/world/native/GroupsDesk";
+import { ExploreDesk, MyProfileDesk } from "@/components/world/native/SocialWave2";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import {
   CreatorRoomsDirectory,
@@ -40,6 +42,7 @@ import {
 import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
+import { JewelryBench } from "@/components/world/native/JewelryBench";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import {
   buildListeningPartyBody,
@@ -61,11 +64,14 @@ import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { DailyDropCatalog } from "@/components/world/native/DailyDropCatalog";
+import { PacksDesk } from "@/components/world/native/PacksDesk";
+import { BeatsDesk } from "@/components/world/native/BeatsDesk";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
 import { SeasonMarksWall } from "@/components/world/native/SeasonMarksWall";
 import { WinnersCirclePanel } from "@/components/world/native/WinnersCirclePanel";
+import { AccountDesk, GiveawayContestsDesk, JackpotDesk } from "@/components/world/native/TailDesks";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
@@ -504,7 +510,13 @@ function useAuthHeaders() {
   };
 }
 
-function TreasuryDaily({ isLight }: { isLight: boolean }) {
+function TreasuryDaily({
+  isLight,
+  onOpenStation,
+}: {
+  isLight: boolean;
+  onOpenStation?: (stationId: string) => void;
+}) {
   const authHeaders = useAuthHeaders();
   const { refreshProfile } = useAuth();
   const [status, setStatus] = useState<BonusStatus | null>(null);
@@ -625,7 +637,7 @@ function TreasuryDaily({ isLight }: { isLight: boolean }) {
       <DailyDropCard inWorld />
       {/* The whole slate under the day's card (STACK-20 R2 #18):
           use any template, archive the ones you don't want. */}
-      <DailyDropCatalog isLight={isLight} />
+      <DailyDropCatalog isLight={isLight} onOpenStation={onOpenStation} />
     </div>
   );
 }
@@ -1711,7 +1723,16 @@ export default function StationPanel(props: StationPanelProps) {
               {station.id === "post-office" ? (
                 <PostOfficeDesk isLight={isLight} />
               ) : station.id === "community-hall" ? (
-                <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                <div className="flex flex-col gap-6">
+                  <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                  {/* Explore + creator/work search (stack-100 #81):
+                      the blended scene and the discovery box, on the
+                      /api/explore + /api/discovery/search rails. */}
+                  <ExploreDesk isLight={isLight} />
+                  {/* Groups + forums (stack-100 #76/#77): the Hall's
+                      promised crews, on the /api/groups rails. */}
+                  <GroupsDesk isLight={isLight} isGuest={isGuest} />
+                </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
               )}
@@ -1748,11 +1769,25 @@ export default function StationPanel(props: StationPanelProps) {
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
               <EarningsBoard isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
-              <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+              <div className="flex flex-col gap-6">
+                <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                {/* My public page (stack-100 #83/#84): view as a
+                    visitor + the profile editor, on the creator-
+                    profile rails. Members only — a guest never
+                    reaches the board pattern (guest-pitch instead). */}
+                <MyProfileDesk isLight={isLight} />
+                {/* Account settings (stack-100 #94): fields, cursor,
+                    preference switches and the danger zone — export
+                    completes here; deletion hands off to the 2D
+                    settings confirmations by design. */}
+                <AccountDesk isLight={isLight} />
+              </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
               <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
               <PressKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
+              <JewelryBench isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
               <PromoteDesk isLight={isLight} isGuest={isGuest} />
             ) : (
@@ -1777,13 +1812,29 @@ export default function StationPanel(props: StationPanelProps) {
           case "season-marks":
             return <SeasonMarksWall isLight={isLight} />;
           case "winners-circle":
-            return <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />;
+            return (
+              <div className="flex flex-col gap-6">
+                <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />
+                {/* Giveaway contests (stack-100 #95): the 2D fan
+                    giveaways (/api/contests) — a separate system from
+                    World Contests above — on their own rails. */}
+                <GiveawayContestsDesk isLight={isLight} isGuest={isGuest} />
+                {/* The cheat-code jackpot (stack-100 #96): player
+                    entry on the attempt rail + the admin creation
+                    surface, fail-closed, on the cheat-code rails. */}
+                <JackpotDesk isLight={isLight} isGuest={isGuest} />
+              </div>
+            );
           case "treasury-daily":
-            return <TreasuryDaily isLight={isLight} />;
+            return <TreasuryDaily isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "treasury-shark":
             return <TreasuryShark isLight={isLight} />;
           case "treasury-quests":
             return <TreasuryQuests isLight={isLight} onOpenStation={props.onOpenStation} />;
+          case "treasury-packs":
+            return <PacksDesk isLight={isLight} />;
+          case "beats-desk":
+            return <BeatsDesk isLight={isLight} isGuest={isGuest} />;
           case "jukebox":
             return <JukeboxPanel {...props} />;
           case "creator-rooms":

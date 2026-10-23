@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, Image as ImageIcon, type LucideIcon } from "lucide-react";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -16,6 +16,7 @@ import LinkToHitPanel from "@/components/create/LinkToHitPanel";
 import CoverInMotionPanel from "@/components/create/CoverInMotionPanel";
 import { SongAndVideoModule } from "./song-and-video";
 import { HubModule } from "./hub";
+import { WallpapersDesk } from "@/components/wallpapers/WallpapersDesk";
 
 /* Re-exported for App.tsx's convenience — the implementation lives in
    components/create-redirect.tsx so importing it never pulls this page's
@@ -38,7 +39,7 @@ export { CreateRedirect };
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */
 
-export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion";
+export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion" | "wallpapers";
 
 const PANELS: Array<{ key: CreatePanel; labelKey: string; blurbKey: string; icon: LucideIcon }> = [
   { key: "song-video", labelKey: "songVideo", blurbKey: "songVideoBlurb", icon: Mic2 },
@@ -49,11 +50,12 @@ const PANELS: Array<{ key: CreatePanel; labelKey: string; blurbKey: string; icon
   { key: "dream-collab", labelKey: "dreamCollab", blurbKey: "dreamCollabBlurb", icon: Users },
   { key: "link-to-hit", labelKey: "linkToHit", blurbKey: "linkToHitBlurb", icon: Link2 },
   { key: "cover-motion", labelKey: "coverMotion", blurbKey: "coverMotionBlurb", icon: Play },
+  { key: "wallpapers", labelKey: "wallpapers", blurbKey: "wallpapersBlurb", icon: ImageIcon },
   { key: "hub", labelKey: "hub", blurbKey: "hubBlurb", icon: Layers },
 ];
 
 function isPanel(p: string | null): p is CreatePanel {
-  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart" || p === "dream-collab" || p === "link-to-hit" || p === "cover-motion";
+  return p === "song-video" || p === "song" || p === "video" || p === "hub" || p === "cartoon" || p === "coverart" || p === "dream-collab" || p === "link-to-hit" || p === "cover-motion" || p === "wallpapers";
 }
 
 function panelFromSearch(search: string): CreatePanel {
@@ -231,6 +233,7 @@ export default function Create() {
           {panel === "dream-collab" && <DreamCollabPanel />}
           {panel === "link-to-hit" && <LinkToHitPanel />}
           {panel === "cover-motion" && <CoverInMotionPanel />}
+          {panel === "wallpapers" && <WallpapersDesk />}
           {panel === "hub" && <HubModule />}
         </div>
 

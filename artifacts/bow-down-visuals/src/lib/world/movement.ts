@@ -32,10 +32,14 @@ export const MOVER_WALK_SPEED = 3.4;
  *  the way legs actually work. */
 export const MOVER_ACCEL = 14;
 export const MOVER_DECEL = 20;
-/** Floor distance of one full stride cycle (two steps). */
-export const STRIDE_CYCLE_M = 1.5;
-/** Peak bob height (m) at full walk pace. */
-export const BOB_AMP_M = 0.032;
+/** Floor distance of one full stride cycle (two steps). Tuned
+ *  (item 44): 1.5 → 1.6 m — a slightly longer stride cycle slows
+ *  the bob's rhythm at the same pace, grounded rather than busy. */
+export const STRIDE_CYCLE_M = 1.6;
+/** Peak bob height (m) at full walk pace. Tuned (item 44):
+ *  0.032 → 0.026 — the bob should read in the feet, not swim in
+ *  the view; the first-person camera rides a gentled share of it. */
+export const BOB_AMP_M = 0.026;
 
 export interface MoverState {
   /** Smoothed velocity — the body's current belief (m/s). */
@@ -92,6 +96,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  * @param desiredVz desired velocity (world, m/s)
  * @param facingRotY the figure's facing (lean is measured in it)
  * @param dt        frame seconds (clamped internally)
+ * @param bobScale  vertical-motion scale (item 44): 1 = full
+ *                  stride bob + settle; 0 silences both for a
+ *                  reduced-motion walker. Lean and easing are
+ *                  NOT scaled — they are posture, not oscillation.
  */
 export function stepMover(
   s: MoverState,
@@ -100,6 +108,7 @@ export function stepMover(
   desiredVz: number,
   facingRotY: number,
   dt: number,
+  bobScale = 1,
 ): void {
   if (!(dt > 0)) return;
   const step = Math.min(dt, 0.05);
@@ -167,7 +176,7 @@ export function stepMover(
   s.settleVel += settleAcc * step;
   s.settle += s.settleVel * step;
   const settleY = clamp(s.settle, -1.4, 1.4) * 0.08;
-  s.bobY = strideBob + settleY;
+  s.bobY = (strideBob + settleY) * bobScale;
 
   // ── Lean: into the acceleration, and a touch into the pace ───
   const fx = -Math.sin(facingRotY);

@@ -7,7 +7,7 @@ import {
   Video, Loader2, Download, RefreshCw, X, Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { callGenerateApi } from "@/lib/generate-api";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { r2UploadFile } from "@/lib/r2-storage";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -97,6 +97,7 @@ export default function VideoStudio() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   usePageTitle("Video Studio", "Generate cinematic videos with camera controls");
 
   const [mode, setMode] = useState<"text" | "image">("text");
@@ -189,15 +190,56 @@ export default function VideoStudio() {
         setReferenceFile(null);
       }
 
-      // Use existing video generation API
-      const result = await callGenerateApi("/api/generate-video", {
-        prompt: fullPrompt,
-        duration,
-        aspectRatio: aspect,
-        referenceImage: mode === "image" ? (referenceUrl ?? undefined) : undefined,
-      }, token);
+      /* Real video rail (the old /api/generate-video endpoint never
+         existed): POST /api/generate-runway-clip submits the job —
+         gen4.5, flat 400 Visual Bucs, charged server-side only when the
+         clip succeeds — and GET /api/generate-runway-clip/:taskId polls
+         it to completion. Same submit+poll pattern as Cartoon Studio. */
+      const submitRes = await confirmedFetch("/api/generate-runway-clip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          promptText: fullPrompt,
+          ratio: aspect === "9:16" ? "720:1280" : "1280:720",
+          referenceImageUrl: mode === "image" ? (referenceUrl ?? undefined) : undefined,
+          model: "gen4.5",
+        }),
+      });
+      if (!submitRes) return; // user cancelled the credit confirmation
+      const submitData = (await submitRes.json().catch(() => ({}))) as {
+        taskId?: string; error?: string; message?: string; durationSec?: number;
+      };
+      /* gen4.5 clips are a fixed 5s — the rail reports the real length;
+         the hub record below uses it instead of the picker value. */
+      const clipDurationSec = submitData.durationSec ?? 5;
+      if (!submitRes.ok || !submitData.taskId) {
+        throw new Error(submitData.message ?? submitData.error ?? "Generation failed");
+      }
 
-      const videoUrl = (result as unknown as { url?: string })?.url || result?.thumbnailImageUrl;
+      // Poll until the clip lands (the rail charges only on success).
+      let videoUrl: string | null = null;
+      const deadline = Date.now() + 5 * 60_000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const pollRes = await fetch(`/api/generate-runway-clip/${submitData.taskId}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        const pollData = (await pollRes.json().catch(() => ({}))) as {
+          status?: string; url?: string | null; error?: string;
+        };
+        if (pollData.status === "succeeded" && pollData.url) {
+          videoUrl = pollData.url;
+          break;
+        }
+        if (pollData.status === "succeeded") {
+          throw new Error("Generation finished without a clip — no Visual Bucs were charged.");
+        }
+        if (pollData.status === "failed" || pollData.status === "cancelled") {
+          throw new Error(pollData.error ?? "Generation failed");
+        }
+      }
+      if (!videoUrl) throw new Error("Generation timed out — the clip may still finish in the background.");
+
       if (videoUrl) {
         setVideos((prev) => [{
           url: videoUrl,
@@ -211,8 +253,8 @@ export default function VideoStudio() {
           kind: "video",
           url: videoUrl,
           label: prompt.trim().slice(0, 80) || "AI video",
-          detail: `${duration}s · ${aspect} · ${camera}`,
-          meta: { prompt: prompt.trim().slice(0, 300), camera, duration: String(duration), aspect },
+          detail: `${clipDurationSec}s · ${aspect} · ${camera}`,
+          meta: { prompt: prompt.trim().slice(0, 300), camera, duration: String(clipDurationSec), aspect },
         });
         refreshProfile();
       }

@@ -378,52 +378,77 @@ async function recordSnapshot(
 /* GET /api/analytics/overview — free. Live stats per connected platform,
    plus recent follower snapshots for growth sparklines. */
 router.get("/analytics/overview", requireAuth, async (req: Request, res: Response) => {
-  const userId = req.userId!;
-  const rows = await db
-    .select({
-      id: socialAccountsTable.id,
-      platform: socialAccountsTable.platform,
-      username: socialAccountsTable.username,
-      page_name: socialAccountsTable.page_name,
-      page_id: socialAccountsTable.page_id,
-      access_token_encrypted: socialAccountsTable.access_token_encrypted,
-      refresh_token_encrypted: socialAccountsTable.refresh_token_encrypted,
-      token_expires_at: socialAccountsTable.token_expires_at,
-    })
-    .from(socialAccountsTable)
-    .where(eq(socialAccountsTable.user_id, userId));
+  /* S27-49: this handler used to have NO error handling — a failure in
+     the social_accounts read, a platform fan-out, or the snapshots read
+     escaped as an unhandled 500. Now: the snapshots read settles on its
+     own (live platform stats still answer, snapshots degrade to [] with
+     partial: true, earnings.ts-style), and anything else failing returns
+     a controlled 500 in the sibling handlers' { error } shape. */
+  try {
+    const userId = req.userId!;
+    const rows = await db
+      .select({
+        id: socialAccountsTable.id,
+        platform: socialAccountsTable.platform,
+        username: socialAccountsTable.username,
+        page_name: socialAccountsTable.page_name,
+        page_id: socialAccountsTable.page_id,
+        access_token_encrypted: socialAccountsTable.access_token_encrypted,
+        refresh_token_encrypted: socialAccountsTable.refresh_token_encrypted,
+        token_expires_at: socialAccountsTable.token_expires_at,
+      })
+      .from(socialAccountsTable)
+      .where(eq(socialAccountsTable.user_id, userId));
 
-  const platforms = await Promise.all(
-    rows.map((r) => overviewForAccount(userId, r, defaultFetch)),
-  );
+    const platforms = await Promise.all(
+      rows.map((r) => overviewForAccount(userId, r, defaultFetch)),
+    );
 
-  /* Snapshots for the accounts that returned stats (fire-and-forget). */
-  await Promise.all(
-    platforms
-      .filter((p) => p.status === "ok" && p.stats)
-      .map((p) => recordSnapshot(userId, p.platform, p.accountId, p.stats!)),
-  );
+    /* Snapshots for the accounts that returned stats (fire-and-forget). */
+    await Promise.all(
+      platforms
+        .filter((p) => p.status === "ok" && p.stats)
+        .map((p) => recordSnapshot(userId, p.platform, p.accountId, p.stats!)),
+    );
 
-  const snapshots = await db
-    .select({
-      platform: socialStatSnapshotsTable.platform,
-      followers: socialStatSnapshotsTable.followers,
-      recordedAt: socialStatSnapshotsTable.recorded_at,
-    })
-    .from(socialStatSnapshotsTable)
-    .where(eq(socialStatSnapshotsTable.user_id, userId))
-    .orderBy(desc(socialStatSnapshotsTable.recorded_at))
-    .limit(120);
+    const loadSnapshots = async () => {
+      const snapshotRows = await db
+        .select({
+          platform: socialStatSnapshotsTable.platform,
+          followers: socialStatSnapshotsTable.followers,
+          recordedAt: socialStatSnapshotsTable.recorded_at,
+        })
+        .from(socialStatSnapshotsTable)
+        .where(eq(socialStatSnapshotsTable.user_id, userId))
+        .orderBy(desc(socialStatSnapshotsTable.recorded_at))
+        .limit(120);
+      return snapshotRows.map((s) => ({
+        platform: s.platform,
+        followers: s.followers,
+        recordedAt: s.recordedAt?.toISOString() ?? null,
+      }));
+    };
 
-  res.json({
-    platforms,
-    snapshots: snapshots.map((s) => ({
-      platform: s.platform,
-      followers: s.followers,
-      recordedAt: s.recordedAt?.toISOString() ?? null,
-    })),
-    fetchedAt: new Date().toISOString(),
-  });
+    let snapshots: Awaited<ReturnType<typeof loadSnapshots>> = [];
+    let partial = false;
+    try {
+      snapshots = await loadSnapshots();
+    } catch (err) {
+      logger.error({ err, userId }, "[analytics] overview snapshots failed — serving degraded overview");
+      partial = true;
+    }
+
+    res.json({
+      platforms,
+      snapshots,
+      fetchedAt: new Date().toISOString(),
+      /* Additive + backward-compatible: present only on degradation. */
+      ...(partial ? { partial: true } : {}),
+    });
+  } catch (err) {
+    logger.error({ err }, "[analytics] overview failed");
+    res.status(500).json({ error: "Couldn't load your analytics overview — try again." });
+  }
 });
 
 /* ── AI layer ─────────────────────────────────────────────────────────────

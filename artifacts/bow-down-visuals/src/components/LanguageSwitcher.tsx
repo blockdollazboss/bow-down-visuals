@@ -35,7 +35,7 @@ export function LanguageSwitcher({ variant = "icon" }: { variant?: "icon" | "ful
       <Button
         variant="ghost"
         size={variant === "icon" ? "icon" : "sm"}
-        className="gap-1.5"
+        className={variant === "icon" ? "gap-1.5 h-10 w-10 min-h-[40px] min-w-[40px]" : "gap-1.5 min-h-[40px]"}
         aria-label={t("language.select")}
         title={t("language.select")}
         onClick={() => setOpen(!open)}

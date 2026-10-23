@@ -1797,7 +1797,25 @@ router.get("/events/:id/stats", requireAuth, async (req, res) => {
 
 /** Blended "best of everything" payload. Every card deep-links to its destination. */
 router.get("/explore", async (req, res) => {
-  try {
+  /* Per-section settle (earnings.ts pattern, S27-29): Explore is a blend
+     of five independent sources, so one source's failure degrades ONLY
+     its own section to its empty shape ([]); the response carries the
+     surviving sections plus partial/failed_sections so the client can
+     show a per-section error state. The whole request 500s only when
+     EVERY section failed — a total failure, not a blend with gaps. */
+  const settle = async <T,>(
+    name: string,
+    fn: () => Promise<T[]>,
+  ): Promise<{ items: T[]; failed: boolean }> => {
+    try {
+      return { items: await fn(), failed: false };
+    } catch (err) {
+      console.error(`[community] GET /explore ${name} section failed`, err);
+      return { items: [], failed: true };
+    }
+  };
+
+  const shorts = await settle("shorts", async () => {
     const shortRows = await db.select({
       video: profileVideosTable,
       hostSlug: creatorProfilesTable.slug,
@@ -1812,11 +1830,24 @@ router.get("/explore", async (req, res) => {
         sql`${profileVideosTable.durationSec} <= 65`,
       ))
       .orderBy(desc(profileVideosTable.viewCount)).limit(10);
+    return shortRows.map((r) => ({
+      id: r.video.id, title: r.video.title, thumbnail_url: r.video.thumbnailUrl,
+      view_count: r.video.viewCount, duration_sec: r.video.durationSec,
+      creator: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
+    }));
+  });
 
+  const creators = await settle("creators", async () => {
     const creatorRows = await db.select().from(creatorProfilesTable)
       .where(eq(creatorProfilesTable.isPublic, true))
       .orderBy(desc(creatorProfilesTable.followerCount)).limit(10);
+    return creatorRows.map((c) => ({
+      id: c.id, slug: c.slug, display_name: c.displayName, avatar_url: c.avatarUrl,
+      vertical: c.vertical, follower_count: c.followerCount,
+    }));
+  });
 
+  const posts = await settle("posts", async () => {
     const postRows = await db.select({
       post: groupPostsTable,
       groupSlug: groupsTable.slug,
@@ -1827,7 +1858,14 @@ router.get("/explore", async (req, res) => {
       .where(eq(groupsTable.isPublic, true))
       .orderBy(desc(groupPostsTable.likeCount)).limit(10);
     const postCards = await profileCards(postRows.map((r) => r.post.authorUserId));
+    return postRows.map((r) => ({
+      id: r.post.id, body: r.post.body, like_count: r.post.likeCount, created_at: r.post.createdAt,
+      group: { slug: r.groupSlug, name: r.groupName },
+      author: postCards[r.post.authorUserId] ?? null,
+    }));
+  });
 
+  const events = await settle("events", async () => {
     const now = new Date();
     const eventRows = await db.select({
       event: eventsTable,
@@ -1839,35 +1877,44 @@ router.get("/explore", async (req, res) => {
       .innerJoin(creatorProfilesTable, eq(eventsTable.profileId, creatorProfilesTable.id))
       .where(gte(eventsTable.startsAt, now))
       .orderBy(asc(eventsTable.startsAt)).limit(8);
+    return eventRows.map((r) => ({
+      id: r.event.id, title: r.event.title, kind: r.event.kind, starts_at: r.event.startsAt,
+      cover_url: r.event.coverUrl, rsvp_count: r.event.rsvpCount,
+      host: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
+    }));
+  });
 
+  const groups = await settle("groups", async () => {
     const groupRows = await db.select().from(groupsTable)
       .where(eq(groupsTable.isPublic, true))
       .orderBy(desc(groupsTable.memberCount)).limit(8);
+    return groupRows.map((g) => ({
+      id: g.id, slug: g.slug, name: g.name, description: g.description,
+      cover_url: g.coverUrl, member_count: g.memberCount,
+    }));
+  });
 
+  const sections = { shorts, creators, posts, events, groups };
+  const failedSections = Object.entries(sections)
+    .filter(([, s]) => s.failed)
+    .map(([name]) => name);
+
+  if (failedSections.length === Object.keys(sections).length) {
+    console.error("[community] GET /explore failed — every section source failed");
+    res.status(500).json({ error: "Couldn't load Explore — try again." });
+    return;
+  }
+
+  try {
     res.json(await refreshSupabaseStorageUrlsDeep({
-      shorts: shortRows.map((r) => ({
-        id: r.video.id, title: r.video.title, thumbnail_url: r.video.thumbnailUrl,
-        view_count: r.video.viewCount, duration_sec: r.video.durationSec,
-        creator: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
-      })),
-      creators: creatorRows.map((c) => ({
-        id: c.id, slug: c.slug, display_name: c.displayName, avatar_url: c.avatarUrl,
-        vertical: c.vertical, follower_count: c.followerCount,
-      })),
-      posts: postRows.map((r) => ({
-        id: r.post.id, body: r.post.body, like_count: r.post.likeCount, created_at: r.post.createdAt,
-        group: { slug: r.groupSlug, name: r.groupName },
-        author: postCards[r.post.authorUserId] ?? null,
-      })),
-      events: eventRows.map((r) => ({
-        id: r.event.id, title: r.event.title, kind: r.event.kind, starts_at: r.event.startsAt,
-        cover_url: r.event.coverUrl, rsvp_count: r.event.rsvpCount,
-        host: { slug: r.hostSlug, display_name: r.hostName, avatar_url: r.hostAvatar },
-      })),
-      groups: groupRows.map((g) => ({
-        id: g.id, slug: g.slug, name: g.name, description: g.description,
-        cover_url: g.coverUrl, member_count: g.memberCount,
-      })),
+      shorts: shorts.items,
+      creators: creators.items,
+      posts: posts.items,
+      events: events.items,
+      groups: groups.items,
+      /* Additive + backward-compatible: older clients ignore these. */
+      partial: failedSections.length > 0,
+      failed_sections: failedSections,
     }));
   } catch (err) {
     console.error("[community] GET /explore failed", err);

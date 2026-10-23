@@ -31,7 +31,7 @@ import {
   ARTIST_IMAGE_MODELS,
   type ArtistImageModel,
 } from "../../components/generate-artist-image";
-import { buildSchedulerHref } from "../scheduler-handoff";
+import type { SchedulerPrefill } from "./scheduler-desk";
 
 export type CreateDeskId =
   | "song-desk"
@@ -39,9 +39,11 @@ export type CreateDeskId =
   | "song-video-desk"
   | "cover-art-desk"
   | "thumbnail-desk"
-  | "audio-desk";
+  | "audio-desk"
+  | "hook-desk";
 
-/** The six Create Wing stations whose panel pattern is "create". */
+/** The seven Create Wing stations whose panel pattern is "create"
+ *  (the Hook Desk joined with Stack-100 item 97's closing part). */
 export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "song-desk",
   "video-desk",
@@ -49,6 +51,7 @@ export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "cover-art-desk",
   "thumbnail-desk",
   "audio-desk",
+  "hook-desk",
 ];
 
 export function isCreateDeskId(id: string): id is CreateDeskId {
@@ -693,12 +696,24 @@ export function buildEditorProjectPayload(input: EditorSeedInput): Record<string
 
 /* ─── Next-step hrefs the pages themselves offer after a make ────── */
 
-/** CoverInMotionPanel's "Post it →" rail: the scheduler handoff. */
-export function scheduleHrefForMedia(mediaUrl: string, mediaType: "video" | "image", caption: string): string {
-  return buildSchedulerHref({ caption, media: mediaUrl, mediaType });
+/** Stack-100 #46: a finished creation's "Schedule it" chip hands
+ *  the asset to the IN-WORLD scheduler compose (lib/world/
+ *  scheduler-desk) — the post completes in-world on the real
+ *  scheduler rails. This replaces the old buildSchedulerHref
+ *  target=_blank exit for world surfaces; the 2D pages keep their
+ *  own scheduler-handoff protocol. */
+export function schedulePrefillForMedia(
+  mediaUrl: string,
+  mediaType: "video" | "image",
+  caption: string,
+): SchedulerPrefill {
+  return { mediaUrl, mediaType, caption };
 }
 
-/** cover-art.tsx's result "Distribute" rail. */
+/** cover-art.tsx's result "Distribute" rail — the 2D page's own
+ *  handoff URL. The in-world Cover Desk's "Release it" chip no
+ *  longer rides it (Stack-100 #55: the chip opens the in-world
+ *  Release Desk prefilled instead); this stays for the 2D shape. */
 export function distributeHrefForCover(coverUrl: string, title: string): string {
   return `/distribute?cover=${encodeURIComponent(coverUrl)}&title=${encodeURIComponent(title)}`;
 }
@@ -840,6 +855,71 @@ export function buildPublishTrackPayload(input: {
     download_price_cents: 0,
     is_published: true,
   };
+}
+
+/* ─── Stack-100 #49 — Song Desk finishers ──────────────────────────
+   The finished-song action row's last two pieces, on the exact
+   rails make-song.tsx docks beside GenerationResult:
+   - "Make a cover" (CoverSongModal): presets from
+     GET /api/song-cover/presets, the make itself
+     POST /api/song-cover (registry 400, confirmed before it runs);
+   - Synced-lyrics .lrc export (LrcExportModal): tap-to-sync FREE
+     or AI align at LRC_AI_ALIGN_CREDITS (200) on
+     /api/lyric-video/align, then download / copy / release-asset.
+   Both ride the SITE'S OWN modal components in-world, so the
+   rails, prices and confirmation law cannot drift; the seams
+   below pin the source the desk hands those modals: the audio
+   the desk itself made + the package's own lyrics/title. */
+
+export function songCoverCost(): number {
+  return registryCost("/api/song-cover");
+}
+
+/** The LrcExportModal source for a finished desk song — null when
+ *  there is honestly nothing to export: no made audio yet (the
+ *  aligner needs a real hosted URL) or the package carries no
+ *  lyrics (nothing to sync). */
+export function lrcSourceForSong(input: {
+  audioUrl: string | null;
+  title: string;
+  artistName?: string;
+  rawResult: string | null;
+}): { audioUrl: string; title: string; artistName?: string; lyrics: string } | null {
+  if (!input.audioUrl || input.audioUrl.startsWith("blob:")) return null;
+  if (!input.rawResult) return null;
+  const lyrics = packageSectionOf(input.rawResult, "FULL LYRICS");
+  if (!lyrics.trim()) return null;
+  return {
+    audioUrl: input.audioUrl,
+    title: input.title.trim() || "Untitled Song",
+    artistName: input.artistName?.trim() ? input.artistName.trim() : undefined,
+    lyrics,
+  };
+}
+
+/** The CoverSongModal source for a finished desk song — null
+ *  until the desk holds real hosted audio (the server downloads
+ *  it; a blob: URL could never be covered). */
+export function coverSourceForSong(input: {
+  audioUrl: string | null;
+  title: string;
+  artistName?: string;
+}): { audioUrl: string; title: string; artistName?: string } | null {
+  if (!input.audioUrl || input.audioUrl.startsWith("blob:")) return null;
+  return {
+    audioUrl: input.audioUrl,
+    title: input.title.trim() || "Untitled Song",
+    artistName: input.artistName?.trim() ? input.artistName.trim() : undefined,
+  };
+}
+
+/** The package's own lyrics for the cover modal's lyrics field
+ *  (the modal carries them into the cover, exactly as make-song
+ *  passes extractSongPackage's lyrics). "" when the package
+ *  carries none. */
+export function packageLyricsOf(rawResult: string | null): string {
+  if (!rawResult) return "";
+  return packageSectionOf(rawResult, "FULL LYRICS");
 }
 
 /** The creator's first profile id from GET /api/creator-profiles —
@@ -1490,6 +1570,12 @@ export interface CtrPrediction {
   reasoning: string;
   disclaimer: string;
   overallScores: number[];
+  /** Per-candidate improvement tips, in candidate order — the
+   *  exact strings the apply-suggestions rail consumes (the 2D
+   *  studio joins one candidate's tips with "\n"). Candidates
+   *  whose analysis carried no usable tips get an empty list, and
+   *  the bench offers no apply for them. */
+  tips: string[][];
 }
 
 export function ctrPredictionOfResponse(json: unknown): CtrPrediction | null {
@@ -1505,10 +1591,17 @@ export function ctrPredictionOfResponse(json: unknown): CtrPrediction | null {
   };
   if (typeof r.winnerIndex !== "number" || !Array.isArray(r.analyses)) return null;
   const overallScores: number[] = [];
+  const tips: string[][] = [];
   for (const a of r.analyses) {
     const scores = a && typeof a === "object" ? (a as { scores?: unknown }).scores : null;
     const overall = scores && typeof scores === "object" ? (scores as { overall?: unknown }).overall : null;
     overallScores.push(typeof overall === "number" ? overall : 0);
+    const rawTips = a && typeof a === "object" ? (a as { tips?: unknown }).tips : null;
+    tips.push(
+      Array.isArray(rawTips)
+        ? rawTips.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+        : [],
+    );
   }
   return {
     winnerIndex: r.winnerIndex,
@@ -1516,7 +1609,32 @@ export function ctrPredictionOfResponse(json: unknown): CtrPrediction | null {
     reasoning: typeof r.reasoning === "string" ? r.reasoning : "",
     disclaimer: typeof r.disclaimer === "string" ? r.disclaimer : "",
     overallScores,
+    tips,
   };
+}
+
+/* ─── Stack-100 #50 — the CTR apply-suggestions rail ───────────────
+   thumbnail-studio.tsx's applySuggestions, mirrored exactly:
+   POST /api/thumbnail-test/improve (multipart, registry 200) with
+   the candidate's own File under "thumbnail" and that candidate's
+   tips joined with "\n" under "tips"; the answer carries the
+   improved image's permanent url as { imageUrl }. The server
+   refuses a tips-less call (400 missing_tips), so the bench only
+   offers apply for a candidate whose analysis carried tips. */
+
+export const THUMBNAIL_IMPROVE_FIELD = "thumbnail";
+
+export function thumbnailImproveFields(input: { tips: readonly string[] }): Array<[string, string]> {
+  return [["tips", input.tips.join("\n")]];
+}
+
+/** The improved image's url from the improve response — null when
+ *  the answer carries none, so the bench never dresses a failure
+ *  up as an improved thumbnail. */
+export function thumbnailImprovedUrlOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const url = (json as { imageUrl?: unknown }).imageUrl;
+  return typeof url === "string" && url ? url : null;
 }
 
 /** The thumbnail-test form's text fields (the image Files ride

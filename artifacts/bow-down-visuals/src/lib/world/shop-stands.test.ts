@@ -797,8 +797,11 @@ describe("source pins — stand settings + sales wiring (Stack-4 wave-2 #6)", ()
     expect(standsSrc).toContain("SHOP_AI_SHOP_DESCRIPTION_COST_VB");
   });
 
-  it("custom domains are named as website-side — the stand never fakes a domain rail", () => {
-    expect(standsSrc).toContain("Custom domains live on your shop&rsquo;s page on the website");
-    expect(standsSrc).not.toContain("/domain");
+  it("custom domains ride the real domains rail in the stand's settings (Stack-100 #68)", () => {
+    /* Was: domains named as website-side. #68 superseded that —
+       the settings now mount the DomainsDesk on lib/domains'
+       own rails; the old website-only line is retired. */
+    expect(standsSrc).toContain("<DomainsDesk");
+    expect(standsSrc).not.toContain("Custom domains live on your shop&rsquo;s page on the website");
   });
 });

@@ -136,23 +136,34 @@ export function LinkInBioBuilder() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     setLoadError(null);
+    /* Per-source settle (S27-44): the bio-pages load is the page; the
+       artist-vaults read is an auxiliary prefill source. A rejected or
+       failed vaults fetch degrades on its own — it must never take the
+       bio-pages load (or the whole page's error state) down with it. */
     try {
-      const [pagesRes, vaultsRes] = await Promise.all([
+      const [pagesSettled, vaultsSettled] = await Promise.allSettled([
         authed("/api/bio-pages/me"),
         authed("/api/artist-vaults"),
       ]);
-      if (pagesRes.ok) {
-        const d = await pagesRes.json();
-        const list: BioPageFull[] = d.pages ?? [];
-        setPages(list);
-        const first = list[0];
-        if (first) { setPageId(first.id); fillForm(first); }
-      } else {
-        throw new Error(t("linkInBio.errors.loadFailed"));
+      if (vaultsSettled.status === "fulfilled" && vaultsSettled.value.ok) {
+        const v = await vaultsSettled.value.json().catch(() => null);
+        if (v) setVaults(v.vaults ?? v ?? []);
       }
-      if (vaultsRes.ok) {
-        const v = await vaultsRes.json();
-        setVaults(v.vaults ?? v ?? []);
+      if (pagesSettled.status === "fulfilled") {
+        const pagesRes = pagesSettled.value;
+        if (pagesRes.ok) {
+          const d = await pagesRes.json();
+          const list: BioPageFull[] = d.pages ?? [];
+          setPages(list);
+          const first = list[0];
+          if (first) { setPageId(first.id); fillForm(first); }
+        } else {
+          throw new Error(t("linkInBio.errors.loadFailed"));
+        }
+      } else {
+        throw pagesSettled.reason instanceof Error
+          ? pagesSettled.reason
+          : new Error(t("linkInBio.errors.loadFailed"));
       }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : t("linkInBio.errors.loadFailed"));

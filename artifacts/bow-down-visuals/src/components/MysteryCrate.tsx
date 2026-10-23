@@ -6,6 +6,7 @@ import { Timer, Sparkles, X, Gift, Loader2, Package } from "lucide-react";
 import { DraggableWidget } from "@/components/draggable-widget";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { coerceCooldownSeconds, isUsableSeconds } from "@/lib/cooldown";
+import { mediaBaseUrl } from "@/lib/media-cdn";
 
 interface BoxPrize {
   credits: number;
@@ -171,6 +172,7 @@ export function MysteryCrate() {
   }
 
   function renderCrate() {
+    const base = mediaBaseUrl();
     const isShaking = phase === "shaking";
     const isOpening = phase === "opening" || phase === "revealed";
     
@@ -215,7 +217,7 @@ export function MysteryCrate() {
             {/* Visual Bucs emblem */}
             <div className="absolute inset-0 flex items-center justify-center">
               <img
-                src="/images/visual-bucs-icon.webp"
+                src={`${base}images/visual-bucs-icon.webp`}
                 alt="Visual Bucs"
                 className="h-16 w-16 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
                 draggable={false}

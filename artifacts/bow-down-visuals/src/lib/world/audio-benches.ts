@@ -125,7 +125,7 @@ export const AUDIO_BENCHES: readonly AudioBenchDef[] = [
   },
   {
     id: "harmony",
-    label: "Harmony — classic doubles",
+    label: "Harmony — classic + AI",
     input: "url",
     endpoint: "/api/generate-harmony",
     pollPath: null,
@@ -308,15 +308,17 @@ export function buildVocalPolishPayload(input: {
   };
 }
 
-/** HarmonyGeneratorModal's classic-mode body (the registry-priced
- *  mode; the AI mode's price comes from the modes probe and stays
- *  on the website until it is registry-priced). */
+/** HarmonyGeneratorModal's generate body. Classic is the
+ *  registry-priced mode (300); the AI mode's price comes from the
+ *  modes probe below (Stack-100 #51) and is confirmed through the
+ *  modal's own override-cost confirmation, never invented here. */
 export function buildHarmonyPayload(input: {
   songId?: string;
   audioUrl: string;
   keyHint?: string;
   style: string;
   mixLevel: number;
+  mode?: "classic" | "ai";
 }): Record<string, unknown> {
   return {
     songId: input.songId,
@@ -324,8 +326,138 @@ export function buildHarmonyPayload(input: {
     keyHint: input.keyHint?.trim() ? input.keyHint.trim() : undefined,
     style: input.style,
     mixLevel: input.mixLevel,
-    mode: "classic",
+    mode: input.mode ?? "classic",
   };
+}
+
+/* ─── Stack-100 #51 — Harmony AI mode: the modes probe ─────────────
+   HarmonyGeneratorModal's capability probe, mirrored exactly:
+   GET /api/generate-harmony/modes (free, no charge — the modal
+   reads it with the confirmation skipped) answers the two modes
+   with their REAL server prices + availability, the style list,
+   and the defaults. The desk prices AI harmony ONLY from this
+   probe; when the probe hasn't answered, the modal's own fallback
+   figures (classic 300 / AI 600) are what the modal itself shows,
+   so the desk shows the same ones — and the server re-validates
+   on generate either way. */
+
+export const HARMONY_MODES_ENDPOINT = "/api/generate-harmony/modes";
+
+export interface HarmonyModeInfo {
+  key: "classic" | "ai";
+  label: string;
+  blurb: string;
+  /** The mode's real price in Visual Bucs, from the probe. */
+  cost: number;
+  available: boolean;
+  missing: string[];
+}
+
+export interface HarmonyModesProbe {
+  modes: HarmonyModeInfo[];
+  styles: Array<{ key: string; label: string }>;
+  defaultStyle: string | null;
+  defaultMixLevel: number | null;
+}
+
+/** The modal's own pre-probe fallbacks (HarmonyGeneratorModal:
+ *  classicCost ?? 300, aiCost ?? 600). */
+export const HARMONY_CLASSIC_FALLBACK_COST = 300;
+export const HARMONY_AI_FALLBACK_COST = 600;
+
+export function parseHarmonyModesResponse(json: unknown): HarmonyModesProbe | null {
+  if (!json || typeof json !== "object") return null;
+  const r = json as Record<string, unknown>;
+  if (!Array.isArray(r["modes"])) return null;
+  const modes: HarmonyModeInfo[] = [];
+  for (const raw of r["modes"]) {
+    if (!raw || typeof raw !== "object") continue;
+    const m = raw as Record<string, unknown>;
+    if (m["key"] !== "classic" && m["key"] !== "ai") continue;
+    modes.push({
+      key: m["key"] as "classic" | "ai",
+      label: typeof m["label"] === "string" ? m["label"] : m["key"] === "ai" ? "AI harmonies" : "Classic doubles",
+      blurb: typeof m["blurb"] === "string" ? m["blurb"] : "",
+      cost: typeof m["cost"] === "number" && Number.isFinite(m["cost"]) ? m["cost"] : m["key"] === "ai" ? HARMONY_AI_FALLBACK_COST : HARMONY_CLASSIC_FALLBACK_COST,
+      available: m["available"] === true,
+      missing: Array.isArray(m["missing"]) ? m["missing"].filter((x): x is string => typeof x === "string") : [],
+    });
+  }
+  if (modes.length === 0) return null;
+  const styles: Array<{ key: string; label: string }> = [];
+  if (Array.isArray(r["styles"])) {
+    for (const raw of r["styles"]) {
+      if (!raw || typeof raw !== "object") continue;
+      const s = raw as Record<string, unknown>;
+      if (typeof s["key"] === "string" && s["key"]) {
+        styles.push({ key: s["key"], label: typeof s["label"] === "string" ? s["label"] : s["key"] });
+      }
+    }
+  }
+  return {
+    modes,
+    styles,
+    defaultStyle: typeof r["defaultStyle"] === "string" ? r["defaultStyle"] : null,
+    defaultMixLevel: typeof r["defaultMixLevel"] === "number" ? r["defaultMixLevel"] : null,
+  };
+}
+
+/** One mode's price from the probe (or the modal's fallback when
+ *  the probe hasn't answered / doesn't carry the mode). */
+export function harmonyModeCost(probe: HarmonyModesProbe | null, mode: "classic" | "ai"): number {
+  const found = probe?.modes.find((m) => m.key === mode);
+  if (found) return found.cost;
+  return mode === "ai" ? HARMONY_AI_FALLBACK_COST : HARMONY_CLASSIC_FALLBACK_COST;
+}
+
+/** The modal's preselect rule: AI when the probe says the AI mode
+ *  is available, classic otherwise (and classic before any probe). */
+export function harmonyDefaultMode(probe: HarmonyModesProbe | null): "classic" | "ai" {
+  return probe?.modes.find((m) => m.key === "ai")?.available ? "ai" : "classic";
+}
+
+/* ─── Stack-100 #51 — stems remix-levels mixdown ───────────────────
+   audio-studio.tsx's StemsPanel exportRemix, mirrored exactly:
+   POST /api/stems/:jobId/remix with { levels } for the stems the
+   JOB actually returned (the classic four, or all six on a Pro
+   job — the server validates against the job's own key set).
+   FREE: the split was paid for; the remix charges nothing. Each
+   level is 0–2 (0 = muted, 1 = unity, 2 = double). */
+
+export const STEM_REMIX_MIN_LEVEL = 0;
+export const STEM_REMIX_MAX_LEVEL = 2;
+
+/** A stem's key from the stems bench's result label ("Stem —
+ *  vocals" → "vocals"). Labels in any other shape carry no key. */
+export function stemKeyOfResultLabel(label: string): string | null {
+  const m = /^Stem — (.+)$/.exec(label.trim());
+  return m && m[1] ? m[1] : null;
+}
+
+/** The remix body for the stems a split actually returned: one
+ *  level per returned stem, clamped to the server's 0–2 range;
+ *  stems the job didn't return never ride (the server would
+ *  refuse the whole mix). Missing levels default to unity. */
+export function buildStemRemixPayload(
+  stemKeys: readonly string[],
+  levels: Readonly<Record<string, number>>,
+): { levels: Record<string, number> } {
+  const out: Record<string, number> = {};
+  for (const key of stemKeys) {
+    const raw = typeof levels[key] === "number" && Number.isFinite(levels[key]) ? (levels[key] as number) : 1;
+    out[key] = Math.min(STEM_REMIX_MAX_LEVEL, Math.max(STEM_REMIX_MIN_LEVEL, raw));
+  }
+  return { levels: out };
+}
+
+export function stemRemixUrlOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const url = (json as { url?: unknown }).url;
+  return typeof url === "string" && url ? url : null;
+}
+
+export function stemRemixPath(jobId: string): string {
+  return `/api/stems/${jobId}/remix`;
 }
 
 /** SingingVoiceModal startConversion's body. */

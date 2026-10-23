@@ -61,8 +61,11 @@
  *                                            for a stage video
  *     { type: "stage.end" }                   holder: release the
  *                                            stage + screen to idle
- *     { type: "jukebox.add", trackId }        Music Hall: put a song
- *                                            on the room jukebox
+ *     { type: "jukebox.add", trackId }        put a song on the
+ *                                            palace jukebox (it stands
+ *                                            in the Music Hall; adds
+ *                                            sent from other rooms
+ *                                            forward there — item 47)
  *                                            (members only; id only —
  *                                            verified published track)
  *     { type: "jukebox.playpause", playing }  the song adder (or the
@@ -568,6 +571,28 @@ export interface WorldJukeboxEntry {
   addedByUserId?: string;
 }
 
+/** A jukebox add sent from somewhere else in the palace (stack-100
+ *  item 47): the Song Desk stands in the Create Wing, but the
+ *  palace's one jukebox stands in the Music Hall — an add fired from
+ *  another room used to die silently on that room's closed door.
+ *  The originating room packages everything the Music Hall's
+ *  authority needs (the same facts its own peer would carry) plus
+ *  the way back: `deny` answers the requester in the room they
+ *  stand in, and `present` says whether they are still in the
+ *  palace at all when the async track verification lands. The
+ *  Music Hall runs the identical checks either way — forwarding
+ *  moves the request, never the authority. */
+export interface ForwardedJukeboxAdd {
+  userId: string | null;
+  guest: boolean;
+  admin: boolean;
+  peerId: string;
+  displayName: string;
+  trackId: string;
+  deny: (reason: string) => void;
+  present: () => boolean;
+}
+
 /** The jukebox state every client in the Music Hall renders from —
  *  sent in `welcome` and broadcast as `jukebox.state` on change. */
 export interface WorldJukeboxBroadcast {
@@ -1058,6 +1083,14 @@ export class WorldRoom {
    *  the room-scoped frames (drop.landed, peer.moment) always fire
    *  regardless. */
   onAnnounce: ((announce: PalaceAnnouncement) => void) | null = null;
+  /** Fired when a peer in THIS room asks for the palace jukebox
+   *  (item 47): only the Music Hall runs one, so a room without a
+   *  jukebox hands the add to the palace through this hook (wired
+   *  by WorldPalace to the Music Hall room's
+   *  acceptForwardedJukeboxAdd) instead of dropping it. A
+   *  standalone room leaves it unset and refuses the frame as
+   *  before. */
+  onJukeboxForward: ((add: ForwardedJukeboxAdd, now: number) => void) | null = null;
   private peers = new Map<WsClientSocket, WorldPeer>();
   private byPeerId = new Map<string, WorldPeer>();
   private counter = 0;
@@ -1979,6 +2012,78 @@ export class WorldRoom {
 
   /* ── The jukebox (Music Hall) ───────────────────────────────────── */
 
+  /** A jukebox add forwarded from another room of the palace
+   *  (item 47 — the Song Desk's chip in the Create Wing). Runs the
+   *  exact authority a Music Hall peer's own add runs; the only
+   *  difference is the entry carries the adder's account id, so
+   *  their transport hand (play/pause, skip, remove) holds when
+   *  they walk into the Music Hall — possibly under a fresh peerId
+   *  after a reconnect — just as a listening-party host's does. */
+  acceptForwardedJukeboxAdd(add: ForwardedJukeboxAdd, now: number): void {
+    this.enqueueJukeboxAdd(add, now, true);
+  }
+
+  /** The one jukebox-add authority, wherever the ask was made:
+   *  members only (guests listen), a booked listening party owns
+   *  its queue, the injected resolver re-verifies a real published
+   *  track before anything reaches the room's speakers, and the
+   *  cap is judged at landing time. A refusal changes nothing and
+   *  answers through the requester's own way back. */
+  private enqueueJukeboxAdd(add: ForwardedJukeboxAdd, now: number, forwarded: boolean): void {
+    if (!this.jukeboxEnabled) return;
+    if (add.guest || !add.userId) {
+      add.deny("guests");
+      return;
+    }
+    /* A listening party owns the queue for its slot: open adds
+     * wait for the party to end. The party's host (and the house
+     * host) may still extend their own party's queue. */
+    if (this.listeningParty && !add.admin && add.userId !== this.listeningParty.hostUserId) {
+      add.deny("listening-party");
+      return;
+    }
+    if (!add.trackId || add.trackId.length > 96) return;
+    const resolveTrack = this.deps.resolveJukeboxTrack;
+    if (!resolveTrack) return;
+    const userId = add.userId;
+    void resolveTrack(userId, add.trackId)
+      .then((ref) => {
+        if (!add.present()) return; // left the palace already
+        if (!ref) {
+          add.deny("unplayable");
+          return;
+        }
+        /* Capacity is judged at landing time, not send time —
+         * two adds in flight can't both slip past the cap. */
+        this.advanceJukebox(now);
+        const total = this.jukeboxQueue.length + (this.jukeboxCurrent ? 1 : 0);
+        if (total >= JUKEBOX_QUEUE_CAP) {
+          add.deny("queue-full");
+          return;
+        }
+        const entry: WorldJukeboxEntry = {
+          entryId: `j${++this.jukeboxEntryCounter}`,
+          track: ref,
+          addedByPeerId: add.peerId,
+          addedByName: add.displayName,
+          ...(forwarded ? { addedByUserId: userId } : {}),
+        };
+        if (!this.jukeboxCurrent) {
+          /* An idle jukebox starts the song now — adding IS
+           * asking to hear it. */
+          this.jukeboxCurrent = {
+            entry,
+            playback: { playing: true, anchorPosSec: 0, anchorAtMs: now },
+          };
+        } else {
+          this.jukeboxQueue.push(entry);
+        }
+        this.broadcastJukebox(now);
+      })
+      .catch(() => undefined);
+  }
+
+
   /** Where the current song is right now, from its anchor. */
   private jukeboxPositionAt(now: number): number {
     const cur = this.jukeboxCurrent;
@@ -2407,67 +2512,34 @@ export class WorldRoom {
         return;
       }
       case "jukebox.add": {
-        /* Put a song on the Music Hall jukebox. Members only —
-         * guests listen. The id is all the client sends; the
-         * injected resolver re-verifies a real published track
-         * before anything reaches the room's speakers, exactly like
-         * a stage.video pick. A refused pick changes nothing and
-         * says so (jukebox.denied) instead of failing silently. */
-        if (!this.jukeboxEnabled) return;
-        if (peer.guest || !peer.userId) {
-          this.send(peer, { type: "jukebox.denied", reason: "guests" });
-          return;
+        /* Put a song on the palace jukebox. Members only — guests
+         * listen. The id is all the client sends; the injected
+         * resolver re-verifies a real published track before
+         * anything reaches the room's speakers, exactly like a
+         * stage.video pick. A refused pick changes nothing and says
+         * so (jukebox.denied) instead of failing silently.
+         *
+         * The jukebox itself stands in the Music Hall; an add sent
+         * from any other room (the Song Desk's chip in the Create
+         * Wing, item 47) is FORWARDED there through the palace
+         * hook — the Music Hall's authority runs it unchanged and
+         * any denial travels back to the room the asker stands in.
+         * A room with no palace hook keeps the old closed door. */
+        const add: ForwardedJukeboxAdd = {
+          userId: peer.userId,
+          guest: peer.guest,
+          admin: peer.admin,
+          peerId: peer.peerId,
+          displayName: peer.displayName,
+          trackId: typeof frame["trackId"] === "string" ? frame["trackId"] : "",
+          deny: (reason) => this.send(peer, { type: "jukebox.denied", reason }),
+          present: () => peer.socket.readyState === WS_OPEN,
+        };
+        if (this.jukeboxEnabled) {
+          this.enqueueJukeboxAdd(add, now, false);
+        } else {
+          this.onJukeboxForward?.(add, now);
         }
-        /* A listening party owns the queue for its slot: open adds
-         * wait for the party to end. The party's host (and the house
-         * host) may still extend their own party's queue. */
-        if (
-          this.listeningParty &&
-          !peer.admin &&
-          peer.userId !== this.listeningParty.hostUserId
-        ) {
-          this.send(peer, { type: "jukebox.denied", reason: "listening-party" });
-          return;
-        }
-        const trackId = typeof frame["trackId"] === "string" ? frame["trackId"] : "";
-        if (!trackId || trackId.length > 96) return;
-        const resolveTrack = this.deps.resolveJukeboxTrack;
-        if (!resolveTrack) return;
-        const userId = peer.userId;
-        void resolveTrack(userId, trackId)
-          .then((ref) => {
-            if (this.byPeerId.get(peer.peerId) !== peer) return; // left already
-            if (!ref) {
-              this.send(peer, { type: "jukebox.denied", reason: "unplayable" });
-              return;
-            }
-            /* Capacity is judged at landing time, not send time —
-             * two adds in flight can't both slip past the cap. */
-            this.advanceJukebox(now);
-            const total = this.jukeboxQueue.length + (this.jukeboxCurrent ? 1 : 0);
-            if (total >= JUKEBOX_QUEUE_CAP) {
-              this.send(peer, { type: "jukebox.denied", reason: "queue-full" });
-              return;
-            }
-            const entry: WorldJukeboxEntry = {
-              entryId: `j${++this.jukeboxEntryCounter}`,
-              track: ref,
-              addedByPeerId: peer.peerId,
-              addedByName: peer.displayName,
-            };
-            if (!this.jukeboxCurrent) {
-              /* An idle jukebox starts the song now — adding IS
-               * asking to hear it. */
-              this.jukeboxCurrent = {
-                entry,
-                playback: { playing: true, anchorPosSec: 0, anchorAtMs: now },
-              };
-            } else {
-              this.jukeboxQueue.push(entry);
-            }
-            this.broadcastJukebox(now);
-          })
-          .catch(() => undefined);
         return;
       }
       case "jukebox.playpause": {

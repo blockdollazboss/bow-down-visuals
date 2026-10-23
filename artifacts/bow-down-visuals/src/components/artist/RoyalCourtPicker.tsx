@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Crown, X, ChevronUp, ChevronDown, Search, AlertTriangle, RotateCcw, Check } from "lucide-react";
 import {
-  fetchMyCourt,
+  fetchCourtPickerSources,
   fetchCourtCandidates,
   saveMyCourt,
   addToCourt,
@@ -35,6 +35,7 @@ export default function RoyalCourtPicker() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
@@ -62,21 +63,31 @@ export default function RoyalCourtPicker() {
     setLoading(true);
     setLoadError(null);
     (async () => {
+      /* Per-source settle (S27-35): the Court and the candidates load
+         independently. A candidates failure keeps the loaded Court on
+         screen and shows its own error under the candidate list; only
+         a Court failure is the picker's load error. */
+      const sources = await fetchCourtPickerSources();
+      if (cancelled) return;
       try {
-        const [court, following] = await Promise.all([fetchMyCourt(), fetchCourtCandidates()]);
-        if (cancelled) return;
-        remember(court);
-        remember(following);
-        setCourtIds(court.map((m) => m.profileId));
-        setCandidates(following);
-      } catch (err) {
-        if (cancelled) return;
-        const status = (err as { status?: number }).status;
-        setLoadError(
-          status === 404
-            ? "Your creator profile comes first — save it, then set your Front Row."
-            : "Couldn't load your Front Row. Check your connection and try again.",
-        );
+        if (sources.court) {
+          remember(sources.court);
+          setCourtIds(sources.court.map((m) => m.profileId));
+        } else {
+          const status = (sources.courtError as { status?: number } | null)?.status;
+          setLoadError(
+            status === 404
+              ? "Your creator profile comes first — save it, then set your Front Row."
+              : "Couldn't load your Front Row. Check your connection and try again.",
+          );
+        }
+        if (sources.candidates) {
+          remember(sources.candidates);
+          setCandidates(sources.candidates);
+          setCandidatesError(null);
+        } else if (sources.court) {
+          setCandidatesError("Couldn't load the creators you follow. Your Front Row above is safe — try the list again.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -96,6 +107,7 @@ export default function RoyalCourtPicker() {
         const results = await fetchCourtCandidates(query);
         remember(results);
         setCandidates(results);
+        setCandidatesError(null);
       } catch {
         /* keep the last good candidate list — the picker stays usable */
       }
@@ -222,7 +234,18 @@ export default function RoyalCourtPicker() {
           <p className="mb-2 text-[11px] uppercase tracking-widest text-white/35">
             {query.trim() ? "Search results" : "Creators you follow"}
           </p>
-          {candidates.length === 0 ? (
+          {candidatesError ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5">
+              <p className="text-xs text-red-200">{candidatesError}</p>
+              <button
+                type="button"
+                onClick={() => setRetryNonce((n) => n + 1)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-red-100 underline underline-offset-2 hover:text-white"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Try again
+              </button>
+            </div>
+          ) : candidates.length === 0 ? (
             <p className="mb-3 text-xs text-white/40">
               {query.trim()
                 ? "No creators match that search."

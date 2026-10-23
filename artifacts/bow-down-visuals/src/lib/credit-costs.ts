@@ -53,7 +53,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
 
   // ── Video ──────────────────────────────────────────────────────
-  "/api/generate-video": { cost: 400, feature: "Generate Video Clip" },
+
   "/api/generate-runway-clip": { cost: 400, feature: "Generate Video Clip" },
   "/api/generate-promo-clips": { cost: 100, feature: "Generate Promo Clips" },
   "/api/canvas/generate": { cost: 150, feature: "Spotify Canvas Generator" },
@@ -126,6 +126,16 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 
   // ── Images & design ────────────────────────────────────────────
   "/api/generate-artist-image": { cost: 200, feature: "Generate Artist Image (Pro)" },
+  // Wallpapers: branded renders are FREE (branding is on by default and
+  // every piece is promotional). Clean (unbranded) renders pass
+  // overrideCost 400 at the call site, mirroring CLEAN_RENDER_COST in
+  // api-server routes/wallpapers.ts (mapped from the export-final-video
+  // clean-export rail, pending owner confirmation). The screensaver loop
+  // mirrors SCREENSAVER_RENDER_COST in the same route (also 400, mapped
+  // from the export-final-video rail, pending owner confirmation).
+  // pack-download charges nothing, so it stays off this registry.
+  "/api/wallpapers/render": { cost: 0, feature: "Wallpaper Render (branded — free)" },
+  "/api/wallpapers/screensaver-render": { cost: 400, feature: "Screensaver Loop Render" },
   "/api/generate-thumbnail": { cost: 100, feature: "Generate Thumbnail" },
   "/api/thumbnail-generator": { cost: 200, feature: "Generate Thumbnail" },
   "/api/thumbnail-test": { cost: 200, feature: "Thumbnail A/B Test" },

@@ -146,6 +146,24 @@ export class WorldLockStore implements WorldLockChecker {
     return this.doorLocks.get(roomId) ?? null;
   }
 
+  /** Every live person lock (expiry-aware), for the admin lock
+   *  surface (items 92–93): the standing list an admin reads
+   *  before lifting one. Expired locks prune themselves on the
+   *  way out, like every other read. */
+  listPersonLocks(now = Date.now()): WorldPersonLockState[] {
+    const out: WorldPersonLockState[] = [];
+    for (const lock of [...this.personLocks.values()]) {
+      if (this.personLockedUntil(lock.roomId, lock.userId, now) === null) continue;
+      out.push(lock);
+    }
+    return out;
+  }
+
+  /** Every standing door lock, for the same admin surface. */
+  listDoorLocks(): WorldDoorLockState[] {
+    return [...this.doorLocks.values()];
+  }
+
   /* ── Mutations (table first, then the mirror) ────────────────── */
 
   /** Lock a member out of a room for `minutes`. Re-locking replaces

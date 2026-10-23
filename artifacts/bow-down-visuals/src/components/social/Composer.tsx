@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
 import { EmojiTray, useKingArtTheme } from "./KingEmoji";
 import { gifImageAttachment, insertAtCursor, type KingGifDef } from "@/lib/king-emoji";
@@ -25,6 +26,7 @@ export function Composer({
   placeholder?: string;
 }) {
   const { getAccessToken } = useAuth();
+  const isLight = useIsLightTheme();
   const kingTheme = useKingArtTheme();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [body, setBody] = useState("");
@@ -293,8 +295,8 @@ export function Composer({
 
       {/* money nudge — guide them to the money, every step */}
       {showMoneyNudge && (
-        <div className="mt-3 rounded-xl border border-[#d4af37]/50 bg-gradient-to-r from-[#1a1408] to-transparent p-3">
-          <p className="text-sm text-[#f5e08c]">
+        <div className={`mt-3 rounded-xl border border-[#d4af37]/50 p-3 ${isLight ? "bg-gradient-to-r from-[#F4E7C3] to-[#FCF7EA]" : "bg-gradient-to-r from-[#1a1408] to-transparent"}`}>
+          <p className={`text-sm ${isLight ? "text-[#7A5A12]" : "text-[#f5e08c]"}`}>
             💰 This post could sell — <button className="font-bold underline" onClick={() => { setUrlMode("product"); setShowUrlBox(true); }}>link your drop</button> and let it earn while you sleep.
           </p>
         </div>

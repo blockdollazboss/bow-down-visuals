@@ -21,7 +21,11 @@ import { StoryboardPlanner } from "./StoryboardPlanner";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
+import { CreatorProfileCreateCard } from "./CreatorProfileCreate";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { CoverSongModal } from "@/components/song/CoverSongModal";
+import { LrcExportModal } from "@/components/song/LrcExportModal";
+import { LRC_AI_ALIGN_CREDITS } from "@/lib/lrc";
 import {
   AI_EDIT_STYLE_DEFS,
   applyAiTransitionsToClips,
@@ -48,6 +52,10 @@ import {
   buildEditorProjectPayload,
   buildMusicAudioPayload,
   buildPublishTrackPayload,
+  coverSourceForSong,
+  lrcSourceForSong,
+  packageLyricsOf,
+  songCoverCost,
   buildRunwayClipPayload,
   buildSongPayloadAdvanced,
   buildSongPayloadTurbo,
@@ -60,13 +68,12 @@ import {
   aiEditPlanOfResponse,
   coverArtCost,
   coverInMotionCost,
-  distributeHrefForCover,
   interpretTaskPoll,
   musicAudioCost,
   profileIdOfProfilesResponse,
   publishedTrackIdOfResponse,
   resultExcerpt,
-  scheduleHrefForMedia,
+  schedulePrefillForMedia,
   showcaseSlugOfResponse,
   transcribeCost,
   transcriptOfResponse,
@@ -183,6 +190,10 @@ function useSongPublishRail(args: {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  /* Stack-100 #48: no creator profile yet is not an error and never
+     an exit — the desk opens the in-world profile creation card and
+     the publish retries from the same spot once it exists. */
+  const [needsProfile, setNeedsProfile] = useState(false);
   const [publishedTrackId, setPublishedTrackId] = useState<string | null>(null);
   const [jukeboxSent, setJukeboxSent] = useState(false);
 
@@ -192,6 +203,7 @@ function useSongPublishRail(args: {
     setAudioError(null);
     setPublishBusy(false);
     setPublishError(null);
+    setNeedsProfile(false);
     setPublishedTrackId(null);
     setJukeboxSent(false);
   };
@@ -237,9 +249,10 @@ function useSongPublishRail(args: {
       if (!profRes.ok) throw new Error("Couldn't check your creator profile — try publishing again.");
       const profileId = profileIdOfProfilesResponse(await profRes.json().catch(() => null));
       if (!profileId) {
-        throw new Error(
-          "You don't have a creator profile yet — create one on your profile page, then publish from here.",
-        );
+        /* #48: the creation card opens right here (rendered by the
+           desk below) — no profile page, no leaving the World. */
+        setNeedsProfile(true);
+        return;
       }
       const res = await fetch("/api/publish/track", {
         method: "POST",
@@ -282,6 +295,8 @@ function useSongPublishRail(args: {
     publish,
     publishBusy,
     publishError,
+    needsProfile,
+    profileCreated: () => setNeedsProfile(false),
     published: publishedTrackId !== null,
     publishedTrackId,
     jukeboxSent,
@@ -312,6 +327,9 @@ export function SongDesk(props: CreateDeskProps) {
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [genHistoryId, setGenHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Stack-100 #49: the finished-song finishers (cover + .lrc). */
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [lrcOpen, setLrcOpen] = useState(false);
   const editor = useEditorSeed(props);
   const draft = useDraftSaver();
 
@@ -502,6 +520,50 @@ export function SongDesk(props: CreateDeskProps) {
                 costVisualBucs={rail.audioCost}
                 onMakeAudio={() => void rail.makeAudio()}
               />
+              {/* Stack-100 #49 — the finished-song finishers: the
+                  site's OWN CoverSongModal + LrcExportModal docked
+                  on this result (same rails, prices and credit
+                  confirmation as make-song: cover 400 VB on
+                  /api/song-cover; .lrc tap-to-sync free or AI
+                  align 200 VB). They open only once the desk holds
+                  the real hosted audio both modals require. */}
+              {rail.audioUrl ? (
+                <div className="mt-3 flex flex-wrap gap-1.5" data-testid="world-song-finishers">
+                  <button
+                    type="button"
+                    data-testid="world-song-finisher-cover"
+                    onClick={() => setCoverOpen(true)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+                    }`}
+                  >
+                    Make a cover · {songCoverCost().toLocaleString("en-US")} Visual Bucs
+                  </button>
+                  {lrcSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName, rawResult }) ? (
+                    <button
+                      type="button"
+                      data-testid="world-song-finisher-lrc"
+                      onClick={() => setLrcOpen(true)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+                      }`}
+                    >
+                      Synced lyrics (.lrc) · free to tap-sync, {LRC_AI_ALIGN_CREDITS} Visual Bucs to auto-align
+                    </button>
+                  ) : null}
+                  <CoverSongModal
+                    open={coverOpen}
+                    onClose={() => setCoverOpen(false)}
+                    source={coverSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName })}
+                    initialLyrics={packageLyricsOf(rawResult)}
+                  />
+                  <LrcExportModal
+                    open={lrcOpen}
+                    onClose={() => setLrcOpen(false)}
+                    source={lrcSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName, rawResult })}
+                  />
+                </div>
+              ) : null}
               <ResultChips
                 isLight={isLight}
                 onSendToEditor={
@@ -549,6 +611,14 @@ export function SongDesk(props: CreateDeskProps) {
                 <p data-testid="world-create-publish-error" className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
                   {rail.publishError}
                 </p>
+              ) : null}
+              {rail.needsProfile ? (
+                <div className="mt-3" data-testid="world-create-profile-gate">
+                  <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
+                  <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                  </p>
+                </div>
               ) : null}
               {rail.published ? (
                 <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
@@ -697,6 +767,14 @@ export function SongVideoDesk(props: CreateDeskProps) {
                 <p data-testid="world-create-publish-error" className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
                   {rail.publishError}
                 </p>
+              ) : null}
+              {rail.needsProfile ? (
+                <div className="mt-3" data-testid="world-create-profile-gate">
+                  <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
+                  <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                  </p>
+                </div>
               ) : null}
               {rail.published ? (
                 <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
@@ -1088,7 +1166,7 @@ export function VideoDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                scheduleHref={scheduleHrefForMedia(clipUrl, "video", "My new clip — made with Bow Down Visuals")}
+                schedulePrefill={schedulePrefillForMedia(clipUrl, "video", "My new clip — made with Bow Down Visuals")}
                 onMakeAnother={() => {
                   setState("idle");
                   setClipUrl(null);
@@ -1470,8 +1548,8 @@ export function CoverArtDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                releaseHref={distributeHrefForCover(coverUrl, songTitle)}
-                scheduleHref={motionUrl ? scheduleHrefForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
+                releasePrefill={{ coverUrl, title: songTitle }}
+                schedulePrefill={motionUrl ? schedulePrefillForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
                 onMakeAnother={() => {
                   setState("idle");
                   setCoverUrl(null);
@@ -1652,7 +1730,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                scheduleHref={imageUrl ? scheduleHrefForMedia(imageUrl, "image", "My new thumbnail — made with Bow Down Visuals") : undefined}
+                schedulePrefill={imageUrl ? schedulePrefillForMedia(imageUrl, "image", "My new thumbnail — made with Bow Down Visuals") : undefined}
                 onSaveDraft={() =>
                   void draft.save(
                     buildDraftPayload(THUMBNAIL_DRAFT_WORKFLOW, songTitle || "Thumbnail draft", {

@@ -134,6 +134,61 @@ export default function LiveShopping() {
     };
   }, [getAccessToken]);
 
+  /* Per-source load states (dashboard pattern): catalog, streams and
+     dashboard settle independently — one failing source shows its own
+     error in its own tab, the others render. The page-level error is
+     reserved for a total failure (all three sources down). */
+  const [catalogError, setCatalogError] = useState(false);
+  const [streamsError, setStreamsError] = useState(false);
+  const [dashboardError, setDashboardError] = useState(false);
+
+  const loadCatalogSection = useCallback(async (): Promise<boolean> => {
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/live-shopping/catalog", { headers });
+      if (!res.ok) throw new Error("catalog load failed");
+      const cat = await res.json();
+      setProducts(cat.products ?? []);
+      setCatalogError(false);
+      return true;
+    } catch {
+      setCatalogError(true);
+      return false;
+    }
+  }, [authHeaders]);
+
+  const loadStreamsSection = useCallback(async (): Promise<boolean> => {
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/live-shopping/streams", { headers });
+      if (!res.ok) throw new Error("streams load failed");
+      const s = await res.json();
+      setStreams(s.streams ?? []);
+      const live = (s.streams ?? []).find((x: Stream) => x.status === "live") ?? null;
+      setActiveStream(live);
+      setStreamsError(false);
+      return true;
+    } catch {
+      setStreamsError(true);
+      return false;
+    }
+  }, [authHeaders]);
+
+  const loadDashboardSection = useCallback(async (): Promise<boolean> => {
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/live-shopping/dashboard", { headers });
+      if (!res.ok) throw new Error("dashboard load failed");
+      const d = await res.json();
+      setDashboard(d);
+      setDashboardError(false);
+      return true;
+    } catch {
+      setDashboardError(true);
+      return false;
+    }
+  }, [authHeaders]);
+
   const loadAll = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -141,28 +196,14 @@ export default function LiveShopping() {
     }
     setLoading(true);
     setError(null);
-    try {
-      const headers = await authHeaders();
-      const [catRes, streamRes, dashRes] = await Promise.all([
-        fetch("/api/live-shopping/catalog", { headers }),
-        fetch("/api/live-shopping/streams", { headers }),
-        fetch("/api/live-shopping/dashboard", { headers }),
-      ]);
-      if (!catRes.ok || !streamRes.ok || !dashRes.ok) throw new Error(t("liveShopping.errLoad"));
-      const cat = await catRes.json();
-      const s = await streamRes.json();
-      const d = await dashRes.json();
-      setProducts(cat.products ?? []);
-      setStreams(s.streams ?? []);
-      setDashboard(d);
-      const live = (s.streams ?? []).find((x: Stream) => x.status === "live") ?? null;
-      setActiveStream(live);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errGeneric"));
-    } finally {
-      setLoading(false);
-    }
-  }, [user, authHeaders]);
+    const [catOk, streamOk, dashOk] = await Promise.all([
+      loadCatalogSection(),
+      loadStreamsSection(),
+      loadDashboardSection(),
+    ]);
+    if (!catOk && !streamOk && !dashOk) setError(t("liveShopping.errLoad"));
+    setLoading(false);
+  }, [user, loadCatalogSection, loadStreamsSection, loadDashboardSection]);
 
   useEffect(() => {
     loadAll();
@@ -425,6 +466,17 @@ export default function LiveShopping() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  /* One source's failure card, rendered inside that source's tab. */
+  const sectionErrorCard = (retry: () => void) => (
+    <div className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/[0.06] px-4 py-3">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" aria-hidden="true" />
+      <p className="text-xs text-red-100/80">{t("liveShopping.errLoad")}</p>
+      <button onClick={retry} className="ml-auto shrink-0 text-xs font-bold text-red-100 hover:text-white">
+        Try again
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-6xl px-5 md:px-8 pb-24">
@@ -547,6 +599,7 @@ export default function LiveShopping() {
                       </div>
                     )}
 
+                    {catalogError ? sectionErrorCard(() => void loadCatalogSection()) : (<>
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {products.map((p) => (
                         <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -576,13 +629,14 @@ export default function LiveShopping() {
                     {products.length === 0 && !formOpen && (
                       <p className="mt-8 text-center text-sm text-white/40">{t("liveShopping.noProducts")}</p>
                     )}
+                    </>)}
                   </section>
                 )}
 
                 {/* ── OVERLAY ── */}
                 {tab === "overlay" && (
                   <section className="mt-8">
-                    {!activeStream ? (
+                    {streamsError ? sectionErrorCard(() => void loadStreamsSection()) : !activeStream ? (
                       <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <Radio className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                         <h2 className="mt-3 text-xl font-bold">{t("liveShopping.startStreamTitle")}</h2>
@@ -696,6 +750,7 @@ export default function LiveShopping() {
                 )}
 
                 {/* ── DASHBOARD ── */}
+                {tab === "dashboard" && !dashboard && dashboardError && sectionErrorCard(() => void loadDashboardSection())}
                 {tab === "dashboard" && dashboard && (
                   <section className="mt-8">
                     <div className="flex items-center gap-2">

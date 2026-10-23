@@ -22,25 +22,28 @@ import {
   buildSingingVoicePayload,
   buildVocalPolishPayload,
   buildVoiceoverPayload,
+  HARMONY_MODES_ENDPOINT,
+  harmonyDefaultMode,
+  harmonyModeCost,
   interpretAudioBenchResponse,
   lufsNormalizeFields,
   masterFields,
   MASTER_FILE_FIELD,
   mixFields,
   MIX_STEMS_FIELD,
+  parseHarmonyModesResponse,
   quickMasterFields,
   rateMyMixFields,
   RATE_MY_MIX_FILE_FIELD,
+  stemKeyOfResultLabel,
   stemsFields,
   vocalTuneFields,
   type AudioBenchId,
   type AudioBenchResult,
+  type HarmonyModesProbe,
 } from "@/lib/world/audio-benches";
-import {
-  fetchServerArrangement,
-  saveServerArrangement,
-  type Arrangement,
-} from "@/lib/arrangement";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
 import {
   humAnalysisOfResponse,
   humAnalyzeFields,
@@ -86,7 +89,7 @@ import {
   parseMyMusic,
   type MyMusicTrack,
 } from "@/lib/world/shelf";
-import { LibraryTab, SoundPacksTab, StemsTab } from "./AudioDeskTabs";
+import { LibraryTab, SoundPacksTab, StemRemixPanel, StemsTab } from "./AudioDeskTabs";
 
 /* ─── Audio Studio Desk — the QUICK BENCH (NATIVE-PLAN §3.6) ───────
    Pick a song or file, then one bench action: clean it up, de-reverb
@@ -709,9 +712,15 @@ function AudioFullBench(props: {
 }) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
   const [benchId, setBenchId] = useState<AudioBenchId>("master");
+  /* Stack-100 #51: harmony modes probe + stems remix job. */
+  const [harmonyProbe, setHarmonyProbe] = useState<HarmonyModesProbe | null>(null);
+  const [harmonyMode, setHarmonyMode] = useState<"classic" | "ai">("classic");
+  const [harmonyAiUnavailable, setHarmonyAiUnavailable] = useState(false);
+  const [stemsJobId, setStemsJobId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AudioBenchResult | null>(null);
@@ -737,8 +746,12 @@ function AudioFullBench(props: {
   const [strength, setStrength] = useState(0.7);
   const [keyShift, setKeyShift] = useState(0);
   const [tempoPercent, setTempoPercent] = useState(100);
-  const [harmonyStyle, setHarmonyStyle] = useState("classic");
-  const [mixLevel, setMixLevel] = useState(0.5);
+  const [harmonyStyle, setHarmonyStyle] = useState("stack");
+  /* The harmony rail's mixLevel is a PERCENT (the server's own
+     shape, 0–100, default 35 — HarmonyGeneratorModal's state);
+     the desk previously sent a 0–1 fraction, which the server
+     read as under 1%. */
+  const [mixLevel, setMixLevel] = useState(35);
   const [keyHint, setKeyHint] = useState("");
   const [tuneStyle, setTuneStyle] = useState("smooth");
   const [targetLufs, setTargetLufs] = useState(-14);
@@ -757,8 +770,6 @@ function AudioFullBench(props: {
   const [keepInstrumental, setKeepInstrumental] = useState(true);
   const [humRef, setHumRef] = useState<string | null>(null);
   const [humNote, setHumNote] = useState<string | null>(null);
-  const [arrangement, setArrangement] = useState<Arrangement | null>(null);
-  const [arrNote, setArrNote] = useState<string | null>(null);
 
   const def = audioBenchOf(benchId);
   const sourceUrl = audioUrlInput.trim() || props.sourceSong?.audioUrl || "";
@@ -806,17 +817,23 @@ function AudioFullBench(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [benchId]);
 
-  /* Arrangement draft load when the bench opens. */
+  /* Stack-100 #51: the harmony modes probe — the modal's own
+     free capability read (prices + AI availability + styles +
+     defaults), fetched when the harmony bench opens. */
   useEffect(() => {
-    if (benchId !== "arrangement" || arrangement) return;
+    if (benchId !== "harmony" || harmonyProbe) return;
     void (async () => {
-      const token = await getAccessToken();
-      const loaded = await fetchServerArrangement(token);
-      if (loaded) {
-        setArrangement(loaded);
-        setArrNote("Your saved arrangement — edit the roster here, it saves back to the same draft the Audio Studio opens.");
-      } else {
-        setArrNote("No arrangement draft yet — the full timeline editor on the Audio Studio starts one; this bench edits a saved draft.");
+      try {
+        const res = await confirmedFetch(HARMONY_MODES_ENDPOINT, { skipConfirm: true });
+        if (!res?.ok) return;
+        const parsed = parseHarmonyModesResponse(await res.json().catch(() => null));
+        if (!parsed) return;
+        setHarmonyProbe(parsed);
+        setHarmonyMode(harmonyDefaultMode(parsed));
+        if (parsed.defaultStyle) setHarmonyStyle(parsed.defaultStyle);
+        if (typeof parsed.defaultMixLevel === "number") setMixLevel(parsed.defaultMixLevel);
+      } catch {
+        /* probe failing is non-fatal — the server re-validates on generate, as the modal treats it */
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -860,18 +877,10 @@ function AudioFullBench(props: {
     setError(null);
     setResult(null);
     setResultSource(null);
+    if (benchId === "stems") setStemsJobId(null);
     runSourceRef.current = def.input === "url" ? sourceUrl || null : def.input === "file" ? props.file : null;
     void quest.snapshot();
     try {
-      /* ── arrangement: the draft rail, free ── */
-      if (benchId === "arrangement") {
-        if (!arrangement) throw new Error("No arrangement draft to save yet.");
-        const token = await getAccessToken();
-        await saveServerArrangement(token, arrangement);
-        setArrNote("Saved — the Audio Studio opens this same draft.");
-        setBusy(false);
-        return;
-      }
       /* ── hum: analyze (free) then generate, the page's two steps ── */
       if (benchId === "hum") {
         if (!props.file && !humRef) throw new Error("Pick a hum file above first (upload or a library song).");
@@ -925,12 +934,43 @@ function AudioFullBench(props: {
         if (benchId === "singing-voice" && singConfigured === false) {
           throw new Error("Singing-voice conversion isn't connected yet — nothing was charged.");
         }
+        /* Stack-100 #51: harmony runs through the modal's own
+           confirmed rail — the AI mode's price comes from the
+           modes probe and is confirmed at that price (classic
+           confirms at its probe/registry price the same way). */
+        if (benchId === "harmony") {
+          setHarmonyAiUnavailable(false);
+          const res = await confirmedFetch(def.endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              buildHarmonyPayload({ songId: props.sourceSong?.id, audioUrl: sourceUrl, keyHint, style: harmonyStyle, mixLevel, mode: harmonyMode }),
+            ),
+            overrideCost: harmonyModeCost(harmonyProbe, harmonyMode),
+            overrideFeature: harmonyMode === "ai" ? "Harmony Generator (AI harmonies)" : "Harmony Generator (Classic doubles)",
+          });
+          if (!res) {
+            setBusy(false); // the member cancelled the credit confirmation
+            return;
+          }
+          const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string; code?: string };
+          if (res.status === 402) throw new Error("You're out of Visual Bucs — top up to make harmonies.");
+          if (res.status === 503 && typeof data.code === "string" && data.code.includes("not_configured")) {
+            /* The modal's honest AI-not-wired state, with the
+               one-tap classic fallback below. */
+            setHarmonyAiUnavailable(true);
+            throw new Error(data.error ?? "AI harmonies aren't connected on this server yet — classic doubles still work.");
+          }
+          if (!res.ok) throw new Error(data.message ?? data.error ?? "The bench didn't start.");
+          const read = interpretAudioBenchResponse(benchId, data);
+          if (!read.done) throw new Error("The harmony came back without audio.");
+          finishWith(read);
+          return;
+        }
         const body =
           benchId === "vocal-polish"
             ? buildVocalPolishPayload({ audioUrl: sourceUrl, correctionStrength: strength, keyShift, tempoPercent })
-            : benchId === "harmony"
-              ? buildHarmonyPayload({ songId: props.sourceSong?.id, audioUrl: sourceUrl, keyHint, style: harmonyStyle, mixLevel })
-              : buildSingingVoicePayload({ voiceId: singVoiceId, sourceAudioUrl: sourceUrl, strength, keepInstrumental });
+            : buildSingingVoicePayload({ voiceId: singVoiceId, sourceAudioUrl: sourceUrl, strength, keepInstrumental });
         const res = await fetch(def.endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
@@ -938,12 +978,6 @@ function AudioFullBench(props: {
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
         if (!res.ok) throw new Error(data.message ?? data.error ?? "The bench didn't start.");
-        if (benchId === "harmony") {
-          const read = interpretAudioBenchResponse(benchId, data);
-          if (!read.done) throw new Error("The harmony came back without audio.");
-          finishWith(read);
-          return;
-        }
         const jobId = audioBenchJobIdOf(data);
         if (!jobId) throw new Error("The bench didn't start.");
         startPoll(jobId);
@@ -987,6 +1021,9 @@ function AudioFullBench(props: {
       }
       const jobId = audioBenchJobIdOf(data);
       if (!jobId) throw new Error("The bench didn't start.");
+      /* Stack-100 #51: the stems job id is the remix rail's key —
+         the remix panel below addresses this exact job. */
+      if (benchId === "stems") setStemsJobId(jobId);
       startPoll(jobId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The bench hit a snag.");
@@ -994,7 +1031,7 @@ function AudioFullBench(props: {
     }
   };
 
-  const cost = def.cost(benchId === "voiceover" ? script : undefined);
+  const cost = benchId === "harmony" ? harmonyModeCost(harmonyProbe, harmonyMode) : def.cost(benchId === "voiceover" ? script : undefined);
 
   /* STACK-20 R2 #9: the result's honest A/B — the one output
      that is a treated version of the captured source, when the
@@ -1097,10 +1134,60 @@ function AudioFullBench(props: {
         </div>
       )}
       {benchId === "harmony" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <DeskTextField isLight={isLight} label="Style" value={harmonyStyle} onChange={setHarmonyStyle} />
-          <DeskTextField isLight={isLight} label="Key hint (optional)" value={keyHint} onChange={setKeyHint} />
-          <DeskTextField isLight={isLight} label="Harmony level (0–1)" value={String(mixLevel)} onChange={(v) => setMixLevel(Math.min(1, Math.max(0, Number(v) || 0)))} />
+        <div className="space-y-3">
+          {/* Stack-100 #51: the two harmony modes, priced by the
+              modes probe (classic = registry doubles; AI = the
+              probe's server price, confirmed before it runs). */}
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Harmony mode" data-testid="world-audio-harmony-modes">
+            {(["classic", "ai"] as const).map((m) => {
+              const info = harmonyProbe?.modes.find((x) => x.key === m);
+              const unavailable = m === "ai" && info !== undefined && !info.available;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={harmonyMode === m}
+                  data-testid={`world-audio-harmony-mode-${m}`}
+                  onClick={() => setHarmonyMode(m)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    harmonyMode === m
+                      ? "border-[#d4af37] bg-[#d4af37] text-black"
+                      : isLight
+                        ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                        : "border-white/15 text-white/75 hover:text-white"
+                  }`}
+                >
+                  {m === "ai" ? "AI harmonies" : "Classic doubles"} · {harmonyModeCost(harmonyProbe, m).toLocaleString("en-US")} VB
+                  {unavailable ? " · needs setup" : ""}
+                </button>
+              );
+            })}
+          </div>
+          {harmonyMode === "ai" && harmonyProbe?.modes.find((x) => x.key === "ai")?.available === false ? (
+            <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+              AI harmonies need setup on this server — the make will say so honestly if you try, and classic doubles always work.
+            </p>
+          ) : null}
+          {harmonyAiUnavailable ? (
+            <button
+              type="button"
+              data-testid="world-audio-harmony-classic-fallback"
+              onClick={() => setHarmonyMode("classic")}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}
+            >
+              Use classic doubles instead · {harmonyModeCost(harmonyProbe, "classic").toLocaleString("en-US")} VB
+            </button>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {harmonyProbe && harmonyProbe.styles.length > 0 ? (
+              <DeskSelectField isLight={isLight} label="Style" value={harmonyStyle} onChange={setHarmonyStyle} options={harmonyProbe.styles.map((s) => ({ value: s.key, label: s.label }))} />
+            ) : (
+              <DeskTextField isLight={isLight} label="Style" value={harmonyStyle} onChange={setHarmonyStyle} />
+            )}
+            <DeskTextField isLight={isLight} label="Key hint (optional)" value={keyHint} onChange={setKeyHint} />
+            <DeskTextField isLight={isLight} label="Harmony level (%)" value={String(mixLevel)} onChange={(v) => setMixLevel(Math.min(100, Math.max(0, Number(v) || 0)))} />
+          </div>
         </div>
       )}
       {benchId === "singing-voice" && (
@@ -1132,43 +1219,38 @@ function AudioFullBench(props: {
       )}
       {benchId === "rate-my-mix" && <DeskTextField isLight={isLight} label="Genre (optional)" value={rateGenre} onChange={setRateGenre} />}
       {benchId === "hum" && <p className={`text-xs ${muted}`}>{humNote ?? "Uses the file picked at the top of this desk: first it listens (free), then it builds the song."}</p>}
-      {benchId === "arrangement" && arrangement ? (
-        <div className="space-y-2">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DeskTextField isLight={isLight} label="Arrangement title" value={arrangement.title} onChange={(v) => setArrangement({ ...arrangement, title: v })} />
-            <DeskTextField isLight={isLight} label="BPM" value={String(arrangement.bpm)} onChange={(v) => setArrangement({ ...arrangement, bpm: Number(v.replace(/[^0-9]/g, "")) || arrangement.bpm })} />
+      {/* Stack-100 #52 — the arrangement deep end: the SITE'S OWN
+          ArrangementStudio mounted in-world. It is the same
+          component the Audio Studio renders — same local + server
+          draft (workflow "audio-arrangement"), same comping /
+          automation / FX / MIDI editors, same preview engine and
+          the same confirmed export rail — so the in-world desk and
+          the 2D studio can never fork. It auto-saves as you work,
+          so this bench has no separate save run. The studio's own
+          surfaces are dark-ground; the wrapper gives it that
+          ground in both themes. */}
+      {benchId === "arrangement" ? (
+        <div className="space-y-2" data-testid="world-audio-arrangement-studio">
+          <p className={`text-xs ${muted}`}>
+            The full arrangement studio — clips, comping, automation, FX chains and the export render — on the same draft the Audio Studio opens. Editing is free; only the export charges, confirmed before it runs.
+          </p>
+          <div className="rounded-2xl bg-[#0d0a04] p-3 text-white">
+            <ArrangementStudio />
           </div>
-          {arrangement.tracks.map((t) => (
-            <div key={t.id} className="flex flex-wrap items-center gap-2 text-xs font-bold">
-              <span>{t.name}</span>
-              <span className={muted}>{t.kind}</span>
-              <label className="inline-flex cursor-pointer items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={t.muted}
-                  onChange={(e) =>
-                    setArrangement({ ...arrangement, tracks: arrangement.tracks.map((x) => (x.id === t.id ? { ...x, muted: e.target.checked } : x)) })
-                  }
-                />
-                Muted
-              </label>
-            </div>
-          ))}
-          {arrNote ? <p className={`text-xs ${muted}`}>{arrNote}</p> : null}
         </div>
-      ) : benchId === "arrangement" ? (
-        <p className={`text-xs ${muted}`}>{arrNote ?? "Loading your arrangement draft…"}</p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={`text-xs font-semibold ${muted}`}>
-          {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
-        </span>
-        <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {busy ? "Working…" : benchId === "arrangement" ? "Save the arrangement draft" : `Run — ${def.label}`}
-        </button>
-      </div>
+      {benchId !== "arrangement" ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={`text-xs font-semibold ${muted}`}>
+            {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
+          </span>
+          <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {busy ? "Working…" : `Run — ${def.label}`}
+          </button>
+        </div>
+      ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
       {busy && def.pollPath ? <p className={`text-xs font-semibold ${muted}`}>Working on the server — it finishes even if you wander off.</p> : null}
       {result ? (
@@ -1196,6 +1278,15 @@ function AudioFullBench(props: {
           )}
           {result.text ? (
             <pre className={`max-h-[200px] overflow-y-auto whitespace-pre-wrap rounded-xl border p-3 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white/80"}`}>{result.text}</pre>
+          ) : null}
+          {/* Stack-100 #51: remix the levels of the stems this
+              split returned — the free mixdown on the job's rail. */}
+          {benchId === "stems" && stemsJobId ? (
+            <StemRemixPanel
+              isLight={isLight}
+              jobId={stemsJobId}
+              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label)).filter((k): k is string => k !== null)}
+            />
           ) : null}
           <QuestProgressChip isLight={isLight} lines={quest.lines} />
         </div>

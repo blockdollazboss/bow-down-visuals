@@ -221,7 +221,7 @@ export function MusicStudio({
     <div className="space-y-4">
       {/* ── Beat maker cross-link: producers start here ── */}
       <a
-        href="/ai-audio?tab=beats"
+        href="/audio-studio?tab=aiaudio&sub=beats"
         className="flex items-center gap-3 rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-r from-[#C9A84C]/15 via-[#C9A84C]/[0.06] to-transparent px-4 py-3 transition-colors hover:border-[#C9A84C]/70 hover:from-[#C9A84C]/20"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C]/40">

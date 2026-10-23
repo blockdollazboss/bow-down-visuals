@@ -156,6 +156,105 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: 13.0, maxX: 27.8, minZ: 3.6, maxZ: 11.4 },
     spawn: { x: 16.5, z: 5 },
   },
+  {
+    /* Stage C item 31: THE STAGE GROUNDS — the first built
+     * district, an outdoor stage quarter west of the plaza
+     * through the west wall's gate (a true passage since this
+     * batch). Bounds + spawn mirror the client floor plan
+     * (lib/world/stage-grounds.ts via palace-layout.ts), a touch
+     * generous at the gate apron like every room's. The district
+     * is public look/listen space like the plaza: NO stage and
+     * NO jukebox here — the palace's one stage stays in the hall
+     * and its one jukebox in the Music Hall. */
+    roomId: "world:stage-grounds",
+    name: "Stage Grounds",
+    bounds: { minX: -54.4, maxX: -27.8, minZ: 9.6, maxZ: 36.4 },
+    spawn: { x: -30.2, z: 19.5 },
+  },
+  {
+    /* Stage C item 32: THE LISTENING GARDENS — the second built
+     * district, a gardens quarter south of the promenade through
+     * a new gap in the south wall (a true passage since this
+     * batch). Bounds + spawn mirror the client floor plan
+     * (lib/world/listening-gardens.ts via palace-layout.ts), a
+     * touch generous at the gate apron like every room's. The
+     * district is public look/listen space like the plaza: NO
+     * stage and NO jukebox here — the palace's one stage stays
+     * in the hall and its one jukebox in the Music Hall. */
+    roomId: "world:listening-gardens",
+    name: "Listening Gardens",
+    bounds: { minX: -39.4, maxX: -12.6, minZ: 33.6, maxZ: 60.4 },
+    spawn: { x: -26, z: 36.2 },
+  },
+  {
+    /* Stage C item 33: CREATION ROW — the third built district,
+     * a makers' row east of the plaza through a new gap in the
+     * east wall (a true passage since this batch). Bounds +
+     * spawn mirror the client floor plan
+     * (lib/world/creation-row.ts via palace-layout.ts), a touch
+     * generous at the gate apron like every room's. The district
+     * is public look/listen space like the plaza: NO stage and
+     * NO jukebox here — the palace's one stage stays in the hall
+     * and its one jukebox in the Music Hall. */
+    roomId: "world:creation-row",
+    name: "Creation Row",
+    bounds: { minX: 27.8, maxX: 54.6, minZ: 1.1, maxZ: 27.9 },
+    spawn: { x: 30.2, z: 14.5 },
+  },
+  {
+    /* Stage C item 34: THE ATELIERS — the fourth built district,
+     * a fine-work quarter south-east of the plaza, south of
+     * Creation Row, through a new gap in the east wall's south
+     * run (a true passage since this batch). Bounds + spawn
+     * mirror the client floor plan (lib/world/ateliers.ts via
+     * palace-layout.ts), a touch generous at the gate apron like
+     * every room's. The district is public look/listen space like
+     * the plaza: NO stage and NO jukebox here — the palace's one
+     * stage stays in the hall and its one jukebox in the Music
+     * Hall. */
+    roomId: "world:ateliers",
+    name: "The Ateliers",
+    bounds: { minX: 27.8, maxX: 54.6, minZ: 27.1, maxZ: 53.9 },
+    spawn: { x: 30.2, z: 40.5 },
+  },
+  {
+    /* Stage C item 35: THE BOARDWALK — the fifth built district,
+     * a waterfront quarter south of the plaza between the
+     * Listening Gardens and the Ateliers, through the south
+     * wall's gate (a true passage since this batch — its bar is
+     * off). Bounds + spawn mirror the client floor plan
+     * (lib/world/boardwalk.ts via palace-layout.ts), a touch
+     * generous at the gate apron like every room's: the box
+     * covers the main deck (x −12.65..27.85, z 38.35..59.65) and
+     * both north strips (the entry corridor west of the Creator
+     * Rooms building and the east pocket, z from 34.35). The
+     * district is public look/listen space like the plaza: NO
+     * stage and NO jukebox here — the palace's one stage stays
+     * in the hall and its one jukebox in the Music Hall. */
+    roomId: "world:boardwalk",
+    name: "The Boardwalk",
+    bounds: { minX: -13.4, maxX: 28.6, minZ: 33.6, maxZ: 60.4 },
+    spawn: { x: 0, z: 36.2 },
+  },
+  {
+    /* Stage C item 36: CREATOR HEIGHTS — the sixth built
+     * district, the creators' residential quarter: an enclave
+     * on the plaza's own north-east quadrant, through the
+     * freestanding marker's gate reclassified OPEN on its exact
+     * spot (a true passage since this batch). Bounds + spawn
+     * mirror the client floor plan (lib/world/creator-heights.ts
+     * via palace-layout.ts), a touch generous at the gate apron
+     * like every room's: the box covers the enclave walk
+     * (x 13.85..27.85, z 16.25..25.35) and the gate portal's
+     * west apron (x from 13.1). The district is public
+     * look/listen space like the plaza: NO stage and NO jukebox
+     * here — the palace's one stage stays in the hall and its
+     * one jukebox in the Music Hall. */
+    roomId: "world:creator-heights",
+    name: "Creator Heights",
+    bounds: { minX: 13.0, maxX: 28.6, minZ: 15.5, maxZ: 26.1 },
+    spawn: { x: 14.6, z: 24.6 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration
@@ -193,7 +292,7 @@ export interface PalaceDirectoryEntry {
   /** Creator rooms only: the room owner's profile slug — the
    *  directory row IS a creator's place, and surfaces that render
    *  it (the entry strip, the Kingdom Board) link it to the room's
-   *  data by this slug. Absent on the eight palace rooms. */
+   *  data by this slug. Absent on the palace rooms. */
   slug?: string;
 }
 
@@ -362,6 +461,19 @@ export class WorldPalace {
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
     this.plazaRoom = this.rooms.get(WORLD_PLAZA_ROOM_ID)!;
+    /* The jukebox authority fix (stack-100 item 47): the palace's
+     * one jukebox stands in the Music Hall, but a song is published
+     * at the Song Desk in the Create Wing — every other room hands
+     * its jukebox.add frames to the Music Hall room, which runs
+     * them through the same authority as a local add. */
+    const jukeboxRoom = this.rooms.get("world:music-hall");
+    if (jukeboxRoom) {
+      for (const room of this.rooms.values()) {
+        if (room !== jukeboxRoom) {
+          room.onJukeboxForward = (add, now) => jukeboxRoom.acceptForwardedJukeboxAdd(add, now);
+        }
+      }
+    }
     this.dropClaimer = deps.claimWorldDrop;
     this.tutorialNotifier = deps.noteTutorialAction;
   }
@@ -392,6 +504,13 @@ export class WorldPalace {
     );
     room.onChange = () => this.broadcastDirectory();
     room.onAnnounce = (announce) => this.announce(announce);
+    /* Creator rooms forward their jukebox asks too (item 47) —
+     * the Portrait Card's Play seam fires jukebox.add from the
+     * host's room, and the palace jukebox is the only box there is. */
+    const jukeboxRoom = this.rooms.get("world:music-hall");
+    if (jukeboxRoom) {
+      room.onJukeboxForward = (add, now) => jukeboxRoom.acceptForwardedJukeboxAdd(add, now);
+    }
     this.rooms.set(roomId, room);
     this.creatorRooms.set(slug, { room, displayName });
     return room;
@@ -524,7 +643,7 @@ export class WorldPalace {
 
   /** A truthful headcount snapshot for read-only callers (the
    *  Cloud Operator's "who's in the palace" tool): the same room
-   *  set the directory lists — the eight palace rooms always,
+   *  set the directory lists — the palace rooms always,
    *  creator rooms only while someone is home — but counted the
    *  honest way: only peers the staleness sweep would NOT reap
    *  (WorldRoom.presentPeers), deduplicated by presence key, so a

@@ -59,7 +59,7 @@ import {
   resultExcerpt,
   songMusicPromptOf,
   SONG_AUDIO_LENGTH_SECONDS,
-  scheduleHrefForMedia,
+  schedulePrefillForMedia,
   sfxCost,
   songDeskCost,
   songVideoDeskCost,
@@ -368,9 +368,12 @@ describe("drafts + editor seed match the pages' shapes (pin d)", () => {
     });
   });
 
-  it("next-step hrefs are the pages' own rails", () => {
-    expect(scheduleHrefForMedia("https://x/v.mp4", "video", "cap")).toContain("/scheduler?schedule=1");
-    expect(scheduleHrefForMedia("https://x/v.mp4", "video", "cap")).toContain("mediaType=video");
+  it("next-step rails: the schedule chip hands a prefill to the in-world scheduler (#46), release keeps its href", () => {
+    expect(schedulePrefillForMedia("https://x/v.mp4", "video", "cap")).toEqual({
+      mediaUrl: "https://x/v.mp4",
+      mediaType: "video",
+      caption: "cap",
+    });
     expect(distributeHrefForCover("https://x/c.png", "My Song")).toBe(
       "/distribute?cover=https%3A%2F%2Fx%2Fc.png&title=My%20Song",
     );
@@ -388,13 +391,14 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(jukeboxTrackIdOf(undefined)).toBeNull();
   });
 
-  it("all six create stations are registry pattern 'create' and known to the dispatch", () => {
+  it("all seven create stations are registry pattern 'create' and known to the dispatch", () => {
     const createStations = PALACE_STATIONS.filter(
       (s) => s.panel.kind === "native" && s.panel.pattern === "create",
     );
     expect(createStations.map((s) => s.id).sort()).toEqual([
       "audio-desk",
       "cover-art-desk",
+      "hook-desk",
       "song-desk",
       "song-video-desk",
       "thumbnail-desk",
@@ -411,15 +415,17 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(items.some((i) => i.includes("The full storyboard flow"))).toBe(false);
     expect(items.some((i) => i.includes("4-variation Thumbnail Maker mode (200 VB) and the A/B thumbnail test benches (v1 is"))).toBe(false);
     expect(items.some((i) => i.includes("Full preset panels"))).toBe(false);
-    /* Remaining, narrowed: arrangement timeline, harmony AI mode, .lrc/cover
-       action-row extras, jukebox-from-Create-Wing, thumbnail improve rail. */
-    expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(true);
-    expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(true);
-    expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(true);
-    expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(true);
-    for (const desk of ["song-desk", "thumbnail-desk", "audio-desk"]) {
-      expect(items.some((i) => i.startsWith(`${desk}:`)), desk).toBe(true);
-    }
+    /* Stack-100 #49–#52 shipped the Song Desk finishers, the CTR
+       apply rail and the Audio Desk deep end; #47 shipped the
+       jukebox-from-Create-Wing rail (palace-wide queueing). The
+       log's honest remainder is now EMPTY — nothing the desks'
+       website pages do is missing in-world. */
+    expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(false);
+    expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(false);
+    expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(false);
+    expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(false);
+    expect(items.some((i) => i.includes("jukebox FROM the Create Wing"))).toBe(false);
+    expect(CREATE_DESK_NATIVE_FOLLOWONS).toHaveLength(0);
   });
 
   it("result excerpts trim long packages honestly", () => {
@@ -621,7 +627,7 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(m.buildThumbnailVariantsPayload({ sourceImageUrl: "u", title: "x".repeat(300), niche: "music" }).title).toHaveLength(200);
     expect(m.thumbnailVariantsOfResponse({ variants: [{ url: "v1", label: "Bold", prompt: "p" }] })).toEqual([{ url: "v1", label: "Bold", prompt: "p" }]);
     const ctr = m.ctrPredictionOfResponse({ result: { winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", analyses: [{ scores: { overall: 40 } }, { scores: { overall: 91 } }] } });
-    expect(ctr).toEqual({ winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", overallScores: [40, 91] });
+    expect(ctr).toEqual({ winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", overallScores: [40, 91], tips: [[], []] });
     expect(m.ctrPredictionOfResponse({ result: {} })).toBeNull();
     expect(m.ctrPredictionOfResponse(null)).toBeNull();
   });

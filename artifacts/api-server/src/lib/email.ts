@@ -46,12 +46,16 @@ export function houseFromAddress(raw: string): string {
  * bowdownvisuals.com is suspended-dark until launch (503) and the
  * staging host is password-gated (401), so the asset is served from the
  * owner's own public repo via the jsDelivr CDN — byte-identical to the
- * repo file (sha256 1c583113…). At relaunch, point EMAIL_LOGO_URL at
- * https://bowdownvisuals.com/logo-email.png.
+ * repo file (sha256 1c583113…). INTERIM home only: the default pins
+ * @main because logo-email.png exists on main (shipped Oct 22, 2026)
+ * and does NOT exist on the staging branch (the old @staging default
+ * 404'd in every email header). The PERMANENT home is the R2 media
+ * bucket alongside the rest of the site's media — move the file there
+ * and point EMAIL_LOGO_URL at it when that upload happens.
  */
 export const EMAIL_LOGO_URL =
   process.env.EMAIL_LOGO_URL ??
-  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@staging/artifacts/bow-down-visuals/public/logo-email.png";
+  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@main/artifacts/bow-down-visuals/public/logo-email.png";
 
 let client: Resend | null = null;
 function getClient(): Resend | null {

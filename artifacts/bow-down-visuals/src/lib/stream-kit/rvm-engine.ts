@@ -28,20 +28,33 @@
 import { mediaUrl } from "../media-cdn";
 
 export const ORT_LOCAL_BASE = mediaUrl("engines/onnxruntime");
+/* The shipped same-origin copies (public/engines/…) — the fallback
+   immediately after the R2 media bucket and before the CDN, so a
+   bucket outage never makes the load depend on a third party. */
+export const ORT_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/onnxruntime`;
 export const ORT_CDN_BASE = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist";
 export const RVM_LOCAL_BASE = mediaUrl("engines/rvm");
+export const RVM_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/rvm`;
 export const RVM_CDN_BASE =
   "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0";
 export const RVM_MODEL_FILE = "rvm_mobilenetv3_fp32.onnx";
 
 /** The vendored-first asset URLs for the ORT runtime script. */
 export function ortScriptUrls(): string[] {
-  return [`${ORT_LOCAL_BASE}/ort.all.min.js`, `${ORT_CDN_BASE}/ort.all.min.js`];
+  return [
+    `${ORT_LOCAL_BASE}/ort.all.min.js`,
+    `${ORT_ORIGIN_BASE}/ort.all.min.js`,
+    `${ORT_CDN_BASE}/ort.all.min.js`,
+  ];
 }
 
 /** The vendored-first URLs for the RVM model file. */
 export function rvmModelUrls(): string[] {
-  return [`${RVM_LOCAL_BASE}/${RVM_MODEL_FILE}`, `${RVM_CDN_BASE}/${RVM_MODEL_FILE}`];
+  return [
+    `${RVM_LOCAL_BASE}/${RVM_MODEL_FILE}`,
+    `${RVM_ORIGIN_BASE}/${RVM_MODEL_FILE}`,
+    `${RVM_CDN_BASE}/${RVM_MODEL_FILE}`,
+  ];
 }
 
 /** A produced alpha matte: values 0..1, row-major, width*height. */
@@ -114,7 +127,7 @@ function loadOrtScript(): Promise<string> {
   if (getOrt()) return Promise.resolve(ortScriptPromise ?? ORT_LOCAL_BASE);
   if (ortScriptPromise) return ortScriptPromise;
   ortScriptPromise = (async () => {
-    const bases = [ORT_LOCAL_BASE, ORT_CDN_BASE];
+    const bases = [ORT_LOCAL_BASE, ORT_ORIGIN_BASE, ORT_CDN_BASE];
     let lastErr: unknown = null;
     for (const base of bases) {
       try {

@@ -127,12 +127,13 @@ export default function Shoutouts() {
   const [requests, setRequests] = useState<ShoutoutRequest[]>([]);
   const [reqLoading, setReqLoading] = useState(false);
   /* Creator-tab load failures are NOT empty requests / zero revenue —
-     settings+requests+revenue load together, so their failure gets one
-     error state with a retry, scoped to the creator tab's data area.
-     creatorLoadedRef guards the gate: once the tab has loaded
-     successfully, a later failed reload (status-filter change, the
-     refresh after responding to a request) must NOT blank the data
-     already on screen. */
+     each source (settings / requests / revenue) carries its own error
+     state with a retry in its own panel (see the section loaders
+     below). creatorLoadError + creatorLoadedRef remain only for the
+     TOTAL failure: all three sources down before anything ever
+     loaded. Once the tab has loaded successfully, a later failed
+     reload (status-filter change, the refresh after responding to a
+     request) must NOT blank the data already on screen. */
   const [creatorLoadError, setCreatorLoadError] = useState(false);
   const creatorLoadedRef = useRef(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -158,25 +159,25 @@ export default function Shoutouts() {
     }
   }
 
-  async function fetchCreatorData() {
-    if (!user) return;
-    setSettingsLoading(true);
-    setReqLoading(true);
-    setCreatorLoadError(false);
+  /* Per-source creator-tab states (dashboard pattern): settings,
+     requests and revenue settle independently — one failing shows its
+     own error in its own panel while the others render. A source that
+     has loaded once keeps its data on a later failed reload (the
+     per-source loaded refs guard that, like creatorLoadedRef did for
+     the whole tab). creatorLoadError — the full-tab card — is now
+     reserved for all three failing before anything ever loaded. */
+  const [settingsError, setSettingsError] = useState(false);
+  const [requestsError, setRequestsError] = useState(false);
+  const [revenueError, setRevenueError] = useState(false);
+  const settingsLoadedRef = useRef(false);
+  const requestsLoadedRef = useRef(false);
+  const revenueLoadedRef = useRef(false);
+
+  async function fetchSettingsSection(): Promise<boolean> {
     try {
-      const [sRes, rRes, vRes] = await Promise.all([
-        fetch("/api/shoutouts/settings"),
-        fetch(`/api/shoutouts/requests${statusFilter ? `?status=${statusFilter}` : ""}`),
-        fetch("/api/shoutouts/revenue"),
-      ]);
-      /* Any of the three failing — rejected or non-OK — is a load
-         failure, not empty data. Check and parse all three before
-         setting any state, so a partial failure never half-fills
-         the tab. */
-      if (!sRes.ok || !rRes.ok || !vRes.ok) throw new Error("load failed");
+      const sRes = await fetch("/api/shoutouts/settings");
+      if (!sRes.ok) throw new Error("load failed");
       const s = await sRes.json();
-      const r = await rRes.json();
-      const v = await vRes.json();
       setSettings(s.settings ?? null);
       if (s.settings) {
         setDisplayName(s.settings.displayName);
@@ -185,15 +186,59 @@ export default function Shoutouts() {
         setGuidelines(s.settings.guidelines);
         setAccepting(s.settings.accepting);
       }
-      setRequests(r.requests ?? []);
-      setRevenue(v);
-      creatorLoadedRef.current = true;
+      settingsLoadedRef.current = true;
+      setSettingsError(false);
+      return true;
     } catch {
-      if (!creatorLoadedRef.current) setCreatorLoadError(true);
-    } finally {
-      setSettingsLoading(false);
-      setReqLoading(false);
+      if (!settingsLoadedRef.current) setSettingsError(true);
+      return false;
     }
+  }
+
+  async function fetchRequestsSection(): Promise<boolean> {
+    try {
+      const rRes = await fetch(`/api/shoutouts/requests${statusFilter ? `?status=${statusFilter}` : ""}`);
+      if (!rRes.ok) throw new Error("load failed");
+      const r = await rRes.json();
+      setRequests(r.requests ?? []);
+      requestsLoadedRef.current = true;
+      setRequestsError(false);
+      return true;
+    } catch {
+      if (!requestsLoadedRef.current) setRequestsError(true);
+      return false;
+    }
+  }
+
+  async function fetchRevenueSection(): Promise<boolean> {
+    try {
+      const vRes = await fetch("/api/shoutouts/revenue");
+      if (!vRes.ok) throw new Error("load failed");
+      const v = await vRes.json();
+      setRevenue(v);
+      revenueLoadedRef.current = true;
+      setRevenueError(false);
+      return true;
+    } catch {
+      if (!revenueLoadedRef.current) setRevenueError(true);
+      return false;
+    }
+  }
+
+  async function fetchCreatorData() {
+    if (!user) return;
+    setSettingsLoading(true);
+    setReqLoading(true);
+    setCreatorLoadError(false);
+    const [sOk, rOk, vOk] = await Promise.all([
+      fetchSettingsSection(),
+      fetchRequestsSection(),
+      fetchRevenueSection(),
+    ]);
+    if (sOk || rOk || vOk) creatorLoadedRef.current = true;
+    if (!sOk && !rOk && !vOk && !creatorLoadedRef.current) setCreatorLoadError(true);
+    setSettingsLoading(false);
+    setReqLoading(false);
   }
 
   useEffect(() => { fetchCreators(); }, []);
@@ -394,6 +439,20 @@ export default function Shoutouts() {
     { key: "creator" as const, labelKey: "shoutouts.tabCreator", icon: Settings2 },
   ];
 
+  /* One creator source's failure note, rendered inside its own panel. */
+  const sectionErrorNote = (retry: () => void) => (
+    <div className="rounded-xl border border-red-500/30 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200">
+      Couldn't load this section.
+      <button
+        type="button"
+        onClick={retry}
+        className="ml-3 inline-flex items-center gap-1.5 font-bold text-red-100 hover:text-white"
+      >
+        <RotateCcw className="h-3.5 w-3.5" /> Try again
+      </button>
+    </div>
+  );
+
   return (
     <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
@@ -563,6 +622,7 @@ export default function Shoutouts() {
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className={`rounded-2xl border p-5 h-fit ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.yourShoutoutPage")}</h2>
+                  {settingsError ? sectionErrorNote(() => void fetchSettingsSection()) : (
                   <div className="space-y-4">
                     <div>
                       <label className={labelCls}>{t("shoutouts.displayNameLabel")}</label>
@@ -594,12 +654,13 @@ export default function Shoutouts() {
                     </button>
                     <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 10 })}</p>
                   </div>
+                  )}
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.revenueTitle")}</h2>
-                    {revenue ? (
+                    {revenueError ? sectionErrorNote(() => void fetchRevenueSection()) : revenue ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
                           { labelKey: "shoutouts.statRequests", value: String(revenue.total), icon: Inbox },
@@ -631,7 +692,7 @@ export default function Shoutouts() {
                     </div>
                     {reqLoading ? (
                       <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" /></div>
-                    ) : requests.length === 0 ? (
+                    ) : requestsError ? sectionErrorNote(() => void fetchRequestsSection()) : requests.length === 0 ? (
                       <p className="text-sm text-white/40 py-6 text-center">{t("shoutouts.noRequests")}</p>
                     ) : (
                       <div className="space-y-3">

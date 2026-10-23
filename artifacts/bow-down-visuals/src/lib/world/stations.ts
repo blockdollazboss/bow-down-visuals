@@ -52,6 +52,12 @@ import {
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
+  STAGE_GROUNDS_ID,
+  LISTENING_GARDENS_ID,
+  CREATION_ROW_ID,
+  ATELIERS_ID,
+  BOARDWALK_ID,
+  HEIGHTS_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -139,6 +145,22 @@ export const PALACE_STATIONS: PalaceStation[] = [
     membersOnly: true,
     panel: { kind: "native", pattern: "shelf" },
     websitePath: "/my-music",
+  },
+  {
+    /* Stack-100 #65: the Beats licensing marketplace — browse and
+     * preview are public (the browse rail is), licensing, selling
+     * and the seller dashboard pitch guests to sign in inside the
+     * panel. It stands on the Music Hall's north wall, east of the
+     * Charts desk. */
+    id: "beats-desk",
+    roomId: MUSIC_HALL_ID,
+    name: "Beat Marketplace",
+    tagline: "Beats to license — Basic, Premium, Exclusive and the producers' own custom licenses.",
+    x: -18.5,
+    z: 2.1,
+    membersOnly: false,
+    panel: { kind: "custom", id: "beats-desk" },
+    websitePath: "/beats",
   },
   {
     id: "charts-desk",
@@ -265,6 +287,24 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/thumbnail-studio",
   },
+  {
+    /* Stack-100 item 97 (closing part): Hook Studio's native desk —
+       hooks, captions, the virality pre-flight and CTAs on the
+       /hooks page's own rails (/api/hook-studio, /api/generate-cta).
+       It stands on the Create Wing's north wall between the
+       Thumbnail Desk and the Visual Vibes door, clear of both
+       prompts (2.56m+ from the editor door). Building it is what
+       lets Daily Drop hook/caption templates "Use" in-world. */
+    id: "hook-desk",
+    roomId: CREATE_WING_ID,
+    name: "Hook Desk",
+    tagline: "Hooks, captions and CTAs that stop the scroll — Hook Studio, in-world.",
+    x: 19,
+    z: -6,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/hooks",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {
@@ -298,6 +338,22 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -16.9,
     membersOnly: true,
     panel: { kind: "custom", id: "treasury-quests" },
+    websitePath: null,
+  },
+  {
+    /* Stack-100 #61: the packs desk — buying Visual Bucs in-world
+     * so an out-of-credits state is a door, not a dead end. It
+     * stands at the row's east end (the Treasury's walk floor runs
+     * to x -14.35); the panel rides the pricing page's own
+     * checkout rail, hosted page in a new tab. */
+    id: "packs-desk",
+    roomId: TREASURY_ID,
+    name: "Visual Buc Packs",
+    tagline: "Top up your Visual Bucs right here — the real packs, the real checkout.",
+    x: -15.2,
+    z: -16.9,
+    membersOnly: true,
+    panel: { kind: "custom", id: "treasury-packs" },
     websitePath: null,
   },
 
@@ -381,19 +437,38 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "business" },
     websitePath: "/press-kit",
   },
+  {
+    /* The Jewelry Bench (Stack-100 #74): the Atelier's missing desk —
+       the Logo-to-Luxury Studio's bench (design preview, STL,
+       estimate, guide, NFC, consultant) on its own /api/jewelry
+       rails. Stands on the Atelier's south wall between the branding
+       kit and the press kit, clear of both prompts. */
+    id: "jewelry-bench",
+    roomId: BRANDING_ATELIER_ID,
+    name: "Jewelry Bench",
+    tagline: "Your logo, cast in gold — design it, price it, get it made.",
+    x: 21,
+    z: 8,
+    membersOnly: false,
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/branding-kit?tab=jewelry",
+  },
 
   /* ── Courtyard ───────────────────────────────────────────────── */
   {
     /* The plaza monument (Open World Phase 1): the Kingdom Board
      * stands at the plaza's heart too — the same live board as the
      * hall's, on the same panel id, open to guests exactly like
-     * the hall's. The walker stands on its south face. */
+     * the hall's. The walker stands on the open plaza just south
+     * of the monument, facing its engraved face — the plinth
+     * itself is solid (overhaul stage 3 collision), so the
+     * station point stands off it, in reading distance. */
     id: "kingdom-board-plaza",
     roomId: COURTYARD_ID,
     name: "The Kingdom Board",
     tagline: "The board out on the square — what's live, who's where, and the word around the palace.",
     x: 0,
-    z: 21.4,
+    z: 22.6,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,
@@ -451,6 +526,140 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: 24.4,
     membersOnly: false,
     panel: { kind: "custom", id: "creator-rooms" },
+    websitePath: null,
+  },
+
+  /* ── Stage Grounds (Stage C item 31) ─────────────────────────── */
+  {
+    /* The district's one door: the bill at the head of the entry
+     * path, where the gate walk meets the audience lawn. It opens
+     * the Kingdom Board — the palace's live slate of what's on,
+     * who's where and what's live — the same panel the hall's and
+     * the monument's boards carry, born world-native like them
+     * (never a website page). The district is look/listen space:
+     * no stage authority docks here, and guests read the bill
+     * exactly like members. */
+    id: "stage-bill",
+    roomId: STAGE_GROUNDS_ID,
+    name: "The Stage Bill",
+    tagline: "What's on at the palace — the live slate, read from the stage quarter.",
+    x: -33.2,
+    z: 19.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Listening Gardens (Stage C item 32) ─────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * entry path, where the gate walk meets the parterre lawn.
+     * It opens the Kingdom Board — the palace's live slate of
+     * what's on, who's where and what's live — the same panel
+     * the hall's, the monument's and the Stage Bill's boards
+     * carry, born world-native like them (never a website page).
+     * The district is look/listen space: no stage authority
+     * docks here, and guests read the slate exactly like
+     * members. */
+    id: "gardens-slate",
+    roomId: LISTENING_GARDENS_ID,
+    name: "The Gardens Slate",
+    tagline: "What's on at the palace — the live slate, read from the quiet of the gardens.",
+    x: -26,
+    z: 38.4,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Creation Row (Stage C item 33) ──────────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * street, where the gate walk meets the makers' stalls. It
+     * opens the Kingdom Board — the palace's live slate of
+     * what's on, who's where and what's live — the same panel
+     * the hall's, the monument's, the Stage Bill's and the
+     * Gardens Slate's boards carry, born world-native like them
+     * (never a website page). The district is look/listen space:
+     * no stage authority docks here, and guests read the slate
+     * exactly like members. */
+    id: "row-slate",
+    roomId: CREATION_ROW_ID,
+    name: "The Row Slate",
+    tagline: "What's on at the palace — the live slate, read from the makers' street.",
+    x: 32.8,
+    z: 14.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── The Ateliers (Stage C item 34) ──────────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * lane, where the gate walk meets the glazed workshop bays.
+     * It opens the Kingdom Board — the palace's live slate of
+     * what's on, who's where and what's live — the same panel
+     * the hall's, the monument's, the Stage Bill's, the Gardens
+     * Slate's and the Row Slate's boards carry, born world-native
+     * like them (never a website page). The district is
+     * look/listen space: no stage authority docks here, and
+     * guests read the slate exactly like members. */
+    id: "ateliers-slate",
+    roomId: ATELIERS_ID,
+    name: "The Ateliers Slate",
+    tagline: "What's on at the palace — the live slate, read from the fine-work lane.",
+    x: 32.8,
+    z: 40.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── The Boardwalk (Stage C item 35) ─────────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * promenade, where the gate corridor opens onto the timber
+     * deck. It opens the Kingdom Board — the palace's live slate
+     * of what's on, who's where and what's live — the same panel
+     * the hall's, the monument's, the Stage Bill's, the Gardens
+     * Slate's, the Row Slate's and the Ateliers Slate's boards
+     * carry, born world-native like them (never a website page).
+     * The district is look/listen space: no stage authority
+     * docks here, and guests read the slate exactly like
+     * members. */
+    id: "boardwalk-slate",
+    roomId: BOARDWALK_ID,
+    name: "The Boardwalk Slate",
+    tagline: "What's on at the palace — the live slate, read from the waterfront deck.",
+    x: 0,
+    z: 39.8,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Creator Heights (Stage C item 36) ─────────────────────── */
+  {
+    /* The district's one door: the slate at the heart of the
+     * residents' court, where the gate walkway meets the
+     * residence fronts and the overlook terraces. It opens the
+     * Kingdom Board — the palace's live slate of what's on,
+     * who's where and what's live — the same panel the hall's,
+     * the monument's, the Stage Bill's, the Gardens Slate's, the
+     * Row Slate's, the Ateliers Slate's and the Boardwalk
+     * Slate's boards carry, born world-native like them (never
+     * a website page). The district is look/listen space: no
+     * stage authority docks here, and guests read the slate
+     * exactly like members. */
+    id: "heights-slate",
+    roomId: HEIGHTS_ID,
+    name: "The Heights Slate",
+    tagline: "What's on at the palace — the live slate, read from the residents' court.",
+    x: 20.85,
+    z: 20.8,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,
   },
 ];
