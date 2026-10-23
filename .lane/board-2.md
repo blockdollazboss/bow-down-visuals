@@ -195,6 +195,9 @@ direction). Everything else is buildable now.
 
 ## VOICE (65–67)
 
+**[STATUSES — studio/voice lane stack28/world-studio tip 5b0048db (code 7595efcf), merged c508ebeb with the world.tsx voice-headline conflict resolved by combining both lanes' changes (memoized summarizer + peopleCount arg; merged-tree FE typecheck 0, voice+presence-rewalk tests 40/40 PASS); evidence .lane/studio-plan.md (in studio worktree) + finished logs: FULL FE 311 files / 4,213 tests PASS, FULL API 408 / 5,141 PASS (corrected figure — the lane's first quote of 413/5,227 was wrong and is struck), FE world 101 / 1,855 PASS, both typechecks 0:]**
+**65 PINNED — facet claim STALE**: no `SHAPE_LABELS` exists anywhere in tree or git history; character-voice.ts profiles carry `label` on the profile object — already single-sourced; regression pins added, no rebuild. **66 DONE**: world.tsx recomputed summarizeVoiceConnections + headline on every render; memoized summarizer in voice.ts + world.tsx wiring (unchanged snapshots reuse the summary object). **67 DONE (note only)**: honesty note added in the voice-config rails (server + client seam); sibling meshes verified STUN-only (guest-mesh.ts, StageRooms.tsx); sibling files untouched.
+
 65. **Voice labels single-sourced**: the 55-row parallel SHAPE_LABELS array is
     derived from the shape data it describes — no drift-prone duplication (C-V3).
 66. **Voice summary cost**: the connection summary stops recomputing on every
@@ -281,6 +284,11 @@ direction). Everything else is buildable now.
     allocating fresh structures every frame (E-15/E-16).
 
 ## THE FOUR PARKED FINISHES (97–100)
+
+**[STATUSES for 98–100 — studio/voice lane, same merge/evidence as the VOICE section above:]**
+**98 DONE (with two sub-claims pinned stale)**: D-89b "two getStatus impls" STALE (parity lane already pinned: no getStatus in world lib); D-89c "deck polls 2s" STALE (LiveControllerDesk + stream-controller are socket-driven; the only interval is a 1 s local ack-expiry sweeper, no network). The REAL defect: the three broadcast start inserts in live-streams.ts never wrote `started_at` explicitly (leaned on DB defaultNow, unlike reach.ts's premiere insert), and BroadcastStudio fabricated `liveSince` from elapsed time and never restored it from the server. Fixed: explicit server write at all three start paths + shared status DTO carries `startedAt` + studio reads the real value. Restated honestly vs the board text: no new `goLiveStartedAt` rail was needed — the column and DTO seam already existed.
+**99 DONE (restated against the real rails)**: the board text's premises were partly stale — no TODO exists at distribution.ts:14-15, no "faked acceptance" client test exists, and the bare `POST /api/distribution/splits/invite` was NOT built: the canonical rail already exists at `POST /api/distribution/releases/:id/splits/invite` with pending state (`invite_status='invited'` + `invite_token` on existing schema, no migration) + share-link rail, API-tested. Building a duplicate bare alias would create two invite doors for one action. The REAL defect: the in-world split editor dropped the split `id`, so it could not invite at all and had no invite/share doors — fixed: id carried through, editor wired to the canonical rails, tests against the real shapes.
+**100 DONE (code-side, as boarded)**: world-voice-config.ts gains coturn REST-style ephemeral credentials when `WORLD_TURN_SECRET` is set (HMAC, short-lived, per-session); when unset, behaviour is byte-identical to before; tests pin both modes. No env set anywhere, no relay stood up, no spend — the owner's infra call stands.
 
 97. **Panel payload channel** (parked item 97 finished): the station panel-swap
     protocol gains a typed payload, generalizing the one-shot `hookDeskSeed`
