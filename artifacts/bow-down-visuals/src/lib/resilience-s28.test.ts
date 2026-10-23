@@ -239,3 +239,15 @@ describe("#29 false-'not found' family: 404-only → not-found, else error+retry
     });
   }
 });
+
+describe("#30 group-detail: slow feed no longer blocks the whole page (A3-F9)", () => {
+  const page = src("../pages/group-detail.tsx");
+  it("load() clears the page spinner on core data and fires the feed un-awaited", () => {
+    expect(page).toContain("setLoading(false);\n    void loadFeed();");
+    expect(page).not.toContain("await loadFeed();\n    setLoading(false);");
+  });
+  it("the feed keeps its own scoped error state (the section degrades, the page lives)", () => {
+    expect(page).toContain("setFeedError(friendlyLoadError(e, \"the group feed\"))");
+    expect(page).toContain('if (loading) return');
+  });
+});
