@@ -1,0 +1,56 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-perf2/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/world/palace-grounds.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 160[2mms[22m[39m
+ [31m❯[39m src/lib/world/perf-census.test.ts [2m([22m[2m19 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 260[2mms[22m[39m
+   [32m✓[39m the census itself [2m(5)[22m
+     [32m✓[39m placements re-derive from the scene's own data modules[32m 44[2mms[22m[39m
+     [32m✓[39m draw arithmetic is internally consistent and every converted kit saves[32m 7[2mms[22m[39m
+     [32m✓[39m plaza column after-count re-derives from the variation rolls[32m 6[2mms[22m[39m
+     [32m✓[39m the parked items carry measured evidence, not vibes[32m 8[2mms[22m[39m
+     [32m✓[39m triangle counts come from real geometries (a box is 12)[32m 1[2mms[22m[39m
+   [32m✓[39m tint parity — instanceColor reproduces the retired clones [2m(2)[22m
+     [32m✓[39m white-based kits: tintColor IS the clone's colour, bit-for-bit[32m 20[2mms[22m[39m
+     [32m✓[39m leaf crowns: white twin × instanceColor == the old tinted leaf, bit-for-bit[32m 14[2mms[22m[39m
+   [32m✓[39m shared geometry cache (item 89) [2m(3)[22m
+     [32m✓[39m returns the identical object per key, distinct objects per spec[32m 32[2mms[22m[39m
+     [32m✓[39m no world code mutates a geometry — sharing cannot leak transforms[32m 8[2mms[22m[39m
+     [32m✓[39m every duplicated spec in the census is served by the cache in scene source[32m 16[2mms[22m[39m
+   [31m❯[39m the pier conversion executes with parity (item 86) [2m(2)[22m
+[31m     [31m×[31m buildPierSet emits exactly 3 instanced draws with the loops' transforms[39m[32m 49[2mms[22m[39m
+     [32m✓[39m all six district shells call the shared pier builder; the hand loops are gone[32m 5[2mms[22m[39m
+   [32m✓[39m the remaining conversions are pinned in scene source [2m(7)[22m
+     [32m✓[39m plaza columns: clones retired, tints + variant caps instanced[32m 1[2mms[22m[39m
+     [32m✓[39m crowns: cone + mound instanced meshes with the leaf tint carried[32m 6[2mms[22m[39m
+     [32m✓[39m stall canopies: fabric clones retired in both districts[32m 7[2mms[22m[39m
+     [32m✓[39m braziers: one cached geometry set serves the hall pair and the plaza set[32m 5[2mms[22m[39m
+     [32m✓[39m chandeliers: five instanced parts, no per-candle meshes left[32m 0[2mms[22m[39m
+     [32m✓[39m hall columns: per-part instancing in both styles, group loop gone[32m 3[2mms[22m[39m
+     [32m✓[39m plaza stalls + arrival arch instance their kits[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/world/creation-row.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 172[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/perf-census.test.ts[2m > [22mthe pier conversion executes with parity (item 86)[2m > [22mbuildPierSet emits exactly 3 instanced draws with the loops' transforms
+[31m[1mAssertionError[22m: expected -54.20000076293945 to be close to -54.2, received difference is 7.629394502828291e-7, but expected 5e-7[39m
+[36m [2m❯[22m src/lib/world/perf-census.test.ts:[2m205:23[22m[39m
+    [90m203|[39m         im.getMatrixAt(i, m);
+    [90m204|[39m         m.decompose(pos, quat, scl);
+    [90m205|[39m         expect(pos.x).toBeCloseTo(p.x, 6);
+    [90m   |[39m                       [31m^[39m
+    [90m206|[39m         expect(pos.y).toBeCloseTo(y, 6);
+    [90m207|[39m         expect(pos.z).toBeCloseTo(p.z, 6);
+[90m [2m❯[22m src/lib/world/perf-census.test.ts:[2m202:19[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m47 passed[39m[22m[90m (48)[39m
+[2m   Start at [22m 22:15:47
+[2m   Duration [22m 7.40s[2m (transform 69%, import 20%, tests 10%, worker 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 4.06s[39m[2m · 69% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

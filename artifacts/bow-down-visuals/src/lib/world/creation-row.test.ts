@@ -256,7 +256,7 @@ describe("Creation Row — Stack-100 #2 finishing (items 34–35)", () => {
     expect(Math.abs(a.scale - 1)).toBeLessThanOrEqual(0.03);
     const tints = new Set(ROW_STALLS.map((_, i) => propVariation("stall", i).hueShift));
     expect(tints.size).toBeGreaterThan(1);
-    expect(sceneSrc).toContain('propVariation("stall", si + (0))');
-    expect(sceneSrc).toContain('propVariation("stall", si + (100))');
+    expect(sceneSrc).toContain('propVariation("stall", si + 0)');
+    expect(sceneSrc).toContain('propVariation("stall", si + 100)');
   });
 });
