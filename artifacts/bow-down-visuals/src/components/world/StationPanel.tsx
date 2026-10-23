@@ -61,6 +61,7 @@ import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { DailyDropCatalog } from "@/components/world/native/DailyDropCatalog";
+import { PacksDesk } from "@/components/world/native/PacksDesk";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
@@ -1790,6 +1791,8 @@ export default function StationPanel(props: StationPanelProps) {
             return <TreasuryShark isLight={isLight} />;
           case "treasury-quests":
             return <TreasuryQuests isLight={isLight} onOpenStation={props.onOpenStation} />;
+          case "treasury-packs":
+            return <PacksDesk isLight={isLight} />;
           case "jukebox":
             return <JukeboxPanel {...props} />;
           case "creator-rooms":
