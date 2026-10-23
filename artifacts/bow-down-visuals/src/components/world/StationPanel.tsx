@@ -71,6 +71,7 @@ import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDept
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
 import { SeasonMarksWall } from "@/components/world/native/SeasonMarksWall";
 import { WinnersCirclePanel } from "@/components/world/native/WinnersCirclePanel";
+import { AccountDesk, GiveawayContestsDesk, JackpotDesk } from "@/components/world/native/TailDesks";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
@@ -1775,6 +1776,11 @@ export default function StationPanel(props: StationPanelProps) {
                     profile rails. Members only — a guest never
                     reaches the board pattern (guest-pitch instead). */}
                 <MyProfileDesk isLight={isLight} />
+                {/* Account settings (stack-100 #94): fields, cursor,
+                    preference switches and the danger zone — export
+                    completes here; deletion hands off to the 2D
+                    settings confirmations by design. */}
+                <AccountDesk isLight={isLight} />
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
               <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
@@ -1806,7 +1812,19 @@ export default function StationPanel(props: StationPanelProps) {
           case "season-marks":
             return <SeasonMarksWall isLight={isLight} />;
           case "winners-circle":
-            return <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />;
+            return (
+              <div className="flex flex-col gap-6">
+                <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />
+                {/* Giveaway contests (stack-100 #95): the 2D fan
+                    giveaways (/api/contests) — a separate system from
+                    World Contests above — on their own rails. */}
+                <GiveawayContestsDesk isLight={isLight} isGuest={isGuest} />
+                {/* The cheat-code jackpot (stack-100 #96): player
+                    entry on the attempt rail + the admin creation
+                    surface, fail-closed, on the cheat-code rails. */}
+                <JackpotDesk isLight={isLight} isGuest={isGuest} />
+              </div>
+            );
           case "treasury-daily":
             return <TreasuryDaily isLight={isLight} onOpenStation={props.onOpenStation} />;
           case "treasury-shark":

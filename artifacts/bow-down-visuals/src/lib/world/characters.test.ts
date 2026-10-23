@@ -17,6 +17,13 @@ import {
   buildVaultRenameBody,
   renameVaultCharacter,
   removeVaultCharacter,
+  vaultAppearanceFromRow,
+  buildVaultAppearanceBody,
+  buildVaultCreateBody,
+  createVaultCharacter,
+  fetchVaultAppearance,
+  saveVaultAppearance,
+  VAULT_APPEARANCE_KEYS,
   WORLD_CHARACTER_STORAGE_KEY,
   type VaultCharacter,
 } from "./characters";
@@ -276,5 +283,100 @@ describe("removeVaultCharacter", () => {
   it("throws the server's error instead of pretending the character is gone", async () => {
     const fetchFn = (async () => jsonRes({ error: "nope" }, false, 500)) as unknown as typeof fetch;
     await expect(removeVaultCharacter(async () => "tok", "c1", fetchFn)).rejects.toThrow("nope");
+  });
+});
+
+describe("#98 vault creation + appearance editing", () => {
+  it("reads the stored appearance from a snake_case row, camelCase stragglers included", () => {
+    const a = vaultAppearanceFromRow(FULL_ROW);
+    expect(a.visualStyle).toBe("Street Cinematic");
+    expect(a.referenceImageUrl).toBe("https://img/nova.png");
+    expect(a.themeId).toBe("gold-royalty");
+    expect(a.artistDescription).toBe("Nova the great");
+    const camel = vaultAppearanceFromRow({ visualStyle: "Neon", clothingStyle: "techwear" });
+    expect(camel.visualStyle).toBe("Neon");
+    expect(camel.clothingStyle).toBe("techwear");
+    expect(camel.hair).toBeNull();
+  });
+
+  it("the appearance PUT round-trips untouched fields and lays the patch over them", () => {
+    const body = buildVaultAppearanceBody(FULL_ROW, { hair: "  braids  ", jewelry: "" });
+    /* patched fields change (trimmed; empty becomes null) */
+    expect(body["hair"]).toBe("braids");
+    expect(body["jewelry"]).toBeNull();
+    /* untouched fields round-trip exactly — locked rules included */
+    expect(body["doNotChangeRules"]).toBe("never change the chain");
+    expect(body["consistencyPrompt"]).toBe("keep Nova consistent");
+    expect(body["visualStyle"]).toBe("Street Cinematic");
+    expect(body["artistName"]).toBe("Nova");
+    expect(body["voiceProfile"]).toEqual(FULL_ROW.voice_profile);
+    expect(body).not.toHaveProperty("referenceVideoUrl");
+  });
+
+  it("a name patch rides the same body; absent appearance keys never clear a field", () => {
+    const body = buildVaultAppearanceBody(FULL_ROW, { artistName: " Nova II " });
+    expect(body["artistName"]).toBe("Nova II");
+    expect(body["hair"]).toBe("waves");
+    for (const k of VAULT_APPEARANCE_KEYS) expect(body).toHaveProperty(k);
+  });
+
+  it("the create body carries the name + look, empties become null, theme defaults to Gold Royalty", () => {
+    const body = buildVaultCreateBody({ artistName: "  Nova  ", appearance: { genre: "Trap", hair: "" } });
+    expect(body["artistName"]).toBe("Nova");
+    expect(body["genre"]).toBe("Trap");
+    expect(body["hair"]).toBeNull();
+    expect(body["themeId"]).toBe("gold-royalty");
+    const themed = buildVaultCreateBody({ artistName: "Nova", appearance: { themeId: "crimson-reign" } });
+    expect(themed["themeId"]).toBe("crimson-reign");
+  });
+
+  it("createVaultCharacter POSTs the vault rail and returns the new id", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchFn = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return jsonRes({ id: "c-new" }, true, 201);
+    }) as unknown as typeof fetch;
+    const id = await createVaultCharacter(async () => "tok", { artistName: "Nova", appearance: { genre: "Trap" } }, fetchFn);
+    expect(id).toBe("c-new");
+    expect(calls[0]?.url).toBe("/api/artist-vaults");
+    expect(calls[0]?.init?.method).toBe("POST");
+    const sent = JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>;
+    expect(sent["artistName"]).toBe("Nova");
+    expect(sent["genre"]).toBe("Trap");
+    /* a blank name never reaches the rail */
+    await expect(createVaultCharacter(async () => "tok", { artistName: "   " }, fetchFn)).rejects.toThrow("Give the character a name");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("fetchVaultAppearance reads the row fresh and refuses a team-shared row", async () => {
+    const ownFetch = (async () => jsonRes({ vaults: [FULL_ROW] })) as unknown as typeof fetch;
+    const got = await fetchVaultAppearance(async () => "tok", "c1", "u-1", ownFetch);
+    expect(got.name).toBe("Nova");
+    expect(got.appearance.hair).toBe("waves");
+    const sharedFetch = (async () => jsonRes({ vaults: [{ ...FULL_ROW, user_id: "u-2" }] })) as unknown as typeof fetch;
+    await expect(fetchVaultAppearance(async () => "tok", "c1", "u-1", sharedFetch)).rejects.toThrow("Only the owner");
+  });
+
+  it("saveVaultAppearance re-reads, refuses non-owners before any write, and PUTs the patched round-trip", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchFn = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (init?.method === "PUT") return jsonRes({ success: true });
+      return jsonRes({ vaults: [FULL_ROW] });
+    }) as unknown as typeof fetch;
+    await saveVaultAppearance(async () => "tok", "c1", { visualStyle: "Golden Noir" }, "u-1", fetchFn);
+    const put = calls.find((c) => c.init?.method === "PUT");
+    expect(put?.url).toBe("/api/artist-vaults/c1");
+    const sent = JSON.parse(String(put?.init?.body)) as Record<string, unknown>;
+    expect(sent["visualStyle"]).toBe("Golden Noir");
+    expect(sent["doNotChangeRules"]).toBe("never change the chain");
+
+    let writes = 0;
+    const sharedFetch = (async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") writes++;
+      return jsonRes({ vaults: [{ ...FULL_ROW, user_id: "u-2" }] });
+    }) as unknown as typeof fetch;
+    await expect(saveVaultAppearance(async () => "tok", "c1", { hair: "x" }, "u-1", sharedFetch)).rejects.toThrow("Only the owner");
+    expect(writes).toBe(0);
   });
 });
