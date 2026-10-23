@@ -28,15 +28,16 @@
  *     grounded signpost (plinth, post, plate mounted ON the post,
  *     a small COMING plate under the name). No span, no header,
  *     no bar — nothing about it suggests you could walk through
- *     it. The east pair stand on the open plaza floor in front of
- *     the wall they used to be painted on; the Creator Heights
- *     marker keeps its Phase-1 spot, rebuilt as a signpost.
+ *     it. (The classification survives as the honest form for an
+ *     unbuilt district; since item 36 every district is built
+ *     and no threshold below is a marker any more.)
  *
  * The six district names are Phase 1's and do not change. The
  * Stage Grounds (board item 31), the Listening Gardens
  * (board item 32), Creation Row (board item 33), the
- * Ateliers (board item 34) and the Boardwalk (board item 35)
- * are BUILT and their gates are open —
+ * Ateliers (board item 34), the Boardwalk (board item 35) and
+ * Creator Heights (board item 36) are BUILT and their gates
+ * are open — no markers remain.
  * the Gardens' marker was reclassified when its district was
  * built: it stood at (−26, 33.8) on the promenade, and the gate
  * now stands in a REAL new gap in the south wall on that same
@@ -54,9 +55,17 @@
  * Boardwalk was never a marker — it was the south wall's barred
  * gate from the start, a real gap honestly closed; its bar now
  * comes off on its own line (x 0, gap x −1.1…1.1) and the
- * waterfront quarter stands beyond it. The one remaining
- * district is a later pick (board item 36) — nothing beyond
- * its marker is built yet.
+ * waterfront quarter stands beyond it. The Heights' marker was
+ * reclassified with its own honest difference: it stood
+ * freestanding at (13.5, 24.6) mid-plaza, and every outward
+ * line from it was already built over (hall north, Row and
+ * Ateliers east, Creator Rooms and Boardwalk south, Stage
+ * Grounds and Gardens west) — so its quarter stands on the
+ * plaza's own north-east quadrant as a walled enclave, and its
+ * gate stands on the marker's EXACT spot, in the enclave's own
+ * new west wall on the marker's line (x 13.5, gap
+ * z 23.6…25.6). A gate in a real gap in a real wall, like every
+ * other — the wall is simply the quarter's own.
  */
 
 export type DistrictThresholdKind = "gate" | "marker";
@@ -128,9 +137,12 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
    * through a REAL new gap in the south wall on the marker's own
    * line (x −26). No bar; the sub-plate reads OPEN. */
   { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
-  /* Marker — the promenade's remaining signpost, at its
-   * Phase-1 spot. */
-  { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI },
+  /* Creator Heights is BUILT (item 36): the last marker is
+   * reclassified — this gate is OPEN, a true passage through a
+   * REAL new gap in the enclave's own west wall, standing on
+   * the marker's exact spot (13.5, 24.6) on its own line
+   * (x 13.5). No bar; the sub-plate reads OPEN. */
+  { name: "CREATOR HEIGHTS", kind: "gate", x: 13.5, z: 24.6, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
 ];
 
 /** The wall gaps the true gates stand in — the testable form of
@@ -143,4 +155,8 @@ export const DISTRICT_GATE_GAPS: Record<string, { axis: "x" | "z"; at: number; m
   "LISTENING GARDENS": { axis: "x", at: 34.0, min: -27.1, max: -24.9 },
   "CREATION ROW": { axis: "z", at: 28.2, min: 13.4, max: 15.6 },
   "THE ATELIERS": { axis: "z", at: 28.2, min: 29.4, max: 31.6 },
+  /* The Heights gap is not in a plaza perimeter run — it is in
+   * the enclave's own west wall (creator-heights'
+   * HEIGHTS_WALL_RUNS), the wall the gate itself belongs to. */
+  "CREATOR HEIGHTS": { axis: "z", at: 13.5, min: 23.6, max: 25.6 },
 };

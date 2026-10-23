@@ -57,6 +57,7 @@ import {
   CREATION_ROW_ID,
   ATELIERS_ID,
   BOARDWALK_ID,
+  HEIGHTS_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -615,6 +616,30 @@ export const PALACE_STATIONS: PalaceStation[] = [
     tagline: "What's on at the palace — the live slate, read from the waterfront deck.",
     x: 0,
     z: 39.8,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Creator Heights (Stage C item 36) ─────────────────────── */
+  {
+    /* The district's one door: the slate at the heart of the
+     * residents' court, where the gate walkway meets the
+     * residence fronts and the overlook terraces. It opens the
+     * Kingdom Board — the palace's live slate of what's on,
+     * who's where and what's live — the same panel the hall's,
+     * the monument's, the Stage Bill's, the Gardens Slate's, the
+     * Row Slate's, the Ateliers Slate's and the Boardwalk
+     * Slate's boards carry, born world-native like them (never
+     * a website page). The district is look/listen space: no
+     * stage authority docks here, and guests read the slate
+     * exactly like members. */
+    id: "heights-slate",
+    roomId: HEIGHTS_ID,
+    name: "The Heights Slate",
+    tagline: "What's on at the palace — the live slate, read from the residents' court.",
+    x: 20.85,
+    z: 20.8,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,
