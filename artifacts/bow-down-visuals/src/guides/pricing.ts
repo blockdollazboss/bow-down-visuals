@@ -22,14 +22,14 @@ export const pricingGuide: PageGuide = {
     {
       targetText: "Creator Pro",
       title: "Creator Pro — $12/mo",
-      body: "Creator Pro drops your platform fee to 7% on every sale, and adds your own custom domain, unlimited products in your shop, premium gold-luxury themes, the pro analytics dashboard (funnels, sources, cohorts), and 25 AI promotion boosts a month.",
-      tip: "Selling regularly? The fee drop from 10% to 7% pays for the plan by itself.",
+      body: "Creator Pro keeps the same flat 5% platform fee every tier pays, and adds your own custom domain, unlimited products in your shop, premium gold-luxury themes, the pro analytics dashboard (funnels, sources, cohorts), and 25 AI promotion boosts a month.",
+      tip: "Selling regularly? The domain, unlimited products and analytics are what pay for the plan — the fee is 5% on every tier.",
     },
     {
       targetText: "Creator Elite",
       title: "Creator Elite — $29/mo",
-      body: "Creator Elite is the top tier — the lowest platform fee on the site at 5%, priority placement in discovery, a dedicated support badge with priority support, and 100 AI promotion boosts a month, with everything in Creator Pro included.",
-      tip: "For creators selling and promoting every week, the 5% fee and the boost stack are the whole game.",
+      body: "Creator Elite is the top tier — the same flat 5% platform fee as every tier, priority placement in discovery, a dedicated support badge with priority support, and 100 AI promotion boosts a month, with everything in Creator Pro included.",
+      tip: "For creators selling and promoting every week, the priority placement and the boost stack are the whole game.",
     },
     {
       targetText: "Visual Buc Packs",

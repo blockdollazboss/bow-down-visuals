@@ -39,8 +39,8 @@ describe("platform-fees: single source of truth", () => {
     }
   });
 
-  it("tier fees step down: free > pro > elite (proposed 10/7/5)", () => {
-    expect(TIER_FEE_BPS).toEqual({ free: 1000, pro: 700, elite: 500 });
+  it("tier fees are the flat 5% the checkout rails charge on every tier (Stack-28 #4)", () => {
+    expect(TIER_FEE_BPS).toEqual({ free: 500, pro: 500, elite: 500 });
   });
 
   it("meetsTier ranks correctly", () => {
@@ -69,14 +69,14 @@ describe("platform-fees: single source of truth", () => {
     }
   });
 
-  it("pays-for-itself math: pro pays off at $400/mo, elite at $580/mo", () => {
-    expect(breakEvenSalesUsd("pro")).toBe(400);
-    expect(breakEvenSalesUsd("elite")).toBe(580);
+  it("pays-for-itself math: no tier fee savings exist at the flat 5% (Stack-28 #4)", () => {
+    expect(breakEvenSalesUsd("pro")).toBeNull();
+    expect(breakEvenSalesUsd("elite")).toBeNull();
   });
 
-  it("monthly savings: pro keeps $30 more per $1000 sold", () => {
-    expect(monthlySavingsUsd("pro", 1000)).toBe(30);
-    expect(monthlySavingsUsd("elite", 1000)).toBe(50);
+  it("monthly savings: every tier pays the same 5%, so fee savings are $0 (Stack-28 #4)", () => {
+    expect(monthlySavingsUsd("pro", 1000)).toBe(0);
+    expect(monthlySavingsUsd("elite", 1000)).toBe(0);
   });
 
   it("formatUsd never leaks Visual Bucs copy", () => {
