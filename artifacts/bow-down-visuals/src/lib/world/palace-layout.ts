@@ -28,6 +28,7 @@
 
 import { HALL_STEPS, LAWN_PANELS, MONUMENT, MONUMENT_BLOCKED, TERRACES } from "./palace-grounds";
 import { PLAZA_LIFE_BLOCKED } from "./plaza-life";
+import { PLAZA_SOLIDS_BLOCKED } from "./plaza-solids";
 import {
   AUDIENCE_LAWN,
   STAGE_BLOCKED,
@@ -548,6 +549,13 @@ export const PLAZA_BLOCKED: PalaceRect[] = [
    * data in the same commit that builds the bodies. The item-40
    * spawn dressing is flat inlay and deliberately NOT here. */
   ...PLAZA_LIFE_BLOCKED,
+  /* Plaza-solids build (un-parking World-100 items 40, 42–44):
+   * the named landmarks — the two marble lions at the façade's
+   * foot, the compass rose relief in the south-east yard, and
+   * the fountain dams, whose rects live inside the pool's own
+   * blocked rectangle (the one deliberate sub-solid overlap in
+   * this list: a named solid inside an already-solid body). */
+  ...PLAZA_SOLIDS_BLOCKED,
 ];
 
 /** The plaza's camera-tall solids (item 44): the monument (stele

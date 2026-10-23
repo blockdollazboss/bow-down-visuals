@@ -213,6 +213,7 @@ import {
   bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt,
   waterSurfaceAt, poolWaterTint, type PollenMote,
 } from "./plaza-life";
+import { PLAZA_LIONS, LION, COMPASS_ROSE, PLAZA_DAMS, DAM } from "./plaza-solids";
 import {
   EMPTY_MONUMENT_BOARD, MONUMENT_PLATE_H, MONUMENT_PLATE_W, drawMonumentBoardPlate,
   monumentBoardSignature, monumentPlateEmissiveIntensity, type MonumentBoardData, type MonumentPlateCtx,
@@ -7307,6 +7308,42 @@ export class KingsHallScene {
       ripple.position.set(FOUNTAIN.x, FOUNTAIN_FALL.rippleY, FOUNTAIN.z);
       ripple.renderOrder = 3;
       g.add(ripple);
+      /* Plaza-solids (item 43): the fountain dams — two capped
+       * weir walls across the water at the pool's third-points,
+       * rim to rim, dividing it into three basins. A falling
+       * sheet on each face shares the fountain fall's material,
+       * so the dams breathe with the pool's ONE registered water
+       * entry — no second push, no second water model. Their
+       * collision is plaza-solids' own rects, inside the pool's
+       * blocked rectangle. */
+      for (const dam of PLAZA_DAMS) {
+        const wall = new THREE.Mesh(
+          new THREE.BoxGeometry(DAM.thickness, DAM.capTopY, DAM.spanD), mats.stoneFor(0.6, 3.9),
+        );
+        wall.position.set(dam.x, DAM.capTopY / 2, dam.z);
+        wall.castShadow = shadows;
+        wall.receiveShadow = shadows;
+        g.add(wall);
+        const cap = new THREE.Mesh(
+          new THREE.BoxGeometry(DAM.thickness + DAM.capLip * 2, 0.07, DAM.spanD + DAM.capLip * 2), mats.goldDark,
+        );
+        cap.position.set(dam.x, DAM.capTopY - 0.035, dam.z);
+        cap.castShadow = shadows;
+        g.add(cap);
+        for (const side of [-1, 1]) {
+          const sheet = new THREE.Mesh(
+            new THREE.PlaneGeometry(DAM.spanD - 0.12, DAM.capTopY - 0.08 - POOL.waterY),
+            fallMat,
+          );
+          sheet.rotation.y = (side * Math.PI) / 2;
+          sheet.position.set(
+            dam.x + side * (DAM.thickness / 2 + 0.012),
+            (DAM.capTopY - 0.08 + POOL.waterY) / 2, dam.z,
+          );
+          sheet.renderOrder = 4;
+          g.add(sheet);
+        }
+      }
       anim.waters.push({ tex: waterTex, jet, normalTex: poolNormal, fall, fallBase: 0.42, ripple });
     }
 
@@ -7510,6 +7547,113 @@ export class KingsHallScene {
         stone.receiveShadow = shadows;
         g.add(stone);
       }
+    }
+
+    /* ── Plaza-solids: the lions + the compass rose ────────────
+     * The façade's guardians and the yard's medallion, built
+     * from plaza-solids' placement data — the same numbers the
+     * collision derives from, so a body can never drift off its
+     * own shadow. Static dressing: no real lights, no animation,
+     * the same geometry in both looks (the looks differ by
+     * texture and tint, as everywhere on the plaza). */
+    {
+      const lionMat = mats.facadeMarbleFor(1.4, 1.2);
+      const plinthMat = mats.stoneFor(1, 0.4);
+      for (const lion of PLAZA_LIONS) {
+        const grp = new THREE.Group();
+        grp.position.set(lion.x, 0, lion.z);
+        grp.rotation.y = lion.rotY;
+        const part = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
+          const m = new THREE.Mesh(geo, mat);
+          m.position.set(x, y, z);
+          m.castShadow = shadows;
+          grp.add(m);
+          return m;
+        };
+        /* The plinth: stone, gold-trimmed at its top edge — the
+         * pool rim's language at a statue's scale. */
+        part(new THREE.BoxGeometry(LION.plinthW, LION.plinthH, LION.plinthD), plinthMat, 0, LION.plinthH / 2, 0);
+        part(new THREE.BoxGeometry(LION.plinthW + 0.05, 0.045, LION.plinthD + 0.05), mats.goldDark, 0, LION.plinthH - 0.022, 0);
+        const top = LION.plinthH;
+        /* The seated body: haunches behind, chest forward. */
+        const haunch = part(new THREE.SphereGeometry(1, 20, 14), lionMat, 0, top + 0.36, -0.3);
+        haunch.scale.set(0.34, 0.4, 0.48);
+        const chest = part(new THREE.SphereGeometry(1, 20, 14), lionMat, 0, top + 0.44, 0.2);
+        chest.scale.set(0.32, 0.46, 0.34);
+        /* Straight front legs, paws forward on the plinth, and
+         * an ear above the mane on each side. */
+        for (const sx of [-1, 1]) {
+          part(new THREE.CylinderGeometry(0.07, 0.08, 0.6, 10), lionMat, sx * 0.16, top + 0.3, 0.4);
+          part(new THREE.BoxGeometry(0.15, 0.08, 0.3), lionMat, sx * 0.16, top + 0.04, 0.5);
+          part(new THREE.SphereGeometry(0.055, 10, 8), lionMat, sx * 0.13, top + 1.05, 0.33);
+        }
+        /* The mane (its top is LION.topY), the head, the muzzle. */
+        const mane = part(new THREE.SphereGeometry(1, 20, 14), lionMat, 0, top + 0.92, 0.28);
+        mane.scale.set(0.38, 0.35, 0.28);
+        const head = part(new THREE.SphereGeometry(0.2, 18, 12), lionMat, 0, top + 0.89, 0.4);
+        head.scale.set(0.95, 0.9, 1.05);
+        part(new THREE.BoxGeometry(0.19, 0.12, 0.17), lionMat, 0, top + 0.78, 0.56);
+        /* The gold collar — the guardians wear the house gold. */
+        const collar = part(new THREE.TorusGeometry(0.23, 0.028, 10, 24), mats.gold, 0, top + 0.67, 0.3);
+        collar.rotation.x = 1.15;
+        /* The tail, curled flat around the right haunch. */
+        const tail = part(new THREE.TorusGeometry(0.3, 0.04, 8, 20, Math.PI * 1.1), lionMat, 0.16, top + 0.06, -0.4);
+        tail.rotation.x = Math.PI / 2;
+        tail.rotation.z = -0.5;
+        g.add(grp);
+      }
+      /* The compass rose: relief set into the yard's paving —
+       * a marble base disc, a raised gold rim ring standing
+       * proud of the floor (item 44's relief), a gold ring
+       * inlay, and an eight-point star under a gold hub. */
+      const rose = new THREE.Group();
+      rose.position.set(COMPASS_ROSE.cx, 0, COMPASS_ROSE.cz);
+      const disc = new THREE.Mesh(
+        new THREE.CylinderGeometry(COMPASS_ROSE.outerR, COMPASS_ROSE.outerR + 0.08, COMPASS_ROSE.baseTopY, 44),
+        mats.facadeMarbleFor(3.4, 0.2),
+      );
+      disc.position.y = COMPASS_ROSE.baseTopY / 2;
+      disc.receiveShadow = shadows;
+      rose.add(disc);
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(COMPASS_ROSE.rimR, COMPASS_ROSE.rimTube, 10, 48), mats.goldDark,
+      );
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = COMPASS_ROSE.rimTopY - COMPASS_ROSE.rimTube;
+      rim.castShadow = shadows;
+      rose.add(rim);
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(COMPASS_ROSE.ringInnerR, COMPASS_ROSE.ringOuterR, 44),
+        mats.gold,
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = COMPASS_ROSE.baseTopY + 0.004;
+      rose.add(ring);
+      /* The star: four long gold cardinals, four short dark
+       * diagonals — flattened four-sided cones lying on the
+       * disc, tips out, bases tucked under the hub. */
+      const spike = (angle: number, len: number, mat: THREE.Material) => {
+        const holder = new THREE.Group();
+        holder.rotation.y = angle;
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.17, len, 4), mat);
+        cone.rotation.x = Math.PI / 2;
+        cone.scale.set(1, 1, 0.22);
+        cone.position.set(0, COMPASS_ROSE.baseTopY + 0.02, len / 2 - 0.12);
+        holder.add(cone);
+        rose.add(holder);
+      };
+      for (let i = 0; i < 4; i++) spike((i * Math.PI) / 2, COMPASS_ROSE.starR, mats.gold);
+      for (let i = 0; i < 4; i++) spike((i * Math.PI) / 2 + Math.PI / 4, COMPASS_ROSE.starR * 0.68, mats.darkMetal);
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          COMPASS_ROSE.hubR, COMPASS_ROSE.hubR + 0.04, COMPASS_ROSE.hubTopY - COMPASS_ROSE.baseTopY, 24,
+        ),
+        mats.gold,
+      );
+      hub.position.y = (COMPASS_ROSE.baseTopY + COMPASS_ROSE.hubTopY) / 2;
+      hub.castShadow = shadows;
+      rose.add(hub);
+      g.add(rose);
     }
 
     /* ── Item 26: daylight pollen ──────────────────────────────
