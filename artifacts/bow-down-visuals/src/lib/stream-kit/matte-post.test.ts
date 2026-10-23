@@ -105,6 +105,71 @@ describe("configure() — live retune (refinement steps)", () => {
   });
 });
 
+describe("motion snap (motion-adaptive blend)", () => {
+  const snapOpts = { emaWeight: 0.45, choke: 0, curveLo: 0, curveHi: 1, featherPasses: 0, motionSnap: 1 } as const;
+
+  it("a hard matte swing lands in ONE frame — no ghost where the subject was", () => {
+    const p = new MattePostProcessor({ ...snapOpts });
+    expect(p.process(filled(1), 8, 8)[0]).toBe(1);
+    // The subject vacates the pixel: the new matte is 0. The legacy
+    // blend would leave 0.55, 0.30, 0.17… — a ghost for frames.
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+  });
+
+  it("a newly occupied pixel is solid in ONE frame — no eaten body", () => {
+    const p = new MattePostProcessor({ ...snapOpts });
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+    expect(p.process(filled(1), 8, 8)[0]).toBe(1);
+  });
+
+  it("small per-pixel jitter keeps the calming base blend (no flicker returns)", () => {
+    const p = new MattePostProcessor({
+      emaWeight: 0.5,
+      choke: 0,
+      curveLo: 0,
+      curveHi: 1,
+      featherPasses: 0,
+      motionSnap: 1,
+    });
+    // Deltas of 0.06 sit under the snap's jitter band (0.08): every
+    // output must equal the plain-EMA path exactly.
+    expect(p.process(filled(0.5), 8, 8)[0]).toBeCloseTo(0.5, 6);
+    expect(p.process(filled(0.56), 8, 8)[0]).toBeCloseTo(0.53, 6);
+    expect(p.process(filled(0.5), 8, 8)[0]).toBeCloseTo(0.515, 6);
+    expect(p.process(filled(0.56), 8, 8)[0]).toBeCloseTo(0.5375, 6);
+  });
+
+  it("a mid-band swing (hair edge in motion) blends faster than base but does not jump whole", () => {
+    const p = new MattePostProcessor({ ...snapOpts });
+    p.process(filled(0), 8, 8);
+    // Delta 0.2 sits mid-ramp (band 0.08..0.35): the result lands
+    // between the pure-EMA value (0.45 * 0.2 = 0.09) and the full
+    // new value (0.2).
+    const out = p.process(filled(0.2), 8, 8)[0];
+    expect(out).toBeGreaterThan(0.09);
+    expect(out).toBeLessThan(0.2);
+  });
+
+  it("motionSnap 0 (the default) IS the legacy blend, byte for byte", () => {
+    const legacy = new MattePostProcessor({ emaWeight: 0.5, featherPasses: 0 });
+    const snapped = new MattePostProcessor({ emaWeight: 0.5, featherPasses: 0, motionSnap: 0 });
+    for (const v of [1, 0, 0, 1, 0.3]) {
+      expect(snapped.process(filled(v), 8, 8)[0]).toBe(legacy.process(filled(v), 8, 8)[0]);
+    }
+  });
+
+  it("configure() can raise the snap live without touching the base weight", () => {
+    const p = new MattePostProcessor({ emaWeight: 0.5, choke: 0, curveLo: 0, curveHi: 1, featherPasses: 0 });
+    p.process(filled(1), 8, 8);
+    // Still legacy: the vacated pixel blends to 0.5, not 0.
+    expect(p.process(filled(0), 8, 8)[0]).toBeCloseTo(0.5, 6);
+    p.configure({ motionSnap: 1 });
+    p.process(filled(1), 8, 8);
+    expect(p.process(filled(0), 8, 8)[0]).toBe(0);
+  });
+});
+
 describe("featherPass", () => {
   it("softens a hard step edge over ~2px and leaves the far field exact", () => {
     const w = 16;

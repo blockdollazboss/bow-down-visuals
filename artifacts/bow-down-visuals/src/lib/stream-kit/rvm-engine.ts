@@ -1,28 +1,45 @@
 /**
  * rvm-engine.ts — the Pro background engine: Robust Video Matting
- * (RVM, MobileNetV3) running in the browser via ONNX Runtime Web.
+ * (RVM, MobileNetV3) via ONNX Runtime Web — running in a dedicated
+ * Web Worker (public/engines/rvm/rvm-worker.js), never in the page.
  *
- * Why it exists: the Standard engine (MediaPipe Selfie Segmentation)
- * emits a hard, low-resolution mask — rough hair edges and visible
- * flicker. RVM is a true video-matting model: it outputs a soft
- * alpha matte with hair-level detail, and its recurrent state is
- * carried across frames, which is where its temporal stability
- * comes from (no per-frame mask flicker).
+ * Why it exists: the Standard engine (MediaPipe Selfie
+ * Segmentation) emits a hard, low-resolution mask — rough hair
+ * edges and visible flicker. RVM is a true video-matting model: it
+ * outputs a soft alpha matte with hair-level detail, and its
+ * recurrent state is carried across frames, which is where its
+ * temporal stability comes from (no per-frame mask flicker).
+ *
+ * THE FREEZE, AND THE FIX (Oct 18–23, 2026): this engine used to
+ * run its ONNX session in the page. ONNX Runtime Web executes on
+ * the calling thread unless it is offloaded — the WASM proxy
+ * worker was never enabled, and the WebGPU backend orchestrates
+ * and reads results back on the caller too — so every frame cost
+ * the UI thread a synchronous drawImage + getImageData + a
+ * per-pixel planar conversion AND the full fp32 inference, back
+ * to back for as long as a backdrop effect was on. The caller's
+ * one-in-flight discipline meant frames never queued; instead the
+ * UI thread simply never got a gap — the tab froze solid when an
+ * effect was picked on the owner's phone, and the engine was
+ * pulled from the studio (Oct 18). The light engine's edge detail
+ * was the price, and the owner has now ordered the heavy engine
+ * fixed and restored (Oct 23). The fix is isolation: the session,
+ * the recurrent state, and all per-frame math live in the worker;
+ * this class is a thin client that ships one frame bitmap in
+ * (transferred, zero-copy) and receives one alpha matte back
+ * (transferred). Inference can block only the worker thread, and
+ * a worker that stops answering is timed out and killed — a
+ * heavy-engine failure degrades to the light engine, never a
+ * frozen tab.
  *
  * Everything is VENDORED (public/engines/onnxruntime +
  * public/engines/rvm) and lazy-loaded only when a camera starts —
- * the same local-first discipline as the other engines. The first
- * base below is the site's own media bucket serving those vendored
- * files (its CORS policy covers the site's origins; every load here
- * — classic script tag, ORT wasm fetch — already runs cross-origin
- * against the CDN fallbacks). The public CDN/GitHub copies remain
- * only as last-resort fallbacks.
- *
- * Runtime selection: WebGPU when the browser exposes a working
- * adapter, otherwise the WASM build (SIMD; threads when the page is
- * cross-origin isolated). Performance governance (step-down /
- * degrade decisions) lives in perf-ladder.ts; this module only
- * executes the step table.
+ * the same local-first discipline as the other engines. The
+ * worker is constructed from the shipped same-origin copy (a
+ * Worker cannot be constructed cross-origin); inside the worker,
+ * the runtime script and the model load through the usual chain —
+ * the site's media bucket, then the same-origin copies, then the
+ * public CDN/GitHub as last-resort fallbacks.
  */
 
 import { mediaUrl } from "../media-cdn";
@@ -39,13 +56,15 @@ export const RVM_CDN_BASE =
   "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0";
 export const RVM_MODEL_FILE = "rvm_mobilenetv3_fp32.onnx";
 
+/** The vendored-first bases for the ORT runtime (the worker loads
+ *  `ort.all.min.js` from the first that answers). */
+export function ortBases(): string[] {
+  return [ORT_LOCAL_BASE, ORT_ORIGIN_BASE, ORT_CDN_BASE];
+}
+
 /** The vendored-first asset URLs for the ORT runtime script. */
 export function ortScriptUrls(): string[] {
-  return [
-    `${ORT_LOCAL_BASE}/ort.all.min.js`,
-    `${ORT_ORIGIN_BASE}/ort.all.min.js`,
-    `${ORT_CDN_BASE}/ort.all.min.js`,
-  ];
+  return ortBases().map((base) => `${base}/ort.all.min.js`);
 }
 
 /** The vendored-first URLs for the RVM model file. */
@@ -57,11 +76,40 @@ export function rvmModelUrls(): string[] {
   ];
 }
 
+/**
+ * The worker script's URL. Workers cannot be constructed
+ * cross-origin, so this is the shipped same-origin copy — it
+ * travels with the app build, and the heavy assets it loads
+ * (runtime + model) still resolve through the full fallback chain
+ * inside the worker.
+ */
+export function rvmWorkerUrl(): string {
+  return `${RVM_ORIGIN_BASE}/rvm-worker.js`;
+}
+
+/**
+ * How long one frame may go unanswered before the worker is
+ * declared wedged (ms). Far above a slow phone's worst honest
+ * inference at the top step, far below "frozen forever": on
+ * timeout the frame fails, the worker is killed, and the caller's
+ * failure governance takes over (the studio falls back to the
+ * light engine) instead of the pipeline wedging silently.
+ */
+export const RVM_FRAME_TIMEOUT_MS = 5_000;
+
 /** A produced alpha matte: values 0..1, row-major, width*height. */
 export interface EngineMatte {
   alpha: Float32Array;
   width: number;
   height: number;
+  /** The exact source frame this matte was computed from. Engines
+   *  that segment a LIVE feed snapshot the frame at send time and
+   *  carry it here, so the caller composites the matte against its
+   *  OWN frame — a matte laid over a newer live frame tears at
+   *  every moving edge (ghost where the subject was, the subject
+   *  erased where it now is). Still-image engines leave it unset
+   *  and their callers draw their own source. */
+  frame?: HTMLCanvasElement;
 }
 
 /** The contract every matting engine implements (Pro + Standard). */
@@ -90,92 +138,14 @@ export class RvmEngineError extends Error {
   }
 }
 
-/* -------------------------------------------------- ORT global (structural) */
-
-export interface OrtTensorLike {
-  data: Float32Array | Uint16Array | BigInt64Array;
-  dims: readonly number[];
-}
-export interface OrtSessionLike {
-  run(feeds: Record<string, OrtTensorLike>): Promise<Record<string, OrtTensorLike>>;
-  release(): Promise<void>;
-}
-export interface OrtApiLike {
-  InferenceSession: {
-    create(
-      source: string,
-      options: { executionProviders: string[] },
-    ): Promise<OrtSessionLike>;
-  };
-  Tensor: new (type: string, data: Float32Array, dims: number[]) => OrtTensorLike;
-  env: {
-    logLevel?: string;
-    wasm: { wasmPaths?: string; numThreads?: number; simd?: boolean };
-  };
-}
-
-function getOrt(): OrtApiLike | null {
-  return (window as unknown as { ort?: OrtApiLike }).ort ?? null;
-}
-
-let ortScriptPromise: Promise<string> | null = null; // resolves to the base that served the script
-let ortEnvConfigured = false;
-
-/** Inject the ORT runtime script once (vendored first, CDN second);
- *  resolves to the base URL the script actually loaded from. */
-function loadOrtScript(): Promise<string> {
-  if (getOrt()) return Promise.resolve(ortScriptPromise ?? ORT_LOCAL_BASE);
-  if (ortScriptPromise) return ortScriptPromise;
-  ortScriptPromise = (async () => {
-    const bases = [ORT_LOCAL_BASE, ORT_ORIGIN_BASE, ORT_CDN_BASE];
-    let lastErr: unknown = null;
-    for (const base of bases) {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = `${base}/ort.all.min.js`;
-          script.async = true;
-          script.onload = () => resolve();
-          script.onerror = () => {
-            script.remove();
-            reject(new Error(`ONNX runtime failed to load from ${base}`));
-          };
-          document.head.appendChild(script);
-        });
-        if (getOrt()) return base;
-        lastErr = new Error("ONNX runtime script loaded but the global is missing");
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    throw new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded.", lastErr);
-  })();
-  ortScriptPromise.catch(() => {
-    ortScriptPromise = null;
-  });
-  return ortScriptPromise;
-}
-
-async function webgpuAdapterAvailable(): Promise<boolean> {
-  const gpu = (navigator as unknown as { gpu?: { requestAdapter?: () => Promise<unknown> } }).gpu;
-  if (!gpu?.requestAdapter) return false;
-  try {
-    const adapter = await Promise.race([
-      gpu.requestAdapter(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
-    ]);
-    return !!adapter;
-  } catch {
-    return false;
-  }
-}
-
 /* ------------------------------------------------------------- step table */
 
 /** Internal quality steps, best first. The PerfLadder walks these
  *  before the caller degrades engines. `feedCap` bounds the width
  *  fed to the model; `ratio` is RVM's downsample_ratio (the model's
- *  low-res branch works at feed * ratio — ~480px wide at step 0). */
+ *  low-res branch works at feed * ratio — ~480px wide at step 0).
+ *  The worker (public/engines/rvm/rvm-worker.js) carries a mirror
+ *  of this table; rvm-engine.test.ts pins the two together. */
 export const RVM_STEPS: ReadonlyArray<{ feedCap: number; ratio: number | "auto" }> = [
   { feedCap: 896, ratio: "auto" },
   { feedCap: 896, ratio: 0.32 },
@@ -184,80 +154,157 @@ export const RVM_STEPS: ReadonlyArray<{ feedCap: number; ratio: number | "auto" 
 ];
 export const RVM_MAX_STEP = RVM_STEPS.length - 1;
 
-function ratioFor(step: (typeof RVM_STEPS)[number], feedLongSide: number): number {
-  if (step.ratio !== "auto") return step.ratio;
-  const r = 480 / Math.max(1, feedLongSide);
-  return Math.min(0.6, Math.max(0.3, r));
+/* --------------------------------------------------------- worker seam */
+
+/** The slice of the Worker API the client drives. Tests inject a
+ *  fake through the constructor; production spawns the real
+ *  vendored worker. */
+export interface RvmWorkerLike {
+  postMessage(message: unknown, transfer?: Transferable[]): void;
+  addEventListener(type: "message" | "error", listener: (ev: { data?: unknown }) => void): void;
+  terminate(): void;
+}
+
+export interface RvmEngineOptions {
+  /** Spawn the engine worker. Default: the vendored worker script. */
+  createWorker?: () => RvmWorkerLike;
+  /** Per-frame answer deadline (ms). Default RVM_FRAME_TIMEOUT_MS. */
+  frameTimeoutMs?: number;
+}
+
+function defaultCreateWorker(): RvmWorkerLike {
+  if (typeof Worker === "undefined") {
+    throw new RvmEngineError("CDN_LOAD_FAILED", "This browser cannot run the Pro background engine.");
+  }
+  try {
+    return new Worker(rvmWorkerUrl()) as unknown as RvmWorkerLike;
+  } catch (err) {
+    throw new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded.", err);
+  }
+}
+
+interface WorkerMatteMessage {
+  type: "matte";
+  seq: number;
+  alpha: ArrayBuffer;
+  width: number;
+  height: number;
+  ms: number;
+}
+
+interface PendingFrame {
+  seq: number;
+  frame: HTMLCanvasElement;
+  sentAt: number;
+  timer: ReturnType<typeof setTimeout>;
+  resolve: (m: EngineMatte | null) => void;
+  reject: (e: unknown) => void;
 }
 
 /* ---------------------------------------------------------------- engine */
 
+/**
+ * The Pro engine client. Owns NO ONNX session — the worker does.
+ * Its own disciplines, all pinned by rvm-engine.test.ts:
+ *  - ONE frame in flight: process() while a frame is outstanding
+ *    resolves null immediately. Frames are dropped, never queued —
+ *    the newest frame is always the one that matters.
+ *  - The frame is snapshotted synchronously at send time and rides
+ *    back on the matte (frame-aligned compositing).
+ *  - A frame that outlives its deadline kills the worker: a wedged
+ *    worker is never trusted again.
+ */
 export class RvmEngine implements MattingEngine {
   readonly kind = "pro" as const;
-  /** Which execution provider the live session uses. */
+  /** Which execution provider the worker's session uses. */
   provider: "webgpu" | "wasm" | null = null;
-  /** Inference duration of the most recent frame (ms). */
-  lastMs = 0;
+  /** Round-trip duration (ms) of the most recent completed frame —
+   *  snapshot → bitmap → worker inference → matte back — or null
+   *  when no frame has completed since the caller last read it.
+   *  The changer samples this into the perf ladder and clears it
+   *  back to null (the light engine's lastMs contract, mirrored). */
+  lastMs: number | null = null;
+  /** Pure in-worker inference duration of the most recent frame. */
+  lastInferenceMs = 0;
 
-  private _ort: OrtApiLike | null = null;
-  private _session: OrtSessionLike | null = null;
-  private _states: OrtTensorLike[] | null = null;
-  private _step = 0;
-  private _feed: HTMLCanvasElement;
-  private _feedCtx: CanvasRenderingContext2D;
-  private _feedW = 0;
-  private _feedH = 0;
-  private _srcBuf: Float32Array | null = null;
-  private _ratioTensor: { value: number; tensor: OrtTensorLike } | null = null;
+  private readonly _createWorker: () => RvmWorkerLike;
+  private readonly _frameTimeoutMs: number;
+  private _worker: RvmWorkerLike | null = null;
+  private _initPromise: Promise<void> | null = null;
+  private _initWaiter: { resolve: () => void; reject: (e: unknown) => void } | null = null;
+  private _ready = false;
+  private _dead = false;
   private _disposed = false;
+  private _pending: PendingFrame | null = null;
+  private _seq = 0;
+  private _step = 0;
+  private _frame: HTMLCanvasElement;
+  private _frameCtx: CanvasRenderingContext2D;
 
-  constructor() {
-    this._feed = document.createElement("canvas");
-    this._feedCtx = this._feed.getContext("2d", { willReadFrequently: true })!;
+  constructor(options: RvmEngineOptions = {}) {
+    this._createWorker = options.createWorker ?? defaultCreateWorker;
+    this._frameTimeoutMs = Math.max(50, options.frameTimeoutMs ?? RVM_FRAME_TIMEOUT_MS);
+    /* The send-time frame snapshot (reused across sends — a
+       snapshot is consumed by its own matte's composite before
+       the next send can overwrite it, because this engine holds
+       one frame in flight at a time). */
+    this._frame = document.createElement("canvas");
+    this._frameCtx = this._frame.getContext("2d")!;
   }
 
   async init(): Promise<void> {
-    const base = await loadOrtScript();
-    const ort = getOrt();
-    if (!ort) throw new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine failed to initialise.");
-    this._ort = ort;
-    if (!ortEnvConfigured) {
-      ortEnvConfigured = true;
-      ort.env.logLevel = "warning";
-      ort.env.wasm.wasmPaths = `${base}/`;
-      const cores = (navigator as unknown as { hardwareConcurrency?: number }).hardwareConcurrency;
-      ort.env.wasm.numThreads = Math.max(1, Math.min(4, cores ?? 1));
+    if (this._ready) return;
+    if (this._initPromise) return this._initPromise;
+    const run = this._doInit();
+    this._initPromise = run;
+    try {
+      await run;
+    } catch (err) {
+      this._initPromise = null;
+      throw err;
     }
-
-    const providers: Array<"webgpu" | "wasm"> = [];
-    if (await webgpuAdapterAvailable()) providers.push("webgpu");
-    providers.push("wasm");
-
-    let lastErr: unknown = null;
-    for (const provider of providers) {
-      for (const url of rvmModelUrls()) {
-        try {
-          this._session = await ort.InferenceSession.create(url, { executionProviders: [provider] });
-          this.provider = provider;
-          this._states = null;
-          return;
-        } catch (err) {
-          lastErr = err;
-          this._session = null;
-        }
-      }
-    }
-    throw new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded.", lastErr);
   }
 
-  /** Apply a PerfLadder step (geometry change resets the recurrence). */
+  private async _doInit(): Promise<void> {
+    if (this._disposed || this._dead) {
+      throw new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded.");
+    }
+    if (typeof createImageBitmap !== "function") {
+      throw new RvmEngineError(
+        "CDN_LOAD_FAILED",
+        "This browser cannot hand frames to the Pro background engine.",
+      );
+    }
+    const worker = this._createWorker(); // throws RvmEngineError when no worker can spawn
+    this._worker = worker;
+    worker.addEventListener("message", (ev) => this._onMessage(ev.data));
+    worker.addEventListener("error", () => this._onWorkerError());
+    const cores = (navigator as unknown as { hardwareConcurrency?: number }).hardwareConcurrency;
+    const threads = Math.max(1, Math.min(4, cores ?? 1));
+    await new Promise<void>((resolve, reject) => {
+      this._initWaiter = { resolve, reject };
+      try {
+        worker.postMessage({ type: "init", ortBases: ortBases(), modelUrls: rvmModelUrls(), threads });
+      } catch (err) {
+        this._initWaiter = null;
+        reject(new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded.", err));
+      }
+    });
+    this._ready = true;
+  }
+
+  /** Apply a PerfLadder step (the worker resets the recurrence). */
   setStep(step: number): void {
     const next = Math.max(0, Math.min(RVM_MAX_STEP, Math.floor(step)));
     if (next === this._step) return;
     this._step = next;
-    this._states = null;
-    this._feedW = 0; // force a geometry rebuild on the next frame
-    this._feedH = 0;
+    if (this._worker && this._ready) {
+      try {
+        this._worker.postMessage({ type: "step", step: next });
+      } catch {
+        /* a dead worker is reported by the next frame's outcome */
+      }
+    }
   }
 
   get step(): number {
@@ -265,84 +312,193 @@ export class RvmEngine implements MattingEngine {
   }
 
   reset(): void {
-    this._states = null;
+    if (this._worker && this._ready) {
+      try {
+        this._worker.postMessage({ type: "reset" });
+      } catch {
+        /* a dead worker is reported by the next frame's outcome */
+      }
+    }
   }
 
   async process(video: HTMLVideoElement): Promise<EngineMatte | null> {
-    const ort = this._ort;
-    const session = this._session;
-    if (!ort || !session || this._disposed) return null;
+    if (!this._ready || !this._worker || this._disposed || this._dead) return null;
+    /* STRICT BACKPRESSURE: one frame in flight, ever. A frame
+       asked for while another is outstanding is skipped (null),
+       never queued — a queue of stale frames is latency the
+       subject has already moved out of. */
+    if (this._pending) return null;
     const vw = video.videoWidth;
     const vh = video.videoHeight;
     if (!vw || !vh) return null;
 
-    const stepDef = RVM_STEPS[this._step];
-    const scale = Math.min(1, stepDef.feedCap / vw);
-    const fw = Math.max(2, Math.round(vw * scale));
-    const fh = Math.max(2, Math.round((vh * fw) / vw));
-    if (fw !== this._feedW || fh !== this._feedH) {
-      this._feed.width = fw;
-      this._feed.height = fh;
-      this._feedW = fw;
-      this._feedH = fh;
-      this._srcBuf = new Float32Array(3 * fw * fh);
-      this._states = null; // geometry changed — recurrence restarts
+    /* Snapshot the frame being sent, synchronously: the matte that
+       comes back describes THIS instant and rides back on
+       EngineMatte.frame, so the composite cuts this frame with its
+       own matte — never the newer live frame. */
+    if (this._frame.width !== vw || this._frame.height !== vh) {
+      this._frame.width = vw;
+      this._frame.height = vh;
     }
+    this._frameCtx.drawImage(video, 0, 0);
+    const frame = this._frame;
+    const seq = ++this._seq;
 
-    const fctx = this._feedCtx;
-    fctx.drawImage(video, 0, 0, fw, fh);
-    const pixels = fctx.getImageData(0, 0, fw, fh).data;
-    const buf = this._srcBuf!;
-    const plane = fw * fh;
-    for (let i = 0, j = 0; i < plane; i++, j += 4) {
-      buf[i] = pixels[j] / 255;
-      buf[plane + i] = pixels[j + 1] / 255;
-      buf[2 * plane + i] = pixels[j + 2] / 255;
-    }
+    const result = new Promise<EngineMatte | null>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this._pending?.seq !== seq) return;
+        this._pending = null;
+        /* A worker that stops answering is not trusted again:
+           kill it, fail the frame, and let the caller's failure
+           governance (fallback / park) take over. */
+        this._killWorker();
+        reject(new RvmEngineError("INFERENCE_FAILED", "The Pro background engine stopped answering."));
+      }, this._frameTimeoutMs);
+      this._pending = { seq, frame, sentAt: performance.now(), timer, resolve, reject };
+    });
 
-    if (!this._states) {
-      this._states = [0, 1, 2, 3].map(() => new ort.Tensor("float32", new Float32Array(1), [1, 1, 1, 1]));
-    }
-    const ratio = ratioFor(stepDef, Math.max(fw, fh));
-    if (!this._ratioTensor || this._ratioTensor.value !== ratio) {
-      this._ratioTensor = { value: ratio, tensor: new ort.Tensor("float32", new Float32Array([ratio]), [1]) };
-    }
-
-    const feeds: Record<string, OrtTensorLike> = {
-      src: new ort.Tensor("float32", buf, [1, 3, fh, fw]),
-      r1i: this._states[0],
-      r2i: this._states[1],
-      r3i: this._states[2],
-      r4i: this._states[3],
-      downsample_ratio: this._ratioTensor.tensor,
-    };
-
-    const t0 = performance.now();
-    let outputs: Record<string, OrtTensorLike>;
+    let bitmap: ImageBitmap;
     try {
-      outputs = await session.run(feeds);
-    } catch (err) {
-      throw new RvmEngineError("INFERENCE_FAILED", "The Pro background engine failed on a frame.", err);
+      bitmap = await createImageBitmap(video);
+    } catch {
+      /* A capture hiccup is a skipped frame, not a dead engine. */
+      this._settlePending(seq, (p) => p.resolve(null));
+      return result;
     }
-    this.lastMs = performance.now() - t0;
-
-    const next = [outputs.r1o, outputs.r2o, outputs.r3o, outputs.r4o];
-    if (next.every(Boolean)) this._states = next;
-    const pha = outputs.pha;
-    if (!pha || !(pha.data instanceof Float32Array)) return null;
-    return { alpha: pha.data, width: fw, height: fh };
+    const pendingSeq = this._pendingSeq();
+    if (pendingSeq === null || pendingSeq !== seq) {
+      /* Settled meanwhile (dispose / worker death): the promise
+         already has its answer; just release the bitmap. */
+      bitmap.close();
+      return result;
+    }
+    try {
+      this._worker.postMessage({ type: "frame", seq, step: this._step, bitmap }, [bitmap]);
+    } catch (err) {
+      try {
+        bitmap.close();
+      } catch {
+        /* already transferred */
+      }
+      this._settlePending(seq, (p) =>
+        p.reject(new RvmEngineError("INFERENCE_FAILED", "The Pro background engine failed on a frame.", err)),
+      );
+    }
+    return result;
   }
 
   async dispose(): Promise<void> {
+    if (this._disposed) return;
     this._disposed = true;
-    this._states = null;
-    if (this._session) {
+    this._ready = false;
+    if (this._initWaiter) {
+      const waiter = this._initWaiter;
+      this._initWaiter = null;
+      waiter.reject(new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine was released."));
+    }
+    if (this._pending) {
+      const pending = this._pending;
+      this._pending = null;
+      clearTimeout(pending.timer);
+      pending.resolve(null);
+    }
+    this._killWorker();
+  }
+
+  /* ------------------------------------------------------------ internal */
+
+  private _pendingSeq(): number | null {
+    return this._pending?.seq ?? null;
+  }
+
+  private _settlePending(seq: number, settle: (p: PendingFrame) => void): void {
+    const pending = this._pending;
+    if (!pending || pending.seq !== seq) return;
+    this._pending = null;
+    clearTimeout(pending.timer);
+    settle(pending);
+  }
+
+  private _killWorker(): void {
+    const worker = this._worker;
+    this._worker = null;
+    this._ready = false;
+    this._dead = true;
+    if (worker) {
       try {
-        await this._session.release();
+        worker.postMessage({ type: "dispose" });
       } catch {
-        /* already released */
+        /* already gone */
       }
-      this._session = null;
+      try {
+        worker.terminate();
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+
+  private _onWorkerError(): void {
+    this._dead = true;
+    this._ready = false;
+    if (this._initWaiter) {
+      const waiter = this._initWaiter;
+      this._initWaiter = null;
+      waiter.reject(new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded."));
+    }
+    if (this._pending) {
+      const pending = this._pending;
+      this._pending = null;
+      clearTimeout(pending.timer);
+      pending.reject(new RvmEngineError("INFERENCE_FAILED", "The Pro background engine failed on a frame."));
+    }
+  }
+
+  private _onMessage(data: unknown): void {
+    if (!data || typeof data !== "object") return;
+    const msg = data as { type?: unknown };
+    if (msg.type === "ready") {
+      const provider = (msg as { provider?: unknown }).provider;
+      this.provider = provider === "webgpu" || provider === "wasm" ? provider : null;
+      if (this._initWaiter) {
+        const waiter = this._initWaiter;
+        this._initWaiter = null;
+        waiter.resolve();
+      }
+      return;
+    }
+    if (msg.type === "init-error") {
+      if (this._initWaiter) {
+        const waiter = this._initWaiter;
+        this._initWaiter = null;
+        waiter.reject(
+          new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded."),
+        );
+      }
+      return;
+    }
+    if (msg.type === "matte") {
+      const matte = msg as unknown as WorkerMatteMessage;
+      const pending = this._pending;
+      if (!pending || pending.seq !== matte.seq) return; // a late matte for a frame already given up on
+      this._pending = null;
+      clearTimeout(pending.timer);
+      this.lastMs = performance.now() - pending.sentAt;
+      this.lastInferenceMs = matte.ms;
+      pending.resolve({
+        alpha: new Float32Array(matte.alpha),
+        width: matte.width,
+        height: matte.height,
+        frame: pending.frame,
+      });
+      return;
+    }
+    if (msg.type === "frame-error") {
+      const seq = (data as { seq?: unknown }).seq;
+      if (typeof seq !== "number") return;
+      this._settlePending(seq, (p) =>
+        p.reject(new RvmEngineError("INFERENCE_FAILED", "The Pro background engine failed on a frame.")),
+      );
     }
   }
 }
