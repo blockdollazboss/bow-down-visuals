@@ -125,7 +125,7 @@ export const AUDIO_BENCHES: readonly AudioBenchDef[] = [
   },
   {
     id: "harmony",
-    label: "Harmony — classic doubles",
+    label: "Harmony — classic + AI",
     input: "url",
     endpoint: "/api/generate-harmony",
     pollPath: null,
