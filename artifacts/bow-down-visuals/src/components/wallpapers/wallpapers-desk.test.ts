@@ -61,3 +61,15 @@ describe("Stack-28 item 12 — screensaver Generate video drives the real runway
     expect(getCreditCost("/api/generate-runway-clip")?.cost).toBe(400);
   });
 });
+
+describe("Stack-28 item 13 — King's Set selections are absolutified for the rails", () => {
+  it("both selection buttons absolutify: Use this art (still) and Use as screensaver (loop)", () => {
+    expect(desk).toContain("setCurrentArt(absoluteKingsSetUrl(piece.stillUrl))");
+    expect(desk).toContain("setVideoUrl(absoluteKingsSetUrl(piece.loopUrl))");
+  });
+
+  it("no bare relative King's Set URL reaches desk state", () => {
+    expect(desk).not.toContain("setCurrentArt(piece.stillUrl)");
+    expect(desk).not.toContain("setVideoUrl(piece.loopUrl)");
+  });
+});

@@ -16,7 +16,7 @@ import {
   THEME_PACK_PRESET_KEYS, buildThemeConfigFromPalette,
   extractPalette, wallpaperPresetByKey, wallpaperPresetsByKind, type WallpaperKind,
 } from "@/lib/wallpapers";
-import { KINGS_SET } from "@/lib/kings-set";
+import { KINGS_SET, absoluteKingsSetUrl } from "@/lib/kings-set";
 
 /* ─── Wallpapers, Screensavers & Themes desk ─────────────────────────────
    One desk, two homes: a panel on /create and a tab on /branding-kit.
@@ -528,7 +528,7 @@ export function WallpapersDesk() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => { setCurrentArt(piece.stillUrl); setPresetKey(piece.presetKey); }}
+                      onClick={() => { setCurrentArt(absoluteKingsSetUrl(piece.stillUrl)); setPresetKey(piece.presetKey); }}
                       className="rounded-full bg-[#d4a017] px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#e8c86a]"
                     >
                       {t("wallpapers.kingset.useArt", { defaultValue: "Use this art" })}
@@ -544,7 +544,7 @@ export function WallpapersDesk() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setVideoUrl(piece.loopUrl)}
+                      onClick={() => setVideoUrl(absoluteKingsSetUrl(piece.loopUrl))}
                       className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-stone-300 text-stone-600 hover:border-[#d4a017]/60" : "border-white/15 text-white/70 hover:border-white/35"}`}
                     >
                       {t("wallpapers.kingset.useForScreensaver", { defaultValue: "Use as screensaver" })}
