@@ -201,6 +201,22 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: 27.8, maxX: 54.6, minZ: 1.1, maxZ: 27.9 },
     spawn: { x: 30.2, z: 14.5 },
   },
+  {
+    /* Stage C item 34: THE ATELIERS — the fourth built district,
+     * a fine-work quarter south-east of the plaza, south of
+     * Creation Row, through a new gap in the east wall's south
+     * run (a true passage since this batch). Bounds + spawn
+     * mirror the client floor plan (lib/world/ateliers.ts via
+     * palace-layout.ts), a touch generous at the gate apron like
+     * every room's. The district is public look/listen space like
+     * the plaza: NO stage and NO jukebox here — the palace's one
+     * stage stays in the hall and its one jukebox in the Music
+     * Hall. */
+    roomId: "world:ateliers",
+    name: "The Ateliers",
+    bounds: { minX: 27.8, maxX: 54.6, minZ: 27.1, maxZ: 53.9 },
+    spawn: { x: 30.2, z: 40.5 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration

@@ -52,6 +52,14 @@ import {
   ROW_TALL_BLOCKED,
   ROW_WALK,
 } from "./creation-row";
+import {
+  ATELIERS_BLOCKED,
+  ATELIERS_CAM_CLAMP,
+  ATELIERS_INTERIOR,
+  ATELIERS_SPAWN,
+  ATELIERS_TALL_BLOCKED,
+  ATELIERS_WALK,
+} from "./ateliers";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -79,6 +87,11 @@ export const LISTENING_GARDENS_ID = "world:listening-gardens";
  * old marker's line — now a true passage. Its geometry lives in
  * creation-row.ts. */
 export const CREATION_ROW_ID = "world:creation-row";
+/* The fourth built district (Stage C item 34): the fine-work
+ * quarter south-east of the plaza, south of Creation Row —
+ * through a new gap in the east wall's south run, now a true
+ * passage. Its geometry lives in ateliers.ts. */
+export const ATELIERS_ID = "world:ateliers";
 
 export interface PalaceRect {
   minX: number;
@@ -148,11 +161,12 @@ export interface PlazaWallRun {
  *  visible wall and the walk clamp agree everywhere: no gap a
  *  walker can see through, no invisible wall where floor runs on.
  *  The gate gaps (Stage Grounds west, Boardwalk south,
- *  Listening Gardens south, Creation Row east) are real gaps in
- *  the runs. The Boardwalk gap stays closed by its gate's gold
- *  bar and the walk rects end inside it; the Stage Grounds gap
- *  is a true passage since item 31, the Listening Gardens gap
- *  since item 32 and the Creation Row gap since item 33 — the
+ *  Listening Gardens south, Creation Row east, Ateliers east)
+ *  are real gaps in the runs. The Boardwalk gap stays closed by
+ *  its gate's gold bar and the walk rects end inside it; the
+ *  Stage Grounds gap is a true passage since item 31, the
+ *  Listening Gardens gap since item 32, the Creation Row gap
+ *  since item 33 and the Ateliers gap since item 34 — the
  *  portals in PALACE_DOORS bridge them into the built districts
  *  beyond. */
 export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
@@ -161,14 +175,16 @@ export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
   { w: 0.35, d: 6.0, x: -28.2, z: 15.4 },
   { w: 0.35, d: 13.4, x: -28.2, z: 27.3 },
   /* East wall x 28.2, split by the Creation Row gate gap
-   * (z 13.4..15.6, on the old marker's line at z 14.5 — item 33):
-   * a short run north of the gap, the main run south of it, then
-   * the continuation south past the creator wing (item 42 — the
-   * run used to stop at z 26 and leave the south-east grounds
-   * open to the void). */
+   * (z 13.4..15.6, on the old marker's line at z 14.5 — item 33)
+   * and — since item 34 — by the Ateliers gate gap
+   * (z 29.4..31.6, in the south run): a short run north of the
+   * Row gap, the main run south of it, then the south run in two
+   * pieces flanking the Ateliers gap, closing at z 34 beside
+   * the Ateliers quarter's own west wall. */
   { w: 0.35, d: 1.0, x: 28.2, z: 12.9 },
   { w: 0.35, d: 10.4, x: 28.2, z: 20.8 },
-  { w: 0.35, d: 8.0, x: 28.2, z: 30.0 },
+  { w: 0.35, d: 3.4, x: 28.2, z: 27.7 },
+  { w: 0.35, d: 2.4, x: 28.2, z: 32.8 },
   /* South wall z 34.0 across the promenade, split by the
    * Boardwalk gate gap (x −1.1..1.1) and — since item 32 — the
    * Listening Gardens gate gap (x −27.1..−24.9, on the old
@@ -182,11 +198,14 @@ export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
    * stands in (item 42). West of x 16.6 the Creator Room's own
    * walls close the line — its interior runs on to z 38. */
   { w: 11.6, d: 0.35, x: 22.4, z: 34.0 },
-  /* The notch wall (item 42): along the main grounds' south edge
-   * east of the Creator Room (whose north wall closes the same
-   * line west of x 16.6). Without it a walker on the east lawns
-   * met an invisible wall at z 25.7 with open floor beyond. */
-  { w: 11.8, d: 0.35, x: 22.3, z: 26.05 },
+  /* The notch wall that stood here (item 42, along the main
+   * grounds' south edge at z 26.05 east of the Creator Room) is
+   * GONE since item 34 — deliberately: it existed to hide the
+   * invisible boundary of the unwalkable south-east yard, and
+   * the yard is walkable plaza ground now (see the Courtyard's
+   * grounds below), ending at real walls and at the Ateliers
+   * gate in the east wall. There is no invisible boundary left
+   * for a notch to hide. */
   /* The Creator Rooms arch returns (item 41): two stubs returning
    * north from the creator wall's face, flanking the arch's
    * forecourt so the arch sits in architecture, not open floor. */
@@ -263,26 +282,29 @@ export interface PlazaGate {
   open?: boolean;
 }
 
-/** The six district thresholds. Four are true gates in real
+/** The six district thresholds. Five are true gates in real
  *  wall gaps (Stage Grounds in the west wall — OPEN since item
  *  31, its district built; Listening Gardens in the south wall —
  *  OPEN since item 32, its district built, reclassified from the
  *  promenade marker that stood at (−26, 33.8); Creation Row in
  *  the east wall — OPEN since item 33, its district built,
  *  reclassified from the plaza-floor marker that stood at
- *  (27.0, 14.5); the Boardwalk in the south wall — still barred,
- *  its district unbuilt). Two are markers: the Ateliers stands
- *  on the open floor at x 27.0, a clear metre west of the east
- *  wall's plaza face — the shipped build painted it ON the
- *  solid wall, a fake passage; the Creator Heights marker keeps
- *  its Phase-1 spot. Every footprint below matches the body the
- *  scene builds. */
+ *  (27.0, 14.5); the Ateliers in the east wall's south run —
+ *  OPEN since item 34, its district built south of Creation
+ *  Row, reclassified from the plaza-floor marker that stood at
+ *  (27.0, 22.5) — its gate could not stand on the marker's own
+ *  line, because east of z 22.5 is Creation Row's built quarter;
+ *  the gate stands at z 30.5, the one east-wall line that opens
+ *  into the Ateliers quarter itself; the Boardwalk in the south
+ *  wall — still barred, its district unbuilt). One is a marker:
+ *  the Creator Heights marker keeps its Phase-1 spot. Every
+ *  footprint below matches the body the scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
   { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   { name: "CREATION ROW", kind: "gate", x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
-  { name: "THE ATELIERS", kind: "marker", x: 27.0, z: 22.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
+  { name: "THE ATELIERS", kind: "gate", x: 28.2, z: 30.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
 ];
 
@@ -448,6 +470,17 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     walk: { minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 },
     grounds: [
       { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
+      /* The south-east yard (item 34): the enclosed floor east of
+       * the Creator Room, between the main grounds and the south
+       * wall. Until this batch it was visible-but-unwalkable —
+       * item 42's notch wall hid its invisible boundary at
+       * z 25.7. Now it is plaza ground in its own right: the way
+       * a walker reaches the Ateliers gate in the east wall
+       * (z 30.5), and the notch wall is gone with the boundary
+       * it hid. The yard's edges are all real: the Creator
+       * Room's east wall west, the east wall (and its gate)
+       * east, the south run south. */
+      { minX: 16.6, maxX: 27.85, minZ: 25.6, maxZ: 33.6 },
       /* The arch spur (item 41): the promenade's eastward arm
        * along the Creator Room's north wall face, from the
        * promenade's edge to the arch — its band runs to the
@@ -532,6 +565,30 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     interior: ROW_INTERIOR,
     camClamp: ROW_CAM_CLAMP,
     spawn: { ...ROW_SPAWN },
+  },
+  /* ── Stage C item 34: THE ATELIERS ─────────────────────────────
+   * The fourth built district: a fine-work quarter south-east
+   * of the plaza, south of Creation Row, through a new gap in
+   * the east wall's south run — since this batch a true passage
+   * (the PALACE_DOORS portal below), not a signpost's promise.
+   * The gate stands at z 30.5, not on the old marker's line
+   * (z 22.5): east of that line is Creation Row's built quarter,
+   * and the Ateliers' north wall is the Row's own south wall.
+   * One room, one presence, like every district: the quarter is
+   * public look/listen space exactly as the plaza is (no stage
+   * authority, no new verbs — the bays and vitrines are the fine
+   * work on show, and the Ateliers Slate is its one door). Its
+   * plan lives in ateliers.ts; the server clamp box mirrors it
+   * (api-server lib/world-palace.ts). */
+  [ATELIERS_ID]: {
+    id: ATELIERS_ID,
+    name: "The Ateliers",
+    walk: ATELIERS_WALK,
+    blocked: [...ATELIERS_BLOCKED],
+    camBlocked: [...ATELIERS_TALL_BLOCKED],
+    interior: ATELIERS_INTERIOR,
+    camClamp: ATELIERS_CAM_CLAMP,
+    spawn: { ...ATELIERS_SPAWN },
   },
 };
 
@@ -680,6 +737,25 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: 27.8, maxX: 28.6, minZ: 13.55, maxZ: 15.45 },
     negRoom: COURTYARD_ID,
     posRoom: CREATION_ROW_ID,
+  },
+  /* The Ateliers gate (item 34): the east wall's new gap in its
+   * south run (z 29.4..31.6 at x 28.2), now a true passage. The
+   * portal spans the wall band with aprons on both faces; its z
+   * span stops inside the gate posts' footprints (posts at
+   * z 29.4 / 31.6, blocked in PLAZA_BLOCKED), so the walkable
+   * doorway is the honest opening between the posts. Membership
+   * flips at the wall plane: east of it is the district, west
+   * the plaza (reached across the south-east yard, walkable
+   * plaza ground since this batch). */
+  {
+    roomId: ATELIERS_ID,
+    axis: "x",
+    plane: 28.2,
+    spanMin: 29.4,
+    spanMax: 31.6,
+    portal: { minX: 27.8, maxX: 28.6, minZ: 29.55, maxZ: 31.45 },
+    negRoom: COURTYARD_ID,
+    posRoom: ATELIERS_ID,
   },
 ];
 
