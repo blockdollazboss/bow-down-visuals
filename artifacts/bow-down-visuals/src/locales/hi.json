@@ -6999,6 +6999,9 @@
     "voiceEditsDesc": "अपनी आवाज़ से एडिट निर्देशित करें — बस बदलाव बताएं।",
     "voiceEditsTitle": "वॉइस एडिट"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "लागू करने के लिए {{count}} Visual Bucs"
+  },
   "viralityCheck": {
     "bestPostingTime": "पोस्ट करने का बेस्ट समय",
     "captionLabel": "कैप्शन",

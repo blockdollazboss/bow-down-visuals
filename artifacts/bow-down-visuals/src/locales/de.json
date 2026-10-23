@@ -6999,6 +6999,9 @@
     "voiceEditsDesc": "Steuere deine Edits mit deiner Stimme — beschreibe einfach die Änderung.",
     "voiceEditsTitle": "Voice-Edits"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs zum Anwenden"
+  },
   "viralityCheck": {
     "bestPostingTime": "Beste Posting-Zeit",
     "captionLabel": "Caption",

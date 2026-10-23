@@ -6999,6 +6999,9 @@
     "voiceEditsDesc": "声で編集を指示 — 変更を説明するだけです。",
     "voiceEditsTitle": "ボイス編集"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "適用に {{count}} Visual Bucs"
+  },
   "viralityCheck": {
     "bestPostingTime": "最適な投稿時間",
     "captionLabel": "キャプション",

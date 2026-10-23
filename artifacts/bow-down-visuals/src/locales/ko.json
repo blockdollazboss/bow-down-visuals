@@ -6999,6 +6999,9 @@
     "voiceEditsDesc": "음성으로 편집을 지시하세요 — 변경 사항을 설명하기만 하세요.",
     "voiceEditsTitle": "음성 편집"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "적용 시 {{count}} Visual Bucs"
+  },
   "viralityCheck": {
     "bestPostingTime": "최적 게시 시간",
     "captionLabel": "캡션",

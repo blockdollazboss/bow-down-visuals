@@ -12,6 +12,7 @@ import { ArrowRight, Clapperboard, Search, Sparkles, X } from "lucide-react";
 import {
   VIDEO_TEMPLATE_METAS,
   VIDEO_TEMPLATE_CATEGORIES,
+  VIDEO_TEMPLATE_APPLY_COST,
 } from "@/data/video-templates";
 import ShareMenu from "@/components/ShareMenu";
 
@@ -215,8 +216,21 @@ export default function VideoTemplates() {
                   </span>
                 </div>
 
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between gap-3 mb-2">
                   <h2 className="text-xl font-bold">{tpl.name}</h2>
+                  {/* APPLY PRICE — the flat apply charge, shown before the
+                      click (not only in the editor's confirmation dialog).
+                      The value comes from the CREDIT_COSTS registry via
+                      VIDEO_TEMPLATE_APPLY_COST — the same source the
+                      charge's confirmation quotes. */}
+                  {VIDEO_TEMPLATE_APPLY_COST != null && (
+                    <span
+                      className={`rounded-full border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
+                      data-testid={`vt-price-${tpl.key}`}
+                    >
+                      {t("videoTemplatesPage.applyPrice", { count: VIDEO_TEMPLATE_APPLY_COST })}
+                    </span>
+                  )}
                 </div>
                 <p className={`text-sm mb-3 flex-1 ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{tpl.description}</p>
                 <div className={`rounded-xl border px-4 py-3 mb-5 ${isLight ? "bg-[#C9A84C]/[0.10] border-[#C9A84C]/30" : "bg-black/40 border-white/[0.07]"}`}>

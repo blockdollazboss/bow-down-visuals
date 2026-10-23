@@ -7011,6 +7011,9 @@
     "voiceEditsDesc": "Dirige tus ediciones con tu voz — solo describe el cambio.",
     "voiceEditsTitle": "Ediciones por Voz"
   },
+  "videoTemplatesPage": {
+    "applyPrice": "{{count}} Visual Bucs para aplicar"
+  },
   "viralityCheck": {
     "bestPostingTime": "Mejor Hora de Publicación",
     "captionLabel": "Texto",
