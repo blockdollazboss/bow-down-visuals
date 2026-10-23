@@ -63,5 +63,26 @@ DESCRIPTION against the current code, not by citation.
   centres + faces unwalkable via isWalkable, and the scene builds its
   cases from the same ATELIER_VITRINES list (source pin on hall-scene).
 
-## Verification (FINAL — filled from finished logs in this .lane/)
-- pending
+## Verification (FINAL — numbers from finished logs in this .lane/)
+- FE world suites: 102 files / 1,847 tests ALL PASS, exit 0
+  (.lane/final-fe-world.log) — includes this lane's new
+  presence-rewalk.test.ts (9 tests); voice.test.ts (28) and
+  ateliers.test.ts (17) re-run green inside the suite.
+- API world suites: 34 files / 442 tests ALL PASS, exit 0
+  (.lane/final-api-world.log) — the world-* files in lib/__tests__ +
+  routes/__tests__ (incl. new world-presence-lane.test.ts, 6 tests)
+  plus operator-tier4.test.ts, the directory()'s operator consumer.
+- FE typecheck exit 0 (.lane/final-fe-typecheck.log — full
+  --incremental false run); API typecheck exit 0
+  (.lane/final-api-typecheck.log — full --incremental false run).
+  All runs sequential, --maxWorkers=1, TMPDIR in-worktree.
+- No flakes; no A/B needed. No existing test pin was changed,
+  weakened, or deleted: item 62's readers all read fresh peers
+  (present == raw there), item 63's context-free headline pin
+  stands as-is. No migrations, no price/charge changes, no file
+  deletions, no push.
+
+## Commits (stack28/world-pres, base 92740798)
+- b4e4f0e9 items 61+62 (sweep pin; directory counters go live) + this plan
+- 8f2fa92f items 63+64 (quiet caption by room state; vitrine block pin)
+- (final) this verification record
