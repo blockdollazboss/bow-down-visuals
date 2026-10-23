@@ -244,7 +244,7 @@ export default function QuestsWidget({
   const claimableTotal = inWorld ? claimableVb(data.quests) : 0;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.10] via-primary/[0.04] to-transparent p-5 md:p-6">
+    <section id="quests" className="relative scroll-mt-24 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.10] via-primary/[0.04] to-transparent p-5 md:p-6">
       <div className="flex items-center gap-3">
         <div className="h-11 w-11 rounded-2xl bg-primary/[0.12] border border-primary/30 flex items-center justify-center text-primary shrink-0">
           <Target className="h-6 w-6" />

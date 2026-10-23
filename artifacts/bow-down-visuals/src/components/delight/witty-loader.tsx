@@ -64,6 +64,17 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
     return () => obs.disconnect();
   }, []);
 
+  // Stack-28 #52 (A5-P7): poster-first backdrop. The light-theme wait
+  // video is 12.9 MB — it must not download for a wait that flashes by.
+  // The poster <img> paints immediately; the <video> element is mounted
+  // (and only then fetches, preload="none") once this loader has actually
+  // been running for a beat, i.e. a real wait is in progress.
+  const [videoReady, setVideoReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setVideoReady(true), 600);
+    return () => window.clearTimeout(id);
+  }, []);
+
   // Barcode is the single source of truth — progress drives everything.
   // Slide changes at the halfway mark, so each headline/promo gets ~half the fill.
   const [progress, setProgress] = useState(0);
@@ -95,17 +106,28 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
       {/* Throne room backdrop — theme-aware: light gets the shark action
           video, dark keeps the dark throne image */}
       {isLight ? (
-        <video
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-          src={mediaUrl("videos/loading-light-temp.mp4")}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster={mediaUrl("images/loading-bg-light-throne.webp")}
-        />
+        <>
+          <img
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover"
+            src={mediaUrl("images/loading-bg-light-throne.webp")}
+            alt=""
+            draggable={false}
+          />
+          {videoReady && (
+            <video
+              aria-hidden
+              className="absolute inset-0 h-full w-full object-cover"
+              src={mediaUrl("videos/loading-light-temp.mp4")}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="none"
+              poster={mediaUrl("images/loading-bg-light-throne.webp")}
+            />
+          )}
+        </>
       ) : (
         <div
           aria-hidden

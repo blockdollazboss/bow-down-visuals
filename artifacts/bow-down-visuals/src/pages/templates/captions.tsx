@@ -13,8 +13,8 @@ import {
   CAPTION_CATEGORIES,
 } from "@/data/caption-templates";
 
-/* ─── Public caption pack gallery ───
-   No login required. "Use this pack" deep-links into Hook Studio's captions
+/* ─── Caption pack gallery (members) ───
+   Sign-in required to browse (access law: /templates* is locked for guests). "Use this pack" deep-links into Hook Studio's captions
    tab with ?tab=captions&template=<slug> — login + credits kick in at
    generation. */
 
@@ -68,7 +68,7 @@ export default function CaptionPacks() {
             <p className="mt-4 text-white/50 max-w-2xl mx-auto">
               Done-for-you caption starters for launches, promos, and everyday
               posts. Pick a pack, hit “Use this pack,” and our AI writes
-              captions in your tone — free to browse, credits apply when you
+              captions in your tone — free to browse with your account, credits apply when you
               generate.
             </p>
           </div>

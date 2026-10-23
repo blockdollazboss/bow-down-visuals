@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { mediaUrl } from "@/lib/media-cdn";
+import { deferAfterFirstPaint } from "@/lib/defer-after-paint";
 
 /* ─────────── Fog Lab B — canvas particle smoke ─────────── */
 /* A true particle simulation: ~220 smoke-textured particles advected by
@@ -61,13 +62,20 @@ export function FogCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const tex: HTMLImageElement[] = TEX_URLS.map((u) => {
-      const img = new Image();
-      // CORS mode: textures come from the media bucket; keep the
-      // canvas untainted (bucket CORS covers the site's origins).
-      img.crossOrigin = "anonymous";
-      img.src = u;
-      return img;
+    // Stack-28 #47: the 3 smoke textures (4.45 MB PNG) load only after
+    // first paint + visibility of the fog box, not at mount. The frame
+    // loop already skips unloaded textures, so particles simply appear
+    // once the textures land — identical look once loaded.
+    const tex: HTMLImageElement[] = [];
+    const cancelTexLoad = deferAfterFirstPaint(box, () => {
+      TEX_URLS.forEach((u, i) => {
+        const img = new Image();
+        // CORS mode: textures come from the media bucket; keep the
+        // canvas untainted (bucket CORS covers the site's origins).
+        img.crossOrigin = "anonymous";
+        img.src = u;
+        tex[i] = img;
+      });
     });
 
     let W = 0, H = 0, dpr = 1;
@@ -226,6 +234,7 @@ export function FogCanvas({
 
     return () => {
       cancelled = true;
+      cancelTexLoad();
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);

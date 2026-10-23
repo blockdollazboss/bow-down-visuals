@@ -19,6 +19,7 @@ import {
   LIBRARY_FONTS, LIBRARY_FONT_CATEGORIES,
   type LibraryFont, type LibraryFontCategory,
 } from "@/data/library-fonts";
+import { ensureLibraryFonts } from "@/lib/load-fonts";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
@@ -71,6 +72,9 @@ export default function Library() {
   const [recent, setRecent] = useState<RecentItem[]>(() => readRecent());
   const [favs, setFavs] = useState<string[]>(() => readFavs());
   const [copiedFont, setCopiedFont] = useState<string | null>(null);
+
+  // Stack-28 #50: library font families load on demand on this surface.
+  useEffect(() => { ensureLibraryFonts(); }, []);
 
   // Context-aware: ?tool=thumbnail preselects the Thumbnails category
   useEffect(() => {

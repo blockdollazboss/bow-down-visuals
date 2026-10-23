@@ -537,25 +537,44 @@ export function LipSyncStudio({
           )}
         </div>
 
+        {/* Stack-28 #43: these two single-source actions stay disabled —
+            HONESTLY labelled. Decision (from code): they cannot be wired to
+            the existing run flow. The only lip-sync rail this component has
+            is the one-click run-all above (startRun), which syncs EVERY scene
+            of a saved project via projectId; the component receives no
+            artist-image input and no selected-clip input (props are only
+            audioUrl / transcriptText / activeArtist / projectId /
+            getAccessToken), so pointing either button at run-all would make
+            it do something different from what its label promises. Until a
+            per-image / per-clip rail exists, they follow the honest
+            placeholder pattern of analytics-hub.tsx ("Coming soon" + title). */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
             disabled
+            title="Coming soon — single-image lip sync is not connected yet. Use Sync All Scenes & Export above to lip-sync a saved project."
             data-testid="btn-lipsync-from-image"
             className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
           >
             <Mic2 className="h-4 w-4 shrink-0" />
             Create Lip Sync From Artist Image
+            <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
+              Coming soon
+            </span>
           </button>
 
           <button
             type="button"
             disabled
+            title="Coming soon — single-clip lip sync is not connected yet. Use Sync All Scenes & Export above to lip-sync a saved project."
             data-testid="btn-lipsync-from-clip"
             className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
           >
             <Mic2 className="h-4 w-4 shrink-0" />
             Lip Sync Selected Video Clip
+            <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
+              Coming soon
+            </span>
           </button>
         </div>
 

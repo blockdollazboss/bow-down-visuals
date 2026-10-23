@@ -620,7 +620,9 @@ export default function SplitCalculator() {
                   </div>
 
                   <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.07]">
-                    <table className="w-full text-sm">
+                    {/* Stack-28 #55: horizontal scroll escape at 390px (store-dashboard pattern) */}
+                    <div className="overflow-x-auto">
+                    <table className="w-full min-w-[420px] text-sm">
                       <thead>
                         <tr className="bg-white/[0.03] text-left text-[11px] uppercase tracking-widest text-white/40">
                           <th className="px-4 py-2 font-bold">{t("wave8.splits.name")}</th>
@@ -655,6 +657,7 @@ export default function SplitCalculator() {
                         })}
                       </tbody>
                     </table>
+                    </div>
                   </div>
 
                   {/* post to income ledger */}

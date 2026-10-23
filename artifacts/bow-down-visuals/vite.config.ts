@@ -52,6 +52,13 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Stack-28 #51 (A5-P5) — chunk budget: any single chunk over 650 kB
+    // raw warns at build time so first-load regressions surface instead
+    // of silently shipping. Known oversize exceptions at the time of
+    // setting: the World route chunk (scene graph) — tracked separately
+    // by the World lane; everything else must stay under or be split
+    // along a natural seam like the ones below.
+    chunkSizeWarningLimit: 650,
     rollupOptions: {
       output: {
         // Rolldown (Vite 8's bundler) only accepts the function form of
@@ -64,6 +71,12 @@ export default defineConfig({
             )
           ) {
             return "vendor-radix";
+          }
+          // Stack-28 #51: recharts is used ONLY by the analytics-hub route — keep it in
+          // its own vendor chunk so the hub's panel code stays lean and
+          // the chart library's size is visible on its own line.
+          if (/[\\/]node_modules[\\/]recharts[\\/]/.test(id)) {
+            return "vendor-recharts";
           }
           return undefined;
         },
