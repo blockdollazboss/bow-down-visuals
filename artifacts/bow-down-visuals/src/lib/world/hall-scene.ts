@@ -139,6 +139,7 @@ import {
   STAGE_GROUNDS_ID,
   LISTENING_GARDENS_ID,
   CREATION_ROW_ID,
+  ATELIERS_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   palaceRoomLayout,
@@ -170,6 +171,13 @@ import {
   ROW_CANVAS_STACKS, ROW_TOOL_BENCHES, ROW_PLANTERS, ROW_PLANTER_CROWNS,
   ROW_LAMPS, ROW_BANNER_POLES, ROW_BANNER_POLE,
 } from "./creation-row";
+import {
+  ATELIERS_INTERIOR, ATELIERS_WALL_RUNS, ATELIERS_PIERS, ATELIERS_LANE, ATELIER_BAYS, BAY_KIT,
+  ATELIER_BAY_POSTS, ATELIER_BAY_TABLES, ATELIER_BAY_PANELS, ATELIER_VITRINES, VITRINE,
+  ATELIER_PLINTHS, ATELIER_PLINTH, ATELIER_CRATES, ATELIER_CRATE, ATELIER_STONE_STACKS,
+  ATELIER_TOOL_BENCHES, ATELIERS_PLANTERS, ATELIERS_PLANTER_CROWNS, ATELIERS_LAMPS,
+  ATELIERS_BANNER_POLES, ATELIERS_BANNER_POLE,
+} from "./ateliers";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
@@ -2631,33 +2639,36 @@ export class KingsHallScene {
     const look = hallLookFor(this.theme);
     const cam = sun.shadow.camera;
     /* The Stage Grounds (item 31), the Listening Gardens
-     * (item 32) and Creation Row (item 33) stand outdoors under
-     * the same sky: standing in a district, the sun/moon keeps
-     * the plaza's aim and the shadow camera widens to cover the
-     * district too — one light, still one shadow pass. The
-     * Gardens' aim centres south, on the parterre; the Row's
-     * centres east, on the makers' street. */
-    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID;
+     * (item 32), Creation Row (item 33) and the Ateliers
+     * (item 34) stand outdoors under the same sky: standing in a
+     * district, the sun/moon keeps the plaza's aim and the
+     * shadow camera widens to cover the district too — one
+     * light, still one shadow pass. The Gardens' aim centres
+     * south, on the parterre; the Row's centres east, on the
+     * makers' street; the Ateliers' centres south-east, on the
+     * fine-work lane. */
+    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID;
     const inDistrict = this.currentRoom === STAGE_GROUNDS_ID;
     const inGardens = this.currentRoom === LISTENING_GARDENS_ID;
     const inRow = this.currentRoom === CREATION_ROW_ID;
+    const inAteliers = this.currentRoom === ATELIERS_ID;
     if (outdoors && look.sun.present) {
       // Day on the plaza: sun high in the southern sky, so the
       // palace facade and the monument throw real shadows.
       sun.position.set(16, 25, 47);
-      tgt.position.set(inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inRow ? 14.5 : inGardens ? 47 : 20);
+      tgt.position.set(inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(look.sun.color);
       sun.intensity = look.sun.intensity;
-      const fit = inDistrict || inGardens || inRow ? 44 : 36;
+      const fit = inDistrict || inGardens || inRow || inAteliers ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else if (outdoors) {
       // Night on the plaza: moonlight — cool, dim, shadow-casting.
       sun.position.set(-14, 27, 42);
-      tgt.position.set(inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inRow ? 14.5 : inGardens ? 47 : 20);
+      tgt.position.set(inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(0x93a7d4);
       sun.intensity = 0.6;
-      const fit = inDistrict || inGardens || inRow ? 44 : 36;
+      const fit = inDistrict || inGardens || inRow || inAteliers ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else {
@@ -2683,7 +2694,7 @@ export class KingsHallScene {
     const fog = this.scene.fog;
     if (!(fog instanceof THREE.Fog)) return;
     const look = hallLookFor(this.theme);
-    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID) {
+    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID) {
       fog.near = look.theme === "light" ? 48 : 34;
       fog.far = look.theme === "light" ? 140 : 115;
     } else {
@@ -2905,6 +2916,7 @@ export class KingsHallScene {
     this.buildStageGroundsShell(group, look, mats, anim);
     this.buildListeningGardensShell(group, look, mats, anim);
     this.buildCreationRowShell(group, look, mats, anim);
+    this.buildAteliersShell(group, look, mats, anim);
     this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
@@ -3467,21 +3479,27 @@ export class KingsHallScene {
     // fourth side is the hall's own back wall + the arch through
     // it). The runs are palace-layout's PLAZA_WALL_RUNS — one
     // enclosure now (item 42): the east wall runs the grounds'
-    // full length, a south run closes the south-east yard, a
-    // notch wall stands on the main grounds' south edge east of
-    // the Creator Room (whose own north wall closes that line
-    // west of it), and two short returns flank the Creator Rooms
-    // arch (item 41). Four gates pierce the runs: a 2.2 m gap
+    // full length, a south run closes the south-east yard (itself
+    // walkable plaza ground since item 34 — the notch wall that
+    // used to stand on the main grounds' south edge east of the
+    // Creator Room is gone with the invisible boundary it hid),
+    // and two short returns flank the Creator Rooms arch
+    // (item 41). Five gates pierce the runs: a 2.2 m gap
     // in the west wall at z ≈ 19.5 (Stage Grounds), one in the
     // south promenade wall at x ≈ 0 (the Boardwalk), one in
     // the south wall at x ≈ −26 (the Listening Gardens, on the
-    // old marker's line), and one in the east wall at z ≈ 14.5
-    // (Creation Row, on its old marker's line). The Boardwalk
-    // gap stays barred and the walk rects end inside it; the
-    // Stage Grounds gap is walked through since item 31, the
-    // Gardens gap since item 32 and the Row gap since item 33
+    // old marker's line), one in the east wall at z ≈ 14.5
+    // (Creation Row, on its old marker's line), and one in the
+    // east wall's south run at z ≈ 30.5 (the Ateliers — not on
+    // its old marker's line at z 22.5, which opens into the
+    // built Creation Row; z 30.5 opens into the Ateliers quarter
+    // south of the Row). The Boardwalk gap stays barred and the
+    // walk rects end inside it; the Stage Grounds gap is walked
+    // through since item 31, the Gardens gap since item 32, the
+    // Row gap since item 33 and the Ateliers gap since item 34
     // (their districts are built — see buildStageGroundsShell /
-    // buildListeningGardensShell / buildCreationRowShell).
+    // buildListeningGardensShell / buildCreationRowShell /
+    // buildAteliersShell).
     // Every run is a blocked rect in the layout, derived from
     // this same list.
     const lowWall = (w: number, d: number, x: number, z: number) => {
@@ -5161,6 +5179,364 @@ export class KingsHallScene {
     this.shellGroups.set(CREATION_ROW_ID, g);
   }
 
+  /** The Ateliers shell (Stage C item 34): the fine-work quarter
+   *  south-east of the plaza, south of Creation Row, built
+   *  entirely from ateliers.ts placement data — the same data
+   *  palace-layout registers as the room's blocked rects, so
+   *  every body built here is solid there. A working lane:
+   *  glazed workshop bays lining a marble-striped lane, display
+   *  vitrines along its edges, sculpture plinths, work yards
+   *  with crates / stone stacks / tool benches, planted beds
+   *  closing the north and south reaches, and the quarter's
+   *  lamps and banners. The ground wears the OUTDOOR system
+   *  (the look's paving + whole-tile slabs — never interior
+   *  marble). Draw discipline: repeated pieces instance (slabs,
+   *  bay posts, table/panel bodies, plinth bodies, crates, lamp
+   *  parts, planting crowns). Light discipline: ZERO new real
+   *  lights — the lantern standards AND the bays' glazed studio
+   *  fronts glow by emissive glass + item-27 lantern-glow
+   *  sprites after dark. */
+  private buildAteliersShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* The ground: the look's paving over the whole quarter (the
+     * shell floor), with the whole-tile wearing slabs instanced
+     * over it — palace-grounds' paving plan for this rect. */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    this.shellFloor(g, look, mats, ATELIERS_INTERIOR, "paving", pavingSurface);
+    {
+      const slabs = pavingSlabsFor(ATELIERS_INTERIOR);
+      const slabInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), slabs.length,
+      );
+      slabs.forEach((s, i) => {
+        dummy.position.set(s.cx, 0.015, s.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        slabInst.setMatrixAt(i, dummy.matrix);
+      });
+      slabInst.instanceMatrix.needsUpdate = true;
+      slabInst.receiveShadow = shadows;
+      g.add(slabInst);
+    }
+
+    /* The quarter's own enclosure: low marble walls with gold
+     * caps on the east, south and west-south (the plaza's
+     * language) — the north side is Creation Row's south wall
+     * and the west side north of z 34 is the plaza's east wall
+     * and its open gate. */
+    for (const run of ATELIERS_WALL_RUNS) {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w, 1.05, run.d), mats.marbleFor(Math.max(run.w, run.d), 1.05),
+      );
+      wall.position.set(run.x, 0.525, run.z);
+      wall.castShadow = shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w === 0.35 ? 0.47 : run.w, 0.07, run.d === 0.35 ? 0.47 : run.d), mats.gold,
+      );
+      cap.position.set(run.x, 1.09, run.z);
+      g.add(cap);
+    }
+    /* Grounded piers on the east wall's line (item 43's build). */
+    for (const p of ATELIERS_PIERS) {
+      const pier = new THREE.Group();
+      pier.position.set(p.x, 0, p.z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
+      pier.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), mats.marble);
+      shaft.position.y = 0.3 + 3.54 / 2;
+      shaft.castShadow = shadows;
+      pier.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      pier.add(cap);
+      g.add(pier);
+    }
+
+    /* The lane: a marble strip on the quarter's centre line
+     * running east into the quarter, gold strips on its edges —
+     * the plaza spine's language, turned east. Flat accent, no
+     * collision, like every path on the grounds. */
+    {
+      const len = ATELIERS_LANE.toX - ATELIERS_LANE.fromX;
+      const cx = (ATELIERS_LANE.fromX + ATELIERS_LANE.toX) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(len, 0.016, ATELIERS_LANE.w), mats.marble);
+      slab.position.set(cx, 0.022, ATELIERS_LANE.cz);
+      g.add(slab);
+      for (const sz of [-1.03, 1.03]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.012, 0.07), mats.goldDark);
+        strip.position.set(cx, 0.028, ATELIERS_LANE.cz + sz);
+        g.add(strip);
+      }
+    }
+
+    /* The workshop bays: four posts per bay (instanced), a fabric
+     * canopy with a gold-dark edge on their heads, the worktable
+     * against each bay's back (instanced bodies), and the glazed
+     * studio front closing the back — a gold-dark frame carrying
+     * a warm-lit glass panel (the lamp-glass law: emissive at
+     * dusk, pale by day; NO real light behind it). The bay's
+     * mouth stays open floor — a maker stands in it. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.07, 0.09, BAY_KIT.postH, 10), mats.darkMetal,
+        ATELIER_BAY_POSTS.map((p) => ({ x: p.x, y: BAY_KIT.postH / 2, z: p.z })),
+      );
+      for (const s of ATELIER_BAYS) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(BAY_KIT.canopyW + 0.1, 0.05, BAY_KIT.canopyD + 0.1), mats.goldDark);
+        trim.position.set(s.x, BAY_KIT.canopyY - 0.04, s.z);
+        g.add(trim);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(BAY_KIT.canopyW, 0.08, BAY_KIT.canopyD), mats.fabric);
+        canopy.position.set(s.x, BAY_KIT.canopyY, s.z);
+        canopy.castShadow = shadows;
+        g.add(canopy);
+      }
+      instanced(
+        new THREE.BoxGeometry(BAY_KIT.tableW, BAY_KIT.tableH, BAY_KIT.tableD), mats.stoneFor(BAY_KIT.tableW, BAY_KIT.tableH),
+        ATELIER_BAY_TABLES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
+      );
+      const trims: Array<{ x: number; y: number; z: number }> = [];
+      ATELIER_BAYS.forEach((s, i) => {
+        const b = ATELIER_BAY_TABLES[i]!;
+        trims.push({ x: b.cx, y: BAY_KIT.tableH - 0.06, z: b.cz + s.side * (BAY_KIT.tableD / 2 + 0.02) });
+      });
+      instanced(new THREE.BoxGeometry(BAY_KIT.tableW, 0.05, 0.05), mats.gold, trims);
+      /* The glazed fronts: frames (instanced, gold-dark) a hair
+       * behind the glass line, glass panels (instanced) on it. */
+      instanced(
+        new THREE.BoxGeometry(BAY_KIT.panelW + 0.16, BAY_KIT.panelH + 0.16, 0.1), mats.goldDark,
+        ATELIER_BAYS.map((s, i) => {
+          const p = ATELIER_BAY_PANELS[i]!;
+          return { x: p.cx, y: p.cy, z: p.cz - s.side * 0.08 };
+        }),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      instanced(
+        new THREE.BoxGeometry(BAY_KIT.panelW, BAY_KIT.panelH, BAY_KIT.panelD),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.35, metalness: 0.1,
+        }),
+        ATELIER_BAY_PANELS.map((p) => ({ x: p.cx, y: p.cy, z: p.cz })),
+      );
+    }
+
+    /* The display vitrines: stone pedestals (instanced) carrying
+     * an open gold-dark case — bottom and top slabs — with a
+     * small made thing in gold inside and a glass pane over its
+     * lane face (transparent, emissive-warmed at dusk). */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.7, 0.75, 0.7), mats.stoneFor(0.7, 0.75),
+        ATELIER_VITRINES.map((p) => ({ x: p.x, y: 0.375, z: p.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(VITRINE.w, 0.06, VITRINE.w), mats.goldDark,
+        ATELIER_VITRINES.map((p) => ({ x: p.x, y: 0.78, z: p.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(VITRINE.w, 0.06, VITRINE.w), mats.goldDark,
+        ATELIER_VITRINES.map((p) => ({ x: p.x, y: VITRINE.h - 0.03, z: p.z })),
+      );
+      instanced(
+        new THREE.IcosahedronGeometry(0.2, 1), mats.gold,
+        ATELIER_VITRINES.map((p) => ({ x: p.x, y: 1.0, z: p.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      instanced(
+        new THREE.BoxGeometry(VITRINE.w - 0.06, VITRINE.h - 0.81, VITRINE.w - 0.06),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity * 0.5,
+          roughness: 0.15, metalness: 0, transparent: true, opacity: 0.32,
+        }),
+        ATELIER_VITRINES.map((p) => ({ x: p.x, y: 1.0, z: p.z })),
+      );
+    }
+
+    /* The sculpture plinths: stone pedestals (instanced) with a
+     * gold-dark cap and a small sculpted piece in gold on each —
+     * the fine work on show in the yards. */
+    {
+      instanced(
+        new THREE.BoxGeometry(ATELIER_PLINTH.w, ATELIER_PLINTH.h, ATELIER_PLINTH.w), mats.stoneFor(ATELIER_PLINTH.w, ATELIER_PLINTH.h),
+        ATELIER_PLINTHS.map((p) => ({ x: p.x, y: ATELIER_PLINTH.h / 2, z: p.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.86, 0.06, 0.86), mats.goldDark,
+        ATELIER_PLINTHS.map((p) => ({ x: p.x, y: ATELIER_PLINTH.h + 0.03, z: p.z })),
+      );
+      instanced(
+        new THREE.IcosahedronGeometry(0.22, 1), mats.gold,
+        ATELIER_PLINTHS.map((p) => ({ x: p.x, y: ATELIER_PLINTH.h + 0.32, z: p.z })),
+      );
+    }
+
+    /* Materials dressing: crate stacks (two crates a stack,
+     * instanced, timber-toned), raw stone block stacks, and tool
+     * benches against the far wall. */
+    {
+      const cratePlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      ATELIER_CRATES.forEach((c, i) => {
+        const cv = propVariation("trough", 500 + i);
+        cratePlaces.push({ x: c.x, y: ATELIER_CRATE.size / 2, z: c.z, rotY: cv.rotY });
+        cratePlaces.push({ x: c.x + 0.06, y: ATELIER_CRATE.size * 1.5, z: c.z - 0.04, rotY: cv.rotY + 0.35 });
+      });
+      instanced(
+        new THREE.BoxGeometry(ATELIER_CRATE.size, ATELIER_CRATE.size, ATELIER_CRATE.size),
+        new THREE.MeshStandardMaterial({ color: 0x8a6b42, roughness: 1, metalness: 0, flatShading: true }),
+        cratePlaces,
+      );
+      for (const s of ATELIER_STONE_STACKS) {
+        const stack = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), mats.stoneFor(s.w, s.h));
+        stack.position.set(s.cx, s.cy, s.cz);
+        stack.castShadow = shadows;
+        g.add(stack);
+      }
+      for (const b of ATELIER_TOOL_BENCHES) {
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mats.darkMetal);
+        bench.position.set(b.cx, b.cy, b.cz);
+        bench.castShadow = shadows;
+        g.add(bench);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.12, 0.06, b.d + 0.12), mats.stoneFor(b.d, 0.2));
+        top.position.set(b.cx, b.h + 0.03, b.cz);
+        g.add(top);
+      }
+    }
+
+    /* The planted edges: stone-edged beds closing the north and
+     * south reaches, green-topped, with planting crowns along
+     * each bed (instanced, item-18 variation per crown). */
+    {
+      for (const p of ATELIERS_PLANTERS) {
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.d), mats.stoneFor(p.w, p.h));
+        bed.position.set(p.cx, p.cy, p.cz);
+        bed.castShadow = shadows;
+        bed.receiveShadow = shadows;
+        g.add(bed);
+        const green = new THREE.Mesh(
+          new THREE.BoxGeometry(p.w - 0.2, 0.07, p.d - 0.2),
+          new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0 }),
+        );
+        green.position.set(p.cx, p.h + 0.035, p.cz);
+        g.add(green);
+      }
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.4, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        ATELIERS_PLANTER_CROWNS.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      ATELIERS_PLANTER_CROWNS.forEach((c, i) => {
+        const cv = propVariation("crown", 1100 + i);
+        dummy.position.set(c.x, 0.55 + 0.28 * cv.scaleY, c.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+    }
+
+    /* Banner poles flanking the lane's far end: a dark pole, a
+     * gold crossarm, and a hanging banner in the look's cloth —
+     * the Row's pole build, turned to face the lane. */
+    for (const p of ATELIERS_BANNER_POLES) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, ATELIERS_BANNER_POLE.h, 8), mats.darkMetal);
+      pole.position.set(p.x, ATELIERS_BANNER_POLE.h / 2, p.z);
+      pole.castShadow = shadows;
+      g.add(pole);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8), mats.gold);
+      arm.rotation.x = Math.PI / 2;
+      arm.position.set(p.x, ATELIERS_BANNER_POLE.h - 0.15, p.z);
+      g.add(arm);
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
+      banner.position.set(p.x, ATELIERS_BANNER_POLE.h - 1.05, p.z);
+      banner.castShadow = shadows;
+      g.add(banner);
+    }
+
+    /* The quarter's lantern standards — plaza-life's LAMP build,
+     * instanced: stone plinths, dark posts, gold cages, emissive
+     * glass, glow sprites after dark. Zero real lights. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        ATELIERS_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        ATELIERS_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        ATELIERS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        ATELIERS_LAMPS.length,
+      );
+      ATELIERS_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        ATELIERS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        ATELIERS_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+        });
+      }
+    }
+
+    // The way back, labeled from the district side of the gate.
+    this.doorPlate(g, "THE KING'S PLAZA", 28.45, PALACE_DOOR_HEIGHT + 0.66, 30.5, Math.PI / 2, 2.6);
+
+    // The district's door-station: the Ateliers Slate at the lane's head.
+    this.buildStationMarkers(g, mats, ATELIERS_ID);
+
+    group.add(g);
+    this.shellGroups.set(ATELIERS_ID, g);
+  }
+
   /** Plaza life (Stage C batch C3), built entirely from
    *  plaza-life.ts placement data — the same data palace-layout
    *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
@@ -6056,15 +6432,26 @@ export class KingsHallScene {
        * other stays built — the gate is a real sightline, and a
        * vanishing district (or plaza) through it would be a lie.
        * The Listening Gardens and the plaza share the same law
-       * through the open south gate (item 32), and Creation Row
-       * and the plaza through the open east gate (item 33). */
+       * through the open south gate (item 32), Creation Row
+       * and the plaza through the open east gate (item 33), and
+       * the Ateliers and the plaza through the east wall's south
+       * gate (item 34). */
       const gateVisible =
         (id === STAGE_GROUNDS_ID && this.currentRoom === COURTYARD_ID) ||
         (id === COURTYARD_ID && this.currentRoom === STAGE_GROUNDS_ID) ||
         (id === LISTENING_GARDENS_ID && this.currentRoom === COURTYARD_ID) ||
         (id === COURTYARD_ID && this.currentRoom === LISTENING_GARDENS_ID) ||
         (id === CREATION_ROW_ID && this.currentRoom === COURTYARD_ID) ||
-        (id === COURTYARD_ID && this.currentRoom === CREATION_ROW_ID);
+        (id === COURTYARD_ID && this.currentRoom === CREATION_ROW_ID) ||
+        (id === ATELIERS_ID && this.currentRoom === COURTYARD_ID) ||
+        (id === COURTYARD_ID && this.currentRoom === ATELIERS_ID) ||
+        /* The Ateliers and Creation Row share a wall (the Row's
+         * south run is the Ateliers' north wall, item 34): the
+         * wall is low, so each district is genuinely visible
+         * over it from the other — standing in either, the other
+         * stays built. */
+        (id === ATELIERS_ID && this.currentRoom === CREATION_ROW_ID) ||
+        (id === CREATION_ROW_ID && this.currentRoom === ATELIERS_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible || gateVisible;
     }
     const plaza = this.shellGroups.get(COURTYARD_ID);

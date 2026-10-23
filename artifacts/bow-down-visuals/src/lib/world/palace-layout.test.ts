@@ -136,6 +136,10 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     expect(plaza.walk).toEqual({ minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 });
     expect(plaza.grounds).toEqual([
       { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
+      /* The south-east yard (item 34) — the enclosed floor east
+       * of the Creator Room, walkable since the Ateliers batch:
+       * the way to the Ateliers gate in the east wall. */
+      { minX: 16.6, maxX: 27.85, minZ: 25.6, maxZ: 33.6 },
       /* The arch spur (item 41) — added by Stage B cluster 4. */
       { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
     ]);
@@ -328,13 +332,20 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     /* DELIBERATELY moved in item 33: the east wall is no longer
      * continuous — the Creation Row gate gap (z 13.4..15.6, a
      * true passage) pierces it between the first two runs,
-     * exactly the west wall's Stage Grounds pattern. South of
-     * the gap the runs stay continuous to z 34. */
+     * exactly the west wall's Stage Grounds pattern.
+     * DELIBERATELY moved again in item 34: a second gap — the
+     * Ateliers gate (z 29.4..31.6, a true passage) — pierces
+     * the south run. Between and around the two gaps the runs
+     * stay continuous to z 34. */
     const eastGap = (east[1]!.z - east[1]!.d / 2) - (east[0]!.z + east[0]!.d / 2);
     expect(eastGap).toBeCloseTo(2.2); // the Creation Row gate gap — a true passage since item 33
-    for (let i = 2; i < east.length; i++) {
-      expect(east[i]!.z - east[i]!.d / 2).toBeLessThanOrEqual(east[i - 1]!.z + east[i - 1]!.d / 2 + 1e-9);
+    const eastGaps: number[] = [];
+    for (let i = 1; i < east.length; i++) {
+      const gap = (east[i]!.z - east[i]!.d / 2) - (east[i - 1]!.z + east[i - 1]!.d / 2);
+      if (gap > 1e-9) eastGaps.push(gap);
     }
+    expect(eastGaps).toHaveLength(2);
+    for (const gap of eastGaps) expect(gap).toBeCloseTo(2.2);
     const south = PLAZA_WALL_RUNS.filter((r) => r.z === 34.0 && r.d === 0.35);
     /* DELIBERATELY moved in item 32: no single run spans
      * −28.2..−1.1 any more — the Listening Gardens gate gap
@@ -347,15 +358,29 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     const gardensRunEast = south.filter((r) => r.x - r.w / 2 >= -27.1).sort((a, b) => a.x - b.x)[0]!;
     expect((gardensRunEast.x - gardensRunEast.w / 2) - (gardensRunWest.x + gardensRunWest.w / 2)).toBeCloseTo(2.2);
     expect(south.some((r) => r.x - r.w / 2 <= 16.6 + 1e-9 && r.x + r.w / 2 >= 28.2 - 1e-9)).toBe(true);
-    expect(PLAZA_WALL_RUNS).toContainEqual({ w: 11.8, d: 0.35, x: 22.3, z: 26.05 });
+    /* DELIBERATELY moved in item 34: the notch wall that stood
+     * at z 26.05 is gone — it hid the invisible boundary of the
+     * then-unwalkable south-east yard, and the yard is walkable
+     * plaza ground now (see the agreement test below). */
+    expect(PLAZA_WALL_RUNS).not.toContainEqual({ w: 11.8, d: 0.35, x: 22.3, z: 26.05 });
   });
 
   it("item 42: visible wall and walk clamp agree — no invisible wall, no see-through gap", () => {
     expect(isWalkable(24, 25.5)).toBe(true);
-    expect(isWalkable(24, 26.05)).toBe(false);
-    expect(isWalkable(24, 30)).toBe(false);
+    /* DELIBERATELY moved in item 34: the south-east yard is
+     * walkable plaza ground now — the way to the Ateliers gate —
+     * so the old notch line and the yard beyond it both walk,
+     * and a step south off the main grounds lands in the yard.
+     * The yard's own edges stay real walls: south and east
+     * (beside the gate) are solid, and the gate line itself is
+     * the one true passage east. */
+    expect(isWalkable(24, 26.05)).toBe(true);
+    expect(isWalkable(24, 30)).toBe(true);
+    expect(isWalkable(24, 33.9)).toBe(false);
+    expect(isWalkable(28.2, 33.5)).toBe(false);
     const res = resolvePalaceMove({ x: 24, z: 25.4, room: COURTYARD_ID }, 24, 26.4);
-    expect(res.z).toBe(25.4);
+    expect(res.z).toBeCloseTo(26.4);
+    expect(res.room).toBe(COURTYARD_ID);
     /* DELIBERATELY moved in item 31: (−28.0, 19.5) stands in the
      * Stage Grounds gate's portal — the gap is a true passage
      * now, so the point IS walkable. The wall beside the gate
@@ -401,9 +426,9 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    /* Eleven since item 33 added the Creation Row district
-     * room (ten was item 32's Listening Gardens count). */
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(11);
+    /* Twelve since item 34 added the Ateliers district room
+     * (eleven was item 33's Creation Row count). */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(12);
   });
 
   it("the front doors open beside the stage, never through it", () => {
