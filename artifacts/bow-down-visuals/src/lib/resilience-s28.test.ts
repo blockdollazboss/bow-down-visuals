@@ -41,3 +41,30 @@ describe("#23 analytics-hub: failed overview ≠ 'not connected' (A3-F1)", () =>
     expect(page).toContain("{error && overview && (");
   });
 });
+
+describe("#24 referrals: no infinite spinner, own data not waterfall-blocked (A3-F2)", () => {
+  const page = src("../pages/referrals.tsx");
+  it("the primary /api/referrals/me fetch sits inside the guarded load (not bare in the effect)", () => {
+    expect(page).toContain("Promise.allSettled([contestP, meP])");
+    expect(page).toContain('authFetch("/api/referrals/me")');
+  });
+  it("loading always settles: setLoading(false) is in a finally", () => {
+    expect(page).toContain("} finally {\n        if (!cancelled) setLoading(false);");
+  });
+  it("contest and own data start concurrently — neither awaits the other first", () => {
+    const contestAt = page.indexOf("const contestP");
+    const meAt = page.indexOf("const meP");
+    const settledAt = page.indexOf("Promise.allSettled([contestP, meP])");
+    expect(contestAt).toBeGreaterThan(-1);
+    expect(meAt).toBeGreaterThan(contestAt);
+    expect(settledAt).toBeGreaterThan(meAt);
+    expect(page).not.toContain('const cres = await fetch("/api/referrals/contest");\n        const cdata = await cres.json();\n        if (cres.ok) setContest(cdata);\n      } catch { /* non-fatal */ }\n      if (!user)');
+  });
+  it("the error state carries its own retry (rest of page — hero + contest — stays alive above it)", () => {
+    expect(page).toContain("setRetryNonce((n) => n + 1)");
+    const contestAt = page.indexOf("<ContestSection");
+    const errorAt = page.indexOf("onClick={() => setRetryNonce((n) => n + 1)}");
+    expect(contestAt).toBeGreaterThan(-1);
+    expect(errorAt).toBeGreaterThan(contestAt);
+  });
+});
