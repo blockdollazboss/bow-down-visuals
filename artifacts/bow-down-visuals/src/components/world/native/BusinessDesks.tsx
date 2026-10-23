@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { CalendarClock, Camera, Check, Crown, Download, FolderPlus, Layers, Link2, Megaphone, Newspaper, Palette, Pencil, Plus, RefreshCw, Rocket, Share2, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Camera, Check, CheckCircle2, Copy, Crown, Download, Eye, EyeOff, FolderPlus, Layers, Link2, Megaphone, Newspaper, Palette, Pencil, Plus, RefreshCw, Rocket, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
@@ -24,13 +24,13 @@ import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
-import { applyBrandKit, fetchBrandKit, saveBrandKit, type BrandKit } from "@/lib/brand-kit";
+import { applyBrandKit, fetchBrandKit, saveBrandKit, saveLogoToBrandKit, BRAND_KIT_COLOR_ROLES, type BrandKit } from "@/lib/brand-kit";
 import {
   fetchMyStreamPackAssets,
   setStreamPackAssetApplied,
   type StreamPackAssetRecord,
 } from "@/lib/stream-pack";
-import { slugifyHandle } from "@/lib/press-kit";
+import { slugifyHandle, movePressKitLayoutEntry, setPressKitSectionVisible, type PressKitSectionKey } from "@/lib/press-kit";
 import { SITE_FEATURES } from "@/data/features";
 import {
   BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
@@ -69,6 +69,20 @@ import {
   buildPressKitGeneratePayload,
   pressKitGenerateReady,
   buildRegenerateBioPayload,
+  pressKitDraftFromKit,
+  validatePressKitDraft,
+  buildPressKitSavePayload,
+  pressKitPublicPath,
+  type PressKitDraft,
+  BRAND_KIT_MAX_BIO_LINES,
+  BRAND_KIT_MAX_FONT_PAIRINGS,
+  BRAND_KIT_MAX_PRESS_FACTS,
+  brandKitDraftFromKit,
+  validateBrandKitDraft,
+  buildBrandKitSavePayload,
+  setBrandKitColorRole,
+  nextBrandKitColor,
+  type BrandKitEditDraft,
   parseBioPages,
   bioPageStatusLine,
   parseBioAnalytics,
@@ -94,6 +108,14 @@ import {
   PROMO_CARD_STYLES,
   buildCoachPayload,
   parseCoachTodayAction,
+  COACH_NICHES,
+  COACH_PLATFORMS,
+  defaultCoachInputs,
+  validateCoachInputs,
+  buildMoneySnapshot,
+  parseMoneyEntries,
+  type CoachInputs,
+  type CoachMoneySnapshot,
   type PressKitSummary,
   type BioPageSummary,
   type BioAnalytics,
@@ -221,6 +243,22 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
   const [kitNote, setKitNote] = useState<string | null>(null);
   const [kitError, setKitError] = useState<string | null>(null);
 
+  /* Manual field editing (Stack-100 #72): the BrandKitPanel's editor
+     on the panel's free PUT rail — colours, fonts, bio lines, press
+     facts, brand name and logo URL, hand-tuned right here. */
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState<BrandKitEditDraft | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  /* Logo → brand-kit save-back (Stack-100 #73): the desk used to send
+     the creator to the website to file a made logo. Now it rides the
+     page's own rail — POST /api/brand-kit/logo via the shared
+     saveLogoToBrandKit seam (free; saving replaces, never duplicates;
+     an external URL is re-hosted server-side first). */
+  const [logoSaveState, setLogoSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [logoSavedUrl, setLogoSavedUrl] = useState<string | null>(null);
+
   /* Logo job (the Create Desk kit in miniature). */
   const [logoName, setLogoName] = useState("");
   const [logoStyle, setLogoStyle] = useState<string>("luxury-gold");
@@ -320,6 +358,12 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest, spLibTick]);
+
+  /* A different logo in the save-back slot starts unsaved again. */
+  useEffect(() => {
+    setLogoSaveState("idle");
+    setLogoSavedUrl(null);
+  }, [logoUrl]);
 
   /* Poll the logo task (Standard tier) — the page's 3s cadence. */
   useEffect(() => {
@@ -448,6 +492,54 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
       setKitError("The kit wouldn't apply. Try again.");
     } finally {
       setKitBusy(null);
+    }
+  };
+
+  const openKitEditor = () => {
+    if (!kit) return;
+    setEditDraft(brandKitDraftFromKit(kit));
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const saveKitEdits = async () => {
+    if (!kit || !editDraft || editBusy) return;
+    const problem = validateBrandKitDraft(editDraft, true);
+    if (problem) {
+      setEditError(problem);
+      return;
+    }
+    setEditBusy(true);
+    setEditError(null);
+    setKitNote(null);
+    setKitError(null);
+    try {
+      const saved = await saveBrandKit(getAccessToken, buildBrandKitSavePayload(editDraft, true));
+      setKit(saved);
+      setEditDraft(brandKitDraftFromKit(saved));
+      setEditOpen(false);
+      setKitNote("Brand kit saved — every surface that reads your brand now uses this.");
+      refreshProfile();
+    } catch {
+      setEditError("Couldn't save your brand kit. Try again.");
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  /* #73: file the logo made at this desk into the kit's one logo
+     slot. A different logo in the slot starts unsaved again (the
+     page's rule). */
+  const saveLogoToKit = async () => {
+    if (!logoUrl || logoSaveState === "saving" || logoSaveState === "saved") return;
+    setLogoSaveState("saving");
+    try {
+      const result = await saveLogoToBrandKit(getAccessToken, logoUrl);
+      setKit(result.brandKit);
+      setLogoSavedUrl(result.logoUrl);
+      setLogoSaveState("saved");
+    } catch {
+      setLogoSaveState("failed");
     }
   };
 
@@ -752,9 +844,124 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
               </button>
               <span className={`text-[11px] ${muted}`}>Free — your profile theme takes the kit's lead colors and fonts.</span>
             </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                data-testid="world-brand-kit-edit-open"
+                disabled={kitBusy !== null}
+                onClick={openKitEditor}
+                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 ${
+                  isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
+                }`}
+              >
+                <Pencil className="h-3.5 w-3.5" /> Hand-tune colors, fonts &amp; lines
+              </button>
+              <span className={`text-[11px] ${muted}`}>Free — edit the kit by hand, no need to regenerate.</span>
+            </div>
           </div>
         )}
       </SectionShell>
+
+      {editOpen && editDraft && kit ? (
+        <NativeCard isLight={isLight} title="Hand-tune your brand kit">
+          <div className="space-y-4" data-testid="world-brand-kit-editor">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input aria-label="Brand name" className={inputCls(isLight)} value={editDraft.brandName} maxLength={80} onChange={(e) => setEditDraft({ ...editDraft, brandName: e.target.value })} placeholder="Brand name" />
+              <input aria-label="Logo image link" data-testid="world-brand-kit-logo-url" className={inputCls(isLight)} value={editDraft.logoUrl} maxLength={1000} onChange={(e) => setEditDraft({ ...editDraft, logoUrl: e.target.value })} placeholder="Logo image link (https://…)" />
+            </div>
+
+            <div>
+              <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>Palette</p>
+              <div className="space-y-2">
+                {editDraft.colors.map((c, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-1.5" data-testid="world-brand-kit-color-row">
+                    <input
+                      type="color"
+                      aria-label={`Color ${i + 1} picker`}
+                      className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-[#d4af37]/40 bg-transparent p-0.5"
+                      value={/^#[0-9a-fA-F]{6}$/.test(c.hex) ? c.hex : "#000000"}
+                      onChange={(e) => setEditDraft({ ...editDraft, colors: editDraft.colors.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)) })}
+                    />
+                    <input aria-label={`Color ${i + 1} hex`} className={inputCls(isLight)} style={{ width: "7rem" }} value={c.hex} maxLength={7} placeholder="#C9A84C" onChange={(e) => setEditDraft({ ...editDraft, colors: editDraft.colors.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)) })} />
+                    <input aria-label={`Color ${i + 1} name`} className={inputCls(isLight)} style={{ flex: "1 1 7rem" }} value={c.name} maxLength={80} placeholder="Color name" onChange={(e) => setEditDraft({ ...editDraft, colors: editDraft.colors.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                    <select aria-label={`Color ${i + 1} role`} className={selectCls(isLight)} value={c.role} onChange={(e) => setEditDraft({ ...editDraft, colors: setBrandKitColorRole(editDraft.colors, i, e.target.value) })}>
+                      {BRAND_KIT_COLOR_ROLES.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                    <button type="button" aria-label={`Remove color ${i + 1}`} disabled={editDraft.colors.length <= 1} onClick={() => setEditDraft({ ...editDraft, colors: editDraft.colors.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                {(() => {
+                  const next = nextBrandKitColor(editDraft.colors);
+                  return next ? (
+                    <button type="button" data-testid="world-brand-kit-color-add" onClick={() => setEditDraft({ ...editDraft, colors: [...editDraft.colors, next] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                      <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a color
+                    </button>
+                  ) : null;
+                })()}
+              </div>
+            </div>
+
+            <div>
+              <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>Font pairings — the first one leads</p>
+              <div className="space-y-2">
+                {editDraft.fonts.map((f, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-1.5" data-testid="world-brand-kit-font-row">
+                    <input aria-label={`Pairing ${i + 1} heading font`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.heading} maxLength={120} placeholder="Heading font" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, heading: e.target.value } : x)) })} />
+                    <input aria-label={`Pairing ${i + 1} body font`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.body} maxLength={120} placeholder="Body font" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)) })} />
+                    <input aria-label={`Pairing ${i + 1} usage`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.usage} maxLength={240} placeholder="When to use it" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, usage: e.target.value } : x)) })} />
+                    <button type="button" aria-label={`Remove font pairing ${i + 1}`} disabled={editDraft.fonts.length <= 1} onClick={() => setEditDraft({ ...editDraft, fonts: editDraft.fonts.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                {editDraft.fonts.length < BRAND_KIT_MAX_FONT_PAIRINGS ? (
+                  <button type="button" data-testid="world-brand-kit-font-add" onClick={() => setEditDraft({ ...editDraft, fonts: [...editDraft.fonts, { heading: "", body: "", usage: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                    <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a font pairing
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {([
+              ["bioLines", "Bio lines — the short version of you", BRAND_KIT_MAX_BIO_LINES, "e.g. Gold-standard creator studio."],
+              ["pressFacts", "Press facts — achievements the press kit can quote", BRAND_KIT_MAX_PRESS_FACTS, "e.g. 100k streams in year one"],
+            ] as const).map(([field, label, max, placeholder]) => (
+              <div key={field}>
+                <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>{label}</p>
+                <div className="space-y-1.5">
+                  {editDraft[field].map((line, i) => (
+                    <div key={i} className="flex gap-1.5">
+                      <input aria-label={`${label} ${i + 1}`} className={inputCls(isLight)} value={line} maxLength={300} placeholder={placeholder} onChange={(e) => setEditDraft({ ...editDraft, [field]: editDraft[field].map((x, j) => (j === i ? e.target.value : x)) })} />
+                      <button type="button" aria-label={`Remove line ${i + 1}`} onClick={() => setEditDraft({ ...editDraft, [field]: editDraft[field].filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {editDraft[field].length < max ? (
+                    <button type="button" onClick={() => setEditDraft({ ...editDraft, [field]: [...editDraft[field], ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                      <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a line
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+
+            {editError ? <p className="text-xs font-semibold text-red-400" data-testid="world-brand-kit-edit-error">{editError}</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" data-testid="world-brand-kit-edit-save" onClick={() => void saveKitEdits()} disabled={editBusy} className={goldBtn}>
+                <Check className="h-4 w-4" /> {editBusy ? "Saving…" : "Save my brand kit — free"}
+              </button>
+              <button type="button" onClick={() => { setEditOpen(false); setEditError(null); }} className={`text-xs font-bold ${muted}`}>
+                Done editing
+              </button>
+            </div>
+          </div>
+        </NativeCard>
+      ) : null}
 
       {(kitNote || kitError) && (
         <p className={`px-1 text-xs font-semibold ${kitError ? "text-red-400" : isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
@@ -834,7 +1041,28 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
             logoUrl ? (
               <div className="flex flex-wrap items-center gap-3">
                 <img src={logoUrl} alt="Your new logo" className="h-24 w-24 rounded-2xl border border-[#d4af37]/40 object-contain" />
-                <p className={`text-xs ${muted}`}>Your logo, made right here. Saving it into your brand kit is on the website bench for now.</p>
+                <div className="space-y-2">
+                  <p className={`text-xs ${muted}`}>Your logo, made right here.</p>
+                  {logoSaveState === "saved" ? (
+                    <span data-testid="world-logo-save-to-kit-saved" className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Saved to your branding kit{logoSavedUrl && kit?.logoUrl === logoSavedUrl ? " — it stands on the kit card above" : ""}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="world-logo-save-to-kit"
+                      onClick={() => void saveLogoToKit()}
+                      disabled={logoSaveState === "saving"}
+                      className={goldBtn}
+                    >
+                      {logoSaveState === "saving" ? "Saving to your kit…" : logoSaveState === "failed" ? "That save didn't land — try again" : "Save to my branding kit — free"}
+                    </button>
+                  )}
+                  {logoSaveState === "failed" ? (
+                    <p className={`text-xs ${muted}`}>Your logo itself is safe — only the kit filing failed.</p>
+                  ) : null}
+                </div>
               </div>
             ) : undefined
           }
@@ -1113,6 +1341,18 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
   const [regenBusy, setRegenBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
+  /* Full editing (Stack-100 #71): the 2D page's whole editor on its
+     own free rails — PUT /api/press-kit/:id for every field (socials,
+     achievements, quotes, photos, top tracks, layout, public toggle)
+     and DELETE /api/press-kit/:id, with the page's two-step delete
+     spoken in-world instead of a browser confirm. */
+  const [pkEditing, setPkEditing] = useState(false);
+  const [pkDraft, setPkDraft] = useState<PressKitDraft | null>(null);
+  const [pkBusy, setPkBusy] = useState<"save" | "delete" | null>(null);
+  const [pkError, setPkError] = useState<string | null>(null);
+  const [pkConfirmDelete, setPkConfirmDelete] = useState(false);
+  const [pkCopied, setPkCopied] = useState(false);
+
   /* First-kit form (shown only when there is no kit yet). */
   const [artistName, setArtistName] = useState("");
   const [handle, setHandle] = useState("");
@@ -1178,6 +1418,85 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
       setNote("The press desk didn't answer. Try again.");
     } finally {
       setRegenBusy(false);
+    }
+  };
+
+  const openPkEditor = () => {
+    if (!kit) return;
+    setPkDraft(pressKitDraftFromKit(kit));
+    setPkError(null);
+    setPkConfirmDelete(false);
+    setPkEditing(true);
+  };
+
+  const savePkEdits = async () => {
+    if (!kit || !pkDraft || pkBusy) return;
+    const problem = validatePressKitDraft(pkDraft);
+    if (problem) {
+      setPkError(problem);
+      return;
+    }
+    setPkBusy("save");
+    setPkError(null);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/press-kit/${kit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildPressKitSavePayload(pkDraft)),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data as { message?: string; error?: string };
+        setPkError(
+          res.status === 409
+            ? "That press address is already taken — pick another handle."
+            : (d.message ?? d.error ?? "That save didn't land — try again."),
+        );
+        return;
+      }
+      const updated = parsePressKits({ kits: [(data as Record<string, unknown>)["kit"]] })[0];
+      if (updated) setKit(updated);
+      setPkEditing(false);
+      setNote("Press kit saved — the public page carries your new words.");
+    } catch {
+      setPkError("The press desk didn't answer. Try again.");
+    } finally {
+      setPkBusy(null);
+    }
+  };
+
+  const deletePk = async () => {
+    if (!kit || pkBusy) return;
+    if (!pkConfirmDelete) {
+      setPkConfirmDelete(true);
+      return;
+    }
+    setPkBusy("delete");
+    setPkError(null);
+    try {
+      const res = await fetch(`/api/press-kit/${kit.id}`, { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) throw new Error("delete");
+      setKit(null);
+      setPkEditing(false);
+      setPkDraft(null);
+      setPkConfirmDelete(false);
+      setNote(null);
+    } catch {
+      setPkError("That delete didn't land — your kit is still standing. Try again.");
+    } finally {
+      setPkBusy(null);
+    }
+  };
+
+  const copyPkLink = () => {
+    if (!kit) return;
+    try {
+      void navigator.clipboard?.writeText(`${window.location.origin}${pressKitPublicPath(kit)}`);
+      setPkCopied(true);
+      window.setTimeout(() => setPkCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable — the public path is on screen */
     }
   };
 
@@ -1305,7 +1624,144 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
               </button>
             </div>
             {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
-            <p className={`text-xs ${muted}`}>Layout and theme editing for the kit lives on the website bench — the footer below takes you straight there.</p>
+            <div className="flex flex-wrap items-center gap-2 border-t border-[#d4af37]/20 pt-3">
+              <button type="button" data-testid="world-press-kit-edit-open" onClick={openPkEditor} className={goldBtn}>
+                <Pencil className="h-4 w-4" /> Edit the full kit
+              </button>
+              <button type="button" data-testid="world-press-kit-copy-link" onClick={copyPkLink} className={goldBtn}>
+                {pkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {pkCopied ? "Copied" : "Copy public link"}
+              </button>
+              <a href={pressKitPublicPath(kit)} target="_blank" rel="noreferrer" data-testid="world-press-kit-pdf" className={goldBtn}>
+                <Download className="h-4 w-4" /> PDF / print — your public kit
+              </a>
+              <button
+                type="button"
+                data-testid="world-press-kit-delete"
+                onClick={() => void deletePk()}
+                disabled={pkBusy !== null}
+                className="inline-flex items-center gap-2 rounded-full border border-red-500/50 px-4 py-2 text-sm font-bold text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" /> {pkBusy === "delete" ? "Deleting…" : pkConfirmDelete ? "Tap again to delete this kit for good" : "Delete kit"}
+              </button>
+            </div>
+            {pkConfirmDelete ? (
+              <p className={`text-xs ${muted}`}>Deleting removes the kit and its public page. This cannot be undone.</p>
+            ) : null}
+            {pkError && !pkEditing ? <p className="text-xs font-semibold text-red-400">{pkError}</p> : null}
+
+            {pkEditing && pkDraft ? (
+              <div className="space-y-3 border-t border-[#d4af37]/20 pt-3" data-testid="world-press-kit-editor">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="block">
+                    <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Press address — /press/</span>
+                    <input aria-label="Press kit handle" data-testid="world-press-kit-handle" className={inputCls(isLight)} value={pkDraft.handle} onChange={(e) => setPkDraft({ ...pkDraft, handle: slugifyHandle(e.target.value) })} maxLength={30} />
+                  </label>
+                  <label className="block">
+                    <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Artist name</span>
+                    <input aria-label="Artist name" className={inputCls(isLight)} value={pkDraft.artist_name} onChange={(e) => setPkDraft({ ...pkDraft, artist_name: e.target.value })} maxLength={120} />
+                  </label>
+                  <input aria-label="Tagline" className={inputCls(isLight)} placeholder="Tagline" value={pkDraft.tagline} onChange={(e) => setPkDraft({ ...pkDraft, tagline: e.target.value })} maxLength={160} />
+                  <input aria-label="Genre" className={inputCls(isLight)} placeholder="Genre" value={pkDraft.genre} onChange={(e) => setPkDraft({ ...pkDraft, genre: e.target.value })} maxLength={80} />
+                  <input aria-label="Location" className={inputCls(isLight)} placeholder="Location" value={pkDraft.location} onChange={(e) => setPkDraft({ ...pkDraft, location: e.target.value })} maxLength={120} />
+                  <input aria-label="Booking email" className={inputCls(isLight)} placeholder="Booking email" value={pkDraft.booking_email} onChange={(e) => setPkDraft({ ...pkDraft, booking_email: e.target.value })} maxLength={160} />
+                  <input aria-label="Website" className={inputCls(isLight)} placeholder="Website (https://…)" value={pkDraft.website} onChange={(e) => setPkDraft({ ...pkDraft, website: e.target.value })} maxLength={500} />
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2" data-testid="world-press-kit-socials">
+                  {([
+                    ["instagram_url", "Instagram URL"],
+                    ["tiktok_url", "TikTok URL"],
+                    ["youtube_url", "YouTube URL"],
+                    ["spotify_url", "Spotify URL"],
+                  ] as const).map(([field, label]) => (
+                    <input key={field} aria-label={label} className={inputCls(isLight)} placeholder={`${label} (https://…)`} value={pkDraft[field]} onChange={(e) => setPkDraft({ ...pkDraft, [field]: e.target.value })} maxLength={500} />
+                  ))}
+                </div>
+
+                <label className="block">
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Bio</span>
+                  <textarea aria-label="Bio" className={inputCls(isLight)} rows={5} value={pkDraft.bio} onChange={(e) => setPkDraft({ ...pkDraft, bio: e.target.value })} maxLength={5000} />
+                </label>
+
+                <div>
+                  <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Achievements</p>
+                  <div className="space-y-1.5">
+                    {pkDraft.achievements.map((a, i) => (
+                      <div key={i} className="flex gap-1.5">
+                        <input aria-label={`Achievement ${i + 1}`} className={inputCls(isLight)} value={a} maxLength={200} placeholder="An achievement" onChange={(e) => setPkDraft({ ...pkDraft, achievements: pkDraft.achievements.map((x, j) => (j === i ? e.target.value : x)) })} />
+                        <button type="button" aria-label={`Remove achievement ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, achievements: pkDraft.achievements.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                    <button type="button" data-testid="world-press-kit-achievement-add" onClick={() => setPkDraft({ ...pkDraft, achievements: [...pkDraft.achievements, ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add an achievement</button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Press quotes</p>
+                  <div className="space-y-1.5">
+                    {pkDraft.press_quotes.map((q, i) => (
+                      <div key={i} className="flex gap-1.5" data-testid="world-press-kit-quote-row">
+                        <input aria-label={`Quote ${i + 1}`} className={inputCls(isLight)} value={q.quote} maxLength={500} placeholder="The quote" onChange={(e) => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.map((x, j) => (j === i ? { ...x, quote: e.target.value } : x)) })} />
+                        <input aria-label={`Quote ${i + 1} source`} className={inputCls(isLight)} style={{ flex: "0 0 30%" }} value={q.source} maxLength={120} placeholder="Who said it" onChange={(e) => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.map((x, j) => (j === i ? { ...x, source: e.target.value } : x)) })} />
+                        <button type="button" aria-label={`Remove quote ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                    <button type="button" data-testid="world-press-kit-quote-add" onClick={() => setPkDraft({ ...pkDraft, press_quotes: [...pkDraft.press_quotes, { quote: "", source: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a quote</button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Top tracks</p>
+                  <div className="space-y-1.5">
+                    {pkDraft.top_tracks.map((tr, i) => (
+                      <div key={i} className="flex gap-1.5" data-testid="world-press-kit-track-row">
+                        <input aria-label={`Track ${i + 1} title`} className={inputCls(isLight)} value={tr.title} maxLength={120} placeholder="Track title" onChange={(e) => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />
+                        <input aria-label={`Track ${i + 1} link`} className={inputCls(isLight)} value={tr.url} maxLength={500} placeholder="Listen link (https://…)" onChange={(e) => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+                        <button type="button" aria-label={`Remove track ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                    <button type="button" data-testid="world-press-kit-track-add" onClick={() => setPkDraft({ ...pkDraft, top_tracks: [...pkDraft.top_tracks, { title: "", url: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a track</button>
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Photos — one image address per line</span>
+                  <textarea aria-label="Photo URLs, one per line" data-testid="world-press-kit-photos" className={inputCls(isLight)} rows={3} value={pkDraft.photo_urls.join("\n")} onChange={(e) => setPkDraft({ ...pkDraft, photo_urls: e.target.value.split("\n") })} placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"} />
+                </label>
+
+                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="world-press-kit-public-toggle">
+                  <input type="checkbox" checked={pkDraft.is_public} onChange={(e) => setPkDraft({ ...pkDraft, is_public: e.target.checked })} className="h-4 w-4 accent-[#d4af37]" />
+                  <span className={strong}>Public — anyone with the link can read this kit</span>
+                </label>
+
+                <div>
+                  <p className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Public page layout — section order &amp; visibility</p>
+                  <p className={`mb-2 text-xs ${muted}`}>The hero header (name, photo, tagline) always stays.</p>
+                  <div className="space-y-1.5">
+                    {pkDraft.layout.map((entry, i) => {
+                      const labels: Record<PressKitSectionKey, string> = { bio: "Bio", achievements: "Achievements", press_quotes: "Press quotes", top_tracks: "Top tracks", photos: "Photos", contact: "Contact" };
+                      return (
+                        <div key={entry.key} className={`flex items-center gap-1.5 rounded-xl border border-[#d4af37]/25 px-3 py-2 ${entry.visible ? "" : "opacity-60"}`} data-testid="world-press-kit-layout-row">
+                          <span className={`flex-1 text-sm ${strong}`}>{labels[entry.key]}</span>
+                          {!entry.visible ? <span className={`text-[11px] uppercase tracking-wider ${muted}`}>Hidden</span> : null}
+                          <button type="button" aria-label={`Move ${labels[entry.key]} up`} disabled={i === 0} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, -1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
+                          <button type="button" aria-label={`Move ${labels[entry.key]} down`} disabled={i === pkDraft.layout.length - 1} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, 1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
+                          <button type="button" aria-label={`${entry.visible ? "Hide" : "Show"} ${labels[entry.key]}`} onClick={() => setPkDraft({ ...pkDraft, layout: setPressKitSectionVisible(pkDraft.layout, entry.key, !entry.visible) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white">{entry.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {pkError ? <p className="text-xs font-semibold text-red-400" data-testid="world-press-kit-edit-error">{pkError}</p> : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" data-testid="world-press-kit-save" onClick={() => void savePkEdits()} disabled={pkBusy !== null} className={goldBtn}>
+                    <Check className="h-4 w-4" /> {pkBusy === "save" ? "Saving…" : "Save changes — free"}
+                  </button>
+                  <button type="button" onClick={() => { setPkEditing(false); setPkError(null); }} className={`text-xs font-bold ${muted}`}>Done editing</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </SectionShell>
@@ -1632,10 +2088,44 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [assistDraft, setAssistDraft] = useState("");
   const [assistNote, setAssistNote] = useState<string | null>(null);
 
-  /* Coach row. */
+  /* Coach row (Stack-100 #75): the creator's REAL inputs — their
+     niche, platforms, follower counts and cadence, asked in the form
+     below — plus their real Money Tracker snapshot, read from
+     GET /api/money when the desk opens and computed with the tracker
+     panel's own math. No hardcoded defaults drive the plan anymore;
+     the form merely OPENS on the page's opening state. */
   const [coachBusy, setCoachBusy] = useState(false);
   const [coach, setCoach] = useState<CoachTodayAction | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [coachInputs, setCoachInputs] = useState<CoachInputs>(() => defaultCoachInputs());
+  const [coachSnapshot, setCoachSnapshot] = useState<CoachMoneySnapshot | null>(null);
+  const [coachMoneyLine, setCoachMoneyLine] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/money", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("money");
+        const entries = parseMoneyEntries((await res.json()) as unknown);
+        if (cancelled) return;
+        const snap = buildMoneySnapshot(entries, new Date());
+        setCoachSnapshot(snap);
+        setCoachMoneyLine(
+          snap
+            ? `Your tracked money rides along: ${snap.monthLabel} net ${snap.monthNetCents < 0 ? "−" : ""}$${Math.abs(snap.monthNetCents / 100).toLocaleString("en-US")} · all-time $${(snap.allTimeNetCents / 100).toLocaleString("en-US")} net.`
+            : "No money tracked yet — the plan runs on your catalog and the answers below; track money on the website's Money Tracker and it grounds the coach too.",
+        );
+      } catch {
+        if (!cancelled) setCoachMoneyLine("Your tracked money couldn't be read just now — the plan still runs on your real catalog and the answers below.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest]);
 
   useEffect(() => {
     if (isGuest) return;
@@ -1799,13 +2289,18 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
   const askCoach = async () => {
     if (coachBusy) return;
+    const problem = validateCoachInputs(coachInputs);
+    if (problem) {
+      setCoachNote(problem);
+      return;
+    }
     setCoachBusy(true);
     setCoachNote(null);
     try {
       const res = await confirmedFetch("/api/monetization-coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildCoachPayload()),
+        body: JSON.stringify(buildCoachPayload(coachInputs, coachSnapshot)),
       });
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
@@ -2218,31 +2713,97 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
-          <NativeCard isLight={isLight} title="Coach — today's next action">
-            {coach ? (
-              <div className="space-y-1.5">
-                <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-                  <Crown className="h-4 w-4 text-[#d4af37]" /> {coach.label}
-                </p>
-                {coach.firstMove ? <p className={`text-sm ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>{coach.firstMove}</p> : null}
-                {coach.stateSummary ? <p className={`text-xs ${muted}`}>{coach.stateSummary}</p> : null}
-                <div className="flex justify-end pt-1"><RowTransfer websitePath="/coach" isLight={isLight} /></div>
+          <NativeCard isLight={isLight} title="Coach — a plan from YOUR numbers">
+            <div className="space-y-3" data-testid="world-coach-form">
+              <p className={`text-sm ${muted}`}>
+                The coach plans from your real life, not a template: your niche, your platforms, your
+                follower counts, your posting rhythm — and your real catalog and tracked money, read
+                server-side. Costs {COACH_COST_VISUAL_BUCS} Visual Bucs — shown before anything runs.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="block">
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Your niche</span>
+                  <select aria-label="Your niche" data-testid="world-coach-niche" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={coachInputs.niche} onChange={(e) => setCoachInputs({ ...coachInputs, niche: e.target.value })}>
+                    {COACH_NICHES.map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Or your own words</span>
+                  <input aria-label="Your niche in your own words" data-testid="world-coach-custom-niche" className={inputCls(isLight)} value={coachInputs.customNiche} maxLength={120} placeholder="e.g. Gospel drill" onChange={(e) => setCoachInputs({ ...coachInputs, customNiche: e.target.value })} />
+                </label>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <p className={`text-sm ${muted}`}>
-                  Ask the coach for today's one next move, from your real catalog. Costs {COACH_COST_VISUAL_BUCS} Visual Bucs — shown
-                  before anything runs. The full money plan is the bench, one tap out.
-                </p>
-                {coachNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{coachNote}</p>}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" data-testid="world-promote-ask-coach" onClick={askCoach} disabled={coachBusy} className={goldBtn}>
-                    <Sparkles className="h-4 w-4" /> {coachBusy ? "Asking…" : `Ask the coach — ${COACH_COST_VISUAL_BUCS} Visual Bucs`}
-                  </button>
-                  <span className="ml-auto"><RowTransfer websitePath="/coach" isLight={isLight} /></span>
+              <div>
+                <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Your platforms &amp; followers</p>
+                <div className="space-y-1.5">
+                  {COACH_PLATFORMS.map((p) => {
+                    const picked = coachInputs.platforms.includes(p.key);
+                    return (
+                      <div key={p.key} className="flex flex-wrap items-center gap-2" data-testid="world-coach-platform-row">
+                        <button
+                          type="button"
+                          data-testid={`world-coach-platform-${p.key}`}
+                          aria-pressed={picked}
+                          onClick={() => setCoachInputs({ ...coachInputs, platforms: picked ? coachInputs.platforms.filter((k) => k !== p.key) : [...coachInputs.platforms, p.key] })}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${picked ? "border-[#d4af37] bg-[#d4af37]/15 " + strong : isLight ? "border-[#C9A84C]/30 text-[#6B5B36]" : "border-white/15 text-white/55"}`}
+                        >
+                          {p.label}
+                        </button>
+                        <input
+                          aria-label={`${p.label} followers`}
+                          data-testid={`world-coach-followers-${p.key}`}
+                          className={inputCls(isLight)}
+                          style={{ maxWidth: "11rem" }}
+                          inputMode="numeric"
+                          placeholder={p.key === "youtube" ? "Subscribers" : "Followers"}
+                          value={coachInputs.followers[p.key]}
+                          onChange={(e) => setCoachInputs({ ...coachInputs, followers: { ...coachInputs.followers, [p.key]: e.target.value.replace(/[^0-9]/g, "").slice(0, 10) } })}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+              <label className="block">
+                <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Posts per week</span>
+                <input aria-label="Posts per week" data-testid="world-coach-cadence" className={inputCls(isLight)} style={{ maxWidth: "11rem" }} inputMode="numeric" value={coachInputs.cadence} onChange={(e) => setCoachInputs({ ...coachInputs, cadence: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+              </label>
+              {coachMoneyLine ? <p className={`text-xs ${muted}`} data-testid="world-coach-money-line">{coachMoneyLine}</p> : null}
+              {coachNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{coachNote}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" data-testid="world-promote-ask-coach" onClick={askCoach} disabled={coachBusy} className={goldBtn}>
+                  <Sparkles className="h-4 w-4" /> {coachBusy ? "Asking…" : `Ask the coach — ${COACH_COST_VISUAL_BUCS} Visual Bucs`}
+                </button>
+                <span className="ml-auto"><RowTransfer websitePath="/coach" isLight={isLight} /></span>
+              </div>
+              {coach ? (
+                <div className="space-y-2 border-t border-[#d4af37]/20 pt-3" data-testid="world-coach-plan">
+                  <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+                    <Crown className="h-4 w-4 text-[#d4af37]" /> {coach.label}
+                  </p>
+                  {coach.stateSummary ? <p className={`text-xs ${muted}`}>{coach.stateSummary}</p> : null}
+                  {coach.moves.length > 0 ? (
+                    <ol className="list-decimal space-y-1 pl-5">
+                      {coach.moves.map((m, i) => (
+                        <li key={i} className={`text-sm ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>{m}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  {coach.eligibility.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {coach.eligibility.map((e) => (
+                        <div key={e.platform} className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`}>
+                          <p className={`text-xs font-bold ${strong}`}>{e.platform} — {e.program} · {Math.round(e.progress)}%{e.threshold ? ` · ${e.threshold}` : ""}</p>
+                          {e.nextStep ? <p className={`text-xs ${muted}`}>{e.nextStep}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {coach.earningsNote ? <p className={`text-xs ${muted}`}>{coach.earningsNote}</p> : null}
+                </div>
+              ) : null}
+            </div>
           </NativeCard>
         </div>
       </NativeBoard>
