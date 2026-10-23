@@ -154,6 +154,101 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "tips.tipMeta"
 ]);
 
+const W2_NAMESPACES = ["academy", "auth", "betaAccess", "brandCalculator", "carouselMaker", "common", "delight", "features", "fomoFeed", "guides", "home", "invite", "motionGraphics", "movies", "planPublic", "playlistPitch", "productPhotoStudio", "promo-clip", "retentionDelight", "retentionDoctor", "splitScreen", "sponsorDashboard", "sponsorDealDetail", "sponsors", "sponsorsPost", "videoTemplates", "waitlist"] as const;
+const W2_LEGIT: ReadonlySet<string> = new Set([
+  "academy.catProduction",
+  "academy.coachRole",
+  "academy.hoursPlaceholder",
+  "academy.lessonMinutes",
+  "academy.nicheLabel",
+  "auth.passwordPlaceholder",
+  "betaAccess.creatorLabel",
+  "betaAccess.messageLabel",
+  "brandCalculator.niches.fitness",
+  "brandCalculator.niches.lifestyle",
+  "brandCalculator.niches.tech",
+  "brandCalculator.platforms.twitch.blurb",
+  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.fmtPortrait",
+  "carouselMaker.fontDisplay",
+  "carouselMaker.fontSans",
+  "carouselMaker.fontSerif",
+  "common.premium",
+  "common.visualBucs",
+  "features.cheat_code",
+  "guides.academy.name",
+  "guides.badge",
+  "guides.pageTitle",
+  "home.demo.hiphop.label",
+  "home.demo.pop.label",
+  "home.demo.rnb.label",
+  "home.extTitleA",
+  "home.faqKicker",
+  "home.formats.streamers.title",
+  "home.vaultBodyB",
+  "motionGraphics.cat.transitions",
+  "movies.arcLabel",
+  "movies.comparables",
+  "movies.genreLabel",
+  "movies.logline",
+  "movies.optional",
+  "playlistPitch.copyDmLabel",
+  "playlistPitch.packetDescription",
+  "playlistPitch.packetGenre",
+  "playlistPitch.statGenre",
+  "playlistPitch.tabPlaylists",
+  "productPhotoStudio.credits",
+  "productPhotoStudio.lifestyle",
+  "productPhotoStudio.packshot",
+  "productPhotoStudio.pastePlaceholder",
+  "productPhotoStudio.ratioStory",
+  "promo-clip.clips.count_one",
+  "promo-clip.clips.count_other",
+  "promo-clip.clipsSelector.clipFallback",
+  "promo-clip.creditBadge",
+  "promo-clip.form.genre",
+  "promo-clip.genres.afrobeats",
+  "promo-clip.genres.country",
+  "promo-clip.genres.dancehall",
+  "promo-clip.genres.drill",
+  "promo-clip.genres.gospel",
+  "promo-clip.genres.hipHop",
+  "promo-clip.genres.pop",
+  "promo-clip.genres.rnb",
+  "promo-clip.genres.rock",
+  "promo-clip.genres.trap",
+  "promo-clip.platforms.reels",
+  "promo-clip.platforms.shorts",
+  "promo-clip.platforms.square",
+  "promo-clip.platforms.tiktok",
+  "promo-clip.tags.hashtags",
+  "retentionDelight.prefs_sharkDrops",
+  "retentionDoctor.atPlaceholder",
+  "retentionDoctor.eyebrow",
+  "retentionDoctor.platform_instagram",
+  "retentionDoctor.platform_tiktok",
+  "retentionDoctor.platform_x",
+  "retentionDoctor.platform_youtube",
+  "retentionDoctor.prescriptionLabel",
+  "retentionDoctor.type_promo",
+  "retentionDoctor.type_vlog",
+  "splitScreen.cellN",
+  "sponsorDashboard.applicationDealLine",
+  "sponsorDashboard.pageTitleAccent",
+  "sponsorDealDetail.followersPlaceholder",
+  "sponsors.matchFollowersPlaceholder",
+  "sponsors.matchPlatformsPlaceholder",
+  "sponsorsPost.budgetMaxLabel",
+  "sponsorsPost.budgetMaxPlaceholder",
+  "sponsorsPost.budgetMinLabel",
+  "sponsorsPost.budgetMinPlaceholder",
+  "sponsorsPost.descriptionLabel",
+  "videoTemplates.kindPhoto",
+  "waitlist.artistTypeLabel",
+  "waitlist.contactKicker",
+  "waitlist.messageLabel"
+]);
+
 function waveKeys(namespaces: readonly string[]): string[] {
   return Object.keys(EN).filter((k) => namespaces.includes(k.split(".")[0]));
 }
@@ -174,6 +269,26 @@ describe("fr-W1 (Stack-28 #73)", () => {
   it("placeholders match en exactly for every wave key", () => {
     const shape = (v: unknown) => (typeof v === "string" ? v.split("{").slice(1).map((s) => "{" + s.split("}")[0] + "}").sort() : []);
     const bad = waveKeys(W1_NAMESPACES).filter((k) => JSON.stringify(shape(FR[k])) !== JSON.stringify(shape(EN[k])));
+    expect(bad).toEqual([]);
+  });
+});
+
+describe("fr-W2 (Stack-28 #82)", () => {
+  it("every en key in the wave namespaces is present in fr", () => {
+    const missing = waveKeys(W2_NAMESPACES).filter((k) => !(k in FR) || FR[k] === "" || FR[k] === undefined);
+    expect(missing).toEqual([]);
+  });
+  it("no identical-to-en values remain outside the legit allowlist", () => {
+    const real = waveKeys(W2_NAMESPACES).filter((k) => FR[k] === EN[k] && !W2_LEGIT.has(k));
+    expect(real).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    const stale = [...W2_LEGIT].filter((k) => FR[k] !== EN[k]);
+    expect(stale).toEqual([]);
+  });
+  it("placeholders match en exactly for every wave key", () => {
+    const shape = (v: unknown) => (typeof v === "string" ? v.split("{").slice(1).map((s) => "{" + s.split("}")[0] + "}").sort() : []);
+    const bad = waveKeys(W2_NAMESPACES).filter((k) => JSON.stringify(shape(FR[k])) !== JSON.stringify(shape(EN[k])));
     expect(bad).toEqual([]);
   });
 });
