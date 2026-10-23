@@ -3220,6 +3220,25 @@ export class KingsHallScene {
     if (west) this.shellPanelFrame(g, mats, interior.minX + 0.06, cz, Math.PI / 2);
     else this.shellPanelFrame(g, mats, interior.maxX - 0.06, cz, -Math.PI / 2);
 
+    /* Interior dressing parity (Stack-100 #2, items 39–47 tail):
+     * every wing room — Treasury, Royal Court, Branding Atelier
+     * and their west-side siblings — carries the same floor
+     * dressing from this one builder: a fabric rug inlay with a
+     * gold border at the room's heart, sized from its own
+     * interior. Flat inlay like every palace path — no collision,
+     * and no room is left barer than another. */
+    {
+      const rugW = (interior.maxX - interior.minX) * 0.52;
+      const rugD = (interior.maxZ - interior.minZ) * 0.52;
+      const border = new THREE.Mesh(new THREE.BoxGeometry(rugW + 0.24, 0.014, rugD + 0.24), mats.goldDark);
+      border.position.set(cx, 0.028, cz);
+      g.add(border);
+      const rug = new THREE.Mesh(new THREE.BoxGeometry(rugW, 0.018, rugD), mats.fabric);
+      rug.position.set(cx, 0.032, cz);
+      rug.receiveShadow = QUALITY[this.quality].shadows;
+      g.add(rug);
+    }
+
     // The room's door-stations: walk up, and the feature opens.
     this.buildStationMarkers(g, mats, roomId);
 
