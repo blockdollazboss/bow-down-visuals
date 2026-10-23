@@ -46,3 +46,14 @@ describe("S27-67 — beat doors land on the AI Audio beats tab, not Audio Cleanu
     expect(params.get("sub")).toBe("beats");
   });
 });
+
+describe("S27-68 — the Sounds page SFX door lands on the AI Audio sfx tab", () => {
+  it("'Generate SFX with AI' points directly at Audio Studio with sub=sfx", () => {
+    expect(soundsPage).toContain('href="/audio-studio?tab=aiaudio&sub=sfx"');
+    expect(soundsPage).not.toContain('href="/ai-audio?tab=sfx"');
+    const { path, params } = door("/audio-studio?tab=aiaudio&sub=sfx");
+    expect(path).toBe("/audio-studio");
+    expect(params.get("tab")).toBe("aiaudio");
+    expect(params.get("sub")).toBe("sfx");
+  });
+});
