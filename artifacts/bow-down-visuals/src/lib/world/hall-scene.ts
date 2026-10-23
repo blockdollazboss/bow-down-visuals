@@ -253,6 +253,7 @@ import {
   buildVisibleSkyDome,
   skyHasClouds,
   cloudDriftX,
+  cloudShadeAt,
   SKY_CLOUDS,
   type SkyCloudDef,
 } from "./sky-env";
@@ -1503,6 +1504,11 @@ export class KingsHallScene {
    *  per frame in servicePerfSystems so the dome is always the
    *  same distance in every direction. */
   private skyGroup: THREE.Group | null = null;
+  /** The visible dome's shader material (Stack-100 #2 item 1):
+   *  the tick advances its uTime so the night stars twinkle and
+   *  drift — never under reduced motion, and never the PMREM
+   *  capture (its uTime stays 0: reflections are the average). */
+  private skyDomeMaterial: THREE.ShaderMaterial | null = null;
   private floorOverlayMat: THREE.MeshPhysicalMaterial | null = null;
   /** Every scoped point/spot light in the current look, with its
    *  world position + range (item 24) — judged per room change. */
@@ -1794,7 +1800,9 @@ export class KingsHallScene {
    *  never written — pure background that follows the camera. */
   private buildVisibleSky(group: THREE.Group, look: HallLook, anim: LookAnim): void {
     const sky = new THREE.Group();
-    sky.add(buildVisibleSkyDome(look));
+    const dome = buildVisibleSkyDome(look);
+    this.skyDomeMaterial = dome.material as THREE.ShaderMaterial;
+    sky.add(dome);
     if (skyHasClouds(look)) {
       const tex = cloudTexture();
       for (const def of SKY_CLOUDS) {
@@ -8237,8 +8245,18 @@ export class KingsHallScene {
       const sc = lanternGlowScale(l.base, t, l.phase);
       l.sprite.scale.set(sc, sc, 1);
     }
+    /* Night-sky life (Stack-100 #2 item 1): the visible dome's
+     * uTime advances so its stars twinkle, carry magnitude and
+     * drift — under reduced motion the sky rests at t=0. */
+    if (this.skyDomeMaterial && !this.reducedMotion) {
+      this.skyDomeMaterial.uniforms.uTime!.value = t;
+    }
     for (const c of anim.clouds) {
       c.sprite.position.x = cloudDriftX(c.def, t);
+      /* Day-sky parity (item 2): each cloud is tinted by where it
+       * rides relative to the sun side — lit bodies, not decals. */
+      const shade = cloudShadeAt(c.def, t);
+      (c.sprite.material as THREE.SpriteMaterial).color.setRGB(shade.r, shade.g, shade.b);
     }
     /* Plaza life (Stage C batch C3): banner sway + pollen drift
      * (item 26 — registered only in the light look and never
