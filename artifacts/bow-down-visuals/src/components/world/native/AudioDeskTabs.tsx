@@ -23,8 +23,12 @@ import {
 import {
   audioBenchJobIdOf,
   audioBenchOf,
+  buildStemRemixPayload,
   interpretAudioBenchResponse,
   MASTER_FILE_FIELD,
+  stemKeyOfResultLabel,
+  stemRemixPath,
+  stemRemixUrlOfResponse,
   stemsFields,
   type AudioBenchResult,
 } from "@/lib/world/audio-benches";
@@ -68,6 +72,96 @@ const chipBtnFor = (isLight: boolean) =>
   isLight
     ? "inline-flex items-center gap-1.5 rounded-full border border-[#7A5A12]/30 px-3 py-1.5 text-xs font-bold text-[#6B5B36] transition hover:text-[#2a1e07] disabled:opacity-50"
     : chipBtn;
+
+/* ─── Stack-100 #51 — the stems remix-levels mixdown ───────────────
+   audio-studio.tsx's StemsPanel remix mode, docked: one level
+   slider per stem the split JOB returned, then the free mixdown
+   on POST /api/stems/:jobId/remix (the split was paid for; the
+   remix charges nothing — the studio's own terms). Levels are
+   0–2 (mute → unity → double), sent for exactly the returned
+   stems so the server's per-job validation passes. */
+
+export function StemRemixPanel({
+  isLight,
+  jobId,
+  stemKeys,
+}: {
+  isLight: boolean;
+  jobId: string;
+  stemKeys: readonly string[];
+}) {
+  const authHeaders = useDeskAuthHeaders();
+  const [levels, setLevels] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [remixUrl, setRemixUrl] = useState<string | null>(null);
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  if (stemKeys.length === 0) return null;
+
+  const exportMix = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setRemixUrl(null);
+    try {
+      const res = await fetch(stemRemixPath(jobId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildStemRemixPayload(stemKeys, levels)),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "The remix didn't land.");
+      const url = stemRemixUrlOfResponse(data);
+      if (!url) throw new Error("The remix came back without audio.");
+      setRemixUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The remix didn't land.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-dashed border-[#d4af37]/30 p-3" data-testid="world-audio-stem-remix">
+      <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+        Remix the levels — free, the split was paid for
+      </p>
+      {stemKeys.map((key) => {
+        const level = typeof levels[key] === "number" ? levels[key]! : 1;
+        return (
+          <label key={key} className="flex items-center gap-3 text-xs font-bold">
+            <span className="w-16 shrink-0 capitalize">{key}</span>
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={0.05}
+              value={level}
+              data-testid={`world-audio-stem-remix-level-${key}`}
+              onChange={(e) => setLevels((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+              className="flex-1 accent-[#d4af37]"
+            />
+            <span className={`w-12 shrink-0 text-right ${muted}`}>{Math.round(level * 100)}%</span>
+          </label>
+        );
+      })}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" data-testid="world-audio-stem-remix-run" onClick={() => void exportMix()} disabled={busy} className={goldBtn}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {busy ? "Mixing…" : "Export the mix · Free"}
+        </button>
+        {remixUrl ? (
+          <a href={remixUrl} download="remix.wav" className={chipBtnFor(isLight)}>
+            <Download className="h-3.5 w-3.5" /> Download remix.wav
+          </a>
+        ) : null}
+      </div>
+      {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
+      {remixUrl ? <AudioResult url={remixUrl} title="Your remix" /> : null}
+    </div>
+  );
+}
 
 /* ─── Sound packs ─────────────────────────────────────────────────── */
 
@@ -459,6 +553,7 @@ export function StemsTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AudioBenchResult | null>(null);
+  const [splitJobId, setSplitJobId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const def = audioBenchOf("stems");
@@ -488,6 +583,7 @@ export function StemsTab({
     setBusy(true);
     setError(null);
     setResult(null);
+    setSplitJobId(null);
     void quest.snapshot();
     try {
       const res = await fetch(picked.audioUrl);
@@ -503,6 +599,7 @@ export function StemsTab({
       if (!post.ok) throw new Error(data.message ?? data.error ?? "The split didn't start.");
       const jobId = audioBenchJobIdOf(data);
       if (!jobId) throw new Error("The split didn't start.");
+      setSplitJobId(jobId);
       if (!def.pollPath) throw new Error("The split didn't start.");
       const path = def.pollPath(jobId);
       stopPolling();
@@ -592,6 +689,13 @@ export function StemsTab({
           {result.urls.map((u) => (
             <AudioResult key={u.url} url={u.url} title={u.label} />
           ))}
+          {splitJobId ? (
+            <StemRemixPanel
+              isLight={isLight}
+              jobId={splitJobId}
+              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label)).filter((k): k is string => k !== null)}
+            />
+          ) : null}
           <QuestProgressChip isLight={isLight} lines={quest.lines} />
         </div>
       ) : null}

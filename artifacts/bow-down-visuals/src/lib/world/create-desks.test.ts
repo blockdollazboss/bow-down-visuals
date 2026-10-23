@@ -414,15 +414,16 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(items.some((i) => i.includes("The full storyboard flow"))).toBe(false);
     expect(items.some((i) => i.includes("4-variation Thumbnail Maker mode (200 VB) and the A/B thumbnail test benches (v1 is"))).toBe(false);
     expect(items.some((i) => i.includes("Full preset panels"))).toBe(false);
-    /* Remaining, narrowed: arrangement timeline, harmony AI mode, .lrc/cover
-       action-row extras, jukebox-from-Create-Wing, thumbnail improve rail. */
-    expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(true);
-    expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(true);
-    expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(true);
-    expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(true);
-    for (const desk of ["song-desk", "thumbnail-desk", "audio-desk"]) {
-      expect(items.some((i) => i.startsWith(`${desk}:`)), desk).toBe(true);
-    }
+    /* Remaining after Stack-100 #49–#52 shipped: ONLY the
+       jukebox-from-Create-Wing rail. The arrangement timeline,
+       harmony AI mode, .lrc/cover action-row extras and the
+       thumbnail improve rail must NOT still be logged as gaps. */
+    expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(false);
+    expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(false);
+    expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(false);
+    expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(false);
+    expect(items.some((i) => i.includes("jukebox FROM the Create Wing"))).toBe(true);
+    expect(items.every((i) => i.startsWith("song-desk:"))).toBe(true);
   });
 
   it("result excerpts trim long packages honestly", () => {
@@ -624,7 +625,7 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(m.buildThumbnailVariantsPayload({ sourceImageUrl: "u", title: "x".repeat(300), niche: "music" }).title).toHaveLength(200);
     expect(m.thumbnailVariantsOfResponse({ variants: [{ url: "v1", label: "Bold", prompt: "p" }] })).toEqual([{ url: "v1", label: "Bold", prompt: "p" }]);
     const ctr = m.ctrPredictionOfResponse({ result: { winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", analyses: [{ scores: { overall: 40 } }, { scores: { overall: 91 } }] } });
-    expect(ctr).toEqual({ winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", overallScores: [40, 91] });
+    expect(ctr).toEqual({ winnerIndex: 1, confidence: 82, reasoning: "r", disclaimer: "d", overallScores: [40, 91], tips: [[], []] });
     expect(m.ctrPredictionOfResponse({ result: {} })).toBeNull();
     expect(m.ctrPredictionOfResponse(null)).toBeNull();
   });

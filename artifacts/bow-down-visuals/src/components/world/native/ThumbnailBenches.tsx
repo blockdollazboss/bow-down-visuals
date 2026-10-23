@@ -12,6 +12,10 @@ import {
   thumbnailGeneratorFields,
   THUMBNAIL_FACE_FIELD,
   thumbnailImagesOfResponse,
+  thumbnailImproveCost,
+  THUMBNAIL_IMPROVE_FIELD,
+  thumbnailImproveFields,
+  thumbnailImprovedUrlOfResponse,
   thumbnailPartialImagesOfResponse,
   THUMBNAIL_TEST_FIELD,
   THUMBNAIL_TEST_MAX_FILES,
@@ -90,6 +94,10 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
   const [testFiles, setTestFiles] = useState<File[]>([]);
   const [testPreviews, setTestPreviews] = useState<string[]>([]);
   const [ctr, setCtr] = useState<CtrPrediction | null>(null);
+  /* Stack-100 #50: apply-suggestions state — one improving slot at
+     a time (the studio's own rule), improved urls by candidate. */
+  const [improving, setImproving] = useState<number | null>(null);
+  const [improvedUrls, setImprovedUrls] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const faceRef = useRef<HTMLInputElement | null>(null);
@@ -220,11 +228,51 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
       const parsed = ctrPredictionOfResponse(data);
       if (!parsed) throw new Error("The prediction came back unreadable — nothing was concluded.");
       setCtr(parsed);
+      setImprovedUrls({});
       refreshProfile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "CTR prediction failed.");
     } finally {
       setBusy(null);
+    }
+  };
+
+  /* Stack-100 #50 — apply one candidate's suggestions on the
+     studio's own rail (POST /api/thumbnail-test/improve): the
+     candidate's File + its tips from THIS prediction. The improved
+     image lands beside the candidate; saving it as the winner
+     rides the same handoff key the A/B winner rides. */
+  const applySuggestions = async (index: number) => {
+    const tips = ctr?.tips[index];
+    const file = testFiles[index];
+    if (!ctr || !tips || tips.length === 0 || !file || improving !== null || busy !== null) return;
+    setImproving(index);
+    setError(null);
+    void quest.snapshot();
+    try {
+      const form = new FormData();
+      form.append(THUMBNAIL_IMPROVE_FIELD, file);
+      for (const [k, v] of thumbnailImproveFields({ tips })) form.append(k, v);
+      const res = await fetch("/api/thumbnail-test/improve", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (res.status === 402) {
+        setError("You're out of Visual Bucs — top up to generate improved thumbnails.");
+        return;
+      }
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "The improved version didn't land.");
+      const url = thumbnailImprovedUrlOfResponse(data);
+      if (!url) throw new Error("The improved version came back without an image.");
+      setImprovedUrls((prev) => ({ ...prev, [index]: url }));
+      refreshProfile();
+      void quest.checkAfter();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The improved version didn't land.");
+    } finally {
+      setImproving(null);
     }
   };
 
@@ -401,6 +449,7 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
               setTestFiles(files);
               setTestPreviews(files.map((f) => URL.createObjectURL(f)));
               setCtr(null);
+              setImprovedUrls({});
             }}
           />
         </label>
@@ -424,6 +473,56 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
             <p className={`text-xs ${muted}`}>Scores: {ctr.overallScores.map((s, i) => `#${i + 1}: ${s}`).join(" · ")}</p>
             {ctr.reasoning ? <p className={`text-xs ${muted}`}>{ctr.reasoning}</p> : null}
             <p className={`text-[11px] italic ${muted}`}>{ctr.disclaimer || "A prediction from thumbnail best practices — not a guarantee of real clicks."}</p>
+            {/* Stack-100 #50: apply a candidate's own tips on the
+                improve rail — offered only where the prediction
+                actually carried tips for that candidate. */}
+            <div className="space-y-2 pt-1">
+              {ctr.tips.map((tips, i) =>
+                tips.length > 0 && testFiles[i] ? (
+                  <div key={i} className="space-y-1.5" data-testid={`world-thumbnail-ctr-apply-row-${i}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold">Thumbnail {i + 1} — the predictor&rsquo;s tips:</span>
+                      {improvedUrls[i] ? (
+                        <span className="text-xs font-bold text-[#d4af37]">Improved version ready below</span>
+                      ) : (
+                        <button
+                          type="button"
+                          data-testid="world-thumbnail-ctr-apply"
+                          onClick={() => void applySuggestions(i)}
+                          disabled={improving !== null || busy !== null}
+                          className={chipBtn(isLight)}
+                        >
+                          {improving === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          Apply suggestions · {thumbnailImproveCost().toLocaleString("en-US")} Visual Bucs
+                        </button>
+                      )}
+                    </div>
+                    <ul className={`list-disc space-y-0.5 pl-5 text-xs ${muted}`}>
+                      {tips.map((tip) => (
+                        <li key={tip}>{tip}</li>
+                      ))}
+                    </ul>
+                    {improvedUrls[i] ? (
+                      <div className="space-y-1.5" data-testid="world-thumbnail-ctr-improved">
+                        <img src={improvedUrls[i]} alt={`Improved thumbnail ${i + 1}`} className="aspect-video w-full max-w-md rounded-xl object-cover" />
+                        <div className="flex flex-wrap gap-2">
+                          {winner === improvedUrls[i] ? (
+                            <span className="text-xs font-bold text-[#d4af37]">Saved as your winner</span>
+                          ) : (
+                            <button type="button" data-testid="world-thumbnail-ctr-improved-save" onClick={() => pickWinner(improvedUrls[i]!)} className={chipBtn(isLight)}>
+                              Save as the winner
+                            </button>
+                          )}
+                          <a href={improvedUrls[i]} download className={chipBtn(isLight)}>
+                            Download the improved one
+                          </a>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null,
+              )}
+            </div>
           </div>
         ) : null}
       </div>
