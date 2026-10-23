@@ -133,18 +133,48 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "The King's Plaza",
     bounds: { minX: -27.9, maxX: 27.9, minZ: 11.1, maxZ: 33.8 },
     spawn: { x: 0, z: 31.5 },
-    /* Grounds height table (Stack-100 #2 item 49): the two lawn
-     * panels — the only raised walkable ground on the plaza. The
-     * rects mirror the client plan exactly (palace-grounds.ts
-     * LAWN_PANELS, cx ±16.75 / cz 19.2, 20.5 × 11.0, grass top
-     * 0.05 — carried into palace-layout.ts as raised grounds);
-     * a parity test in world-palace.test.ts pins both tables to
-     * the same numbers. Everything else on the plaza stands at 0:
-     * the hall steps, terraces and monument plinth are solid
-     * masses (blocked client-side), never standing ground. */
+    /* Grounds height table (Stack-100 #2 item 49): mirrors the
+     * client plan's step zones (palace-layout.ts PLAZA_STEPS,
+     * derived there from palace-grounds placement data) rect for
+     * rect — the lawns, the ceremonial hall steps, the edge
+     * terraces and the monument's plinth tiers, all climbable
+     * since the climbable-Y finish. A parity test in
+     * world-palace.test.ts pins both tables to the same numbers.
+     * Two derivations to note: the EAST lawn is the item-36
+     * clipped panel (the Creator Heights enclave stands on its
+     * eastern share; the built lawn is the strip x 6.5..13.5),
+     * and the monument tiers nest (max height wins) — the stele
+     * core inside them is client-blocked, but the server never
+     * re-checked collision (it validates heights only), so the
+     * core reads as its innermost tier here. */
     grounds: [
+      /* Lawns (palace-grounds LAWN_PANELS, grass top 0.05). */
       { minX: -27.0, maxX: -6.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
-      { minX: 6.5, maxX: 27.0, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      { minX: 6.5, maxX: 13.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      /* Ceremonial hall steps (HALL_STEPS: treads 0.12/0.24/0.36
+       * marching north + the 0.36 platform, both flanks). */
+      { minX: -5.6, maxX: -2.1, minZ: 13.0, maxZ: 13.72, height: 0.12 },
+      { minX: -5.6, maxX: -2.1, minZ: 13.72, maxZ: 14.44, height: 0.24 },
+      { minX: -5.6, maxX: -2.1, minZ: 14.44, maxZ: 15.16, height: 0.36 },
+      { minX: -5.6, maxX: -2.1, minZ: 15.16, maxZ: 16.4, height: 0.36 },
+      { minX: 2.1, maxX: 5.6, minZ: 13.0, maxZ: 13.72, height: 0.12 },
+      { minX: 2.1, maxX: 5.6, minZ: 13.72, maxZ: 14.44, height: 0.24 },
+      { minX: 2.1, maxX: 5.6, minZ: 14.44, maxZ: 15.16, height: 0.36 },
+      { minX: 2.1, maxX: 5.6, minZ: 15.16, maxZ: 16.4, height: 0.36 },
+      /* Edge terraces (TERRACES: tiers 0.30/0.62/0.95 rising
+       * toward the walls; west mass z 13.4..16.6, east mass at
+       * its displaced band z 17.0..20.2). */
+      { minX: -26.733333333333334, maxX: -26.0, minZ: 13.4, maxZ: 16.6, height: 0.3 },
+      { minX: -27.46666666666667, maxX: -26.733333333333334, minZ: 13.4, maxZ: 16.6, height: 0.62 },
+      { minX: -28.200000000000003, maxX: -27.46666666666667, minZ: 13.4, maxZ: 16.6, height: 0.95 },
+      { minX: 26.0, maxX: 26.733333333333334, minZ: 17.0, maxZ: 20.2, height: 0.3 },
+      { minX: 26.733333333333334, maxX: 27.46666666666667, minZ: 17.0, maxZ: 20.2, height: 0.62 },
+      { minX: 27.46666666666667, maxX: 28.200000000000003, minZ: 17.0, maxZ: 20.2, height: 0.95 },
+      /* Monument plinth tiers (MONUMENT tier tops 0.24/0.48/0.70,
+       * nested squares at (0, 19.7)). */
+      { minX: -2.15, maxX: 2.15, minZ: 17.55, maxZ: 21.849999999999998, height: 0.24 },
+      { minX: -1.75, maxX: 1.75, minZ: 17.95, maxZ: 21.45, height: 0.48 },
+      { minX: -1.35, maxX: 1.35, minZ: 18.349999999999998, maxZ: 21.05, height: 0.7 },
     ],
   },
   /* The second ring (palace follow-on): the front rooms flank the
@@ -282,6 +312,20 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "Creator Heights",
     bounds: { minX: 13.0, maxX: 28.6, minZ: 15.5, maxZ: 26.1 },
     spawn: { x: 14.6, z: 24.6 },
+    /* Height table (item 49): the plaza's EAST terrace mass
+     * (palace-grounds TERRACES, tiers 0.30/0.62/0.95) stands
+     * against the east wall at z 17.0..20.2 — geographically
+     * inside this enclave's bounds since item 36, and the client
+     * resolves the room of a walker standing there to the
+     * Heights (palace-layout roomAt), so the zones are mirrored
+     * here as well as in the plaza's table: the room that holds
+     * the walker holds their height truth too. The quarter's own
+     * overlook terraces (0.45) stay blocked masses, not ground. */
+    grounds: [
+      { minX: 26.0, maxX: 26.733333333333334, minZ: 17.0, maxZ: 20.2, height: 0.3 },
+      { minX: 26.733333333333334, maxX: 27.46666666666667, minZ: 17.0, maxZ: 20.2, height: 0.62 },
+      { minX: 27.46666666666667, maxX: 28.200000000000003, minZ: 17.0, maxZ: 20.2, height: 0.95 },
+    ],
   },
 ];
 

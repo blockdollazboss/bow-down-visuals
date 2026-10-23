@@ -863,8 +863,9 @@ export const ACTION_SNAPSHOT_MS = 2500;
  *  whose standing surface sits `height` metres above the room's
  *  base floor (Stack-100 #2 item 49). The palace registry authors
  *  these per room in world-palace.ts, mirroring the client floor
- *  plan's authored heights (lib/world/palace-layout.ts grounds /
- *  raised grounds — lawns at 0.05, the Boardwalk deck at 0.03);
+ *  plan's authored step zones (lib/world/palace-layout.ts
+ *  PalaceStepZone — lawns at 0.05, hall steps to 0.36, terraces
+ *  to 0.95, monument tiers to 0.70, the Boardwalk deck at 0.03);
  *  a parity test pins the two tables together. Ground outside
  *  every rect is height 0. Overlapping rects take the MAX height
  *  (the highest surface is the one a body stands on). */
@@ -882,8 +883,8 @@ export interface WorldGroundRect {
  *  clamped TO the honest ground height (never rejected: the move
  *  still lands, presence stays truthful, no rejection storms).
  *  The tolerances sit a slack step above the client's own step
- *  limits (movement.ts STEP_UP_MAX_M 0.5 / STEP_DOWN_MAX_M 0.6)
- *  so an honestly easing client mid-climb is never snapped. */
+ *  limits (palace-layout.ts STEP_UP_MAX / STEP_DOWN_MAX, both
+ *  0.4) so an honestly easing client mid-climb is never snapped. */
 export const WORLD_STEP_UP_TOLERANCE_M = 0.65;
 export const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
 
