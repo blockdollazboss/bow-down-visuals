@@ -2466,19 +2466,19 @@
     "tabs": {
       "moderate": {
         "label": "중재",
-        "cost": "1 VB / 댓글 50개"
+        "cost": "100 VB / 댓글 50개"
       },
       "replies": {
         "label": "답글 초안",
-        "cost": "1 VB / 배치"
+        "cost": "100 VB / 배치"
       },
       "sentiment": {
         "label": "감성",
-        "cost": "1 VB / 리포트"
+        "cost": "100 VB / 리포트"
       },
       "superfans": {
         "label": "슈퍼팬",
-        "cost": "1 VB / 스캔"
+        "cost": "100 VB / 스캔"
       }
     },
     "tones": {
@@ -6584,7 +6584,7 @@
     "handoffSceneTitle": "타임라인에 추가되었습니다",
     "hideInspector": "인스펙터 숨기기",
     "labClipActive": "아래에서 이 클립을 설명하세요 — 랩이 오프닝을 점수화합니다.",
-    "labDesc": "처음 3초를 잡으세요. AI가 비디오의 대체 오프닝 5개를 쓰고 각각 스크롤을 멈추는 힘을 점수화합니다. 2 VB.",
+    "labDesc": "처음 3초를 잡으세요. AI가 비디오의 대체 오프닝 5개를 쓰고 각각 스크롤을 멈추는 힘을 점수화합니다. 200 VB.",
     "labGenerate": "오프닝 5개 테스트",
     "labNiche": "니치 (선택)",
     "labRemove": "클립 제거",
@@ -6644,7 +6644,7 @@
     "memeMachineApply": "타임라인에 적용",
     "memeMachineContext": "클립의 순간을 설명하세요 *",
     "memeMachineCustomActive": "사용자 지정 형식이 선택되었습니다 — 아래에서 고르거나 프리셋을 유지하세요.",
-    "memeMachineDesc": "순간을 설명하고 밈 형식을 고르세요 — AI가 펀치라인을 씁니다 (1 VB). 적용하면 우승작이 스타일 자막으로 타임라인에 떨어집니다.",
+    "memeMachineDesc": "순간을 설명하고 밈 형식을 고르세요 — AI가 펀치라인을 씁니다 (100 VB). 적용하면 우승작이 스타일 자막으로 타임라인에 떨어집니다.",
     "memeMachineFormat": "밈 형식",
     "memeMachineGenerate": "밈 캡션 쓰기",
     "memeMachinePh": "예: 테이크가 처음부터 음소거였다는 걸 깨달은 나…",
@@ -6949,7 +6949,7 @@
     "styleStealerAudio": "오디오 큐",
     "styleStealerCaptions": "자막",
     "styleStealerCuts": "컷 패턴",
-    "styleStealerDesc": "바이럴 비디오 링크를 붙여넣고 본 것을 설명하세요. AI가 그 공식 — 훅, 페이싱, 컷 — 을 리버스 엔지니어링해 타임라인용 편집 레시피로 만듭니다. 2 VB.",
+    "styleStealerDesc": "바이럴 비디오 링크를 붙여넣고 본 것을 설명하세요. AI가 그 공식 — 훅, 페이싱, 컷 — 을 리버스 엔지니어링해 타임라인용 편집 레시피로 만듭니다. 200 VB.",
     "styleStealerDescLabel": "본 것을 설명하세요 *",
     "styleStealerDescPh": "예: 고정 프레임 + 굵은 텍스트로 시작, 비트에 맞춰 2초마다 점프 컷, 단어 단위로 튀는 자막…",
     "styleStealerFormula": "공식",

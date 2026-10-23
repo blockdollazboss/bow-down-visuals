@@ -2473,19 +2473,19 @@
     "tabs": {
       "moderate": {
         "label": "Moderación",
-        "cost": "1 VB / 50 comentarios"
+        "cost": "100 VB / 50 comentarios"
       },
       "replies": {
         "label": "Borradores de respuesta",
-        "cost": "1 VB / lote"
+        "cost": "100 VB / lote"
       },
       "sentiment": {
         "label": "Sentimiento",
-        "cost": "1 VB / informe"
+        "cost": "100 VB / informe"
       },
       "superfans": {
         "label": "Superfans",
-        "cost": "1 VB / escaneo"
+        "cost": "100 VB / escaneo"
       }
     },
     "tones": {
@@ -6596,7 +6596,7 @@
     "handoffSceneTitle": "Agregado a tu línea de tiempo",
     "hideInspector": "Ocultar inspector",
     "labClipActive": "Describe este clip abajo — el laboratorio califica aperturas para él.",
-    "labDesc": "Gana los primeros 3 segundos. La IA escribe 5 aperturas alternativas para tu video y califica cada una por su poder para detener el scroll. 2 VB.",
+    "labDesc": "Gana los primeros 3 segundos. La IA escribe 5 aperturas alternativas para tu video y califica cada una por su poder para detener el scroll. 200 VB.",
     "labGenerate": "Probar 5 Aperturas",
     "labNiche": "Nicho (opcional)",
     "labRemove": "Quitar clip",
@@ -6656,7 +6656,7 @@
     "memeMachineApply": "Aplicar a la línea de tiempo",
     "memeMachineContext": "Describe el momento del clip *",
     "memeMachineCustomActive": "Formato personalizado seleccionado — elígelo abajo o mantén un preajuste.",
-    "memeMachineDesc": "Describe el momento, elige un formato de meme — la IA escribe los remates (1 VB). Al aplicar, el ganador cae en tu línea de tiempo como subtítulos con estilo.",
+    "memeMachineDesc": "Describe el momento, elige un formato de meme — la IA escribe los remates (100 VB). Al aplicar, el ganador cae en tu línea de tiempo como subtítulos con estilo.",
     "memeMachineFormat": "Formato de meme",
     "memeMachineGenerate": "Escribir Textos de Meme",
     "memeMachinePh": "ej. Yo dándome cuenta de que la toma estuvo en silencio todo el tiempo…",
@@ -6961,7 +6961,7 @@
     "styleStealerAudio": "Señales de audio",
     "styleStealerCaptions": "Subtítulos",
     "styleStealerCuts": "Patrón de cortes",
-    "styleStealerDesc": "Pega el enlace de un video viral y describe lo que viste. La IA desarma su fórmula — hook, ritmo, cortes — y la convierte en una receta de edición para tu línea de tiempo. 2 VB.",
+    "styleStealerDesc": "Pega el enlace de un video viral y describe lo que viste. La IA desarma su fórmula — hook, ritmo, cortes — y la convierte en una receta de edición para tu línea de tiempo. 200 VB.",
     "styleStealerDescLabel": "Describe lo que viste *",
     "styleStealerDescPh": "ej. Abre con un fotograma congelado + texto en negrita, cortes rápidos cada 2 sec al ritmo, subtítulos que aparecen palabra por palabra…",
     "styleStealerFormula": "La fórmula",
