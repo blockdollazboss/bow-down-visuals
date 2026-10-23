@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Barcode, Check, Disc3, Link2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Barcode, Check, Disc3, Link2, Mail, Pencil, Plus, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DISTRIBUTION_PLATFORMS,
@@ -16,6 +16,9 @@ import {
   buildMetadataPayload,
   buildPresaveSettingsPayload,
   buildReleasePayload,
+  SPLIT_INVITE_PATH,
+  SPLIT_SHARE_LINK_PATH,
+  buildSplitInviteBody,
   buildSplitsPayload,
   buildStrategyPayload,
   checklistPasses,
@@ -31,11 +34,14 @@ import {
   parseReleaseList,
   parseReleasePricing,
   parseReleaseSongs,
+  parseSplitInviteResult,
+  parseSplitShareLink,
   parseSplitsSave,
   parseStrategyResult,
   parseSubmitChecklist,
   parseSubmitResult,
   smartlinkUrl,
+  splitInviteReady,
   splitsTotal,
   splitsValid,
   submitPriceFor,
@@ -325,6 +331,9 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   /* Splits (selected release). */
   const [splits, setSplits] = useState<RoyaltySplit[]>([]);
   const [splitsNote, setSplitsNote] = useState<string | null>(null);
+  /* Item 99: the minted agreement share link (the invite fallback
+     when no email provider is configured, and the shareable door). */
+  const [splitLink, setSplitLink] = useState<string | null>(null);
 
   /* AI benches (selected release). */
   const [vibe, setVibe] = useState("");
@@ -585,6 +594,76 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       );
     } catch {
       setSplitsNote("Couldn't save the splits — try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /* Item 99: invite a saved payee by the email on their split row —
+     the REAL rail (POST .../splits/invite), the same one the 2D
+     /distribute page uses. The payee is marked "invited" only from
+     the server's recorded answer, never from the click. Free:
+     splits are percentages of your own release. */
+  const invitePayee = async (split: RoyaltySplit) => {
+    if (busy || !selected || !splitInviteReady(split)) return;
+    const body = buildSplitInviteBody(split);
+    if (!body) return;
+    setBusy("split-invite");
+    setSplitsNote(null);
+    try {
+      const res = await fetch(SPLIT_INVITE_PATH(selected.id), {
+        method: "POST",
+        headers: await jsonHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSplitsNote(serverMessage(data, "Couldn't record the invite."));
+        return;
+      }
+      const result = parseSplitInviteResult(data);
+      if (result.recorded) {
+        setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
+        setSplitsNote(
+          result.emailSent
+            ? `Invite sent to ${split.email} — it's recorded on their split. Free.`
+            : result.note ?? "Invite recorded — share the agreement link below so they can review it.",
+        );
+      } else {
+        setSplitsNote("The invite wasn't recorded — try again.");
+      }
+    } catch {
+      setSplitsNote("Couldn't record the invite — try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /* Item 99: mint (idempotently) the public agreement share link —
+     the share-by-link door beside the email invite. */
+  const shareSplitLink = async () => {
+    if (busy || !selected) return;
+    setBusy("split-share");
+    setSplitsNote(null);
+    try {
+      const res = await fetch(SPLIT_SHARE_LINK_PATH(selected.id), {
+        method: "POST",
+        headers: await jsonHeaders(),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSplitsNote(serverMessage(data, "Couldn't mint the share link."));
+        return;
+      }
+      const link = parseSplitShareLink(data);
+      if (link) {
+        setSplitLink(link.url);
+        setSplitsNote("Agreement link ready — share it with your collaborators. Free.");
+      } else {
+        setSplitsNote("The share link didn't come back — try again.");
+      }
+    } catch {
+      setSplitsNote("Couldn't mint the share link — try again.");
     } finally {
       setBusy(null);
     }
@@ -924,6 +1003,18 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
                   <button type="button" aria-label={`Remove payee ${i + 1}`} onClick={() => setSplits(splits.filter((_, j) => j !== i))} className={chipBtn(isLight, false)}>
                     <X className="h-3.5 w-3.5" />
                   </button>
+                  {s.id ? (
+                    <button
+                      type="button"
+                      data-testid={`world-release-split-invite-${i}`}
+                      onClick={() => void invitePayee(s)}
+                      disabled={busy !== null || !splitInviteReady(s)}
+                      title={splitInviteReady(s) ? "Email this collaborator their split invite" : "Add this payee's email to invite them"}
+                      className={chipBtn(isLight, false)}
+                    >
+                      <Mail className="h-3.5 w-3.5" /> {s.inviteStatus === "invited" ? "Invited — send again" : "Invite by email"}
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -935,7 +1026,16 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
               <button type="button" data-testid="world-release-splits-save" onClick={() => void saveSplits()} disabled={busy !== null || !splitsOk} className={`${goldBtn} ml-auto`}>
                 {busy === "splits" ? "Saving…" : "Save splits — free"}
               </button>
+              <button type="button" data-testid="world-release-split-share" onClick={() => void shareSplitLink()} disabled={busy !== null} className={chipBtn(isLight, false)}>
+                <Share2 className="h-3.5 w-3.5" /> {busy === "split-share" ? "Minting…" : "Share agreement link"}
+              </button>
             </div>
+            {splitLink ? (
+              <p className={`mt-1 text-[11px] ${muted}`} data-testid="world-release-split-link">
+                Agreement: <span className={strong}>{splitLink}</span> — anyone with the link sees the split names and shares (never emails).
+              </p>
+            ) : null}
+            <p className={`mt-1 text-[11px] ${muted}`}>Invite appears once a payee is saved — collaborators are invited by the email on their row, or by the agreement link.</p>
             <p className={`mt-1 text-[11px] ${muted}`}>Splits are accounting records for future earnings — saving a new version never rewrites past earnings.</p>
             {splitsNote ? <p className={`mt-1 ${noteCls}`}>{splitsNote}</p> : null}
           </div>

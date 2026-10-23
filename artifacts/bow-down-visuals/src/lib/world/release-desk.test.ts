@@ -12,6 +12,9 @@ import {
   draftFromRelease,
   draftWithSong,
   emptyReleaseDraft,
+  SPLIT_INVITE_PATH,
+  SPLIT_SHARE_LINK_PATH,
+  buildSplitInviteBody,
   parseBarcodeResult,
   parseMetadataResult,
   parsePlatformStatuses,
@@ -21,11 +24,14 @@ import {
   parseReleaseList,
   parseReleasePricing,
   parseReleaseSongs,
+  parseSplitInviteResult,
+  parseSplitShareLink,
   parseSplitsSave,
   parseStrategyResult,
   parseSubmitChecklist,
   parseSubmitResult,
   smartlinkUrl,
+  splitInviteReady,
   submitPriceFor,
   validateReleaseDraft,
   validateSmartlinkSettings,
@@ -388,5 +394,95 @@ describe("Release Desk component (source pins)", () => {
     const business = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
     expect(business).toContain("<ReleaseDeskSection");
     expect(business).not.toContain('websitePath="/distribute"');
+  });
+});
+
+/* ── Item 99 (Stack-100 #2) — split invites against the REAL rail ───
+   Facet D-53 claimed POST /api/distribution/splits/invite didn't
+   exist and the in-world editor demanded raw user ids. Verified
+   against the shipped tree: the rail exists at the canonical nested
+   path (POST /api/distribution/releases/:id/splits/invite, pending
+   state on distribution_royalty_splits — invite_status +
+   invite_token, API-pinned in the api-server distribution suite),
+   and the editor already collected name/role/email. The REAL defect
+   was that this seam dropped the split `id`, so no in-world invite
+   could ever be addressed. These pins are written against the real
+   rail's shapes — no faked acceptance anywhere: "invited" is read
+   from the server's recorded answer only. */
+describe("item 99 — split invites + share link (real rails)", () => {
+  it("the split id rides through BOTH parsers (detail read + splits save)", () => {
+    const detail = parseReleaseDetail({
+      release: {
+        ...RELEASE_WIRE,
+        royaltySplits: [
+          { id: "split-9", name: "Writer", role: "writer", email: "w@x.com", share: 20, inviteStatus: "invited" },
+        ],
+      },
+    })!;
+    expect(detail.royaltySplits[0]).toMatchObject({ id: "split-9", inviteStatus: "invited" });
+    const saved = parseSplitsSave({
+      splits: [{ id: "split-9", name: "Writer", email: "w@x.com", share: 20, inviteStatus: "not_invited" }],
+      agreementVersion: 3,
+    });
+    expect(saved.splits[0]).toMatchObject({ id: "split-9", inviteStatus: "not_invited" });
+  });
+
+  it("invite + share-link paths are the canonical nested rails the 2D page uses", () => {
+    expect(SPLIT_INVITE_PATH("rel-1")).toBe("/api/distribution/releases/rel-1/splits/invite");
+    expect(SPLIT_SHARE_LINK_PATH("rel-1")).toBe("/api/distribution/releases/rel-1/splits/share-link");
+  });
+
+  it("the invite body names the split by its saved id — an unsaved payee has no body to send", () => {
+    expect(buildSplitInviteBody({ id: "split-9", name: "Writer", email: "w@x.com", share: 20 })).toEqual({ splitId: "split-9" });
+    expect(buildSplitInviteBody({ name: "Writer", email: "w@x.com", share: 20 })).toBeNull();
+  });
+
+  it("the invite door is ready only with a saved id AND an email (the rail's own gates)", () => {
+    expect(splitInviteReady({ id: "s1", name: "W", email: "w@x.com", share: 20 })).toBe(true);
+    expect(splitInviteReady({ id: "s1", name: "W", email: "", share: 20 })).toBe(false);
+    expect(splitInviteReady({ id: "s1", name: "W", email: null, share: 20 })).toBe(false);
+    expect(splitInviteReady({ name: "W", email: "w@x.com", share: 20 })).toBe(false);
+    /* Already invited never blocks a re-send. */
+    expect(splitInviteReady({ id: "s1", name: "W", email: "w@x.com", share: 20, inviteStatus: "invited" })).toBe(true);
+  });
+
+  it("the invite answer is read honestly: recorded only when the server says recorded", () => {
+    expect(parseSplitInviteResult({ recorded: true, emailSent: false, note: "share the link" })).toEqual({
+      recorded: true, emailSent: false, note: "share the link",
+    });
+    expect(parseSplitInviteResult({ recorded: true, emailSent: true })).toEqual({
+      recorded: true, emailSent: true, note: null,
+    });
+    expect(parseSplitInviteResult({})).toEqual({ recorded: false, emailSent: false, note: null });
+    expect(parseSplitInviteResult(null)).toEqual({ recorded: false, emailSent: false, note: null });
+  });
+
+  it("the share-link answer parses slug + url, and only both", () => {
+    expect(parseSplitShareLink({ slug: "abc123def4", url: "https://x/splits/abc123def4" })).toEqual({
+      slug: "abc123def4", url: "https://x/splits/abc123def4",
+    });
+    expect(parseSplitShareLink({ slug: "abc123def4" })).toBeNull();
+    expect(parseSplitShareLink(null)).toBeNull();
+  });
+
+  it("the desk wires both doors (source pin) — invite by email + share link, no raw-user-id field", () => {
+    const desk = readFileSync(new URL("../../components/world/native/ReleaseDesk.tsx", import.meta.url), "utf8");
+    expect(desk).toContain("SPLIT_INVITE_PATH(selected.id)");
+    expect(desk).toContain("SPLIT_SHARE_LINK_PATH(selected.id)");
+    expect(desk).toContain("world-release-split-invite-");
+    expect(desk).toContain("world-release-split-share");
+    /* Status flips to invited ONLY off the recorded answer. */
+    expect(desk).toContain('inviteStatus: "invited"');
+    expect(desk).toContain("result.recorded");
+  });
+
+  it("the server rail exists at the canonical path with pending-invite state (source pin, api-server)", () => {
+    const server = readFileSync(
+      new URL("../../../../api-server/src/routes/generate/distribution.ts", import.meta.url),
+      "utf8",
+    );
+    expect(server).toContain('router.post("/distribution/releases/:id/splits/invite"');
+    expect(server).toContain("invite_status = 'invited'");
+    expect(server).toContain("invite_token");
   });
 });
