@@ -7,6 +7,7 @@ import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* Connected social accounts for auto-posting (Instagram Reels + TikTok drafts + Facebook Pages).
    Lives on the Settings page. OAuth runs as a full-page redirect because both
@@ -100,7 +101,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "Instagram",
     authPath: "/api/social/instagram/auth-url",
     connectBlurb: "Needs a Business or Creator account linked to a Facebook Page.",
-    readyBlurb: "Ready to post Reels · 200 Visual Bucs per post",
+    readyBlurb: `Ready to post Reels · ${getCreditCost("/api/social/instagram/publish")?.cost ?? 100} Visual Bucs per post`,
     Icon: InstagramIcon,
     iconBadgeClass: "bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]",
   },
@@ -109,7 +110,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "TikTok",
     authPath: "/api/social/tiktok/auth-url",
     connectBlurb: "Any TikTok account works — uploads land in your TikTok drafts, never auto-posted.",
-    readyBlurb: "Ready to send to TikTok drafts · 200 Visual Bucs per upload",
+    readyBlurb: `Ready to send to TikTok drafts · ${getCreditCost("/api/social/tiktok/publish")?.cost ?? 100} Visual Bucs per upload`,
     Icon: TikTokIcon,
     iconBadgeClass: "bg-black border border-white/20",
   },
@@ -118,7 +119,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "Facebook",
     authPath: "/api/social/facebook/auth-url",
     connectBlurb: "Connect your Facebook Pages — exports post as Reels.",
-    readyBlurb: "Ready to post to Facebook Pages as Reels · 200 Visual Bucs per post",
+    readyBlurb: `Ready to post to Facebook Pages as Reels · ${getCreditCost("/api/social/facebook/publish")?.cost ?? 100} Visual Bucs per post`,
     Icon: FacebookIcon,
     iconBadgeClass: "bg-[#1877F2]",
   },
@@ -126,6 +127,10 @@ const PLATFORMS: PlatformConfig[] = [
 
 export function ConnectedAccounts() {
   const isLight = useIsLightTheme();
+  /* All three publish rails charge the same — the registry entry for
+     Instagram is the generic "per post" figure quoted in the intro;
+     each platform card above derives its own endpoint's cost. */
+  const socialPostCost = getCreditCost("/api/social/instagram/publish")?.cost ?? 100;
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const { accounts, loading, reload, loadError } = useSocialAccounts();
@@ -178,7 +183,7 @@ export function ConnectedAccounts() {
       <div>
         <h2 className="text-lg font-bold text-white">Connected Accounts</h2>
         <p className="text-sm text-white/40 mt-1">
-          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — 200 Visual Bucs per post.
+          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — {socialPostCost} Visual Bucs per post.
         </p>
       </div>
 
