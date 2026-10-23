@@ -12,8 +12,7 @@ describe("table scroll wrappers (Stack-28 #55)", () => {
   });
   it("SplitCalculator collaborators table is wrapped", () => {
     const s = read("../components/wave8/SplitCalculator.tsx");
-    const at = s.indexOf("wave8.splits.name");
-    expect(s.slice(Math.max(0, at - 2500), at)).toContain("overflow-x-auto");
+    expect(s).toContain('<div className="overflow-x-auto">\n                    <table className="w-full min-w-[420px] text-sm">');
   });
   it("llc-guide fee table container scrolls both ways", () => {
     const s = read("../pages/llc-guide.tsx");
