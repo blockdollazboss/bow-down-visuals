@@ -40,8 +40,12 @@ import { mediaUrl } from "../media-cdn";
    fetch and AudioWorklet module load all already run cross-origin
    against the CDN fallback). */
 export const RNNOISE_LOCAL_BASE = mediaUrl("engines/rnnoise");
+/* The shipped same-origin copy (public/engines/rnnoise) — the fallback
+   immediately after the R2 media bucket and before the CDN, so a
+   bucket outage never makes the load depend on a third party. */
+export const RNNOISE_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/rnnoise`;
 export const RNNOISE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist";
-const RNNOISE_BASES = [RNNOISE_LOCAL_BASE, RNNOISE_CDN_BASE] as const;
+const RNNOISE_BASES = [RNNOISE_LOCAL_BASE, RNNOISE_ORIGIN_BASE, RNNOISE_CDN_BASE] as const;
 
 /** Every asset URL for one base — module, WASM builds, worklet. */
 export function rnnoiseUrls(base: string) {
