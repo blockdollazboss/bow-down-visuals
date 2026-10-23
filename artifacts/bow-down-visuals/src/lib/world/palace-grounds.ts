@@ -302,13 +302,20 @@ export const HALL_STEPS_BLOCKED: readonly PalaceRect[] = [
  *  east and west walls, north of the lawns — three stone terraces
  *  rising toward the wall, each crowned with planting. They stand
  *  ON the main grounds (inside the walk rect), so their footprints
- *  are blocked from this same data. */
+ *  are blocked from this same data. The EAST mass moved south in
+ *  Stage C item 33: it used to stand at z 13.4..16.6, centred
+ *  exactly on the Creation Row gate's line (z 14.5) — the gate
+ *  displaced it, and it now flanks the gate from the south at
+ *  z 17.0..20.2, clear of the planter at (27.3, 15.8). */
 export const TERRACES = {
   /** Footprint: from the wall face inward. */
   depthX: 2.2,
   wallX: 28.2,
   z0: 13.4,
   z1: 16.6,
+  /** The east mass's band since item 33 (see above). */
+  eastZ0: 17.0,
+  eastZ1: 20.2,
   /** Terrace tops, lowest (plaza side) to highest (wall side). */
   tops: [0.3, 0.62, 0.95] as readonly number[],
 } as const;
@@ -316,9 +323,11 @@ export const TERRACES = {
 export function terraceRuns(): GroundsBox[] {
   const out: GroundsBox[] = [];
   const stepD = TERRACES.depthX / TERRACES.tops.length;
-  const cz = (TERRACES.z0 + TERRACES.z1) / 2;
-  const len = TERRACES.z1 - TERRACES.z0;
   for (const sx of [-1, 1] as const) {
+    const z0 = sx > 0 ? TERRACES.eastZ0 : TERRACES.z0;
+    const z1 = sx > 0 ? TERRACES.eastZ1 : TERRACES.z1;
+    const cz = (z0 + z1) / 2;
+    const len = z1 - z0;
     TERRACES.tops.forEach((topY, i) => {
       // i = 0 is the plaza-side (inward) step; the mass rises
       // toward the wall.
@@ -339,7 +348,7 @@ export const TERRACE_BLOCKED: readonly PalaceRect[] = [
   },
   {
     minX: TERRACES.wallX - TERRACES.depthX, maxX: TERRACES.wallX,
-    minZ: TERRACES.z0, maxZ: TERRACES.z1,
+    minZ: TERRACES.eastZ0, maxZ: TERRACES.eastZ1,
   },
 ];
 
@@ -418,7 +427,11 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
  *  SOUTH-CENTRE mound moved west in Stage C item 32 the same
  *  way: the ground it used to mound (x −28..−12, z 40..56) is
  *  the built Listening Gardens district now — it rings the
- *  gardens' west wall instead, at (−50, 50). */
+ *  gardens' west wall instead, at (−50, 50). The EAST mound
+ *  moved east in Stage C item 33 the same way: the ground it
+ *  used to mound (x 32..48, z 2..18) is the built Creation Row
+ *  district now — it rings the Row's east wall instead, at
+ *  (68, 14). */
 export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; h: number }> = [
   { x: -66, z: 4, r: 7, h: 3.2 },
   { x: -68, z: 24, r: 9, h: 4.0 },
@@ -426,7 +439,7 @@ export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; 
   { x: -50, z: 50, r: 8, h: 3.4 },
   { x: 20, z: 48, r: 8, h: 3.4 },
   { x: 38, z: 40, r: 6.5, h: 2.8 },
-  { x: 40, z: 10, r: 7.5, h: 3.6 },
+  { x: 68, z: 14, r: 7.5, h: 3.6 },
   { x: 14, z: -38, r: 9, h: 4.2 },
   { x: -16, z: -40, r: 8, h: 3.8 },
 ];

@@ -325,7 +325,14 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     const east = PLAZA_WALL_RUNS.filter((r) => r.x === 28.2 && r.w === 0.35).sort((a, b) => a.z - b.z);
     expect(east[0]!.z - east[0]!.d / 2).toBeCloseTo(12.4);
     expect(east[east.length - 1]!.z + east[east.length - 1]!.d / 2).toBeCloseTo(34.0);
-    for (let i = 1; i < east.length; i++) {
+    /* DELIBERATELY moved in item 33: the east wall is no longer
+     * continuous — the Creation Row gate gap (z 13.4..15.6, a
+     * true passage) pierces it between the first two runs,
+     * exactly the west wall's Stage Grounds pattern. South of
+     * the gap the runs stay continuous to z 34. */
+    const eastGap = (east[1]!.z - east[1]!.d / 2) - (east[0]!.z + east[0]!.d / 2);
+    expect(eastGap).toBeCloseTo(2.2); // the Creation Row gate gap — a true passage since item 33
+    for (let i = 2; i < east.length; i++) {
       expect(east[i]!.z - east[i]!.d / 2).toBeLessThanOrEqual(east[i - 1]!.z + east[i - 1]!.d / 2 + 1e-9);
     }
     const south = PLAZA_WALL_RUNS.filter((r) => r.z === 34.0 && r.d === 0.35);
@@ -394,9 +401,9 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    /* Ten since item 32 added the Listening Gardens district
-     * room (nine was item 31's Stage Grounds count). */
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(10);
+    /* Eleven since item 33 added the Creation Row district
+     * room (ten was item 32's Listening Gardens count). */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(11);
   });
 
   it("the front doors open beside the stage, never through it", () => {

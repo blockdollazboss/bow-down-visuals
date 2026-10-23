@@ -41,10 +41,10 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    /* 36 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
-     * item 32 (Gardens Slate), Stack-100 #65 (Beat Marketplace) and
-     * Stack-100 #74 (the Atelier's Jewelry Bench). */
-    expect(PALACE_STATIONS.length).toBe(36);
+    /* 37 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
+     * item 32 (Gardens Slate), Stack-100 #65 (Beat Marketplace),
+     * Stack-100 #74 (Jewelry Bench) and item 33 (Row Slate). */
+    expect(PALACE_STATIONS.length).toBe(37);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -75,9 +75,10 @@ describe("the station registry", () => {
      * Kingdom Board panel) + the Visual Buc Packs desk
      * (Stack-100 #61) + the Listening Gardens' Gardens Slate
      * (item 32, on the same panel again) + the Beat Marketplace
-     * (Stack-100 #65), born world-native like the six — they
-     * never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(14);
+     * (Stack-100 #65) + Creation Row's Row Slate (item 33, on
+     * the same panel again), born world-native like the six —
+     * they never had a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(15);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -149,6 +150,7 @@ describe("the station registry", () => {
       "creator-rooms": null,
       "stage-bill": null,
       "gardens-slate": null,
+      "row-slate": null,
     };
     expect(Object.keys(table).length).toBe(PALACE_STATIONS.length);
     for (const s of PALACE_STATIONS) {

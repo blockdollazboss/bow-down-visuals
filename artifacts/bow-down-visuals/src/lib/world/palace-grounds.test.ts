@@ -213,10 +213,17 @@ describe("elevation (item 38)", () => {
     // Tops ascend as the mass approaches the east wall.
     expect(east.map((s) => s.cy + s.h / 2)).toEqual([...TERRACES.tops]);
     // Terraces clear the lawns (they stand north of them) and the path.
+    // DELIBERATELY moved in item 33: the east mass stands in its
+    // own band now (eastZ0..eastZ1), displaced south by the
+    // Creation Row gate — each side is bounded by its own band.
     for (const s of terraceRuns()) {
-      expect(s.cz + s.d / 2).toBeLessThanOrEqual(TERRACES.z1);
+      expect(s.cz + s.d / 2).toBeLessThanOrEqual((s.cx > 0 ? TERRACES.eastZ1 : TERRACES.z1) + 1e-9);
+      expect(s.cz - s.d / 2).toBeGreaterThanOrEqual((s.cx > 0 ? TERRACES.eastZ0 : TERRACES.z0) - 1e-9);
       expect(Math.abs(s.cx)).toBeGreaterThan(20);
     }
+    /* The displaced east mass stands clear of the gate's line:
+     * the passage at z 14.5 walks through where it used to sit. */
+    expect(isWalkable(27.0, 14.5)).toBe(true);
     // The open grounds between the terraces stay walkable.
     expect(isWalkable(24, 15)).toBe(true);
     expect(isWalkable(-24, 20)).toBe(true);

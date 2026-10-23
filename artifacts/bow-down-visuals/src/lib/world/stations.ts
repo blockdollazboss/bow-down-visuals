@@ -54,6 +54,7 @@ import {
   BRANDING_ATELIER_ID,
   STAGE_GROUNDS_ID,
   LISTENING_GARDENS_ID,
+  CREATION_ROW_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -545,6 +546,28 @@ export const PALACE_STATIONS: PalaceStation[] = [
     tagline: "What's on at the palace — the live slate, read from the quiet of the gardens.",
     x: -26,
     z: 38.4,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Creation Row (Stage C item 33) ──────────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * street, where the gate walk meets the makers' stalls. It
+     * opens the Kingdom Board — the palace's live slate of
+     * what's on, who's where and what's live — the same panel
+     * the hall's, the monument's, the Stage Bill's and the
+     * Gardens Slate's boards carry, born world-native like them
+     * (never a website page). The district is look/listen space:
+     * no stage authority docks here, and guests read the slate
+     * exactly like members. */
+    id: "row-slate",
+    roomId: CREATION_ROW_ID,
+    name: "The Row Slate",
+    tagline: "What's on at the palace — the live slate, read from the makers' street.",
+    x: 32.8,
+    z: 14.5,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,
