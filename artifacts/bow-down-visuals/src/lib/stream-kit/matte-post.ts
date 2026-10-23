@@ -8,7 +8,15 @@
  * The pipeline, in order:
  *   1. Temporal blend (EMA) — cross-frame smoothing. The studio
  *      engine's mask flickers frame to frame, and blending is what
- *      calms it. (Single-frame callers pass emaWeight 1.)
+ *      calms it. (Single-frame callers pass emaWeight 1.) The blend
+ *      is MOTION-ADAPTIVE when `motionSnap` is set: a pixel whose
+ *      matte barely changed keeps the calming base weight, while a
+ *      pixel whose matte swung hard — the subject's boundary just
+ *      moved through it — takes the new matte (near-)whole. A plain
+ *      EMA cannot tell those apart: it lags a moving subject exactly
+ *      as much as it calms a still one, which reads on screen as a
+ *      ghost trail where the subject was and a body that takes
+ *      frames to be cut out where it now is.
  *   2. Choke — a small constant subtracted from semi-transparent
  *      pixels only. Kills the background-colored fringe that clings
  *      to edges without touching the solid core or true hair detail
@@ -33,6 +41,19 @@ export interface MattePostOptions {
   curveHi?: number;
   /** Feather blur passes after the curve. Default 1. */
   featherPasses?: number;
+  /** Motion snap, 0..1: how strongly a large per-pixel matte change
+   *  overrides the temporal blend (see the header note). 0 (the
+   *  default) is the legacy pure-EMA blend, byte-for-byte; 1 makes a
+   *  hard matte swing land in a single frame. The studio path opts
+   *  in; the still-photo path never sets it. */
+  motionSnap?: number;
+  /** Matte delta at or below which the blend is untouched (per-pixel
+   *  jitter under this is flicker, and keeps the calming weight).
+   *  Default 0.08. */
+  motionSnapLo?: number;
+  /** Matte delta at or above which the snap reaches full strength.
+   *  Default 0.35. */
+  motionSnapHi?: number;
 }
 
 export class MattePostProcessor {
@@ -41,6 +62,9 @@ export class MattePostProcessor {
   private _lo: number;
   private _hi: number;
   private _featherPasses: number;
+  private _motionSnap: number;
+  private _motionLo: number;
+  private _motionHi: number;
   private _ema: Float32Array | null = null;
   private _out: Float32Array | null = null;
   private _scratch: Float32Array | null = null;
@@ -53,6 +77,9 @@ export class MattePostProcessor {
     this._lo = clamp01(options.curveLo ?? 0.06);
     this._hi = clamp01(options.curveHi ?? 0.94);
     this._featherPasses = Math.max(0, Math.floor(options.featherPasses ?? 1));
+    this._motionSnap = clamp01(options.motionSnap ?? 0);
+    this._motionLo = clamp01(options.motionSnapLo ?? 0.08);
+    this._motionHi = clamp01(options.motionSnapHi ?? 0.35);
   }
 
   /**
@@ -68,6 +95,9 @@ export class MattePostProcessor {
     if (options.curveLo !== undefined) this._lo = clamp01(options.curveLo);
     if (options.curveHi !== undefined) this._hi = clamp01(options.curveHi);
     if (options.featherPasses !== undefined) this._featherPasses = Math.max(0, Math.floor(options.featherPasses));
+    if (options.motionSnap !== undefined) this._motionSnap = clamp01(options.motionSnap);
+    if (options.motionSnapLo !== undefined) this._motionLo = clamp01(options.motionSnapLo);
+    if (options.motionSnapHi !== undefined) this._motionHi = clamp01(options.motionSnapHi);
   }
 
   /** Forget all temporal state (camera switch, resize, engine swap). */
@@ -92,6 +122,30 @@ export class MattePostProcessor {
       this._h = height;
       // First frame at this size: no history to blend against.
       this._ema.set(alpha.subarray(0, n));
+    } else if (this._motionSnap > 0) {
+      // Motion-adaptive blend: the per-pixel weight rises from the
+      // calming base toward 1 as the matte's swing at that pixel
+      // grows past the jitter band — a boundary that MOVED lands
+      // this frame (no ghost where the subject was, no eaten body
+      // where it now is), while a still pixel's small flicker keeps
+      // the base weight and stays calm.
+      const wNew = this._emaWeight;
+      const snap = this._motionSnap;
+      const lo = this._motionLo;
+      const span = Math.max(1e-6, this._motionHi - lo);
+      const ema = this._ema;
+      for (let i = 0; i < n; i++) {
+        const prev = ema[i];
+        const cur = alpha[i];
+        const d = cur >= prev ? cur - prev : prev - cur;
+        let w = wNew;
+        if (d > lo) {
+          const t = Math.min(1, (d - lo) / span);
+          const s = t * t * (3 - 2 * t); // smoothstep: no hard knee at the band edge
+          w = wNew + (1 - wNew) * snap * s;
+        }
+        ema[i] = w * cur + (1 - w) * prev;
+      }
     } else {
       const wNew = this._emaWeight;
       const wOld = 1 - wNew;

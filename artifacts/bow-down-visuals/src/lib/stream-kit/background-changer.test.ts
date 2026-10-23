@@ -489,6 +489,53 @@ describe("matte refinement steps (the light way to cleaner edges)", () => {
   });
 });
 
+describe("premium quality + motion build (Oct 23, 2026)", () => {
+  const src = readFileSync(new URL("./background-changer.ts", import.meta.url), "utf8");
+
+  it("asks the camera for its best: 1920x1080 ideal by default, 30fps", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({});
+    expect(changer.config.width).toBe(1920);
+    expect(changer.config.height).toBe(1080);
+    expect(changer.config.fps).toBe(30);
+  });
+
+  it("the output starts at the 1080p cap with a 720p governed floor; the sharpest step reads the mask at 960px", async () => {
+    const { OUTPUT_HEIGHT_CAP, OUTPUT_HEIGHT_FLOOR, MATTE_REFINEMENT_STEPS } = await import("./background-changer");
+    expect(OUTPUT_HEIGHT_CAP).toBe(1080);
+    expect(OUTPUT_HEIGHT_FLOOR).toBe(720);
+    expect(MATTE_REFINEMENT_STEPS[0].maskCap).toBe(960);
+  });
+
+  it("the composite canvas is sized by the session output cap — the flat 720p cap is gone", () => {
+    expect(src).toContain("this._canvasCapH / hgt");
+    expect(src).not.toContain("720 / hgt");
+    // A fresh session restores the top cap.
+    expect(src).toContain("this._canvasCapH = OUTPUT_HEIGHT_CAP");
+  });
+
+  it("frame alignment: the engine snapshots at send time and the composite cuts the matte's OWN frame", () => {
+    // Snapshot synchronously inside process(), before the send.
+    expect(src).toContain("this._frameCtx.drawImage(video, 0, 0)");
+    // The snapshot rides back on the matte.
+    expect(src).toContain("matte.frame = frame");
+    // The composite's person/blur layers draw that frame — never
+    // the newer live video (the motion-ghost tear).
+    expect(src).toContain("matte.frame ?? this._video");
+    expect(src).toContain("p.drawImage(frameSource, 0, 0, W, H)");
+  });
+
+  it("the studio matte pipeline runs the motion-adaptive blend (the still-photo path keeps its own)", () => {
+    expect(src).toContain("new MattePostProcessor({ motionSnap: 1 })");
+  });
+
+  it("sustained slowness at the matte floor steps the OUTPUT down once — degrade reaches _stepDownOutput", () => {
+    expect(src).toContain('action === "degrade"');
+    expect(src).toContain("this._stepDownOutput()");
+    expect(src).toContain("this._canvasCapH = OUTPUT_HEIGHT_FLOOR");
+  });
+});
+
 describe("one-engine truth (source contract)", () => {
   const src = readFileSync(new URL("./background-changer.ts", import.meta.url), "utf8");
 

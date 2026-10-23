@@ -14,8 +14,8 @@
  *  - Sustained slowness (EMA of inference time above `slowMs`,
  *    judged on an evaluation boundary) steps the caller DOWN its
  *    internal quality steps. At the last step, the decision is
- *    'degrade' — the caller decides what that means; with one
- *    engine the studio treats it as an honest stay at the floor.
+ *    'degrade' — the caller decides what that means; the studio
+ *    steps its output canvas down a size (1080p → 720p) once.
  *  - Sustained speed (EMA below `fastMs` for many consecutive
  *    evaluations) steps back UP, with wide hysteresis so the
  *    caller never oscillates around a boundary.

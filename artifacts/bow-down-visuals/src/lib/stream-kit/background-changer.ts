@@ -46,6 +46,39 @@
  *     itself for the rest of the session (see _parkEngine) rather
  *     than retrying on the main thread forever.
  *
+ * QUALITY + MOTION BUILD (Oct 23, 2026) — the owner's live verdict
+ * on the freeze-fixed build was "works, but when I move it erases
+ * the green screen that I moved from," and his standing order is
+ * the highest level, premium. Three stacked causes, three fixes:
+ *  1. FRAME-ALIGNED COMPOSITING: a matte describes the frame the
+ *     engine was SENT, but the composite used to cut the person
+ *     from the LIVE video — newer by the whole inference round
+ *     trip — so every moving edge was wrong by that much motion:
+ *     where he had just been, the stale matte still said "person"
+ *     and his real room showed through the replacement (the erased
+ *     green screen); where he now was, it still said "background"
+ *     and the replacement painted over his body. The engine now
+ *     snapshots the frame at send time and the composite cuts THAT
+ *     frame with its own matte — matte and picture are always the
+ *     same instant.
+ *  2. MOTION-ADAPTIVE BLEND: the temporal blend (matte-post.ts)
+ *     runs with motionSnap on — pixels whose matte swung hard take
+ *     the new matte whole (a moved boundary lands in one frame),
+ *     pixels that barely changed keep the calming blend (no
+ *     flicker returns). The old fixed-weight blend lagged the
+ *     subject by design: ~55% of the old matte survived every
+ *     frame at the sharpest step, a visible ghost for ~4 frames.
+ *  3. FULL-RESOLUTION PIPE: the camera is asked for the best it
+ *     has (1920x1080 ideal, never a hard low demand) and the
+ *     composite canvas runs at the feed's real size up to 1080p
+ *     (it was hard-capped at 720p). The only step-down is earned:
+ *     in 'auto' quality, sustained slowness at the lightest matte
+ *     step drops the canvas to 720p ONCE (see _stepDownOutput) —
+ *     a device that genuinely cannot hold the top, never a
+ *     blanket low default. The sharpest refinement step also
+ *     reads the mask finer (960px) so its feather works on more
+ *     of the mask's real gradient.
+ *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
  * first — the output stream then holds the processed picture and the
@@ -159,7 +192,7 @@ export interface MatteRefinementStep {
 }
 
 export const MATTE_REFINEMENT_STEPS: readonly MatteRefinementStep[] = [
-  { maskCap: 640, emaWeight: 0.45, choke: 0.04, curveLo: 0.05, curveHi: 0.92, featherPasses: 2 },
+  { maskCap: 960, emaWeight: 0.45, choke: 0.04, curveLo: 0.05, curveHi: 0.92, featherPasses: 2 },
   { maskCap: 480, emaWeight: 0.55, choke: 0.05, curveLo: 0.06, curveHi: 0.94, featherPasses: 1 },
   { maskCap: 384, emaWeight: 0.6, choke: 0.05, curveLo: 0.06, curveHi: 0.94, featherPasses: 1 },
 ];
@@ -172,6 +205,17 @@ export const MATTE_MAX_STEP = MATTE_REFINEMENT_STEPS.length - 1;
  * shows its honest engine-down note, and the camera runs raw.
  */
 export const ENGINE_INIT_TIMEOUT_MS = 10_000;
+
+/**
+ * Output-canvas height caps (px). A session STARTS at the top cap:
+ * the composite canvas runs at the camera feed's real size up to
+ * 1080p. The floor is the governed step-down (auto quality only,
+ * sustained slowness at the lightest matte step — see
+ * _stepDownOutput): the one sanctioned reduction, earned by the
+ * device's measured performance, never a default.
+ */
+export const OUTPUT_HEIGHT_CAP = 1080;
+export const OUTPUT_HEIGHT_FLOOR = 720;
 
 /**
  * Consecutive failed inferences after which the live engine parks
@@ -293,7 +337,13 @@ export interface BackgroundChangerConfig {
  * the matte is read at a capped width set by the live refinement
  * step (MATTE_REFINEMENT_STEPS — a finer read is the light engine's
  * answer to rough edges). Flicker is calmed by the shared matte
- * post-processing (temporal blend), not here.
+ * post-processing (motion-adaptive temporal blend), not here.
+ *
+ * Each send also SNAPSHOTS the video frame it is given, and the
+ * matte that comes back carries that snapshot (EngineMatte.frame):
+ * the matte describes the sent instant, and the changer composites
+ * it against its own frame — never against the newer live frame,
+ * which is what tore every moving edge (see the header note).
  */
 class MediaPipeEngine implements MattingEngine {
   readonly kind = "standard" as const;
@@ -308,10 +358,19 @@ class MediaPipeEngine implements MattingEngine {
   private _pending: { resolve: (m: EngineMatte | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
   private _work: HTMLCanvasElement;
   private _workCtx: CanvasRenderingContext2D;
+  /* The send-time frame snapshot (reused across sends — a snapshot
+     is consumed by its own matte's composite before the next send
+     can overwrite it, because the changer holds one inference in
+     flight at a time). */
+  private _frame: HTMLCanvasElement;
+  private _frameCtx: CanvasRenderingContext2D;
+  private _frameInFlight: HTMLCanvasElement | null = null;
 
   constructor(private readonly _modelSelection: 0 | 1) {
     this._work = document.createElement("canvas");
     this._workCtx = this._work.getContext("2d", { willReadFrequently: true })!;
+    this._frame = document.createElement("canvas");
+    this._frameCtx = this._frame.getContext("2d")!;
   }
 
   async init(): Promise<void> {
@@ -337,7 +396,11 @@ class MediaPipeEngine implements MattingEngine {
       this._pending = null;
       clearTimeout(pending.timer);
       this.lastMs = performance.now() - this._sentAt;
-      pending.resolve(this._extract((results as MediaPipeResults).segmentationMask));
+      const frame = this._frameInFlight;
+      this._frameInFlight = null;
+      const matte = this._extract((results as MediaPipeResults).segmentationMask);
+      if (matte && frame) matte.frame = frame;
+      pending.resolve(matte);
     });
     this.segmenter = segmenter;
   }
@@ -351,9 +414,28 @@ class MediaPipeEngine implements MattingEngine {
     const segmenter = this.segmenter;
     if (!segmenter) return Promise.resolve(null);
     if (this._pending) return Promise.resolve(null); // one send in flight — skip, never queue
+    /* Snapshot the frame being sent, synchronously, before the
+       send: the returned matte describes THIS instant and rides
+       back on EngineMatte.frame so the composite cuts this frame
+       with its own matte (frame-aligned compositing). */
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (vw && vh) {
+      if (this._frame.width !== vw || this._frame.height !== vh) {
+        this._frame.width = vw;
+        this._frame.height = vh;
+      }
+      this._frameCtx.drawImage(video, 0, 0);
+      this._frameInFlight = this._frame;
+    } else {
+      this._frameInFlight = null;
+    }
     return new Promise<EngineMatte | null>((resolve) => {
       const timer = setTimeout(() => {
-        if (this._pending?.resolve === resolve) this._pending = null;
+        if (this._pending?.resolve === resolve) {
+          this._pending = null;
+          this._frameInFlight = null;
+        }
         this.lastMs = performance.now() - this._sentAt; // a timed-out trip is a slow trip
         resolve(null);
       }, 1000);
@@ -362,6 +444,7 @@ class MediaPipeEngine implements MattingEngine {
       segmenter.send({ image: video }).catch(() => {
         if (this._pending?.resolve === resolve) {
           this._pending = null;
+          this._frameInFlight = null;
           clearTimeout(timer);
         }
         this.lastMs = performance.now() - this._sentAt;
@@ -393,6 +476,7 @@ class MediaPipeEngine implements MattingEngine {
   }
 
   async dispose(): Promise<void> {
+    this._frameInFlight = null;
     if (this._pending) {
       clearTimeout(this._pending.timer);
       this._pending.resolve(null);
@@ -453,7 +537,15 @@ export class BackgroundChanger {
   /* Governs the matte-refinement steps in 'auto' quality: sustained
      slowness sheds edge work, sustained speed restores it. */
   private readonly _perf = new PerfLadder({ maxStep: MATTE_MAX_STEP });
-  private readonly _mattePost = new MattePostProcessor();
+  /* The studio's matte pipeline runs the MOTION-ADAPTIVE blend
+     (motionSnap): calm where the subject is still, instant where
+     it moved — the still-photo path builds its own processor
+     without it and is untouched. */
+  private readonly _mattePost = new MattePostProcessor({ motionSnap: 1 });
+  /* The session's output-canvas height cap: starts at the top
+     (OUTPUT_HEIGHT_CAP); the perf governor can step it down once
+     to the floor on a device that genuinely cannot hold the top. */
+  private _canvasCapH = OUTPUT_HEIGHT_CAP;
   private _matteCanvas: HTMLCanvasElement;
   private _matteCtx: CanvasRenderingContext2D;
   private _matteImage: ImageData | null = null;
@@ -490,8 +582,12 @@ export class BackgroundChanger {
       onNoiseStatus: config.onNoiseStatus,
       voiceEffect: config.voiceEffect ?? "none",
       cameraEffect: config.cameraEffect ?? "none",
-      width: config.width ?? 1280,
-      height: config.height ?? 720,
+      /* Ask for the best the device has: 1080p as an IDEAL (never
+         an exact demand a weaker camera would fail on) — the old
+         720p-class default never even asked a 1080p camera for
+         more. The composite honours what actually arrives. */
+      width: config.width ?? 1920,
+      height: config.height ?? 1080,
       fps: config.fps ?? 30,
       deviceId: config.deviceId ?? null,
       modelSelection: config.modelSelection ?? 1,
@@ -588,6 +684,10 @@ export class BackgroundChanger {
     this._engineParked = false;
     this._parkError = null;
     this._consecutiveInferenceFailures = 0;
+    /* A fresh session starts at the TOP output cap again — a
+       previous session's governed step-down never follows the
+       creator into a new one. */
+    this._canvasCapH = OUTPUT_HEIGHT_CAP;
     await this._acquireCamera(this.deviceId);
 
     this.outputStream = this.canvas.captureStream(this.config.fps);
@@ -1109,10 +1209,12 @@ export class BackgroundChanger {
 
   /** Feed the engine's latest round-trip time to the perf ladder
    *  and act on its decision. Auto quality only — the pinned
-   *  qualities never move. A step change retunes the refinement;
-   *  the ladder's 'degrade' verdict has nowhere lighter to go (the
-   *  lightest step IS the floor with one engine), so it is an
-   *  honest stay, never an engine swap. */
+   *  qualities never move. A step change retunes the refinement.
+   *  The ladder's 'degrade' verdict (sustained slowness AT the
+   *  lightest matte step) steps the OUTPUT canvas down once —
+   *  there is no second engine to degrade to, but there is a
+   *  smaller picture the device may hold, and dropping to it beats
+   *  dropping frames. */
   private _governPerf(engine: MediaPipeEngine): void {
     if (this.config.quality !== "auto") return;
     const ms = engine.lastMs;
@@ -1121,7 +1223,38 @@ export class BackgroundChanger {
     const action = this._perf.sample(ms);
     if (action === "step-down" || action === "step-up") {
       this._applyRefinement(engine, this._perf.step);
+    } else if (action === "degrade") {
+      this._stepDownOutput();
     }
+  }
+
+  /**
+   * The governor's one output step-down: the session's canvas cap
+   * drops from 1080p to 720p and the live canvases resize to it.
+   * Fires at most once per session (the cap check) and only from
+   * the ladder's sustained-slowness verdict at the matte floor —
+   * a device that genuinely cannot hold the top. A fresh start()
+   * restores the top cap. Resizing clears the canvas; the same
+   * loop tick composites the landed matte at the new size, and the
+   * captureStream track carries the new size from that frame on.
+   */
+  private _stepDownOutput(): void {
+    if (this._canvasCapH <= OUTPUT_HEIGHT_FLOOR) return;
+    this._canvasCapH = OUTPUT_HEIGHT_FLOOR;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    if (!W || !H || H <= OUTPUT_HEIGHT_FLOOR) return;
+    const scale = OUTPUT_HEIGHT_FLOOR / H;
+    this.canvas.width = Math.round(W * scale);
+    this.canvas.height = Math.round(H * scale);
+    this._person.width = this.canvas.width;
+    this._person.height = this.canvas.height;
+    this._buildOverlays(this.canvas.width, this.canvas.height);
+    /* The matte geometry the post pipeline holds is unchanged (it
+       keys off the matte's own size), but its temporal state was
+       earned at the old framing — reseed it rather than blend
+       across the resize. */
+    this._mattePost.reset();
   }
 
   private async _acquireCamera(deviceId: string | null | undefined): Promise<void> {
@@ -1156,10 +1289,14 @@ export class BackgroundChanger {
     this.stream = stream;
     this._video.srcObject = stream;
     await this._video.play();
-    // Size the canvases from the real feed, capped at 720p for stable 30fps.
+    // Size the canvases from the real feed at its full size, under
+    // the session's output cap (1080p at session start; the
+    // governor's earned step-down can lower it — _stepDownOutput).
+    // The old flat 720p cap threw away a 1080p camera's picture
+    // before anything else got a say.
     const w = this._video.videoWidth || this.config.width;
     const hgt = this._video.videoHeight || this.config.height;
-    const scale = Math.min(1, 720 / hgt);
+    const scale = Math.min(1, this._canvasCapH / hgt);
     this.canvas.width = Math.round(w * scale);
     this.canvas.height = Math.round(hgt * scale);
     this._person.width = this.canvas.width;
@@ -1403,6 +1540,14 @@ export class BackgroundChanger {
     if (fade < 1) this._compositeRaw();
     const mw = matte.width;
     const mh = matte.height;
+    /* FRAME ALIGNMENT: the person is cut from the frame this matte
+       was computed from (the engine's send-time snapshot), never
+       from the live video — the live frame is a whole inference
+       round trip NEWER than the matte, and cutting it with the
+       stale matte tears every moving edge (the ghost where the
+       subject was, the subject erased where it now is). Engines
+       without a snapshot fall back to the live video. */
+    const frameSource: CanvasImageSource = matte.frame ?? this._video;
 
     // 0 — post-process + rasterise the matte.
     const post = this._mattePost.process(matte.alpha, mw, mh);
@@ -1430,7 +1575,7 @@ export class BackgroundChanger {
       p.globalCompositeOperation = "copy";
       p.drawImage(this._matteCanvas, 0, 0, W, H);
       p.globalCompositeOperation = "source-in";
-      p.drawImage(this._video, 0, 0, W, H);
+      p.drawImage(frameSource, 0, 0, W, H);
       p.restore();
       const personData = p.getImageData(0, 0, W, H);
       despillRgba(personData.data);
@@ -1452,14 +1597,16 @@ export class BackgroundChanger {
       this._drawCover(ctx, this._backdrop, W, H);
     } else if (this.mode === "blur") {
       // Slight overscale hides the fringe the blur leaves at the frame edges.
+      // The blurred backdrop is the matte's OWN frame too — the one
+      // instant this composite describes.
       ctx.save();
       ctx.filter = `blur(${this.blurAmount}px)`;
       const s = 1.06;
-      ctx.drawImage(this._video, -(W * (s - 1)) / 2, -(H * (s - 1)) / 2, W * s, H * s);
+      ctx.drawImage(frameSource, -(W * (s - 1)) / 2, -(H * (s - 1)) / 2, W * s, H * s);
       ctx.restore();
     } else {
-      // 'none' — or 'image' with no backdrop set yet: raw camera frame.
-      ctx.drawImage(this._video, 0, 0, W, H);
+      // 'none' — or 'image' with no backdrop set yet: the matte's own frame.
+      ctx.drawImage(frameSource, 0, 0, W, H);
     }
 
     // 3 — person cutout (skipped for the raw passthrough)

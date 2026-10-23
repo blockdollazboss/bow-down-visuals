@@ -62,6 +62,14 @@ export interface EngineMatte {
   alpha: Float32Array;
   width: number;
   height: number;
+  /** The exact source frame this matte was computed from. Engines
+   *  that segment a LIVE feed snapshot the frame at send time and
+   *  carry it here, so the caller composites the matte against its
+   *  OWN frame — a matte laid over a newer live frame tears at
+   *  every moving edge (ghost where the subject was, the subject
+   *  erased where it now is). Still-image engines leave it unset
+   *  and their callers draw their own source. */
+  frame?: HTMLCanvasElement;
 }
 
 /** The contract every matting engine implements (Pro + Standard). */
