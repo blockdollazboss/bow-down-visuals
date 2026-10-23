@@ -56,5 +56,20 @@ resolving INTO this worktree (readlink -f); lib/db + lib/api-zod dists built in-
 - None. No migrations needed; no price/charge changes; no new locale keys (all new copy
   is English literals in components that already use English literals).
 
-## Verification
-(pending final runs — numbers only from finished .lane logs)
+## Verification (FINAL — numbers from finished logs in this .lane/)
+- FE world suites: 101 files / 1,838 tests ALL PASS, exit 0 (.lane/final-fe-world.log)
+  — base at stack28/world tip was 99 files / 1,808 (sky lane); +2 files / +30 tests
+  are this lane's (panel-payload 10, parity-rewalk 13, scheduler receipt 5, live 2),
+  zero regressions.
+- API world suites: 32 files / 422 tests ALL PASS, exit 0 (.lane/final-api-world.log)
+  — this lane changed no API code; run as the world-surface regression check.
+- FE typecheck exit 0 (.lane/final-fe-typecheck.log); API typecheck exit 0
+  (.lane/final-api-typecheck.log). All runs sequential, --maxWorkers=1, TMPDIR in-worktree.
+- No flakes encountered; no A/B needed. No locale files touched (guard untouched).
+
+## Commits (stack28/world-parity, base 92a3ae6b)
+- 22dc7c0a item 97 (payload channel) + pin correction (1, justified in commit)
+- 5fd46850 item 71 (scheduler receipt)
+- 59b63ebe items 79 + 70 (untested-key label; server-only counts pin)
+- 3c2b45d0 items 68–80 stale-claim pins (parity-rewalk.test.ts) + this plan
+- (final) this verification record
