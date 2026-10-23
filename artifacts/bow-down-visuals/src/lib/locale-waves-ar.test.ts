@@ -148,3 +148,39 @@ describe("ar-W1 (Stack-28 #70) commerce namespaces fully translated", () => {
     checkWave(W1_NS, W1_ALLOW);
   });
 });
+
+/* ar-W2 (item 79) — retention/invite + video surfaces. Legit identicals:
+   platform names (TikTok/Instagram/YouTube/X), the Turbo mode name (house
+   rendering, cf. videoEditor.modeSimple), brand-only strings ("Visual
+   Bucs", "100 Visual Bucs"), and pure formats (placeholder e-mail/dots,
+   hex colours, "https://…", "0:12", ".", "{n} Visual Bucs"). */
+const W2_NS = [
+  "retentionDoctor", "retentionDelight", "invite", "fomoFeed", "planPublic",
+  "delight", "academy", "common", "home", "auth", "features", "waitlist",
+  "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker",
+  "videoTemplates", "movies", "motionGraphics", "cartoonStudio",
+];
+const W2_ALLOW = new Set([
+  "academy.hoursPlaceholder",
+  "auth.emailPlaceholder",
+  "auth.passwordPlaceholder",
+  "carouselMaker.brandColorsPlaceholder",
+  "common.visualBucs",
+  "home.vaultBodyB",
+  "productPhotoStudio.credits",
+  "productPhotoStudio.pastePlaceholder",
+  "promo-clip.creditBadge",
+  "promo-clip.platforms.tiktok",
+  "retentionDoctor.atPlaceholder",
+  "retentionDoctor.platform_instagram",
+  "retentionDoctor.platform_tiktok",
+  "retentionDoctor.platform_x",
+  "retentionDoctor.platform_youtube",
+  "splitScreen.modeSimple",
+]);
+
+describe("ar-W2 (Stack-28 #79) retention/invite + video namespaces fully translated", () => {
+  it("every en key present, non-empty, placeholders intact, no untranslated residue", () => {
+    checkWave(W2_NS, W2_ALLOW);
+  });
+});
