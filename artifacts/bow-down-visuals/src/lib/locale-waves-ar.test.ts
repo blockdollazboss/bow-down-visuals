@@ -235,3 +235,59 @@ describe("ar-W3 (Stack-28 #88) studio-tool namespaces fully translated", () => {
     checkWave(W3_NS, W3_ALLOW);
   });
 });
+
+/* ar-W4 (item 97) — audio tools + scheduler/projects. Legit identicals:
+   BPM/MIDI/WAV/SFX abbreviations and placeholder formats ("BPM {{n}}",
+   "{{n}}%", "—"), brand/price strings ("400 Visual Bucs", "75 Visual
+   Bucs", "{{count}} Visual Bucs", "× 500 Visual Bucs"), platform names
+   (TikTok/Facebook/Instagram/Threads), proper-noun placeholder examples
+   ("Midnight Run", "Midnight Drive"), the Turbo mode name, the house
+   name fragments "Thy" / "War Room" (Thy War Room), and the semitone
+   unit "st" / "{{n}} st". */
+const W4_NS = [
+  "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio",
+  "singingVoice", "stems", "bgReplace", "aiAudio", "songs", "beatMaker",
+  "sounds", "beats", "translate", "makeSong", "sfx", "voiceover",
+  "scheduler", "myProjects", "mashup", "repurpose",
+];
+const W4_ALLOW = new Set([
+  "beatMaker.bpmLabel",
+  "beatMaker.bpmValue",
+  "beatMaker.titlePlaceholder",
+  "beatMaker.track808",
+  "beats.bpmLabel",
+  "beats.titlePlaceholder",
+  "makeSong.priceBadge",
+  "mashup.bpmUnknown",
+  "mashup.modeSimple",
+  "mashup.priceBadge",
+  "myProjects.visualBucsUsed",
+  "scheduler.bestTime.bucs",
+  "scheduler.bestTime.cost",
+  "scheduler.communityPosts.platformLabels.instagram",
+  "scheduler.communityPosts.platformLabels.threads",
+  "scheduler.communityPosts.platformLabels.x",
+  "scheduler.platforms.facebook.label",
+  "scheduler.platforms.instagram.label",
+  "scheduler.platforms.tiktok.label",
+  "scheduler.titlePrefix",
+  "scheduler.titleSuffix",
+  "sfx.titleAccent",
+  "sounds.platformTiktok",
+  "stems.midi",
+  "stems.wav",
+  "translate.creditsLabel",
+  "translate.perMinuteCost",
+  "vocalPolish.buttonCost",
+  "vocalPolish.keyShiftValue",
+  "vocalPolish.strengthValue",
+  "vocalPolish.tempoValue",
+  "vocalTune.semitones",
+  "voiceover.creditsEstimate",
+]);
+
+describe("ar-W4 (Stack-28 #97) audio + scheduler/projects namespaces fully translated", () => {
+  it("every en key present, non-empty, placeholders intact, no untranslated residue", () => {
+    checkWave(W4_NS, W4_ALLOW);
+  });
+});
