@@ -224,6 +224,15 @@ import {
 } from "./actions";
 import { createMover, stepMover, type MoverState } from "./movement";
 import {
+  createStepDust,
+  spawnStepPuff,
+  advanceStepDust,
+  writeStepDustBuffers,
+  stepsLanded,
+  STEP_DUST_CAPACITY,
+  type StepDustPool,
+} from "./step-dust";
+import {
   MARBLE_METRES_PER_TILE,
   FABRIC_METRES_PER_TILE,
   PAVING_METRES_PER_TILE,
@@ -906,6 +915,9 @@ interface AvatarRig {
    *  stride bob, lean, stop settle — fed the figure's real
    *  positions, so the gait tells the truth about the motion. */
   mover: MoverState;
+  /** The mover's step counter as the step-dust hook last read it
+   *  (item 57) — increments since then are footsteps to raise. */
+  lastStepCount: number;
   /** The floor ring (brightened + widened for Front Row members). */
   ring: THREE.Mesh;
   /** Whether the Front Row treatment is currently applied. */
@@ -1268,6 +1280,7 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     poseY: 0,
     poseSpinY: 0,
     mover: createMover(peer.x, peer.z),
+    lastStepCount: 0,
     ring,
     frontRow: false,
     plateKey: namePlateKey(peer),
@@ -1443,6 +1456,15 @@ export class KingsHallScene {
    *  velocity, stride bob, lean, stop settle. (My figure rig carries
    *  a mover too, unused — peers' rigs are the ones it drives.) */
   private selfMover: MoverState = createMover(0, 9.5);
+  /** Footstep dust (item 57): the pool every figure's completed
+   *  steps raise puffs into, and the ONE Points cloud that renders
+   *  them (built lazily at the first footfall). */
+  private stepDust: StepDustPool = createStepDust();
+  private stepDustPoints: THREE.Points | null = null;
+  private stepDustPos = new Float32Array(STEP_DUST_CAPACITY * 3);
+  private stepDustCol = new Float32Array(STEP_DUST_CAPACITY * 3);
+  /** My own mover's step counter as the dust hook last read it. */
+  private selfLastStepCount = 0;
   private viewMode: HallViewMode = "first";
   private keys = new Set<string>();
   /** Gamepad edge state carried between polls (toggle buttons fire
@@ -8612,6 +8634,9 @@ export class KingsHallScene {
     // My own figure wears its action too (visible in third person),
     // composed with my walk rig's body physics.
     if (this.selfRig) this.applyActionPose(this.selfRig, dt, nowMs, this.selfMover);
+    // Footsteps raise their dust (item 57) — the mover's step
+    // counter finally has its reader.
+    this.serviceStepDust(dt);
 
     // Living-loop budget pass: decide which feeds may decode
     // this tick (nearest visible, capped) before the figure
@@ -8958,6 +8983,59 @@ export class KingsHallScene {
    *  else's video pauses and their figure crossfades back to its
    *  still in updateFigure. Also self-heals playback after the
    *  tab was hidden (the visibility hook pauses everything). */
+  /** Footstep dust (item 57): every figure's mover counts its
+   *  completed steps (movement.ts); this is the hook that reads
+   *  them. Each fresh step raises one faint puff at the figure's
+   *  feet — mine and every peer's alike — and the pool ages them
+   *  out in half a second. A reduced-motion walker's screen stays
+   *  still: no new puffs are raised (standing puffs finish their
+   *  half-second and are gone). The cloud is built lazily at the
+   *  first footfall and lives on the scene root, so look rebuilds
+   *  never tear it down mid-walk. */
+  private serviceStepDust(dt: number): void {
+    if (!this.reducedMotion) {
+      const raise = (count: number, x: number, y: number, z: number) => {
+        const n = Math.min(count, 3);
+        for (let i = 0; i < n; i++) spawnStepPuff(this.stepDust, x, y, z);
+      };
+      const selfSteps = stepsLanded(this.selfLastStepCount, this.selfMover.stepCount);
+      this.selfLastStepCount = this.selfMover.stepCount;
+      if (selfSteps > 0) {
+        raise(selfSteps, this.rig.position.x, 0.04, this.rig.position.z);
+      }
+      for (const rig of this.avatars.values()) {
+        const landed = stepsLanded(rig.lastStepCount, rig.mover.stepCount);
+        rig.lastStepCount = rig.mover.stepCount;
+        if (landed > 0) {
+          raise(landed, rig.group.position.x, rig.group.position.y + 0.04, rig.group.position.z);
+        }
+      }
+    }
+    advanceStepDust(this.stepDust, dt);
+    if (!this.stepDustPoints) {
+      if (this.stepDust.spawns === 0) return;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(this.stepDustPos, 3).setUsage(THREE.DynamicDrawUsage));
+      geo.setAttribute("color", new THREE.BufferAttribute(this.stepDustCol, 3).setUsage(THREE.DynamicDrawUsage));
+      const points = new THREE.Points(
+        geo,
+        new THREE.PointsMaterial({
+          map: hazeTexture(), size: 0.16, transparent: true, opacity: 0.55, vertexColors: true,
+          blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+        }),
+      );
+      points.renderOrder = 5;
+      points.frustumCulled = false;
+      this.scene.add(points);
+      this.stepDustPoints = points;
+    }
+    const alive = writeStepDustBuffers(this.stepDust, this.stepDustPos, this.stepDustCol);
+    const geo = this.stepDustPoints.geometry;
+    geo.setDrawRange(0, alive);
+    geo.getAttribute("position")!.needsUpdate = true;
+    geo.getAttribute("color")!.needsUpdate = true;
+  }
+
   private serviceLoopFeeds(): void {
     const entries = this.loopEntriesScratch;
     let count = 0;
@@ -9216,6 +9294,12 @@ export class KingsHallScene {
       this.video.pause();
       this.video.removeAttribute("src");
       this.video.load();
+    }
+    if (this.stepDustPoints) {
+      this.scene.remove(this.stepDustPoints);
+      this.stepDustPoints.geometry.dispose();
+      (this.stepDustPoints.material as THREE.Material).dispose();
+      this.stepDustPoints = null;
     }
     for (const peerId of [...this.avatars.keys()]) this.removePeer(peerId);
     this.setSelfFigure(null);
