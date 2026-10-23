@@ -660,10 +660,17 @@ export class WorldPalace {
     for (const room of this.rooms.values()) room.detach(socket);
   }
 
-  /** Everyone in the palace, all rooms together. */
-  totalPopulation(): number {
+  /** Everyone PRESENT in the palace, all rooms together — counted
+   *  live from each room's present peers at call time (item 62:
+   *  the presence counters hold no cached or captured state, and a
+   *  frame-silent ghost the sweep has not buried yet is not
+   *  population, exactly as presenceSnapshot already ruled). Raw
+   *  room.size() remains the ADMISSION count (a ghost holds its
+   *  chair against the cap until the sweep reaps it) — it is no
+   *  longer a headcount anyone reports. */
+  totalPopulation(now = Date.now()): number {
     let n = 0;
-    for (const room of this.rooms.values()) n += room.size();
+    for (const room of this.rooms.values()) n += room.presentPeers(now).length;
     return n;
   }
 
@@ -679,15 +686,21 @@ export class WorldPalace {
     this.broadcastDirectory();
   }
 
-  directory(): PalaceDirectoryEntry[] {
+  directory(now = Date.now()): PalaceDirectoryEntry[] {
+    /* Counts and names are the PRESENT peers, computed live at
+     * call time (item 62): a frame-silent ghost still standing in
+     * a room's peer map until the sweep buries it is not counted
+     * and not named here — the directory tells the same truth
+     * presenceSnapshot tells, never a staler one. */
     const entries: PalaceDirectoryEntry[] = PALACE_ROOM_DEFS.map((def) => {
       const room = this.rooms.get(def.roomId)!;
       const events = this.directoryEvents.get(def.roomId);
+      const present = room.presentPeers(now);
       return {
         id: def.roomId,
         name: def.name,
-        count: room.size(),
-        members: room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
+        count: present.length,
+        members: present.map((p) => p.displayName).slice(0, DIRECTORY_MEMBER_NAMES),
         live: room.stageHeld(),
         locked: this.lockStore?.isDoorLocked(def.roomId) ?? false,
         ...(events && events.length > 0 ? { events } : {}),
@@ -699,12 +712,13 @@ export class WorldPalace {
      * the strip would drown in every public creator's name. The
      * moment a walker stands in one, it lists like any room. */
     for (const [slug, entry] of this.creatorRooms) {
-      if (entry.room.size() === 0) continue;
+      const present = entry.room.presentPeers(now);
+      if (present.length === 0) continue;
       entries.push({
         id: entry.room.roomId,
         name: entry.room.roomName,
-        count: entry.room.size(),
-        members: entry.room.memberNames().slice(0, DIRECTORY_MEMBER_NAMES),
+        count: present.length,
+        members: present.map((p) => p.displayName).slice(0, DIRECTORY_MEMBER_NAMES),
         live: false,
         locked: this.lockStore?.isDoorLocked(entry.room.roomId) ?? false,
         slug,

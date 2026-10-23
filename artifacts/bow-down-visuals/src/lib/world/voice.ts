@@ -150,11 +150,22 @@ export function summarizeVoiceConnections(
 }
 
 /** The headline the voice UI shows for a summary — plain words, no
- *  dead air dressed up as success. Empty state reads as no headline. */
-export function voiceConnectionHeadline(summary: VoiceConnectionSummary): string {
+ *  dead air dressed up as success. Without room context the empty
+ *  state reads as no headline. WITH the room's occupant count
+ *  (Stack-100 #2 item 63) the empty state is the room's honest
+ *  quiet signal: you are in voice and nobody else is, so the room
+ *  is voice-quiet — and that renders BY ROOM STATE at any occupant
+ *  count (alone, or in a mixed room of 2+ where everyone else is
+ *  text-only), never only when a room has exactly one member. */
+export function voiceConnectionHeadline(
+  summary: VoiceConnectionSummary,
+  roomOccupants?: number,
+): string {
   switch (summary.state) {
     case "empty":
-      return "";
+      return typeof roomOccupants === "number"
+        ? "Quiet in here — you're the only one in voice right now"
+        : "";
     case "connected":
       return "Voice connected";
     case "connecting":
