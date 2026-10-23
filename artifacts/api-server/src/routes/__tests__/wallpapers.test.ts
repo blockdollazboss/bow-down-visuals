@@ -634,3 +634,41 @@ describe("King's Set desk-shaped URLs vs the rail schemas (Stack-28 item 13)", (
     expect(screensaver.status).toBe(200);
   });
 });
+
+/* Stack-28 item 15 — the API side of the desk price pin: the FE desk's
+   derived figures must land on THIS suite's server constants. The FE
+   suite (wallpapers-prices.test.ts) derives the constants from these
+   source files; here the live imported constants are compared against
+   the FE price module's derivation sources (the credit-cost registry
+   it reads), so both suites fail if either side drifts. */
+describe("desk price derivations land on the server constants (Stack-28 item 15)", () => {
+  it("FE registry + price module derive exactly SCREENSAVER_RENDER_COST / CLEAN_RENDER_COST", async () => {
+    const { readFileSync } = await import("node:fs");
+    const fe = (rel: string) =>
+      readFileSync(new URL(`../../../../bow-down-visuals/src/${rel}`, import.meta.url), "utf8");
+    const registry = fe("lib/credit-costs.ts");
+    const prices = fe("lib/wallpapers-prices.ts");
+    const deskSrc = fe("components/wallpapers/WallpapersDesk.tsx");
+
+    // Registry entries the FE derivations read:
+    expect(registry).toContain('"/api/wallpapers/screensaver-render": { cost: 400');
+    expect(registry).toContain('"/api/generate-runway-clip": { cost: 400');
+    expect(registry).toContain('"/api/export-final-video": { cost: 400');
+    expect(registry).toContain('"/api/wallpapers/render": { cost: 0');
+
+    // Those registry figures equal this suite's imported rail constants:
+    expect(SCREENSAVER_RENDER_COST).toBe(400);
+    expect(CLEAN_RENDER_COST).toBe(400);
+
+    // The price module derives (never hardcodes) each desk figure:
+    expect(prices).toContain('getCreditCost("/api/wallpapers/screensaver-render")');
+    expect(prices).toContain('getCreditCost("/api/generate-runway-clip")');
+    expect(prices).toContain('getCreditCost("/api/export-final-video")');
+    expect(prices).toContain("WALLPAPER_CLEAN_RENDER_COST * 2");
+
+    // And the desk renders/quotes only through those constants:
+    expect(deskSrc).not.toMatch(/— \d+ Visual Bucs/);
+    expect(deskSrc).not.toMatch(/const (GENERATE_COST|CLEAN_RENDER_COST)\s*=/);
+    expect(deskSrc).toContain("WALLPAPER_CLEAN_PACK_COST");
+  });
+});

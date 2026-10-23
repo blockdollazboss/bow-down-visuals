@@ -75,7 +75,10 @@ describe("Stack-28 item 14 — clean theme pack: one up-front confirmation, no d
   it("confirms ONCE for the whole pack (2 × clean render) before any render runs", () => {
     const body = makePackBody();
     expect(body).toContain("confirmSpend({");
-    expect(body).toContain("cost: CLEAN_RENDER_COST * 2");
+    // The pack total is the derived WALLPAPER_CLEAN_PACK_COST (item 15:
+    // 2 × the registry-mapped clean render — pinned == 800 in
+    // wallpapers-prices.test.ts), never a desk-side literal.
+    expect(body).toContain("cost: WALLPAPER_CLEAN_PACK_COST");
     expect(body).toContain('feature: "Clean Theme Pack"');
     // The confirmation precedes the first render call.
     expect(body.indexOf("confirmSpend({")).toBeLessThan(body.indexOf("renderOne("));

@@ -18,6 +18,13 @@ import {
   extractPalette, wallpaperPresetByKey, wallpaperPresetsByKind, type WallpaperKind,
 } from "@/lib/wallpapers";
 import { KINGS_SET, absoluteKingsSetUrl } from "@/lib/kings-set";
+import {
+  WALLPAPER_CLEAN_PACK_COST,
+  WALLPAPER_CLEAN_RENDER_COST,
+  WALLPAPER_GENERATE_COST,
+  WALLPAPER_SCREENSAVER_RENDER_COST,
+  WALLPAPER_SCREENSAVER_VIDEO_COST,
+} from "@/lib/wallpapers-prices";
 
 /* ─── Wallpapers, Screensavers & Themes desk ─────────────────────────────
    One desk, two homes: a panel on /create and a tab on /branding-kit.
@@ -39,8 +46,6 @@ import { KINGS_SET, absoluteKingsSetUrl } from "@/lib/kings-set";
    full lockup with object-contain; compositing happens server-side
    under the same rule. Pinned by wallpapers-logo.test.ts. */
 
-const GENERATE_COST = 100;
-const CLEAN_RENDER_COST = 400;
 const KIND_ICONS: Record<WallpaperKind, typeof Smartphone> = { phone: Smartphone, tablet: Tablet, desktop: Monitor };
 const KIND_ORDER: WallpaperKind[] = ["phone", "tablet", "desktop"];
 
@@ -151,7 +156,7 @@ export function WallpapersDesk() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ promptText: prompt.trim(), model: "nano-banana-2.1", ratio }),
-        overrideCost: GENERATE_COST,
+        overrideCost: WALLPAPER_GENERATE_COST,
         overrideFeature: "Generate Artist Image (Turbo)",
       });
       if (!res) return; // user cancelled the credit confirmation
@@ -213,7 +218,7 @@ export function WallpapersDesk() {
       }),
       ...(branded || opts?.skipConfirm
         ? { skipConfirm: true }
-        : { overrideCost: CLEAN_RENDER_COST, overrideFeature: "Clean Wallpaper Render" }),
+        : { overrideCost: WALLPAPER_CLEAN_RENDER_COST, overrideFeature: "Clean Wallpaper Render" }),
     });
     if (!res) return null; // user cancelled the credit confirmation
     const data = (await res.json().catch(() => ({}))) as {
@@ -269,7 +274,7 @@ export function WallpapersDesk() {
     try {
       if (!branded) {
         const ok = await confirmSpend({
-          cost: CLEAN_RENDER_COST * 2,
+          cost: WALLPAPER_CLEAN_PACK_COST,
           feature: "Clean Theme Pack",
         });
         if (!ok) return; // cancelled up front — nothing charged, nothing rendered
@@ -467,7 +472,7 @@ export function WallpapersDesk() {
         width: typeof data.width === "number" ? data.width : target.width,
         height: typeof data.height === "number" ? data.height : target.height,
         seconds: typeof data.seconds === "number" ? data.seconds : 0,
-        creditCost: typeof data.creditCost === "number" ? data.creditCost : 400,
+        creditCost: typeof data.creditCost === "number" ? data.creditCost : WALLPAPER_SCREENSAVER_RENDER_COST,
       });
       refreshProfile();
     } catch (e) {
@@ -655,7 +660,7 @@ export function WallpapersDesk() {
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {generating
                 ? t("wallpapers.generating", { defaultValue: "Generating…" })
-                : `${t("wallpapers.generateButton", { defaultValue: "Generate" })} — 100 Visual Bucs`}
+                : `${t("wallpapers.generateButton", { defaultValue: "Generate" })} — ${WALLPAPER_GENERATE_COST} Visual Bucs`}
             </button>
           </div>
         )}
@@ -841,7 +846,7 @@ export function WallpapersDesk() {
               ? t("wallpapers.rendering", { defaultValue: "Rendering…" })
               : branded
                 ? t("wallpapers.renderButton", { defaultValue: "Render exact size — Free" })
-                : `${t("wallpapers.renderCleanButton", { defaultValue: "Render clean, exact size" })} — 400 Visual Bucs`}
+                : `${t("wallpapers.renderCleanButton", { defaultValue: "Render clean, exact size" })} — ${WALLPAPER_CLEAN_RENDER_COST} Visual Bucs`}
           </button>
           {!currentArt && (
             <span className={`text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
@@ -890,7 +895,7 @@ export function WallpapersDesk() {
             ? t("wallpapers.packMaking", { defaultValue: "Building the set…" })
             : branded
               ? t("wallpapers.packMakeButton", { defaultValue: "Make the whole set — Free" })
-              : `${t("wallpapers.packMakeCleanButton", { defaultValue: "Make the whole set, clean" })} — 800 Visual Bucs`}
+              : `${t("wallpapers.packMakeCleanButton", { defaultValue: "Make the whole set, clean" })} — ${WALLPAPER_CLEAN_PACK_COST} Visual Bucs`}
         </button>
         {!branded && (
           <p className={`mt-2 text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
@@ -1054,7 +1059,7 @@ export function WallpapersDesk() {
           {generatingVideo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
           {generatingVideo
             ? t("wallpapers.screensaverGeneratingVideo", { defaultValue: "Generating video…" })
-            : `${t("wallpapers.screensaverGenerateVideoButton", { defaultValue: "Generate video" })} — 400 Visual Bucs`}
+            : `${t("wallpapers.screensaverGenerateVideoButton", { defaultValue: "Generate video" })} — ${WALLPAPER_SCREENSAVER_VIDEO_COST} Visual Bucs`}
         </button>
 
         <label className="mt-5 block text-[11px] font-bold uppercase tracking-widest text-primary/80">
@@ -1085,7 +1090,7 @@ export function WallpapersDesk() {
           {ssBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Monitor className="h-4 w-4" />}
           {ssBusy
             ? t("wallpapers.screensaverRendering", { defaultValue: "Rendering the loop…" })
-            : `${t("wallpapers.screensaverRenderButton", { defaultValue: "Render loop" })} — 400 Visual Bucs`}
+            : `${t("wallpapers.screensaverRenderButton", { defaultValue: "Render loop" })} — ${WALLPAPER_SCREENSAVER_RENDER_COST} Visual Bucs`}
         </button>
         {!videoUrl && (
           <span className={`ml-3 text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
