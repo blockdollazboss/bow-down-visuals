@@ -3909,11 +3909,13 @@ export class KingsHallScene {
     /* Elevation (Stage C item 38): ceremonial steps flanking the
      * hall-arch approach and stepped terraces massing the
      * grounds' east/west edges — visual elevation AROUND the walk
-     * paths. The movement plane stays flat (no Y in
-     * resolvePalaceMove; climbable steps are parked, not faked):
-     * the path itself stays clear, and every mass stands behind
-     * an honest blocked rect derived from this same data in
-     * palace-layout (HALL_STEPS_BLOCKED / TERRACE_BLOCKED). */
+     * paths; the path itself stays clear. Stack-100 #2 finished
+     * the climbable-Y the round-1 build parked: palace-layout
+     * derives climbable step zones from this same data
+     * (HALL_STEP_ZONES / TERRACE_ZONES at the masses' authored
+     * tops), movement carries a real Y, and the blocked lists
+     * (HALL_STEPS_BLOCKED / TERRACE_BLOCKED) remain the masses'
+     * footprint record. */
     {
       const shadows = QUALITY[this.quality].shadows;
       const dummy = new THREE.Object3D();
