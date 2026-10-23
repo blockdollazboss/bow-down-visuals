@@ -409,9 +409,13 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
     ],
   },
   /* A far garden pavilion south-east, low and wide — the skyline
+   * behind the Boardwalk gate. Moved further south-east in
+   * Stage C item 34: the ground it used to crown (x 28..52,
+   * z 42..50) is the built Ateliers district now — it stands
+   * beyond the Ateliers' south wall instead, still the skyline
    * behind the Boardwalk gate. */
   {
-    cx: 40, cy: 3, cz: 46, w: 24, h: 6, d: 8,
+    cx: 52, cy: 3, cz: 68, w: 24, h: 6, d: 8,
     windows: [{ dx: -7, dy: 3.4 }, { dx: 0, dy: 3.4 }, { dx: 7, dy: 3.4 }],
   },
 ];
@@ -431,14 +435,17 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
  *  moved east in Stage C item 33 the same way: the ground it
  *  used to mound (x 32..48, z 2..18) is the built Creation Row
  *  district now — it rings the Row's east wall instead, at
- *  (68, 14). */
+ *  (68, 14). The SOUTH-EAST mound moved south in Stage C
+ *  item 34 the same way: the ground it used to mound
+ *  (x 31..45, z 33..47) is the built Ateliers district now —
+ *  it rings the Ateliers' south wall instead, at (30, 63). */
 export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; h: number }> = [
   { x: -66, z: 4, r: 7, h: 3.2 },
   { x: -68, z: 24, r: 9, h: 4.0 },
   { x: -66, z: 44, r: 6.5, h: 2.8 },
   { x: -50, z: 50, r: 8, h: 3.4 },
   { x: 20, z: 48, r: 8, h: 3.4 },
-  { x: 38, z: 40, r: 6.5, h: 2.8 },
+  { x: 30, z: 63, r: 6.5, h: 2.8 },
   { x: 68, z: 14, r: 7.5, h: 3.6 },
   { x: 14, z: -38, r: 9, h: 4.2 },
   { x: -16, z: -40, r: 8, h: 3.8 },
