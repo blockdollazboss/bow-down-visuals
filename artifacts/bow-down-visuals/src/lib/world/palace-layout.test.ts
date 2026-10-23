@@ -11,6 +11,17 @@ import { describe, it, expect } from "vitest";
 import {
   PALACE_LAYOUT,
   PALACE_DOORS,
+  PLAZA_WALL_RUNS,
+  PLAZA_COLUMNS,
+  PLAZA_PLANTERS,
+  PLAZA_BRAZIERS,
+  PLAZA_GATES,
+  PLAZA_BLOCKED,
+  PLAZA_TALL_BLOCKED,
+  CREATOR_ARCH_PILLARS,
+  cameraPointFree,
+  pullInCamera,
+  pointInRect,
   HALL_ROOM_ID,
   MUSIC_HALL_ID,
   GAME_ROOMS_ID,
@@ -24,6 +35,7 @@ import {
   resolvePalaceMove,
   clampToRoom,
 } from "./palace-layout";
+import { DISTRICT_THRESHOLDS } from "./district-gates";
 
 describe("the hall is unmoved", () => {
   it("keeps its long-standing walk bounds and camera clamp", () => {
@@ -122,7 +134,11 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     const plaza = PALACE_LAYOUT[COURTYARD_ID]!;
     expect(plaza.name).toBe("The King's Plaza");
     expect(plaza.walk).toEqual({ minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 });
-    expect(plaza.grounds).toEqual([{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }]);
+    expect(plaza.grounds).toEqual([
+      { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
+      /* The arch spur (item 41) — added by Stage B cluster 4. */
+      { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
+    ]);
     expect(plaza.spawn).toEqual({ x: 0, z: 31.5 });
   });
 
@@ -176,6 +192,168 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     expect(beside.entered).toBeNull();
     expect(beside.room).toBe(COURTYARD_ID);
     expect(beside.z).toBe(13);
+  });
+});
+
+describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 39/41/42/43/44)", () => {
+  const plaza = PALACE_LAYOUT[COURTYARD_ID]!;
+  const inBlocked = (x: number, z: number) => PLAZA_BLOCKED.some((b) => pointInRect(x, z, b));
+
+  it("item 39: every plaza prop's centre is solid, and its footprint rect is in the blocked list", () => {
+    for (const p of PLAZA_PLANTERS) {
+      expect(isWalkable(p.x, p.z)).toBe(false);
+      expect(PLAZA_BLOCKED).toContainEqual({
+        minX: p.x - (p.alongZ ? 0.44 : 1.0),
+        maxX: p.x + (p.alongZ ? 0.44 : 1.0),
+        minZ: p.z - (p.alongZ ? 1.0 : 0.44),
+        maxZ: p.z + (p.alongZ ? 1.0 : 0.44),
+      });
+    }
+    for (const b of PLAZA_BRAZIERS) {
+      expect(isWalkable(b.x, b.z)).toBe(false);
+      expect(PLAZA_BLOCKED).toContainEqual({
+        minX: b.x - 0.46, maxX: b.x + 0.46, minZ: b.z - 0.46, maxZ: b.z + 0.46,
+      });
+    }
+    for (const c of PLAZA_COLUMNS) {
+      expect(PLAZA_BLOCKED).toContainEqual({
+        minX: c.x - 0.45, maxX: c.x + 0.45, minZ: c.z - 0.45, maxZ: c.z + 0.45,
+      });
+    }
+    for (const gate of PLAZA_GATES) {
+      if (gate.kind === "marker") {
+        /* A marker is one post on a 0.78 m plinth — its footprint
+         * is the plinth, not a gate span (item 37 reclassified the
+         * four non-gap thresholds as markers at integration). */
+        expect(PLAZA_BLOCKED).toContainEqual({
+          minX: gate.x - 0.39, maxX: gate.x + 0.39, minZ: gate.z - 0.39, maxZ: gate.z + 0.39,
+        });
+        expect(inBlocked(gate.x, gate.z)).toBe(true);
+        continue;
+      }
+      const postA = gate.axis === "x" ? { x: gate.x - 1.1, z: gate.z } : { x: gate.x, z: gate.z - 1.1 };
+      const postB = gate.axis === "x" ? { x: gate.x + 1.1, z: gate.z } : { x: gate.x, z: gate.z + 1.1 };
+      expect(inBlocked(postA.x, postA.z)).toBe(true);
+      expect(inBlocked(postB.x, postB.z)).toBe(true);
+      expect(inBlocked(gate.x, gate.z)).toBe(true);
+    }
+    for (const p of CREATOR_ARCH_PILLARS) {
+      expect(isWalkable(p.x, p.z)).toBe(false);
+      expect(PLAZA_BLOCKED).toContainEqual({
+        minX: p.x - 0.275, maxX: p.x + 0.275, minZ: p.z - 0.275, maxZ: p.z + 0.275,
+      });
+    }
+    for (const run of PLAZA_WALL_RUNS) {
+      expect(PLAZA_BLOCKED).toContainEqual({
+        minX: run.x - run.w / 2, maxX: run.x + run.w / 2,
+        minZ: run.z - run.d / 2, maxZ: run.z + run.d / 2,
+      });
+    }
+    expect(PLAZA_BLOCKED).toContainEqual({ minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 });
+    expect(plaza.blocked).toBe(PLAZA_BLOCKED);
+  });
+
+  it("item 39: a step into a planter, a brazier or the freestanding gate stops or slides — never passes", () => {
+    const planterBonk = resolvePalaceMove({ x: -26.4, z: 15.8, room: COURTYARD_ID }, -27.3, 15.8);
+    expect(planterBonk.x).toBe(-26.4);
+    expect(planterBonk.z).toBe(15.8);
+    const brazierBonk = resolvePalaceMove({ x: -3.7, z: 18.6, room: COURTYARD_ID }, -4.6, 18.6);
+    expect(brazierBonk.x).toBe(-3.7);
+    const gateBonk = resolvePalaceMove({ x: 13.5, z: 23.6, room: COURTYARD_ID }, 13.5, 24.6);
+    expect(gateBonk.z).toBe(23.6);
+    const gateSlide = resolvePalaceMove({ x: 12.9, z: 23.9, room: COURTYARD_ID }, 14.1, 24.9);
+    expect(gateSlide.x).toBeCloseTo(14.1);
+    expect(gateSlide.z).toBe(23.9);
+  });
+
+  it("item 39: the plaza's working points stay walkable — spawn, paths, stations, the arch portal", () => {
+    expect(isWalkable(0, 31.5)).toBe(true);
+    expect(isWalkable(0, 22.6)).toBe(true);
+    expect(isWalkable(0, 30)).toBe(true);
+    expect(isWalkable(-20, 20)).toBe(true);
+    expect(isWalkable(9.5, 25.8)).toBe(true);
+    expect(isWalkable(8.4, 25.9)).toBe(true); // the forecourt's west edge — pillars don't narrow it
+    expect(isWalkable(10.6, 25.9)).toBe(true); // the forecourt's east edge
+  });
+
+  it("item 41: the spur walks from the promenade to the arch, and the returns are solid", () => {
+    expect(isWalkable(2.4, 25.8)).toBe(true);
+    expect(isWalkable(5, 25.8)).toBe(true);
+    expect(isWalkable(8.6, 25.8)).toBe(true); // the forecourt strip, clear of the west pillar's footprint
+    const stroll = resolvePalaceMove({ x: 2.0, z: 25.8, room: COURTYARD_ID }, 7.2, 25.8);
+    expect(stroll.x).toBeCloseTo(7.2);
+    expect(stroll.room).toBe(COURTYARD_ID);
+    expect(stroll.entered).toBeNull();
+    // The flanking returns are solid. The west return baffles the
+    // spur's straight line: the walk jogs around its north end
+    // and enters the forecourt between the returns — every step
+    // of the jog walkable, no step crossing a return.
+    expect(isWalkable(7.55, 25.55)).toBe(false);
+    expect(isWalkable(11.45, 25.55)).toBe(false);
+    const bonk = resolvePalaceMove({ x: 7.2, z: 25.8, room: COURTYARD_ID }, 8.2, 25.8);
+    expect(bonk.x).toBe(7.2);
+    const north = resolvePalaceMove({ x: 7.2, z: 25.8, room: COURTYARD_ID }, 7.2, 24.9);
+    expect(north.z).toBeCloseTo(24.9);
+    const east = resolvePalaceMove({ x: 7.2, z: 24.9, room: COURTYARD_ID }, 9.5, 24.9);
+    expect(east.x).toBeCloseTo(9.5);
+    const south = resolvePalaceMove({ x: 9.5, z: 24.9, room: COURTYARD_ID }, 9.5, 25.8);
+    expect(south.z).toBeCloseTo(25.8);
+    expect(south.room).toBe(COURTYARD_ID);
+    expect(isWalkable(5, 26.4)).toBe(false);
+    expect(isWalkable(5, 30)).toBe(false);
+  });
+
+  it("item 42: the enclosure is complete — wall runs cover every side of the walkable bounds", () => {
+    const west = PLAZA_WALL_RUNS.filter((r) => r.x === -28.2 && r.w === 0.35).sort((a, b) => a.z - b.z);
+    expect(west[0]!.z - west[0]!.d / 2).toBeCloseTo(12.4);
+    expect(west[west.length - 1]!.z + west[west.length - 1]!.d / 2).toBeCloseTo(34.0);
+    const westGap = (west[1]!.z - west[1]!.d / 2) - (west[0]!.z + west[0]!.d / 2);
+    expect(westGap).toBeCloseTo(2.2); // the Stage Grounds gate gap, barred by its gate
+    const east = PLAZA_WALL_RUNS.filter((r) => r.x === 28.2 && r.w === 0.35).sort((a, b) => a.z - b.z);
+    expect(east[0]!.z - east[0]!.d / 2).toBeCloseTo(12.4);
+    expect(east[east.length - 1]!.z + east[east.length - 1]!.d / 2).toBeCloseTo(34.0);
+    for (let i = 1; i < east.length; i++) {
+      expect(east[i]!.z - east[i]!.d / 2).toBeLessThanOrEqual(east[i - 1]!.z + east[i - 1]!.d / 2 + 1e-9);
+    }
+    const south = PLAZA_WALL_RUNS.filter((r) => r.z === 34.0 && r.d === 0.35);
+    expect(south.some((r) => r.x - r.w / 2 <= -28.2 + 1e-9 && r.x + r.w / 2 >= -1.1 - 1e-9)).toBe(true);
+    expect(south.some((r) => r.x - r.w / 2 <= 16.6 + 1e-9 && r.x + r.w / 2 >= 28.2 - 1e-9)).toBe(true);
+    expect(PLAZA_WALL_RUNS).toContainEqual({ w: 11.8, d: 0.35, x: 22.3, z: 26.05 });
+  });
+
+  it("item 42: visible wall and walk clamp agree — no invisible wall, no see-through gap", () => {
+    expect(isWalkable(24, 25.5)).toBe(true);
+    expect(isWalkable(24, 26.05)).toBe(false);
+    expect(isWalkable(24, 30)).toBe(false);
+    const res = resolvePalaceMove({ x: 24, z: 25.4, room: COURTYARD_ID }, 24, 26.4);
+    expect(res.z).toBe(25.4);
+    expect(isWalkable(-28.0, 19.5)).toBe(false);
+    expect(isWalkable(0, 33.9)).toBe(false);
+  });
+
+  it("item 44: the camera collides with tall props only — pull-in stops clear of the monument", () => {
+    for (const b of PLAZA_TALL_BLOCKED) expect(PLAZA_BLOCKED).toContainEqual(b);
+    expect(cameraPointFree(COURTYARD_ID, -4.6, 18.6)).toBe(true);
+    expect(cameraPointFree(COURTYARD_ID, -27.3, 15.8)).toBe(true);
+    expect(cameraPointFree(COURTYARD_ID, 0, 19.7)).toBe(false);
+    expect(cameraPointFree(COURTYARD_ID, 0, 27)).toBe(true);
+    expect(pullInCamera(COURTYARD_ID, { x: 0, z: 31.5 }, { x: 0, z: 27 })).toEqual({ x: 0, z: 27 });
+    const pulled = pullInCamera(COURTYARD_ID, { x: 0, z: 23.5 }, { x: 0, z: 17 });
+    expect(pulled.z).toBeGreaterThan(21.55 + 0.3 - 0.11);
+    expect(pulled.z).toBeLessThan(23.5);
+    expect(cameraPointFree(COURTYARD_ID, pulled.x, pulled.z)).toBe(true);
+    expect(cameraPointFree(COURTYARD_ID, 0, 40)).toBe(false);
+  });
+});
+
+describe("gate data agreement — layout (collision) vs district-gates (scene build)", () => {
+  it("PLAZA_GATES and DISTRICT_THRESHOLDS name the same six thresholds at the same spots with the same kinds", () => {
+    expect(PLAZA_GATES).toHaveLength(DISTRICT_THRESHOLDS.length);
+    for (const t of DISTRICT_THRESHOLDS) {
+      const g = PLAZA_GATES.find((p) => p.name === t.name);
+      expect(g, `layout is missing ${t.name}`).toBeDefined();
+      expect({ x: g!.x, z: g!.z, kind: g!.kind }).toEqual({ x: t.x, z: t.z, kind: t.kind });
+    }
   });
 });
 

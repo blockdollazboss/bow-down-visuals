@@ -113,7 +113,13 @@ import {
   isCreatorRoomId,
   palaceRoomLayout,
   resolvePalaceMove,
+  pullInCamera,
   clampToRoom,
+  PLAZA_WALL_RUNS,
+  PLAZA_COLUMNS,
+  PLAZA_PLANTERS,
+  PLAZA_BRAZIERS,
+  PLAZA_GATES,
 } from "./palace-layout";
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
@@ -216,6 +222,17 @@ const SCRATCH_VEC = new THREE.Vector3();
            maps, candlelight is emissive-only. Pixel ratio steps down
            with the tier. Touch devices start a rung lower. */
 type QualityTier = "high" | "medium" | "low";
+
+/** The walker's reduced-motion preference (item 44): when set,
+ *  the SELF mover's bob and settle are silenced at the source
+ *  (movement.ts bobScale) — the body still leans and eases, the
+ *  view just never rides a stride. Peers keep their gait: their
+ *  bob is the world's life, not the walker's vestibular input. */
+function detectReducedMotion(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    : false;
+}
 
 function detectQuality(): QualityTier {
   const coarse = typeof window !== "undefined" && typeof window.matchMedia === "function"
@@ -1213,6 +1230,8 @@ export class KingsHallScene {
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
 
   private quality: QualityTier;
+  /** Reduced-motion preference, read once at construction. */
+  private reducedMotion = detectReducedMotion();
   private theme: HallTheme;
   private lookGroup: THREE.Group | null = null;
   private lookAnim: LookAnim = EMPTY_ANIM;
@@ -2814,9 +2833,7 @@ export class KingsHallScene {
   }
 
   private buildCourtyardShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
-    const def = PALACE_LAYOUT[COURTYARD_ID]!;
     const g = new THREE.Group();
-    const { interior } = def;
 
     /* Floors (Open World Phase 1): the plaza's interior now spans
      * z to 34 across the full width, but the Creator Room template
@@ -2835,14 +2852,19 @@ export class KingsHallScene {
 
     // Low marble walls with a gold cap on the open sides (the
     // fourth side is the hall's own back wall + the arch through
-    // it), rebuilt for the plaza plan. Two gates pierce them: a
-    // 2.2 m gap in the west wall at z ≈ 19.5 (Stage Grounds) and
-    // one in the south promenade wall at x ≈ 0 (the Boardwalk) —
-    // the walk rects end at ±27.85 / 33.6, so no gap can ever be
-    // walked through; each gate's gold bar (below) makes the
-    // closure visible. There is NO wall along z 26: the grounds
-    // flow into the promenade, and the Creator Rooms arch area
-    // (x 8.45..10.55 at z ≈ 26) stays open as it was.
+    // it). The runs are palace-layout's PLAZA_WALL_RUNS — one
+    // enclosure now (item 42): the east wall runs the grounds'
+    // full length, a south run closes the south-east yard, a
+    // notch wall stands on the main grounds' south edge east of
+    // the Creator Room (whose own north wall closes that line
+    // west of it), and two short returns flank the Creator Rooms
+    // arch (item 41). Two gates pierce the runs: a 2.2 m gap in
+    // the west wall at z ≈ 19.5 (Stage Grounds) and one in the
+    // south promenade wall at x ≈ 0 (the Boardwalk) — the walk
+    // rects end at ±27.85 / 33.6, so no gap can ever be walked
+    // through; each gate's gold bar (below) makes the closure
+    // visible. Every run is a blocked rect in the layout, derived
+    // from this same list.
     const lowWall = (w: number, d: number, x: number, z: number) => {
       /* The long runs (up to 27 m) get a per-metre material — the
        * shared prop marble would stretch one tile across the whole
@@ -2855,36 +2877,31 @@ export class KingsHallScene {
       cap.position.set(x, 1.09, z);
       g.add(cap);
     };
-    // West wall x −28.2, z 12.4..34, split by the Stage Grounds gap.
-    lowWall(0.35, 6.0, -28.2, 15.4);
-    lowWall(0.35, 13.4, -28.2, 27.3);
-    // East wall x 28.2, z 12.4..26.0 (beyond that is the creator wing).
-    lowWall(0.35, 13.6, 28.2, 19.2);
-    // South wall z 34.0 across the promenade span, split by the
-    // Boardwalk gap at x −1.1..1.1.
-    lowWall(27.1, 0.35, -14.65, 34.0);
-    lowWall(1.25, 0.35, 1.725, 34.0);
+    for (const run of PLAZA_WALL_RUNS) lowWall(run.w, run.d, run.x, run.z);
 
-    // Columns where the walls turn: plinth, marble shaft, gold cap —
-    // the hall's column language at garden scale, moved to the
-    // plaza's new corners (with a mid-wall column on each long side).
-    // Variation (item 18): each column takes its deterministic
-    // jitter — a breath of scale, its own marble tint (a cloned
-    // material), and one of three cap treatments — so the six stop
-    // reading as one column stamped six times. They stand ON the
-    // wall line, so they never yaw (prop-variation's envelope).
+    // Columns where the walls turn — grounded piers now (item
+    // 43): the plinth stands ON THE GROUND and the shaft rises
+    // from it through the low wall's line to the same gold cap at
+    // the same height as before (the shipped build grew the shaft
+    // out of a plinth floating on the knee wall's cap, supporting
+    // nothing). Positions are palace-layout's PLAZA_COLUMNS —
+    // footprints blocked there from the same list. Variation
+    // (item 18): each pier takes its deterministic jitter — a
+    // breath of scale, its own marble tint (a cloned material),
+    // one of three cap treatments; the group scales from the
+    // ground, so a varied pier still lands.
     const column = (x: number, z: number, index: number) => {
       const v = propVariation("column", index);
       const col = new THREE.Group();
       col.position.set(x, 0, z);
       col.scale.set(v.scale, v.scaleY, v.scale);
-      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.9), mats.marble);
-      plinth.position.y = 1.13;
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
       col.add(plinth);
       const shaftMat = mats.marble.clone();
       shaftMat.color.offsetHSL(v.hueShift, 0, v.lightnessShift);
-      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.6, 0.62), shaftMat);
-      shaft.position.y = 2.54;
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), shaftMat);
+      shaft.position.y = 0.3 + 3.54 / 2;
       shaft.castShadow = QUALITY[this.quality].shadows;
       col.add(shaft);
       const cap = new THREE.Mesh(
@@ -2900,12 +2917,7 @@ export class KingsHallScene {
       }
       g.add(col);
     };
-    column(-28.2, interior.minZ + 0.2, 0);
-    column(28.2, interior.minZ + 0.2, 1);
-    column(-28.2, interior.maxZ - 0.2, 2);
-    column(2.35, interior.maxZ, 3);
-    column(-28.2, 23.2, 4);
-    column(28.2, 19.2, 5);
+    PLAZA_COLUMNS.forEach((c, i) => column(c.x, c.z, i));
 
     /* Lawn panels on the east and west grounds — flat green fields
      * flanking the marble heart of the plaza (the centre,
@@ -2941,6 +2953,29 @@ export class KingsHallScene {
     };
     pathRun(12.4, 18.0);
     pathRun(21.4, 34.0);
+
+    /* The arch spur (item 41): the same marble-and-gold language
+     * turned east–west, from the main path's edge to the Creator
+     * Rooms arch's forecourt, so the arch is ARRIVED at, not
+     * floated past. It runs along the creator wall's face on the
+     * layout's spur grounds (z 25.6..26.05 walkable); the two
+     * return walls flank the forecourt at its end, standing on
+     * the path's line like gateposts — the walk baffles around
+     * the west return's end and in between the pair. */
+    {
+      const spurFromX = 1.8;
+      const spurToX = 10.6;
+      const spurLen = spurToX - spurFromX;
+      const spurCx = (spurFromX + spurToX) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(spurLen, 0.016, 1.4), mats.marble);
+      slab.position.set(spurCx, 0.022, 25.5);
+      g.add(slab);
+      for (const sz of [24.87, 26.13]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(spurLen, 0.012, 0.07), mats.goldDark);
+        strip.position.set(spurCx, 0.028, sz);
+        g.add(strip);
+      }
+    }
 
     /* ── The Kingdom Board monument (0, 19.7), plaza centre ──────
      * A stepped marble plinth, a gold-trimmed stele ~3.2 m tall,
@@ -3064,23 +3099,23 @@ export class KingsHallScene {
         g.add(crown);
       });
     };
-    planter(-27.3, 15.8, true);
-    planter(-27.3, 22.6, true);
-    planter(27.3, 15.8, true);
-    planter(27.3, 22.6, true);
-    planter(-27.3, 28.8, true);
-    planter(-27.3, 32.3, true);
-    planter(2.2, 29.5, true);
-    planter(-20, 33.1, false);
-    planter(-8, 33.1, false);
+    /* Positions are palace-layout's PLAZA_PLANTERS — the layout
+     * derives each trough's blocked rect from this same list. */
+    for (const p of PLAZA_PLANTERS) planter(p.x, p.z, p.alongZ);
 
-    // Braziers in the dark look — the courtyard burns at night.
-    // The original pair keeps its place; a second pair flanks the
-    // monument. Point lights only on tiers that carry them, as
-    // everywhere in the hall; flames ride anim.flames as always.
-    if (look.candles) {
+    // Braziers — the courtyard burns at night. The original pair
+    // keeps its place; a second pair flanks the monument. The
+    // pedestal and bowl stand in BOTH looks (item 39): they are
+    // solid furniture with a blocked rect in the layout, and a
+    // collision footprint that only exists in one theme would be
+    // an invisible wall in the other. Only the fire follows the
+    // dark look — coals, flame, glow and point light, exactly as
+    // before (the light hook stays look.candles-gated; tiers that
+    // carry candle lights, as everywhere in the hall; flames ride
+    // anim.flames as always).
+    {
       const bronze = new THREE.MeshStandardMaterial({ color: 0x4a3418, metalness: 0.85, roughness: 0.4 });
-      for (const [bx, bz] of [[-4.6, 18.6], [4.6, 18.6], [-3.4, 19.7], [3.4, 19.7]] as Array<[number, number]>) {
+      for (const { x: bx, z: bz } of PLAZA_BRAZIERS) {
         const brazier = new THREE.Group();
         brazier.position.set(bx, 0, bz);
         const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.5, 10), mats.darkMetal);
@@ -3089,29 +3124,31 @@ export class KingsHallScene {
         const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.18, 0.3, 18), bronze);
         bowl.position.y = 0.65;
         brazier.add(bowl);
-        /* Coals + halo, the hall braziers' full build (overhaul
-         * stage 3, audit D3: the courtyard set was a downgrade —
-         * flame sprite only, reading as a glow dot). */
-        const coals = new THREE.Mesh(new THREE.CircleGeometry(0.4, 20), new THREE.MeshBasicMaterial({ color: 0xff7a26 }));
-        coals.rotation.x = -Math.PI / 2;
-        coals.position.y = 0.79;
-        brazier.add(coals);
-        const flame = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-        }));
-        flame.scale.set(0.6, 0.95, 1);
-        flame.position.y = 1.18;
-        brazier.add(flame);
-        anim.flames.push({ sprite: flame, baseX: 0.6, baseY: 0.95, phase: Math.random() * 20 });
-        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: flameTexture(), transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending,
-        }));
-        glow.scale.set(1.7, 1.7, 1);
-        glow.position.y = 1.15;
-        brazier.add(glow);
+        if (look.candles) {
+          /* Coals + halo, the hall braziers' full build (overhaul
+           * stage 3, audit D3: the courtyard set was a downgrade —
+           * flame sprite only, reading as a glow dot). */
+          const coals = new THREE.Mesh(new THREE.CircleGeometry(0.4, 20), new THREE.MeshBasicMaterial({ color: 0xff7a26 }));
+          coals.rotation.x = -Math.PI / 2;
+          coals.position.y = 0.79;
+          brazier.add(coals);
+          const flame = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+          }));
+          flame.scale.set(0.6, 0.95, 1);
+          flame.position.y = 1.18;
+          brazier.add(flame);
+          anim.flames.push({ sprite: flame, baseX: 0.6, baseY: 0.95, phase: Math.random() * 20 });
+          const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: flameTexture(), transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending,
+          }));
+          glow.scale.set(1.7, 1.7, 1);
+          glow.position.y = 1.15;
+          brazier.add(glow);
+        }
         g.add(brazier);
-        this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
-        if (QUALITY[this.quality].candleLights) {
+        if (look.candles) this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
+        if (look.candles && QUALITY[this.quality].candleLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
           light.position.set(bx, 1.35, bz);
           g.add(light);
@@ -4374,6 +4411,20 @@ export class KingsHallScene {
       this.rig.localToWorld(SCRATCH_VEC);
       SCRATCH_VEC.x = clamp(SCRATCH_VEC.x, cc.minX, cc.maxX);
       SCRATCH_VEC.z = clamp(SCRATCH_VEC.z, cc.minZ, cc.maxZ);
+      /* Camera collision (item 44): the clamp box stops the
+       * camera leaving the room, but a prop inside the box — the
+       * monument, a pier, a planter — used to swallow it whole.
+       * Pull the spot in toward the figure along its own ray
+       * until it stands clear of every solid footprint (the
+       * layout's pullInCamera; heights are untouched, the pull is
+       * planar, exactly like the clamp it extends). */
+      const pulled = pullInCamera(
+        this.currentRoom,
+        { x: this.rig.position.x, z: this.rig.position.z },
+        { x: SCRATCH_VEC.x, z: SCRATCH_VEC.z },
+      );
+      SCRATCH_VEC.x = pulled.x;
+      SCRATCH_VEC.z = pulled.z;
       this.rig.worldToLocal(SCRATCH_VEC);
       this.camera.position.copy(SCRATCH_VEC);
       this.camera.rotation.x = this.pitch * 0.5 - 0.14;
@@ -4406,6 +4457,7 @@ export class KingsHallScene {
       desiredVz,
       headingYaw,
       dt,
+      this.reducedMotion ? 0 : 1,
     );
     /* The palace resolves the step: walls are solid everywhere
      * except the doorways, a blocked diagonal slides along the

@@ -64,6 +64,12 @@ export interface PalaceRoomLayout {
    *  Board monument's plinth). A point inside a blocked rect is
    *  not walkable even when it stands in `walk`/`grounds`. */
   blocked?: PalaceRect[];
+  /** The subset of `blocked` tall enough to reach the third-person
+   *  camera (which rides at 2.45 m): the camera pull-in (item 44)
+   *  collides with these only — low walls, planters and braziers
+   *  pass under the lens and must never yank it. Absent = the
+   *  room's whole `blocked` list is camera-tall. */
+  camBlocked?: PalaceRect[];
   /** The room's physical interior (wall face to wall face) — the
    *  shell builder floors and ceilings to this. */
   interior: PalaceRect;
@@ -76,6 +82,194 @@ export interface PalaceRoomLayout {
 
 /** Door height — the lintel/arch line every doorway shares. */
 export const PALACE_DOOR_HEIGHT = 3.6;
+
+/* ── The King's Plaza dressing plan (Open World Overhaul, Stage B
+ * cluster 4: items 39/41/42/43) ────────────────────────────────────
+ * The plaza's props, walls, columns and gates are DATA here, not
+ * literals buried in the scene build: hall-scene's courtyard build
+ * places every mesh from these lists, and the courtyard's
+ * `blocked` rects below are DERIVED from the same lists — so a
+ * prop's solid footprint and its visible body can never drift
+ * apart (the layout↔scene agreement the tests pin). Coordinates
+ * are world metres on the plaza's floor plan. */
+
+export interface PlazaWallRun {
+  /** Box width (X) and depth (Z) of the run, and its centre. */
+  w: number;
+  d: number;
+  x: number;
+  z: number;
+}
+
+/** Every low-wall run on the plaza, as one enclosure (item 42).
+ *  The runs stand just outside the walkable bounds (wall face
+ *  ~0.18 m beyond the walk edge, the house clearance), so the
+ *  visible wall and the walk clamp agree everywhere: no gap a
+ *  walker can see through, no invisible wall where floor runs on.
+ *  The two gate gaps (Stage Grounds west, Boardwalk south) are
+ *  real gaps in the runs — each is closed by its gate's gold bar,
+ *  and the walk rects end inside them, so nothing leaks. */
+export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
+  /* West wall x −28.2, split by the Stage Grounds gate gap
+   * (z 18.4..20.6). */
+  { w: 0.35, d: 6.0, x: -28.2, z: 15.4 },
+  { w: 0.35, d: 13.4, x: -28.2, z: 27.3 },
+  /* East wall x 28.2: the main run, then the continuation south
+   * past the creator wing (item 42 — the run used to stop at
+   * z 26 and leave the south-east grounds open to the void). */
+  { w: 0.35, d: 13.6, x: 28.2, z: 19.2 },
+  { w: 0.35, d: 8.0, x: 28.2, z: 30.0 },
+  /* South wall z 34.0 across the promenade, split by the
+   * Boardwalk gate gap (x −1.1..1.1). */
+  { w: 27.1, d: 0.35, x: -14.65, z: 34.0 },
+  { w: 1.25, d: 0.35, x: 1.725, z: 34.0 },
+  /* The south-east yard's south run: from the Creator Room's east
+   * wall to the east wall, closing the yard the SE floor patch
+   * stands in (item 42). West of x 16.6 the Creator Room's own
+   * walls close the line — its interior runs on to z 38. */
+  { w: 11.6, d: 0.35, x: 22.4, z: 34.0 },
+  /* The notch wall (item 42): along the main grounds' south edge
+   * east of the Creator Room (whose north wall closes the same
+   * line west of x 16.6). Without it a walker on the east lawns
+   * met an invisible wall at z 25.7 with open floor beyond. */
+  { w: 11.8, d: 0.35, x: 22.3, z: 26.05 },
+  /* The Creator Rooms arch returns (item 41): two stubs returning
+   * north from the creator wall's face, flanking the arch's
+   * forecourt so the arch sits in architecture, not open floor. */
+  { w: 0.35, d: 1.0, x: 7.55, z: 25.55 },
+  { w: 0.35, d: 1.0, x: 11.45, z: 25.55 },
+];
+
+/** The plaza's wall-top columns, now grounded piers (item 43):
+ *  plinth on the ground, shaft rising through the low wall's line
+ *  to the same cap height as before. Positions: the enclosure's
+ *  corners and turns, plus a mid-wall pier on each long side. */
+export const PLAZA_COLUMNS: Array<{ x: number; z: number }> = [
+  { x: -28.2, z: 12.6 },
+  { x: 28.2, z: 12.6 },
+  { x: -28.2, z: 33.8 },
+  { x: 2.35, z: 34.0 },
+  { x: -28.2, z: 23.2 },
+  { x: 28.2, z: 19.2 },
+  /* The completed enclosure's new corners (item 42). */
+  { x: 28.2, z: 33.8 },
+  { x: 28.2, z: 26.05 },
+];
+
+/** Planter troughs (item 39): a marble trough 2.0 m long, its two
+ *  green crowns rounding the footprint to 0.44 m across. */
+export const PLAZA_PLANTERS: Array<{ x: number; z: number; alongZ: boolean }> = [
+  { x: -27.3, z: 15.8, alongZ: true },
+  { x: -27.3, z: 22.6, alongZ: true },
+  { x: 27.3, z: 15.8, alongZ: true },
+  { x: 27.3, z: 22.6, alongZ: true },
+  { x: -27.3, z: 28.8, alongZ: true },
+  { x: -27.3, z: 32.3, alongZ: true },
+  { x: 2.2, z: 29.5, alongZ: true },
+  { x: -20, z: 33.1, alongZ: false },
+  { x: -8, z: 33.1, alongZ: false },
+];
+
+/** Courtyard braziers (item 39): pedestal + bowl, 0.46 m bowl
+ *  radius. The pedestal and bowl stand in BOTH looks (daytime
+ *  furniture); only the coals, flame and light follow the dark
+ *  look — so this footprint is honest in either theme. */
+export const PLAZA_BRAZIERS: Array<{ x: number; z: number }> = [
+  { x: -4.6, z: 18.6 },
+  { x: 4.6, z: 18.6 },
+  { x: -3.4, z: 19.7 },
+  { x: 3.4, z: 19.7 },
+];
+
+export interface PlazaGate {
+  name: string;
+  x: number;
+  z: number;
+  /** "gate": a barred threshold standing in a REAL gap in a real
+   *  wall (posts ±1.1 m, gold header, gold bar). "marker": a named
+   *  district signpost on open floor — one post on a 0.78 m plinth,
+   *  no span, no bar, nothing that implies a passage (item 37's
+   *  honest classification; mirrors district-gates.ts, which
+   *  drives the scene build — the two lists must agree, and a
+   *  palace-layout test pins that they do). */
+  kind: "gate" | "marker";
+  /** "x": the gate spans X (posts east/west of centre); "z": spans Z. */
+  axis: "x" | "z";
+  plateRotY: number;
+  /** The gold bar's offset from centre (wall gates' bars ride the
+   *  wall's plaza face). Markers have no bar. */
+  barDx: number;
+  barDz: number;
+}
+
+/** The six district thresholds. Two are true gates in real wall
+ *  gaps (Stage Grounds in the west wall, the Boardwalk in the
+ *  south wall). Four are markers: the east pair stand on the open
+ *  floor at x 27.0, a clear metre west of the east wall's plaza
+ *  face — the shipped build painted them ON the solid wall, a
+ *  fake passage; the promenade pair keep their Phase-1 spots.
+ *  Every footprint below matches the body the scene builds. */
+export const PLAZA_GATES: PlazaGate[] = [
+  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0 },
+  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+  { name: "LISTENING GARDENS", kind: "marker", x: -26, z: 33.8, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+  { name: "CREATION ROW", kind: "marker", x: 27.0, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
+  { name: "THE ATELIERS", kind: "marker", x: 27.0, z: 22.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
+  { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+];
+
+/** The Creator Rooms arch's pillars (0.55 m square) in world
+ *  coordinates — the arch group stands at (9.5, 26.0), pillars at
+ *  ±1.45 local X. They flank the arch portal (x 8.4..10.6) without
+ *  touching it: the doorway stays fully walkable. */
+export const CREATOR_ARCH_PILLARS: Array<{ x: number; z: number }> = [
+  { x: 8.05, z: 26.0 },
+  { x: 10.95, z: 26.0 },
+];
+
+const rectAround = (x: number, z: number, hx: number, hz: number): PalaceRect => ({
+  minX: x - hx,
+  maxX: x + hx,
+  minZ: z - hz,
+  maxZ: z + hz,
+});
+
+const wallRunRect = (run: PlazaWallRun): PalaceRect => rectAround(run.x, run.z, run.w / 2, run.d / 2);
+
+const gateRect = (gate: PlazaGate): PalaceRect =>
+  gate.kind === "marker"
+    ? rectAround(gate.x, gate.z, 0.39, 0.39)
+    : gate.axis === "x"
+      ? rectAround(gate.x, gate.z, 1.26, 0.16)
+      : rectAround(gate.x, gate.z, 0.16, 1.26);
+
+/** The plaza's solid footprints (item 39), derived from the
+ *  dressing plan above: the monument's plinth, every wall run,
+ *  every column pier, planter, brazier and gate, and the arch's
+ *  pillars. A step into any of them resolves like a wall — slide
+ *  or stop — never a walk through a visible body. */
+export const PLAZA_BLOCKED: PalaceRect[] = [
+  /* The Kingdom Board monument's plinth (3.55 m trim square at
+   * (0, 19.7)) — banked in overhaul stage 3, kept exact. */
+  { minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 },
+  ...PLAZA_WALL_RUNS.map(wallRunRect),
+  ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
+  ...PLAZA_PLANTERS.map((p) => rectAround(p.x, p.z, p.alongZ ? 0.44 : 1.0, p.alongZ ? 1.0 : 0.44)),
+  ...PLAZA_BRAZIERS.map((b) => rectAround(b.x, b.z, 0.46, 0.46)),
+  ...PLAZA_GATES.map(gateRect),
+  ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
+];
+
+/** The plaza's camera-tall solids (item 44): the monument (stele
+ *  to ~4.2 m), the column piers (cap at ~4.0 m) and the arch
+ *  pillars (cap at ~4.1 m). Everything else solid on the plaza —
+ *  low walls (1.12 m), planters (~1.3 m), braziers (0.8 m), gate
+ *  posts (2.0 m) — passes under the 2.45 m camera. */
+export const PLAZA_TALL_BLOCKED: PalaceRect[] = [
+  { minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 },
+  ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
+  ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
+];
 
 export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
   [HALL_ROOM_ID]: {
@@ -157,13 +351,28 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     id: COURTYARD_ID,
     name: "The King's Plaza",
     walk: { minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 },
-    grounds: [{ minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 }],
-    /* The Kingdom Board monument's plinth (3.55 m trim square at
-     * (0, 19.7)) is solid — its board station point stands on the
-     * open plaza just south of it at (0, 22.6), in reading distance
-     * of the engraved face and inside prompt radius of a walker
-     * stopped at the plinth's edge. */
-    blocked: [{ minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 }],
+    grounds: [
+      { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
+      /* The arch spur (item 41): the promenade's eastward arm
+       * along the Creator Room's north wall face, from the
+       * promenade's edge to the arch — its band runs to the
+       * portal's east edge (10.65) so the arch's forecourt is
+       * plaza ground in its own right, and stops at the wall
+       * face (z 26.0): south of that is the wall, and the room
+       * beyond is still entered through the portal alone. The
+       * arch's flanking return walls stand in the band as
+       * blocked rects (PLAZA_WALL_RUNS). */
+      { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
+    ],
+    /* Solid footprints, derived from the dressing plan above
+     * (PLAZA_BLOCKED): the monument's plinth — its board station
+     * point stands on the open plaza just south of it at
+     * (0, 22.6), in reading distance of the engraved face and
+     * inside prompt radius of a walker stopped at the plinth's
+     * edge — plus every planter, column pier, brazier, gate and
+     * wall run on the plaza (item 39). */
+    blocked: PLAZA_BLOCKED,
+    camBlocked: PLAZA_TALL_BLOCKED,
     interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
     spawn: { x: 0, z: 31.5 },
@@ -457,4 +666,65 @@ export function resolvePalaceMove(
     }
   }
   return { x: from.x, z: from.z, room: from.room, entered: null };
+}
+
+/* ── Third-person camera collision (item 44) ──────────────────────
+ * The follow camera's world spot is clamped to the room's
+ * camClamp (the walls), but a clamp box knows nothing of props:
+ * back toward the monument and the camera used to sink straight
+ * into the stele. A camera point is FREE when it stands inside
+ * the room's camClamp and clear of every room's CAMERA-TALL
+ * footprints (inflated by CAMERA_PROP_MARGIN, so the near plane
+ * never kisses a surface). Walls need no entry here: each room's
+ * camClamp already keeps its camera on its own side of every
+ * wall, and low furniture passes under the lens by design. */
+
+/** How far the camera keeps off a prop's footprint (m). */
+export const CAMERA_PROP_MARGIN = 0.3;
+
+export function cameraPointFree(roomId: string, x: number, z: number): boolean {
+  const room = palaceRoomLayout(roomId);
+  if (!room) return false;
+  if (!pointInRect(x, z, room.camClamp)) return false;
+  for (const r of allRooms()) {
+    for (const b of r.camBlocked ?? r.blocked ?? []) {
+      if (
+        x >= b.minX - CAMERA_PROP_MARGIN &&
+        x <= b.maxX + CAMERA_PROP_MARGIN &&
+        z >= b.minZ - CAMERA_PROP_MARGIN &&
+        z <= b.maxZ + CAMERA_PROP_MARGIN
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Pull the camera in toward the figure until its spot is free:
+ * walk the segment figure → desired in fine steps and keep the
+ * last free point before the first obstruction. An unobstructed
+ * desired spot comes back untouched; a fully boxed-in figure
+ * keeps the camera at its own position rather than inside a prop.
+ */
+export function pullInCamera(
+  roomId: string,
+  from: { x: number; z: number },
+  desired: { x: number; z: number },
+): { x: number; z: number } {
+  /* The whole segment is walked, never just the endpoint: a spot
+   * BEYOND a prop can be perfectly free while the ray to it
+   * passes straight through the prop's body. */
+  const dist = Math.hypot(desired.x - from.x, desired.z - from.z);
+  const steps = Math.max(1, Math.ceil(dist / 0.1));
+  let last = { x: from.x, z: from.z };
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const px = from.x + (desired.x - from.x) * t;
+    const pz = from.z + (desired.z - from.z) * t;
+    if (!cameraPointFree(roomId, px, pz)) break;
+    last = { x: px, z: pz };
+  }
+  return last;
 }
