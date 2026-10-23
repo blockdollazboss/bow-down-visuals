@@ -338,32 +338,45 @@ export default function Memberships() {
   const [suggestions, setSuggestions] = useState<SuggestedTier[]>([]);
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  /* Per-source load errors (dashboard pattern): tiers, dashboard and
+     members settle independently — whichever sources succeed render,
+     each failed source shows its own error in its own section. The
+     page-wide loadError is reserved for a total failure (all three). */
+  const [tiersError, setTiersError] = useState(false);
+  const [dashboardError, setDashboardError] = useState(false);
+  const [membersError, setMembersError] = useState(false);
+
   async function load() {
     setLoading(true);
     setError(null);
     setLoadError(false);
+    setTiersError(false);
+    setDashboardError(false);
+    setMembersError(false);
     try {
       const token = await getAccessToken();
-      const [{ res: tRes, data: t }, { res: dRes, data: d }, { res: mRes, data: m }] = await Promise.all([
+      const [tR, dR, mR] = await Promise.allSettled([
         api("/memberships/tiers", token),
         api("/memberships/dashboard", token),
         api("/memberships/members", token),
       ]);
       /* api() never throws on HTTP status, so check res.ok and the
-         expected shapes explicitly — any failure is a load error, not
-         an empty fan club. Nothing is applied on failure. */
-      if (
-        !tRes.ok || !dRes.ok || !mRes.ok ||
-        !Array.isArray(t.tiers) ||
-        d.activeMembers === undefined ||
-        !Array.isArray(m.members)
-      ) {
+         expected shapes explicitly — a failure is that section's load
+         error, not an empty fan club, and never discards the sources
+         that loaded fine. */
+      const tOk = tR.status === "fulfilled" && tR.value.res.ok && Array.isArray(tR.value.data.tiers);
+      const dOk = dR.status === "fulfilled" && dR.value.res.ok && dR.value.data.activeMembers !== undefined;
+      const mOk = mR.status === "fulfilled" && mR.value.res.ok && Array.isArray(mR.value.data.members);
+      if (tOk) setTiers(tR.value.data.tiers as Tier[]);
+      if (dOk) setDashboard(dR.value.data as unknown as Dashboard);
+      if (mOk) setMembers(mR.value.data.members as Member[]);
+      if (!tOk && !dOk && !mOk) {
         setLoadError(true);
-        return;
+      } else {
+        if (!tOk) setTiersError(true);
+        if (!dOk) setDashboardError(true);
+        if (!mOk) setMembersError(true);
       }
-      setTiers(t.tiers as Tier[]);
-      setDashboard(d as unknown as Dashboard);
-      setMembers(m.members as Member[]);
     } catch {
       setLoadError(true);
     } finally {
@@ -611,6 +624,20 @@ export default function Memberships() {
   const fmt$ = (n: number) =>
     n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
+  /* One creator source's failure card, rendered inside its section. */
+  const sectionLoadError = (
+    <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center gap-3">
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      {t("memberships.errorLoad")}
+      <button
+        onClick={() => void load()}
+        className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-bold text-red-200 hover:bg-red-500/10"
+      >
+        <RotateCcw className="h-3.5 w-3.5" /> {t("memberships.retry")}
+      </button>
+    </div>
+  );
+
   return (
     <div className={`min-h-screen ${isLight ? "text-[#2A1E07]" : "bg-black text-white"}`}>
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
@@ -750,6 +777,14 @@ export default function Memberships() {
             )}
 
             {/* ── Dashboard ── */}
+            {dashboardError && !dashboard && (
+              <section>
+                <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
+                  <Users className="h-6 w-6 text-primary" /> {t("memberships.dashboardTitle")}
+                </h2>
+                {sectionLoadError}
+              </section>
+            )}
             {dashboard && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
@@ -882,6 +917,7 @@ export default function Memberships() {
                 </div>
               </div>
 
+              {tiersError && <div className="mt-4">{sectionLoadError}</div>}
               {tiers.length > 0 && (
                 <div className="mt-4 grid md:grid-cols-3 gap-4">
                   {tiers.map((tier) => (
@@ -1011,6 +1047,7 @@ export default function Memberships() {
                 <p className="text-xs text-white/40">
                   {t("memberships.membersNote")}
                 </p>
+                {membersError && sectionLoadError}
                 <div className="flex flex-col md:flex-row gap-3">
                   <select
                     className={INPUT + " md:w-56"}
@@ -1074,7 +1111,7 @@ export default function Memberships() {
                       </div>
                     ))}
                   </div>
-                ) : !loadError ? (
+                ) : !membersError ? (
                   <p className="text-sm text-white/40">{t("memberships.noMembers")}</p>
                 ) : null}
               </div>

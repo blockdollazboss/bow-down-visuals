@@ -33,21 +33,33 @@ export default function Groups() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [myIds, setMyIds] = useState<Set<string>>(new Set());
 
+  /* The member-badge query is auxiliary (dashboard pattern): its
+     failure degrades the badges to an inline note — it must never
+     ErrorBox the group grid that already loaded. */
+  const [myIdsError, setMyIdsError] = useState(false);
+
   async function load() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setMyIdsError(false);
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (tab === "mine" && user?.id) params.set("member", user.id);
       const d = (await api.get(`/api/groups${params.toString() ? `?${params}` : ""}`)) as { groups: Group[] };
       setGroups(d.groups);
-      if (user?.id) {
-        const m = (await api.get(`/api/groups?member=${user.id}`)) as { groups: Group[] };
-        setMyIds(new Set(m.groups.map((g) => g.id)));
-      }
     } catch (e) {
       setError(friendlyLoadError(e, "groups"));
-    } finally { setLoading(false); }
+      setLoading(false);
+      return;
+    }
+    if (user?.id) {
+      try {
+        const m = (await api.get(`/api/groups?member=${user.id}`)) as { groups: Group[] };
+        setMyIds(new Set(m.groups.map((g) => g.id)));
+      } catch {
+        setMyIdsError(true);
+      }
+    }
+    setLoading(false);
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
@@ -134,6 +146,10 @@ export default function Groups() {
               <button type="button" onClick={() => setShowCreate(false)} className={ghostButton}>Cancel</button>
             </div>
           </div>
+        )}
+
+        {!loading && !error && myIdsError && user && (
+          <p className="mb-4 text-sm text-white/40">Your crew badges couldn't load just now — the groups below are all here, the crowns will catch up.</p>
         )}
 
         {loading ? <Loading label="Finding crews" /> : error ? <ErrorBox message={error} onRetry={load} /> : (

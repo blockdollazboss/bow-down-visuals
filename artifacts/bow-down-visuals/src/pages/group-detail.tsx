@@ -85,20 +85,37 @@ export default function GroupDetail() {
   const [threadTags, setThreadTags] = useState("");
   const [replyDraft, setReplyDraft] = useState("");
 
+  /* The feed settles on its own (dashboard pattern): a feed failure
+     shows its own error inside the feed tab — it must never replace
+     the group that already loaded with a full-page error. */
+  const [feedError, setFeedError] = useState<string | null>(null);
+
+  async function loadFeed() {
+    try {
+      const f = (await api.get(`/api/groups/${slug}/feed`)) as { posts: Post[]; viewer_role: string | null };
+      setPosts(f.posts);
+      if (f.viewer_role) setViewerRole(f.viewer_role);
+      setFeedError(null);
+    } catch (e) {
+      setFeedError(friendlyLoadError(e, "the group feed"));
+    }
+  }
+
   async function load() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setFeedError(null);
     try {
       const d = (await api.get(`/api/groups/${slug}`)) as {
         group: GroupDetail; owner_profile: { slug: string; displayName: string } | null;
         members: Member[]; viewer_role: string | null;
       };
       setGroup(d.group); setOwnerProfile(d.owner_profile); setMembers(d.members); setViewerRole(d.viewer_role);
-      const f = (await api.get(`/api/groups/${slug}/feed`)) as { posts: Post[]; viewer_role: string | null };
-      setPosts(f.posts);
-      if (f.viewer_role) setViewerRole(f.viewer_role);
     } catch (e) {
       setError(friendlyLoadError(e, "this group"));
-    } finally { setLoading(false); }
+      setLoading(false);
+      return;
+    }
+    await loadFeed();
+    setLoading(false);
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slug]);
@@ -331,6 +348,9 @@ export default function GroupDetail() {
                 </div>
               </div>
             )}
+            {feedError ? (
+              <ErrorBox message={feedError} onRetry={loadFeed} />
+            ) : (<>
             {posts.map((p) => (
               <div key={p.id} className="rounded-xl border border-white/10 bg-[#0d0a02] p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -354,6 +374,7 @@ export default function GroupDetail() {
               </div>
             ))}
             {posts.length === 0 && <p className="py-8 text-center text-white/40">Quiet in here… break the ice. 🧊</p>}
+            </>)}
           </div>
         )}
 
