@@ -126,3 +126,29 @@ describe("item 39 — gradient ends to-[#0d0a04] / to-[#0d0d0d] fade to ivory (A
     expect(css).toContain(`.light .from-\\[\\#1a1408\\]${GUARDED}`);
   });
 });
+
+describe("item 40 — SiteMode shell carries the theme toggle + themed splash/not-found (A4-F1)", () => {
+  const siteMode = readFileSync(
+    new URL("../components/site-mode/SiteMode.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("FloatingThemeToggle is imported and mounted on the splash, the not-found screen and the profile", () => {
+    expect(siteMode).toContain(
+      'import { FloatingThemeToggle } from "@/components/FloatingThemeToggle"',
+    );
+    const mounts = siteMode.split("<FloatingThemeToggle />").length - 1;
+    expect(mounts).toBe(3);
+  });
+
+  it("the splash follows the visitor's theme instead of hardcoded black", () => {
+    expect(siteMode).toContain('isLight ? "bg-[#FAF7F0]" : "bg-black"');
+    expect(siteMode).not.toContain('items-center justify-center bg-black"');
+  });
+
+  it("the not-found screen themes its ground and ink", () => {
+    expect(siteMode).toContain('isLight ? "text-[#1C1712]" : "text-white"');
+    expect(siteMode).toContain('isLight ? "text-[#6B6257]" : "text-white/50"');
+    expect(siteMode).not.toContain("justify-center gap-3 bg-black px-4");
+  });
+});
