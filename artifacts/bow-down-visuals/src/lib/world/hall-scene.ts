@@ -205,7 +205,7 @@ import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
 import {
-  POOL, FOUNTAIN, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
+  POOL, FOUNTAIN, FOUNTAIN_FALL, WET_EDGE, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
   PLAZA_TABLE_SETS, PLAZA_URNS, URN, PLAZA_STALLS, STALL, SPAWN_DRESSING,
   bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt,
   waterSurfaceAt, poolWaterTint, type PollenMote,
@@ -229,6 +229,7 @@ import {
   repeatForSize,
   derivedPbrTextures,
   brushedGoldTextures,
+  rippleNormalTexture,
   enhanceLoadedTexture,
   type PbrKind,
 } from "./pbr-materials";
@@ -1343,7 +1344,20 @@ interface LookAnim {
    * motion is off). */
   bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
   pollen: { points: THREE.Points; field: PollenMote[] } | null;
-  waters: Array<{ tex: THREE.Texture; jet: THREE.Mesh | null }>;
+  /* Water round 2 (Stack-100 #2 items 5–7): every entry's colour
+   * layer scrolls one way and its ripple NORMAL layer counter-
+   * scrolls (normalTex), both from plaza-life's ONE water model;
+   * fountains add their falling sheet (fall) and the plaza
+   * fountain its impact ripple ring. */
+  waters: Array<{
+    tex: THREE.Texture;
+    jet: THREE.Mesh | null;
+    normalTex?: THREE.Texture;
+    fall?: THREE.Mesh | null;
+    /** The fall sheet's built opacity; the model scales it. */
+    fallBase?: number;
+    ripple?: THREE.Mesh | null;
+  }>;
   /* Stack-100 #2 item 29: spinning dressing (the boardwalk prize
    * wheel) — the tick sets each spinner's z-rotation from its
    * angle function; registered in both looks, never under
@@ -1786,7 +1800,7 @@ export class KingsHallScene {
      * room shell (room-culled from indoors, exactly when the
      * roofline must still read from a raised camera). */
     this.buildPalaceExterior(group, look, mats, anim);
-    this.buildBackdropGrounds(group, look);
+    this.buildBackdropGrounds(group, look, anim);
     this.buildVisibleSky(group, look, anim);
     this.lookAnim = anim;
   }
@@ -2031,7 +2045,7 @@ export class KingsHallScene {
    *  and nothing needs a blocked rect: it all stands outside
    *  every walk rect, inside the 90 m dome (palace-grounds pins
    *  both). */
-  private buildBackdropGrounds(group: THREE.Group, look: HallLook): void {
+  private buildBackdropGrounds(group: THREE.Group, look: HallLook, anim: LookAnim): void {
     const g = new THREE.Group();
     const night = look.theme === "dark";
     const dummy = new THREE.Object3D();
@@ -2048,15 +2062,22 @@ export class KingsHallScene {
     g.add(skirt);
 
     /* The moat glint: a flat ring segment of the look's water,
-     * glossy enough to catch the sky env — a still strip, no
-     * animation (water life is item 28's, elsewhere). A standard
-     * material (it must shade + fog), three segments' worth of
-     * ring facing the plaza's open sides. */
+     * glossy enough to catch the sky env. Stack-100 #2: the moat
+     * JOINS the animated system — its colour texture is a clone
+     * registered in anim.waters with a ripple normal layer, so
+     * the backdrop water lives by the same ONE water model as
+     * the pool (it used to be the world's one still water). A
+     * standard material (it must shade + fog), three segments'
+     * worth of ring facing the plaza's open sides. */
     const waterRep = repeatForSize(8, 8, 4);
+    const moatTex = hallTexture(look.waterTextureUrl, waterRep.x, waterRep.y).clone();
+    moatTex.needsUpdate = true;
+    const moatNormal = this.rippleNormalFor(8, 8);
     const water = new THREE.Mesh(
       new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1, Math.PI * 0.72, Math.PI * 0.95),
       new THREE.MeshStandardMaterial({
-        map: hallTexture(look.waterTextureUrl, waterRep.x, waterRep.y),
+        map: moatTex,
+        normalMap: moatNormal, normalScale: new THREE.Vector2(0.15, 0.15),
         color: night ? 0xbfd4de : 0xdfe9e4,
         roughness: 0.12, metalness: 0.05, envMapIntensity: 1.3,
       }),
@@ -2064,6 +2085,7 @@ export class KingsHallScene {
     water.rotation.x = -Math.PI / 2;
     water.position.set(BACKDROP.moatCenter.x, BACKDROP.moatY, BACKDROP.moatCenter.z);
     g.add(water);
+    anim.waters.push({ tex: moatTex, jet: null, normalTex: moatNormal });
 
     /* The distant wings: unlit stone masses. Their colour is a
      * fog-veiled silhouette tone per look (dark masses at night,
@@ -2323,6 +2345,67 @@ export class KingsHallScene {
     plate.position.set(x, y, z);
     plate.rotation.y = rotY;
     group.add(plate);
+  }
+
+  /* ── Water round 2 helpers (Stack-100 #2 items 5–7) ──────────
+   * Every water surface in the world is built the same way: the
+   * look's water colour texture (cloned, scrolled by the tick)
+   * PLUS a cloned ripple normal texture the same tick counter-
+   * scrolls — the surface bends light, not just slides a picture.
+   * And every basin wears the wet edge: a dark band on the water
+   * at its rim (plaza-life's WET_EDGE), so water meets stone
+   * like water, not like a decal. */
+
+  /** A per-surface ripple normal texture: shared pixels, own
+   *  repeat + own offset (the tick animates the offset). */
+  private rippleNormalFor(repeatX: number, repeatY: number): THREE.Texture {
+    const tex = rippleNormalTexture().clone();
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeatX, repeatY);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  private wetEdgeMaterial(): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color: WET_EDGE.color, transparent: true, opacity: WET_EDGE.opacity, depthWrite: false,
+    });
+  }
+
+  /** The wet edge for a rectangular basin: four flat strips just
+   *  inside the rim, hovering a breath over the water. */
+  private wetEdgeRect(cx: number, cz: number, w: number, d: number, waterY: number): THREE.Group {
+    const g = new THREE.Group();
+    const mat = this.wetEdgeMaterial();
+    const bw = WET_EDGE.width;
+    const y = waterY + WET_EDGE.lift;
+    const strips: Array<{ w: number; d: number; x: number; z: number }> = [
+      { w, d: bw, x: cx, z: cz - d / 2 + bw / 2 },
+      { w, d: bw, x: cx, z: cz + d / 2 - bw / 2 },
+      { w: bw, d: d - bw * 2, x: cx - w / 2 + bw / 2, z: cz },
+      { w: bw, d: d - bw * 2, x: cx + w / 2 - bw / 2, z: cz },
+    ];
+    for (const s of strips) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.d), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(s.x, y, s.z);
+      m.renderOrder = 2;
+      g.add(m);
+    }
+    return g;
+  }
+
+  /** The wet edge for a round basin: one flat ring at the rim. */
+  private wetEdgeRing(cx: number, cz: number, r: number, waterY: number): THREE.Mesh {
+    const m = new THREE.Mesh(
+      new THREE.RingGeometry(r - WET_EDGE.width, r, 36),
+      this.wetEdgeMaterial(),
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(cx, waterY + WET_EDGE.lift, cz);
+    m.renderOrder = 2;
+    return m;
   }
 
   private buildWalls(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
@@ -4936,17 +5019,20 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 0.4, 3).clone();
       waterTex.needsUpdate = true;
+      const rillNormal = this.rippleNormalFor(0.4, 3);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: rillNormal, normalScale: new THREE.Vector2(0.18, 0.18),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(RILL.cx, RILL.waterY + PARTERRE_LAWN.topY, RILL.cz);
       g.add(water);
-      anim.waters.push({ tex: waterTex, jet: null });
+      g.add(this.wetEdgeRect(RILL.cx, RILL.cz, RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2, RILL.waterY + PARTERRE_LAWN.topY));
+      anim.waters.push({ tex: waterTex, jet: null, normalTex: rillNormal });
     }
 
     /* Stack-100 #2 item 36: the gardens' fountain — a round
@@ -4975,16 +5061,19 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 1, 1).clone();
       waterTex.needsUpdate = true;
+      const basinNormal = this.rippleNormalFor(1, 1);
       const water = new THREE.Mesh(
         new THREE.CircleGeometry(f.rimR - 0.08, 28),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: basinNormal, normalScale: new THREE.Vector2(0.18, 0.18),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(f.cx, baseY + f.waterY, f.cz);
       g.add(water);
+      g.add(this.wetEdgeRing(f.cx, f.cz, f.rimR - 0.08, baseY + f.waterY));
       const column = new THREE.Mesh(
         new THREE.CylinderGeometry(0.11, 0.18, f.columnTopY - 0.2, 12), mats.stoneFor(0.4, 0.8),
       );
@@ -5008,15 +5097,18 @@ export class KingsHallScene {
       jet.renderOrder = 4;
       g.add(jet);
       /* The falling water: a translucent cone sheet from the
-       * bowl's rim back down to the basin's surface. */
+       * bowl's rim back down to the basin's surface. Its material
+       * is a CLONE of the jet's: the water model breathes the
+       * fall's opacity (Stack-100 #2 item 7) and the jet must not
+       * breathe with it. */
       const fall = new THREE.Mesh(
         new THREE.CylinderGeometry(f.bowlR * 0.92, f.bowlR * 1.5, f.columnTopY - f.waterY - 0.05, 20, 1, true),
-        jetMat,
+        jetMat.clone(),
       );
       fall.position.set(f.cx, baseY + (f.columnTopY + f.waterY) / 2, f.cz);
       fall.renderOrder = 4;
       g.add(fall);
-      anim.waters.push({ tex: waterTex, jet });
+      anim.waters.push({ tex: waterTex, jet, normalTex: basinNormal, fall, fallBase: 0.5 });
     }
 
     /* The hedged listening nooks: clipped hedge runs (instanced
@@ -6233,17 +6325,20 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 6, 0.6).clone();
       waterTex.needsUpdate = true;
+      const basinNormal = this.rippleNormalFor(6, 0.6);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: basinNormal, normalScale: new THREE.Vector2(0.18, 0.18),
           metalness: 0.05, envMapIntensity: 1.2, transparent: true, opacity: 0.94,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.waterY, BOARDWALK_BASIN.cz);
       g.add(water);
-      anim.waters.push({ tex: waterTex, jet: null });
+      g.add(this.wetEdgeRect(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.cz, BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.waterY));
+      anim.waters.push({ tex: waterTex, jet: null, normalTex: basinNormal });
       instanced(
         new THREE.CylinderGeometry(0.035, 0.045, BOARDWALK_RAILING.postH, 8), mats.darkMetal,
         BOARDWALK_RAILING_POSTS.map((p) => ({ x: p.x, y: BOARDWALK_RAILING.postH / 2, z: p.z })),
@@ -6885,16 +6980,19 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 3, 1.25).clone();
       waterTex.needsUpdate = true;
+      const poolNormal = this.rippleNormalFor(3, 1.25);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: poolNormal, normalScale: new THREE.Vector2(0.2, 0.2),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(POOL.cx, POOL.waterY, POOL.cz);
       g.add(water);
+      g.add(this.wetEdgeRect(POOL.cx, POOL.cz, POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2, POOL.waterY));
       /* The fountain: a marble basin on a short column at the
        * pool's heart, a smaller upper bowl, and the jet — a
        * translucent cone whose pulse is the water's life. */
@@ -6915,7 +7013,34 @@ export class KingsHallScene {
       jet.position.set(FOUNTAIN.x, (FOUNTAIN.jetBaseY + FOUNTAIN.jetTopY) / 2, FOUNTAIN.z);
       jet.renderOrder = 4;
       g.add(jet);
-      anim.waters.push({ tex: waterTex, jet });
+      /* Stack-100 #2 item 7: the fall + the landing. The sheet
+       * drops from the basin's rim to the pool (the gardens
+       * fountain's construction, plaza twin), breathing with the
+       * water model; the impact ripple is a flat ring on the pool
+       * around the column that the model expands and fades. */
+      const fallMat = new THREE.MeshBasicMaterial({
+        color: look.theme === "dark" ? 0x9fc4d8 : 0xeaf6ff, transparent: true,
+        opacity: 0.42, depthWrite: false, side: THREE.DoubleSide,
+      });
+      const fall = new THREE.Mesh(
+        new THREE.CylinderGeometry(FOUNTAIN_FALL.topR, FOUNTAIN_FALL.bottomR, FOUNTAIN_FALL.topY - FOUNTAIN_FALL.bottomY, 20, 1, true),
+        fallMat,
+      );
+      fall.position.set(FOUNTAIN.x, (FOUNTAIN_FALL.topY + FOUNTAIN_FALL.bottomY) / 2, FOUNTAIN.z);
+      fall.renderOrder = 4;
+      g.add(fall);
+      const ripple = new THREE.Mesh(
+        new THREE.RingGeometry(FOUNTAIN_FALL.rippleInnerR, FOUNTAIN_FALL.rippleOuterR, 36),
+        new THREE.MeshBasicMaterial({
+          color: look.theme === "dark" ? 0xcfe4ee : 0xffffff, transparent: true,
+          opacity: 0.4, depthWrite: false, side: THREE.DoubleSide,
+        }),
+      );
+      ripple.rotation.x = -Math.PI / 2;
+      ripple.position.set(FOUNTAIN.x, FOUNTAIN_FALL.rippleY, FOUNTAIN.z);
+      ripple.renderOrder = 3;
+      g.add(ripple);
+      anim.waters.push({ tex: waterTex, jet, normalTex: poolNormal, fall, fallBase: 0.42, ripple });
     }
 
     /* ── Item 29: lamp standards ───────────────────────────────
@@ -8286,7 +8411,15 @@ export class KingsHallScene {
       const ws = waterSurfaceAt(t);
       for (const w of anim.waters) {
         w.tex.offset.set(ws.offsetX, ws.offsetY);
-        if (w.jet) w.jet.scale.set(ws.jetPulse, 1, ws.jetPulse);
+        /* Ripple normals counter-scroll against the colour layer
+         * (items 5–7): the surface bends light in motion. */
+        if (w.normalTex) w.normalTex.offset.set(ws.normalOffsetX, ws.normalOffsetY);
+        if (w.jet) w.jet.scale.set(ws.jetPulse, ws.jetHeightPulse, ws.jetPulse);
+        if (w.fall) (w.fall.material as THREE.MeshBasicMaterial).opacity = (w.fallBase ?? 0.42) * ws.fallOpacity;
+        if (w.ripple) {
+          w.ripple.scale.set(ws.rippleScale, ws.rippleScale, 1);
+          (w.ripple.material as THREE.MeshBasicMaterial).opacity = ws.rippleOpacity;
+        }
       }
     }
 

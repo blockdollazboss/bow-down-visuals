@@ -24,6 +24,8 @@ import {
   brushedMetalMaps,
   derivedPbrTextures,
   brushedGoldTextures,
+  rippleHeightField,
+  rippleNormalTexture,
 } from "./pbr-materials";
 
 const W = 64;
@@ -257,5 +259,30 @@ describe("three-facing texture registry", () => {
     expect(gold.roughnessMap.image.height).toBe(256);
     expect(gold.normalMap.wrapS).toBe(THREE.RepeatWrapping);
     expect(gold.normalMap.repeat.x).toBe(2);
+  });
+
+  it("ripple normals (Stack-100 #2 water round 2): tileable field, real normals, shared texture", () => {
+    const h = rippleHeightField(64);
+    // Periodic by construction (integer wave counts per tile):
+    // the step ACROSS the seam is an ordinary interior step.
+    let seam = 0;
+    let interior = 0;
+    for (let y = 0; y < 64; y++) {
+      seam = Math.max(seam, Math.abs(h[y * 64]! - h[y * 64 + 63]!));
+      for (let x = 0; x < 63; x++) interior = Math.max(interior, Math.abs(h[y * 64 + x + 1]! - h[y * 64 + x]!));
+    }
+    expect(seam).toBeLessThanOrEqual(interior * 1.01);
+    // It actually undulates (a flat field would be a dead surface).
+    const vals = [...h];
+    expect(Math.max(...vals) - Math.min(...vals)).toBeGreaterThan(0.1);
+    const tex = rippleNormalTexture();
+    expect(tex.image.width).toBe(256);
+    expect(tex.wrapS).toBe(THREE.RepeatWrapping);
+    expect(rippleNormalTexture()).toBe(tex); // generated once, shared
+    // Normals lean off neutral somewhere (the waves tilt them).
+    const data = tex.image.data as Uint8ClampedArray;
+    let leaned = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i] !== 128 || data[i + 1] !== 128) leaned++;
+    expect(leaned).toBeGreaterThan(1000);
   });
 });

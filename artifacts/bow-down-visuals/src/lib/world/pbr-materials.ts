@@ -433,6 +433,56 @@ export function brushedMetalMaps(
   return { normal: normalFromHeight(height, size, size, 0.55), roughness, height };
 }
 
+/* ── Ripple normals (Stack-100 #2 water round 2) ──────────────────
+ * The water surfaces wore a colour map and nothing else: their
+ * "shimmer" was a sliding picture. A tileable ripple normal map
+ * — a periodic sum of travelling sine waves, integrated through
+ * the same normalFromHeight the stone uses — lets the ONE water
+ * model (plaza-life's waterSurfaceAt) bend light for real: the
+ * scene counter-scrolls this layer against the colour layer. */
+
+/** A tileable ripple heightfield: three periodic wave trains at
+ *  palace-water wavelengths. Every frequency is an integer count
+ *  per tile, so the field wraps exactly — no seam, ever. */
+export function rippleHeightField(size: number): Float32Array {
+  const out = new Float32Array(size * size);
+  const waves: Array<{ fx: number; fy: number; amp: number; phase: number }> = [
+    { fx: 3, fy: 1, amp: 0.4, phase: 0.0 },
+    { fx: -2, fy: 4, amp: 0.3, phase: 1.7 },
+    { fx: 5, fy: -3, amp: 0.2, phase: 3.9 },
+    { fx: 1, fy: 7, amp: 0.12, phase: 5.3 },
+  ];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let h = 0.5;
+      for (const w of waves) {
+        h += w.amp * 0.25 * Math.sin(((x * w.fx + y * w.fy) / size) * Math.PI * 2 + w.phase);
+      }
+      out[y * size + x] = clamp01(h);
+    }
+  }
+  return out;
+}
+
+const RIPPLE_NORMAL_SIZE = 256;
+let rippleNormalTex: THREE.DataTexture | null = null;
+
+/** The shared ripple normal DataTexture (generated once). Scene
+ *  water materials clone it per surface — a clone shares the
+ *  pixels but carries its own offset, which is exactly what the
+ *  water model animates. */
+export function rippleNormalTexture(): THREE.DataTexture {
+  if (rippleNormalTex) return rippleNormalTex;
+  const height = rippleHeightField(RIPPLE_NORMAL_SIZE);
+  const normal = normalFromHeight(height, RIPPLE_NORMAL_SIZE, RIPPLE_NORMAL_SIZE, 1.4);
+  const tex = new THREE.DataTexture(normal, RIPPLE_NORMAL_SIZE, RIPPLE_NORMAL_SIZE);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  rippleNormalTex = tex;
+  return tex;
+}
+
 /* ── three.js-facing half ───────────────────────────────────────────
  * Derived DataTextures are created as 1×1 placeholders carrying the
  * kind's neutral values (so a material is honest before its source
