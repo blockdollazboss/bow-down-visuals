@@ -69,6 +69,14 @@ import {
   BOARDWALK_TALL_BLOCKED,
   BOARDWALK_WALK,
 } from "./boardwalk";
+import {
+  HEIGHTS_BLOCKED,
+  HEIGHTS_CAM_CLAMP,
+  HEIGHTS_INTERIOR,
+  HEIGHTS_SPAWN,
+  HEIGHTS_TALL_BLOCKED,
+  HEIGHTS_WALK,
+} from "./creator-heights";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -106,6 +114,16 @@ export const ATELIERS_ID = "world:ateliers";
  * the Ateliers — through the south wall's barred gate, now a
  * true passage. Its geometry lives in boardwalk.ts. */
 export const BOARDWALK_ID = "world:boardwalk";
+/* The sixth built district (Stage C item 36): the creators'
+ * residential quarter — an enclave on the plaza's own north-east
+ * quadrant, through the freestanding marker's gate reclassified
+ * OPEN on its exact spot. Every outward line from the marker was
+ * already built over (hall north, Row/Ateliers east, Creator
+ * Rooms + Boardwalk south, Stage/Gardens west), so the quarter
+ * stands within the plaza grounds behind its own west wall on
+ * the marker's line (x 13.5). Its geometry lives in
+ * creator-heights.ts. */
+export const HEIGHTS_ID = "world:creator-heights";
 
 export interface PalaceRect {
   minX: number;
@@ -295,24 +313,28 @@ export interface PlazaGate {
   open?: boolean;
 }
 
-/** The six district thresholds. Five are true gates in real
- *  wall gaps (Stage Grounds in the west wall — OPEN since item
- *  31, its district built; Listening Gardens in the south wall —
- *  OPEN since item 32, its district built, reclassified from the
+/** The six district thresholds. All six are true gates in real
+ *  wall gaps, all OPEN, their districts built (Stage Grounds in
+ *  the west wall — OPEN since item 31; Listening Gardens in the
+ *  south wall — OPEN since item 32, reclassified from the
  *  promenade marker that stood at (−26, 33.8); Creation Row in
- *  the east wall — OPEN since item 33, its district built,
- *  reclassified from the plaza-floor marker that stood at
- *  (27.0, 14.5); the Ateliers in the east wall's south run —
- *  OPEN since item 34, its district built south of Creation
- *  Row, reclassified from the plaza-floor marker that stood at
- *  (27.0, 22.5) — its gate could not stand on the marker's own
- *  line, because east of z 22.5 is Creation Row's built quarter;
- *  the gate stands at z 30.5, the one east-wall line that opens
- *  into the Ateliers quarter itself; the Boardwalk in the south
- *  wall — OPEN since item 35, its district built: the one gate
- *  that was always a gate, barred honestly until its quarter
- *  stood beyond it). One is a marker: the Creator Heights
- *  marker keeps its Phase-1 spot. Every footprint below matches
+ *  the east wall — OPEN since item 33, reclassified from the
+ *  plaza-floor marker that stood at (27.0, 14.5); the Ateliers
+ *  in the east wall's south run — OPEN since item 34, its
+ *  district built south of Creation Row, reclassified from the
+ *  plaza-floor marker that stood at (27.0, 22.5) — its gate
+ *  could not stand on the marker's own line, because east of
+ *  z 22.5 is Creation Row's built quarter; the gate stands at
+ *  z 30.5, the one east-wall line that opens into the Ateliers
+ *  quarter itself; the Boardwalk in the south wall — OPEN since
+ *  item 35: the one gate that was always a gate, barred
+ *  honestly until its quarter stood beyond it; Creator Heights
+ *  — OPEN since item 36, reclassified from the freestanding
+ *  plaza-floor marker at (13.5, 24.6): the gate stands on the
+ *  marker's exact spot, in the enclave's own new west wall on
+ *  the marker's line (x 13.5), because every outward line from
+ *  the marker was already built over and the quarter stands
+ *  within the plaza grounds). Every footprint below matches
  *  the body the scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
@@ -320,7 +342,7 @@ export const PLAZA_GATES: PlazaGate[] = [
   { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   { name: "CREATION ROW", kind: "gate", x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   { name: "THE ATELIERS", kind: "gate", x: 28.2, z: 30.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
-  { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+  { name: "CREATOR HEIGHTS", kind: "gate", x: 13.5, z: 24.6, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
 ];
 
 /** The Creator Rooms arch's pillars (0.55 m square) in world
@@ -482,7 +504,17 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
   [COURTYARD_ID]: {
     id: COURTYARD_ID,
     name: "The King's Plaza",
-    walk: { minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 },
+    /* DELIBERATELY restructured in item 36: the main walk rect
+     * used to run the plaza's full width (x −27.85..27.85). The
+     * Creator Heights enclave now stands on the north-east
+     * quadrant behind its own west wall (x 13.5), so the main
+     * rect ends at that wall's plaza face (x 13.15) and the two
+     * plaza strips the enclave does not take — the north-east
+     * lane and the south bridge lane — ride as grounds below.
+     * Every point the old rect covered is still plaza ground
+     * except the enclave's own footprint, which is the Heights'
+     * room now. */
+    walk: { minX: -27.85, maxX: 13.15, minZ: 12.55, maxZ: 25.7 },
     grounds: [
       { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
       /* The south-east yard (item 34): the enclosed floor east of
@@ -495,7 +527,11 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
        * it hid. The yard's edges are all real: the Creator
        * Room's east wall west, the east wall (and its gate)
        * east, the south run south. */
-      { minX: 16.6, maxX: 27.85, minZ: 25.6, maxZ: 33.6 },
+      /* DELIBERATELY trimmed in item 36: the yard's north edge
+       * used to start at z 25.6, under what is now the Creator
+       * Heights enclave's south wall (z 25.525..25.875) — it
+       * starts south of that wall now, at its face. */
+      { minX: 16.6, maxX: 27.85, minZ: 25.9, maxZ: 33.6 },
       /* The arch spur (item 41): the promenade's eastward arm
        * along the Creator Room's north wall face, from the
        * promenade's edge to the arch — its band runs to the
@@ -506,6 +542,31 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
        * arch's flanking return walls stand in the band as
        * blocked rects (PLAZA_WALL_RUNS). */
       { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
+      /* The north-east lane (item 36): the plaza strip north of
+       * the Creator Heights enclave's north wall, from the main
+       * walk's new east edge to the east wall — the way a walker
+       * still reaches the Creation Row gate (z 14.5) on foot.
+       * It stops at the enclave wall's face clearance (the
+       * promenade's own measure: grounds end ~0.2 m short of the
+       * wall face), so no lane point stands inside the wall or
+       * its piers (blocked, in the Heights' list); its north
+       * edge is the hall's façade wall. */
+      { minX: 13.15, maxX: 27.85, minZ: 12.55, maxZ: 15.45 },
+      /* The south bridge lane (item 36): the narrow plaza strip
+       * between the Heights enclave's south wall and the Creator
+       * Rooms building's north wall, from the arch spur east to
+       * the south-east yard — the way a walker still reaches
+       * the yard (and the Ateliers gate) on foot now that the
+       * main walk ends at the enclave's west wall. Two bands:
+       * the west band runs from the main walk's south edge past
+       * the arch's east pillar (the pillar is the plaza's own
+       * blocked, so the band may run up to it); the east band
+       * runs wholly south of the enclave's south wall and the
+       * gate's south post (blocked, in the Heights' and the
+       * plaza's lists), and the two bands overlap at the lane's
+       * middle so a step may pass between them. */
+      { minX: 10.65, maxX: 13.3, minZ: 25.6, maxZ: 26.2 },
+      { minX: 13.3, maxX: 16.75, minZ: 25.88, maxZ: 26.2 },
     ],
     /* Solid footprints, derived from the dressing plan above
      * (PLAZA_BLOCKED): the monument's plinth — its board station
@@ -631,6 +692,35 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     interior: BOARDWALK_INTERIOR,
     camClamp: BOARDWALK_CAM_CLAMP,
     spawn: { ...BOARDWALK_SPAWN },
+  },
+  /* ── Stage C item 36: CREATOR HEIGHTS ──────────────────────────
+   * The sixth built district: the creators' residential quarter
+   * — an enclave on the plaza's own north-east quadrant, through
+   * the freestanding marker's gate reclassified OPEN on its
+   * exact spot (13.5, 24.6), in the enclave's own west wall on
+   * the marker's line — since this batch a true passage (the
+   * PALACE_DOORS portal below), not a signpost's promise. Every
+   * outward line from the marker was already built over (hall
+   * north, Row/Ateliers east, Creator Rooms + Boardwalk south,
+   * Stage/Gardens west), so the quarter stands within the plaza
+   * grounds; the plaza keeps the north-east lane and the south
+   * bridge lane around it as its own grounds (above), so the
+   * Row and Ateliers gates stay reachable on foot. One room,
+   * one presence, like every district: the quarter is public
+   * look/listen space exactly as the plaza is (no stage
+   * authority, no new verbs — the residence fronts are the
+   * creator-rooms concept on show, and the Heights Slate is its
+   * one door). Its plan lives in creator-heights.ts; the server
+   * clamp box mirrors it (api-server lib/world-palace.ts). */
+  [HEIGHTS_ID]: {
+    id: HEIGHTS_ID,
+    name: "Creator Heights",
+    walk: HEIGHTS_WALK,
+    blocked: [...HEIGHTS_BLOCKED],
+    camBlocked: [...HEIGHTS_TALL_BLOCKED],
+    interior: HEIGHTS_INTERIOR,
+    camClamp: HEIGHTS_CAM_CLAMP,
+    spawn: { ...HEIGHTS_SPAWN },
   },
 };
 
@@ -817,6 +907,25 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: -0.95, maxX: 0.95, minZ: 33.6, maxZ: 34.4 },
     negRoom: COURTYARD_ID,
     posRoom: BOARDWALK_ID,
+  },
+  /* The Creator Heights gate (item 36): the enclave west wall's
+   * gap (z 23.6..25.6 at x 13.5), now a true passage — the
+   * freestanding marker that stood on this exact spot is a gate
+   * now. The portal spans the wall band with aprons on both
+   * faces; its z span stops inside the gate posts' footprints
+   * (posts at z 23.6 / 25.6, blocked in PLAZA_BLOCKED), so the
+   * walkable doorway is the honest opening between the posts.
+   * Membership flips at the wall plane: east of it is the
+   * district, west the plaza. */
+  {
+    roomId: HEIGHTS_ID,
+    axis: "x",
+    plane: 13.5,
+    spanMin: 23.6,
+    spanMax: 25.6,
+    portal: { minX: 13.1, maxX: 13.9, minZ: 23.75, maxZ: 25.45 },
+    negRoom: COURTYARD_ID,
+    posRoom: HEIGHTS_ID,
   },
 ];
 

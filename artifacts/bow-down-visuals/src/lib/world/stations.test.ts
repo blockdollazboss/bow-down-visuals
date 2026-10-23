@@ -41,12 +41,13 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    /* 39 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
+    /* 41 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
      * item 32 (Gardens Slate), Stack-100 #65 (Beat Marketplace),
      * Stack-100 #74 (Jewelry Bench), item 33 (Row Slate),
      * item 34 (Ateliers Slate), item 35 (Boardwalk Slate) and
-     * item 97's closing part (the Hook Desk). */
-    expect(PALACE_STATIONS.length).toBe(40);
+     * item 97's closing part (the Hook Desk) and item 36
+     * (Heights Slate). */
+    expect(PALACE_STATIONS.length).toBe(41);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -80,9 +81,11 @@ describe("the station registry", () => {
      * (Stack-100 #65) + Creation Row's Row Slate (item 33, on
      * the same panel again) + the Ateliers' Ateliers Slate
      * (item 34, on the same panel again) + the Boardwalk's
-     * Boardwalk Slate (item 35, on the same panel again), born
-     * world-native like the six — they never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(17);
+     * Boardwalk Slate (item 35, on the same panel again) + the
+     * Heights' Heights Slate (item 36, on the same panel
+     * again), born world-native like the six — they never had
+     * a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(18);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -159,6 +162,7 @@ describe("the station registry", () => {
       "row-slate": null,
       "ateliers-slate": null,
       "boardwalk-slate": null,
+      "heights-slate": null,
     };
     expect(Object.keys(table).length).toBe(PALACE_STATIONS.length);
     for (const s of PALACE_STATIONS) {

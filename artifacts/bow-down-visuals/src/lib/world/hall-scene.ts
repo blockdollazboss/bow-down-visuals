@@ -141,6 +141,7 @@ import {
   CREATION_ROW_ID,
   ATELIERS_ID,
   BOARDWALK_ID,
+  HEIGHTS_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   palaceRoomLayout,
@@ -186,6 +187,12 @@ import {
   BOARDWALK_RAILING_POSTS, BOARDWALK_BENCHES, BOARDWALK_PLANTERS, BOARDWALK_PLANTER_CROWNS,
   BOARDWALK_LAMPS, BOARDWALK_BANNER_POLES, BOARDWALK_BANNER_POLE,
 } from "./boardwalk";
+import {
+  HEIGHTS_INTERIOR, HEIGHTS_WALL_RUNS, HEIGHTS_PIERS, HEIGHTS_WALKWAY, HEIGHTS_FRONTS, FRONT_KIT,
+  HEIGHTS_FRONT_POSTS, HEIGHTS_FRONT_DOORS, HEIGHTS_TERRACES, HEIGHTS_TERRACE_STEPS,
+  HEIGHTS_TERRACE_CROWNS, HEIGHTS_BENCHES, HEIGHTS_PLANTERS, HEIGHTS_PLANTER_CROWNS,
+  HEIGHTS_LAMPS, HEIGHTS_BANNER_POLES, HEIGHTS_BANNER_POLE,
+} from "./creator-heights";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
@@ -2655,8 +2662,11 @@ export class KingsHallScene {
      * pass. The Gardens' aim centres south, on the parterre;
      * the Row's centres east, on the makers' street; the
      * Ateliers' centres south-east, on the fine-work lane; the
-     * Boardwalk's centres south, on the bandstand. */
-    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID;
+     * Boardwalk's centres south, on the bandstand. Creator
+     * Heights (item 36) is an enclave ON the plaza floor, so it
+     * keeps the plaza's own aim and fit — its ground lies well
+     * inside the plaza's shadow camera. */
+    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID || this.currentRoom === HEIGHTS_ID;
     const inDistrict = this.currentRoom === STAGE_GROUNDS_ID;
     const inGardens = this.currentRoom === LISTENING_GARDENS_ID;
     const inRow = this.currentRoom === CREATION_ROW_ID;
@@ -2704,7 +2714,7 @@ export class KingsHallScene {
     const fog = this.scene.fog;
     if (!(fog instanceof THREE.Fog)) return;
     const look = hallLookFor(this.theme);
-    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID) {
+    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID || this.currentRoom === HEIGHTS_ID) {
       fog.near = look.theme === "light" ? 48 : 34;
       fog.far = look.theme === "light" ? 140 : 115;
     } else {
@@ -2928,6 +2938,7 @@ export class KingsHallScene {
     this.buildCreationRowShell(group, look, mats, anim);
     this.buildAteliersShell(group, look, mats, anim);
     this.buildBoardwalkShell(group, look, mats, anim);
+    this.buildCreatorHeightsShell(group, look, mats, anim);
     this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
@@ -3456,7 +3467,16 @@ export class KingsHallScene {
      * survives as the accent language it is indoors (the central
      * path, the arch spur, the monument ring below). */
     const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
-    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, "paving", pavingSurface);
+    /* The Creator Heights enclave (item 36) owns its own floor
+     * on the north-east quadrant (interior x 13.5..28.2,
+     * z 15.9..25.7) — the tiling cedes that footprint to the
+     * Heights shell exactly as it cedes the Creator Room's, so
+     * no two underlays ever coincide: west of the enclave, the
+     * north-east lane strip north of it, and the sliver south
+     * of it down to the z 26 abut line. */
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 13.5, minZ: 12.4, maxZ: 26.0 }, "paving", pavingSurface);
+    this.shellFloor(g, look, mats, { minX: 13.5, maxX: 28.2, minZ: 12.4, maxZ: 15.9 }, "paving", pavingSurface);
+    this.shellFloor(g, look, mats, { minX: 13.5, maxX: 28.2, minZ: 25.7, maxZ: 26.0 }, "paving", pavingSurface);
     this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, "paving", pavingSurface);
     /* The south-east patch (overhaul stage 3): east of the Creator
      * Room's floor and south of the main grounds, the shipped plan
@@ -3470,11 +3490,17 @@ export class KingsHallScene {
      * instanced in ONE draw a hair above the underlay rects. The
      * underlay catches the margins no whole tile fits. */
     {
+      /* The Heights enclave's slabs are the Heights shell's to
+       * lay (item 36): the plaza's whole-tile plan is filtered
+       * past the enclave's footprint so no slab is drawn twice. */
+      const plazaSlabs = PAVING_SLABS.filter(
+        (s) => !(s.cx > HEIGHTS_INTERIOR.minX && s.cx < HEIGHTS_INTERIOR.maxX && s.cz > HEIGHTS_INTERIOR.minZ && s.cz < HEIGHTS_INTERIOR.maxZ),
+      );
       const slabInst = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), PAVING_SLABS.length,
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), plazaSlabs.length,
       );
       const dummy = new THREE.Object3D();
-      PAVING_SLABS.forEach((s, i) => {
+      plazaSlabs.forEach((s, i) => {
         dummy.position.set(s.cx, 0.015, s.cz);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
@@ -3580,10 +3606,21 @@ export class KingsHallScene {
     {
       const shadows = QUALITY[this.quality].shadows;
       const dummy = new THREE.Object3D();
-      const grassW = LAWN_PANELS[0]!.w - LAWN_BED.inset * 2;
-      const grassD = LAWN_PANELS[0]!.d - LAWN_BED.inset * 2;
+      /* Item 36: the Creator Heights enclave stands on the east
+       * lawn's eastern share (its wall at x 13.5). LAWN_PANELS
+       * data is untouched — the build CLIPS the east panel to
+       * the strip west of the wall (x 6.5..13.5), exactly the
+       * ground the plaza still owns there; the quarter's own
+       * green is its planters and terrace crowns. The clipped
+       * panel gets no medallion (its heart is the enclave's
+       * court now), and the per-panel grass size below replaces
+       * the old shared size, which only held while both panels
+       * matched. */
+      const lawnPanels = LAWN_PANELS.map((p) =>
+        p.cx > 0 ? { panel: { ...p, cx: 10.0, w: 7.0 }, clipped: true } : { panel: p, clipped: false },
+      );
       /* Edging: one instanced draw for all eight rim runs. */
-      const edging = LAWN_PANELS.flatMap((p) => lawnEdgingRuns(p));
+      const edging = lawnPanels.flatMap(({ panel }) => lawnEdgingRuns(panel));
       const edgeInst = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(2, 0.3), edging.length,
       );
@@ -3601,8 +3638,10 @@ export class KingsHallScene {
       g.add(edgeInst);
       /* Planting crowns: one instanced draw for both lawns'
        * parterres, jitter + tint per crown from prop-variation. */
-      const spots = LAWN_PANELS.flatMap((p, pi) =>
-        lawnPlantingSpots(p).map((s, si) => ({ ...s, index: pi * 100 + si })),
+      const spots = lawnPanels.flatMap(({ panel }, pi) =>
+        lawnPlantingSpots(panel)
+          .filter((s) => Math.abs(s.x - panel.cx) < panel.w / 2 - LAWN_BED.inset && Math.abs(s.z - panel.cz) < panel.d / 2 - LAWN_BED.inset)
+          .map((s, si) => ({ ...s, index: pi * 100 + si })),
       );
       const crownInst = new THREE.InstancedMesh(
         new THREE.IcosahedronGeometry(0.44, 1),
@@ -3623,7 +3662,9 @@ export class KingsHallScene {
       if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
       crownInst.castShadow = shadows;
       g.add(crownInst);
-      for (const panel of LAWN_PANELS) {
+      for (const { panel, clipped } of lawnPanels) {
+        const grassW = panel.w - LAWN_BED.inset * 2;
+        const grassD = panel.d - LAWN_BED.inset * 2;
         const bed = new THREE.Mesh(
           new THREE.BoxGeometry(panel.w, LAWN_BED.rimH, panel.d),
           mats.stoneFor(panel.w, LAWN_BED.rimH),
@@ -3637,6 +3678,7 @@ export class KingsHallScene {
         grass.position.set(panel.cx, panel.topY - 0.02, panel.cz);
         grass.receiveShadow = shadows;
         g.add(grass);
+        if (clipped) continue;
         const medallion = new THREE.Mesh(
           new THREE.RingGeometry(PARTERRE_MEDALLION.innerR, PARTERRE_MEDALLION.outerR, 40),
           mats.goldDark,
@@ -5918,6 +5960,326 @@ export class KingsHallScene {
     this.shellGroups.set(BOARDWALK_ID, g);
   }
 
+  /** Creator Heights (Stage C item 36): the creators' residential
+   *  quarter — a walled enclave on the plaza's north-east
+   *  quadrant, built entirely from creator-heights.ts placement
+   *  data (the same data palace-layout derives the room's
+   *  blocked list from, so every body built here is solid
+   *  there). Residence fronts on the north wall, overlook
+   *  terraces on the court's south edge, benches, planted beds,
+   *  banner poles, lantern standards — emissive + item-27 glow
+   *  sprites after dark, ZERO new real PointLights. */
+  private buildCreatorHeightsShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* The ground: the look's paving over the whole quarter (the
+     * shell floor — the courtyard's tiling cedes this footprint
+     * to this shell), with the whole-tile wearing slabs
+     * instanced over it. */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    this.shellFloor(g, look, mats, HEIGHTS_INTERIOR, "paving", pavingSurface);
+    {
+      const slabs = pavingSlabsFor(HEIGHTS_INTERIOR);
+      const slabInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), slabs.length,
+      );
+      slabs.forEach((s, i) => {
+        dummy.position.set(s.cx, 0.015, s.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        slabInst.setMatrixAt(i, dummy.matrix);
+      });
+      slabInst.instanceMatrix.needsUpdate = true;
+      slabInst.receiveShadow = shadows;
+      g.add(slabInst);
+    }
+
+    /* The quarter's own enclosure: low marble walls with gold
+     * caps — the west wall in two runs flanking the open gate on
+     * the old marker's spot, the north run and the south run.
+     * The east side is the plaza's own east wall, already
+     * standing in the courtyard shell. */
+    for (const run of HEIGHTS_WALL_RUNS) {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w, 1.05, run.d), mats.marbleFor(Math.max(run.w, run.d), 1.05),
+      );
+      wall.position.set(run.x, 0.525, run.z);
+      wall.castShadow = shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w === 0.35 ? 0.47 : run.w, 0.07, run.d === 0.35 ? 0.47 : run.d), mats.gold,
+      );
+      cap.position.set(run.x, 1.09, run.z);
+      g.add(cap);
+    }
+    /* Grounded piers on the north wall's line (item 43's build).
+     * No south-west pier: the south bridge lane passes there. */
+    for (const p of HEIGHTS_PIERS) {
+      const pier = new THREE.Group();
+      pier.position.set(p.x, 0, p.z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
+      pier.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), mats.marble);
+      shaft.position.y = 0.3 + 3.54 / 2;
+      shaft.castShadow = shadows;
+      pier.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      pier.add(cap);
+      g.add(pier);
+    }
+
+    /* The gate walkway: a marble strip on the gate's line from
+     * the gate east to the residents' court, gold strips on its
+     * edges — the plaza spine's language, turned east. Flat
+     * accent, no collision, like every path on the grounds. */
+    {
+      const len = HEIGHTS_WALKWAY.toX - HEIGHTS_WALKWAY.fromX;
+      const cx = (HEIGHTS_WALKWAY.fromX + HEIGHTS_WALKWAY.toX) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(len, 0.016, HEIGHTS_WALKWAY.w), mats.marble);
+      slab.position.set(cx, 0.022, HEIGHTS_WALKWAY.cz);
+      g.add(slab);
+      for (const sz of [-1.03, 1.03]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.012, 0.07), mats.goldDark);
+        strip.position.set(cx, 0.028, HEIGHTS_WALKWAY.cz + sz);
+        g.add(strip);
+      }
+    }
+
+    /* The residence fronts: four posts per front (instanced), a
+     * fabric canopy with a gold-dark edge on their heads, and
+     * the residence door closing each front's back — a dark
+     * metal panel with a gold trim and a lit transom window
+     * above it (emissive only, the lamp-glass law; NO real
+     * light behind it). Scenery honouring the creator-rooms
+     * concept: the creators' doors on their quarter. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.07, 0.09, FRONT_KIT.postH, 10), mats.darkMetal,
+        HEIGHTS_FRONT_POSTS.map((p) => ({ x: p.x, y: FRONT_KIT.postH / 2, z: p.z })),
+      );
+      for (const f of HEIGHTS_FRONTS) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(FRONT_KIT.canopyW + 0.1, 0.05, FRONT_KIT.canopyD + 0.1), mats.goldDark);
+        trim.position.set(f.x, FRONT_KIT.canopyY - 0.04, f.z);
+        g.add(trim);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(FRONT_KIT.canopyW, 0.08, FRONT_KIT.canopyD), mats.fabric);
+        canopy.position.set(f.x, FRONT_KIT.canopyY, f.z);
+        canopy.castShadow = shadows;
+        g.add(canopy);
+      }
+      instanced(
+        new THREE.BoxGeometry(FRONT_KIT.doorW, FRONT_KIT.doorH, FRONT_KIT.doorD), mats.darkMetal,
+        HEIGHTS_FRONT_DOORS.map((d) => ({ x: d.cx, y: d.cy, z: d.cz })),
+      );
+      instanced(
+        new THREE.BoxGeometry(FRONT_KIT.doorW, 0.05, 0.05), mats.gold,
+        HEIGHTS_FRONT_DOORS.map((d) => ({ x: d.cx, y: FRONT_KIT.doorH - 0.06, z: d.cz + FRONT_KIT.doorD / 2 + 0.02 })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      instanced(
+        new THREE.BoxGeometry(1.2, 0.35, 0.06),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.35, metalness: 0.1,
+        }),
+        HEIGHTS_FRONT_DOORS.map((d) => ({ x: d.cx, y: FRONT_KIT.doorH - 0.28, z: d.cz + FRONT_KIT.doorD / 2 + 0.01 })),
+      );
+    }
+
+    /* The overlook terraces: raised stone masses on the court's
+     * south edge with a gold trim line, ceremonial steps on
+     * their north faces (inside the blocked footprints), and
+     * planting crowns along their tops (instanced, item-18
+     * variation). The elevation is visual only — flat-plane
+     * movement does not climb (the item-38 precedent), and each
+     * terrace's whole footprint is honestly blocked. */
+    {
+      for (const t of HEIGHTS_TERRACES) {
+        const mass = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), mats.stoneFor(t.w, t.h));
+        mass.position.set(t.cx, t.cy, t.cz);
+        mass.castShadow = shadows;
+        mass.receiveShadow = shadows;
+        g.add(mass);
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.05, 0.07), mats.gold);
+        trim.position.set(t.cx, t.h + 0.025, t.cz - t.d / 2 + 0.1);
+        g.add(trim);
+      }
+      instanced(
+        new THREE.BoxGeometry(2.0, 0.15, 0.5), mats.stoneFor(2, 0.3),
+        HEIGHTS_TERRACE_STEPS.map((s) => ({ x: s.cx, y: s.cy, z: s.cz })),
+      );
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.4, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        HEIGHTS_TERRACE_CROWNS.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      HEIGHTS_TERRACE_CROWNS.forEach((c, i) => {
+        const cv = propVariation("crown", 1500 + i);
+        dummy.position.set(c.x, 0.45 + 0.28 * cv.scaleY, c.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+    }
+
+    /* Benches on the residents' court: instanced seats, backs
+     * (on the side away from what they face) and legs, the
+     * plaza benches' construction. */
+    {
+      const seatPlaces: Array<{ x: number; y: number; z: number }> = [];
+      const backPlaces: Array<{ x: number; y: number; z: number }> = [];
+      const legPlaces: Array<{ x: number; y: number; z: number }> = [];
+      for (const b of HEIGHTS_BENCHES) {
+        seatPlaces.push({ x: b.x, y: BENCH.seatY, z: b.z });
+        backPlaces.push({ x: b.x, y: BENCH.seatY + 0.28, z: b.z - b.facing * 0.24 });
+        for (const endOff of [-0.8, 0.8]) {
+          legPlaces.push({ x: b.x + endOff, y: BENCH.seatY / 2, z: b.z });
+        }
+      }
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.09, BENCH.depth), mats.stoneFor(2, 0.4), seatPlaces);
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.5, 0.08), mats.stoneFor(2, 0.5), backPlaces);
+      instanced(new THREE.BoxGeometry(0.09, BENCH.seatY, BENCH.depth - 0.1), mats.darkMetal, legPlaces);
+    }
+
+    /* The planted beds: stone-edged boxes of green against the
+     * west wall and in the north-east corner, with planting
+     * crowns along their tops (instanced, item-18 variation). */
+    {
+      for (const p of HEIGHTS_PLANTERS) {
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.d), mats.stoneFor(p.w, p.h));
+        bed.position.set(p.cx, p.cy, p.cz);
+        bed.castShadow = shadows;
+        bed.receiveShadow = shadows;
+        g.add(bed);
+        const green = new THREE.Mesh(
+          new THREE.BoxGeometry(p.w - 0.2, 0.07, p.d - 0.2),
+          new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0 }),
+        );
+        green.position.set(p.cx, p.h + 0.035, p.cz);
+        g.add(green);
+      }
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.4, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        HEIGHTS_PLANTER_CROWNS.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      HEIGHTS_PLANTER_CROWNS.forEach((c, i) => {
+        const cv = propVariation("crown", 1600 + i);
+        dummy.position.set(c.x, 0.55 + 0.28 * cv.scaleY, c.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+    }
+
+    /* Banner poles flanking the walkway where it meets the
+     * court: a dark pole, a gold crossarm, and a hanging banner
+     * in the look's cloth. */
+    for (const p of HEIGHTS_BANNER_POLES) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, HEIGHTS_BANNER_POLE.h, 8), mats.darkMetal);
+      pole.position.set(p.x, HEIGHTS_BANNER_POLE.h / 2, p.z);
+      pole.castShadow = shadows;
+      g.add(pole);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8), mats.gold);
+      arm.rotation.x = Math.PI / 2;
+      arm.position.set(p.x, HEIGHTS_BANNER_POLE.h - 0.15, p.z);
+      g.add(arm);
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
+      banner.position.set(p.x, HEIGHTS_BANNER_POLE.h - 1.05, p.z);
+      banner.castShadow = shadows;
+      g.add(banner);
+    }
+
+    /* The quarter's lantern standards — plaza-life's LAMP build,
+     * instanced: stone plinths, dark posts, gold cages, emissive
+     * glass, glow sprites after dark. Zero real lights. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        HEIGHTS_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        HEIGHTS_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        HEIGHTS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        HEIGHTS_LAMPS.length,
+      );
+      HEIGHTS_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        HEIGHTS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        HEIGHTS_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.61);
+        });
+      }
+    }
+
+    // The way back, labeled from the district side of the gate.
+    this.doorPlate(g, "THE KING'S PLAZA", 13.75, PALACE_DOOR_HEIGHT + 0.66, 24.6, Math.PI / 2, 2.6);
+
+    // The district's door-station: the Heights Slate on the court.
+    this.buildStationMarkers(g, mats, HEIGHTS_ID);
+
+    group.add(g);
+    this.shellGroups.set(HEIGHTS_ID, g);
+  }
+
   /** Plaza life (Stage C batch C3), built entirely from
    *  plaza-life.ts placement data — the same data palace-layout
    *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
@@ -6847,7 +7209,17 @@ export class KingsHallScene {
         (id === BOARDWALK_ID && this.currentRoom === LISTENING_GARDENS_ID) ||
         (id === LISTENING_GARDENS_ID && this.currentRoom === BOARDWALK_ID) ||
         (id === BOARDWALK_ID && this.currentRoom === ATELIERS_ID) ||
-        (id === ATELIERS_ID && this.currentRoom === BOARDWALK_ID);
+        (id === ATELIERS_ID && this.currentRoom === BOARDWALK_ID) ||
+        /* Creator Heights and the plaza see each other through
+         * the open gate in the enclave's west wall (item 36):
+         * standing in either, the other stays built. The
+         * Heights also shares the plaza's east wall with
+         * Creation Row — the wall is low, so each is genuinely
+         * visible over it from the other. */
+        (id === HEIGHTS_ID && this.currentRoom === COURTYARD_ID) ||
+        (id === COURTYARD_ID && this.currentRoom === HEIGHTS_ID) ||
+        (id === HEIGHTS_ID && this.currentRoom === CREATION_ROW_ID) ||
+        (id === CREATION_ROW_ID && this.currentRoom === HEIGHTS_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible || gateVisible;
     }
     const plaza = this.shellGroups.get(COURTYARD_ID);

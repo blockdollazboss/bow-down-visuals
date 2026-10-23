@@ -236,6 +236,25 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: -13.4, maxX: 28.6, minZ: 33.6, maxZ: 60.4 },
     spawn: { x: 0, z: 36.2 },
   },
+  {
+    /* Stage C item 36: CREATOR HEIGHTS — the sixth built
+     * district, the creators' residential quarter: an enclave
+     * on the plaza's own north-east quadrant, through the
+     * freestanding marker's gate reclassified OPEN on its exact
+     * spot (a true passage since this batch). Bounds + spawn
+     * mirror the client floor plan (lib/world/creator-heights.ts
+     * via palace-layout.ts), a touch generous at the gate apron
+     * like every room's: the box covers the enclave walk
+     * (x 13.85..27.85, z 16.25..25.35) and the gate portal's
+     * west apron (x from 13.1). The district is public
+     * look/listen space like the plaza: NO stage and NO jukebox
+     * here — the palace's one stage stays in the hall and its
+     * one jukebox in the Music Hall. */
+    roomId: "world:creator-heights",
+    name: "Creator Heights",
+    bounds: { minX: 13.0, maxX: 28.6, minZ: 15.5, maxZ: 26.1 },
+    spawn: { x: 14.6, z: 24.6 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration

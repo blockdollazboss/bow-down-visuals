@@ -119,16 +119,28 @@ describe("The Ateliers — the room and its door (item 34)", () => {
   });
 
   it("walks from the plaza across the south-east yard through the gate into the Ateliers — no teleport, membership flips at the wall plane", () => {
-    /* The yard is plaza ground: a stroll south off the main
-     * grounds, then east along the gate's line. */
-    let pos = { x: 24.0, z: 25.4, room: COURTYARD_ID };
-    for (let i = 0; i < 8; i++) {
-      const step = resolvePalaceMove(pos, pos.x, pos.z + 0.6);
-      expect(step.z).toBeGreaterThan(pos.z); // every step lands — the yard is walkable
+    /* The yard is plaza ground — but the stroll's first leg was
+     * DELIBERATELY rerouted in item 36: the old direct line
+     * south at x 24 now meets the Creator Heights enclave, whose
+     * south wall stands across it. The yard is reached as the
+     * plaza now routes it: south off the arch spur onto the
+     * bridge lane between the enclave's south wall and the
+     * Creator Rooms building, then east across the bridge into
+     * the yard (item 36's own suite walks this same ground). */
+    let pos = { x: 12.9, z: 25.65, room: COURTYARD_ID };
+    {
+      const step = resolvePalaceMove(pos, pos.x, pos.z + 0.32);
+      expect(step.z).toBeGreaterThan(pos.z); // the step south onto the bridge lands
+      pos = { x: step.x, z: step.z, room: step.room };
+    }
+    for (let i = 0; i < 7; i++) {
+      const step = resolvePalaceMove(pos, pos.x + 0.55, pos.z);
+      expect(step.x).toBeGreaterThan(pos.x); // every step east across the bridge lands
       pos = { x: step.x, z: step.z, room: step.room };
     }
     expect(pos.room).toBe(COURTYARD_ID);
-    expect(pos.z).toBeGreaterThan(29.5);
+    expect(pos.x).toBeGreaterThan(16.6); // across the bridge, in the yard
+    expect(pos.z).toBeGreaterThan(25.9);
     /* East through the gate: membership flips at the plane. */
     let gate = { x: 26.2, z: 30.5, room: COURTYARD_ID };
     const seen: string[] = [];
