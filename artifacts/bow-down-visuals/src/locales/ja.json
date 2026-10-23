@@ -1911,7 +1911,8 @@
     "tipsTitle": "交渉のコツ",
     "title": "ブランド案件",
     "titleAccent": "計算機",
-    "usageRightsTitle": "使用権"
+    "usageRightsTitle": "使用権",
+    "findBrands": "ピッチするブランドを探す"
   },
   "brandDeals": {
     "addPlatformPlaceholder": "+ プラットフォームを追加",
@@ -1993,7 +1994,18 @@
     "tipsTitle": "刺さるコツ",
     "title": "ブランド案件",
     "titleAccent": "ファインダー",
-    "verifyPrefix": "確認:"
+    "verifyPrefix": "確認:",
+    "finderExplainer": "これはファインダーです — AIがあなたに合うブランドを探し出します。ブランドがクリエイター応募用に案件を投稿する場所は",
+    "marketplaceLink": "スポンサーマーケットプレイス",
+    "tabs": {
+      "finder": "ファインダー",
+      "marketplace": "マーケットプレイス"
+    },
+    "related": {
+      "label": "関連：",
+      "sponsorDashboard": "スポンサーダッシュボード",
+      "postDeal": "案件を投稿"
+    }
   },
   "brandingKit": {
     "eyebrow": "ブランドアイデンティティ",
@@ -2126,7 +2138,8 @@
     "trackPackage": "荷物を追跡",
     "trackingLabel": "追跡:",
     "viewOrders": "注文履歴を見る",
-    "zipPlaceholder": "郵便番号"
+    "zipPlaceholder": "郵便番号",
+    "contactForQuote": "見積もりはお問い合わせください"
   },
   "captionStyler": {
     "autoEmoji": "自動絵文字",
@@ -2614,7 +2627,9 @@
       "publishing": "出版契約",
       "distribution": "配信契約",
       "other": "その他"
-    }
+    },
+    "copy_analysis": "分析をコピー",
+    "download_analysis": "ダウンロード"
   },
   "copyright": {
     "e_g_midnight_crown": "例：Midnight Crown",
@@ -3773,7 +3788,8 @@
     "uploadLogo": "クリックしてロゴをアップロード",
     "uploadToContinue": "ロゴをアップロードして続ける",
     "uploadedLogoAlt": "アップロードしたロゴ",
-    "whatMaking": "何を作りますか？"
+    "whatMaking": "何を作りますか？",
+    "useMyLogo": "または、すでに作ったロゴを使う"
   },
   "jewelryShop": {
     "back": "戻る",
@@ -3818,7 +3834,8 @@
     "streetPh": "番地 *",
     "studioLink": "完全カスタムデザインをご希望ですか？ Logo-to-Luxuryスタジオを開く",
     "total": "合計:",
-    "zipPh": "郵便番号 *"
+    "zipPh": "郵便番号 *",
+    "designCarried": "スタジオのデザインが引き継がれました — 下で確認してください。"
   },
   "labelPitch": {
     "advancedSuffix": " プロフィール・統計・歌詞(より良いパッケージ)",
@@ -3920,7 +3937,9 @@
     "typeMajor": "メジャーレーベル",
     "typeMajors": "メジャー",
     "untitledSong": "無題の曲",
-    "yourSong": "あなたの曲"
+    "yourSong": "あなたの曲",
+    "distributeThisSong": "この曲を配信する",
+    "scheduleAnnouncement": "発表をスケジュール"
   },
   "liveShopping": {
     "addProduct": "商品を追加",
@@ -4688,7 +4707,8 @@
     "winsLabel": "実績（任意）",
     "winsPlaceholder": "例：前回のドロップで200万再生、オープニングアクトとして出演…",
     "writingPitch": "執筆中…",
-    "yourDeal": "あなたの案件"
+    "yourDeal": "あなたの案件",
+    "writeSponsorRead": "スポンサーリードを書く"
   },
   "sponsors": {
     "emptyNoDeals": "進行中の案件はまだありません",
@@ -4921,7 +4941,8 @@
     "searchPlaceholder": "ショップ、クリエイター、雰囲気を検索…",
     "startBuilding": "作り始める",
     "verifiedDomain": "確認済みドメイン: {{domain}}",
-    "visitShop": "ショップを訪れる"
+    "visitShop": "ショップを訪れる",
+    "domainsLink": "カスタムドメインを接続 →"
   },
   "streamPack": {
     "allOn": "すべてオン",
@@ -5940,7 +5961,9 @@
     "recordedTitle": "チップを記録しました!",
     "sendTipButton": "${{amount}} のチップを送る",
     "tipHeading": "チップ",
-    "tipStats": "これまで {{count}} 件のチップ · 合計 ${{total}}"
+    "tipStats": "これまで {{count}} 件のチップ · 合計 ${{total}}",
+    "paidTitle": "チップを送りました！",
+    "paidBody": "{{name}}があなたの${{amount}}のチップを受け取りました — 彼らの活動を応援してくれてありがとうございます。"
   },
   "tips": {
     "anonymousFan": "匿名のファン",
@@ -5979,7 +6002,8 @@
     "titleHighlight": "投げ銭ジャー",
     "titlePrefix": "あなたの",
     "totalsTitle": "投げ銭ジャーの合計",
-    "updateButton": "投げ銭ページを更新"
+    "updateButton": "投げ銭ページを更新",
+    "shareTipPage": "チップページをシェア"
   },
   "titles": {
     "allTagsCopyLabel": "すべてのタグ",
@@ -7623,82 +7647,83 @@
     "download": "ダウンロード"
   },
   "royalties": {
-    "eyebrow": "Royalty Tracker",
-    "titlePrefix": "Every stream. Every platform.",
-    "titleSuffix": "One dashboard.",
-    "subtitle": "Import your distributor CSVs and watch your catalog earn. The dashboard is free — only the AI earnings insights cost Visual Bucs.",
-    "signIn": "Sign in to track your royalties.",
-    "loading": "Loading your royalty dashboard…",
-    "free": "Free",
+    "eyebrow": "ロイヤリティトラッカー",
+    "titlePrefix": "すべての再生。すべてのプラットフォーム。",
+    "titleSuffix": "ひとつのダッシュボード。",
+    "subtitle": "ディストリビューターのCSVを取り込むと、カタログの収益が見えます。ダッシュボードは無料 — Visual BucsがかかるのはAI収益インサイトだけです。",
+    "signIn": "ロイヤリティを追跡するにはサインインしてください。",
+    "loading": "ロイヤリティダッシュボードを読み込み中…",
+    "free": "無料",
     "totals": {
-      "earnings": "Total earnings",
-      "entries": "{{num}} entries tracked",
-      "streams": "Total streams",
-      "acrossPlatforms": "across all platforms",
-      "songs": "Songs earning",
-      "platforms": "{{num}} platforms reporting"
+      "earnings": "総収益",
+      "entries": "{{num}}件を追跡中",
+      "streams": "総再生数",
+      "acrossPlatforms": "全プラットフォーム合計",
+      "songs": "収益のある曲",
+      "platforms": "{{num}}のプラットフォームから報告"
     },
     "insights": {
       "title": "AI earnings insights",
       "cost": "{{cost}} Visual Buc",
-      "analyze": "Analyze my earnings",
-      "needData": "Import some royalty data below first — I need numbers to analyze."
+      "analyze": "私の収益を分析",
+      "needData": "まず下からロイヤリティデータを取り込んでください — 分析には数字が必要です。"
     },
-    "monthlyTrend": "Monthly trend",
-    "perSong": "Per song",
-    "perPlatform": "Per platform",
-    "streams": "{{num}} streams",
+    "monthlyTrend": "月別トレンド",
+    "perSong": "曲ごと",
+    "perPlatform": "プラットフォームごと",
+    "streams": "{{num}}回再生",
     "empty": {
-      "title": "No royalty data yet",
-      "desc": "Export a CSV from your distributor (DistroKid, TuneCore, CD Baby — they all export them) and paste it below. We'll do the rest."
+      "title": "まだロイヤリティデータがありません",
+      "desc": "ディストリビューター（DistroKid、TuneCore、CD Baby — どこもエクスポートできます）からCSVを書き出して下に貼り付けましょう。残りは私たちがやります。"
     },
     "import": {
-      "title": "Import distributor CSV",
-      "desc": "We auto-detect common distributor columns (song, platform, period, streams, amount). Accepts MM/DD/YYYY or YYYY-MM-DD dates.",
-      "button": "Import entries",
-      "success": "Imported {{num}} entries.",
-      "warnings": "{{num}} row(s) skipped."
+      "title": "ディストリビューターCSVを取り込む",
+      "desc": "一般的なディストリビューターの列（曲、プラットフォーム、期間、再生数、金額）を自動検出します。MM/DD/YYYY形式またはYYYY-MM-DD形式の日付に対応。",
+      "button": "エントリを取り込む",
+      "success": "{{num}}件を取り込みました。",
+      "warnings": "{{num}}行をスキップしました。"
     },
     "platforms": {
-      "title": "Platform connections",
-      "desc1": "Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their auto-sync is honestly",
-      "comingSoon": "coming soon",
-      "desc2": ". CSV import works for everything today.",
-      "connected": "Connected{{account}}",
-      "notConnected": "Not connected",
-      "autoSyncSoon": "Auto-sync coming soon",
-      "connect": "Connect"
+      "title": "プラットフォーム接続",
+      "desc1": "Spotify、Apple Music、YouTubeはインディーアーティスト向けのセルフサービス型ロイヤリティAPIを提供していないため、その自動同期は正直に言うと",
+      "comingSoon": "近日公開",
+      "desc2": "です。CSV取り込みは今日からすべてに使えます。",
+      "connected": "接続済み{{account}}",
+      "notConnected": "未接続",
+      "autoSyncSoon": "自動同期は近日公開",
+      "connect": "接続"
     },
     "payouts": {
-      "title": "Payout tracking",
-      "record": "Record payout",
-      "cancel": "Cancel",
-      "distributor": "Distributor",
+      "title": "支払い追跡",
+      "record": "支払いを記録",
+      "cancel": "キャンセル",
+      "distributor": "ディストリビューター",
       "status": {
-        "expected": "expected",
-        "received": "received",
-        "partial": "partial",
-        "overdue": "overdue"
+        "expected": "予定",
+        "received": "受取済み",
+        "partial": "一部",
+        "overdue": "期限超過"
       },
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
-      "expectedAmount": "Expected amount",
-      "receivedAmount": "Received amount (optional)",
-      "save": "Save payout",
-      "empty": "No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.",
-      "expected": "Expected",
-      "received": "Received",
-      "statusExpected": "Expected",
-      "statusReceived": "Received",
-      "statusPartial": "Partial",
-      "statusOverdue": "Overdue"
+      "periodStart": "期間開始",
+      "periodEnd": "期間終了",
+      "expectedAmount": "予定金額",
+      "receivedAmount": "受取金額（任意）",
+      "save": "支払いを保存",
+      "empty": "まだ支払いの記録がありません。ディストリビューターは通常、報告期間の1〜3か月後に支払います。",
+      "expected": "予定",
+      "received": "受取済み",
+      "statusExpected": "予定",
+      "statusReceived": "受取済み",
+      "statusPartial": "一部",
+      "statusOverdue": "期限超過",
+      "statusLabel": "ステータス"
     },
-    "disclaimer": "Royalty figures come from your own imports — always reconcile against your distributor's official statements before making financial decisions. AI insights are analytical guidance, not financial advice.",
+    "disclaimer": "ロイヤリティの数値はあなた自身の取り込みに基づきます — 財務上の判断の前に、必ずディストリビューターの公式明細と照合してください。AIインサイトは分析上のガイダンスであり、財務アドバイスではありません。",
     "error": {
-      "importFailed": "Import failed.",
-      "insightsFailed": "Insights failed — try again.",
-      "payoutRequired": "Distributor, period dates, and expected amount are required.",
-      "payoutSaveFailed": "Couldn't save that payout."
+      "importFailed": "取り込みに失敗しました。",
+      "insightsFailed": "インサイトに失敗しました — もう一度お試しください。",
+      "payoutRequired": "ディストリビューター、期間の日付、予定金額が必要です。",
+      "payoutSaveFailed": "その支払いを保存できませんでした。"
     }
   },
   "playlistPitch": {
@@ -7826,125 +7851,182 @@
   },
   "refundPolicy": {
     "nav": {
-      "contactSupport": "Contact / Support"
+      "contactSupport": "お問い合わせ / サポート"
     },
-    "pageTitle": "Refund Policy",
-    "pageDescription": "Our refund policy for Visual Bucs and purchases.",
-    "title": "Refund Policy",
-    "lastUpdated": "Last updated: September 2026",
+    "pageTitle": "返金ポリシー",
+    "pageDescription": "Visual Bucsと購入に関する返金ポリシー。",
+    "title": "返金ポリシー",
+    "lastUpdated": "最終更新：September 2026",
     "whatWeSell": {
-      "title": "What We Sell",
-      "p1": "Bow Down Visuals sells ",
-      "strong": "digital AI creator Visual Bucs",
-      "p2": " — pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos, lyrics, thumbnails, caption sets, promo clips, and other digital creator content. All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped."
+      "title": "販売しているもの",
+      "p1": "Bow Down Visualsは",
+      "strong": "デジタルAIクリエイター向けVisual Bucs",
+      "p2": "を販売しています — 動画、音楽、画像、ボイスオーバー、リップシンク動画、歌詞、サムネイル、キャプションセット、プロモクリップ、その他のデジタルクリエイターコンテンツの生成に使う、事前購入式のユニットです。すべての商品はデジタルで、Visual Bucの使用時に即時納品されます。物理的な商品の販売や発送はありません。"
     },
     "generalPolicy": {
-      "title": "Digital Products — General Policy",
-      "p1": "Because our products are digital and consumed immediately upon generation, ",
-      "strong": " all sales are generally final",
-      "p2": ". Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded. Bonus Visual Bucs earned through referrals or promotions have no cash value and are non-refundable."
+      "title": "デジタル商品 — 一般ポリシー",
+      "p1": "当社の商品はデジタルで、生成時に即座に消費されるため、",
+      "strong": "すべての販売は原則として最終的なものとします",
+      "p2": "。コンテンツの生成に使用されたVisual Bucsは返金できません。紹介やプロモーションで獲得したボーナスVisual Bucsには現金価値がなく、返金対象外です。"
     },
     "whenWeRefund": {
-      "title": "When We Do Issue Refunds",
-      "intro": "We will issue a full or partial refund in the following situations:",
+      "title": "返金を行う場合",
+      "intro": "以下の状況では、全額または一部の返金を行います：",
       "technical": {
-        "title": "Technical failure:",
-        "desc": " Visual Bucs were deducted but no content was generated due to a platform error on our end."
+        "title": "技術的な失敗：",
+        "desc": " 当社側のプラットフォームエラーにより、Visual Bucsが差し引かれたのにコンテンツが生成されなかった場合。"
       },
       "duplicate": {
-        "title": "Duplicate charge:",
-        "desc": " You were charged more than once for the same subscription period or purchase."
+        "title": "二重請求：",
+        "desc": " 同じサブスクリプション期間または購入について複数回請求された場合。"
       },
       "unauthorized": {
-        "title": "Unauthorized charge:",
-        "desc": " You believe your account was accessed without your authorization."
+        "title": "不正な請求：",
+        "desc": " あなたの許可なくアカウントにアクセスされたと思われる場合。"
       },
       "firstSub": {
-        "title": "Within 48 hours of first subscription:",
-        "desc": " If you subscribed and have not yet used any Visual Bucs, you may request a full refund within 48 hours of your first payment."
+        "title": "初回サブスクリプションから48時間以内：",
+        "desc": " サブスクライブし、まだVisual Bucsを一切使用していない場合は、初回支払いから48時間以内に全額返金をリクエストできます。"
       }
     },
     "cancellations": {
-      "title": "Subscription Cancellations",
-      "p1": "You may cancel your subscription at any time. Cancellation stops future billing; you retain access to your remaining Visual Bucs and subscription benefits through the end of the current billing period. ",
-      "strong": "Partial-month refunds are not issued for cancellations mid-cycle."
+      "title": "サブスクリプションのキャンセル",
+      "p1": "サブスクリプションはいつでもキャンセルできます。キャンセルすると将来の請求は停止しますが、現在の請求期間の終了まで、残りのVisual Bucsとサブスクリプション特典へのアクセスは保持されます。",
+      "strong": "期間途中のキャンセルに対する月割り返金は行いません。"
     },
     "howTo": {
-      "title": "How to Request a Refund",
-      "intro1": "To request a refund, contact us within ",
-      "strong": "7 days",
-      "intro2": " of the charge:",
-      "email": "Email: ",
-      "subject1": "Subject: ",
-      "subject2": "Refund Request — [your email]",
-      "include": "Include: date of charge, amount, and a brief description of the issue",
-      "response": "We aim to respond within 2 business days. Approved refunds are returned to your original payment method within 5–10 business days depending on your bank."
+      "title": "返金のリクエスト方法",
+      "intro1": "返金をリクエストするには、請求から",
+      "strong": "7日",
+      "intro2": "以内にご連絡ください：",
+      "email": "メール：",
+      "subject1": "件名：",
+      "subject2": "返金リクエスト — [あなたのメールアドレス]",
+      "include": "含めるもの：請求日、金額、問題の簡単な説明",
+      "response": "2営業日以内の返信を目指しています。承認された返金は、銀行により5〜10営業日以内に元の支払い方法へ戻されます。"
     },
     "questions": {
-      "title": "Questions?",
-      "p1": "Visit our ",
-      "contactLink": "Contact / Support page",
-      "p2": " or email "
+      "title": "ご質問は？",
+      "p1": "当社の",
+      "contactLink": "お問い合わせ / サポートページ",
+      "p2": "をご覧いただくか、メールで"
     }
   },
   "referrals": {
     "error": {
-      "loadFailed": "Couldn't load referrals."
+      "loadFailed": "紹介を読み込めませんでした。"
     },
-    "shareText": "Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get {{reward}} free Visual Bucs to start!",
-    "titlePrefix": "Promoter",
-    "titleSuffix": "HQ",
+    "shareText": "Bow Down Visualsで一緒にやろう — コンテンツクリエイターのためのAIスタジオ。私のリンクから登録すると、スタート特典として{{reward}} Visual Bucsが無料でもらえます！",
+    "titlePrefix": "プロモーター",
+    "titleSuffix": "本部",
     "hero": {
-      "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
-      "reward": "{{num}} free Visual Bucs",
-      "p2": ", and you earn up to",
-      "cut": "40% of everything they buy",
-      "p3": "for",
-      "days": "{{days}} days",
+      "p1": "これがあなたの仕事です。Kingpinランクを登ろう — 星が増えるほど取り分も大きくなります。新規クリエイターには",
+      "reward": "{{num}} Visual Bucsが無料",
+      "p2": "、そしてあなたは最大で",
+      "cut": "彼らの購入すべてから40%",
+      "p3": "を",
+      "days": "{{days}}日間",
       "p4": "."
     },
     "signup": {
-      "link": "Sign up",
-      "suffix": "to get your referral link."
+      "link": "登録する",
+      "suffix": "と紹介リンクがもらえます。"
     },
     "rank": {
-      "cut": "{{pct}}% cut on every active referral",
-      "notRanked": "Not ranked yet",
-      "firstStar": "Your first referral earns your first star",
-      "moreTo": "{{num}} more to",
-      "nextReward": "{{pct}}% + {{bonus}} VB bonus",
-      "top": "Top of the mountain. The Don."
+      "cut": "有効な紹介ごとに{{pct}}%の取り分",
+      "notRanked": "まだランクなし",
+      "firstStar": "最初の紹介で最初の星を獲得",
+      "moreTo": "あと{{num}}人で",
+      "nextReward": "{{pct}}% ＋ {{bonus}} VBボーナス",
+      "top": "頂点。The Don。",
+      "myRanks": "あなたのランク",
+      "thisWeek": "今週",
+      "thisMonth": "今月",
+      "allTime": "全期間",
+      "unranked": "ランクなし"
     },
     "stats": {
-      "joined": "Creators joined",
-      "earning": "Earning now",
-      "earned": "Visual Bucs earned"
+      "joined": "参加したクリエイター",
+      "earning": "現在収益中",
+      "earned": "獲得したVisual Bucs"
     },
     "link": {
-      "title": "Your referral link",
-      "copy": "Copy",
-      "copied": "Copied"
+      "title": "あなたの紹介リンク",
+      "copy": "コピー",
+      "copied": "コピーしました"
     },
     "share": {
-      "title": "Share it"
+      "title": "シェアする"
     },
     "tracker": {
-      "title": "Your referrals",
-      "empty": "Nobody's joined through your link yet — share it above and they'll show up here.",
-      "creator": "Creator #{{n}}",
-      "joined": "Joined",
+      "title": "あなたの紹介",
+      "empty": "まだあなたのリンクから参加した人はいません — 上でシェアすれば、ここに表示されます。",
+      "creator": "クリエイター #{{n}}",
+      "joined": "参加済み",
       "earned": "+{{amount}} VB",
-      "earning": "Earning · {{days}}d left",
-      "ended": "Window ended"
+      "earning": "収益中 · 残り{{days}}日",
+      "ended": "期間終了"
     },
     "ladder": {
-      "title": "Kingpin ranks",
-      "you": "YOU",
-      "requirement": "{{min}}+ creators · {{pct}}% cut",
-      "bonus": "+{{bonus}} VB bonus",
-      "bonusClaimed": "✓{{bonus}} VB bonus claimed"
+      "title": "Kingpinランク",
+      "you": "あなた",
+      "requirement": "クリエイター{{min}}人以上 · 取り分{{pct}}%",
+      "bonus": "+{{bonus}} VBボーナス",
+      "bonusClaimed": "✓{{bonus}} VBボーナス受取済み"
     },
-    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy."
+    "footer": "紹介したクリエイターのVisual Bucs購入額の{{pct}}%を、参加後{{days}}日間、Visual Bucsで受け取ります。支払いは購入時に自動で反映されます。",
+    "contest": {
+      "title": "月間バイラルコンテスト",
+      "pool": "賞金プール {{total}} Visual Bucs",
+      "endsIn": "終了まで",
+      "days": "日",
+      "hours": "時間",
+      "mins": "分",
+      "secs": "秒",
+      "rulesTitle": "勝利条件",
+      "prizesTitle": "賞品",
+      "prizeFor": "#{{rank}} — {{prize}} VB",
+      "standingsTitle": "今月のレース",
+      "lastWinnersTitle": "先月の勝者",
+      "noWinners": "まだコンテストは決着していません — 最初の伝説になろう。",
+      "qualified": "資格達成",
+      "needMore": "資格まであと{{n}}人の登録",
+      "you": "あなた",
+      "yourSpots": "今月のあなたの登録数：{{n}}",
+      "shareWin": "{{name}}がBow Down Visuals月間バイラルコンテストで優勝 — {{signups}}人のクリエイターを集めて{{prize}} Visual Bucsを獲得！彼らより多く集められると思う？ {{link}}",
+      "share": "シェア",
+      "copied": "コピーしました",
+      "copy": "コピー",
+      "signups": "登録数",
+      "revenue": "獲得したVB"
+    },
+    "leaderboard": {
+      "title": "リクルーターリーダーボード",
+      "weekly": "週間",
+      "monthly": "月間",
+      "allTime": "全期間",
+      "empty": "まだボードにリクルーターはいません — 首位は大きく空いています。",
+      "signups": "登録数",
+      "revenue": "生み出したVB",
+      "yourRank": "あなたのランク：#{{rank}}",
+      "you": "あなた"
+    },
+    "sharekit": {
+      "title": "シェアキット",
+      "subtitle": "ワンクリック投稿。コピーして、拡散して、集めよう。",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "templates": {
+        "x": "Xに投稿",
+        "threads": "Threads / Instagram",
+        "tiktok": "TikTokキャプション",
+        "chat": "Discord / WhatsApp"
+      },
+      "postX": "Bow Down Visualsでクリエイター帝国を築いています — クリエイターのためのAIスタジオ。私のリンクから参加すると、スタート特典として{{reward}} Visual Bucsが無料でもらえます：{{link}}",
+      "postThreads": "POV：コンテンツ制作のチートコードを見つけた。Bow Down Visuals = AIサムネイル、フック、動画、音楽 — すべて。私のリンクで{{reward}} Visual Bucsが無料でスタート：{{link}}",
+      "postTiktok": "このAIスタジオがサムネイルもフックも動画も作ってくれます。私のリンクから参加すると{{reward}} Visual Bucsが無料でもらえます：{{link}}",
+      "postChat": "ねえ — Bow Down VisualsはクリエイターのためのAIチートコードだよ。私のリンクを使うと両方勝ち：あなたは{{reward}} Visual Bucsが無料でもらえて、私はリクルーターランクを登れます。{{link}}"
+    }
   },
   "randomizer": {
     "badge": "Thy Cheat Code's dice",
@@ -8414,7 +8496,180 @@
     }
   },
   "pricing": {
-    "pageTitle": "料金"
+    "pageTitle": "料金",
+    "betaNotice": {
+      "cta": "早期アクセスのベータリストに参加 →",
+      "label": "ベータのお知らせ：",
+      "text": "Bow Down Visualsは現在ベータ版です。支払いはまだ開始されていません。"
+    },
+    "bottomCta": {
+      "joinBeta": "ベータに参加",
+      "text": "ベータメンバーは創設レートを固定でき、ローンチ日に100ボーナスVisual Bucsを受け取れます。",
+      "title": "早く参加しよう。",
+      "tryTools": "ツールを試す"
+    },
+    "cancelledBanner": {
+      "text": "支払いがキャンセルされました。Visual Bucsは追加されていません。"
+    },
+    "creditPacks": {
+      "buyButton": "Visual Bucsを購入",
+      "checkoutFailed": "チェックアウトに失敗しました。もう一度お試しください。",
+      "networkError": "ネットワークエラー。もう一度お試しください。",
+      "processing": "処理中…",
+      "signInNote": "Visual Bucsを購入するにはサインインが必要です。",
+      "subtitle": "サブスクリプションなしでVisual Bucsを追加したい場合は、いつでもチャージできます。",
+      "testModeLead": "支払いは現在",
+      "testModeStrong": "テストモード",
+      "testModeTail": "です。実際のお金は請求されません。",
+      "title": "テスト用Visual Bucパック",
+      "packs": {
+        "10": {
+          "credits": "1,000 Visual Bucs",
+          "price": "$9"
+        },
+        "50": {
+          "credits": "5,000 Visual Bucs",
+          "price": "$39"
+        },
+        "150": {
+          "credits": "15,000 Visual Bucs",
+          "price": "$99"
+        },
+        "500": {
+          "credits": "50,000 Visual Bucs",
+          "price": "$249"
+        }
+      }
+    },
+    "faq": {
+      "a1": "Visual Bucsは、曲の作成、動画プランの生成、プロモクリップの作成、ミュージックビデオクリップの制作など、AI生成を実行するたびに使用されます。各アクションは月間Visual Bucs残高から引かれます。",
+      "a2": "まだです。Bow Down Visualsは現在ベータ版で、支払いは近日開始予定です。今すぐベータリストに参加して創設レートを固定し、課金開始時に早期アクセスを得ましょう。",
+      "a3": "はい。ベータユーザーはスターターVisual Bucs残高で一部のツールをテストできます。登録してクリエイターツールを探索し、フィードバックをお寄せください。フルアクセスは有料ローンチとともに開放されます。",
+      "a4": "はい — ミュージックビデオクリップの生成はプレミアムアクションで、標準のテキスト生成より多くのVisual Bucsを使用します。クリップごとの正確なコストはローンチ時に確定します。",
+      "a5": "はい。課金が開始されたら、アカウント設定からいつでもアップグレード、ダウングレード、キャンセルができます。契約なし。解約手数料なし。",
+      "a6": "AIソングボーカルとフルビート生成は計画中ですが、まだ完全にはローンチしていません。現在プラットフォームは、プロ仕様の歌詞、フック、バース、AI音楽プロンプト、動画トリートメント、プロモコンテンツを作成します — リリースを指揮し制作するために必要なすべてです。",
+      "q1": "Visual Bucsとは？",
+      "q2": "支払いはもう開始されていますか？",
+      "q3": "ベータ期間中にBow Down Visualsを使えますか？",
+      "q4": "ミュージックビデオクリップにはVisual Bucsがかかりますか？",
+      "q5": "後でキャンセルできますか？",
+      "q6": "ボーカル入りの本物の曲はもう作れますか？",
+      "title": "よくある質問"
+    },
+    "hero": {
+      "disclaimer": "無料生成はありません。隠れた計算料金もありません。作成前にVisual Bucコストを確認できます。",
+      "kicker": "料金",
+      "subtitle": "Street PunkからKingpinへ登り詰めよう — ランクが上がるほど、パワー、Visual Bucs、自動化、コントロールがアンロックされます。",
+      "titleLine1": "あなたの",
+      "titleLine2": "ランクを選ぶ",
+      "videoAriaLabel": "レベルアップするThy Cheat Code"
+    },
+    "jsonLd": {
+      "description": "コンテンツクリエイター向けのAI搭載クリエイティブスタジオ。曲の歌詞、ミュージックビデオのトリートメント、プロモクリップ、サムネイルのサブスクリプションプランを提供します。",
+      "offerCatalogName": "Bow Down Visualsプラン"
+    },
+    "pageDescription": "ランクを選ぼう — 星評価付きクリエイタープラン六種。",
+    "planCard": {
+      "bestFor": "おすすめ：{{bestFor}}",
+      "perMonth": "/月",
+      "wantedStarsAria": "ウォンテッドスター6つ中{{stars}}つ"
+    },
+    "plans": {
+      "comingSoonNote": "課金はまだ開始されていません。すべてのプランボタンはベータリストへの参加です。",
+      "crimeBoss": {
+        "badge": "限定",
+        "bestFor": "大量に作るクリエイター",
+        "credits": "月150,000 Visual Bucs",
+        "cta": "Crime Bossになる",
+        "features": {
+          "f1": "Shot Callerのすべて",
+          "f2": "優先生成キュー",
+          "f3": "対応環境で4K出力",
+          "f4": "新しいAIモデルへの早期アクセス",
+          "f5": "高度なクロスプラットフォーム分析",
+          "f6": "Crime Boss限定テンプレート＆スタイル"
+        },
+        "name": "Crime Boss"
+      },
+      "gangster": {
+        "bestFor": "本気のフルタイムクリエイター",
+        "credits": "月25,000 Visual Bucs",
+        "cta": "Gangsterになる",
+        "features": {
+          "f1": "Hustlerのすべて",
+          "f2": "リップシンク",
+          "f3": "マスタリング＋ステム分離",
+          "f4": "高度なエフェクト＆トランジション",
+          "f5": "アップスケーリング＆透かし除去",
+          "f6": "クリエイティブバリエーションの一括生成"
+        },
+        "name": "Gangster"
+      },
+      "hustler": {
+        "badge": "最も人気",
+        "bestFor": "活発なソロクリエイター",
+        "credits": "月10,000 Visual Bucs",
+        "cta": "Hustlerにランクアップ",
+        "features": {
+          "f1": "Street Punkのすべて",
+          "f2": "動画クリップ生成",
+          "f3": "Visual Vibesフルアクセス",
+          "f4": "Creator Vault＋Photo Shoot",
+          "f5": "Artist Voice Lock",
+          "f6": "キャラクター動画リファレンス"
+        },
+        "name": "Hustler"
+      },
+      "kingpin": {
+        "badge": "トップティア",
+        "bestFor": "レーベル、エージェンシー＆パワーユーザー",
+        "credits": "月400,000 Visual Bucs",
+        "cta": "Kingpinの王冠を手に入れる",
+        "features": {
+          "f1": "Crime Bossのすべて",
+          "f2": "対応環境で8K納品",
+          "f3": "カスタムスタイルトレーニング",
+          "f4": "ホワイトラベルのクライアント納品物",
+          "f5": "APIアクセス＆自動化",
+          "f6": "専任アカウントマネージャー"
+        },
+        "name": "Kingpin"
+      },
+      "shotCaller": {
+        "bestFor": "チーム＆クリエイターブランド",
+        "credits": "月60,000 Visual Bucs",
+        "cta": "Shot Callerになる",
+        "features": {
+          "f1": "Gangsterのすべて",
+          "f2": "チームワークスペース＆メンバーロール",
+          "f3": "共有ボールト＆ブランドライブラリ",
+          "f4": "レビュー＆承認ワークフロー",
+          "f5": "ソーシャルスケジューリング＆公開",
+          "f6": "アセットの一括作成"
+        },
+        "name": "Shot Caller"
+      },
+      "streetPunk": {
+        "bestFor": "新規クリエイター",
+        "credits": "月2,500 Visual Bucs",
+        "cta": "Street Punkになる",
+        "features": {
+          "f1": "Music Maker",
+          "f2": "ミュージックビデオのプラン＆トリートメント",
+          "f3": "プロモクリップのプランニング",
+          "f4": "Hook Studio＋バイラリティチェック",
+          "f5": "Thumbnail Maker＆Logo Maker",
+          "f6": "Thy Cheat Codeのガイド付きセットアップ"
+        },
+        "name": "Street Punk"
+      }
+    },
+    "wantedMeter": {
+      "ariaLabel": "ランクをプレビュー",
+      "hint": "星にホバーしてから、レベルをタップするとそのプランへジャンプします",
+      "hoverLabel_other": "{{count}}つ星 — {{name}} · ${{price}}/月",
+      "starOption_other": "{{count}}つ星 — {{name}} ${{price}}/月"
+    }
   },
   "scheduler": {
     "titlePrefix": "Thy",
@@ -8942,123 +9197,123 @@
     "planFallbackTitle": "私のコンテンツプラン"
   },
   "syncPitch": {
-    "tabSync": "Sync Pitch Kit",
-    "subTabOneSheet": "One-Sheets",
-    "subTabBriefs": "Brief Board",
-    "subTabTracker": "Pitch Tracker",
-    "statusSent": "Sent",
-    "statusPending": "Pending",
-    "statusPlaced": "Placed",
-    "statusDead": "Dead",
+    "tabSync": "シンクピッチキット",
+    "subTabOneSheet": "ワンシート",
+    "subTabBriefs": "ブリーフボード",
+    "subTabTracker": "ピッチトラッカー",
+    "statusSent": "送信済み",
+    "statusPending": "保留中",
+    "statusPlaced": "採用済み",
+    "statusDead": "終了",
     "typeTv": "TV",
-    "typeFilm": "Film",
-    "typeAd": "Ad",
-    "typeGame": "Game",
-    "yourSong": "Your song",
-    "enterManually": "Enter manually",
-    "fromLibrary": "From library ({{count}})",
-    "pickSong": "Pick a song from your library…",
-    "untitledSong": "Untitled song",
-    "songTitlePlaceholder": "Song title",
-    "artistNamePlaceholder": "Artist name",
-    "genrePlaceholder": "Genre (e.g. dark pop)",
-    "moodPlaceholder": "Mood tags, comma separated (e.g. brooding, triumphant)",
-    "bpmPlaceholder": "BPM (e.g. 92)",
-    "keyPlaceholder": "Key (e.g. A minor)",
-    "descriptionPlaceholder": "Describe the song — story, vibe, what it's about…",
-    "instrumentalAvailable": "Instrumental version available",
-    "stemsAvailable": "Stems available",
-    "stemsHint": "Supervisors ask for instrumental and stems first — tick what you actually have.",
-    "advancedDetails": "Details & contact info",
-    "contactNamePlaceholder": "Contact name",
-    "contactEmailPlaceholder": "Contact email",
-    "generateSheet": "Generate Sync One-Sheet · {{cost}} VB",
-    "writingSheet": "Writing your one-sheet…",
-    "signInPrompt": "Sign in to generate a sync one-sheet.",
-    "titleRequired": "Give your song a title first.",
-    "kitFailed": "The one-sheet didn't come together. Try again.",
-    "copied": "Copied",
-    "copyLabel": "Copy {{label}}",
-    "copyAria": "Copy {{label}} to clipboard",
-    "copyEmailLabel": "email",
-    "copyShareLink": "Copy share link",
-    "shareSheet": "Share",
-    "linkCopied": "Copied!",
-    "view": "View",
-    "hide": "Hide",
-    "myOneSheets": "My One-Sheets",
-    "noSheets": "No one-sheets yet — generate one above and start pitching.",
-    "deleteSheet": "Delete this one-sheet",
-    "trackThisPitch": "Track this pitch",
-    "oneSheetBadge": "Sync one-sheet",
+    "typeFilm": "映画",
+    "typeAd": "広告",
+    "typeGame": "ゲーム",
+    "yourSong": "あなたの曲",
+    "enterManually": "手動で入力",
+    "fromLibrary": "ライブラリから（{{count}}）",
+    "pickSong": "ライブラリから曲を選ぶ…",
+    "untitledSong": "無題の曲",
+    "songTitlePlaceholder": "曲のタイトル",
+    "artistNamePlaceholder": "アーティスト名",
+    "genrePlaceholder": "ジャンル（例：ダークポップ）",
+    "moodPlaceholder": "ムードタグ、カンマ区切り（例：陰鬱、勝利感）",
+    "bpmPlaceholder": "BPM（例：92）",
+    "keyPlaceholder": "キー（例：Aマイナー）",
+    "descriptionPlaceholder": "曲を説明 — ストーリー、雰囲気、テーマ…",
+    "instrumentalAvailable": "インストゥルメンタル版あり",
+    "stemsAvailable": "ステムあり",
+    "stemsHint": "スーパーバイザーはまずインストゥルメンタルとステムを聞きます — 実際に持っているものにチェックしてください。",
+    "advancedDetails": "詳細＆連絡先情報",
+    "contactNamePlaceholder": "担当者名",
+    "contactEmailPlaceholder": "連絡先メール",
+    "generateSheet": "シンクワンシートを生成 · {{cost}} VB",
+    "writingSheet": "ワンシートを作成中…",
+    "signInPrompt": "シンクワンシートを生成するにはサインインしてください。",
+    "titleRequired": "まず曲にタイトルをつけてください。",
+    "kitFailed": "ワンシートがまとまりませんでした。もう一度お試しください。",
+    "copied": "コピーしました",
+    "copyLabel": "{{label}}をコピー",
+    "copyAria": "{{label}}をクリップボードにコピー",
+    "copyEmailLabel": "メール",
+    "copyShareLink": "シェアリンクをコピー",
+    "shareSheet": "シェア",
+    "linkCopied": "コピーしました！",
+    "view": "表示",
+    "hide": "隠す",
+    "myOneSheets": "私のワンシート",
+    "noSheets": "まだワンシートがありません — 上で生成してピッチを始めましょう。",
+    "deleteSheet": "このワンシートを削除",
+    "trackThisPitch": "このピッチを追跡",
+    "oneSheetBadge": "シンクワンシート",
     "statBpm": "BPM",
-    "statKey": "Key",
-    "statInstrumental": "Instrumental",
-    "statStems": "Stems",
-    "yes": "Yes",
-    "no": "No",
-    "moodTagsLabel": "Mood tags",
-    "soundsLikeLabel": "Sounds like",
-    "comparableArtists": "Comparable artists",
-    "syncUsesLabel": "Made for sync",
-    "contactLabel": "Licensing contact",
-    "supervisorEmail": "Music supervisor pitch email",
-    "subjectLabel": "Subject",
-    "bodyLabel": "Body",
-    "licensingNotesLabel": "Licensing notes",
-    "handoffStems": "Make instrumental / stems",
-    "handoffStemsDesc": "Strip or separate your track in Stems",
-    "handoffSponsor": "Send to sponsor outreach",
-    "handoffSponsorDesc": "Adapt this pitch for brand placements",
-    "tagInstrumental": "Instrumental",
-    "tagStems": "Stems",
-    "briefsIntro": "Create briefs for the placements you want — TV, film, ads, games — then match your catalog songs against them.",
-    "newBrief": "New brief",
-    "briefTitlePlaceholder": "Brief title (e.g. Indie drama trailer)",
-    "briefMoodPlaceholder": "Mood (e.g. hopeful, cinematic)",
-    "budgetPlaceholder": "Budget range (e.g. $1k–$5k)",
-    "briefNotesPlaceholder": "Notes, reference tracks, delivery format…",
-    "briefTitleRequired": "Give the brief a title first.",
-    "saveBrief": "Save brief",
-    "cancel": "Cancel",
-    "saveFailed": "Couldn't save. Try again.",
-    "deleteBrief": "Delete this brief",
-    "noBriefs": "No briefs yet — create one to start matching your songs.",
-    "matchSongs": "Match songs",
-    "hideMatches": "Hide",
-    "matchScore": "Match {{score}}",
-    "pitchThis": "Pitch this",
-    "noMatches": "No one-sheets to match yet — generate a one-sheet first.",
-    "noMoodTags": "No mood tags",
-    "noMood": "No mood set",
-    "deadlineLabel": "due {{date}}",
-    "newSheetFromBrief": "New sheet",
-    "logPitch": "Log pitch",
-    "pitchesCount": "pitches",
-    "placedCount": "placed",
-    "targetPlaceholder": "Target (supervisor, show, brand…)",
-    "notesPlaceholder": "Notes…",
-    "savePitch": "Save pitch",
-    "deletePitch": "Delete this pitch",
-    "noPitches": "No sync pitches logged yet.",
-    "noTarget": "No target yet",
-    "updateFailed": "Couldn't update. Try again.",
-    "markStatus": "Mark {{status}}",
-    "placedPrompt": "Placed! Log the income to your Money Tracker:",
-    "amountPlaceholder": "$ amount",
-    "incomeAmountRequired": "Enter the placement amount first.",
-    "logToMoney": "Log to Money Tracker",
-    "moneyLogFailed": "Couldn't log the income. Try again.",
-    "publicBadge": "Sync One-Sheet",
-    "publicTitle": "Sync One-Sheet",
-    "publicDescription": "A sync licensing one-sheet for an independent song.",
-    "publicNotFound": "One-sheet not found",
-    "publicNotFoundDesc": "This link may be expired or mistyped.",
-    "publicHome": "Go home",
-    "publicCta": "Pitch your own music for TV, film, ads & games",
-    "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
-    "publicCtaButton": "Make my sync one-sheet",
-    "madeWith": "Made with Bow Down Visuals"
+    "statKey": "キー",
+    "statInstrumental": "インストゥルメンタル",
+    "statStems": "ステム",
+    "yes": "はい",
+    "no": "いいえ",
+    "moodTagsLabel": "ムードタグ",
+    "soundsLikeLabel": "似ているアーティスト",
+    "comparableArtists": "比較アーティスト",
+    "syncUsesLabel": "シンク向けに制作",
+    "contactLabel": "ライセンス連絡先",
+    "supervisorEmail": "音楽スーパーバイザーへのピッチメール",
+    "subjectLabel": "件名",
+    "bodyLabel": "本文",
+    "licensingNotesLabel": "ライセンスメモ",
+    "handoffStems": "インストゥルメンタル / ステムを作る",
+    "handoffStemsDesc": "Stemsでトラックを取り除くか分離する",
+    "handoffSponsor": "スポンサーアウトリーチへ送る",
+    "handoffSponsorDesc": "このピッチをブランド掲載向けに調整",
+    "tagInstrumental": "インストゥルメンタル",
+    "tagStems": "ステム",
+    "briefsIntro": "希望する掲載先 — TV、映画、広告、ゲーム — のブリーフを作成し、カタログの曲とマッチさせましょう。",
+    "newBrief": "新しいブリーフ",
+    "briefTitlePlaceholder": "ブリーフのタイトル（例：インディードラマの予告編）",
+    "briefMoodPlaceholder": "ムード（例：希望に満ちた、シネマティック）",
+    "budgetPlaceholder": "予算範囲（例：$1k–$5k）",
+    "briefNotesPlaceholder": "メモ、リファレンストラック、納品形式…",
+    "briefTitleRequired": "まずブリーフにタイトルをつけてください。",
+    "saveBrief": "ブリーフを保存",
+    "cancel": "キャンセル",
+    "saveFailed": "保存できませんでした。もう一度お試しください。",
+    "deleteBrief": "このブリーフを削除",
+    "noBriefs": "まだブリーフがありません — 作成して曲のマッチングを始めましょう。",
+    "matchSongs": "曲をマッチング",
+    "hideMatches": "隠す",
+    "matchScore": "マッチ {{score}}",
+    "pitchThis": "これをピッチ",
+    "noMatches": "まだマッチさせるワンシートがありません — まずワンシートを生成してください。",
+    "noMoodTags": "ムードタグなし",
+    "noMood": "ムード未設定",
+    "deadlineLabel": "期限 {{date}}",
+    "newSheetFromBrief": "新しいシート",
+    "logPitch": "ピッチを記録",
+    "pitchesCount": "ピッチ",
+    "placedCount": "採用済み",
+    "targetPlaceholder": "ターゲット（スーパーバイザー、番組、ブランド…）",
+    "notesPlaceholder": "メモ…",
+    "savePitch": "ピッチを保存",
+    "deletePitch": "このピッチを削除",
+    "noPitches": "まだシンクピッチの記録がありません。",
+    "noTarget": "まだターゲットなし",
+    "updateFailed": "更新できませんでした。もう一度お試しください。",
+    "markStatus": "{{status}}としてマーク",
+    "placedPrompt": "採用！収入をマネートラッカーに記録：",
+    "amountPlaceholder": "$ 金額",
+    "incomeAmountRequired": "まず採用金額を入力してください。",
+    "logToMoney": "マネートラッカーに記録",
+    "moneyLogFailed": "収入を記録できませんでした。もう一度お試しください。",
+    "publicBadge": "シンクワンシート",
+    "publicTitle": "シンクワンシート",
+    "publicDescription": "インディペンデントな曲のためのシンク・ライセンシング用ワンシート。",
+    "publicNotFound": "ワンシートが見つかりません",
+    "publicNotFoundDesc": "このリンクは期限切れか、入力ミスの可能性があります。",
+    "publicHome": "ホームへ",
+    "publicCta": "あなたの音楽をTV、映画、広告＆ゲームにピッチしよう",
+    "publicCtaDesc": "Bow Down Visualsはワンシートを書き、あなたの曲をブリーフにマッチさせ、すべてのピッチを追跡します — 数分で。",
+    "publicCtaButton": "私のシンクワンシートを作る",
+    "madeWith": "Bow Down Visualsで作成"
   },
   "socialProof": {
     "ariaLabel": "数字で見る Bow Down Visuals",
@@ -11158,5 +11413,219 @@
     "slideshowTitle": "スライドショーパック",
     "slideshowBlurb": "セットの画像フォルダーで、スライドショーのスクリーンセーバーに指定するだけ — 動画ではなく、あなたのアートが画面で入れ替わります。",
     "slideshowButton": "スライドショーパックをダウンロード (.zip)"
+  },
+  "memberships": {
+    "badge": "ファンクラブ",
+    "titleStart": "ファン",
+    "titleAccent": "メンバーシップ",
+    "subtitle": "あなたの熱心なファンのための有料ティアを開始 — 限定コンテンツ、早期アクセス、舞台裏。設定は無料です。",
+    "paymentsNotice": "支払いは開始されています（テストモード） — ファンは安全なチェックアウトから参加し、支払いが確定した瞬間にここに表示されます。偽の取引は一切ありません。",
+    "signInPrompt": "ファンクラブを作るにはサインインしてください。",
+    "signIn": "サインイン",
+    "dismiss": "閉じる",
+    "retry": "再試行",
+    "errorLoad": "ファンクラブを読み込めませんでした — もう一度お試しください。",
+    "errorSaveTier": "ティアを保存できませんでした — もう一度お試しください。",
+    "errorDeleteTier": "ティアを削除できませんでした — もう一度お試しください。",
+    "errorAddMember": "メンバーを追加できませんでした — もう一度お試しください。",
+    "errorUpdateMember": "メンバーを更新できませんでした — もう一度お試しください。",
+    "errorRemoveMember": "メンバーを削除できませんでした — もう一度お試しください。",
+    "errorUpdateTier": "ティアを更新できませんでした — もう一度お試しください。",
+    "errorDuplicateMember": "そのファンはすでにこのティアにいます。",
+    "errorSuggester": "AIサジェスターがつまずきました — Visual Bucsは返金されました。もう一度お試しください。",
+    "confirmDeleteTier": "このティアと追跡中のメンバーを削除しますか？元に戻せません。",
+    "confirmRemoveMember": "このメンバーを追跡から外しますか？",
+    "dashboardTitle": "メンバーダッシュボード",
+    "activeMembers": "アクティブメンバー",
+    "monthlyRevenue": "月間収益",
+    "afterFee": "プラットフォーム手数料10%差引後 {{amount}}",
+    "churn": "解約率",
+    "pastDue": "支払い遅延",
+    "tierStats": "メンバー{{count}}人 · {{amount}}/月",
+    "buildTier": "ティアを作成",
+    "editTier": "ティアを編集",
+    "tierNamePlaceholder": "ティア名（例：Gold Circle）",
+    "pricePlaceholder": "価格 / 月",
+    "descriptionPlaceholder": "このティアについて（任意）",
+    "perkPlaceholder": "特典を追加してEnter（例：すべての動画への早期アクセス）",
+    "addPerk": "追加",
+    "removePerk": "特典を削除",
+    "createTier": "ティアを作成",
+    "saveTier": "ティアを保存",
+    "cancel": "キャンセル",
+    "editTierAria": "ティアを編集",
+    "deleteTierAria": "ティアを削除",
+    "pauseTier": "ティアを一時停止",
+    "resumeTier": "ティアを再開",
+    "tierPaused": "一時停止中",
+    "tierPausedNote": "ファンには非表示 — 一時停止中は新規参加できません。",
+    "perMonth": "/月",
+    "tierOption": "{{name}} — {{price}}/月",
+    "aiSuggesterTitle": "ティアサジェスター",
+    "aiCost": "100 Visual Bucs",
+    "aiDescription": "AIにあなたのニッチを伝えると、名前、価格、具体的な特典付きで3つのティアを設計します。提案はそのままティアビルダーに適用できます。",
+    "nichePlaceholder": "あなたのニッチ（例：音楽制作）",
+    "audienceStarting": "始めたばかり",
+    "audienceGrowing": "成長中",
+    "audienceEstablished": "確立済み",
+    "suggestButton": "私のティアを提案",
+    "useTier": "このティアを使う",
+    "membersTitle": "メンバー",
+    "membersNote": "有料メンバーはチェックアウトが確定すると自動でここに表示されます。下からプラットフォーム外のメンバーを手動で追加することもできます。",
+    "pickTier": "ティアを選ぶ…",
+    "fanPlaceholder": "ファンのメールまたはハンドル",
+    "addMember": "メンバーを追加",
+    "statusActive": "アクティブ",
+    "statusPastDue": "支払い遅延",
+    "statusCanceled": "キャンセル済み",
+    "removeMemberAria": "メンバーを削除",
+    "memberMeta": "{{tier}} · {{price}}/月 · {{date}}に参加",
+    "noMembers": "まだ追跡中のメンバーはいません。"
+  },
+  "merch": {
+    "back": "戻る",
+    "title": "マーチデザイナー",
+    "subtitle": "あなたのブランドのためのAIデザインマーチ — デザインバッチごとに300 Visual Bucs",
+    "tabs": {
+      "design": "デザインスタジオ",
+      "store": "マイストア",
+      "merch": "マーチ"
+    },
+    "products": {
+      "t-shirt": {
+        "label": "Tシャツ",
+        "blurb": "定番クルーTシャツ"
+      },
+      "hoodie": {
+        "label": "フーディー",
+        "blurb": "厚手プルオーバー"
+      },
+      "cap": {
+        "label": "キャップ",
+        "blurb": "スナップバック / ダッドハット"
+      },
+      "poster": {
+        "label": "ポスター",
+        "blurb": "18\"×24\" マットプリント"
+      }
+    },
+    "styles": {
+      "streetwear": {
+        "label": "ストリートウェア",
+        "blurb": "大胆なグラフィック、アーバンなエネルギー"
+      },
+      "minimal": {
+        "label": "ミニマル",
+        "blurb": "クリーンでさりげなく、時代を超える"
+      },
+      "vintage": {
+        "label": "ヴィンテージ",
+        "blurb": "レトロで着古した風合い、クラシック"
+      },
+      "luxury-gold": {
+        "label": "ラグジュアリーゴールド",
+        "blurb": "ブラック＆ゴールド、プレミアム"
+      }
+    },
+    "productLabel": "商品",
+    "styleLabel": "スタイル",
+    "designTitleLabel": "デザインのタイトル",
+    "titlePlaceholder": "例：Shark King Tour Tee",
+    "describeLabel": "デザインを説明",
+    "describeHint": "（残りはAIが担当）",
+    "descriptionPlaceholder": "例：稲妻をまとった王冠のサメ、下に太い金文字で『BOW DOWN』",
+    "generateButton": "モックアップ2点を生成 · 300 Visual Bucs",
+    "creditsRemaining": "残り{{count}} Visual Bucs",
+    "designing": "マーチをデザイン中…",
+    "designingDetail": "商品モックアップ2点をレンダリング中 — 少々お待ちください。",
+    "mockupsReady": "モックアップ2点の準備完了",
+    "suggestedRetail": "推奨小売価格 {{price}}",
+    "mockupAlt": "マーチのモックアップ",
+    "download": "ダウンロード",
+    "saved": "保存済み",
+    "saveToStore": "ストアに保存",
+    "newBatch": "新しいバッチ",
+    "dropshipTitle": "ドロップシップモデル：",
+    "dropshipDesc": "あなたがデザインし、メーカーが直接印刷＆発送します — Bow Down Visualsが在庫を持つことはありません。チェックアウトは",
+    "comingSoon": "近日公開",
+    "dropshipEnd": "です。出品は無料です。",
+    "loadingStore": "ストアを読み込み中…",
+    "noDesigns": "まだデザインがありません",
+    "noDesignsDetail": "デザインスタジオでバッチを生成し、お気に入りをここに保存しましょう。",
+    "startDesigning": "デザインを始める",
+    "pricePlaceholder": "29.99",
+    "setPrice": "価格を設定",
+    "listForSale": "販売に出す",
+    "unlist": "出品を取り下げる",
+    "deleteDesign": "デザインを削除",
+    "baseCost": "原価",
+    "platformFee": "プラットフォーム手数料（将来）",
+    "yourProfit": "あなたの利益",
+    "marginPct": "マージン{{pct}}%",
+    "previewCheckout": "チェックアウトをプレビュー",
+    "priceNote": "価格と出品はいつでも無料で変更できます。15%のプラットフォーム手数料は、チェックアウト開始後のみ適用されます。",
+    "errorGenerate": "デザインを生成できませんでした — Visual Bucsは請求されていません。",
+    "errorNetwork": "ネットワークエラー — もう一度お試しください。Visual Bucsは請求されていません。",
+    "confirmDelete": "このデザインを削除しますか？元に戻せません。",
+    "checkoutSoon": "チェックアウトは近日公開です。",
+    "myShopLink": "マイショップで販売する"
+  },
+  "moneyTracker": {
+    "title": "マネートラッカー",
+    "subtitle": "数字を把握しよう — 入ってくるすべてのドル、出ていくすべてのドル。",
+    "income": "収入",
+    "expense": "支出",
+    "expenses": "支出",
+    "netProfit": "純利益",
+    "allTime": "全期間",
+    "prevMonth": "前月",
+    "nextMonth": "翌月",
+    "addEntry": "エントリを追加",
+    "closeForm": "閉じる",
+    "newEntry": "新しいエントリ",
+    "category": "カテゴリ",
+    "amount": "金額（USD）",
+    "date": "日付",
+    "note": "メモ",
+    "notePlaceholder": "例：Brand X スポンサーシップの支払い",
+    "source": "ソース",
+    "sourcePlaceholder": "例：YouTube、Shopify、ブランド名",
+    "saveEntry": "エントリを保存",
+    "saving": "保存中…",
+    "breakdownIncome": "カテゴリ別収入",
+    "breakdownExpense": "カテゴリ別支出",
+    "entriesThisMonth": "エントリ — {{month}}",
+    "emptyMonth": "今月はまだ何も記録されていません。最初のエントリを追加して数字の把握を始めましょう。",
+    "addFirst": "最初のエントリを追加",
+    "loading": "あなたの数字を読み込み中…",
+    "retry": "もう一度試す",
+    "confirmDelete": "削除",
+    "cancelDelete": "保持",
+    "deleteEntry": "エントリを削除",
+    "signInPrompt": "クリエイターのお金を追跡するにはサインインしてください。",
+    "errorLoad": "お金のエントリを読み込めませんでした。",
+    "errorSave": "エントリを保存できませんでした。",
+    "errorDelete": "エントリを削除できませんでした。",
+    "errorAmount": "$0より大きい金額を入力してください。",
+    "errorDate": "有効な日付を選んでください。",
+    "prefilledInvoice": "支払い済み請求書から請求書の支払いを自動入力しました — 確認して保存してください。",
+    "cat_sponsor_deals": "スポンサー案件",
+    "cat_merch_sales": "マーチ販売",
+    "cat_streaming_royalties": "ストリーミングロイヤリティ",
+    "cat_ad_revenue": "広告収益",
+    "cat_subscriptions": "サブスクリプション",
+    "cat_affiliate": "アフィリエイト",
+    "cat_invoice_payout": "請求書の支払い",
+    "cat_other_income": "その他の収入",
+    "cat_equipment": "機材",
+    "cat_software": "ソフトウェア",
+    "cat_ads": "広告",
+    "cat_travel": "旅費",
+    "cat_contractors": "コントラクター",
+    "cat_production": "制作",
+    "cat_other_expense": "その他の支出",
+    "addIncomeFromDeal": "収入として記録",
+    "dealPaidNote": "この支払いをマネートラッカーで追跡しましょう。",
+    "viewRoyalties": "ロイヤリティ"
   }
 }
