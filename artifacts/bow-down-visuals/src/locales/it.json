@@ -1393,7 +1393,7 @@
     "photoShootLook": "Look del servizio fotografico",
     "backToDashboard": "Torna alla Dashboard",
     "freeBadge": "Gratis",
-    "profilesTitle": "Creative Vault",
+    "profilesTitle": "Caveau Creativo",
     "profilesSubtitle": "Salva look, stile, colori e brand del tuo artista una volta sola — poi caricali in qualsiasi strumento per mantenere coerenti tutti i tuoi contenuti visivi.",
     "tagArtistDescription": "Descrizione dell'artista",
     "tagVisualStyle": "Stile visivo",
@@ -1508,7 +1508,17 @@
     "identityUrlRequired": "Aggiungi un URL immagine valido (https://…) per la foto.",
     "identityRemoveTitle": "Rimuove solo dal set: il file immagine viene conservato",
     "identityRemoveAria": "Rimuovi foto dal set di identità",
-    "identityUploadAria": "Carica foto di identità"
+    "identityUploadAria": "Carica foto di identità",
+    "worldVoiceSection": "Voce del Mondo",
+    "worldVoiceHint": "Come suona questo personaggio quando parli come lui nel Mondo. Naturale = la tua voce.",
+    "voicePresetDeep": "Profonda",
+    "voicePresetNatural": "Natural",
+    "voicePresetBright": "Brillante",
+    "voiceAdvanced": "Advanced",
+    "voicePitch": "Tono",
+    "voiceFormant": "Dimensione del corpo",
+    "voiceBody": "Risonanza",
+    "emptyProfilesTitle": "Il tuo caveau è vuoto"
   },
   "audioCleanup": {
     "abCleaned": "Pulito",
@@ -2235,7 +2245,9 @@
     "spotlightBadge": "#{{n}} RIFLETTORI",
     "startCreating": "Inizia a creare con questo artista",
     "subtitle": "Scegli il tuo artista — luci, camera, e abbineremo il suo look, il suo sound e il suo brand in tutto ciò che crei.",
-    "title": "Chi è davanti alla camera?"
+    "title": "Chi è davanti alla camera?",
+    "dragHint": "Trascina qualsiasi artista su uno slot in evidenza per scegliere chi brilla dove.",
+    "startCreatingWith": "Inizia a creare con {{name}}"
   },
   "clipMaker": {
     "analyzeNote": "L'AI trascrive il tuo VOD e trova i momenti {{vibe}} che meritano una clip. Paghi solo quando vengono trovati degli highlight.",
@@ -3114,7 +3126,7 @@
     "open_landing_page": "Apri la landing page",
     "copy_embed_code": "Copia il codice embed",
     "own_your_audience": "Possiedi il tuo pubblico",
-    "email_list": "Email List",
+    "email_list": "Lista email",
     "builder": "Builder",
     "algorithms_change_your_list_does": "Gli algoritmi cambiano. La tua lista no. Cattura fan, scrivi newsletter\n con l'AI e tieni traccia della crescita — gratis fino a 1.000 iscritti.",
     "dashboard": "Dashboard",
@@ -3324,7 +3336,8 @@
       "voice": "Voce"
     },
     "view": "Visualizza",
-    "your_ai_generations_will_appear": "Le tue generazioni AI appariranno qui automaticamente."
+    "your_ai_generations_will_appear": "Le tue generazioni AI appariranno qui automaticamente.",
+    "download": "Scarica"
   },
   "goLive": {
     "pageTitle": "Go Live",
@@ -3434,6 +3447,15 @@
       },
       "preflight": {
         "label": "Pre-flight di Viralità"
+      },
+      "cta": {
+        "label": "Generatore CTA"
+      },
+      "titles": {
+        "label": "Titoli"
+      },
+      "dice": {
+        "label": "Dadi"
       }
     },
     "videoType": {
@@ -3508,7 +3530,60 @@
     "errNeedTitle": "Dai prima un titolo al tuo video — è la prima cosa che controlla il pre-flight.",
     "errHooksFailed": "Generazione hook fallita — riprova.",
     "errCaptionsFailed": "Generazione didascalie fallita — riprova.",
-    "errScoringFailed": "Valutazione fallita — riprova."
+    "errScoringFailed": "Valutazione fallita — riprova.",
+    "ctaSub": "Ogni video ha bisogno di una call to action forte. Scegli il tuo obiettivo e scriveremo 10 CTA ottimizzate per la conversione, le più forti prima.",
+    "ctaTopicLabel": "Di cosa parla il video?",
+    "ctaTopicPlaceholder": "es. Il mio nuovo singolo «Golden Tide» esce venerdì",
+    "ctaGoalLabel": "Cosa dovrebbero fare gli spettatori?",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "Iscriviti"
+      },
+      "comment": {
+        "label": "Commenta"
+      },
+      "share": {
+        "label": "Condividi"
+      },
+      "follow": {
+        "label": "Segui"
+      },
+      "buy": {
+        "label": "Acquista"
+      },
+      "stream": {
+        "label": "Ascolta in streaming"
+      }
+    },
+    "creditNoteCta": "50 Visual Bucs per generazione · powered by Thy Cheat Code",
+    "generateCtas": "Genera CTA",
+    "cookingCtas": "Scrittura delle tue CTA…",
+    "yourCtas": "Le tue CTA — classificate per forza",
+    "ctaPlacement": {
+      "opener": {
+        "label": "Apertura"
+      },
+      "mid-roll": {
+        "label": "Metà video"
+      },
+      "closer": {
+        "label": "Chiusura"
+      },
+      "pinned-comment": {
+        "label": "Commento fissato"
+      }
+    },
+    "ctaStrengthLabel": "Forza",
+    "addToScript": "Aggiungi allo script",
+    "addedToScript": "Nel tuo script",
+    "ctaHandoffTip": "Tocca «Aggiungi allo script» per inserire una CTA nel tuo progetto Hub — Script Writer e Voiceover la raccoglieranno da lì.",
+    "errNeedVideoTopic": "Prima dicci di cosa parla il video.",
+    "errCtasFailed": "Impossibile generare le CTA — riprova.",
+    "fullIntelligenceCheck": "Controllo di intelligenza completo",
+    "sendToScriptWriter": "Invia a Script Writer",
+    "captions": {
+      "needBurnedIn": "Servono sottotitoli incorporati nel video?"
+    }
   },
   "hub": {
     "allProjectTypes": "Tutti i tipi di progetto",
@@ -3597,7 +3672,8 @@
     "title": "Importatore Media",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "video",
-    "worksWith": "Funziona con {{platforms}} e link diretti a file audio/video (MP3, MP4, WAV, …). File fino a 500 MB."
+    "worksWith": "Funziona con {{platforms}} e link diretti a file audio/video (MP3, MP4, WAV, …). File fino a 500 MB.",
+    "viewLibrary": "Le mie clip"
   },
   "interviewPrep": {
     "answerLabel": "La tua risposta — dilla come se fossi al microfono",
@@ -5016,7 +5092,17 @@
     "regenerate": "Rigenera ({{cost}} Visual Bucs)",
     "retry": "Riprova",
     "themeLabel": "Tema",
-    "yourPack": "Il tuo pack"
+    "yourPack": "Il tuo pack",
+    "goLive": "Pacchetto pronto — configura il tuo streaming in Go Live",
+    "libraryTitle": "La tua libreria di pacchetti streaming",
+    "libraryNote": "Ogni grafica che generi viene salvata qui. Aggiungi quelle che vuoi al tuo studio Go Live — aspetteranno nel vassoio dei pacchetti dello studio, pronte da inserire in una scena.",
+    "libraryEmpty": "Niente di salvato — genera un pacchetto qui sopra e arriverà qui.",
+    "libraryLoading": "Caricamento della tua libreria…",
+    "libraryError": "Impossibile caricare la tua libreria.",
+    "libraryActionFailed": "Quella modifica non è stata salvata — riprova.",
+    "addToStudio": "Aggiungi al mio studio",
+    "inStudio": "Nel mio studio",
+    "removeFromStudio": "Rimuovi"
   },
   "team": {
     "accept": "Accetta",
@@ -5138,7 +5224,26 @@
     "toneLabel": "Tono",
     "topicLabel": "Di cosa parla il video?",
     "topicPlaceholder": "es. Come ho prodotto il mio primo beat in una notte",
-    "writeScriptButton": "Scrivi il mio script · {{cost}} Visual Bucs"
+    "writeScriptButton": "Scrivi il mio script · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ Avvia il gobbo",
+    "teleprompterClose": "Chiudi il gobbo",
+    "teleprompterPlay": "Riproduci",
+    "teleprompterPause": "Pausa",
+    "teleprompterRestart": "Ricomincia dall'inizio",
+    "teleprompterWpm": "Velocità",
+    "teleprompterWpmValue": "{{wpm}} PPM",
+    "teleprompterFontSmaller": "Testo più piccolo",
+    "teleprompterFontLarger": "Testo più grande",
+    "teleprompterMirror": "Specchio per hardware gobbo",
+    "teleprompterFullscreen": "Schermo intero",
+    "teleprompterWords": "{{count}} parole",
+    "teleprompterReadTime": "~{{min}} min di lettura",
+    "teleprompterHint": "Spazio = riproduci/pausa · ↑↓ = velocità · +/− = dimensione testo · Esc = chiudi · clic sullo script = pausa",
+    "hookHintLabel": "Hook vincente dal tuo piano di contenuti",
+    "hookHintBlurb": "Apri con questa riga — è stata creata per il loop virale.",
+    "dismiss": "Ignora",
+    "sendToScheduler": "Programmatore",
+    "sendToVoiceover": "Voiceover"
   },
   "setlist": {
     "addButton": "Aggiungi",
@@ -5178,7 +5283,7 @@
     "printSetlist": "Stampa scaletta",
     "printSummary": "{{count}} canzoni · {{runtime}} di runtime",
     "removeSong": "Rimuovi",
-    "runtimeLabel": "Runtime",
+    "runtimeLabel": "Durata",
     "setlistFallback": "Scaletta",
     "showContextPlaceholder": "Contesto dello show (facoltativo): venue, pubblico, orario…",
     "showTitlePlaceholder": "Dai un nome allo show (es. Summer Fest — Palco Principale)",
@@ -6119,7 +6224,8 @@
     "topicLabel": "Argomento del video",
     "topicPlaceholder": "es. \"il mio nuovo singolo sul grinding alle 3 di notte\" oppure \"dietro le quinte della mia prima sessione in studio\"",
     "topicRequired": "Dì prima di cosa parla il video.",
-    "topicSub": "Un argomento dentro, packaging completo fuori."
+    "topicSub": "Un argomento dentro, packaging completo fuori.",
+    "sendToScheduler": "Invia al programmatore"
   },
   "tour": {
     "addDateFree": "Aggiungi data del tour · Gratis",
@@ -7160,7 +7266,7 @@
     "hashtagsPlaceholder": "#newmusic #independentartist …",
     "hashtagsScoreLabel": "Hashtag",
     "heading": "Viralità",
-    "headingAccent": "Pre-Flight Check",
+    "headingAccent": "Controllo pre-volo",
     "heroDescription": "Una scheda di prontezza brutalmente onesta per il tuo post — prima di pubblicarlo. Non una garanzia di viralità: nessuna IA può prevedere cosa esplode.",
     "hookHint": "ciò che gli spettatori vedono o sentono per primo",
     "hookLabel": "Hook / prima riga",
@@ -7657,67 +7763,71 @@
     "pipelineSubtitle": "Monitora ogni accordo dal pitch al pagamento."
   },
   "repurpose": {
-    "badge": "Content Repurposer",
-    "titlePrefix": "One video in,",
-    "titleSuffix": "content calendar out",
-    "hero": "Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized descriptions for TikTok, Reels, Shorts, and X.",
-    "signInRequired": "Sign in to repurpose videos.",
+    "badge": "Ripropositore di contenuti",
+    "titlePrefix": "Un video dentro,",
+    "titleSuffix": "un calendario di contenuti fuori",
+    "hero": "Carica un video — l'IA lo guarda e crea un pacchetto da 10 pezzi: 3 clip verticali tagliate automaticamente, 3 miniature IA, 5 set didascalia + hashtag e descrizioni ottimizzate per piattaforma per TikTok, Reels, Shorts e X.",
+    "signInRequired": "Accedi per riproporre i video.",
     "step1": {
-      "title": "Drop your video",
-      "blurb": "MP4, MOV, WebM · up to 80 MB",
-      "chooseFile": "Choose video file",
-      "fromCameraRoll": "From your camera roll or exports",
-      "orPasteUrl": "Or paste a video URL",
-      "urlPlaceholder": "https://… (from your project storage)",
-      "urlNote": "URLs must come from your project storage."
+      "title": "Inserisci il tuo video",
+      "blurb": "MP4, MOV, WebM · fino a 80 MB",
+      "chooseFile": "Scegli un file video",
+      "fromCameraRoll": "Dal rullino fotografico o dalle esportazioni",
+      "orPasteUrl": "O incolla un URL video",
+      "urlPlaceholder": "https://… (dall'archivio del tuo progetto)",
+      "urlNote": "Gli URL devono provenire dall'archivio del tuo progetto."
     },
-    "building": "Building your pack…",
-    "repurposeButton": "Repurpose my video · {{credits}} Visual Bucs",
-    "costNote": "{{pack}} Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails. Re-rolls are {{reroll}} Visual Buc each. Copying and downloading are free.",
-    "packReady": "pack pieces ready",
-    "renderingNote": "Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.",
+    "building": "Creazione del tuo pacchetto…",
+    "repurposeButton": "Riproponi il mio video · {{credits}} Visual Bucs",
+    "costNote": "{{pack}} Visual Bucs coprono tutto: trascrizione, analisi IA, 3 clip tagliate automaticamente, 3 miniature IA. I ritentativi costano {{reroll}} Visual Bucs ciascuno. Copiare e scaricare è gratuito.",
+    "packReady": "pezzi del pacchetto pronti",
+    "renderingNote": "Clip e miniature vengono renderizzate in background — chiudi la scheda, ti aspetteranno.",
     "clips": {
-      "title": "3 vertical clips",
-      "blurb": "Auto-cut 9:16 · ready for TikTok, Reels, Shorts",
-      "newMoments": "New moments · {{cost}}VB",
-      "cutFailed": "Cut failed",
-      "cutting": "Cutting…"
+      "title": "3 clip verticali",
+      "blurb": "Taglio automatico 9:16 · pronte per TikTok, Reels, Shorts",
+      "newMoments": "Nuovi momenti · {{cost}}VB",
+      "cutFailed": "Taglio non riuscito",
+      "cutting": "Taglio…"
     },
     "thumbs": {
-      "title": "3 AI thumbnails",
-      "blurb": "9:16 covers for your clips",
-      "newConcepts": "New concepts · {{cost}}VB",
-      "genFailed": "Generation failed",
-      "painting": "Painting…",
-      "alt": "Thumbnail concept {{n}}"
+      "title": "3 miniature IA",
+      "blurb": "Copertine 9:16 per le tue clip",
+      "newConcepts": "Nuovi concetti · {{cost}}VB",
+      "genFailed": "Generazione non riuscita",
+      "painting": "Disegno…",
+      "alt": "Concetto di miniatura {{n}}"
     },
     "captions": {
-      "title": "5 caption + hashtag sets",
-      "blurb": "Ready to post — copy any set free"
+      "title": "5 set didascalia + hashtag",
+      "blurb": "Pronti da pubblicare — copia qualsiasi set gratuitamente"
     },
     "platforms": {
-      "title": "Platform descriptions",
-      "blurb": "Tuned for each algorithm",
-      "noDesc": "No description generated for this platform."
+      "title": "Descrizioni specifiche per piattaforma",
+      "blurb": "Adattate a ogni algoritmo",
+      "noDesc": "Nessuna descrizione generata per questa piattaforma."
     },
-    "download": "Download",
-    "copyAll": "Copy all",
-    "copy": "Copy",
-    "copied": "Copied",
-    "reroll": "Re-roll · {{cost}}VB",
+    "download": "Scarica",
+    "copyAll": "Copia tutto",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "reroll": "Riprova · {{cost}}VB",
     "error": {
-      "copyFailed": "Couldn't copy to clipboard.",
-      "noSource": "Upload a video file or paste a video URL first.",
-      "repurposeFailed": "Repurposing failed — try again.",
-      "clipJobFailed": "Clip job lookup failed.",
-      "thumbJobFailed": "Thumbnail job lookup failed.",
-      "clipCuttingFailed": "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.",
-      "thumbFailed": "Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.",
-      "lostJobs": "Lost track of the background jobs — refresh to check.",
-      "rerollFailed": "Re-roll failed — try again.",
-      "thumbRerollFailed": "Thumbnail re-roll failed — try again."
+      "copyFailed": "Impossibile copiare negli appunti.",
+      "noSource": "Prima carica un file video o incolla un URL video.",
+      "repurposeFailed": "Riproposizione non riuscita — riprova.",
+      "clipJobFailed": "Ricerca del lavoro clip non riuscita.",
+      "thumbJobFailed": "Ricerca del lavoro miniatura non riuscita.",
+      "clipCuttingFailed": "Taglio della clip non riuscito. I tuoi Visual Bucs del pacchetto coprono gli output testuali — le clip possono essere ritagliate dall'editor video.",
+      "thumbFailed": "Impossibile generare le immagini delle miniature — i prompt di miniatura qui sotto funzionano con qualsiasi strumento di immagini.",
+      "lostJobs": "Traccia dei lavori in background persa — aggiorna per controllare.",
+      "rerollFailed": "Ritentativo non riuscito — riprova.",
+      "thumbRerollFailed": "Ritentativo della miniatura non riuscito — riprova."
     },
-    "modeSmart": "Smart Clips"
+    "modeSmart": "Smart Clips",
+    "addCaptions": "Aggiungi sottotitoli",
+    "modeLabel": "Modalità",
+    "modePack": "Pacchetto di contenuti",
+    "modeStreamVod": "Stream VOD"
   },
   "smartClips": {
     "title": "Smart Clips: trova prima i momenti",
@@ -8139,51 +8249,51 @@
     }
   },
   "randomizer": {
-    "badge": "Thy Cheat Code's dice",
-    "titlePrefix": "Content",
-    "titleSuffix": "Randomizer",
-    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let Thy Cheat Code AI cook up five fresh, made-for-you ideas for 100 Visual Bucs.",
-    "categoriesLabel": "Randomizer categories",
+    "badge": "I dadi di Thy Cheat Code",
+    "titlePrefix": "Randomizzatore",
+    "titleSuffix": "di contenuti",
+    "hero": "Bloccato davanti a una pagina bianca? Lancia i dadi per una scintilla gratuita — o lascia che l'IA di Thy Cheat Code prepari cinque idee fresche su misura per te per 100 Visual Bucs.",
+    "categoriesLabel": "Categorie del randomizzatore",
     "categories": {
       "video-ideas": {
-        "label": "Video Ideas",
-        "blurb": "Fresh concepts for your next music video or content drop."
+        "label": "Idee video",
+        "blurb": "Concetti freschi per il tuo prossimo video musicale o drop di contenuti."
       },
       "hooks": {
-        "label": "Hooks",
-        "blurb": "First-3-second openers that stop the scroll."
+        "label": "Hook",
+        "blurb": "Aperture dei primi 3 secondi che fermano lo scorrimento."
       },
       "thumbnails": {
-        "label": "Thumbnails",
-        "blurb": "High-click-through concepts for YouTube and beyond."
+        "label": "Miniature",
+        "blurb": "Concetti ad alto tasso di clic per YouTube e oltre."
       },
       "song-concepts": {
-        "label": "Song Concepts",
-        "blurb": "Themes and angles worth writing your next track about."
+        "label": "Concetti di canzoni",
+        "blurb": "Temi e angolazioni su cui vale la pena scrivere il tuo prossimo brano."
       },
       "niche-picker": {
-        "label": "Niche Picker",
-        "blurb": "Positioning angles you could own as a creator."
+        "label": "Selettore di nicchia",
+        "blurb": "Angolazioni di posizionamento che potresti dominare come creator."
       },
       "challenges": {
-        "label": "Challenges",
-        "blurb": "Forcing functions for output and growth."
+        "label": "Sfide",
+        "blurb": "Funzioni forzanti per produzione e crescita."
       }
     },
-    "rollDice": "Roll the dice",
-    "freeForever": "Free forever — roll as much as you want",
-    "yourRoll": "Your roll",
-    "orDeeper": "or go deeper",
-    "cooking": "Cooking up ideas…",
+    "rollDice": "Lancia i dadi",
+    "freeForever": "Gratuito per sempre — lancia quanto vuoi",
+    "yourRoll": "Il tuo lancio",
+    "orDeeper": "o vai più a fondo",
+    "cooking": "Preparazione delle idee…",
     "generateAi": "Generate 5 fresh with AI",
-    "signInToGenerate": "Sign in to generate with AI",
+    "signInToGenerate": "Accedi per generare con l'IA",
     "costPerRoll": "{{cost}} Visual Buc per AI roll · powered by Thy Cheat Code",
-    "freshFromAi": "Fresh from the AI",
+    "freshFromAi": "Fresche dall'IA",
     "reroll": "Re-roll ({{cost}} Visual Buc)",
     "crossLink": {
-      "p1": "Like an idea? Ask",
+      "p1": "Ti piace un'idea? Chiedi a",
       "name": "Thy Cheat Code",
-      "p2": "in the chat bubble to turn it into a full plan."
+      "p2": "nella bolla di chat di trasformarla in un piano completo."
     },
     "error": {
       "aiRollFailed": "AI roll failed — try again."
@@ -8254,7 +8364,93 @@
     "openInBuilder": "Apri nel creatore",
     "tabWebsites": "Siti web",
     "websiteVersionMeta": "Versione {{version}} · {{count}} file",
-    "failedOpenHubProject": "Impossibile aprire il progetto dell'hub. Riprova, per favore."
+    "failedOpenHubProject": "Impossibile aprire il progetto dell'hub. Riprova, per favore.",
+    "pageDescription": "Tutte le tue canzoni, video e progetti creativi in un unico posto.",
+    "subheading": "Progetti salvati, bozze non salvate e tutte le tue clip di scene generate — tutto in un unico posto.",
+    "backToDashboard": "Torna alla dashboard",
+    "tabProjects": "Progetti",
+    "tabDrafts": "Bozze",
+    "tabClips": "Clip generate",
+    "tabHistory": "Cronologia generazioni",
+    "tryAgain": "Riprova",
+    "noProjects": "Nessun progetto salvato",
+    "noProjectsHint": "Genera contenuti e fai clic su Salva progetto — apparirà qui.",
+    "goToDashboard": "Vai alla dashboard",
+    "noDrafts": "Nessuna bozza salvata",
+    "noDraftsHint": "Le bozze si salvano automaticamente mentre lavori. Inizia un progetto e il tuo progresso apparirà qui.",
+    "startProject": "Inizia un progetto",
+    "draftsHint": "Le bozze si salvano automaticamente mentre lavori. Fai clic su Recupera per tornare a quel progetto e riprendere da dove avevi lasciato.",
+    "noClips": "Nessuna clip generata",
+    "noClipsHint": "Genera clip di scene nel tuo progetto video musicale — verranno salvate qui automaticamente.",
+    "clipsSaved": "{{count}} clip salvate — salvate automaticamente al termine di ogni lavoro di clip.",
+    "noHistory": "Nessuna cronologia di generazione",
+    "noHistoryHint": "Nessuna cronologia di generazione. Le tue generazioni IA appariranno qui dopo che avrai creato qualcosa.",
+    "startGenerating": "Inizia a generare",
+    "generationsLogged": "{{count}} generazioni registrate — le più recenti prima.",
+    "failedLoadProjects": "Caricamento dei progetti non riuscito",
+    "failedLoadDrafts": "Caricamento delle bozze non riuscito",
+    "failedLoadClips": "Caricamento delle clip non riuscito",
+    "failedLoadHistory": "Caricamento della cronologia generazioni non riuscito",
+    "failedDeleteProject": "Eliminazione del progetto non riuscita. Riprova.",
+    "failedDeleteDraft": "Eliminazione della bozza non riuscita. Riprova.",
+    "failedDeleteClip": "Eliminazione della clip non riuscita. Riprova.",
+    "hubProjectsTitle": "Progetti Hub",
+    "hubProjectsHint": "Ogni progetto sincronizzato dal tuo Hub, i più recenti prima. Il più recente è il progetto aperto nel tuo Hub in questo momento.",
+    "hubProjectsCurrent": "Attuale",
+    "hubProjectsOpenInHub": "Apri nell'Hub",
+    "hubProjectsCapNote": "Visualizzazione dei tuoi 100 progetti hub più recenti.",
+    "noHubProjects": "Nessun progetto hub sincronizzato. I progetti che crei nell'Hub appariranno qui.",
+    "failedLoadHubProjects": "Caricamento dei progetti hub non riuscito",
+    "deleteHubProject": "Elimina progetto hub",
+    "deleteHubProjectConfirm": "Eliminare il progetto hub «{{name}}» dal tuo account? Questo rimuove la sua copia sincronizzata.",
+    "failedDeleteHubProject": "Eliminazione del progetto hub non riuscita. Riprova.",
+    "typeStartFromScratch": "Parti da zero",
+    "typeVideoForMySong": "Video per la mia canzone",
+    "typeRunwayClip": "Clip video IA",
+    "typeLipSyncClip": "Clip di lip sync",
+    "typeThumbnail": "Miniatura",
+    "typeLyrics": "Testi",
+    "typeVideoPlan": "Piano video",
+    "typeScenePrompt": "Prompt di scena",
+    "typeCaptions": "Sottotitoli",
+    "typePromoClip": "Promo Clip",
+    "typeThumbnailPrompt": "Prompt di miniatura",
+    "typeGeneration": "Generazione",
+    "statusSaved": "Salvato",
+    "statusSaveFailed": "Salvataggio non riuscito",
+    "statusGenerated": "Generato",
+    "visualBucsRefunded": "Visual Bucs rimborsati",
+    "visualBucsUsed": "{{count}} Visual Bucs",
+    "previewClip": "Anteprima clip",
+    "openProject": "Apri progetto",
+    "copyContent": "Copia contenuto",
+    "open": "Apri",
+    "deleteProject": "Elimina progetto",
+    "deleteProjectConfirm": "Eliminare «{{title}}»? È irreversibile.",
+    "runwayClipsSaved": "{{count}} clip di scene salvate",
+    "unsavedDraft": "Bozza non salvata",
+    "deleteDraftConfirm": "Eliminare questa bozza? È irreversibile.",
+    "generatedContentIncluded": "Contenuto generato incluso",
+    "downloadBackupJson": "Scarica backup JSON",
+    "recover": "Recupera",
+    "deleteClipConfirm": "Eliminare questa clip? È irreversibile.",
+    "openVideoUrl": "Apri URL del video",
+    "editor": "Editor",
+    "hidePrompt": "Nascondi prompt ▲",
+    "showPrompt": "Mostra prompt ▼",
+    "analysisFailed": "Analisi non riuscita",
+    "analysisFailedRetry": "Analisi non riuscita. Riprova.",
+    "copied": "Copiato!",
+    "copyAll": "Copia tutto",
+    "analyzing": "Analisi in corso...",
+    "reanalyzeSections": "Rianalizza le sezioni",
+    "findHookVerses": "Trova hook e strofe",
+    "analysisComplete": "Analisi completata",
+    "noContentSaved": "Nessun contenuto salvato.",
+    "generationsLink": "Cronologia generazioni →",
+    "importLink": "Importa media →",
+    "tabMyClips": "Le mie clip",
+    "tabSongs": "Canzoni"
   },
   "podcast": {
     "episode": {
@@ -8792,24 +8988,26 @@
   },
   "scheduler": {
     "titlePrefix": "Thy",
-    "titleSuffix": "War Room",
-    "signInPrompt": "Sign in to schedule posts across Instagram, TikTok, and Facebook.",
-    "signIn": "Sign in",
-    "badge": "Post everywhere from one calendar",
-    "hero": "Schedule video posts across Instagram Reels, TikTok, and Facebook. Server-side and restart-safe — your queue fires even with the tab closed.",
+    "titleSuffix": "Sala di Guerra",
+    "signInPrompt": "Accedi per programmare i post su Instagram, TikTok e Facebook.",
+    "signIn": "Accedi",
+    "badge": "Pubblica ovunque da un unico calendario",
+    "hero": "Programma i post video su Instagram Reels, TikTok e Facebook. Lato server e sicuro ai riavvii — la tua coda si attiva anche con la scheda chiusa.",
     "perks": {
-      "free": "Drafts & browsing free",
-      "cost": "100 Visual Bucs per post to schedule",
-      "refund": "Cancel anytime = auto-refund"
+      "free": "Bozze e navigazione gratuite",
+      "cost": "100 Visual Bucs per post da programmare",
+      "refund": "Annulla in qualsiasi momento = rimborso automatico"
     },
-    "newPost": "New scheduled post",
-    "loading": "Loading your schedule…",
-    "noCaption": "No caption",
+    "newPost": "Nuovo post programmato",
+    "loading": "Caricamento della tua programmazione…",
+    "noCaption": "Nessuna didascalia",
     "tabs": {
-      "calendar": "Calendar",
-      "queue": "Queue ({{num}})",
-      "drafts": "Drafts ({{num}})",
-      "posted": "Posted"
+      "calendar": "Calendario",
+      "queue": "Coda ({{num}})",
+      "drafts": "Bozze ({{num}})",
+      "posted": "Pubblicati",
+      "community": "Post della community",
+      "plan": "Piano"
     },
     "platforms": {
       "instagram": {
@@ -8818,149 +9016,233 @@
       },
       "tiktok": {
         "label": "TikTok",
-        "sub": "Video → your drafts"
+        "sub": "Video → le tue bozze"
       },
       "facebook": {
         "label": "Facebook",
-        "sub": "Page video"
+        "sub": "Video della pagina"
       }
     },
     "niches": {
-      "music": "Music",
+      "music": "Musica",
       "gaming": "Gaming",
-      "comedy": "Comedy",
+      "comedy": "Commedia",
       "fitness": "Fitness",
-      "beauty": "Beauty",
+      "beauty": "Bellezza",
       "tech": "Tech",
-      "education": "Education",
+      "education": "Istruzione",
       "lifestyle": "Lifestyle"
     },
     "days": {
-      "sun": "Sun",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat"
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Gio",
+      "fri": "Ven",
+      "sat": "Sab"
     },
     "status": {
-      "posted": "Posted",
-      "failed": "Failed",
-      "canceled": "Canceled",
-      "posting": "Posting",
-      "scheduled": "Scheduled",
-      "draft": "Draft"
+      "posted": "Pubblicato",
+      "failed": "Non riuscito",
+      "canceled": "Annullato",
+      "posting": "Pubblicazione",
+      "scheduled": "Programmato",
+      "draft": "Bozza"
     },
     "bestTime": {
       "title": "Orario migliore per pubblicare",
       "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
       "cost": "75 Visual Bucs",
       "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
-      "niche": "Niche",
-      "postsPerWeek": "Posts / week",
+      "niche": "Nicchia",
+      "postsPerWeek": "Post / settimana",
       "suggest": "Suggest times · 100 Visual Bucs",
-      "platforms": "Platforms",
-      "useSlot": "Use this slot"
+      "platforms": "Piattaforme",
+      "useSlot": "Usa questo slot",
+      "desc": "Intelligenza di pubblicazione basata su benchmark: heatmap dei punteggi su 7 giorni per piattaforma, personalizzate con i tuoi dati quando li hai. Tocca qualsiasi slot per programmare a quell'ora.",
+      "bucs": "Visual Bucs",
+      "customNichePlaceholder": "Oppure scrivi la tua nicchia…",
+      "optimize": "Ottimizza · 75 Visual Bucs",
+      "optimizing": "Ottimizzazione…",
+      "scheduleAtThisTime": "Programma a quest'ora",
+      "bestNext": "Miglior slot successivo — cavalca l'onda",
+      "topSlots": "Slot migliori",
+      "score": "Punteggio {{num}}",
+      "benchmark": "Benchmark",
+      "yourData": "I tuoi dati",
+      "legendBenchmark": "Benchmark delle piattaforme (2025)",
+      "legendPersonalized": "Dai tuoi dati",
+      "nicheTuned": "Ottimizzato per la nicchia",
+      "heatmapTitle": "Heatmap di 7 giorni",
+      "heatmapHint": "Oro = slot più caldo. Tocca qualsiasi cella per programmare a quell'ora. Le ore passate sono attenuate.",
+      "share": "Condividi la programmazione",
+      "shareLinkLabel": "Il tuo link di programmazione condivisibile",
+      "shareHint": "Pubblicalo ovunque — gli spettatori vedono la tua programmazione e il tuo link referral viaggia con essa.",
+      "copyLink": "Copia link",
+      "copied": "Copiato",
+      "copyFailed": "Impossibile copiare il link",
+      "linkReady": "Link di programmazione pronto — pubblicalo ovunque",
+      "failed": "Impossibile creare la programmazione — riprova.",
+      "outOfCredits": "Visual Bucs insufficienti per un'ottimizzazione dell'orario migliore."
     },
     "calendar": {
-      "prevMonth": "Previous month",
-      "today": "Today",
-      "nextMonth": "Next month",
-      "dayTitle": "Click to schedule · drop a post here to move it",
-      "postTitle": "{{datetime}} — drag to move, click to edit",
-      "more": "+{{num}} more",
-      "hint": "Click a future day to schedule · drag a post to another day to move it · click a post to edit or cancel."
+      "prevMonth": "Mese precedente",
+      "today": "Oggi",
+      "nextMonth": "Mese successivo",
+      "dayTitle": "Fai clic per programmare · trascina un post qui per spostarlo",
+      "postTitle": "{{datetime}} — trascina per spostare, fai clic per modificare",
+      "more": "+{{num}} altri",
+      "hint": "Fai clic su un giorno futuro per programmare · trascina un post su un altro giorno per spostarlo · fai clic su un post per modificarlo o annullarlo."
     },
     "queue": {
-      "emptyTitle": "Queue is empty",
-      "emptyHint": "Schedule a post and it will wait here until it fires — no tab required.",
-      "postingNow": "posting now",
-      "editLabel": "Edit or reschedule",
-      "editTitle": "Edit / reschedule",
-      "cancelLabel": "Cancel (refunds Visual Bucs)",
-      "cancelTitle": "Cancel — Visual Bucs refunded"
+      "emptyTitle": "La coda è vuota",
+      "emptyHint": "Programma un post e aspetterà qui finché non si attiva — nessuna scheda necessaria.",
+      "postingNow": "pubblicazione in corso",
+      "editLabel": "Modifica o riprogramma",
+      "editTitle": "Modifica / riprogramma",
+      "cancelLabel": "Annulla (rimborsa i Visual Bucs)",
+      "cancelTitle": "Annulla — Visual Bucs rimborsati",
+      "remixLabel": "Remix in Promo Clips",
+      "remixTitle": "Remixa questo post in Promo Clips"
     },
     "drafts": {
-      "emptyTitle": "No drafts",
-      "emptyHint": "Save a post as a draft while you perfect the caption — drafts are free.",
-      "schedule": "Schedule",
-      "deleteLabel": "Delete draft"
+      "emptyTitle": "Nessuna bozza",
+      "emptyHint": "Salva un post come bozza mentre perfezioni la didascalia — le bozze sono gratuite.",
+      "schedule": "Programma",
+      "deleteLabel": "Elimina bozza"
     },
     "posted": {
-      "emptyTitle": "Nothing posted yet",
-      "emptyHint": "Fired posts land here with per-platform results.",
-      "postedAt": "Posted {{datetime}}",
-      "updatedAt": "Updated {{datetime}}"
+      "emptyTitle": "Ancora niente di pubblicato",
+      "emptyHint": "I post attivati arrivano qui con i risultati per piattaforma.",
+      "postedAt": "Pubblicato {{datetime}}",
+      "updatedAt": "Aggiornato {{datetime}}"
     },
     "composer": {
-      "close": "Close",
-      "newPost": "New scheduled post",
-      "scheduleDraft": "Schedule draft",
-      "editPost": "Edit scheduled post",
-      "changesInstant": "Changes save instantly.",
-      "costNote": "Scheduling costs 100 Visual Bucs per post — charged now, refunded automatically if you cancel.",
+      "close": "Chiudi",
+      "newPost": "Nuovo post programmato",
+      "scheduleDraft": "Programma bozza",
+      "editPost": "Modifica post programmato",
+      "changesInstant": "Le modifiche si salvano istantaneamente.",
+      "costNote": "La programmazione costa 100 Visual Bucs per post — addebitati ora, rimborsati automaticamente se annulli.",
       "video": "Video",
-      "noPreview": "Video attached — preview unavailable for stored media.",
-      "removeVideo": "Remove video",
-      "uploading": "Uploading…",
-      "uploadCta": "Click to upload your video",
-      "uploadNote": "MP4 / MOV · up to 80 MB · free to upload",
-      "caption": "Caption",
-      "captionPlaceholder": "Write your caption…",
+      "noPreview": "Video allegato — anteprima non disponibile per i media archiviati.",
+      "removeVideo": "Rimuovi video",
+      "uploading": "Caricamento…",
+      "uploadCta": "Fai clic per caricare il tuo video",
+      "uploadNote": "MP4 / MOV · fino a 80 MB · caricamento gratuito",
+      "caption": "Didascalia",
+      "captionPlaceholder": "Scrivi la tua didascalia…",
       "aiCaption": "AI caption · 100 Visual Bucs",
-      "aiCaptionTitle": "AI writes a hook for your caption · 100 Visual Bucs",
-      "hashtags": "Hashtags",
-      "platforms": "Platforms",
-      "tiktokNote": "TikTok's API delivers to your drafts inbox — you'll finish the post in TikTok. Instagram and Facebook publish directly.",
-      "accountLabel": "{{platform}} account",
-      "noAccount1": "No {{platform}} account connected. ",
-      "noAccountLink": "Connect one in Tools → Social",
-      "noAccount2": " to schedule here.",
-      "chooseAccount": "Choose account…",
-      "date": "Date",
-      "time": "Time",
-      "timezoneNote": "Times are in your timezone ({{tz}}). The server fires the post even with this tab closed.",
-      "saveChanges": "Save changes",
-      "scheduleButton": "Schedule · 100 Visual Bucs",
-      "saveDraft": "Save as free draft",
-      "unschedule": "Unschedule → move back to drafts (refunds 100 Visual Bucs)"
+      "aiCaptionTitle": "L'IA scrive un hook per la tua didascalia · 100 Visual Bucs",
+      "hashtags": "Hashtag",
+      "platforms": "Piattaforme",
+      "tiktokNote": "L'API di TikTok consegna nella tua casella bozze — completerai il post in TikTok. Instagram e Facebook pubblicano direttamente.",
+      "accountLabel": "Account {{platform}}",
+      "noAccount1": "Nessun account {{platform}} connesso. ",
+      "noAccountLink": "Connettine uno in Strumenti → Social",
+      "noAccount2": " per programmare qui.",
+      "chooseAccount": "Scegli account…",
+      "date": "Data",
+      "time": "Ora",
+      "timezoneNote": "Gli orari sono nel tuo fuso orario ({{tz}}). Il server attiva il post anche con questa scheda chiusa.",
+      "saveChanges": "Salva modifiche",
+      "scheduleButton": "Programma · 100 Visual Bucs",
+      "saveDraft": "Salva come bozza gratuita",
+      "unschedule": "Deprogramma → riporta in bozze (rimborsa 100 Visual Bucs)",
+      "attributionNote": "Il tuo link referral viene aggiunto alla pubblicazione.",
+      "attributionChange": "Modifica"
     },
     "confirm": {
-      "cancel": "Cancel this scheduled post? Your reserved Visual Bucs will be refunded."
+      "cancel": "Annullare questo post programmato? I tuoi Visual Bucs riservati verranno rimborsati."
     },
     "toast": {
-      "canceled": "Post canceled",
-      "deleted": "Post deleted",
-      "refunded": "{{num}} credit{{s}} refunded.",
-      "couldntCancel": "Couldn't cancel",
-      "cantMove": "Can't move it there",
-      "futureDate": "Pick a date in the future.",
-      "rescheduled": "Rescheduled",
-      "couldntReschedule": "Couldn't reschedule",
-      "bestTimeFailed": "Best-time failed",
-      "videoUploaded": "Video uploaded",
-      "readyToSchedule": "Ready to schedule.",
-      "noCaption": "The AI didn't return a caption.",
+      "canceled": "Post annullato",
+      "deleted": "Post eliminato",
+      "refunded": "{{num}} credito{{s}} rimborsato.",
+      "couldntCancel": "Impossibile annullare",
+      "cantMove": "Impossibile spostarlo lì",
+      "futureDate": "Scegli una data nel futuro.",
+      "rescheduled": "Riprogrammato",
+      "couldntReschedule": "Impossibile riprogrammare",
+      "bestTimeFailed": "Orario migliore non riuscito",
+      "videoUploaded": "Video caricato",
+      "readyToSchedule": "Pronto da programmare.",
+      "noCaption": "L'IA non ha restituito una didascalia.",
       "aiCaptionFailed": "AI caption failed.",
-      "scheduled": "Scheduled",
-      "scheduledCost": "Scheduled · 100 Visual Bucs",
-      "scheduledDesc": "{{datetime}} — cancel anytime for a refund.",
-      "draftSaved": "Draft saved",
-      "draftsFree": "Drafts are free.",
-      "notEnoughCredits": "Not enough Visual Bucs — top up to schedule.",
-      "couldntSave": "Couldn't save the post.",
-      "couldntUnschedule": "Couldn't unschedule.",
-      "needsHosted": "Needs a hosted file",
-      "hostedDesc": "That asset lives only in this browser session — generate or upload a hosted video first."
+      "scheduled": "Programmato",
+      "scheduledCost": "Programmato · 100 Visual Bucs",
+      "scheduledDesc": "{{datetime}} — annulla in qualsiasi momento per un rimborso.",
+      "draftSaved": "Bozza salvata",
+      "draftsFree": "Le bozze sono gratuite.",
+      "notEnoughCredits": "Visual Bucs insufficienti — ricarica per programmare.",
+      "couldntSave": "Impossibile salvare il post.",
+      "couldntUnschedule": "Impossibile deprogrammare.",
+      "needsHosted": "Serve un file ospitato",
+      "hostedDesc": "Quell'asset vive solo in questa sessione del browser — prima genera o carica un video ospitato."
     },
     "error": {
-      "videoOnly": "Please choose a video file — the auto-post pipelines publish video.",
-      "uploadFailed": "Upload failed.",
-      "noVideo": "Upload a video first.",
-      "noPlatform": "Pick at least one platform.",
-      "noAccount": "Pick a connected account for: {{platforms}}.",
-      "futureTime": "Pick a date and time at least a minute in the future."
+      "videoOnly": "Scegli un file video — le pipeline di pubblicazione automatica pubblicano video.",
+      "uploadFailed": "Caricamento non riuscito.",
+      "noVideo": "Prima carica un video.",
+      "noPlatform": "Scegli almeno una piattaforma.",
+      "noAccount": "Scegli un account connesso per: {{platforms}}.",
+      "futureTime": "Scegli una data e un'ora almeno un minuto nel futuro."
+    },
+    "fromRelease": "Dalla release",
+    "accounts": {
+      "title": "Account di pubblicazione",
+      "sub": "I post programmati vengono pubblicati su questi account.",
+      "connected": "Connesso",
+      "expired": "Connessione scaduta",
+      "notConnected": "Non connesso",
+      "reconnect": "Riconnetti nelle Impostazioni",
+      "connect": "Connetti nelle Impostazioni",
+      "loadFailed": "Impossibile caricare i tuoi account di pubblicazione — le tue connessioni potrebbero essere ancora a posto.",
+      "retry": "Riprova"
+    },
+    "communityPosts": {
+      "badge": "Copywriter",
+      "title": "Generatore di post per la community",
+      "desc": "Post di engagement testuali per YouTube Community, X, Instagram e Threads. {{cost}} Visual Bucs per lotto di 3 — rimborsati automaticamente se la generazione fallisce.",
+      "topic": "Argomento",
+      "topicPlaceholder": "es. nuovo singolo in uscita venerdì, sondaggio: quale cover dopo, opinione forte sul settore...",
+      "platform": "Piattaforma",
+      "tone": "Tono",
+      "cta": "Call to action (opzionale)",
+      "ctaPlaceholder": "es. commenta la tua scelta qui sotto, link di pre-save in bio...",
+      "niche": "Suggerimento di nicchia (opzionale)",
+      "nichePlaceholder": "es. artisti indie",
+      "generate": "Genera 3 post",
+      "generating": "Scrittura...",
+      "generated": "Scegli il tuo preferito — o programmalo con il flusso di programmazione esistente.",
+      "charCount": "{{num}} / {{limit}} caratteri",
+      "bestTime": "Orario migliore per pubblicare",
+      "scheduleThis": "Programma questo post",
+      "copy": "Copia",
+      "copied": "Copiato negli appunti.",
+      "variants": "Variante {{num}}",
+      "failed": "Generazione fallita",
+      "platformLabels": {
+        "youtube-community": "YouTube Community",
+        "x": "X",
+        "instagram": "Instagram",
+        "threads": "Threads"
+      }
+    },
+    "shared": {
+      "badge": "Programmazione di pubblicazione",
+      "headline": "Cavalca l'onda — programmazione di pubblicazione {{niche}}",
+      "sub": "Creata con l'ottimizzatore dell'orario migliore di Bow Down Visuals. Pubblica al momento giusto, cavalca l'onda.",
+      "honesty": "I punteggi combinano i benchmark 2025 delle piattaforme con la cronologia di pubblicazione del creator — pattern, non promesse.",
+      "getYours": "Ottieni la mia programmazione",
+      "buildMine": "Crea la mia programmazione",
+      "powered": "Realizzato con Bow Down Visuals",
+      "dismiss": "Ignora"
+    },
+    "plan": {
+      "sendHint": "Scegli un giorno per precompilare il compositore della programmazione.",
+      "scheduleDay": "Programma questo giorno"
     }
   },
   "myShop": {
@@ -10147,7 +10429,22 @@
     }
   },
   "library": {
-    "pageTitle": "Libreria"
+    "pageTitle": "Libreria",
+    "pageDescription": "Modelli, preset e font per creator.",
+    "kicker": "Il tuo arsenale creativo",
+    "headingA": "Thy",
+    "headingB": "Libreria",
+    "sub": "Modelli, preset e font che si collegano direttamente ai tuoi strumenti. Scegline uno, premi Usa, continua a creare.",
+    "searchPlaceholder": "Cerca modelli, preset, font…",
+    "tabTemplates": "Modelli",
+    "tabPresets": "Preset",
+    "tabFonts": "Font",
+    "recentlyUsed": "Usati di recente",
+    "use": "Usa",
+    "useFont": "Copia font",
+    "copied": "Copiato!",
+    "browse": "Sfoglia la libreria",
+    "noResults": "Niente trovato — prova un'altra ricerca."
   },
   "retention": {
     "streak_title": "Serie di creazione",
@@ -13555,5 +13852,155 @@
     "tuneButton": "Accorda la mia voce — {cost} Visual Bucs",
     "tuneComplete": "Accordatura completata — {style}",
     "waveformUnavailable": "Forma d'onda non disponibile"
+  },
+  "catalogVault": {
+    "title": "Caveau del Catalogo",
+    "copy": "Lascia un'eredità. Un pagamento unico di 200 Visual Bucs mantiene la pagina di pre-save, la voce in vetrina e gli asset di questa release live su Bow Down Visuals — per sempre. Nessun rinnovo, nessuna eliminazione.",
+    "guarantee1": "La pagina di pre-save resta live per sempre",
+    "guarantee2": "La voce in vetrina non scade mai",
+    "guarantee3": "Artwork + asset audio preservati",
+    "vaultButton": "Metti nel caveau per sempre · 200 Visual Bucs",
+    "vaulting": "Messa nel caveau…",
+    "vaultFailed": "Impossibile mettere questa release nel caveau — riprova.",
+    "vaulted": "Nel caveau",
+    "vaultedCopy": "«{{title}}» è nel caveau — la sua pagina di pre-save, la voce in vetrina e gli asset restano live su Bow Down Visuals per sempre."
+  },
+  "mashup": {
+    "tabCreate": "Crea",
+    "tabMashup": "Mashup",
+    "title": "Mashup di canzoni",
+    "subtitle": "Scegli due canzoni — le tue o caricate — e fondile in un'unica traccia. Tempo abbinato, ritmo bloccato, un clic.",
+    "priceBadge": "400 Visual Bucs",
+    "modeSimple": "Turbo",
+    "modeCustom": "Avanzato",
+    "songA": "Canzone A",
+    "songB": "Canzone B",
+    "pickFromLibrary": "Scegli dalla tua libreria…",
+    "uploadInstead": "o carica audio",
+    "uploading": "Caricamento…",
+    "styleLabel": "Stile di fusione",
+    "styleCrossfade": "Crossfade",
+    "styleCrossfadeBlurb": "A sfuma, B entra nel punto di fusione.",
+    "styleBeatMatch": "Sincronizzato al ritmo",
+    "styleBeatMatchBlurb": "Tempo allineato e ritmo bloccato — entrambe le canzoni suonano insieme.",
+    "styleInterleave": "Alternanza strofa-ritornello",
+    "styleInterleaveBlurb": "Sezioni alternate — la strofa di A, il ritornello di B, avanti e indietro.",
+    "blendPointLabel": "Punto di fusione",
+    "blendPointHint": "Dove nella Canzone A avviene la fusione.",
+    "balanceLabel": "Balance",
+    "balanceHint": "Trascina per mettere una canzone in primo piano rispetto all'altra.",
+    "crossfadeLabel": "Lunghezza della dissolvenza incrociata",
+    "titleLabel": "Titolo del mashup (opzionale)",
+    "titlePlaceholder": "es. Midnight × Gold Rush",
+    "submitSimple": "Mashup delle mie canzoni",
+    "submitCustom": "Fondi queste canzoni",
+    "needsTwoSongs": "Scegli prima due canzoni — dalla tua libreria o carica audio.",
+    "analyzing": "Analisi dei ritmi di entrambe le canzoni…",
+    "tempoMatching": "Abbinamento del tempo della Canzone B alla Canzone A…",
+    "blending": "Fusione del tuo mashup…",
+    "saving": "Salvataggio nella tua libreria…",
+    "failed": "Mashup non riuscito — i tuoi Visual Bucs sono stati rimborsati.",
+    "resultTitle": "Il tuo mashup è pronto",
+    "bpmUnknown": "—",
+    "handoffLyricVideo": "Crea un video con testo",
+    "handoffLyricVideoBlurb": "Video stile karaoke · 300 VB",
+    "handoffCoverArt": "Disegna la copertina",
+    "handoffCoverArtBlurb": "Artwork dorato di lusso · 200 VB",
+    "handoffAlbum": "Aggiungi all'album",
+    "handoffAlbumBlurb": "Inseriscilo in un album o EP",
+    "handoffShare": "Condividi",
+    "handoffShareBlurb": "Un tocco — il tuo link referral è allegato",
+    "working": "Elaborazione…",
+    "lyricVideoDone": "Video con testo pronto",
+    "coverArtDone": "Copertina pronta",
+    "albumPick": "Scegli un album…",
+    "albumNew": "Titolo del nuovo album…",
+    "albumCreateAdd": "Crea e aggiungi",
+    "albumAdd": "Aggiungi all'album",
+    "albumAdded": "Aggiunto all'album",
+    "albumLoadFailed": "Impossibile caricare gli album.",
+    "copied": "Copiato!",
+    "shareText": "Ascolta il mio mashup",
+    "coverArtist": "Mashup di canzoni",
+    "tabHum": "Canticchia"
+  },
+  "mediaDetector": {
+    "badge": "Rilevatore media IA",
+    "titleStart": "Reale o",
+    "titleAi": "IA?",
+    "titleEnd": "Sappilo con certezza.",
+    "subtitle": "Carica un'immagine, un video o un file audio — o incolla un link — e ottieni una valutazione forense IA: verdetto, punteggio di affidabilità e i segnali esatti rilevati.",
+    "costPerCheck": "{{cost}} Visual Bucs per controllo.",
+    "dropHint": "Trascina i file qui o fai clic per caricare",
+    "filesSkipped_one": "1 file saltato — tipo non supportato o oltre 25 MB.",
+    "filesSkipped_other": "{{count}} file saltati — tipo non supportato o oltre 25 MB.",
+    "fileTypes": "Immagini, video, audio — fino a 25 MB ciascuno. Lotti supportati.",
+    "urlPlaceholder": "…o incolla un URL di immagine",
+    "add": "Aggiungi",
+    "queueStatus": "{{count}} file · {{done}} controllati",
+    "clearAll": "Cancella tutto",
+    "checkAll": "Controlla tutto ({{cost}} Visual Bucs)",
+    "remove": "Rimuovi",
+    "analyze": "Analizza · {{cost}} Visual Bucs",
+    "analyzing": "Analisi dei segnali IA…",
+    "analyzingVideo": "Estrazione dei fotogrammi, poi analisi…",
+    "retry": "Riprova",
+    "emptyTitle": "Niente da controllare",
+    "emptySubtitle": "Carica un file o incolla un URL per eseguire il tuo primo rilevamento.",
+    "verdictAi": "Probabilmente generato da IA",
+    "verdictHuman": "Probabilmente creato da un umano",
+    "verdictUncertain": "Incerto",
+    "detectedSignals": "Segnali rilevati",
+    "pointsToAi": "indica IA",
+    "pointsToHuman": "indica umano",
+    "errorOutOfCredits": "Visual Bucs esauriti.",
+    "errorDetectionFailed": "Rilevamento non riuscito. Riprova.",
+    "errorDetectionFailedShort": "Rilevamento non riuscito.",
+    "filesSkipped_many": "File saltati — tipo non supportato o oltre 25 MB."
+  },
+  "myClips": {
+    "pageTitle": "Le mie clip",
+    "pageDescription": "La tua libreria di clip promo generate.",
+    "title": "Le mie clip generate",
+    "generateNew": "Genera una nuova clip",
+    "backToProjects": "Torna ai miei progetti",
+    "noClips": "Nessuna clip",
+    "noClipsHint": "Le clip di scene generate si salvano qui automaticamente. Genera la tua prima clip dallo Scene Studio.",
+    "videoForSong": "Video per la mia canzone",
+    "use": "Usa",
+    "clipReady": "Clip pronta",
+    "ready": "Pronta",
+    "done": "Fatto",
+    "attachToScene": "Allega a una scena del progetto",
+    "noCharge": "Nessun Visual Bucs addebitato",
+    "noProjects": "Nessun progetto con scene trovato",
+    "noProjectsHint": "Apri Visual Vibes e ricrea prima le scene.",
+    "project": "Progetto",
+    "noScenes": "Nessuna scena salvata",
+    "noScenesHint": "Apri Visual Vibes, carica le tue scene, poi torna qui e allega questa clip.",
+    "openEditor": "Apri Visual Vibes",
+    "scene": "Scena",
+    "hasClip": "Ha una clip",
+    "cancel": "Annulla",
+    "attaching": "Allegamento…",
+    "attachClip": "Allega clip",
+    "deleteConfirm": "Eliminare?",
+    "yes": "Sì",
+    "copied": "Copiato",
+    "copyUrl": "Copia URL",
+    "clipAttached": "Clip allegata — Clip pronta!",
+    "attachedDesc": "Allegato alla Scena {{index}}{{section}}. Apri Visual Vibes per vederlo.",
+    "clipDeleted": "Clip eliminata",
+    "errorLoadProjects": "Impossibile caricare i progetti",
+    "errorAttach": "Impossibile allegare la clip",
+    "errorAttachFailed": "Allegamento non riuscito",
+    "errorDelete": "Eliminazione non riuscita",
+    "extractAudio": "Estrai audio",
+    "extractAudioCost": "50 Visual Bucs",
+    "extractAudioDone": "Audio estratto",
+    "extractAudioFailed": "Estrazione audio non riuscita",
+    "extractAudioRefunded": "Sei stato rimborsato automaticamente.",
+    "extracting": "Estrazione…",
+    "downloadMp3": "Scarica MP3"
   }
 }
