@@ -1,6 +1,6 @@
 /**
  * locale-waves-ko.test.ts — Stack-28 Korean wave pins (board items
- * 77 / 86 / 95 / 99 = ko-W1..W4, per .lane/audit/a7-locale.md §5.8).
+ * 77 / 86 / 95 / 99 = ko-W1..W5, per .lane/audit/a7-locale.md §5.8).
  *
  * For each completed wave this suite pins, over the wave's EXACT §5
  * namespace list:
@@ -75,6 +75,10 @@ export const KO_WAVES: Record<string, string[]> = {
     "beatMaker", "beats", "sounds", "makeSong", "translate", "sfx", "lyricVideo",
     "voiceover", "scheduler", "myProjects", "mashup",
   ],
+  W5: [
+    "repurpose", "myClips", "hooks", "mediaDetector", "randomizer", "scriptWriter", "library", "artistVault", "catalogVault", "streamPack", "viralityCheck", "retention", "titles", "email-list", "importPage", "audit", "interviewPrep", "trends", "chooseArtist", "generations", "analytics", "setlist", "linkInBio", "weekly_contest", "discord-bot", "shoutouts", "community", "team", "extension", "collabs", "contests", "goLive", "shows", "tour", "commentReplies", "nfcCards", "privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "websiteBuilder",
+  ],
+  W6: ["milestones", "lufs", "presave", "release", "stabilize", "create", "press-public", "videoEditor", "press-kit", "captionSuite", "outreach", "contentIntelligence", "moveHome", "podcast", "hubSpine", "admin", "cover-art", "nav", "videoExport", "wave9", "analyticsHub", "djSets", "share", "brandingKit", "dashboard", "paidSeries", "playlist", "proFinishing", "review", "tutorials", "wave8"],
 };
 
 /** Legit-identical allowlists, per wave — see header for the classes. */
@@ -193,6 +197,10 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // brand fragment / house mode names / punctuation
     "scheduler.titlePrefix", "mashup.modeSimple", "mashup.modeCustom", "mashup.bpmUnknown",
   ],
+  W5: [
+    "analytics.creditsPerRun", "artistVault.creditsCount", "audit.handlePlaceholder", "audit.platformInstagram", "audit.platformTikTok", "audit.platformYouTube", "coach.cadencePlaceholder", "coach.crossLinkBrand", "coach.platformInstagram", "coach.platformTikTok", "coach.platformYouTube", "coach.titleStart", "commentReplies.batchSubline", "community.removed", "discord-bot.discord", "discord-bot.discord_bot_shared_secret", "discord-bot.discord_bot_token", "discord-bot.discord_client_id", "discord-bot.live_companion_bot", "email-list.100_visual_bucs", "email-list.join_2", "email-list.thy_cheat_code", "email-list.your_handle", "extension.bdv", "extension.chrome_extensions", "extension.thy_cheat_code", "hooks.heroTitleA", "hooks.heroTitleB", "hooks.pfHashtagsPlaceholder", "hooks.scoreOutOf", "importPage.kbSize", "importPage.mbSize", "importPage.urlPlaceholder", "interviewPrep.artistNamePh", "interviewPrep.audienceSizePh", "interviewPrep.of100", "library.headingA", "linkInBio.links.urlPlaceholder", "linkInBio.profile.avatarUrlPlaceholder", "linkInBio.theme.onyxMinimal", "linkInBio.tipJar.placeholder", "myClips.extractAudioCost", "nfcCardProfile.poweredBy", "nfcCards.qrSvg", "notFound.myProjects", "privacy.section4Item1Label", "privacy.section4Item2Label", "privacy.section4Item3Label", "promote.hero.titleAccent", "randomizer.crossLink.name", "repurpose.modeLabel", "repurpose.modeStreamVod", "retention.awayDigest.bowRace", "retention.awayDigest.jackpot", "retention.dailyDrop.title", "retention.prefs.dailyDropEnabled.title", "retention.quests_progress", "scriptWriter.platformTiktok", "scriptWriter.platformYoutube", "scriptWriter.teleprompterWpmValue", "setlist.durationPlaceholder", "shoutouts.displayNamePlaceholder", "shoutouts.emailPlaceholder", "team.fundPlaceholder", "team.inviteEmailPlaceholder", "team.spendingAmount", "titles.crossLinkHook", "titles.platformInstagram", "titles.platformTikTok", "titles.platformYouTube", "trends.platformInstagram", "trends.platformTiktok", "trends.platformYoutube", "viralityCheck.crossLinkHookStudio", "viralityCheck.hashtagsPlaceholder", "viralityCheck.platformInstagram", "viralityCheck.platformTiktok", "viralityCheck.platformX", "viralityCheck.platformYoutube",
+  ],
+  W6: ["admin.friendEmailPlaceholder", "admin.planEmailPlaceholder", "admin.users.credits", "admin.users.emailPlaceholder", "analyticsHub.hookStudio", "analyticsHub.milestones.loggedFrom", "captionSuite.burnModeHint", "captionSuite.credits", "captionSuite.endCardText", "captionSuite.generateCost", "captionSuite.share_facebook", "captionSuite.share_telegram", "captionSuite.share_whatsapp", "contentIntelligence.calendarFrom", "contentIntelligence.compUrlPlaceholder", "contentIntelligence.platformInstagram", "contentIntelligence.platformTikTok", "contentIntelligence.platformX", "contentIntelligence.platformYouTube", "cover-art.dark_hip_hop_triumphant_late_nig", "cover-art.midnight_crown", "cover-art.thy_cheat_code", "dashboard.tile_vibes", "djSets.bpm", "djSets.exportRekordbox", "hubSpine.attributionTitle", "hubSpine.handoffs.resultLabel", "hubSpine.madeWith", "hubSpine.promoCards.historyForRelease", "hubSpine.promoCards.sizeHint.16x9", "lufs.formatMp3", "lufs.formatWav", "moveHome.displayNamePh", "moveHome.genrePh", "moveHome.handlePh", "moveHome.locationPh", "moveHome.starterProductPh", "nav.bowRace", "nav.contentCalendar", "nav.credits", "nav.videoEditor", "outreach.audiencePlaceholder", "outreach.brandNamePlaceholder", "outreach.contactPlaceholder", "outreach.creatorNamePlaceholder", "outreach.invoice.brandEmailPlaceholder", "outreach.invoice.creatorEmailPlaceholder", "outreach.productPlaceholder", "paidSeries.buyerInitial", "podcast.generate.creditsEstimate", "podcast.result.apple", "podcast.result.durationApprox", "podcast.result.spotify", "podcast.script.creditsCost", "podcast.script.durationApprox", "press-kit.form.socialUrl", "press-kit.pdf", "press-kit.placeholders.artistName", "press-kit.placeholders.bookingEmail", "press-kit.placeholders.handle", "press-kit.placeholders.url", "press-kit.pressRelease.placeholders.contactEmail", "press-kit.pressRelease.placeholders.contactPhone", "proFinishing.qualitySummary", "release.types.ep.label", "share.attribution", "share.whatsapp", "tutorials.officialBadge", "videoEditor.mask.creditLine", "videoEditor.modePro", "videoEditor.modeSimple", "videoEditor.motionTrack.costChip", "videoEditor.multiRatio.ytCaption", "videoEditor.pageTitle", "videoEditor.shareAttribution", "videoEditor.subjectReframe.costLabel", "videoEditor.subjectReframe.platformVertical", "videoEditor.subjectReframe.platformYoutube", "videoEditor.vibe_80s", "videoEditor.vibe_90s", "videoEditor.vibe_y2k", "videoExport.aspectVertical", "videoExport.aspectWide", "videoExport.colNum", "videoExport.colUrl", "wave8.splits.royaltyAmountPlaceholder", "wave9.cameraMovePlanner.buildCost", "wave9.characterDirector.planCost"],
 };
 
 const placeholders = (v: Leaf): string[] => {
@@ -210,6 +218,7 @@ describe("Stack-28 ko locale waves", () => {
       it("wave namespaces are complete and non-empty in ko", () => {
         const missing: string[] = [];
         for (const k of keys) {
+          if (typeof EN[k] === "string" && !EN[k].trim()) continue; // en itself is empty (split-title accent) — nothing to carry
           const v = KO[k];
           if (v === undefined) { missing.push(`${k} (absent)`); continue; }
           if (typeof v !== "string" || !v.trim()) missing.push(`${k} (empty)`);

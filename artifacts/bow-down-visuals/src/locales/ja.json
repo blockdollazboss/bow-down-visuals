@@ -1075,7 +1075,7 @@
     "errorNoData": "まず数字を入力してください — AIプランは実数に基づいて作られます。推測ではありません。",
     "errorGrowthPlanFailed": "成長プランに失敗しました — もう一度お試しください。",
     "heroEyebrow": "クリエイターツール",
-    "heroTitle": "Analytics Hub",
+    "heroTitle": "分析ハブ",
     "heroSubtitle": "全プラットフォーム、1つのダッシュボード — TikTok、Instagram、YouTube、X。トラッキングは永久無料。AI成長プランは{{cost}} Visual Bucs。",
     "addNumbers": "数字を入力",
     "totalFollowers": "総フォロワー数",
@@ -1393,7 +1393,7 @@
     "photoShootLook": "撮影ルック",
     "backToDashboard": "ダッシュボードに戻る",
     "freeBadge": "無料",
-    "profilesTitle": "Creative Vault",
+    "profilesTitle": "クリエイティブVault",
     "profilesSubtitle": "アーティストの見た目、スタイル、カラー、ブランドを一度保存すれば、どのツールでも読み込んで、すべてのビジュアルを一貫させられます。",
     "tagArtistDescription": "アーティストの説明",
     "tagVisualStyle": "ビジュアルスタイル",
@@ -1508,7 +1508,17 @@
     "identityUrlRequired": "写真には有効な画像 URL（https://…）を追加してください。",
     "identityRemoveTitle": "セットからのみ削除 — 画像ファイルは保持されます",
     "identityRemoveAria": "アイデンティティセットから写真を削除",
-    "identityUploadAria": "アイデンティティ写真をアップロード"
+    "identityUploadAria": "アイデンティティ写真をアップロード",
+    "worldVoiceSection": "ワールドボイス",
+    "worldVoiceHint": "ワールドでこのキャラクターとして話すときの声。ナチュラル = あなたの声そのまま。",
+    "voicePresetDeep": "ディープ",
+    "voicePresetNatural": "ナチュラル",
+    "voicePresetBright": "ブライト",
+    "voiceAdvanced": "高度な設定",
+    "voicePitch": "ピッチ",
+    "voiceFormant": "体の大きさ",
+    "voiceBody": "共鳴",
+    "emptyProfilesTitle": "Vaultは空です"
   },
   "audioCleanup": {
     "pageTitle": "オーディオクリーンアップ",
@@ -2035,6 +2045,9 @@
       },
       "wallpapers": {
         "label": "壁紙とテーマ"
+      },
+      "headshots": {
+        "label": "ヘッドショット"
       }
     },
     "title": "ブランディングキット"
@@ -2233,7 +2246,9 @@
     "spotlightBadge": "#{{n}} スポットライト",
     "startCreating": "このアーティストで制作を開始",
     "subtitle": "アーティストを選んでください — ライト、カメラ、そして制作するすべてのコンテンツに彼らのルック、サウンド、ブランドを合わせます。",
-    "title": "カメラの前にいるのは誰?"
+    "title": "カメラの前にいるのは誰?",
+    "dragHint": "アーティストを注目スロットにドラッグして、誰がどこで輝くかを選べます。",
+    "startCreatingWith": "{{name}}と作成を開始"
   },
   "clipMaker": {
     "analyzeNote": "AIがVODを文字起こしし、切り抜きに値する{{vibe}}の瞬間を見つけます。ハイライトが見つかった場合のみ料金が発生します。",
@@ -2343,11 +2358,34 @@
     "subscribersPlaceholder": "登録者",
     "subtitle": "クリエイターループのマネー側：各収益化プログラムでの立ち位置、ニッチの実際の収益力、そして次の3つのマネームーブ。",
     "threshold": "しきい値：{{value}}",
-    "titleHighlight": "Money Room",
+    "titleHighlight": "マネールーム",
     "titleStart": "Thy",
     "videosPerWeek": "週間動画数",
     "whereDoYouPost": "どこに投稿していますか？",
-    "yourNiche": "あなたのニッチ"
+    "yourNiche": "あなたのニッチ",
+    "copyPlan": "プランをコピー",
+    "tabMoneyTracker": "マネートラッカー",
+    "tabGroupPlan": "プラン",
+    "tabGroupTrack": "トラッキング",
+    "tabGroupEarn": "稼ぐ",
+    "tabGroupSell": "売る",
+    "tabGroupGrow": "成長",
+    "tabPlan": "マネープラン",
+    "tabNiche": "ニッチアナライザー",
+    "tabBrandDeals": "ブランド案件",
+    "tabShoutouts": "シャウトアウト",
+    "tabTips": "チップ",
+    "tabBeats": "ビート販売",
+    "tabMemberships": "メンバーシップ",
+    "tabDistribute": "配信",
+    "tabStorefronts": "ストアフロント",
+    "tabMyShop": "マイショップ",
+    "tabPressKit": "プレスキット",
+    "tabEmailList": "メールリスト",
+    "tabCollabs": "コラボ",
+    "tabContests": "コンテスト",
+    "tabReferrals": "紹介",
+    "tabTeam": "チーム"
   },
   "collabs": {
     "accept": "承認",
@@ -2420,7 +2458,9 @@
     "wantsLabel": "希望: ",
     "watchOutFor": "気をつけること",
     "whyItWorks": "なぜ上手くいくか",
-    "youBadge": "あなた"
+    "youBadge": "あなた",
+    "brandDealsLink": "ブランド案件",
+    "collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください "
   },
   "commentReplies": {
     "batchSubline": "{{date}} — 「{{preview}}…」",
@@ -2526,7 +2566,11 @@
         "label": "スーパーファンアラート",
         "desc": "トップサポーターが現れました — 感謝を伝えましょう"
       }
-    }
+    },
+    "replies": {
+      "scheduleLink": "スケジューラーで投稿を予約"
+    },
+    "messagesLink": "ダイレクトメッセージを開く →"
   },
   "contact": {
     "your_name": "お名前",
@@ -2608,7 +2652,9 @@
     "entries_the_draw_is_seeded_and_l": "応募のみです。抽選はシード付きで記録されます —\n                        監査ログを公開して、ファンが公正だったと検証できるようにしましょう。",
     "verify_at_least_one_entry_first": "まず応募を1件以上認証してください。",
     "ai_generated_gold_black_announce": "当選者のハンドル名入りAI生成ゴールド／ブラック発表グラフィック — 100 Visual Bucs。",
-    "download": "ダウンロード"
+    "download": "ダウンロード",
+    "winnersCircle": "勝者サークル",
+    "share": "共有"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "契約書の全文をここに貼り付けてください — 送られてきたPDFや書類からコピーしてください。全文が揃うほど分析の精度が上がります。",
@@ -2705,7 +2751,8 @@
         "label": "アルバム／EP",
         "hint": "まとめてリリースされた作品群"
       }
-    }
+    },
+    "download_draft": "下書きをダウンロード"
   },
   "cover-art": {
     "midnight_crown": "Midnight Crown",
@@ -2737,7 +2784,8 @@
         "label": "プレミアムディテール",
         "blurb": "最大限のディテールとリッチさ"
       }
-    }
+    },
+    "useSong": "曲を使う"
   },
   "create-simple": {
     "e_g_a_song_about_grinding_for_ye": "例: ブレイクスルーが訪れるまで何年も泥臭く努力する歌…",
@@ -2764,8 +2812,30 @@
     "title": "作成",
     "modes": {
       "wallpapers": "壁紙とテーマ",
-      "wallpapersBlurb": "壁紙、スクリーンセーバー、おそろいのテーマ"
-    }
+      "wallpapersBlurb": "壁紙、スクリーンセーバー、おそろいのテーマ",
+      "songVideo": "曲＋動画",
+      "songVideoBlurb": "トラックとビジュアル、1つのフロー",
+      "song": "曲",
+      "songBlurb": "プロンプトからAIソング",
+      "video": "動画",
+      "videoBlurb": "あなたのサウンドのために作られたクリップ",
+      "hub": "クリエイションハブ",
+      "hubBlurb": "すべてのツール、1つのボード",
+      "cartoon": "アニメ",
+      "cartoonBlurb": "アニメスタジオ",
+      "coverArt": "カバーアート",
+      "coverArtBlurb": "目立つカバーアート",
+      "dreamCollab": "ドリームコラボ",
+      "dreamCollabBlurb": "AIアーティストと作る",
+      "linkToHit": "リンクからヒット",
+      "linkToHitBlurb": "あらゆるリンクをヒットに変える",
+      "coverMotion": "カバーモーション",
+      "coverMotionBlurb": "カバーアートに命を吹き込む"
+    },
+    "pageTitle": "作成",
+    "pageDescription": "何でも始めましょう：曲＋動画、曲、動画、またはガイド付きクリエイションハブ。",
+    "subtitle": "1つのスタジオ、10通りの始め方。レーンを選べば、完成した作品は自然に次のステップへ流れます。",
+    "backToDashboard": "ダッシュボードに戻る"
   },
   "credit-history": {
     "dashboard": "ダッシュボード",
@@ -3317,7 +3387,8 @@
       "video": "動画",
       "song": "曲",
       "voice": "ボイス"
-    }
+    },
+    "download": "ダウンロード"
   },
   "goLive": {
     "pageTitle": "Go Live",
@@ -3427,6 +3498,15 @@
       },
       "preflight": {
         "label": "バイラル度プレフライト"
+      },
+      "cta": {
+        "label": "CTAジェネレーター"
+      },
+      "titles": {
+        "label": "タイトル"
+      },
+      "dice": {
+        "label": "サイコロ"
       }
     },
     "videoType": {
@@ -3501,7 +3581,60 @@
     "errNeedTitle": "まず動画にタイトルを付けてください — プレフライトが最初にチェックします。",
     "errHooksFailed": "フック生成に失敗しました — もう一度お試しください。",
     "errCaptionsFailed": "キャプション生成に失敗しました — もう一度お試しください。",
-    "errScoringFailed": "採点に失敗しました — もう一度お試しください。"
+    "errScoringFailed": "採点に失敗しました — もう一度お試しください。",
+    "ctaSub": "すべての動画には強いコールトゥアクションが必要です。目標を選ぶと、コンバージョンに最適化されたCTAを10個書きます。強い順に。",
+    "ctaTopicLabel": "動画の内容は？",
+    "ctaTopicPlaceholder": "例：新シングル「Golden Tide」が金曜日にリリース",
+    "ctaGoalLabel": "視聴者に何をしてほしい？",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "登録する"
+      },
+      "comment": {
+        "label": "コメントする"
+      },
+      "share": {
+        "label": "共有する"
+      },
+      "follow": {
+        "label": "フォローする"
+      },
+      "buy": {
+        "label": "購入する"
+      },
+      "stream": {
+        "label": "ストリーミングする"
+      }
+    },
+    "creditNoteCta": "生成ごとに50 Visual Bucs · Thy Cheat Code提供",
+    "generateCtas": "CTAを生成",
+    "cookingCtas": "CTAを作成中…",
+    "yourCtas": "あなたのCTA — 強さ順",
+    "ctaPlacement": {
+      "opener": {
+        "label": "オープナー"
+      },
+      "mid-roll": {
+        "label": "ミッドロール"
+      },
+      "closer": {
+        "label": "クローザー"
+      },
+      "pinned-comment": {
+        "label": "固定コメント"
+      }
+    },
+    "ctaStrengthLabel": "強さ",
+    "addToScript": "スクリプトに追加",
+    "addedToScript": "スクリプトに追加済み",
+    "ctaHandoffTip": "「スクリプトに追加」をタップするとCTAがHubプロジェクトに入ります — Script Writerとボイスオーバーがそこから取得します。",
+    "errNeedVideoTopic": "まず動画の内容を教えてください。",
+    "errCtasFailed": "CTAを生成できませんでした — もう一度お試しください。",
+    "fullIntelligenceCheck": "フルインテリジェンスチェック",
+    "sendToScriptWriter": "Script Writerに送信",
+    "captions": {
+      "needBurnedIn": "動画に焼き付けキャプションが必要ですか？"
+    }
   },
   "hub": {
     "removeAssetAria": "「{{label}}」を削除",
@@ -3588,7 +3721,8 @@
     "title": "メディアインポーター",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "動画",
-    "worksWith": "{{platforms}}および音声/動画ファイルへの直接リンク（MP3、MP4、WAV、…）に対応。最大500MBまでのファイル。"
+    "worksWith": "{{platforms}}および音声/動画ファイルへの直接リンク（MP3、MP4、WAV、…）に対応。最大500MBまでのファイル。",
+    "viewLibrary": "マイクリップ"
   },
   "interviewPrep": {
     "answerLabel": "あなたの回答 — マイクの前で話すように",
@@ -4182,7 +4316,8 @@
     "removeLocationTitle": "ロケーションを削除",
     "save": "保存",
     "subtitle": "ミュージックビデオ用の場所を保存 — 玉座の間、ステージ、ストリート、空。シーン作りでは文字を打つ代わりに視覚的に選べます。",
-    "uploadImage": "画像をアップロード"
+    "uploadImage": "画像をアップロード",
+    "useInCoverArt": "カバーアートに使う"
   },
   "logoMaker": {
     "pageTitle": "ロゴメーカー",
@@ -5004,7 +5139,17 @@
     "regenerate": "再生成 ({{cost}} Visual Bucs)",
     "retry": "再試行",
     "themeLabel": "テーマ",
-    "yourPack": "あなたのパック"
+    "yourPack": "あなたのパック",
+    "goLive": "パック準備完了 — Go Liveで配信をセットアップ",
+    "libraryTitle": "ストリームパックライブラリ",
+    "libraryNote": "生成したすべてのグラフィックがここに保存されます。必要なものをGo Liveスタジオに追加すると、スタジオのパックトレイで待機し、シーンに落とし込む準備が整います。",
+    "libraryEmpty": "まだ保存がありません — 上でパックを生成するとここに届きます。",
+    "libraryLoading": "ライブラリを読み込み中…",
+    "libraryError": "ライブラリを読み込めませんでした。",
+    "libraryActionFailed": "その変更は保存されませんでした — もう一度お試しください。",
+    "addToStudio": "スタジオに追加",
+    "inStudio": "スタジオに追加済み",
+    "removeFromStudio": "削除"
   },
   "team": {
     "accept": "承認",
@@ -5126,7 +5271,26 @@
     "toneLabel": "トーン",
     "topicLabel": "動画の内容は？",
     "topicPlaceholder": "例：一晩で初めてビートを作った話",
-    "writeScriptButton": "スクリプトを書く · {{cost}} Visual Bucs"
+    "writeScriptButton": "スクリプトを書く · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ テレプロンプターを起動",
+    "teleprompterClose": "テレプロンプターを閉じる",
+    "teleprompterPlay": "再生",
+    "teleprompterPause": "一時停止",
+    "teleprompterRestart": "最初から再開",
+    "teleprompterWpm": "速度",
+    "teleprompterWpmValue": "{{wpm}} WPM",
+    "teleprompterFontSmaller": "文字を小さく",
+    "teleprompterFontLarger": "文字を大きく",
+    "teleprompterMirror": "テレプロンプター機器用にミラー",
+    "teleprompterFullscreen": "全画面",
+    "teleprompterWords": "{{count}}語",
+    "teleprompterReadTime": "読み上げ約{{min}}分",
+    "teleprompterHint": "スペース = 再生/一時停止 · ↑↓ = 速度 · +/− = 文字サイズ · Esc = 閉じる · スクリプトをクリック = 一時停止",
+    "hookHintLabel": "コンテンツプランの勝利フック",
+    "hookHintBlurb": "このセリフで始めましょう — バイラルループのために作られました。",
+    "dismiss": "閉じる",
+    "sendToScheduler": "スケジューラー",
+    "sendToVoiceover": "ボイスオーバー"
   },
   "setlist": {
     "addButton": "追加",
@@ -5413,7 +5577,9 @@
     "viewDeliveredVideo": "納品ビデオを見る",
     "yourNameLabel": "あなたの名前",
     "yourNamePlaceholder": "このシャウトアウトは誰のため？",
-    "yourShoutoutPage": "あなたのシャウトアウトページ"
+    "yourShoutoutPage": "あなたのシャウトアウトページ",
+    "paidTitle": "支払い完了 — シャウトアウトを予約しました！",
+    "paidDesc": "シャウトアウトは支払い済みで受理されました。クリエイターが録音し、納期以内にあなたへ送ります。"
   },
   "shows": {
     "artistNameLabel": "アーティスト名",
@@ -5469,7 +5635,8 @@
     "windowNext30Days": "今後30日間",
     "windowNext6Months": "今後6ヶ月",
     "windowNext90Days": "今後90日間",
-    "yourStages": "あなたのステージ"
+    "yourStages": "あなたのステージ",
+    "setlistLink": "セットリストを作成 →"
   },
   "signup": {
     "agreeAnd": "と",
@@ -6105,7 +6272,8 @@
     "topicLabel": "動画のトピック",
     "topicPlaceholder": "例: 「深夜3時の努力についての新曲」や「初めてのスタジオセッションの裏側」",
     "topicRequired": "まず動画の内容を教えてください。",
-    "topicSub": "トピックをひとつ入れるだけで、フルパッケージが出てきます。"
+    "topicSub": "トピックをひとつ入れるだけで、フルパッケージが出てきます。",
+    "sendToScheduler": "スケジューラーに送信"
   },
   "tour": {
     "addDateFree": "ツアー日程を追加 · 無料",
@@ -6179,7 +6347,8 @@
     "uncheckAria": "{{label}}のチェックを外す",
     "venueLabel": "会場",
     "venuePlaceholder": "例：The Masquerade",
-    "yourDates": "あなたの日程"
+    "yourDates": "あなたの日程",
+    "setlistLink": "セットリストを作成 →"
   },
   "translate": {
     "badge": "AI動画翻訳",
@@ -7456,57 +7625,58 @@
     "viewingOldVersion": "バージョン {{version}} を表示中です。ここから復元または編集すると新しいバージョンとして保存されます。上書きされることはありません。"
   },
   "release": {
-    "badge": "Thy Cheat Code's release tools",
-    "titlePrefix": "Release",
-    "titleSuffix": "Checklist",
-    "hero": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
-    "whatDropping": "What are you dropping?",
+    "badge": "Thy Cheat Codeリリースツール",
+    "titlePrefix": "リリース",
+    "titleSuffix": "チェックリスト",
+    "hero": "リリース当日は、その前の数週間で決まります。AIが週ごとの戦闘計画を構築 — 配信、プレイリスト、ティーザー、プレス、プリセーブ — あなたは実行しながらチェックしていきます。",
+    "whatDropping": "何をリリースしますか？",
     "types": {
       "single": {
-        "label": "Single",
-        "blurb": "One track, one moment"
+        "label": "シングル",
+        "blurb": "1曲、1つの瞬間"
       },
       "ep": {
         "label": "EP",
-        "blurb": "3–6 tracks"
+        "blurb": "3〜6曲"
       },
       "album": {
-        "label": "Album",
-        "blurb": "7+ tracks, a era"
+        "label": "アルバム",
+        "blurb": "7曲以上、1つの時代"
       }
     },
-    "releaseTitle": "Release title",
-    "titlePlaceholder": "e.g. Bow Down Anthem",
-    "genreVibe": "Genre / vibe",
-    "optional": "(optional)",
-    "genrePlaceholder": "e.g. hip-hop, R&B…",
-    "releaseDate": "Release date",
-    "building": "Building your battle plan…",
-    "buildPlan": "Build my release plan",
-    "signInToBuild": "Sign in to build your release plan",
-    "costNote": "{{cost}} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code",
-    "tasksDone": "{{done}} of {{total}} tasks done",
-    "preSaveTitle": "Pre-save power move",
-    "rebuild": "Rebuild plan ({{cost}} Visual Bucs)",
+    "releaseTitle": "リリースタイトル",
+    "titlePlaceholder": "例：Bow Down Anthem",
+    "genreVibe": "ジャンル／雰囲気",
+    "optional": "（任意）",
+    "genrePlaceholder": "例：ヒップホップ、R&B…",
+    "releaseDate": "リリース日",
+    "building": "戦闘計画を構築中…",
+    "buildPlan": "リリース計画を作る",
+    "signInToBuild": "リリース計画を作るにはサインイン",
+    "costNote": "AIプラン1件につき{{cost}} Visual Bucs · タスクのチェックは無料 · Thy Cheat Code提供",
+    "tasksDone": "{{total}}件中{{done}}件完了",
+    "preSaveTitle": "プリセーブの妙手",
+    "rebuild": "計画を再構築（{{cost}} Visual Bucs）",
     "tools": {
-      "playlist-pitcher": "Open Playlist Pitcher",
-      "content-scheduler": "Open Content Scheduler",
-      "press-kit": "Open Press Kit Builder",
-      "cover-art": "Open Cover Art Generator",
-      "email-list": "Open Email List Builder"
+      "playlist-pitcher": "プレイリストピッチャーを開く",
+      "content-scheduler": "コンテンツスケジューラーを開く",
+      "press-kit": "プレスキットビルダーを開く",
+      "cover-art": "カバーアート生成を開く",
+      "email-list": "メールリストビルダーを開く"
     },
     "crossLinks": {
-      "p1": "Executing your plan? Pitch playlists with the",
-      "playlistPitcher": "Playlist Pitcher",
-      "p2": "and schedule your teasers with the",
-      "scheduler": "Content Scheduler",
-      "p3": "."
+      "p1": "計画を実行中ですか？プレイリストへのピッチは",
+      "playlistPitcher": "プレイリストピッチャー",
+      "p2": "で、ティーザーの予約は",
+      "scheduler": "コンテンツスケジューラー",
+      "p3": "で。",
+      "distribute": "配信する"
     },
     "error": {
-      "noTitle": "Give your release a title first — the plan is built around it.",
-      "noDate": "Pick a release date so the checklist can count backwards from it.",
-      "pastDate": "Release date must be in the future — a checklist for the past helps nobody.",
-      "planFailed": "Release plan failed — try again."
+      "noTitle": "まずリリースにタイトルを付けてください — 計画はそれを中心に構築されます。",
+      "noDate": "チェックリストが逆算できるよう、リリース日を選んでください。",
+      "pastDate": "リリース日は未来でなければなりません — 過去向けのチェックリストは誰の役にも立ちません。",
+      "planFailed": "リリース計画に失敗しました — もう一度お試しください。"
     }
   },
   "outreach": {
@@ -7643,67 +7813,71 @@
     "pipelineSubtitle": "ピッチから入金まで、すべての案件を追跡。"
   },
   "repurpose": {
-    "badge": "Content Repurposer",
-    "titlePrefix": "One video in,",
-    "titleSuffix": "content calendar out",
-    "hero": "Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized descriptions for TikTok, Reels, Shorts, and X.",
-    "signInRequired": "Sign in to repurpose videos.",
+    "badge": "コンテンツリパーパサー",
+    "titlePrefix": "動画1本入れると、",
+    "titleSuffix": "コンテンツカレンダーが出てくる",
+    "hero": "動画をアップロードすると — AIがそれを見て10ピースパックを構築：自動カットの縦型クリップ3本、AIサムネイル3枚、キャプション + ハッシュタグセット5つ、そしてTikTok、Reels、Shorts、X向けのプラットフォーム最適化説明文。",
+    "signInRequired": "動画をリパーパスするにはサインインしてください。",
     "step1": {
-      "title": "Drop your video",
-      "blurb": "MP4, MOV, WebM · up to 80 MB",
-      "chooseFile": "Choose video file",
-      "fromCameraRoll": "From your camera roll or exports",
-      "orPasteUrl": "Or paste a video URL",
-      "urlPlaceholder": "https://… (from your project storage)",
-      "urlNote": "URLs must come from your project storage."
+      "title": "動画を入れる",
+      "blurb": "MP4、MOV、WebM · 80MBまで",
+      "chooseFile": "動画ファイルを選ぶ",
+      "fromCameraRoll": "カメラロールやエクスポートから",
+      "orPasteUrl": "または動画URLを貼り付け",
+      "urlPlaceholder": "https://…（プロジェクトストレージから）",
+      "urlNote": "URLはプロジェクトストレージのものである必要があります。"
     },
-    "building": "Building your pack…",
-    "repurposeButton": "Repurpose my video · {{credits}} Visual Bucs",
-    "costNote": "{{pack}} Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails. Re-rolls are {{reroll}} Visual Buc each. Copying and downloading are free.",
-    "packReady": "pack pieces ready",
-    "renderingNote": "Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.",
+    "building": "パックを構築中…",
+    "repurposeButton": "動画をリパーパス · {{credits}} Visual Bucs",
+    "costNote": "{{pack}} Visual Bucsですべてカバー：文字起こし、AI分析、自動カットクリップ3本、AIサムネイル3枚。リロールは各{{reroll}} Visual Bucs。コピーとダウンロードは無料です。",
+    "packReady": "パックのピースが準備完了",
+    "renderingNote": "クリップとサムネイルはバックグラウンドでレンダリングされます — タブを閉じても待っています。",
     "clips": {
-      "title": "3 vertical clips",
-      "blurb": "Auto-cut 9:16 · ready for TikTok, Reels, Shorts",
-      "newMoments": "New moments · {{cost}}VB",
-      "cutFailed": "Cut failed",
-      "cutting": "Cutting…"
+      "title": "縦型クリップ3本",
+      "blurb": "自動カット9:16 · TikTok、Reels、Shorts対応",
+      "newMoments": "新しいモーメント · {{cost}}VB",
+      "cutFailed": "カットに失敗",
+      "cutting": "カット中…"
     },
     "thumbs": {
-      "title": "3 AI thumbnails",
-      "blurb": "9:16 covers for your clips",
-      "newConcepts": "New concepts · {{cost}}VB",
-      "genFailed": "Generation failed",
-      "painting": "Painting…",
-      "alt": "Thumbnail concept {{n}}"
+      "title": "AIサムネイル3枚",
+      "blurb": "クリップ用の9:16カバー",
+      "newConcepts": "新しいコンセプト · {{cost}}VB",
+      "genFailed": "生成に失敗",
+      "painting": "描画中…",
+      "alt": "サムネイルコンセプト{{n}}"
     },
     "captions": {
-      "title": "5 caption + hashtag sets",
-      "blurb": "Ready to post — copy any set free"
+      "title": "キャプション + ハッシュタグセット5つ",
+      "blurb": "投稿準備完了 — どのセットも無料でコピー"
     },
     "platforms": {
-      "title": "Platform descriptions",
-      "blurb": "Tuned for each algorithm",
-      "noDesc": "No description generated for this platform."
+      "title": "プラットフォーム別説明文",
+      "blurb": "各アルゴリズムに合わせて調整",
+      "noDesc": "このプラットフォーム用の説明文は生成されませんでした。"
     },
-    "download": "Download",
-    "copyAll": "Copy all",
-    "copy": "Copy",
-    "copied": "Copied",
-    "reroll": "Re-roll · {{cost}}VB",
+    "download": "ダウンロード",
+    "copyAll": "すべてコピー",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "reroll": "リロール · {{cost}}VB",
     "error": {
-      "copyFailed": "Couldn't copy to clipboard.",
-      "noSource": "Upload a video file or paste a video URL first.",
-      "repurposeFailed": "Repurposing failed — try again.",
-      "clipJobFailed": "Clip job lookup failed.",
-      "thumbJobFailed": "Thumbnail job lookup failed.",
-      "clipCuttingFailed": "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.",
-      "thumbFailed": "Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.",
-      "lostJobs": "Lost track of the background jobs — refresh to check.",
-      "rerollFailed": "Re-roll failed — try again.",
-      "thumbRerollFailed": "Thumbnail re-roll failed — try again."
+      "copyFailed": "クリップボードにコピーできませんでした。",
+      "noSource": "まず動画ファイルをアップロードするか、動画URLを貼り付けてください。",
+      "repurposeFailed": "リパーパスに失敗しました — もう一度お試しください。",
+      "clipJobFailed": "クリップジョブの検索に失敗しました。",
+      "thumbJobFailed": "サムネイルジョブの検索に失敗しました。",
+      "clipCuttingFailed": "クリップのカットに失敗しました。パックのVisual Bucsはテキスト出力をカバーします — クリップは動画エディターから再カットできます。",
+      "thumbFailed": "サムネイル画像を生成できませんでした — 以下のサムネイルプロンプトはどの画像ツールでも使えます。",
+      "lostJobs": "バックグラウンドジョブを見失いました — 更新して確認してください。",
+      "rerollFailed": "リロールに失敗しました — もう一度お試しください。",
+      "thumbRerollFailed": "サムネイルのリロールに失敗しました — もう一度お試しください。"
     },
-    "modeSmart": "スマートクリップ"
+    "modeSmart": "スマートクリップ",
+    "addCaptions": "キャプションを追加",
+    "modeLabel": "Mode",
+    "modePack": "コンテンツパック",
+    "modeStreamVod": "Stream VOD"
   },
   "smartClips": {
     "title": "スマートクリップ — まず瞬間を見つける",
@@ -8125,51 +8299,51 @@
     }
   },
   "randomizer": {
-    "badge": "Thy Cheat Code's dice",
-    "titlePrefix": "Content",
-    "titleSuffix": "Randomizer",
-    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let Thy Cheat Code AI cook up five fresh, made-for-you ideas for 100 Visual Bucs.",
-    "categoriesLabel": "Randomizer categories",
+    "badge": "Thy Cheat Codeのサイコロ",
+    "titlePrefix": "コンテンツ",
+    "titleSuffix": "ランダマイザー",
+    "hero": "白紙を前に行き詰まっていますか？無料のひらめきにサイコロを振る — またはThy Cheat Code AIに100 Visual Bucsであなた向けの新鮮なアイデアを5つ作らせましょう。",
+    "categoriesLabel": "ランダマイザーのカテゴリー",
     "categories": {
       "video-ideas": {
-        "label": "Video Ideas",
-        "blurb": "Fresh concepts for your next music video or content drop."
+        "label": "動画アイデア",
+        "blurb": "次のミュージックビデオやコンテンツドロップの新鮮なコンセプト。"
       },
       "hooks": {
-        "label": "Hooks",
-        "blurb": "First-3-second openers that stop the scroll."
+        "label": "フック",
+        "blurb": "スクロールを止める最初の3秒のオープナー。"
       },
       "thumbnails": {
-        "label": "Thumbnails",
-        "blurb": "High-click-through concepts for YouTube and beyond."
+        "label": "サムネイル",
+        "blurb": "YouTubeなどの高クリック率コンセプト。"
       },
       "song-concepts": {
-        "label": "Song Concepts",
-        "blurb": "Themes and angles worth writing your next track about."
+        "label": "ソングコンセプト",
+        "blurb": "次の曲を書く価値のあるテーマと角度。"
       },
       "niche-picker": {
-        "label": "Niche Picker",
-        "blurb": "Positioning angles you could own as a creator."
+        "label": "ニッチピッカー",
+        "blurb": "クリエイターとして自分のものにできるポジショニングの角度。"
       },
       "challenges": {
-        "label": "Challenges",
-        "blurb": "Forcing functions for output and growth."
+        "label": "チャレンジ",
+        "blurb": "生産と成長のための強制機能。"
       }
     },
-    "rollDice": "Roll the dice",
-    "freeForever": "Free forever — roll as much as you want",
-    "yourRoll": "Your roll",
-    "orDeeper": "or go deeper",
-    "cooking": "Cooking up ideas…",
+    "rollDice": "サイコロを振る",
+    "freeForever": "ずっと無料 — 好きなだけ振れます",
+    "yourRoll": "あなたの出目",
+    "orDeeper": "またはもっと深く",
+    "cooking": "アイデアを調理中…",
     "generateAi": "Generate 5 fresh with AI",
-    "signInToGenerate": "Sign in to generate with AI",
+    "signInToGenerate": "AIで生成するにはサインイン",
     "costPerRoll": "{{cost}} Visual Buc per AI roll · powered by Thy Cheat Code",
-    "freshFromAi": "Fresh from the AI",
+    "freshFromAi": "AIから新鮮",
     "reroll": "Re-roll ({{cost}} Visual Buc)",
     "crossLink": {
-      "p1": "Like an idea? Ask",
+      "p1": "気に入ったアイデアがありますか？聞いてみましょう",
       "name": "Thy Cheat Code",
-      "p2": "in the chat bubble to turn it into a full plan."
+      "p2": "にチャットバブルで完全なプランに変えてもらう。"
     },
     "error": {
       "aiRollFailed": "AI roll failed — try again."
@@ -8520,7 +8694,55 @@
     }
   },
   "presave": {
-    "tracklistTitle": "トラックリスト"
+    "tracklistTitle": "トラックリスト",
+    "artworkAlt": "「{{title}}」のアートワーク",
+    "badge": "プリセーブ",
+    "badgeOut": "配信中",
+    "drops": "{{date}}リリース",
+    "dropsSoon": "リリース日は近日発表",
+    "outNow": "配信開始 — 今すぐ聴こう！",
+    "cdDays": "日",
+    "cdHours": "時間",
+    "cdMins": "分",
+    "cdSecs": "秒",
+    "fansCount": "人のファンがプリセーブ",
+    "sharesCount": "シェア",
+    "followCta": "プリセーブしてリリース日に通知を受け取る",
+    "followCtaOut": "新譜情報のファンリストに参加",
+    "followBlurb": "メールアドレスを残してください — アーティストのファンリストに追加します（無料）。",
+    "emailPlaceholder": "メールアドレス",
+    "namePlaceholder": "お名前（任意）",
+    "followBtn": "プリセーブする",
+    "followBtnOut": "リストに参加",
+    "saving": "保存中…",
+    "followed": "リストに入りました！{{artist}}がリリース日にメールします。",
+    "alreadyFollowing": "すでに{{artist}}のリストに入っています — リリース日に会いましょう！",
+    "notifyNote": "音楽がリリースされたら1通だけメールします。スパムは一切なし。",
+    "invalidEmail": "有効なメールアドレスを入力してください。",
+    "followFailed": "プリセーブを保存できませんでした — もう一度お試しください。",
+    "platformsCta": "リリース日にフォロー",
+    "streamNowOn": "今すぐストリーミング",
+    "streamOn": "{{platform}}で聴く",
+    "followOn": "{{platform}}で入手",
+    "shareTitle": "広めよう",
+    "shareToUnlock": "シェアしてボーナスコンテンツをアンロック",
+    "unlockBlurb": "このリリースをどこかでシェアすると、アーティストの限定ボーナスコンテンツがアンロックされます。",
+    "openBonus": "ボーナスコンテンツを開く",
+    "shareText": "{{artist}}の「{{title}}」が近日リリース — プリセーブしよう",
+    "shareTextOut": "{{artist}}の「{{title}}」が配信中 — 今すぐ聴こう",
+    "copyLink": "リンクをコピー",
+    "copied": "コピーしました！",
+    "errors": {
+      "loadFailed": "このリリースを読み込めませんでした。",
+      "notFound": "このプリセーブリンクは存在しません。"
+    },
+    "footer": "Thy Cheat Code提供 — コンテンツクリエイターのチートコード。",
+    "loading": "リリースを読み込み中…",
+    "platformsTitle": "リリース日に全プラットフォームで",
+    "postToX": "Xに投稿",
+    "shareRelease": "このリリースをシェア",
+    "artistCta": "アーティスト本人ですか？",
+    "promoteRelease": "このリリースを宣伝 →"
   },
   "press-kit": {
     "backToDashboard": "ダッシュボードに戻る",
@@ -9308,7 +9530,7 @@
     "notifyCopied": "新しいリンクをコピーしました — レビュアーに送ってください",
     "notifyCopiedHint": "以前のメモをすべて残したまま、最新カットが開きます。",
     "notifyFailed": "新しいリンクを作成できませんでした。",
-    "madeWith": "Made with",
+    "madeWith": "制作",
     "madeWithHint": "このレビューページは Bow Down Visuals で作成されました — the content creation cheat code.",
     "privateNote": "非公開のレビューリンク — このURLを知っている人だけが閲覧できます。"
   },
@@ -10071,7 +10293,7 @@
       "remove": "バージョンを削除",
       "sendToStudio": "Music Studioへ送信",
       "sentHint": "バージョンを保存しました — Music Studioへ一緒に移動します。",
-      "title": "Remix Chain"
+      "title": "リミックスチェーン"
     },
     "timeline": {
       "durationLabel": "曲の長さ",
@@ -10296,7 +10518,22 @@
     }
   },
   "library": {
-    "pageTitle": "ライブラリ"
+    "pageTitle": "ライブラリ",
+    "pageDescription": "クリエイター向けのテンプレート、プリセット、フォント。",
+    "kicker": "あなたのクリエイティブ武装",
+    "headingA": "Thy",
+    "headingB": "ライブラリ",
+    "sub": "ツールに直接差し込めるテンプレート、プリセット、フォント。選んで「使用」を押して、作り続けましょう。",
+    "searchPlaceholder": "テンプレート、プリセット、フォントを検索…",
+    "tabTemplates": "テンプレート",
+    "tabPresets": "プリセット",
+    "tabFonts": "フォント",
+    "recentlyUsed": "最近使用",
+    "use": "使用",
+    "useFont": "フォントをコピー",
+    "copied": "コピーしました！",
+    "browse": "ライブラリを閲覧",
+    "noResults": "見つかりませんでした — 別の検索をお試しください。"
   },
   "retention": {
     "streak_title": "作成ストリーク",
@@ -10927,7 +11164,7 @@
     "suggestedPriceNote": "提案価格 — 承認前に上であなたの実際の価格を設定してください。",
     "taglineLabel": "キャッチフレーズ",
     "taglinePh": "重い心のための深夜のソウル",
-    "title": "Move Home",
+    "title": "拠点を移す",
     "updatesExistingNote": "(あなたの既存のプロフィール — 承認すると更新されます)",
     "verticalEducation": "教育",
     "verticalFilm": "映画",
@@ -10999,7 +11236,7 @@
     "allVideoNote": "これはすべて動画です — どのエピソードを押しても視聴できます。音声アップロードは全再生キューに加わります。",
     "back": "戻る",
     "backToShowcase": "ショーケースに戻る",
-    "byWord": "by",
+    "byWord": "作",
     "creatorFallback": "クリエイター",
     "emptyBody": "キュレーターはまだここに何も置いていません — 熱が来たらまた確認してください。",
     "emptyTitle": "空のプレイリスト? 大胆な戦略。",
@@ -13700,5 +13937,691 @@
     "tuneButton": "私のボーカルをチューニング — {cost} Visual Bucs",
     "tuneComplete": "チューニング完了 — {style}",
     "waveformUnavailable": "波形は利用できません"
+  },
+  "weekly_contest": {
+    "aria": "週間クリエイターコンテスト",
+    "label": "週間クリエイターコンテスト",
+    "drops_in": "開始まで",
+    "ends_in": "終了まで",
+    "entries": "エントリー{{count}}件",
+    "enter_now": "今すぐエントリー",
+    "view_entries": "エントリーを見る",
+    "enter_hint": "動画を公開すると自動でエントリーされます — 勝者は今週の{{cap}}プールからVisual Bucsで支払われます。",
+    "judging_title": "審査開始 — すべての投票が王冠を動かします",
+    "judging_sub": "「{{title}}」のエントリーは締め切られました。お気に入りに投票を集めましょう — コミュニティの王冠が決めます。",
+    "winners_in": "勝者発表まで",
+    "vote_now": "王冠に投票",
+    "winners_dropped": "勝者が発表されました",
+    "winners_sub": "「{{title}}」が王冠を獲得 — 賞金はVisual Bucsで支払われました。",
+    "a_creator": "クリエイター",
+    "see_winners": "勝者サークルを見る",
+    "hall_of_fame": "殿堂",
+    "next_drop": "次のコンテストは月曜日に開始",
+    "next_drop_sub": "1つのテーマ。1週間。{{cap}}がかかっています。次回：「{{theme}}」（#{{hashtag}}）。",
+    "admin_nudge": "管理者：今週のコンテストはまだ公開されていません。ワンタップで{{cap}}プールの「{{theme}}」を開始できます。",
+    "launching": "開始中…",
+    "launch_week": "今週のコンテストを開始",
+    "while_you_wait": "待つ間に：殿堂を閲覧",
+    "last_week": "先週の王冠",
+    "see_all": "すべて見る"
+  },
+  "catalogVault": {
+    "title": "カタログVault",
+    "copy": "レガシーを残しましょう。200 Visual Bucsの一回払いで、このリリースのプレセーブページ、ストアフロント掲載、アセットがBow Down Visualsに永久に残ります。更新なし、削除なし。",
+    "guarantee1": "プレセーブページが永久に残る",
+    "guarantee2": "ストアフロント掲載が期限切れにならない",
+    "guarantee3": "アートワーク + オーディオアセットが保存される",
+    "vaultButton": "永久にVaultへ · 200 Visual Bucs",
+    "vaulting": "Vault処理中…",
+    "vaultFailed": "このリリースをVaultに入れられませんでした — もう一度お試しください。",
+    "vaulted": "Vault済み",
+    "vaultedCopy": "「{{title}}」はVaultに入りました — プレセーブページ、ストアフロント掲載、アセットがBow Down Visualsに永久に残ります。"
+  },
+  "mashup": {
+    "tabCreate": "作成",
+    "tabMashup": "Mashup",
+    "title": "ソングマッシュアップ",
+    "subtitle": "2曲を選んで — 自分の曲でもアップロードでも — 1つのトラックに融合。テンポマッチ、ビートロック、ワンクリック。",
+    "priceBadge": "400 Visual Bucs",
+    "modeSimple": "Turbo",
+    "modeCustom": "高度",
+    "songA": "曲A",
+    "songB": "曲B",
+    "pickFromLibrary": "ライブラリから選ぶ…",
+    "uploadInstead": "またはオーディオをアップロード",
+    "uploading": "アップロード中…",
+    "styleLabel": "ブレンドスタイル",
+    "styleCrossfade": "Crossfade",
+    "styleCrossfadeBlurb": "Aがフェードアウトし、ブレンドポイントでBが入ります。",
+    "styleBeatMatch": "ビートマッチ",
+    "styleBeatMatchBlurb": "テンポを揃えビートをロック — 2曲が一緒に鳴ります。",
+    "styleInterleave": "バース・コーラス交互",
+    "styleInterleaveBlurb": "セクションを交互に — Aのバース、Bのコーラス、行き来します。",
+    "blendPointLabel": "ブレンドポイント",
+    "blendPointHint": "曲Aのどこでブレンドするか。",
+    "balanceLabel": "Balance",
+    "balanceHint": "ドラッグして一方の曲を他方より前に出します。",
+    "crossfadeLabel": "クロスフェードの長さ",
+    "titleLabel": "マッシュアップのタイトル（任意）",
+    "titlePlaceholder": "例：Midnight × Gold Rush",
+    "submitSimple": "曲をマッシュアップ",
+    "submitCustom": "この2曲を融合",
+    "needsTwoSongs": "まず2曲選んでください — ライブラリから、またはオーディオをアップロード。",
+    "analyzing": "両方の曲のビートを分析中…",
+    "tempoMatching": "曲Bのテンポを曲Aに合わせています…",
+    "blending": "マッシュアップをブレンド中…",
+    "saving": "ライブラリに保存中…",
+    "failed": "マッシュアップに失敗しました — Visual Bucsは返金されました。",
+    "resultTitle": "マッシュアップが完成しました",
+    "bpmUnknown": "—",
+    "handoffLyricVideo": "リリックビデオを作成",
+    "handoffLyricVideoBlurb": "カラオケ風ビデオ · 300 VB",
+    "handoffCoverArt": "カバーアートを描く",
+    "handoffCoverArtBlurb": "豪華なゴールドアートワーク · 200 VB",
+    "handoffAlbum": "アルバムに追加",
+    "handoffAlbumBlurb": "アルバムやEPに収録",
+    "handoffShare": "共有",
+    "handoffShareBlurb": "ワンタップ — 紹介リンク付き",
+    "working": "処理中…",
+    "lyricVideoDone": "リリックビデオが完成",
+    "coverArtDone": "カバーアートが完成",
+    "albumPick": "アルバムを選ぶ…",
+    "albumNew": "新しいアルバムのタイトル…",
+    "albumCreateAdd": "作成して追加",
+    "albumAdd": "アルバムに追加",
+    "albumAdded": "アルバムに追加しました",
+    "albumLoadFailed": "アルバムを読み込めませんでした。",
+    "copied": "コピーしました！",
+    "shareText": "私のマッシュアップをチェック",
+    "coverArtist": "ソングマッシュアップ",
+    "tabHum": "鼻歌"
+  },
+  "mediaDetector": {
+    "badge": "AIメディア検出",
+    "titleStart": "本物か",
+    "titleAi": "AIか？",
+    "titleEnd": "確実に知る。",
+    "subtitle": "画像、動画、音声ファイルをアップロード — またはリンクを貼る — と、AIフォレンジック評価が得られます：判定、信頼度スコア、検出された正確な兆候。",
+    "costPerCheck": "チェックごとに{{cost}} Visual Bucs。",
+    "dropHint": "ファイルをここにドロップ、またはクリックしてアップロード",
+    "filesSkipped_one": "1件のファイルがスキップされました — 未対応のタイプか25MB超です。",
+    "filesSkipped_other": "{{count}}件のファイルがスキップされました — 未対応のタイプか25MB超です。",
+    "fileTypes": "画像、動画、音声 — 各25MBまで。バッチ対応。",
+    "urlPlaceholder": "…または画像URLを貼り付け",
+    "add": "追加",
+    "queueStatus": "{{count}}ファイル · {{done}}件チェック済み",
+    "clearAll": "すべてクリア",
+    "checkAll": "すべてチェック（{{cost}} Visual Bucs）",
+    "remove": "削除",
+    "analyze": "分析 · {{cost}} Visual Bucs",
+    "analyzing": "AIの兆候を分析中…",
+    "analyzingVideo": "フレームを抽出してから分析…",
+    "retry": "再試行",
+    "emptyTitle": "チェックするものがありません",
+    "emptySubtitle": "ファイルをアップロードするかURLを貼って、最初の検出を実行しましょう。",
+    "verdictAi": "AI生成の可能性が高い",
+    "verdictHuman": "人間が作成した可能性が高い",
+    "verdictUncertain": "不明",
+    "detectedSignals": "検出された兆候",
+    "pointsToAi": "AIを示唆",
+    "pointsToHuman": "人間を示唆",
+    "errorOutOfCredits": "Visual Bucsが不足しています。",
+    "errorDetectionFailed": "検出に失敗しました。もう一度お試しください。",
+    "errorDetectionFailedShort": "検出に失敗しました。"
+  },
+  "privacy": {
+    "contactSupport": "お問い合わせ / サポート",
+    "lastUpdated": "最終更新：2026年9月",
+    "pageDescription": "Bow Down Visualsがあなたのデータをどう扱うか。",
+    "pageTitle": "プライバシーポリシー",
+    "section10ContactLink": "お問い合わせページ",
+    "section10Intro": "プライバシーに関するご質問はメールで",
+    "section10Middle": "またはこちらをご覧ください",
+    "section10Title": "10. お問い合わせ",
+    "section1Body": "Bow Down Visualsは、動画、音楽、画像、ボイスオーバー、リップシンク動画、歌詞、キャプション、サムネイル、プロモクリップなどのデジタルコンテンツを生成するためのAI搭載Visual Bucsを提供するデジタルクリエイタープラットフォームを運営しています。本ポリシーは、お客様の情報の収集、利用、保護方法について説明します。",
+    "section1Title": "1. 私たちについて",
+    "section2Item1Body": "登録時のメールアドレスとパスワード（ハッシュ化）、またはGoogleでサインインした場合の基本プロフィール情報",
+    "section2Item1Label": "アカウント情報：",
+    "section2Item2Body": "Stripeが完全に処理します — カードの生データは保存しません",
+    "section2Item2Label": "請求情報：",
+    "section2Item3Body": "Visual Bucsの使用量、ツールの操作、生成コンテンツのプロンプト",
+    "section2Item3Label": "利用データ：",
+    "section2Item4Body": "AI出力をパーソナライズするために入力する情報（アーティスト名、ジャンル、スタイルの好み）",
+    "section2Item4Label": "アーティストプロフィールデータ：",
+    "section2Item5Body": "登録時に使用された紹介コードと獲得した紹介報酬",
+    "section2Item5Label": "紹介データ：",
+    "section2Item6Body": "セキュリティとパフォーマンスのためのブラウザの種類、IPアドレス、セッションデータ",
+    "section2Item6Label": "技術データ：",
+    "section2Title": "2. 収集する情報",
+    "section3Item1": "プラットフォームの運営と改善のため",
+    "section3Item2": "支払い処理とサブスクリプション管理のため",
+    "section3Item3": "AI生成出力をアーティストプロフィールに合わせてパーソナライズするため",
+    "section3Item4": "アカウント関連メール（領収書、セキュリティ警告）の送信のため",
+    "section3Item5": "法的義務の遵守のため",
+    "section3Title": "3. 情報の利用方法",
+    "section4Intro": "私たちはあなたの個人データを販売しません。データの共有は以下の場合のみです：",
+    "section4Item1Body": "支払い処理",
+    "section4Item1Label": "Stripe",
+    "section4Item2Body": "データベースと認証",
+    "section4Item2Label": "Supabase",
+    "section4Item3Body": "Googleでサインインした場合（Googleのプライバシーポリシーが適用されます）",
+    "section4Item3Label": "Google",
+    "section4Item4Body": "生成リクエストの実行のため（プロンプトはサードパーティAI APIで処理される場合があります）",
+    "section4Item4Label": "AIプロバイダー",
+    "section4Item5": "適用法で要求される場合の法執行機関",
+    "section4Title": "4. データの共有",
+    "section5Body": "認証に必要なセッションCookieを使用します。サードパーティの広告トラッカーは使用しません。分析を使用する場合、集計された利用データに限定されます。",
+    "section5Title": "5. Cookieとトラッキング",
+    "section6Body": "アカウントがアクティブな間、アカウントデータを保持します。いつでもお問い合わせにより削除をリクエストできます。請求記録は法律で要求される期間保持されます。",
+    "section6Title": "6. データの保持",
+    "section7Intro": "お住まいの地域によっては、個人データへのアクセス、訂正、削除の権利がある場合があります。これらの権利を行使するには、こちらまでご連絡ください",
+    "section7Title": "7. あなたの権利",
+    "section8Body": "暗号化された接続（HTTPS）、ハッシュ化されたパスワード、データベースの行レベルセキュリティなど、業界標準のセキュリティ対策を使用しています。100%安全なシステムはありません。アカウントには強力で固有のパスワードを使用してください。",
+    "section8Title": "8. セキュリティ",
+    "section9Body": "本ポリシーは随時更新される場合があります。重要な変更がある場合は、メールまたはアプリ内通知でお知らせします。",
+    "section9Title": "9. 本ポリシーの変更",
+    "title": "プライバシーポリシー"
+  },
+  "promote": {
+    "copyLabel": "{{label}}をコピー",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "hero": {
+      "badge": "プロモコピージェネレーター",
+      "title": "プロモコピー",
+      "titleAccent": "",
+      "subtitle": "機能を選び、形式とトーンを選ぶ — ハッシュタグとCTA付きの投稿用コピーが完成。生成ごとに{{cost}} Visual Buc。",
+      "back": "すべての機能に戻る"
+    },
+    "form": {
+      "feature": "宣伝する機能",
+      "contentType": "コンテンツタイプ",
+      "tone": "トーン",
+      "angle": "強調する角度",
+      "optional": "（任意）",
+      "focusPlaceholder": "例：1 Visual Bucの価格、速さ、新しいアーティストに最適…"
+    },
+    "contentTypes": {
+      "twitter": {
+        "label": "X投稿",
+        "blurb": "リポスト向けの鋭い投稿"
+      },
+      "instagram": {
+        "label": "IGキャプション",
+        "blurb": "魅力的なキャプション + ハッシュタグ"
+      },
+      "tiktok": {
+        "label": "TikTokスクリプト",
+        "blurb": "フック + ビート、話し言葉スタイル"
+      },
+      "email": {
+        "label": "メール一斉送信",
+        "blurb": "件名 + 短い本文"
+      },
+      "banner": {
+        "label": "バナーヘッドライン",
+        "blurb": "スクロールを止める5本"
+      },
+      "ad": {
+        "label": "広告コピー",
+        "blurb": "見出し + プライマリテキスト"
+      }
+    },
+    "tones": {
+      "hype": "ハイプ",
+      "professional": "プロフェッショナル",
+      "funny": "ファニー",
+      "luxury": "ラグジュアリー"
+    },
+    "signIn": {
+      "message": "プロモコンテンツを生成するにはサインインしてください。",
+      "cta": "サインイン"
+    },
+    "generate": "プロモを生成 · {{cost}} Visual Buc",
+    "generating": "プロモを作成中…",
+    "errorGenerationFailed": "プロモ生成に失敗しました — もう一度お試しください。",
+    "results": {
+      "titlePrefix": "あなたのプロモ：",
+      "regenerate": "再生成",
+      "headline": "見出し",
+      "copy": "コピー",
+      "alternate": "別案 {{n}}",
+      "cta": "コールトゥアクション",
+      "hashtags": "ハッシュタグ"
+    },
+    "tabs": {
+      "promoCopy": "プロモコピー",
+      "linkInBio": "プロフィールリンク"
+    }
+  },
+  "qrLogin": {
+    "title": "スキャンしてサインイン",
+    "generating": "QRコードを生成中...",
+    "scanInstructions": "電話のカメラでスキャンしてください。承認するには電話でログインしている必要があります。",
+    "expiresIn": "コードは5分で期限切れになります",
+    "approved": "承認されました！サインイン中...",
+    "expired": "コードの期限が切れました",
+    "generateNew": "新しいコードを生成",
+    "failed": "コードの生成に失敗しました。もう一度お試しください。",
+    "retry": "再試行"
+  },
+  "nfcCardProfile": {
+    "shareTitle": "デジタル名刺",
+    "notActive": "このカードは有効ではありません",
+    "notActiveDetail": "リンクの入力ミスの可能性があります。または所有者がこのデジタルカードを無効化しました。",
+    "backToSite": "← Bow Down Visualsに戻る",
+    "tapToConnect": "タップしてつながる",
+    "saveContact": "連絡先を保存",
+    "share": "共有",
+    "copied": "コピーしました！",
+    "poweredBy": "Powered by",
+    "nfcSmartCards": "NFCスマートカード"
+  },
+  "nfcCards": {
+    "orderFailed": "注文に失敗しました",
+    "orderFailedRetry": "注文に失敗しました — もう一度お試しください。",
+    "saveFailed": "保存に失敗しました",
+    "heroBadge": "NFCスマート名刺",
+    "heroTitle": "あなたの名刺、",
+    "heroTitleAccent": "でもタップできます。",
+    "heroDescription": "NFCチップを内蔵したプレミアムな物理カード。どの電話にもタップするだけでデジタルカードが即座に開きます — リンク、予約、ソーシャル、すべて。再印刷なしでいつでも更新できます。",
+    "how1t": "1. カードをデザイン",
+    "how1d": "スタイルを選び、名前、リンク、写真を追加します。",
+    "how2t": "2. 私たちがエンコード",
+    "how2d": "NFCチップ + QRがあなたのデジタルカードにプログラムされます。",
+    "how3t": "3. タップしてつながる",
+    "how3d": "あなたの元へ発送。電話をタップ、QRをスキャン、クライアントを獲得。",
+    "reservedTitle": "カードを予約しました！",
+    "reservedDescription": "デジタルカードはすでに公開されています。制作の確認とお支払いのためにご連絡します — 本日の請求はありません。",
+    "viewDigitalCard": "デジタルカードを表示",
+    "alreadyReserved": "この予約はすでに完了しています — 重複は作成されませんでした。",
+    "orderAnother": "もう1枚注文",
+    "buildYourCard": "カードを作成",
+    "quantity": "数量",
+    "total": "合計",
+    "detailsHint": "カードをタップした人が見る内容です。いつでも変更できます。",
+    "displayNamePlaceholder": "表示名 *",
+    "titlePlaceholder": "肩書き — 例：不動産業者、理容師、写真家",
+    "bioPlaceholder": "短い自己紹介",
+    "linksLabel": "リンク（Instagram、予約、ウェブサイト…）",
+    "linkLabelPlaceholder": "ラベル",
+    "addLink": "リンクを追加",
+    "fullNamePlaceholder": "氏名 *",
+    "phonePlaceholder": "電話",
+    "emailPlaceholder": "メール *",
+    "streetPlaceholder": "住所 *",
+    "cityPlaceholder": "市区町村 *",
+    "statePlaceholder": "都道府県 *",
+    "zipPlaceholder": "郵便番号 *",
+    "shippingPrivacy": "あなたの情報はカードの制作と発送にのみ使用されます。",
+    "reviewStyle": "スタイル",
+    "reviewQuantity": "数量",
+    "reviewDigitalCardFor": "デジタルカードの宛先",
+    "reviewShipTo": "配送先",
+    "reviewTotal": "確認時に支払う合計",
+    "reserveFreeNote": "予約は無料です — 本日の請求はありません。制作パートナーとカードを確認した後、発送前にお支払いいただきます。",
+    "back": "戻る",
+    "continue": "続ける",
+    "reserving": "予約中…",
+    "reserveFree": "カードを予約 — 無料",
+    "signInPromptPrefix": "求められます",
+    "signIn": "サインイン",
+    "signInPromptSuffix": "カードを予約するために。",
+    "mySmartCards": "私のスマートカード",
+    "noCardsYet": "まだカードがありません — 上で最初のカードを作成してください。",
+    "taps": "{{count}}回タップ",
+    "editCard": "カードを編集",
+    "qrSvg": "QR SVG",
+    "preview": "プレビュー",
+    "orderHistory": "注文履歴",
+    "questions": "よくある質問",
+    "faq1q": "タップはどのように機能しますか？",
+    "faq1a": "各カードにはNTAG213 NFCチップが内蔵されています。最新の電話にタップするとデジタルカードが即座に開きます — アプリは不要です。古い電話では背面に印刷されたQRをスキャンできます。",
+    "faq2q": "注文後にリンクを変更できますか？",
+    "faq2a": "はい — それがポイントです。カードはあなたのデジタルプロフィールを指し、いつでも編集できます：リンク、肩書き、自己紹介、写真。物理カードが古くなることはありません。",
+    "faq3q": "支払いはいつですか？",
+    "faq3a": "本日は無料で予約します。制作パートナーとカードが確認できたらお支払いいただき、カードが直接あなたへ発送されます。",
+    "faq4q": "カードが届くまでどのくらいかかりますか？",
+    "faq4a": "カードは受注生産です。お支払い確認後、制作と発送に2〜3週間かかります。各ステップでお知らせします。",
+    "faq5q": "再注文やチーム用カードはできますか？",
+    "faq5a": "はい — 任意の数量を注文でき、各カードに独自のデジタルプロフィールが付きます。チームパックは不動産業者、理容師、サロン、代理店に最適です。",
+    "editDigitalCard": "デジタルカードを編集",
+    "displayName": "表示名",
+    "title": "肩書き",
+    "bio": "自己紹介",
+    "cancel": "キャンセル",
+    "save": "保存"
+  },
+  "myClips": {
+    "pageTitle": "マイクリップ",
+    "pageDescription": "生成したプロモクリップのライブラリ。",
+    "title": "生成したクリップ",
+    "generateNew": "新しいクリップを生成",
+    "backToProjects": "マイプロジェクトに戻る",
+    "noClips": "まだクリップがありません",
+    "noClipsHint": "生成したシーンクリップはここに自動保存されます。シーンスタジオから最初のクリップを生成しましょう。",
+    "videoForSong": "私の曲のビデオ",
+    "use": "使用",
+    "clipReady": "クリップ準備完了",
+    "ready": "準備完了",
+    "done": "完了",
+    "attachToScene": "プロジェクトシーンに添付",
+    "noCharge": "Visual Bucsは請求されません",
+    "noProjects": "シーンのあるプロジェクトが見つかりません",
+    "noProjectsHint": "Visual Vibesを開いてまずシーンを再構築してください。",
+    "project": "プロジェクト",
+    "noScenes": "まだ保存されたシーンがありません",
+    "noScenesHint": "Visual Vibesを開いてシーンを読み込み、戻ってきてこのクリップを添付してください。",
+    "openEditor": "Visual Vibesを開く",
+    "scene": "シーン",
+    "hasClip": "クリップあり",
+    "cancel": "キャンセル",
+    "attaching": "添付中…",
+    "attachClip": "クリップを添付",
+    "deleteConfirm": "削除しますか？",
+    "yes": "はい",
+    "copied": "コピーしました",
+    "copyUrl": "URLをコピー",
+    "clipAttached": "クリップを添付しました — クリップ準備完了！",
+    "attachedDesc": "シーン{{index}}{{section}}に添付済み。Visual Vibesを開いて確認してください。",
+    "clipDeleted": "クリップを削除しました",
+    "errorLoadProjects": "プロジェクトを読み込めませんでした",
+    "errorAttach": "クリップを添付できませんでした",
+    "errorAttachFailed": "添付に失敗しました",
+    "errorDelete": "削除に失敗しました",
+    "extractAudio": "オーディオを抽出",
+    "extractAudioCost": "50 Visual Bucs",
+    "extractAudioDone": "オーディオを抽出しました",
+    "extractAudioFailed": "オーディオ抽出に失敗しました",
+    "extractAudioRefunded": "自動的に返金されました。",
+    "extracting": "抽出中…",
+    "downloadMp3": "MP3をダウンロード"
+  },
+  "linkInBio": {
+    "tab": "プロフィールリンク",
+    "hero": {
+      "badge": "プロフィールリンク",
+      "title": "1つのページ。",
+      "titleAccent": "あなたのリンクすべて。",
+      "subtitle": "ファンのための豪華なゴールドのリンクインバイオページを作成。作成は無料 — 公開は{{cost}} Visual Bucsです。"
+    },
+    "profile": {
+      "title": "プロフィールヘッダー",
+      "prefill": "Artist Vaultから事前入力",
+      "prefillDone": "Vaultから事前入力しました",
+      "noVaults": "アーティストVaultはまだありません — Artist Vaultで作成すると即座に事前入力できます。",
+      "displayName": "表示名",
+      "displayNamePlaceholder": "アーティスト名",
+      "headline": "見出し",
+      "headlinePlaceholder": "歌手 · ソングライター · ストーリーテラー",
+      "bio": "自己紹介",
+      "bioPlaceholder": "ファンがフォローしたくなる2行。",
+      "avatarUrl": "アバター画像URL",
+      "avatarUrlPlaceholder": "https://…",
+      "slug": "ページハンドル",
+      "slugHint": "あなたの公開URL: bowdownvisuals.com/bio/{{slug}}",
+      "slugInvalid": "ハンドルは小文字、数字、ダッシュのみです。"
+    },
+    "theme": {
+      "title": "テーマ",
+      "goldRoyal": "ゴールドロイヤル",
+      "goldRoyalBlurb": "ブラック + 輝くゴールド — Bow Downのシグネチャールック",
+      "midnightGold": "ミッドナイトゴールド",
+      "midnightGoldBlurb": "深いブルーブラックに温かなゴールドのアクセント",
+      "onyxMinimal": "Onyx Minimal",
+      "onyxMinimalBlurb": "ピュアブラック、細いゴールドライン — 超クリーン"
+    },
+    "links": {
+      "title": "リンク",
+      "add": "リンクを追加",
+      "titlePlaceholder": "リンクタイトル（例：新シングル）",
+      "urlPlaceholder": "https://…",
+      "icon": "アイコン",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "remove": "リンクを削除",
+      "empty": "まだリンクがありません — 上で最初のリンクを追加してください。",
+      "needOne": "公開する前に少なくとも1つのリンクを追加してください。"
+    },
+    "socials": {
+      "title": "ソーシャルアイコン",
+      "hint": "プロフィールのURLを貼り付けると、ページにアイコンが表示されます。"
+    },
+    "featured": {
+      "title": "注目の作品",
+      "hint": "Hubプロジェクトから目立つ作品を取り込みます — ファンはあなたのショーケースやクリップに直接たどり着きます。",
+      "fromHub": "Hubプロジェクトから",
+      "noAssets": "Hubプロジェクトにまだアセットがありません — まず何か作成してください。",
+      "added": "追加済み",
+      "add": "追加",
+      "empty": "まだ注目作品がありません。曲、動画、サムネイルをハイライトしましょう。",
+      "remove": "削除"
+    },
+    "tipJar": {
+      "title": "チップジャー",
+      "hint": "チップページをリンクしてファンが応援できるようにします（例：/tips/your-handle）。",
+      "placeholder": "https://bowdownvisuals.com/tips/your-handle"
+    },
+    "actions": {
+      "saveDraft": "下書きを保存",
+      "saving": "保存中…",
+      "publish": "公開 · {{cost}} Visual Bucs",
+      "publishing": "公開中…",
+      "unpublish": "非公開にする",
+      "unpublishing": "非公開化中…",
+      "viewPage": "ライブページを表示",
+      "share": "共有",
+      "copied": "コピーしました！",
+      "copyLink": "リンクをコピー",
+      "draftSaved": "下書きを保存しました。",
+      "published": "ページが公開されました！",
+      "unpublished": "ページを非公開にしました。",
+      "alreadyPublished": "このページはすでに公開されています。",
+      "statusLive": "公開中 — リンクを知っている人は誰でもこのページを見られます",
+      "statusDraft": "下書き — このページを見られるのはあなただけです",
+      "outOfCredits": "公開に必要なVisual Bucsが不足しています — チャージして公開しましょう。"
+    },
+    "analytics": {
+      "title": "クリック分析",
+      "views": "ページビュー",
+      "clicks": "リンククリック合計",
+      "last7d": "クリック（7日間）",
+      "perLink": "リンク別クリック",
+      "noData": "まだクリックがありません — ページを共有して光る様子を見ましょう。"
+    },
+    "errors": {
+      "loadFailed": "プロフィールページを読み込めませんでした。",
+      "saveFailed": "下書きを保存できませんでした。",
+      "publishFailed": "ページを公開できませんでした。",
+      "needName": "まず表示名を追加してください。"
+    },
+    "public": {
+      "title": "プロフィールリンク",
+      "description": "Bow Down Visualsで作成されたクリエイター向けリンクインバイオページ。",
+      "notFound": "ページが見つかりません",
+      "notFoundDetail": "このリンクインバイオページは存在しないか、オフラインになりました。",
+      "share": "このページを共有"
+    },
+    "preview": "プレビュー"
+  },
+  "press-public": {
+    "backHome": "ホームに戻る",
+    "cheatCodeTagline": "— コンテンツクリエイターのチートコード。",
+    "downloadPdf": "PDFでダウンロード",
+    "epkLabel": "電子プレスキット",
+    "madeWith": "制作：",
+    "notFoundMessage": "このプレスキットは存在しないか、公開されていません。",
+    "notFoundTitle": "プレスキットが見つかりません",
+    "photoAlt": "{{name}}の写真{{index}}",
+    "sections": {
+      "achievements": "実績",
+      "bio": "プロフィール",
+      "bookingContact": "ブッキングと連絡先",
+      "photos": "写真",
+      "press": "プレス",
+      "topTracks": "トップトラック"
+    },
+    "website": "ウェブサイト"
+  },
+  "notFound": {
+    "pageTitle": "ページが見つかりません",
+    "pageDescription": "このページは存在しません — 制作に戻りましょう。",
+    "heading": "宝物庫で迷子？",
+    "description": "このページは地図から外れてしまいました。でも王冠はここにあります — スタジオに戻りましょう。",
+    "backToHome": "ホームに戻る",
+    "myProjects": "Thy Vision"
+  },
+  "milestones": {
+    "loadFailed": "マイルストーンを読み込めませんでした。",
+    "invalidCount": "有効なストリーム数を入力してください。",
+    "logFailed": "そのマイルストーンを記録できませんでした。",
+    "logged": "マイルストーンを記録しました。",
+    "loggedWithAward": "マイルストーンを記録 — {{award}}をアンロック！",
+    "importFailed": "インポートに失敗しました。",
+    "imported": "{{imported}}件をインポート、{{skipped}}件をスキップしました。",
+    "nextUp": "次：{{label}}",
+    "streams": "ストリーム",
+    "loggedFrom": "{{source}}経由",
+    "manual": "手動",
+    "celebrateCaption": "「{{title}}」が{{streams}}ストリームに到達 — 一緒にお祝いしてください！",
+    "artistPlaceholder": "アーティスト名",
+    "card": "マイルストーンカード",
+    "cardTitle": "マイルストーンカードをダウンロード",
+    "celebrate": "祝う",
+    "chooseFile": "CSVファイルを選択",
+    "countPlaceholder": "ストリーム数",
+    "csvHelp": "トラック、アーティスト、ストリームの列を持つCSV。",
+    "empty": "まだマイルストーンがありません。最初の勝利を記録しましょう。",
+    "history": "履歴",
+    "honesty": "本物の数字だけ — チートコードはストリームを偽造しません。",
+    "importButton": "インポート",
+    "importCsv": "CSVをインポート",
+    "importing": "インポート中…",
+    "loading": "読み込み中…",
+    "logButton": "マイルストーンを記録",
+    "logTitle": "マイルストーンを記録",
+    "logging": "記録中…",
+    "maxTier": "最高ティア到達",
+    "signIn": "マイルストーンを追跡するにはサインインしてください。",
+    "signInCta": "サインイン",
+    "trackPlaceholder": "トラックタイトル",
+    "unranked": "ランク外",
+    "yourRace": "あなたのレース",
+    "bragButton": "自慢する",
+    "bragButtonWith": "{{headline}}を自慢する",
+    "bragPrompt": "{{label}}を獲得 — 自慢しましょう",
+    "bragTitle": "自慢する",
+    "bragHeadline": "{{headline}} — 達成。",
+    "bragRendering": "自慢カードを描画中…",
+    "bragAlt": "マイルストーン自慢カード：{{headline}}",
+    "bragCaptionLabel": "キャプション",
+    "bragPostToFeed": "BDVフィードに投稿",
+    "bragPosting": "投稿中…",
+    "bragPostedShort": "投稿済み",
+    "bragPosted": "タイムラインに投稿しました",
+    "bragViewFeed": "フィードを見る",
+    "bragShare": "共有",
+    "bragShareTitle": "私のマイルストーン",
+    "bragCopyCaption": "キャプションをコピー",
+    "bragCopied": "コピーしました",
+    "bragDownload": "PNGをダウンロード",
+    "bragDownloaded": "カードをダウンロードしました — 伝説級です。",
+    "bragDesktopFallback": "キャプションをコピーしカードをダウンロードしました — X / IG / TikTokの投稿に添付してください。",
+    "bragFootnote": "すべてのカードに「Made with Bow Down Visuals」とサインアップリンクが入ります — あなたの勝利が次のファンを連れてきます。",
+    "bragClose": "閉じる",
+    "bragRenderFailed": "カードを描画できませんでした — もう一度お試しください。",
+    "bragUploadFailed": "カードをアップロードできませんでした — もう一度お試しください。",
+    "bragPostFailed": "投稿できませんでした — もう一度お試しください。",
+    "bragShareFailed": "共有を開けませんでした — もう一度お試しください。",
+    "trophyShelf": "トロフィー棚",
+    "trophyShelfSub": "Bow Down Visualsでアンロックしたマイルストーン"
+  },
+  "stabilize": {
+    "title": "手ぶれ補正",
+    "subtitle": "揺れた動画を滑らかに — 2パスvidstab、ワンタップ",
+    "priceBadge": "補正1回 {cost} VB",
+    "noClipsTitle": "補正するクリップがありません",
+    "noClipsBody": "まずシーンに動画クリップを追加し、それから揺れを滑らかにしてください。",
+    "clipToStabilize": "補正するクリップ",
+    "fineTune": "微調整（任意）",
+    "resetDefaults": "デフォルトに戻す",
+    "shakeHandling": "揺れ対応",
+    "shakeHelp": "高いほど大きな揺れに対応します。",
+    "shakeHigh": "最大の揺れ対応",
+    "shakeMid": "バランスの取れた揺れ対応",
+    "shakeLow": "軽いタッチ",
+    "smoothness": "滑らかさ",
+    "smoothHelp": "滑らかなほどクロップが増えます。",
+    "smoothHigh": "バターのように滑らか（クロップ多め）",
+    "smoothMid": "バランスの取れた滑らかさ",
+    "smoothLow": "さりげない補正",
+    "stabilizeButton": "補正する · {cost} VB",
+    "stabilizingButton": "補正中…",
+    "stabilizingNote": "2パス補正には1分ほどかかる場合があります。",
+    "resultTitle": "補正完了",
+    "useInEditor": "エディターで使う",
+    "attaching": "添付中…",
+    "useInExport": "書き出しで使う",
+    "download": "ダウンロード",
+    "successToast": "クリップを補正しました",
+    "successToastDesc": "滑らかにしたクリップの準備ができました。",
+    "timelineToast": "タイムラインに追加しました",
+    "timelineToastDesc": "補正済みクリップがシーンのクリップと入れ替わりました。",
+    "errorGeneric": "補正に失敗しました — もう一度お試しください。"
+  },
+  "lufs": {
+    "waveformUnavailable": "波形は利用できません",
+    "errorJobNotFound": "ジョブが見つかりません — 期限切れの可能性があります。",
+    "errorNormalizeFailed": "正規化に失敗しました — 返金されました。",
+    "analyzeError": "このファイルを分析できませんでした。別のオーディオファイルをお試しください。",
+    "errorNetwork": "ネットワークエラー — もう一度お試しください。",
+    "errorAudioType": "オーディオファイルを選択してください（MP3、WAV、M4A、AAC、OGG、FLAC）。",
+    "errorFileTooLarge": "そのファイルは50MBを超えています。短くするか、小さいファイルを選んでください。",
+    "errorStartFailed": "正規化を開始できませんでした。もう一度お試しください。",
+    "meterDecodeError": "ライブ測定用にこのファイルをデコードできませんでした。",
+    "title": "LUFSラウドネスメーター",
+    "subtitle": "本当のラウドネスを測り、ストリーミング目標に正規化 — 正規化1回につき{cost} VB。分析は無料です。",
+    "honestIntro": "ラウドネスはLUFSで測ります — ピークレベルだけでなく、トラックが実際にどれだけ大きく感じるかです。",
+    "honestStrong": "分析は無料です。正規化は出力を再測定するので、数字は本物です。",
+    "dropPrompt": "オーディオをここにドロップ、またはタップしてアップロード",
+    "dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — 最大50MB",
+    "changeFile": "ファイルを変更",
+    "statIntegrated": "統合",
+    "statLra": "ラウドネスレンジ",
+    "statTruePeak": "トゥルーピーク",
+    "eburLabel": "モーメンタリ／ショートターム（サーバー測定）",
+    "momentary": "モーメンタリ",
+    "shortTerm": "ショートターム",
+    "eburHint": "トラック全体の最大／平均。",
+    "liveMeterTitle": "ライブメーター（ブラウザ）",
+    "liveMeterNote": "ファイル再生中のK加重リアルタイム推定 — ゲーティングなし、感触用です。上のサーバーの統合値が公式です。",
+    "liveMeterStop": "停止",
+    "liveMeterPlay": "ライブメーターを再生",
+    "targetLabel": "正規化ターゲット",
+    "formatLabel": "出力形式",
+    "formatWav": "WAV (16-bit)",
+    "formatMp3": "MP3 (320k)",
+    "normalizeButton": "{target} LUFSに正規化 · {cost} VB",
+    "creditsRemaining": "残り{n} Visual Bucs",
+    "statusUploading": "アップロード中…",
+    "statusQueued": "キュー内 — ジョブはサーバーで実行されます。このタブを離れても大丈夫です。",
+    "statusProcessing": "{target} LUFSに正規化中…",
+    "progressNote": "2パスのラウドネス正規化：測定、補正、出力の再測定。",
+    "analyzing": "ラウドネスを測定中…",
+    "normalizeComplete": "{target} LUFSに正規化しました",
+    "before": "変更前",
+    "after": "変更後",
+    "abOriginal": "オリジナル",
+    "abNormalized": "正規化済み",
+    "pause": "一時停止",
+    "play": "再生",
+    "labelOriginal": "オリジナル",
+    "labelNormalized": "正規化済み",
+    "abHint": "2つを切り替えても再生位置は維持されます。",
+    "downloadButton": "ダウンロード",
+    "newButton": "新しいファイル",
+    "handoffTitle": "次のステップ",
+    "handoffMaster": "マスタータブへ送る →",
+    "handoffDistribute": "配信する →"
   }
 }

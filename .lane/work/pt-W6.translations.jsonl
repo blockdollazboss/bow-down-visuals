@@ -1,0 +1,416 @@
+{"milestones.loadFailed": "Não foi possível carregar os marcos."}
+{"milestones.invalidCount": "Insira uma contagem de streams válida."}
+{"milestones.logFailed": "Não foi possível registrar esse marco."}
+{"milestones.logged": "Marco registrado."}
+{"milestones.loggedWithAward": "Marco registrado — {{award}} desbloqueado!"}
+{"milestones.importFailed": "A importação falhou."}
+{"milestones.imported": "{{imported}} importados, {{skipped}} ignorados."}
+{"milestones.nextUp": "Próximo: {{label}}"}
+{"milestones.streams": "streams"}
+{"milestones.loggedFrom": "via {{source}}"}
+{"milestones.manual": "manual"}
+{"milestones.celebrateCaption": "\"{{title}}\" acabou de atingir {{streams}} streams — me ajude a comemorar!"}
+{"milestones.artistPlaceholder": "Nome do artista"}
+{"milestones.card": "Cartão de marco"}
+{"milestones.cardTitle": "Baixar cartão de marco"}
+{"milestones.celebrate": "Comemorar"}
+{"milestones.chooseFile": "Escolher arquivo CSV"}
+{"milestones.countPlaceholder": "Contagem de streams"}
+{"milestones.csvHelp": "CSV com colunas de faixa, artista e streams."}
+{"milestones.empty": "Nenhum marco ainda. Registre sua primeira vitória."}
+{"milestones.history": "Histórico"}
+{"milestones.honesty": "Só números reais — o código de truques não falsifica streams."}
+{"milestones.importButton": "Importar"}
+{"milestones.importCsv": "Importar CSV"}
+{"milestones.importing": "Importando…"}
+{"milestones.loading": "Carregando…"}
+{"milestones.logButton": "Registrar marco"}
+{"milestones.logTitle": "Registrar um marco"}
+{"milestones.logging": "Registrando…"}
+{"milestones.maxTier": "Nível máximo atingido"}
+{"milestones.signIn": "Entre para acompanhar marcos."}
+{"milestones.signInCta": "Entrar"}
+{"milestones.trackPlaceholder": "Título da faixa"}
+{"milestones.unranked": "Sem classificação"}
+{"milestones.yourRace": "Sua corrida"}
+{"milestones.bragButton": "Se gabar"}
+{"milestones.bragButtonWith": "Se gabar de {{headline}}"}
+{"milestones.bragPrompt": "Você conseguiu {{label}} — se gabe disso"}
+{"milestones.bragTitle": "Se gabe"}
+{"milestones.bragHeadline": "{{headline}} — garantido."}
+{"milestones.bragRendering": "Renderizando seu cartão de orgulho…"}
+{"milestones.bragAlt": "Cartão de orgulho de marco: {{headline}}"}
+{"milestones.bragCaptionLabel": "Legenda"}
+{"milestones.bragPostToFeed": "Publicar no feed do BDV"}
+{"milestones.bragPosting": "Publicando…"}
+{"milestones.bragPostedShort": "Publicado"}
+{"milestones.bragPosted": "Publicado na sua linha do tempo"}
+{"milestones.bragViewFeed": "Ver o feed"}
+{"milestones.bragShare": "Compartilhar"}
+{"milestones.bragShareTitle": "Meu marco"}
+{"milestones.bragCopyCaption": "Copiar legenda"}
+{"milestones.bragCopied": "Copiado"}
+{"milestones.bragDownload": "Baixar PNG"}
+{"milestones.bragDownloaded": "Cartão baixado — está lendário."}
+{"milestones.bragDesktopFallback": "Legenda copiada e cartão baixado — anexe ao seu post no X / IG / TikTok."}
+{"milestones.bragFootnote": "Cada cartão traz Made with Bow Down Visuals + um link de cadastro — sua vitória recruta seu próximo fã."}
+{"milestones.bragClose": "Fechar"}
+{"milestones.bragRenderFailed": "Não foi possível renderizar o cartão — tente de novo."}
+{"milestones.bragUploadFailed": "Não foi possível enviar o cartão — tente de novo."}
+{"milestones.bragPostFailed": "Não foi possível publicar — tente de novo."}
+{"milestones.bragShareFailed": "Não foi possível abrir o compartilhamento — tente de novo."}
+{"milestones.trophyShelf": "Prateleira de troféus"}
+{"milestones.trophyShelfSub": "Marcos desbloqueados com o Bow Down Visuals"}
+{"lufs.waveformUnavailable": "Forma de onda indisponível"}
+{"lufs.errorJobNotFound": "Trabalho não encontrado — pode ter expirado."}
+{"lufs.errorNormalizeFailed": "A normalização falhou — você foi reembolsado."}
+{"lufs.analyzeError": "Não foi possível analisar este arquivo. Tente outro arquivo de áudio."}
+{"lufs.errorNetwork": "Falha de rede — tente de novo."}
+{"lufs.errorAudioType": "Escolha um arquivo de áudio (MP3, WAV, M4A, AAC, OGG, FLAC)."}
+{"lufs.errorFileTooLarge": "Esse arquivo passa de 50 MB. Corte-o ou escolha um menor."}
+{"lufs.errorStartFailed": "Não foi possível iniciar a normalização. Tente de novo."}
+{"lufs.meterDecodeError": "Não foi possível decodificar este arquivo para medição ao vivo."}
+{"lufs.title": "Medidor de loudness LUFS"}
+{"lufs.subtitle": "Meça o loudness real e normalize para os alvos de streaming — {cost} VB por normalização. A análise é grátis."}
+{"lufs.honestIntro": "Loudness é medido em LUFS — o quão alto sua faixa realmente parece, não só o nível de pico."}
+{"lufs.honestStrong": "A análise é grátis; a normalização remede a saída para os números serem reais."}
+{"lufs.dropPrompt": "Solte seu áudio aqui ou toque para enviar"}
+{"lufs.dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — até 50 MB"}
+{"lufs.changeFile": "Trocar arquivo"}
+{"lufs.statIntegrated": "Integrado"}
+{"lufs.statLra": "Faixa de loudness"}
+{"lufs.statTruePeak": "Pico real"}
+{"lufs.eburLabel": "Momentâneo / curto prazo (medido no servidor)"}
+{"lufs.momentary": "Momentâneo"}
+{"lufs.shortTerm": "Curto prazo"}
+{"lufs.eburHint": "máx / média em toda a faixa."}
+{"lufs.liveMeterTitle": "Medidor ao vivo (navegador)"}
+{"lufs.liveMeterNote": "Estimativa em tempo real com ponderação K enquanto o arquivo toca — sem gating, para sentir. O número integrado do servidor acima é o oficial."}
+{"lufs.liveMeterStop": "Parar"}
+{"lufs.liveMeterPlay": "Tocar medidor ao vivo"}
+{"lufs.targetLabel": "Alvo de normalização"}
+{"lufs.formatLabel": "Formato de saída"}
+{"lufs.normalizeButton": "Normalizar para {target} LUFS · {cost} VB"}
+{"lufs.creditsRemaining": "Restam {n} Visual Bucs"}
+{"lufs.statusUploading": "Enviando…"}
+{"lufs.statusQueued": "Na fila — o trabalho roda no servidor, você pode sair desta aba."}
+{"lufs.statusProcessing": "Normalizando para {target} LUFS…"}
+{"lufs.progressNote": "Normalização de loudness em duas passagens: medir, corrigir e remediar a saída."}
+{"lufs.analyzing": "Medindo o loudness…"}
+{"lufs.normalizeComplete": "Normalizado para {target} LUFS"}
+{"lufs.before": "Antes"}
+{"lufs.after": "Depois"}
+{"lufs.abOriginal": "Original"}
+{"lufs.abNormalized": "Normalizado"}
+{"lufs.pause": "Pausar"}
+{"lufs.play": "Tocar"}
+{"lufs.labelOriginal": "Original"}
+{"lufs.labelNormalized": "Normalizado"}
+{"lufs.abHint": "Alterne entre os dois — a posição de reprodução se mantém."}
+{"lufs.downloadButton": "Baixar"}
+{"lufs.newButton": "Novo arquivo"}
+{"lufs.handoffTitle": "Próximo passo"}
+{"lufs.handoffMaster": "Enviar para a aba Master →"}
+{"lufs.handoffDistribute": "Distribuir →"}
+{"presave.badgeOut": "Já disponível"}
+{"presave.dropsSoon": "Data de lançamento em breve"}
+{"presave.outNow": "Já disponível — vai ouvir!"}
+{"presave.cdDays": "Dias"}
+{"presave.cdHours": "Horas"}
+{"presave.cdMins": "Min"}
+{"presave.cdSecs": "Seg"}
+{"presave.fansCount": "fãs pré-salvaram"}
+{"presave.sharesCount": "compartilhamentos"}
+{"presave.followCta": "Pré-salve + seja avisado no dia do lançamento"}
+{"presave.followCtaOut": "Entre na lista de fãs para novidades"}
+{"presave.followBlurb": "Deixe seu e-mail — adicionamos você à lista de fãs do artista (grátis)."}
+{"presave.emailPlaceholder": "Seu e-mail"}
+{"presave.namePlaceholder": "Seu nome (opcional)"}
+{"presave.followBtn": "Me pré-salve"}
+{"presave.followBtnOut": "Entrar na lista"}
+{"presave.saving": "Salvando…"}
+{"presave.followed": "Você está na lista! {{artist}} vai te escrever no dia do lançamento."}
+{"presave.alreadyFollowing": "Você já está na lista de {{artist}} — até o dia do lançamento!"}
+{"presave.notifyNote": "Você recebe um único e-mail quando a música sair. Sem spam, nunca."}
+{"presave.invalidEmail": "Insira um e-mail válido."}
+{"presave.followFailed": "Não foi possível salvar seu pré-save — tente de novo."}
+{"presave.platformsCta": "Siga no dia do lançamento"}
+{"presave.streamNowOn": "Ouça agora"}
+{"presave.streamOn": "Ouvir no {{platform}}"}
+{"presave.followOn": "Obter no {{platform}}"}
+{"presave.shareTitle": "Espalhe a palavra"}
+{"presave.shareToUnlock": "Compartilhe para desbloquear conteúdo bônus"}
+{"presave.unlockBlurb": "Compartilhe este lançamento em qualquer lugar e desbloqueie conteúdo bônus exclusivo do artista."}
+{"presave.openBonus": "Abrir seu conteúdo bônus"}
+{"presave.shareText": "\"{{title}}\" de {{artist}} chega em breve — pré-salve"}
+{"presave.shareTextOut": "\"{{title}}\" de {{artist}} JÁ ESTÁ DISPONÍVEL — vai ouvir"}
+{"presave.copyLink": "Copiar link"}
+{"presave.copied": "Copiado!"}
+{"presave.postToX": "Publicar no X"}
+{"presave.shareRelease": "Compartilhar este lançamento"}
+{"presave.artistCta": "Você é o artista?"}
+{"presave.promoteRelease": "Promover este lançamento →"}
+{"presave.artworkAlt": "Arte de \"{{title}}\""}
+{"presave.badge": "Pré-save"}
+{"presave.drops": "Lança em {{date}}"}
+{"presave.errors.loadFailed": "Não foi possível carregar este lançamento."}
+{"presave.errors.notFound": "Este link de pré-save não existe."}
+{"presave.footer": "Com tecnologia Thy Cheat Code — o código de truques do criador de conteúdo."}
+{"presave.loading": "Carregando lançamento…"}
+{"presave.platformsTitle": "Em todo lugar no dia do lançamento"}
+{"stabilize.title": "Estabilizar"}
+{"stabilize.subtitle": "Suavize vídeos tremidos — vidstab em duas passagens, um toque"}
+{"stabilize.priceBadge": "{cost} VB / estabilização"}
+{"stabilize.noClipsTitle": "Nenhum clipe para estabilizar"}
+{"stabilize.noClipsBody": "Adicione primeiro um clipe de vídeo a uma cena, depois suavize os tremidos."}
+{"stabilize.clipToStabilize": "Clipe para estabilizar"}
+{"stabilize.fineTune": "Ajuste fino (opcional)"}
+{"stabilize.resetDefaults": "Redefinir padrões"}
+{"stabilize.shakeHandling": "Tratamento de tremidos"}
+{"stabilize.shakeHelp": "Mais alto lida com mais tremidos."}
+{"stabilize.shakeHigh": "Tratamento máximo de tremidos"}
+{"stabilize.shakeMid": "Tratamento equilibrado de tremidos"}
+{"stabilize.shakeLow": "Toque leve"}
+{"stabilize.smoothness": "Suavidade"}
+{"stabilize.smoothHelp": "Mais suave, mas corta mais."}
+{"stabilize.smoothHigh": "Suave como manteiga (mais corte)"}
+{"stabilize.smoothMid": "Suavidade equilibrada"}
+{"stabilize.smoothLow": "Suavização sutil"}
+{"stabilize.stabilizeButton": "Estabilizar · {cost} VB"}
+{"stabilize.stabilizingButton": "Estabilizando…"}
+{"stabilize.stabilizingNote": "A estabilização em duas passagens pode levar um minuto."}
+{"stabilize.resultTitle": "Estabilizado"}
+{"stabilize.useInEditor": "Usar no editor"}
+{"stabilize.attaching": "Anexando…"}
+{"stabilize.useInExport": "Usar na exportação"}
+{"stabilize.download": "Baixar"}
+{"stabilize.successToast": "Clipe estabilizado"}
+{"stabilize.successToastDesc": "Seu clipe suavizado está pronto."}
+{"stabilize.timelineToast": "Adicionado à linha do tempo"}
+{"stabilize.timelineToastDesc": "O clipe estabilizado substituiu o clipe da cena."}
+{"stabilize.errorGeneric": "A estabilização falhou — tente de novo."}
+{"create.pageTitle": "Criar"}
+{"create.pageDescription": "Comece qualquer coisa: uma música + vídeo, uma música, um vídeo ou o hub de criação guiado."}
+{"create.subtitle": "Um estúdio, dez maneiras de começar. Escolha uma pista — cada peça pronta flui para seu próximo passo natural."}
+{"create.backToDashboard": "Voltar ao painel"}
+{"create.modes.songVideo": "Música + Vídeo"}
+{"create.modes.songVideoBlurb": "Faixa mais visuais, um só fluxo"}
+{"create.modes.song": "Música"}
+{"create.modes.songBlurb": "Música de IA a partir de um prompt"}
+{"create.modes.video": "Vídeo"}
+{"create.modes.videoBlurb": "Clipes feitos para o seu som"}
+{"create.modes.hub": "Hub de Criação"}
+{"create.modes.hubBlurb": "Todas as ferramentas, um quadro"}
+{"create.modes.cartoon": "Desenho animado"}
+{"create.modes.cartoonBlurb": "Estúdio de desenho animado"}
+{"create.modes.coverArt": "Arte de capa"}
+{"create.modes.coverArtBlurb": "Arte de capa que se destaca"}
+{"create.modes.dreamCollab": "Collab dos sonhos"}
+{"create.modes.dreamCollabBlurb": "Crie com artistas de IA"}
+{"create.modes.linkToHit": "Do link ao hit"}
+{"create.modes.linkToHitBlurb": "Transforme qualquer link em um hit"}
+{"create.modes.coverMotion": "Capa em movimento"}
+{"create.modes.coverMotionBlurb": "Dê vida à arte de capa"}
+{"privacy.contactSupport": "Contato / Suporte"}
+{"privacy.lastUpdated": "Última atualização: setembro de 2026"}
+{"privacy.pageDescription": "Como o Bow Down Visuals lida com seus dados."}
+{"privacy.pageTitle": "Política de privacidade"}
+{"privacy.section10ContactLink": "Página de contato"}
+{"privacy.section10Intro": "Perguntas de privacidade? Escreva para"}
+{"privacy.section10Middle": "ou visite nossa"}
+{"privacy.section10Title": "10. Contato"}
+{"privacy.section1Body": "O Bow Down Visuals opera uma plataforma digital para criadores com Visual Bucs de IA para gerar vídeos, músicas, imagens, narrações, vídeos de lip-sync, letras, legendas, miniaturas, clipes promocionais e conteúdo digital relacionado. Esta política explica como coletamos, usamos e protegemos suas informações."}
+{"privacy.section1Title": "1. Quem somos"}
+{"privacy.section2Item1Body": "endereço de e-mail e senha (com hash) quando você se cadastra, ou informações básicas de perfil do Google se entrar com o Google"}
+{"privacy.section2Item1Label": "Informações da conta:"}
+{"privacy.section2Item2Body": "tratadas inteiramente pela Stripe — nunca armazenamos números brutos de cartão"}
+{"privacy.section2Item2Label": "Informações de cobrança:"}
+{"privacy.section2Item3Body": "uso de Visual Bucs, interações com ferramentas e prompts de conteúdo gerado"}
+{"privacy.section2Item3Label": "Dados de uso:"}
+{"privacy.section2Item4Body": "informações inseridas para personalizar as saídas de IA (nome artístico, gênero, preferências de estilo)"}
+{"privacy.section2Item4Label": "Dados do perfil de artista:"}
+{"privacy.section2Item5Body": "códigos de indicação usados no cadastro e recompensas de indicação ganhas"}
+{"privacy.section2Item5Label": "Dados de indicação:"}
+{"privacy.section2Item6Body": "tipo de navegador, endereço IP e dados de sessão para segurança e desempenho"}
+{"privacy.section2Item6Label": "Dados técnicos:"}
+{"privacy.section2Title": "2. Informações que coletamos"}
+{"privacy.section3Item1": "Operar e melhorar a plataforma"}
+{"privacy.section3Item2": "Processar pagamentos e gerenciar assinaturas"}
+{"privacy.section3Item3": "Personalizar as saídas geradas por IA conforme seu perfil de artista"}
+{"privacy.section3Item4": "Enviar e-mails relacionados à conta (recibos, alertas de segurança)"}
+{"privacy.section3Item5": "Cumprir obrigações legais"}
+{"privacy.section3Title": "3. Como usamos suas informações"}
+{"privacy.section4Intro": "Não vendemos seus dados pessoais. Compartilhamos dados apenas com:"}
+{"privacy.section4Item1Body": "processamento de pagamentos"}
+{"privacy.section4Item2Body": "banco de dados e autenticação"}
+{"privacy.section4Item3Body": "se você entrar com o Google (sujeito à política de privacidade do Google)"}
+{"privacy.section4Item4Body": "para executar solicitações de geração (prompts podem ser processados por APIs de IA de terceiros)"}
+{"privacy.section4Item4Label": "Provedores de IA"}
+{"privacy.section4Item5": "Autoridades quando exigido pela lei aplicável"}
+{"privacy.section4Title": "4. Compartilhamento de dados"}
+{"privacy.section5Body": "Usamos cookies de sessão necessários para autenticação. Não executamos rastreadores de publicidade de terceiros. Análises, se usadas, limitam-se a dados de uso agregados."}
+{"privacy.section5Title": "5. Cookies e rastreamento"}
+{"privacy.section6Body": "Mantemos os dados da sua conta enquanto ela estiver ativa. Você pode solicitar a exclusão a qualquer momento entrando em contato. Registros de cobrança são mantidos conforme exige a lei."}
+{"privacy.section6Title": "6. Retenção de dados"}
+{"privacy.section7Intro": "Dependendo da sua localização, você pode ter o direito de acessar, corrigir ou excluir seus dados pessoais. Para exercer qualquer um desses direitos, fale conosco em"}
+{"privacy.section7Title": "7. Seus direitos"}
+{"privacy.section8Body": "Usamos medidas de segurança padrão do setor, incluindo conexões criptografadas (HTTPS), senhas com hash e segurança em nível de linha no nosso banco de dados. Nenhum sistema é 100% seguro; use uma senha forte e única para sua conta."}
+{"privacy.section8Title": "8. Segurança"}
+{"privacy.section9Body": "Podemos atualizar esta política de tempos em tempos. Avisaremos sobre mudanças significativas por e-mail ou aviso no app."}
+{"privacy.section9Title": "9. Mudanças nesta política"}
+{"privacy.title": "Política de privacidade"}
+{"promote.copyLabel": "Copiar {{label}}"}
+{"promote.copy": "Copiar"}
+{"promote.copied": "Copiado"}
+{"promote.hero.subtitle": "Escolha um recurso, um formato e um tom — receba textos prontos para publicar com hashtags e CTAs. {{cost}} Visual Buc por geração."}
+{"promote.hero.back": "Voltar a todos os recursos"}
+{"promote.form.feature": "Recurso a promover"}
+{"promote.form.contentType": "Tipo de conteúdo"}
+{"promote.form.tone": "Tom"}
+{"promote.form.angle": "Ângulo a enfatizar"}
+{"promote.form.optional": "(opcional)"}
+{"promote.form.focusPlaceholder": "ex.: o preço de 1 Visual Buc, o quão rápido é, perfeito para artistas novos…"}
+{"promote.contentTypes.twitter.label": "Post no X"}
+{"promote.contentTypes.twitter.blurb": "Post impactante feito para reposts"}
+{"promote.contentTypes.instagram.label": "Legenda do IG"}
+{"promote.contentTypes.instagram.blurb": "Legenda chamativa + hashtags"}
+{"promote.contentTypes.tiktok.label": "Roteiro de TikTok"}
+{"promote.contentTypes.tiktok.blurb": "Gancho + batidas, estilo falado"}
+{"promote.contentTypes.email.label": "E-mail em massa"}
+{"promote.contentTypes.email.blurb": "Assunto + corpo curto"}
+{"promote.contentTypes.banner.label": "Manchetes de banner"}
+{"promote.contentTypes.banner.blurb": "5 que param a rolagem"}
+{"promote.contentTypes.ad.label": "Texto de anúncio"}
+{"promote.contentTypes.ad.blurb": "Manchetes + texto principal"}
+{"promote.tones.professional": "Profissional"}
+{"promote.tones.funny": "Engraçado"}
+{"promote.tones.luxury": "Luxo"}
+{"promote.signIn.message": "Entre para gerar conteúdo promocional."}
+{"promote.signIn.cta": "Entrar"}
+{"promote.generate": "Gerar promo · {{cost}} Visual Buc"}
+{"promote.generating": "Escrevendo sua promo…"}
+{"promote.errorGenerationFailed": "A geração da promo falhou — tente de novo."}
+{"promote.results.titlePrefix": "Sua promo para"}
+{"promote.results.regenerate": "Gerar de novo"}
+{"promote.results.headline": "Manchete"}
+{"promote.results.copy": "Texto"}
+{"promote.results.alternate": "Alternativa {{n}}"}
+{"promote.results.cta": "Chamada para ação"}
+{"promote.tabs.promoCopy": "Texto promocional"}
+{"promote.tabs.linkInBio": "Link na bio"}
+{"promote.hero.titleAccent": "como um lançamento"}
+{"coach.copyPlan": "Copiar plano"}
+{"coach.tabMoneyTracker": "Rastreador de dinheiro"}
+{"coach.tabGroupPlan": "Plano"}
+{"coach.tabGroupTrack": "Acompanhar"}
+{"coach.tabGroupEarn": "Ganhar"}
+{"coach.tabGroupSell": "Vender"}
+{"coach.tabGroupGrow": "Crescer"}
+{"coach.tabPlan": "Plano de dinheiro"}
+{"coach.tabNiche": "Analisador de nicho"}
+{"coach.tabBrandDeals": "Acordos com marcas"}
+{"coach.tabShoutouts": "Saudações"}
+{"coach.tabTips": "Gorjetas"}
+{"coach.tabBeats": "Vender beats"}
+{"coach.tabMemberships": "Assinaturas"}
+{"coach.tabDistribute": "Distribuir"}
+{"coach.tabStorefronts": "Vitrines"}
+{"coach.tabMyShop": "Minha loja"}
+{"coach.tabPressKit": "Kit de imprensa"}
+{"coach.tabEmailList": "Lista de e-mails"}
+{"coach.tabCollabs": "Collabs"}
+{"coach.tabContests": "Concursos"}
+{"coach.tabReferrals": "Indicações"}
+{"coach.tabTeam": "Equipe"}
+{"coach.titleHighlight": "Sala do dinheiro"}
+{"release.crossLinks.distribute": "distribuí-lo"}
+{"release.badge": "Ferramentas de lançamento do Thy Cheat Code"}
+{"release.titlePrefix": "Lançamento"}
+{"release.titleSuffix": "Lista de verificação"}
+{"release.hero": "O dia do lançamento se vence nas semanas anteriores. A IA constrói seu plano de batalha semana a semana — distribuição, playlists, teasers, imprensa, pré-saves — e você marca conforme executa."}
+{"release.whatDropping": "O que você vai lançar?"}
+{"release.types.single.blurb": "Uma faixa, um momento"}
+{"release.types.ep.blurb": "3–6 faixas"}
+{"release.types.album.label": "Álbum"}
+{"release.types.album.blurb": "7+ faixas, uma era"}
+{"release.releaseTitle": "Título do lançamento"}
+{"release.titlePlaceholder": "ex.: Bow Down Anthem"}
+{"release.genreVibe": "Gênero / vibe"}
+{"release.optional": "(opcional)"}
+{"release.genrePlaceholder": "ex.: hip-hop, R&B…"}
+{"release.releaseDate": "Data de lançamento"}
+{"release.building": "Construindo seu plano de batalha…"}
+{"release.buildPlan": "Construir meu plano de lançamento"}
+{"release.signInToBuild": "Entre para construir seu plano de lançamento"}
+{"release.costNote": "{{cost}} Visual Bucs por plano de IA · marcar tarefas é grátis · com tecnologia Thy Cheat Code"}
+{"release.tasksDone": "{{done}} de {{total}} tarefas feitas"}
+{"release.preSaveTitle": "Golpe de mestre do pré-save"}
+{"release.rebuild": "Reconstruir plano ({{cost}} Visual Bucs)"}
+{"release.tools.playlist-pitcher": "Abrir o Pitcher de playlists"}
+{"release.tools.content-scheduler": "Abrir o Agendador de conteúdo"}
+{"release.tools.press-kit": "Abrir o Criador de kit de imprensa"}
+{"release.tools.cover-art": "Abrir o Gerador de capas"}
+{"release.tools.email-list": "Abrir o Criador de lista de e-mails"}
+{"release.crossLinks.p1": "Executando seu plano? Apresente playlists com o"}
+{"release.crossLinks.playlistPitcher": "Pitcher de playlists"}
+{"release.crossLinks.p2": "e agende seus teasers com o"}
+{"release.crossLinks.scheduler": "Agendador de conteúdo"}
+{"release.error.noTitle": "Primeiro dê um título ao seu lançamento — o plano se constrói em torno dele."}
+{"release.error.noDate": "Escolha uma data de lançamento para a lista contar regressivamente a partir dela."}
+{"release.error.pastDate": "A data de lançamento deve ser no futuro — uma lista para o passado não ajuda ninguém."}
+{"release.error.planFailed": "O plano de lançamento falhou — tente de novo."}
+{"press-public.backHome": "Voltar ao início"}
+{"press-public.cheatCodeTagline": "— o código de truques do criador de conteúdo."}
+{"press-public.downloadPdf": "Baixar como PDF"}
+{"press-public.epkLabel": "Kit de imprensa eletrônico"}
+{"press-public.madeWith": "Feito com"}
+{"press-public.notFoundMessage": "Este kit de imprensa não existe ou não é público."}
+{"press-public.notFoundTitle": "Kit de imprensa não encontrado"}
+{"press-public.photoAlt": "Foto {{index}} de {{name}}"}
+{"press-public.sections.achievements": "Conquistas"}
+{"press-public.sections.bookingContact": "Reservas e contato"}
+{"press-public.sections.photos": "Fotos"}
+{"press-public.sections.press": "Imprensa"}
+{"press-public.sections.topTracks": "Faixas principais"}
+{"press-public.website": "Site"}
+{"qrLogin.title": "Escaneie para entrar"}
+{"qrLogin.generating": "Gerando código QR..."}
+{"qrLogin.scanInstructions": "Escaneie com a câmera do seu telefone. Você precisa estar conectado no telefone para aprovar."}
+{"qrLogin.expiresIn": "O código expira em 5 minutos"}
+{"qrLogin.approved": "Aprovado! Entrando…"}
+{"qrLogin.expired": "Código expirado"}
+{"qrLogin.generateNew": "Gerar novo código"}
+{"qrLogin.failed": "Não foi possível gerar o código. Tente de novo."}
+{"qrLogin.retry": "Tentar de novo"}
+{"nfcCardProfile.shareTitle": "Cartão de visita digital"}
+{"nfcCardProfile.notActive": "Este cartão não está ativo"}
+{"nfcCardProfile.notActiveDetail": "O link pode estar digitado errado, ou o dono desativou este cartão digital."}
+{"nfcCardProfile.backToSite": "← Voltar ao Bow Down Visuals"}
+{"nfcCardProfile.tapToConnect": "Toque para conectar"}
+{"nfcCardProfile.saveContact": "Salvar contato"}
+{"nfcCardProfile.share": "Compartilhar"}
+{"nfcCardProfile.copied": "Copiado!"}
+{"nfcCardProfile.poweredBy": "Com tecnologia de"}
+{"nfcCardProfile.nfcSmartCards": "Cartões inteligentes NFC"}
+{"notFound.pageTitle": "Página não encontrada"}
+{"notFound.pageDescription": "Esta página não existe — vamos voltar a criar."}
+{"notFound.heading": "Perdido no cofre?"}
+{"notFound.description": "Esta página saiu do mapa. Mas a coroa continua aqui — de volta ao estúdio."}
+{"notFound.backToHome": "Voltar ao início"}
+{"copyright.download_draft": "Baixar rascunho"}
+{"locations.useInCoverArt": "Usar na arte de capa"}
+{"cover-art.useSong": "Usar música"}
+{"brandingKit.tabs.headshots.label": "Retratos"}
+{"promote.hero.badge": "Gerador de textos promo"}
+{"promote.hero.title": "Texto promo"}
+{"review.madeWith": "Feito com"}
+{"moveHome.title": "Mudar de casa"}
+{"privacy.section4Item1Label": "Stripe"}
+{"privacy.section4Item2Label": "Supabase"}
+{"privacy.section4Item3Label": "Google"}
+{"lufs.formatWav": "WAV (16-bit)"}
+{"lufs.formatMp3": "MP3 (320k)"}
+{"press-public.sections.bio": "Bio"}
+{"promote.tones.hype": "Hype"}
+{"promote.results.hashtags": "Hashtags"}
+{"notFound.myProjects": "Thy Vision"}

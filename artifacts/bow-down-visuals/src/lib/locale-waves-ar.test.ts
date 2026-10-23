@@ -48,6 +48,7 @@ function checkWave(namespaces: string[], allowlist: Set<string>) {
   for (const k of keys) {
     const arv = AR[k];
     expect(arv, `ar missing ${k}`).toBeDefined();
+    if (typeof EN[k] === "string" && EN[k] === "") continue; // en itself is empty (split-title accent) — nothing to carry
     const ars = typeof arv === "string" ? arv : JSON.stringify(arv);
     expect(ars && ars.length > 0, `ar empty ${k}`).toBeTruthy();
     expect(placeholders(arv), `placeholder shape ${k}`).toEqual(placeholders(EN[k]));
@@ -290,5 +291,179 @@ const W4_ALLOW = new Set([
 describe("ar-W4 (Stack-28 #97) audio + scheduler/projects namespaces fully translated", () => {
   it("every en key present, non-empty, placeholders intact, no untranslated residue", () => {
     checkWave(W4_NS, W4_ALLOW);
+  });
+});
+
+/* ar-W5 (Stack-28 appendix) — link-in-bio / nfc / privacy + promo-tool
+   namespaces. Legit identicals: brand/platform names, env-var names,
+   URLs/example identifiers, pure formats, house feature names. */
+const W5_NS = ["myClips", "hooks", "mediaDetector", "randomizer", "scriptWriter", "library", "artistVault", "catalogVault", "streamPack", "viralityCheck", "importPage", "audit", "titles", "email-list", "interviewPrep", "trends", "chooseArtist", "retention", "generations", "analytics", "setlist", "linkInBio", "weekly_contest", "discord-bot", "shoutouts", "community", "collabs", "goLive", "contests", "team", "extension", "shows", "tour", "nfcCards", "privacy"];
+const W5_ALLOW = new Set([
+  "linkInBio.tipJar.placeholder",
+  "linkInBio.links.urlPlaceholder",
+  "linkInBio.profile.avatarUrlPlaceholder",
+  "myClips.extractAudioCost",
+  "analytics.creditsPerRun",
+  "artistVault.creditsCount",
+  "audit.handlePlaceholder",
+  "audit.platformInstagram",
+  "audit.platformTikTok",
+  "audit.platformYouTube",
+  "discord-bot.discord",
+  "discord-bot.discord_bot_shared_secret",
+  "discord-bot.discord_bot_token",
+  "discord-bot.discord_client_id",
+  "email-list.100_visual_bucs",
+  "email-list.join_2",
+  "email-list.thy_cheat_code",
+  "extension.bdv",
+  "extension.chrome_extensions",
+  "goLive.gamePlaceholder",
+  "goLive.streamTitlePlaceholder",
+  "hooks.heroTitleA",
+  "hooks.pfHashtagsPlaceholder",
+  "hooks.scoreOutOf",
+  "importPage.kbSize",
+  "importPage.mbSize",
+  "importPage.urlPlaceholder",
+  "interviewPrep.artistNamePh",
+  "interviewPrep.audienceSizePh",
+  "interviewPrep.of100",
+  "library.headingA",
+  "nfcCards.qrSvg",
+  "privacy.section4Item1Label",
+  "privacy.section4Item2Label",
+  "privacy.section4Item3Label",
+  "randomizer.crossLink.name",
+  "retention.awayDigest.bowRace",
+  "retention.quests_progress",
+  "scriptWriter.platformTiktok",
+  "scriptWriter.platformYoutube",
+  "setlist.durationPlaceholder",
+  "shoutouts.displayNamePlaceholder",
+  "shoutouts.emailPlaceholder",
+  "team.fundPlaceholder",
+  "team.inviteEmailPlaceholder",
+  "titles.platformInstagram",
+  "titles.platformTikTok",
+  "titles.platformYouTube",
+  "trends.platformInstagram",
+  "trends.platformTiktok",
+  "trends.platformYoutube",
+  "viralityCheck.crossLinkHookStudio",
+  "viralityCheck.hashtagsPlaceholder",
+  "viralityCheck.platformInstagram",
+  "viralityCheck.platformTiktok",
+  "viralityCheck.platformX",
+  "viralityCheck.platformYoutube",
+]);
+
+describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated", () => {
+  it("wave is closed", () => {
+    checkWave(W5_NS, W5_ALLOW);
+  });
+  it("carries mediaDetector.filesSkipped plurals whole (ar six forms)", () => {
+    for (const suffix of ["_zero", "_one", "_two", "_few", "_many", "_other"]) {
+      expect(typeof AR[`mediaDetector.filesSkipped${suffix}`], `filesSkipped${suffix}`).toBe("string");
+    }
+  });
+});
+
+const W6_NS = ["promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "milestones", "lufs", "presave", "release", "stabilize", "create", "press-public", "captionSuite", "outreach", "press-kit", "videoEditor", "contentIntelligence", "moveHome", "podcast", "hubSpine", "admin", "nav", "cover-art", "videoExport", "analyticsHub", "djSets", "share", "wave9", "brandingKit", "dashboard", "paidSeries", "proFinishing", "review", "tutorials", "wave8"];
+const W6_ALLOW = new Set([
+  "lufs.formatMp3",
+  "lufs.formatWav",
+  "promote.hero.titleAccent",
+  "admin.friendEmailPlaceholder",
+  "admin.planEmailPlaceholder",
+  "admin.users.credits",
+  "admin.users.emailPlaceholder",
+  "analyticsHub.hookStudio",
+  "analyticsHub.milestones.loggedFrom",
+  "captionSuite.burnModeHint",
+  "captionSuite.credits",
+  "captionSuite.endCardText",
+  "captionSuite.generateCost",
+  "captionSuite.share_facebook",
+  "captionSuite.share_telegram",
+  "captionSuite.share_whatsapp",
+  "coach.cadencePlaceholder",
+  "coach.crossLinkBrand",
+  "coach.platformInstagram",
+  "coach.platformTikTok",
+  "coach.platformYouTube",
+  "coach.titleStart",
+  "contentIntelligence.calendarFrom",
+  "contentIntelligence.compUrlPlaceholder",
+  "contentIntelligence.platformInstagram",
+  "contentIntelligence.platformTikTok",
+  "contentIntelligence.platformX",
+  "contentIntelligence.platformYouTube",
+  "cover-art.midnight_crown",
+  "cover-art.thy_cheat_code",
+  "dashboard.tile_vibes",
+  "djSets.bpm",
+  "djSets.exportRekordbox",
+  "hubSpine.attributionTitle",
+  "hubSpine.handoffs.resultLabel",
+  "hubSpine.madeWith",
+  "hubSpine.promoCards.historyForRelease",
+  "hubSpine.promoCards.sizeHint.16x9",
+  "moveHome.displayNamePh",
+  "moveHome.genrePh",
+  "moveHome.handlePh",
+  "moveHome.locationPh",
+  "moveHome.starterProductPh",
+  "nav.bowRace",
+  "nav.contentCalendar",
+  "nav.credits",
+  "nav.videoEditor",
+  "notFound.myProjects",
+  "outreach.audiencePlaceholder",
+  "outreach.brandNamePlaceholder",
+  "outreach.contactPlaceholder",
+  "outreach.creatorNamePlaceholder",
+  "outreach.invoice.brandEmailPlaceholder",
+  "outreach.invoice.creatorEmailPlaceholder",
+  "outreach.productPlaceholder",
+  "paidSeries.buyerInitial",
+  "podcast.generate.creditsEstimate",
+  "podcast.result.apple",
+  "podcast.result.durationApprox",
+  "podcast.result.spotify",
+  "podcast.script.creditsCost",
+  "podcast.script.durationApprox",
+  "press-kit.pdf",
+  "press-kit.placeholders.artistName",
+  "press-kit.placeholders.bookingEmail",
+  "press-kit.placeholders.handle",
+  "press-kit.placeholders.url",
+  "press-kit.pressRelease.placeholders.contactEmail",
+  "press-kit.pressRelease.placeholders.contactPhone",
+  "proFinishing.qualitySummary",
+  "release.crossLinks.p3",
+  "release.types.ep.label",
+  "review.madeWith",
+  "share.attribution",
+  "share.whatsapp",
+  "tutorials.officialBadge",
+  "videoEditor.modeSimple",
+  "videoEditor.motionTrack.costChip",
+  "videoEditor.pageTitle",
+  "videoEditor.subjectReframe.costLabel",
+  "videoEditor.subjectReframe.platformVertical",
+  "videoEditor.subjectReframe.platformYoutube",
+  "videoEditor.vibe_y2k",
+  "videoExport.aspectVertical",
+  "videoExport.aspectWide",
+  "videoExport.colNum",
+  "wave8.splits.royaltyAmountPlaceholder",
+  "wave9.cameraMovePlanner.buildCost",
+  "wave9.characterDirector.planCost",
+]);
+
+describe("ar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated", () => {
+  it("wave is closed", () => {
+    checkWave(W6_NS, W6_ALLOW);
   });
 });

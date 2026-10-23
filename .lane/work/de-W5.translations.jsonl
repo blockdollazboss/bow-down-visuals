@@ -1,0 +1,568 @@
+{"scheduler.signInPrompt": "Melde dich an, um Posts auf Instagram, TikTok und Facebook zu planen."}
+{"scheduler.signIn": "Anmelden"}
+{"scheduler.badge": "Überall posten – aus einem Kalender"}
+{"scheduler.hero": "Plane Video-Posts auf Instagram Reels, TikTok und Facebook. Serverseitig und neustart-sicher – deine Warteschlange feuert, auch wenn der Tab geschlossen ist."}
+{"scheduler.perks.free": "Entwürfe & Stöbern kostenlos"}
+{"scheduler.perks.cost": "100 Visual Bucs pro geplantem Post"}
+{"scheduler.perks.refund": "Jederzeit abbrechen = automatische Rückerstattung"}
+{"scheduler.newPost": "Neuer geplanter Post"}
+{"scheduler.loading": "Dein Zeitplan wird geladen…"}
+{"scheduler.noCaption": "Keine Caption"}
+{"scheduler.tabs.calendar": "Kalender"}
+{"scheduler.tabs.queue": "Warteschlange ({{num}})"}
+{"scheduler.tabs.drafts": "Entwürfe ({{num}})"}
+{"scheduler.tabs.posted": "Gepostet"}
+{"scheduler.platforms.tiktok.sub": "Video → deine Entwürfe"}
+{"scheduler.platforms.facebook.sub": "Seiten-Video"}
+{"scheduler.niches.music": "Musik"}
+{"scheduler.niches.education": "Bildung"}
+{"scheduler.days.sun": "So"}
+{"scheduler.days.mon": "Mo"}
+{"scheduler.days.tue": "Di"}
+{"scheduler.days.wed": "Mi"}
+{"scheduler.days.thu": "Do"}
+{"scheduler.days.fri": "Fr"}
+{"scheduler.days.sat": "Sa"}
+{"scheduler.status.posted": "Gepostet"}
+{"scheduler.status.failed": "Fehlgeschlagen"}
+{"scheduler.status.canceled": "Abgebrochen"}
+{"scheduler.status.posting": "Wird gepostet"}
+{"scheduler.status.scheduled": "Geplant"}
+{"scheduler.status.draft": "Entwurf"}
+{"scheduler.bestTime.niche": "Nische"}
+{"scheduler.bestTime.platforms": "Plattformen"}
+{"scheduler.bestTime.postsPerWeek": "Posts / Woche"}
+{"scheduler.bestTime.useSlot": "Diesen Slot nutzen"}
+{"scheduler.calendar.prevMonth": "Voriger Monat"}
+{"scheduler.calendar.today": "Heute"}
+{"scheduler.calendar.nextMonth": "Nächster Monat"}
+{"scheduler.calendar.dayTitle": "Klicken zum Planen · Post hierher ziehen zum Verschieben"}
+{"scheduler.calendar.postTitle": "{{datetime}} — ziehen zum Verschieben, klicken zum Bearbeiten"}
+{"scheduler.calendar.more": "+{{num}} weitere"}
+{"scheduler.calendar.hint": "Klicke auf einen zukünftigen Tag zum Planen · ziehe einen Post auf einen anderen Tag zum Verschieben · klicke auf einen Post zum Bearbeiten oder Abbrechen."}
+{"scheduler.queue.emptyTitle": "Die Warteschlange ist leer"}
+{"scheduler.queue.emptyHint": "Plane einen Post und er wartet hier, bis er feuert — kein Tab nötig."}
+{"scheduler.queue.postingNow": "wird jetzt gepostet"}
+{"scheduler.queue.editLabel": "Bearbeiten oder umplanen"}
+{"scheduler.queue.editTitle": "Bearbeiten / Umplanen"}
+{"scheduler.queue.cancelLabel": "Abbrechen (erstattet Visual Bucs)"}
+{"scheduler.queue.cancelTitle": "Abbrechen — Visual Bucs erstattet"}
+{"scheduler.drafts.emptyTitle": "Keine Entwürfe"}
+{"scheduler.drafts.emptyHint": "Speichere einen Post als Entwurf, während du die Caption verfeinerst — Entwürfe sind kostenlos."}
+{"scheduler.drafts.schedule": "Planen"}
+{"scheduler.drafts.deleteLabel": "Entwurf löschen"}
+{"scheduler.posted.emptyTitle": "Noch nichts gepostet"}
+{"scheduler.posted.emptyHint": "Gefeuerte Posts landen hier mit Ergebnissen pro Plattform."}
+{"scheduler.posted.postedAt": "Gepostet {{datetime}}"}
+{"scheduler.posted.updatedAt": "Aktualisiert {{datetime}}"}
+{"scheduler.composer.close": "Schließen"}
+{"scheduler.composer.newPost": "Neuer geplanter Post"}
+{"scheduler.composer.scheduleDraft": "Entwurf planen"}
+{"scheduler.composer.editPost": "Geplanten Post bearbeiten"}
+{"scheduler.composer.changesInstant": "Änderungen werden sofort gespeichert."}
+{"scheduler.composer.costNote": "Planen kostet 100 Visual Bucs pro Post — wird jetzt berechnet und bei Abbruch automatisch erstattet."}
+{"scheduler.composer.noPreview": "Video angehängt — keine Vorschau für gespeicherte Medien verfügbar."}
+{"scheduler.composer.removeVideo": "Video entfernen"}
+{"scheduler.composer.uploading": "Wird hochgeladen…"}
+{"scheduler.composer.uploadCta": "Klicke, um dein Video hochzuladen"}
+{"scheduler.composer.uploadNote": "MP4 / MOV · bis 80 MB · Hochladen ist kostenlos"}
+{"scheduler.composer.captionPlaceholder": "Schreibe deine Caption…"}
+{"scheduler.composer.aiCaptionTitle": "KI schreibt einen Hook für deine Caption · 100 Visual Bucs"}
+{"scheduler.composer.platforms": "Plattformen"}
+{"scheduler.composer.tiktokNote": "TikToks API liefert es in deine Entwurfs-Inbox — du beendest den Post in TikTok. Instagram und Facebook posten direkt."}
+{"scheduler.composer.accountLabel": "{{platform}}-Konto"}
+{"scheduler.composer.noAccount1": "Kein {{platform}}-Konto verbunden. "}
+{"scheduler.composer.noAccountLink": "Verbinde eines unter Tools → Social"}
+{"scheduler.composer.noAccount2": ", um hier zu planen."}
+{"scheduler.composer.chooseAccount": "Wähle ein Konto…"}
+{"scheduler.composer.date": "Datum"}
+{"scheduler.composer.time": "Uhrzeit"}
+{"scheduler.composer.timezoneNote": "Zeiten sind in deiner Zeitzone ({{tz}}). Der Server feuert den Post, auch wenn dieser Tab geschlossen ist."}
+{"scheduler.composer.saveChanges": "Änderungen speichern"}
+{"scheduler.composer.scheduleButton": "Planen · 100 Visual Bucs"}
+{"scheduler.composer.saveDraft": "Als kostenlosen Entwurf speichern"}
+{"scheduler.composer.unschedule": "Entplanen → zurück zu Entwürfen (erstattet 100 Visual Bucs)"}
+{"scheduler.confirm.cancel": "Diesen geplanten Post abbrechen? Deine reservierten Visual Bucs werden erstattet."}
+{"scheduler.toast.canceled": "Post abgebrochen"}
+{"scheduler.toast.deleted": "Post gelöscht"}
+{"scheduler.toast.refunded": "{{num}} Credit{{s}} erstattet."}
+{"scheduler.toast.couldntCancel": "Konnte nicht abbrechen"}
+{"scheduler.toast.cantMove": "Kann dorthin nicht verschieben"}
+{"scheduler.toast.futureDate": "Wähle ein Datum in der Zukunft."}
+{"scheduler.toast.rescheduled": "Umgeplant"}
+{"scheduler.toast.couldntReschedule": "Konnte nicht umplanen"}
+{"scheduler.toast.bestTimeFailed": "Beste Zeit fehlgeschlagen"}
+{"scheduler.toast.videoUploaded": "Video hochgeladen"}
+{"scheduler.toast.readyToSchedule": "Bereit zum Planen."}
+{"scheduler.toast.noCaption": "Die KI hat keine Caption zurückgegeben."}
+{"scheduler.toast.scheduled": "Geplant"}
+{"scheduler.toast.scheduledCost": "Geplant · 100 Visual Bucs"}
+{"scheduler.toast.scheduledDesc": "{{datetime}} — jederzeit abbrechen für eine Rückerstattung."}
+{"scheduler.toast.draftSaved": "Entwurf gespeichert"}
+{"scheduler.toast.draftsFree": "Entwürfe sind kostenlos."}
+{"scheduler.toast.notEnoughCredits": "Nicht genug Visual Bucs — lade auf, um zu planen."}
+{"scheduler.toast.couldntSave": "Konnte den Post nicht speichern."}
+{"scheduler.toast.couldntUnschedule": "Konnte nicht entplanen."}
+{"scheduler.toast.needsHosted": "Braucht eine gehostete Datei"}
+{"scheduler.toast.hostedDesc": "Dieses Asset lebt nur in dieser Browser-Session — generiere oder lade zuerst ein gehostetes Video hoch."}
+{"scheduler.error.videoOnly": "Wähle eine Videodatei — die Auto-Post-Pfade posten Video."}
+{"scheduler.error.uploadFailed": "Upload fehlgeschlagen."}
+{"scheduler.error.noVideo": "Lade zuerst ein Video hoch."}
+{"scheduler.error.noPlatform": "Wähle mindestens eine Plattform."}
+{"scheduler.error.noAccount": "Wähle ein verbundenes Konto für: {{platforms}}."}
+{"scheduler.error.futureTime": "Wähle ein Datum und eine Uhrzeit mindestens eine Minute in der Zukunft."}
+{"scheduler.fromRelease": "Vom Release"}
+{"scheduler.tabs.community": "Community-Posts"}
+{"scheduler.bestTime.desc": "Benchmark-gestützte Posting-Intelligenz: 7-Tage-Score-Heatmaps pro Plattform, personalisiert mit deinen eigenen Posting-Daten, wenn du welche hast. Tippe auf einen Slot, um zu dieser Zeit zu planen."}
+{"scheduler.bestTime.customNichePlaceholder": "Oder tippe deine Nische…"}
+{"scheduler.bestTime.optimize": "Optimieren · 75 Visual Bucs"}
+{"scheduler.bestTime.optimizing": "Optimiert…"}
+{"scheduler.bestTime.scheduleAtThisTime": "Zu dieser Zeit planen"}
+{"scheduler.bestTime.bestNext": "Bester nächster Slot — reite die Welle"}
+{"scheduler.bestTime.topSlots": "Top-Slots"}
+{"scheduler.bestTime.yourData": "Deine Daten"}
+{"scheduler.bestTime.legendBenchmark": "Plattform-Benchmarks (2025)"}
+{"scheduler.bestTime.legendPersonalized": "Aus deinen Daten"}
+{"scheduler.bestTime.nicheTuned": "Nischen-optimiert"}
+{"scheduler.bestTime.heatmapTitle": "7-Tage-Heatmap"}
+{"scheduler.bestTime.heatmapHint": "Gold = heißester Slot. Tippe auf eine Zelle, um zu dieser Zeit zu planen. Vergangene Stunden sind ausgegraut."}
+{"scheduler.bestTime.share": "Zeitplan teilen"}
+{"scheduler.bestTime.shareLinkLabel": "Dein teilbarer Zeitplan-Link"}
+{"scheduler.bestTime.shareHint": "Poste ihn überall — wer ihn öffnet, sieht deinen Zeitplan, und dein Empfehlungs-Link ist angehängt."}
+{"scheduler.bestTime.copyLink": "Link kopieren"}
+{"scheduler.bestTime.copied": "Kopiert"}
+{"scheduler.bestTime.copyFailed": "Konnte den Link nicht kopieren"}
+{"scheduler.bestTime.linkReady": "Zeitplan-Link bereit — poste ihn überall"}
+{"scheduler.bestTime.failed": "Konnte den Zeitplan nicht erstellen — versuch es erneut."}
+{"scheduler.bestTime.outOfCredits": "Nicht genug Visual Bucs für eine Beste-Zeit-Optimierung."}
+{"scheduler.accounts.title": "Posting-Konten"}
+{"scheduler.accounts.sub": "Geplante Posts werden auf diese Konten gepostet."}
+{"scheduler.accounts.connected": "Verbunden"}
+{"scheduler.accounts.expired": "Verbindung abgelaufen"}
+{"scheduler.accounts.notConnected": "Nicht verbunden"}
+{"scheduler.accounts.reconnect": "In den Einstellungen erneut verbinden"}
+{"scheduler.accounts.connect": "In den Einstellungen verbinden"}
+{"scheduler.accounts.loadFailed": "Konnte deine Posting-Konten nicht laden — deine Verbindungen sind vielleicht in Ordnung."}
+{"scheduler.accounts.retry": "Erneut versuchen"}
+{"scheduler.queue.remixLabel": "In Promo Clips remixen"}
+{"scheduler.queue.remixTitle": "Diesen Post in Promo Clips remixen"}
+{"scheduler.composer.attributionNote": "Dein Empfehlungs-Link wird beim Posten angehängt."}
+{"scheduler.composer.attributionChange": "Ändern"}
+{"scheduler.communityPosts.title": "Community-Post-Generator"}
+{"scheduler.communityPosts.desc": "Text-first Engagement-Posts für YouTube Community, X, Instagram und Threads. {{cost}} Visual Bucs pro 3er-Los — bei Fehlschlag der Generierung automatisch erstattet."}
+{"scheduler.communityPosts.topic": "Thema"}
+{"scheduler.communityPosts.topicPlaceholder": "z. B. neue Single am Freitag, Umfrage: welches Cover als Nächstes, heiße Meinung zur Industrie..."}
+{"scheduler.communityPosts.platform": "Plattform"}
+{"scheduler.communityPosts.tone": "Ton"}
+{"scheduler.communityPosts.cta": "Call-to-Action (optional)"}
+{"scheduler.communityPosts.ctaPlaceholder": "z. B. kommentiere deine Wahl unten, Pre-Save-Link in der Bio..."}
+{"scheduler.communityPosts.niche": "Nischen-Hinweis (optional)"}
+{"scheduler.communityPosts.nichePlaceholder": "z. B. Indie-Künstler"}
+{"scheduler.communityPosts.generate": "3 Posts generieren"}
+{"scheduler.communityPosts.generating": "Schreibt..."}
+{"scheduler.communityPosts.generated": "Wähle deinen Favoriten — oder plane einen mit dem bestehenden Scheduler-Ablauf."}
+{"scheduler.communityPosts.charCount": "{{num}} / {{limit}} Zeichen"}
+{"scheduler.communityPosts.bestTime": "Beste Zeit zum Posten"}
+{"scheduler.communityPosts.scheduleThis": "Diesen Post planen"}
+{"scheduler.communityPosts.copy": "Kopieren"}
+{"scheduler.communityPosts.copied": "In die Zwischenablage kopiert."}
+{"scheduler.communityPosts.variants": "Variante {{num}}"}
+{"scheduler.communityPosts.failed": "Generierung fehlgeschlagen"}
+{"scheduler.shared.badge": "Posting-Zeitplan"}
+{"scheduler.shared.headline": "Reite die Welle — {{niche}} Posting-Zeitplan"}
+{"scheduler.shared.sub": "Gebaut mit dem Beste-Zeit-Optimierer von Bow Down Visuals. Poste zur richtigen Zeit und reite die Welle."}
+{"scheduler.shared.honesty": "Scores mischen 2025er Plattform-Benchmarks mit der Posting-Historie des Creators — Muster, keine Versprechen."}
+{"scheduler.shared.getYours": "Hol dir deinen eigenen Zeitplan"}
+{"scheduler.shared.buildMine": "Meinen Zeitplan bauen"}
+{"scheduler.shared.powered": "Powered by Bow Down Visuals"}
+{"scheduler.shared.dismiss": "Schließen"}
+{"scheduler.plan.sendHint": "Wähle einen Tag, um den Scheduler-Composer auszufüllen."}
+{"scheduler.plan.scheduleDay": "Diesen Tag planen"}
+{"myProjects.hubProjectsTitle": "Hub-Projekte"}
+{"myProjects.hubProjectsHint": "Jedes Projekt, das aus deinem Hub synchronisiert wurde, neueste zuerst. Das neueste ist das Projekt, das gerade in deinem Hub offen ist."}
+{"myProjects.hubProjectsCurrent": "Aktuell"}
+{"myProjects.hubProjectsOpenInHub": "Im Hub öffnen"}
+{"myProjects.hubProjectsCapNote": "Zeigt deine 100 neuesten Hub-Projekte."}
+{"myProjects.noHubProjects": "Noch keine Hub-Projekte synchronisiert. Projekte, die du im Hub baust, erscheinen hier."}
+{"myProjects.failedLoadHubProjects": "Hub-Projekte konnten nicht geladen werden"}
+{"myProjects.deleteHubProject": "Hub-Projekt löschen"}
+{"myProjects.deleteHubProjectConfirm": "Das Hub-Projekt \"{{name}}\" aus deinem Konto löschen? Das entfernt seine synchronisierte Kopie."}
+{"myProjects.failedDeleteHubProject": "Hub-Projekt konnte nicht gelöscht werden. Bitte versuch es erneut."}
+{"myProjects.generationsLink": "Generierungsverlauf →"}
+{"myProjects.importLink": "Medien importieren →"}
+{"myProjects.tabMyClips": "Meine Clips"}
+{"myProjects.pageDescription": "Alle deine Songs, Videos und kreativen Projekte an einem Ort."}
+{"myProjects.subheading": "Gespeicherte Projekte, ungespeicherte Entwürfe und alle deine generierten Szenen-Clips — alles an einem Ort."}
+{"myProjects.backToDashboard": "Zurück zum Dashboard"}
+{"myProjects.tabProjects": "Projekte"}
+{"myProjects.tabDrafts": "Entwürfe"}
+{"myProjects.tabClips": "Generierte Clips"}
+{"myProjects.tabHistory": "Generierungsverlauf"}
+{"myProjects.tryAgain": "Erneut versuchen"}
+{"myProjects.noProjects": "Noch keine gespeicherten Projekte"}
+{"myProjects.noProjectsHint": "Generiere Inhalt und klicke auf Projekt speichern — es erscheint hier."}
+{"myProjects.goToDashboard": "Zum Dashboard"}
+{"myProjects.noDrafts": "Keine Entwürfe gespeichert"}
+{"myProjects.noDraftsHint": "Entwürfe werden automatisch gespeichert, während du arbeitest. Starte ein Projekt und dein Fortschritt erscheint hier."}
+{"myProjects.startProject": "Ein Projekt starten"}
+{"myProjects.draftsHint": "Entwürfe werden automatisch gespeichert, während du arbeitest. Klicke auf Wiederherstellen, um zu diesem Projekt zurückzukehren und weiterzumachen, wo du aufgehört hast."}
+{"myProjects.noClips": "Noch keine generierten Clips"}
+{"myProjects.noClipsHint": "Generiere Szenen-Clips in deinem Musikvideo-Projekt — sie werden hier automatisch gespeichert."}
+{"myProjects.clipsSaved": "{{count}} Clips gespeichert — automatisch gespeichert, sobald jeder Clip-Job fertig ist."}
+{"myProjects.noHistory": "Noch kein Generierungsverlauf"}
+{"myProjects.noHistoryHint": "Noch kein Generierungsverlauf. Deine KI-Generierungen erscheinen hier, nachdem du etwas erstellt hast."}
+{"myProjects.startGenerating": "Generieren starten"}
+{"myProjects.generationsLogged": "{{count}} Generierungen protokolliert — neueste zuerst."}
+{"myProjects.failedLoadProjects": "Projekte konnten nicht geladen werden"}
+{"myProjects.failedLoadDrafts": "Entwürfe konnten nicht geladen werden"}
+{"myProjects.failedLoadClips": "Clips konnten nicht geladen werden"}
+{"myProjects.failedLoadHistory": "Generierungsverlauf konnte nicht geladen werden"}
+{"myProjects.failedDeleteProject": "Projekt konnte nicht gelöscht werden. Bitte versuch es erneut."}
+{"myProjects.failedDeleteDraft": "Entwurf konnte nicht gelöscht werden. Bitte versuch es erneut."}
+{"myProjects.failedDeleteClip": "Clip konnte nicht gelöscht werden. Bitte versuch es erneut."}
+{"myProjects.typeStartFromScratch": "Von Grund auf starten"}
+{"myProjects.typeVideoForMySong": "Video für meinen Song"}
+{"myProjects.typeRunwayClip": "KI-Video-Clip"}
+{"myProjects.typeLipSyncClip": "Lip-Sync-Clip"}
+{"myProjects.typeVideoPlan": "Video-Plan"}
+{"myProjects.typeScenePrompt": "Szenen-Prompt"}
+{"myProjects.typeCaptions": "Untertitel"}
+{"myProjects.typePromoClip": "Promo-Clip"}
+{"myProjects.typeThumbnailPrompt": "Thumbnail-Prompt"}
+{"myProjects.typeGeneration": "Generierung"}
+{"myProjects.statusSaved": "Gespeichert"}
+{"myProjects.statusSaveFailed": "Speichern fehlgeschlagen"}
+{"myProjects.statusGenerated": "Generiert"}
+{"myProjects.visualBucsRefunded": "Visual Bucs erstattet"}
+{"myProjects.previewClip": "Clip-Vorschau"}
+{"myProjects.openProject": "Projekt öffnen"}
+{"myProjects.copyContent": "Inhalt kopieren"}
+{"myProjects.open": "Öffnen"}
+{"myProjects.deleteProject": "Projekt löschen"}
+{"myProjects.deleteProjectConfirm": "\"{{title}}\" löschen? Das kann nicht rückgängig gemacht werden."}
+{"myProjects.runwayClipsSaved": "{{count}} Szenen-Clips gespeichert"}
+{"myProjects.unsavedDraft": "Ungespeicherter Entwurf"}
+{"myProjects.deleteDraftConfirm": "Diesen Entwurf löschen? Das kann nicht rückgängig gemacht werden."}
+{"myProjects.generatedContentIncluded": "Generierter Inhalt enthalten"}
+{"myProjects.downloadBackupJson": "Backup-JSON herunterladen"}
+{"myProjects.recover": "Wiederherstellen"}
+{"myProjects.deleteClipConfirm": "Diesen Clip löschen? Das kann nicht rückgängig gemacht werden."}
+{"myProjects.openVideoUrl": "Video-URL öffnen"}
+{"myProjects.hidePrompt": "Prompt ausblenden ▲"}
+{"myProjects.showPrompt": "Prompt anzeigen ▼"}
+{"myProjects.analysisFailed": "Analyse fehlgeschlagen"}
+{"myProjects.analysisFailedRetry": "Analyse fehlgeschlagen. Bitte versuch es erneut."}
+{"myProjects.copied": "Kopiert!"}
+{"myProjects.copyAll": "Alles kopieren"}
+{"myProjects.analyzing": "Analysiert..."}
+{"myProjects.reanalyzeSections": "Abschnitte erneut analysieren"}
+{"myProjects.findHookVerses": "Hook & Strophen finden"}
+{"myProjects.analysisComplete": "Analyse abgeschlossen"}
+{"myProjects.noContentSaved": "Kein Inhalt gespeichert."}
+{"mashup.tabCreate": "Erstellen"}
+{"mashup.title": "Song-Mashup"}
+{"mashup.subtitle": "Wähle zwei Songs — deine oder Uploads — und mische sie zu einem Track. Tempo-abgestimmt, Beat-gesperrt, mit einem Klick erledigt."}
+{"mashup.modeCustom": "Erweitert"}
+{"mashup.pickFromLibrary": "Aus deiner Bibliothek wählen…"}
+{"mashup.uploadInstead": "oder Audio hochladen"}
+{"mashup.uploading": "Wird hochgeladen…"}
+{"mashup.styleLabel": "Misch-Stil"}
+{"mashup.styleCrossfadeBlurb": "A blendet aus, B blendet am Mischpunkt ein."}
+{"mashup.styleBeatMatch": "Beat-abgestimmt"}
+{"mashup.styleBeatMatchBlurb": "Tempo-angepasst und Beat-gesperrt — beide Songs spielen zusammen."}
+{"mashup.styleInterleave": "Strophe-Refrain-Wechsel"}
+{"mashup.styleInterleaveBlurb": "Abwechselnde Abschnitte — As Strophe, Bs Refrain, hin und her."}
+{"mashup.blendPointLabel": "Mischpunkt"}
+{"mashup.blendPointHint": "Wo in Song A die Mischung passiert."}
+{"mashup.balanceHint": "Schiebe, um einen Song gegenüber dem anderen zu betonen."}
+{"mashup.crossfadeLabel": "Crossfade-Länge"}
+{"mashup.titleLabel": "Mashup-Titel (optional)"}
+{"mashup.titlePlaceholder": "z. B. Midnight × Gold Rush"}
+{"mashup.submitSimple": "Meine Songs mashuppen"}
+{"mashup.submitCustom": "Diese Songs mischen"}
+{"mashup.needsTwoSongs": "Wähle zuerst zwei Songs — aus deiner Bibliothek oder lade Audio hoch."}
+{"mashup.analyzing": "Analysiert Beats in beiden Songs…"}
+{"mashup.tempoMatching": "Passt das Tempo von Song B an Song A an…"}
+{"mashup.blending": "Mischt dein Mashup…"}
+{"mashup.saving": "Speichert in deiner Bibliothek…"}
+{"mashup.failed": "Mashup fehlgeschlagen — deine Visual Bucs wurden erstattet."}
+{"mashup.resultTitle": "Dein Mashup ist bereit"}
+{"mashup.handoffLyricVideo": "Lyric-Video erstellen"}
+{"mashup.handoffLyricVideoBlurb": "Karaoke-Stil-Video · 300 VB"}
+{"mashup.handoffCoverArt": "Cover-Art designen"}
+{"mashup.handoffCoverArtBlurb": "Luxus-Gold-Artwork · 200 VB"}
+{"mashup.handoffAlbum": "Zum Album hinzufügen"}
+{"mashup.handoffAlbumBlurb": "Lege es auf ein Album oder eine EP"}
+{"mashup.handoffShare": "Teilen"}
+{"mashup.handoffShareBlurb": "Ein Tipp — dein Empfehlungs-Link ist angehängt"}
+{"mashup.working": "Arbeitet…"}
+{"mashup.lyricVideoDone": "Lyric-Video bereit"}
+{"mashup.coverArtDone": "Cover-Art bereit"}
+{"mashup.albumPick": "Ein Album wählen…"}
+{"mashup.albumNew": "Neuer Albumtitel…"}
+{"mashup.albumCreateAdd": "Erstellen & hinzufügen"}
+{"mashup.albumAdd": "Zum Album hinzufügen"}
+{"mashup.albumAdded": "Zum Album hinzugefügt"}
+{"mashup.albumLoadFailed": "Alben konnten nicht geladen werden."}
+{"mashup.copied": "Kopiert!"}
+{"mashup.shareText": "Schau dir mein Mashup an"}
+{"mashup.coverArtist": "Song-Mashup"}
+{"mashup.tabHum": "Summen"}
+{"artistVault.worldVoiceSection": "Welt-Stimme"}
+{"artistVault.worldVoiceHint": "Wie diese Figur klingt, wenn du als sie in der Welt sprichst. Natürlich = deine eigene Stimme."}
+{"artistVault.voicePresetDeep": "Tief"}
+{"artistVault.voicePresetNatural": "Natürlich"}
+{"artistVault.voicePresetBright": "Hell"}
+{"artistVault.voiceAdvanced": "Erweitert"}
+{"artistVault.voicePitch": "Tonhöhe"}
+{"artistVault.voiceFormant": "Körpergröße"}
+{"artistVault.voiceBody": "Resonanz"}
+{"artistVault.emptyProfilesTitle": "Dein Vault ist leer"}
+{"artistVault.pageTitle": "Creator-Vault"}
+{"artistVault.videoSafe": "Video-sicher"}
+{"artistVault.highDetail": "Hohe Details"}
+{"artistVault.detailTheme": "Thema"}
+{"artistVault.profilesTitle": "Kreativ-Vault"}
+{"artistVault.artistPhotoAlt": "Künstler"}
+{"artistVault.photoShoot": "Fotoshooting"}
+{"catalogVault.title": "Katalog-Vault"}
+{"catalogVault.copy": "Hinterlasse ein Vermächtnis. Eine Zahlung von 200 Visual Bucs hält die Presave-Seite, den Showcase-Eintrag und die Assets dieses Releases auf Bow Down Visuals live — dauerhaft. Keine Verlängerungen, keine Takedowns."}
+{"catalogVault.guarantee1": "Presave-Seite bleibt für immer live"}
+{"catalogVault.guarantee2": "Showcase-Eintrag läuft nie ab"}
+{"catalogVault.guarantee3": "Artwork + Audio-Assets bleiben erhalten"}
+{"catalogVault.vaultButton": "Für immer vaulten · 200 Visual Bucs"}
+{"catalogVault.vaulting": "Wird gevaultet…"}
+{"catalogVault.vaultFailed": "Konnte dieses Release nicht vaulten — versuch es erneut."}
+{"catalogVault.vaulted": "Gevaultet"}
+{"catalogVault.vaultedCopy": "\"{{title}}\" ist gevaultet — seine Presave-Seite, sein Showcase-Eintrag und seine Assets bleiben dauerhaft auf Bow Down Visuals live."}
+{"generations.download": "Herunterladen"}
+{"hooks.tab.cta.label": "CTA-Generator"}
+{"hooks.tab.titles.label": "Titel"}
+{"hooks.tab.dice.label": "Würfel"}
+{"hooks.ctaSub": "Jedes Video braucht einen starken Call-to-Action. Wähle dein Ziel und wir schreiben 10 conversion-optimierte CTAs, stärkste zuerst."}
+{"hooks.ctaTopicLabel": "Worum geht es in dem Video?"}
+{"hooks.ctaTopicPlaceholder": "z. B. Meine neue Single \"Golden Tide\" erscheint Freitag"}
+{"hooks.ctaGoalLabel": "Was sollen die Zuschauer tun?"}
+{"hooks.ctaGoal.subscribe.label": "Abonnieren"}
+{"hooks.ctaGoal.comment.label": "Kommentieren"}
+{"hooks.ctaGoal.share.label": "Teilen"}
+{"hooks.ctaGoal.follow.label": "Folgen"}
+{"hooks.ctaGoal.buy.label": "Kaufen"}
+{"hooks.ctaGoal.stream.label": "Streamen"}
+{"hooks.creditNoteCta": "50 Visual Bucs pro Generierung · powered by Thy Cheat Code"}
+{"hooks.generateCtas": "CTAs generieren"}
+{"hooks.cookingCtas": "Schreibt deine CTAs…"}
+{"hooks.yourCtas": "Deine CTAs — nach Stärke sortiert"}
+{"hooks.ctaPlacement.pinned-comment.label": "Angepinnter Kommentar"}
+{"hooks.ctaStrengthLabel": "Stärke"}
+{"hooks.addToScript": "Zum Skript hinzufügen"}
+{"hooks.addedToScript": "In deinem Skript"}
+{"hooks.ctaHandoffTip": "Tippe auf „Zum Skript hinzufügen“, um einen CTA in dein Hub-Projekt zu legen — Script Writer und Voiceover greifen ihn von dort auf."}
+{"hooks.errNeedVideoTopic": "Sag uns zuerst, worum es in dem Video geht."}
+{"hooks.errCtasFailed": "Konnte keine CTAs generieren — versuch es erneut."}
+{"hooks.fullIntelligenceCheck": "Vollständiger Intelligenz-Check"}
+{"hooks.sendToScriptWriter": "An Script Writer senden"}
+{"hooks.captions.needBurnedIn": "Brauchst du eingebrannte Video-Untertitel?"}
+{"hooks.tab.captions.label": "Untertitel & Hashtags"}
+{"hooks.videoType.behind-the-scenes.label": "Hinter den Kulissen"}
+{"hooks.fixPrefix": "Beheben: "}
+{"importPage.viewLibrary": "Meine Clips"}
+{"streamPack.goLive": "Pack bereit — richte deinen Stream in Go Live ein"}
+{"streamPack.libraryTitle": "Deine Stream-Pack-Bibliothek"}
+{"streamPack.libraryNote": "Jede Grafik, die du generierst, wird hier gespeichert. Füge die gewünschten zu deinem Go Live Studio hinzu — sie warten in der Stream-Pack-Ablage des Studios, bereit, in eine Szene zu fallen."}
+{"streamPack.libraryEmpty": "Noch nichts gespeichert — generiere oben ein Pack und es landet hier."}
+{"streamPack.libraryLoading": "Deine Bibliothek wird geladen…"}
+{"streamPack.libraryError": "Deine Bibliothek konnte nicht laden."}
+{"streamPack.libraryActionFailed": "Diese Änderung wurde nicht gespeichert — versuch es erneut."}
+{"streamPack.addToStudio": "Zu meinem Studio hinzufügen"}
+{"streamPack.inStudio": "In meinem Studio"}
+{"streamPack.removeFromStudio": "Entfernen"}
+{"streamPack.themeLabel": "Thema"}
+{"scriptWriter.teleprompterLaunch": "▶ Teleprompter starten"}
+{"scriptWriter.teleprompterClose": "Teleprompter schließen"}
+{"scriptWriter.teleprompterPlay": "Abspielen"}
+{"scriptWriter.teleprompterRestart": "Von oben neu starten"}
+{"scriptWriter.teleprompterWpm": "Geschwindigkeit"}
+{"scriptWriter.teleprompterFontSmaller": "Kleinerer Text"}
+{"scriptWriter.teleprompterFontLarger": "Größerer Text"}
+{"scriptWriter.teleprompterMirror": "Spiegeln für Teleprompter-Hardware"}
+{"scriptWriter.teleprompterFullscreen": "Vollbild"}
+{"scriptWriter.teleprompterWords": "{{count}} Wörter"}
+{"scriptWriter.teleprompterReadTime": "~{{min}} Min. Lesezeit"}
+{"scriptWriter.teleprompterHint": "Leertaste = Play/Pause · ↑↓ = Tempo · +/− = Textgröße · Esc = schließen · Skript klicken = Pause"}
+{"scriptWriter.hookHintLabel": "Gewinnender Hook aus deinem Content-Plan"}
+{"scriptWriter.hookHintBlurb": "Öffne mit dieser Zeile — sie wurde für die virale Schleife gebaut."}
+{"scriptWriter.dismiss": "Schließen"}
+{"titles.sendToScheduler": "An Scheduler senden"}
+{"audit.featureName": "Kanal-Audit"}
+{"audit.badge": "Kanal-Audit"}
+{"audit.fixLabel": "Beheben: "}
+{"trends.headingAccent": "Prognose"}
+{"trends.nicheBeautyFashion": "Beauty & Mode"}
+{"viralityCheck.heading": "Viralität"}
+{"mediaDetector.filesSkipped_one": "1 Datei wurde übersprungen — nicht unterstützter Typ oder über 25 MB."}
+{"mediaDetector.filesSkipped_other": "{{count}} Dateien wurden übersprungen — nicht unterstützter Typ oder über 25 MB."}
+{"mediaDetector.badge": "KI-Medien-Detektor"}
+{"mediaDetector.titleStart": "Echt oder"}
+{"mediaDetector.titleAi": "KI?"}
+{"mediaDetector.titleEnd": "Weiß es sicher."}
+{"mediaDetector.subtitle": "Lade ein Bild, Video oder eine Audiodatei hoch — oder füge einen Link ein — und erhalte eine forensische KI-Bewertung: Urteil, Vertrauenswert und die genauen Hinweise, die sie gefunden hat."}
+{"mediaDetector.costPerCheck": "{{cost}} Visual Bucs pro Prüfung."}
+{"mediaDetector.dropHint": "Dateien hierher ziehen oder klicken zum Hochladen"}
+{"mediaDetector.fileTypes": "Bilder, Video, Audio — bis zu je 25MB. Batch wird unterstützt."}
+{"mediaDetector.urlPlaceholder": "…oder füge eine Bild-URL ein"}
+{"mediaDetector.add": "Hinzufügen"}
+{"mediaDetector.queueStatus": "{{count}} Dateien · {{done}} geprüft"}
+{"mediaDetector.clearAll": "Alles löschen"}
+{"mediaDetector.checkAll": "Alle prüfen ({{cost}} Visual Bucs)"}
+{"mediaDetector.remove": "Entfernen"}
+{"mediaDetector.analyze": "Analysieren · {{cost}} Visual Bucs"}
+{"mediaDetector.analyzing": "Analysiert auf KI-Hinweise…"}
+{"mediaDetector.analyzingVideo": "Extrahiert Frames, dann Analyse…"}
+{"mediaDetector.retry": "Erneut versuchen"}
+{"mediaDetector.emptyTitle": "Noch nichts zu prüfen"}
+{"mediaDetector.emptySubtitle": "Lade eine Datei hoch oder füge eine URL ein, um deine erste Erkennung zu starten."}
+{"mediaDetector.verdictAi": "Wahrscheinlich KI-generiert"}
+{"mediaDetector.verdictHuman": "Wahrscheinlich von Menschen erstellt"}
+{"mediaDetector.verdictUncertain": "Unsicher"}
+{"mediaDetector.detectedSignals": "Erkannte Signale"}
+{"mediaDetector.pointsToAi": "deutet auf KI"}
+{"mediaDetector.pointsToHuman": "deutet auf Mensch"}
+{"mediaDetector.errorOutOfCredits": "Keine Visual Bucs mehr."}
+{"mediaDetector.errorDetectionFailed": "Erkennung fehlgeschlagen. Versuch es erneut."}
+{"mediaDetector.errorDetectionFailedShort": "Erkennung fehlgeschlagen."}
+{"randomizer.badge": "Thy Cheat Codes Würfel"}
+{"randomizer.titleSuffix": "Zufallsgenerator"}
+{"randomizer.hero": "Starst du auf eine leere Seite? Würfle für einen kostenlosen Funken — oder lass Thy Cheat Code AI fünf frische, für dich gemachte Ideen für 100 Visual Bucs kochen."}
+{"randomizer.categoriesLabel": "Zufalls-Kategorien"}
+{"randomizer.categories.video-ideas.label": "Video-Ideen"}
+{"randomizer.categories.video-ideas.blurb": "Frische Konzepte für dein nächstes Musikvideo oder deinen Content-Drop."}
+{"randomizer.categories.hooks.blurb": "Opener der ersten 3 Sekunden, die den Scroll stoppen."}
+{"randomizer.categories.thumbnails.blurb": "Konzepte mit hoher Klickrate für YouTube und darüber hinaus."}
+{"randomizer.categories.song-concepts.label": "Song-Konzepte"}
+{"randomizer.categories.song-concepts.blurb": "Themen und Winkel, über die es sich lohnt, deinen nächsten Track zu schreiben."}
+{"randomizer.categories.niche-picker.label": "Nischen-Wähler"}
+{"randomizer.categories.niche-picker.blurb": "Positionierungs-Winkel, die du als Creator besitzen könntest."}
+{"randomizer.categories.challenges.label": "Herausforderungen"}
+{"randomizer.categories.challenges.blurb": "Zwangsfunktionen für Output und Wachstum."}
+{"randomizer.rollDice": "Würfeln"}
+{"randomizer.freeForever": "Für immer kostenlos — würfle, so viel du willst"}
+{"randomizer.yourRoll": "Dein Wurf"}
+{"randomizer.orDeeper": "oder geh tiefer"}
+{"randomizer.cooking": "Kocht Ideen…"}
+{"randomizer.signInToGenerate": "Melde dich an, um mit KI zu generieren"}
+{"randomizer.freshFromAi": "Frisch von der KI"}
+{"randomizer.crossLink.p1": "Gefällt dir eine Idee? Frag"}
+{"randomizer.crossLink.p2": "in der Chat-Blase, um sie in einen vollständigen Plan zu verwandeln."}
+{"myClips.extractAudio": "Audio extrahieren"}
+{"myClips.extractAudioDone": "Audio extrahiert"}
+{"myClips.extractAudioFailed": "Audio-Extraktion fehlgeschlagen"}
+{"myClips.extractAudioRefunded": "Dir wurde automatisch erstattet."}
+{"myClips.extracting": "Extrahiert…"}
+{"myClips.downloadMp3": "MP3 herunterladen"}
+{"myClips.pageTitle": "Meine Clips"}
+{"myClips.pageDescription": "Deine Bibliothek generierter Promo-Clips."}
+{"myClips.title": "Meine generierten Clips"}
+{"myClips.generateNew": "Neuen Clip generieren"}
+{"myClips.backToProjects": "Zurück zu meinen Projekten"}
+{"myClips.noClips": "Noch keine Clips"}
+{"myClips.noClipsHint": "Generierte Szenen-Clips werden hier automatisch gespeichert. Generiere deinen ersten Clip aus dem Scene Studio."}
+{"myClips.videoForSong": "Video für meinen Song"}
+{"myClips.use": "Verwenden"}
+{"myClips.clipReady": "Clip bereit"}
+{"myClips.ready": "Bereit"}
+{"myClips.done": "Fertig"}
+{"myClips.attachToScene": "An Projekt-Szene anhängen"}
+{"myClips.noCharge": "Keine Visual Bucs berechnet"}
+{"myClips.noProjects": "Keine Projekte mit Szenen gefunden"}
+{"myClips.project": "Projekt"}
+{"myClips.noScenes": "Noch keine Szenen gespeichert"}
+{"myClips.scene": "Szene"}
+{"myClips.hasClip": "Hat Clip"}
+{"myClips.cancel": "Abbrechen"}
+{"myClips.attaching": "Wird angehängt…"}
+{"myClips.attachClip": "Clip anhängen"}
+{"myClips.deleteConfirm": "Löschen?"}
+{"myClips.yes": "Ja"}
+{"myClips.copied": "Kopiert"}
+{"myClips.copyUrl": "URL kopieren"}
+{"myClips.clipAttached": "Clip angehängt — Clip bereit!"}
+{"myClips.clipDeleted": "Clip gelöscht"}
+{"myClips.errorLoadProjects": "Projekte konnten nicht geladen werden"}
+{"myClips.errorAttach": "Clip konnte nicht angehängt werden"}
+{"myClips.errorAttachFailed": "Anhängen fehlgeschlagen"}
+{"myClips.errorDelete": "Löschen fehlgeschlagen"}
+{"library.pageDescription": "Templates, Presets und Schriften für Creator."}
+{"library.kicker": "Dein kreatives Arsenal"}
+{"library.headingB": "Bibliothek"}
+{"library.sub": "Templates, Presets und Schriften, die direkt in deine Tools eingesteckt werden. Wähle eines, klicke auf Verwenden, erstelle weiter."}
+{"library.searchPlaceholder": "Templates, Presets, Schriften suchen…"}
+{"library.tabFonts": "Schriften"}
+{"library.recentlyUsed": "Zuletzt verwendet"}
+{"library.use": "Verwenden"}
+{"library.useFont": "Schrift kopieren"}
+{"library.copied": "Kopiert!"}
+{"library.browse": "Bibliothek durchsuchen"}
+{"library.noResults": "Nichts gefunden — versuch eine andere Suche."}
+{"repurpose.addCaptions": "Untertitel hinzufügen"}
+{"repurpose.modePack": "Content-Paket"}
+{"repurpose.titlePrefix": "Ein Video rein,"}
+{"repurpose.titleSuffix": "Content-Kalender raus"}
+{"repurpose.hero": "Lade ein Video hoch — die KI schaut es sich an und baut ein 10-teiliges Pack: 3 automatisch geschnittene vertikale Clips, 3 KI-Thumbnails, 5 Caption+Hashtag-Sets und plattform-optimierte Beschreibungen für TikTok, Reels, Shorts und X."}
+{"repurpose.signInRequired": "Melde dich an, um Videos zu repurposen."}
+{"repurpose.step1.title": "Ziehe dein Video hierher"}
+{"repurpose.step1.blurb": "MP4, MOV, WebM · bis 80 MB"}
+{"repurpose.step1.chooseFile": "Videodatei wählen"}
+{"repurpose.step1.fromCameraRoll": "Aus deiner Galerie oder deinen Exporten"}
+{"repurpose.step1.orPasteUrl": "Oder füge eine Video-URL ein"}
+{"repurpose.step1.urlPlaceholder": "https://… (aus deinem Projekt-Speicher)"}
+{"repurpose.step1.urlNote": "URLs müssen aus deinem Projekt-Speicher kommen."}
+{"repurpose.building": "Dein Pack wird gebaut…"}
+{"repurpose.repurposeButton": "Mein Video repurposen · {{credits}} Visual Bucs"}
+{"repurpose.costNote": "{{pack}} Visual Bucs decken alles ab: Transkription, KI-Analyse, 3 automatisch geschnittene Clips, 3 KI-Thumbnails. Re-Rolls kosten {{reroll}} Visual Bucs je. Kopieren und Herunterladen sind kostenlos."}
+{"repurpose.packReady": "Pack-Teile bereit"}
+{"repurpose.renderingNote": "Clips und Thumbnails rendern im Hintergrund — schließe den Tab, sie werden warten."}
+{"repurpose.clips.title": "3 vertikale Clips"}
+{"repurpose.clips.blurb": "Automatisch geschnitten 9:16 · bereit für TikTok, Reels, Shorts"}
+{"repurpose.clips.newMoments": "Neue Momente · {{cost}}VB"}
+{"repurpose.clips.cutFailed": "Schnitt fehlgeschlagen"}
+{"repurpose.clips.cutting": "Schneidet…"}
+{"repurpose.thumbs.title": "3 KI-Thumbnails"}
+{"repurpose.thumbs.blurb": "9:16-Cover für deine Clips"}
+{"repurpose.thumbs.newConcepts": "Neue Konzepte · {{cost}}VB"}
+{"repurpose.thumbs.genFailed": "Generierung fehlgeschlagen"}
+{"repurpose.thumbs.painting": "Malt…"}
+{"repurpose.thumbs.alt": "Thumbnail-Konzept {{n}}"}
+{"repurpose.captions.title": "5 Caption- + Hashtag-Sets"}
+{"repurpose.captions.blurb": "Bereit zum Posten — kopiere ein beliebiges Set kostenlos"}
+{"repurpose.platforms.title": "Plattform-Beschreibungen"}
+{"repurpose.platforms.blurb": "Für jeden Algorithmus abgestimmt"}
+{"repurpose.platforms.noDesc": "Keine Beschreibung für diese Plattform generiert."}
+{"repurpose.download": "Herunterladen"}
+{"repurpose.copyAll": "Alles kopieren"}
+{"repurpose.copy": "Kopieren"}
+{"repurpose.copied": "Kopiert"}
+{"repurpose.reroll": "Re-Roll · {{cost}}VB"}
+{"repurpose.error.copyFailed": "Konnte nicht in die Zwischenablage kopieren."}
+{"repurpose.error.noSource": "Lade eine Videodatei hoch oder füge zuerst eine Video-URL ein."}
+{"repurpose.error.repurposeFailed": "Repurposing fehlgeschlagen — versuch es erneut."}
+{"repurpose.error.clipJobFailed": "Clip-Job-Suche fehlgeschlagen."}
+{"repurpose.error.thumbJobFailed": "Thumbnail-Job-Suche fehlgeschlagen."}
+{"repurpose.error.clipCuttingFailed": "Clip-Schnitt fehlgeschlagen. Deine Pack Visual Bucs decken die Text-Ausgaben ab — Clips können aus dem Video-Editor neu geschnitten werden."}
+{"repurpose.error.thumbFailed": "Thumbnail-Bilder konnten nicht generiert werden — die Thumbnail-Prompts unten funktionieren weiterhin mit jedem Bild-Tool."}
+{"repurpose.error.lostJobs": "Hintergrund-Jobs aus den Augen verloren — aktualisiere, um zu prüfen."}
+{"repurpose.error.rerollFailed": "Re-Roll fehlgeschlagen — versuch es erneut."}
+{"repurpose.error.thumbRerollFailed": "Thumbnail-Re-Roll fehlgeschlagen — versuch es erneut."}
+{"mashup.modeSimple": "Turbo"}
+{"repurpose.modeLabel": "Mode"}
+{"repurpose.modeStreamVod": "Stream VOD"}
+{"scheduler.tabs.plan": "Plan"}
+{"scheduler.bestTime.bucs": "Visual Bucs"}
+{"scheduler.bestTime.benchmark": "Benchmark"}
+{"scheduler.communityPosts.badge": "Copywriter"}
+{"scheduler.communityPosts.platformLabels.youtube-community": "YouTube Community"}
+{"scheduler.communityPosts.platformLabels.x": "X"}
+{"scheduler.communityPosts.platformLabels.instagram": "Instagram"}
+{"scheduler.communityPosts.platformLabels.threads": "Threads"}
+{"myClips.extractAudioCost": "50 Visual Bucs"}
+{"library.headingA": "Thy"}

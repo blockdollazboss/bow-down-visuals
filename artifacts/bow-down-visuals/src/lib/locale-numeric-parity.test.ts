@@ -166,7 +166,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "wave8.hookRewriter.sub", "wave9.templates.previewHeadingOne",
     ]],
     ["LEGIT: counts spelled (واحد / dual forms) + ألف unit word — verified value-equal", [
-      "beats.tierBasicBlurb", "beats.tierPremiumBlurb",
+      "beats.tierBasicBlurb", "beats.tierPremiumBlurb", "mediaDetector.filesSkipped_one",
     ]],
     ["LEGIT: 2M spelled as the dual of million (مليوني) — verified value-equal", [
       "sponsorDealDetail.winsPlaceholder",
@@ -211,7 +211,8 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ),
   ja: grouped(
     [T_NUM, [
-      "academy.coachHeader", "academy.errorPickPlatform", "academy.heroSubtitle", "academy.lessonsHeader",
+      "weekly_contest.next_drop_sub", "mashup.subtitle", "mashup.styleBeatMatchBlurb", "mashup.submitCustom", "mashup.needsTwoSongs", "repurpose.titlePrefix", "randomizer.hero", "privacy.lastUpdated", "nfcCards.orderAnother", "linkInBio.hero.title", "linkInBio.profile.bioPlaceholder", "linkInBio.links.needOne",
+      "create.subtitle", "create.modes.songVideoBlurb", "create.modes.hubBlurb", "release.types.single.blurb", "release.types.album.blurb", "release.costNote", "presave.notifyNote", "stabilize.subtitle", "stabilize.priceBadge", "stabilize.stabilizingNote", "lufs.subtitle", "lufs.progressNote", "lufs.abHint", "academy.coachHeader", "academy.errorPickPlatform", "academy.heroSubtitle", "academy.lessonsHeader",
       "academy.pathCostNote", "admin.bowRaceDescription", "admin.bowRaceFooterNote", "admin.jackpot.footerNote",
       "analytics.errorNoPlatforms", "analyticsHub.acrossPlatforms", "analyticsHub.heroSubtitle",
       "analyticsHub.pageDescription", "artistVault.identityFull", "artistVault.wardrobeFull",
@@ -278,6 +279,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ),
   ko: grouped(
     [T_NUM, [
+      "stabilize.subtitle", "stabilize.stabilizingNote", "lufs.progressNote", "randomizer.hero", "privacy.lastUpdated", "privacy.section4Item4Body", "privacy.section5Body",
       "analyticsHub.acrossPlatforms", "brandCalculator.contentTypes.sponsoredPost.blurb", "brandingShop.designingHint",
       "brandingShop.errorProducts", "clipMaker.errorNoSelection", "coach.earnsMost",
       "discord-bot.3_one_time_setup_checklist", "distribute.validation.2", "guides.whySkillBody",

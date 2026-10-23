@@ -1,0 +1,525 @@
+{"mastering.back": "Retour"}
+{"mastering.subtitle": "Des masters prêts à sortir à partir de votre mix — {{cost}} Visual Bucs"}
+{"mastering.errorFailed": "Le mastering a échoué — vos Visual Bucs ont été remboursés."}
+{"mastering.errorAudioFile": "Veuillez choisir un fichier audio (WAV, MP3, AIFF, FLAC, M4A, OGG)."}
+{"mastering.errorFileTooLarge": "Ce fichier dépasse 100 Mo — utilisez un mix plus petit."}
+{"mastering.errorStartFailed": "Impossible de démarrer le mastering."}
+{"mastering.errorNetwork": "Erreur réseau — veuillez réessayer."}
+{"mastering.dropHint": "Déposez votre mix ici, ou cliquez pour parcourir"}
+{"mastering.fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — jusqu'à 100 Mo"}
+{"mastering.fileSize": "{{size}} Mo — cliquez pour changer"}
+{"mastering.presetLabel": "Preset de mastering"}
+{"mastering.presets.streaming.blurb": "Prêt pour Spotify / Apple Music — propre et dynamique."}
+{"mastering.presets.club.blurb": "Fort et punchy pour les gros systèmes son."}
+{"mastering.presets.radio.blurb": "Présence vocale adaptée à la radio."}
+{"mastering.presets.lofi.blurb": "Doux, chaud et dynamique avec des aigus soyeux."}
+{"mastering.signInToMaster": "Se connecter pour masteriser"}
+{"mastering.masterButton": "Masteriser mon morceau — {{cost}} Visual Bucs"}
+{"mastering.creditsRemaining": "{{count}} Visual Bucs restants"}
+{"mastering.statusUploading": "Envoi de votre mix…"}
+{"mastering.statusQueued": "En file — la chaîne chauffe…"}
+{"mastering.statusProcessing": "Mastering en cours…"}
+{"mastering.processingDetail": "Analyse de la loudness → normalisation en deux passes → rendu WAV + MP3. Vous pouvez fermer cet onglet — le travail tourne sur le serveur."}
+{"mastering.masterComplete": "Master terminé — comparez-le à votre original ci-dessous."}
+{"mastering.beforeAfter": "Avant / Après"}
+{"mastering.before": "Avant"}
+{"mastering.after": "Après"}
+{"mastering.listeningTo": "Vous écoutez :"}
+{"mastering.originalMix": "votre mix original"}
+{"mastering.masteredVersion": "la version masterisée"}
+{"mastering.positionPreserved": "— la position est conservée quand vous basculez."}
+{"mastering.loudnessReport": "Rapport de loudness"}
+{"mastering.mixLoudness": "Loudness du mix"}
+{"mastering.masterLoudness": "Loudness du master"}
+{"mastering.targetCeiling": "Plafond cible"}
+{"mastering.dynamicRange": "Plage dynamique (mix) : {{value}} LU — préservée à travers la chaîne, pas écrasée."}
+{"mastering.masterAnother": "Masteriser un autre morceau"}
+{"samples.back": "Retour"}
+{"samples.title": "Générateur de packs de samples"}
+{"samples.subtitle": "Kits de batterie, boucles et FX sur mesure dans votre genre, BPM et tonalité — {{cost}} Visual Bucs pour {{size}} samples"}
+{"samples.honesty.p1": "Les batteries et FX sont"}
+{"samples.honesty.synth": "synthétisés en DSP"}
+{"samples.honesty.p2": "(étiquetés Synth) ; les mélodies et basses sont"}
+{"samples.honesty.ai": "composées par IA"}
+{"samples.honesty.p3": "(étiquetées IA). Chaque fichier est vraiment rendu en WAV 44,1 kHz — rien de truqué. Libres de droits : utilisez-les dans vos propres productions."}
+{"samples.buildTitle": "Composez votre pack"}
+{"samples.key": "Tonalité"}
+{"samples.keyNote": "(les mélodies et la basse suivent celle-ci)"}
+{"samples.packSize": "Taille du pack"}
+{"samples.sampleTypes": "Types de samples"}
+{"samples.sampleTypesNote": "(laissez vide pour un mix équilibré)"}
+{"samples.cooking": "Votre pack se prépare…"}
+{"samples.generate": "Générer le pack · {{cost}} Visual Bucs"}
+{"samples.signIn": "Se connecter"}
+{"samples.signInSuffix": " pour générer des packs."}
+{"samples.yourPack": "Votre pack — {{num}} samples"}
+{"samples.creditsLeft": "{{num}} Visual Bucs restants"}
+{"samples.zipping": "Compression…"}
+{"samples.downloadZip": "Télécharger le pack ZIP"}
+{"samples.aiGenerated": "Généré par IA"}
+{"samples.synthesized": "Synthétisé"}
+{"samples.downloadWav": "Télécharger le WAV"}
+{"samples.licenseFallback": "Libre de droits — utilisable dans vos propres productions, sans attribution requise."}
+{"samples.progress.charging": "Facturation des Visual Bucs et préchauffage du studio…"}
+{"vocalPolish.subtitle": "Rendez n'importe quelle voix claire et prête pour la radio — enlevez le bruit de pièce, adoucissez les S durs, retouchez la hauteur en douceur et équilibrez le volume. {{cost}} Visual Bucs."}
+{"vocalPolish.strengthLabel": "Intensité du polish"}
+{"producerTag.textPlaceholder": "ex. Beats by Diamond…"}
+{"producerTag.voiceLabel": "Voix"}
+{"producerTag.download": "Télécharger"}
+{"audioStudio.tabs.cleanup": "Nettoyage"}
+{"audioStudio.tabs.tune": "Accorder la Voix"}
+{"singingVoice.title": "Voix Chantée"}
+{"aiAudio.tabs.sfx": "SFX"}
+{"stems.modeVocalsOnly": "Voix + instru uniquement"}
+{"stems.instrumentalHubAssetLabel": "Instrumental — {{name}}"}
+{"scheduler.composer.video": "Vidéo"}
+{"scheduler.signInPrompt": "Connectez-vous pour programmer des publications sur Instagram, TikTok et Facebook."}
+{"scheduler.signIn": "Se connecter"}
+{"scheduler.badge": "Publiez partout depuis un seul calendrier"}
+{"scheduler.hero": "Programmez des publications vidéo sur Instagram Reels, TikTok et Facebook. Côté serveur et à l'épreuve des redémarrages — votre file se déclenche même si l'onglet est fermé."}
+{"scheduler.perks.free": "Brouillons et exploration gratuits"}
+{"scheduler.perks.cost": "100 Visual Bucs par publication à programmer"}
+{"scheduler.perks.refund": "Annulez à tout moment = remboursement automatique"}
+{"scheduler.newPost": "Nouvelle publication programmée"}
+{"scheduler.loading": "Chargement de votre planning…"}
+{"scheduler.noCaption": "Aucune légende"}
+{"scheduler.tabs.calendar": "Calendrier"}
+{"scheduler.tabs.queue": "File ({{num}})"}
+{"scheduler.tabs.drafts": "Brouillons ({{num}})"}
+{"scheduler.tabs.posted": "Publiés"}
+{"scheduler.platforms.tiktok.sub": "Vidéo → vos brouillons"}
+{"scheduler.platforms.facebook.sub": "Vidéo de la Page"}
+{"scheduler.niches.music": "Musique"}
+{"scheduler.niches.comedy": "Comédie"}
+{"scheduler.niches.beauty": "Beauté"}
+{"scheduler.niches.education": "Éducation"}
+{"scheduler.days.sun": "dim"}
+{"scheduler.days.mon": "lun"}
+{"scheduler.days.tue": "mar"}
+{"scheduler.days.wed": "mer"}
+{"scheduler.days.thu": "jeu"}
+{"scheduler.days.fri": "ven"}
+{"scheduler.days.sat": "sam"}
+{"scheduler.status.posted": "Publié"}
+{"scheduler.status.failed": "Échoué"}
+{"scheduler.status.canceled": "Annulé"}
+{"scheduler.status.posting": "Publication"}
+{"scheduler.status.scheduled": "Programmé"}
+{"scheduler.status.draft": "Brouillon"}
+{"scheduler.bestTime.platforms": "Plateformes"}
+{"scheduler.bestTime.postsPerWeek": "Publications / semaine"}
+{"scheduler.bestTime.useSlot": "Utiliser ce créneau"}
+{"scheduler.calendar.prevMonth": "Mois précédent"}
+{"scheduler.calendar.today": "Aujourd'hui"}
+{"scheduler.calendar.nextMonth": "Mois suivant"}
+{"scheduler.calendar.dayTitle": "Cliquez pour programmer · déposez une publication ici pour la déplacer"}
+{"scheduler.calendar.postTitle": "{{datetime}} — glissez pour déplacer, cliquez pour modifier"}
+{"scheduler.calendar.more": "+{{num}} de plus"}
+{"scheduler.calendar.hint": "Cliquez sur un jour futur pour programmer · glissez une publication vers un autre jour pour la déplacer · cliquez sur une publication pour la modifier ou l'annuler."}
+{"scheduler.queue.emptyTitle": "La file est vide"}
+{"scheduler.queue.emptyHint": "Programmez une publication et elle attendra ici jusqu'à son déclenchement — aucun onglet requis."}
+{"scheduler.queue.postingNow": "publication en cours"}
+{"scheduler.queue.editLabel": "Modifier ou reprogrammer"}
+{"scheduler.queue.editTitle": "Modifier / reprogrammer"}
+{"scheduler.queue.cancelLabel": "Annuler (rembourse les Visual Bucs)"}
+{"scheduler.queue.cancelTitle": "Annuler — Visual Bucs remboursés"}
+{"scheduler.drafts.emptyTitle": "Aucun brouillon"}
+{"scheduler.drafts.emptyHint": "Enregistrez une publication en brouillon pendant que vous peaufinez la légende — les brouillons sont gratuits."}
+{"scheduler.drafts.schedule": "Programmer"}
+{"scheduler.drafts.deleteLabel": "Supprimer le brouillon"}
+{"scheduler.posted.emptyTitle": "Rien de publié pour le moment"}
+{"scheduler.posted.emptyHint": "Les publications déclenchées atterrissent ici avec les résultats par plateforme."}
+{"scheduler.posted.postedAt": "Publié {{datetime}}"}
+{"scheduler.posted.updatedAt": "Mis à jour {{datetime}}"}
+{"scheduler.composer.close": "Fermer"}
+{"scheduler.composer.newPost": "Nouvelle publication programmée"}
+{"scheduler.composer.scheduleDraft": "Programmer le brouillon"}
+{"scheduler.composer.editPost": "Modifier la publication programmée"}
+{"scheduler.composer.changesInstant": "Les modifications sont enregistrées instantanément."}
+{"scheduler.composer.costNote": "La programmation coûte 100 Visual Bucs par publication — facturés maintenant, remboursés automatiquement si vous annulez."}
+{"scheduler.composer.noPreview": "Vidéo jointe — aperçu indisponible pour les médias stockés."}
+{"scheduler.composer.removeVideo": "Retirer la vidéo"}
+{"scheduler.composer.uploading": "Envoi en cours…"}
+{"scheduler.composer.uploadCta": "Cliquez pour téléverser votre vidéo"}
+{"scheduler.composer.uploadNote": "MP4 / MOV · jusqu'à 80 Mo · l'envoi est gratuit"}
+{"scheduler.composer.caption": "Légende"}
+{"scheduler.composer.captionPlaceholder": "Écrivez votre légende…"}
+{"scheduler.composer.aiCaptionTitle": "L'IA écrit un hook pour votre légende · 100 Visual Bucs"}
+{"scheduler.composer.platforms": "Plateformes"}
+{"scheduler.composer.tiktokNote": "L'API TikTok le livre dans votre boîte de brouillons — vous finirez la publication dans TikTok. Instagram et Facebook publient directement."}
+{"scheduler.composer.accountLabel": "Compte {{platform}}"}
+{"scheduler.composer.noAccount1": "Aucun compte {{platform}} connecté. "}
+{"scheduler.composer.noAccountLink": "Connectez-en un dans Studio Tools → Social"}
+{"scheduler.composer.noAccount2": " pour programmer ici."}
+{"scheduler.composer.chooseAccount": "Choisissez un compte…"}
+{"scheduler.composer.time": "Heure"}
+{"scheduler.composer.timezoneNote": "Les heures sont dans votre fuseau ({{tz}}). Le serveur déclenche la publication même si cet onglet est fermé."}
+{"scheduler.composer.saveChanges": "Enregistrer les modifications"}
+{"scheduler.composer.scheduleButton": "Programmer · 100 Visual Bucs"}
+{"scheduler.composer.saveDraft": "Enregistrer comme brouillon gratuit"}
+{"scheduler.composer.unschedule": "Déprogrammer → retour aux brouillons (rembourse 100 Visual Bucs)"}
+{"scheduler.confirm.cancel": "Annuler cette publication programmée ? Vos Visual Bucs réservés seront remboursés."}
+{"scheduler.toast.canceled": "Publication annulée"}
+{"scheduler.toast.deleted": "Publication supprimée"}
+{"scheduler.toast.refunded": "{{num}} crédit{{s}} remboursé(s)."}
+{"scheduler.toast.couldntCancel": "Annulation impossible"}
+{"scheduler.toast.cantMove": "Impossible de déplacer là"}
+{"scheduler.toast.futureDate": "Choisissez une date dans le futur."}
+{"scheduler.toast.rescheduled": "Reprogrammé"}
+{"scheduler.toast.couldntReschedule": "Reprogrammation impossible"}
+{"scheduler.toast.bestTimeFailed": "La meilleure heure a échoué"}
+{"scheduler.toast.videoUploaded": "Vidéo téléversée"}
+{"scheduler.toast.readyToSchedule": "Prêt à programmer."}
+{"scheduler.toast.noCaption": "L'IA n'a renvoyé aucune légende."}
+{"scheduler.toast.scheduled": "Programmé"}
+{"scheduler.toast.scheduledCost": "Programmé · 100 Visual Bucs"}
+{"scheduler.toast.scheduledDesc": "{{datetime}} — annulez à tout moment pour un remboursement."}
+{"scheduler.toast.draftSaved": "Brouillon enregistré"}
+{"scheduler.toast.draftsFree": "Les brouillons sont gratuits."}
+{"scheduler.toast.notEnoughCredits": "Pas assez de Visual Bucs — rechargez pour programmer."}
+{"scheduler.toast.couldntSave": "Impossible d'enregistrer la publication."}
+{"scheduler.toast.couldntUnschedule": "Impossible de déprogrammer."}
+{"scheduler.toast.needsHosted": "Un fichier hébergé est requis"}
+{"scheduler.toast.hostedDesc": "Ce fichier ne vit que dans cette session de navigateur — générez ou téléversez d'abord une vidéo hébergée."}
+{"scheduler.error.videoOnly": "Choisissez un fichier vidéo — les chemins de publication automatique publient de la vidéo."}
+{"scheduler.error.uploadFailed": "L'envoi a échoué."}
+{"scheduler.error.noVideo": "Téléversez d'abord une vidéo."}
+{"scheduler.error.noPlatform": "Choisissez au moins une plateforme."}
+{"scheduler.error.noAccount": "Choisissez un compte connecté pour : {{platforms}}."}
+{"scheduler.error.futureTime": "Choisissez une date et une heure au moins une minute dans le futur."}
+{"scheduler.fromRelease": "Depuis le lancement"}
+{"scheduler.tabs.community": "Publications de communauté"}
+{"scheduler.bestTime.desc": "Intelligence de publication appuyée sur des benchmarks : cartes de chaleur de score sur 7 jours par plateforme, personnalisées avec vos propres données quand vous en avez. Touchez n'importe quel créneau pour programmer à cette heure."}
+{"scheduler.bestTime.customNichePlaceholder": "Ou écrivez votre niche…"}
+{"scheduler.bestTime.optimize": "Optimiser · 75 Visual Bucs"}
+{"scheduler.bestTime.optimizing": "Optimisation…"}
+{"scheduler.bestTime.scheduleAtThisTime": "Programmer à cette heure"}
+{"scheduler.bestTime.bestNext": "Meilleur prochain créneau — surfez la vague"}
+{"scheduler.bestTime.topSlots": "Meilleurs créneaux"}
+{"scheduler.bestTime.yourData": "Vos données"}
+{"scheduler.bestTime.legendBenchmark": "Benchmarks plateforme (2025)"}
+{"scheduler.bestTime.legendPersonalized": "Selon vos données"}
+{"scheduler.bestTime.nicheTuned": "Ajusté à la niche"}
+{"scheduler.bestTime.heatmapTitle": "Carte de chaleur sur 7 jours"}
+{"scheduler.bestTime.heatmapHint": "Or = créneau le plus chaud. Touchez n'importe quelle cellule pour programmer à cette heure. Les heures passées sont grisées."}
+{"scheduler.bestTime.share": "Partager le planning"}
+{"scheduler.bestTime.shareLinkLabel": "Votre lien de planning partageable"}
+{"scheduler.bestTime.shareHint": "Postez-le où vous voulez — quiconque l'ouvre voit votre planning, et votre lien de parrainage est inclus."}
+{"scheduler.bestTime.copyLink": "Copier le lien"}
+{"scheduler.bestTime.copied": "Copié"}
+{"scheduler.bestTime.copyFailed": "Impossible de copier le lien"}
+{"scheduler.bestTime.linkReady": "Lien de planning prêt — postez-le où vous voulez"}
+{"scheduler.bestTime.failed": "Impossible de construire le planning — réessayez."}
+{"scheduler.bestTime.outOfCredits": "Pas assez de Visual Bucs pour une optimisation de meilleure heure."}
+{"scheduler.accounts.title": "Comptes de publication"}
+{"scheduler.accounts.sub": "Les publications programmées sont publiées sur ces comptes."}
+{"scheduler.accounts.connected": "Connecté"}
+{"scheduler.accounts.expired": "Connexion expirée"}
+{"scheduler.accounts.notConnected": "Non connecté"}
+{"scheduler.accounts.reconnect": "Reconnecter dans les Réglages"}
+{"scheduler.accounts.connect": "Connecter dans les Réglages"}
+{"scheduler.accounts.loadFailed": "Impossible de charger vos comptes de publication — vos connexions vont peut-être bien."}
+{"scheduler.accounts.retry": "Réessayer"}
+{"scheduler.queue.remixLabel": "Remixer dans Promo Clips"}
+{"scheduler.queue.remixTitle": "Remixer cette publication dans Promo Clips"}
+{"scheduler.composer.attributionNote": "Votre lien de parrainage est ajouté à la publication."}
+{"scheduler.composer.attributionChange": "Modifier"}
+{"scheduler.communityPosts.title": "Générateur de publications de communauté"}
+{"scheduler.communityPosts.desc": "Des publications d'engagement texte d'abord pour YouTube Community, X, Instagram et Threads. {{cost}} Visual Bucs par lot de 3 — remboursés automatiquement si la génération échoue."}
+{"scheduler.communityPosts.topic": "Sujet"}
+{"scheduler.communityPosts.topicPlaceholder": "ex. nouveau single vendredi, sondage : quelle pochette ensuite, avis tranché sur l'industrie..."}
+{"scheduler.communityPosts.platform": "Plateforme"}
+{"scheduler.communityPosts.tone": "Ton"}
+{"scheduler.communityPosts.cta": "Appel à l'action (optionnel)"}
+{"scheduler.communityPosts.ctaPlaceholder": "ex. commente ton choix ci-dessous, lien de pré-enregistrement dans la bio..."}
+{"scheduler.communityPosts.niche": "Indice de niche (optionnel)"}
+{"scheduler.communityPosts.nichePlaceholder": "ex. artistes indés"}
+{"scheduler.communityPosts.generate": "Générer 3 publications"}
+{"scheduler.communityPosts.generating": "Écriture..."}
+{"scheduler.communityPosts.generated": "Choisissez votre préférée — ou programmez-en une avec le flux du programmateur existant."}
+{"scheduler.communityPosts.charCount": "{{num}} / {{limit}} caractères"}
+{"scheduler.communityPosts.bestTime": "Meilleure heure pour publier"}
+{"scheduler.communityPosts.scheduleThis": "Programmer cette publication"}
+{"scheduler.communityPosts.copy": "Copier"}
+{"scheduler.communityPosts.copied": "Copié dans le presse-papiers."}
+{"scheduler.communityPosts.variants": "Variante {{num}}"}
+{"scheduler.communityPosts.failed": "La génération a échoué"}
+{"scheduler.shared.badge": "Planning de publication"}
+{"scheduler.shared.headline": "Surfez la vague — planning de publication {{niche}}"}
+{"scheduler.shared.sub": "Construit avec l'optimiseur de meilleure heure de Bow Down Visuals. Publiez à la bonne heure et surfez la vague."}
+{"scheduler.shared.honesty": "Les scores mélangent des benchmarks plateforme 2025 avec l'historique de publication du créateur — des motifs, pas des promesses."}
+{"scheduler.shared.getYours": "Obtenir mon propre planning"}
+{"scheduler.shared.buildMine": "Construire mon planning"}
+{"scheduler.shared.powered": "Propulsé par Bow Down Visuals"}
+{"scheduler.shared.dismiss": "Ignorer"}
+{"scheduler.plan.sendHint": "Choisissez un jour pour pré-remplir le compositeur du programmateur."}
+{"scheduler.plan.scheduleDay": "Programmer ce jour"}
+{"vocalPolish.buttonCost": "200 Visual Bucs"}
+{"vocalPolish.title": "Vocal Polish"}
+{"vocalPolish.strengthValue": "{{n}}%"}
+{"vocalPolish.keyShiftValue": "{{n}} st"}
+{"vocalPolish.tempoLabel": "Tempo"}
+{"vocalPolish.tempoValue": "{{n}}%"}
+{"vocalPolish.abOriginal": "Original"}
+{"beatMaker.presetHouse": "House"}
+{"beatMaker.trackCrash": "Crash"}
+{"producerTag.title": "Producer Tag Maker"}
+{"producerTag.presets.hype": "Hype"}
+{"producerTag.presets.chipmunk": "Chipmunk"}
+{"producerTag.presets.radio": "Radio"}
+{"producerTag.tabLabel": "Producer Tag"}
+{"stems.stemPiano": "Piano"}
+{"stems.modeLabel": "Mode"}
+{"stems.modeInstrumental": "Instrumental"}
+{"songs.sourceSongRemix": "Remix"}
+{"songs.sourceMashup": "Mashup"}
+{"songRework.remixTitle": "Remix"}
+{"songRework.remixCta": "Remix · 400 Visual Bucs"}
+{"scheduler.bestTime.bucs": "Visual Bucs"}
+{"scheduler.bestTime.benchmark": "Benchmark"}
+{"scheduler.communityPosts.badge": "Copywriter"}
+{"scheduler.communityPosts.platformLabels.youtube-community": "YouTube Community"}
+{"scheduler.communityPosts.platformLabels.x": "X"}
+{"scheduler.communityPosts.platformLabels.instagram": "Instagram"}
+{"scheduler.communityPosts.platformLabels.threads": "Threads"}
+{"audioStudio.tabs.stems": "Stems"}
+{"audioStudio.tabs.master": "Mix & Master"}
+{"audioStudio.tabs.voiceover": "Voiceover"}
+{"audioStudio.tabs.podcast": "Podcast"}
+{"audioStudio.tabs.sounds": "Sounds"}
+{"audioStudio.tabs.hum": "Hum-to-Hit"}
+{"audioStudio.tabs.deverb": "De-Reverb"}
+{"audioStudio.tabs.loudness": "Loudness"}
+{"aiAudio.tabs.beats": "Beat Maker"}
+{"aiAudio.tabs.samples": "Samples"}
+{"singingVoice.abOriginal": "Original"}
+{"bgReplace.ai.presetsTab": "Presets"}
+{"vocalTune.abOriginal": "Original"}
+{"vocalTune.semitones": "st"}
+{"vocalTune.title": "Vocal Tuning"}
+{"vocalPolish.buttonLabel": "Polir ma voix"}
+{"vocalPolish.honestIntro": "Ce que vous entendez est ce que vous obtenez : le"}
+{"vocalPolish.honestStrong": "dé-esseur et l'égalisation de volume tournent en direct sur votre fichier."}
+{"vocalPolish.honestMid": "La retouche de hauteur et la transposition sont"}
+{"vocalPolish.honestEnd": "appliquées sur le serveur au rendu complet."}
+{"vocalPolish.bestOnStems": "Fonctionne mieux sur un stem vocal sec."}
+{"vocalPolish.strengthHint": "Plus haut = dé-esseur plus fort et compression plus serrée."}
+{"vocalPolish.keyShiftLabel": "Transposition"}
+{"vocalPolish.keyShiftHint": "Déplace toute la voix vers le haut ou le bas — les formants restent naturels."}
+{"vocalPolish.tempoHint": "Plus rapide ou plus lent, sans changer la hauteur."}
+{"vocalPolish.statusStarting": "Démarrage…"}
+{"vocalPolish.statusQueued": "En file — votre polish démarre dans un instant…"}
+{"vocalPolish.statusProcessing": "Polish en cours…"}
+{"vocalPolish.progressNote": "Le dé-esseur et le volume tournent sur le serveur avec le rendu complet. Vous pouvez fermer cet onglet — le fichier poli arrive dans votre Vault."}
+{"vocalPolish.completeTitle": "Polish terminé"}
+{"vocalPolish.tuningNone": "Aucune retouche appliquée."}
+{"vocalPolish.tuningSkipped": "Retouche ignorée — choisissez une tonalité pour l'activer."}
+{"vocalPolish.fallbackNote": "La voix polie est prête, mais nous n'avons pas pu l'ajouter à votre Vault — téléchargez-la maintenant pour la garder."}
+{"vocalPolish.abPolished": "Polie"}
+{"vocalPolish.abHint": "Écoutez la version polie dans le lecteur ci-dessus."}
+{"vocalPolish.downloadButton": "Télécharger la voix polie (MP3)"}
+{"vocalPolish.useInSong": "Utiliser dans Make a Song"}
+{"vocalPolish.useInSongHint": "Emmène cette voix polie dans Make a Song comme voix de référence."}
+{"vocalPolish.sendToMixMaster": "Envoyer à Mix & Master"}
+{"vocalPolish.newPolish": "Nouveau polish"}
+{"vocalPolish.errorStartFailed": "Impossible de démarrer le polish vocal."}
+{"vocalPolish.errorJobNotFound": "Ce travail de polish est introuvable — il a peut-être expiré."}
+{"vocalPolish.errorNetwork": "Erreur réseau — veuillez réessayer."}
+{"vocalPolish.close": "Fermer"}
+{"producerTag.textLabel": "Texte du tag"}
+{"producerTag.vaultVoice": "Utiliser une voix de mon Vault"}
+{"producerTag.vaultVoiceBlurb": "Choisissez un fichier vocal téléversé et nous le traiterons avec le preset — aucun coût de voix IA."}
+{"producerTag.presetLabel": "Preset vocal"}
+{"producerTag.presets.dark": "Sombre"}
+{"producerTag.presets.epic": "Épique"}
+{"producerTag.cookingButton": "Votre tag se prépare…"}
+{"producerTag.errorGenerateFailed": "La génération du tag a échoué. Veuillez réessayer."}
+{"producerTag.errorNetwork": "Erreur réseau. Veuillez réessayer."}
+{"producerTag.addToBeat": "Ajouter à mon beat"}
+{"producerTag.addedToBeat": "Dans votre projet"}
+{"producerTag.addedHint": "Enregistré dans ce projet hub comme drop de tag."}
+{"producerTag.openSongMaker": "Ouvrir Song Maker →"}
+{"producerTag.shareButton": "Partager — notez mon tag"}
+{"producerTag.shareCopied": "Copié ! À vous les notes"}
+{"producerTag.shareText": "Notez mon tag producteur 🔥 \"{{text}}\" — {{url}} · Créé avec Bow Down Visuals {{link}}"}
+{"producerTag.libraryTitle": "Mes tags"}
+{"producerTag.libraryEmpty": "Aucun tag pour le moment. Préparez le premier et il vivra ici."}
+{"producerTag.deleteTag": "Supprimer le tag"}
+{"producerTag.tabTooltip": "Préparez votre tag producteur de signature"}
+{"producerTag.songMakerEntry": "Besoin d'un tag producteur de signature ?"}
+{"producerTag.songMakerEntryCta": "Créez-en un dans Beat Maker →"}
+{"beats.useInSong": "Utiliser ce beat dans une chanson"}
+{"sounds.aiAudioCta": "Besoin d'un son sur mesure ? Générez des SFX avec l'IA"}
+{"stems.splitButtonPro": "Séparer en 6 stems · {{cost}} Visual Bucs"}
+{"stems.splitCompletePro": "Séparation terminée — 6 stems prêts"}
+{"stems.proStemsLabel": "Pro Stems — 6 pistes (ajoute Guitare et Piano)"}
+{"stems.proStemsOn": "Activé"}
+{"stems.proStemsOff": "Désactivé"}
+{"stems.proStemsHint": "Pro Stems est activé — la séparation renvoie 6 pistes, avec Guitare et Piano en plus. Toujours {{cost}} Visual Bucs."}
+{"stems.stemGuitar": "Guitare"}
+{"stems.stemGuitarBlurb": "Guitares électriques et acoustiques"}
+{"stems.stemPianoBlurb": "Piano et claviers"}
+{"stems.instrumentalDownload": "Télécharger l'instrumental (WAV)"}
+{"stems.instrumentalHubAssetDetail": "séparateur de stems · voix retirées"}
+{"stems.instrumentalInfoBox": "La même séparation pro en 4 stems qu'un split complet — puis la batterie, la basse et la mélodie sont mixées en une piste d'accompagnement prête pour le karaoké, voix retirées. {{credits}} Visual Bucs, remboursés automatiquement si la séparation échoue."}
+{"stems.instrumentalProgressHint": "Notre moteur démonte votre chanson sur nos serveurs, puis mixe batterie, basse et mélodie dans votre piste d'accompagnement. Vous pouvez fermer cet onglet ; votre instrumental vous attendra ici."}
+{"stems.instrumentalSplitButton": "Créer l'instrumental · {{cost}} Visual Bucs"}
+{"stems.instrumentalSplitComplete": "Instrumental prêt — voix retirées"}
+{"songs.sourceSectionReplace": "Section remplacée"}
+{"songs.mashupWith": "Mashup avec une autre"}
+{"songs.mashupsUsingThis": "Mashups utilisant celle-ci"}
+{"songs.mashupsUsingThisEmpty": "Aucun mashup n'utilise encore cette chanson."}
+{"songRework.panelTitle": "Remix et Refonte"}
+{"songRework.panelSub": "Donnez une seconde vie à cette chanson — un nouvel arrangement, ou une toute nouvelle version d'une section."}
+{"songRework.remixDesc": "Mêmes paroles, même vibe — arrangement et production entièrement neufs."}
+{"songRework.remixWorking": "Production de votre remix…"}
+{"songRework.remixDone": "Votre remix est prêt"}
+{"songRework.styleTweakLabel": "Direction du remix (optionnel)"}
+{"songRework.styleTweakPlaceholder": "ex. bounce trap plus sombre, batteries afrobeat, acoustique dépouillée…"}
+{"songRework.lengthLabel": "Longueur du remix"}
+{"songRework.lengthOriginal": "Comme l'original"}
+{"songRework.replaceTitle": "Remplacer une section"}
+{"songRework.replaceDesc": "Régénérez une section balisée et recolle-la avec un fondu enchaîné fluide."}
+{"songRework.replaceCta": "Remplacer · 300 Visual Bucs"}
+{"songRework.replaceWorking": "Régénération et raccord…"}
+{"songRework.replaceDone": "Section remplacée"}
+{"songRework.directionLabel": "Nouvelle direction pour cette section (optionnel)"}
+{"songRework.directionPlaceholder": "ex. batteries plus grosses, passage en half-time, ajout de chœurs…"}
+{"songRework.fineTune": "Ajuster le timing"}
+{"songRework.startSec": "Début (sec)"}
+{"songRework.endSec": "Fin (sec)"}
+{"songRework.estimatedNote": "Le timing est estimé d'après l'ordre des sections — ajustez ci-dessus si vous connaissez les secondes exactes."}
+{"songRework.estimatedBadge": "timing estimé"}
+{"songRework.noAudioTitle": "Audio requis"}
+{"songRework.noAudioDesc": "Remplacer une section fonctionne sur une piste audio terminée. Générez d'abord l'audio musical, puis revenez la retravailler."}
+{"songRework.sectionLyricsLabel": "Paroles utilisées pour cette section"}
+{"songRework.copied": "Lien de partage copié"}
+{"songRework.makeLyricVideo": "Créer une vidéo de paroles"}
+{"songRework.designCoverArt": "Dessiner la pochette"}
+{"songRework.addToAlbum": "Ajouter à l'album"}
+{"songRework.share": "Partager"}
+{"songRework.addedToLibrary": "Enregistré dans votre bibliothèque de chansons"}
+{"songRework.outOfCredits": "Pas assez de Visual Bucs pour cela — rechargez pour continuer à créer."}
+{"songRework.failed": "Quelque chose a mal tourné. Vos Visual Bucs ont été remboursés."}
+{"audioStudio.back": "Retour"}
+{"audioStudio.subtitle": "Nettoyez, séparez et masterisez votre audio — tous les outils au même endroit."}
+{"audioStudio.tabs.aiaudio": "Audio IA"}
+{"audioStudio.tabs.finish": "Terminer ma Chanson"}
+{"audioStudio.tabs.ratemix": "Notez mon Mix"}
+{"audioStudio.tabs.arrange": "Arranger"}
+{"audioStudio.desc.cleanup": "Retirez le bruit de fond et le souffle de pièce de n'importe quel enregistrement — 300 Visual Bucs."}
+{"audioStudio.desc.stems": "Séparez n'importe quelle chanson en voix, batterie, basse et mélodie — 400 Visual Bucs."}
+{"audioStudio.desc.master": "Des masters prêts pour la radio et des mixdowns de stems complets — 4 à 15 Visual Bucs."}
+{"audioStudio.desc.aiaudio": "Créez des beats, composez des packs de samples et générez des effets sonores."}
+{"audioStudio.desc.voiceover": "Une narration IA de qualité studio pour vos vidéos."}
+{"audioStudio.desc.podcast": "Enregistrez, montez et produisez votre podcast."}
+{"audioStudio.desc.sounds": "Trouvez les sons viraux en tendance en ce moment."}
+{"audioStudio.desc.hum": "Fredonnez une mélodie — obtenez une chanson complète construite autour (500 Visual Bucs à la génération, analyse gratuite)."}
+{"audioStudio.desc.finish": "Téléversez votre démo inachevée — l'IA écrit ce qui manque et produit la chanson terminée (400 Visual Bucs)."}
+{"audioStudio.desc.ratemix": "Téléversez votre mix — mesures réelles + coaching IA pour le corriger. Coaching uniquement, votre audio reste intact (100 Visual Bucs)."}
+{"audioStudio.desc.tune": "Corrigez la hauteur de n'importe quelle voix — polish transparent ou accroche hard-tune."}
+{"audioStudio.desc.deverb": "Retirez l'écho de pièce des dialogues et des voix."}
+{"audioStudio.desc.loudness": "Mesurez la loudness réelle (LUFS) et normalisez n'importe quel audio aux cibles de streaming."}
+{"audioStudio.desc.arrange": "Construisez la chanson sur une timeline — pistes, effets, automation, comps vocaux, ducking et MIDI. Gratuit à modifier ; l'export le rend pour de vrai."}
+{"aiAudio.back": "Retour"}
+{"aiAudio.title": "Générer de l'Audio"}
+{"aiAudio.subtitle": "Créez des beats, composez des packs de samples et générez des effets sonores — la boîte à outils audio."}
+{"aiAudio.desc.beats": "Décrivez la vibe, obtenez un instrumental de studio — ou programmez les batteries à la main gratuitement."}
+{"aiAudio.desc.samples": "Des packs de samples libres de droits sur mesure dans votre genre, BPM et tonalité."}
+{"aiAudio.desc.sfx": "Décrivez n'importe quel effet sonore — l'IA le génère en quelques secondes."}
+{"aiAudio.crossBanner.title": "Continuez sur votre lancée"}
+{"aiAudio.crossBanner.beats": "Vendre des beats sur le marketplace"}
+{"aiAudio.crossBanner.sounds": "Trouver des sons en tendance"}
+{"singingVoice.buttonLabel": "Voix Chantée"}
+{"singingVoice.buttonCost": "800 VB · prix à définir"}
+{"singingVoice.close": "Fermer"}
+{"singingVoice.notConfigured": "La conversion en voix chantée n'est pas encore connectée — le propriétaire du site doit ajouter une clé de fournisseur. Les voix ci-dessous sont des exemples ; le bouton Convertir reste désactivé jusque-là. Vous ne serez pas facturé."}
+{"singingVoice.voiceLabel": "Choisissez une voix chantée"}
+{"singingVoice.loadingVoices": "Chargement des voix…"}
+{"singingVoice.strengthLabel": "Intensité de la voix"}
+{"singingVoice.keepInstrumental": "Garder mon instrumental sous la voix convertie"}
+{"singingVoice.convertButton": "Convertir les voix (800 VB — prix à définir)"}
+{"singingVoice.disabledTitle": "Connectez une clé de fournisseur pour activer"}
+{"singingVoice.working": "Conversion des voix…"}
+{"singingVoice.workingNote": "Cela tourne sur le serveur — vous pouvez fermer cette fenêtre."}
+{"singingVoice.done": "Voix converties."}
+{"singingVoice.abConverted": "Convertie"}
+{"singingVoice.useInSong": "Utiliser dans la chanson"}
+{"singingVoice.usedLabel": "En cours d'utilisation ✓"}
+{"singingVoice.usedInSong": "La voix convertie est maintenant la chanson"}
+{"singingVoice.usedInSongDetail": "Les étapes suivantes (vidéo, distribution) utiliseront cette version."}
+{"singingVoice.download": "Télécharger"}
+{"singingVoice.honest": "Convertit les voix de votre chanson dans le timbre d'une voix chantée choisie — même mélodie et même timing, nouvelle voix. Fonctionne mieux sur des stems vocaux propres ; un mix complet convertit tout ce qui y est chanté."}
+{"singingVoice.outOfCredits": "Pas assez de Visual Bucs pour la conversion en voix chantée (800)."}
+{"singingVoice.startFailed": "Impossible de démarrer la conversion."}
+{"singingVoice.failedRefunded": "La conversion a échoué — crédits remboursés."}
+{"singingVoice.notConfiguredError": "La conversion en voix chantée n'est pas encore connectée."}
+{"bgReplace.ai.tab": "Génération IA"}
+{"bgReplace.ai.checking": "Vérification du statut IA…"}
+{"bgReplace.ai.notConfigured": "La génération de fond IA n'est pas encore connectée — le propriétaire du site doit ajouter une clé d'API de génération d'images avant que les fonds IA puissent se générer. Les presets et les uploads continuent de fonctionner."}
+{"bgReplace.ai.promptLabel": "Décrivez votre fond"}
+{"bgReplace.ai.promptPlaceholder": "ex. un club de jazz feutré avec des lumières de scène dorées…"}
+{"bgReplace.ai.styleNeonCity": "Ville Néon"}
+{"bgReplace.ai.styleGoldenPalace": "Palais Doré"}
+{"bgReplace.ai.styleBeachSunset": "Plage au Coucher du Soleil"}
+{"bgReplace.ai.generate": "Générer le fond ({{cost}} VB)"}
+{"bgReplace.ai.generating": "Génération…"}
+{"bgReplace.ai.priceNote": "Prix non définitif — le prix des fonds IA n'a pas encore été fixé."}
+{"bgReplace.ai.needPrompt": "Décrivez d'abord le fond que vous voulez."}
+{"bgReplace.ai.generateFirst": "Générez d'abord un fond IA — ou revenez aux Presets."}
+{"bgReplace.ai.generateError": "Impossible de générer ce fond — réessayez."}
+{"bgReplace.ai.loadError": "Impossible de charger l'image de fond générée."}
+{"bgReplace.ai.readyNote": "Fond IA prêt — appuyez sur Remplacer le fond ci-dessous pour l'installer."}
+{"bgReplace.ai.generatedTitle": "Fond généré"}
+{"bgReplace.ai.confirmFeature": "Plaque de fond"}
+{"vocalTune.abHint": "Basculez entre les deux pour entendre exactement ce que l'accordage a changé."}
+{"vocalTune.abTuned": "Accordée"}
+{"vocalTune.creditsRemaining": "{n} Visual Bucs restants"}
+{"vocalTune.downloadButton": "Télécharger la voix accordée"}
+{"vocalTune.dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — jusqu'à 50 Mo. Les voix isolées s'accordent le mieux."}
+{"vocalTune.dropPrompt": "Déposez votre voix ici, ou touchez pour parcourir"}
+{"vocalTune.errorAudioType": "Veuillez choisir un fichier audio (MP3, WAV, M4A, AAC, OGG, FLAC)."}
+{"vocalTune.errorFileTooLarge": "Ce fichier dépasse la limite de 50 Mo."}
+{"vocalTune.errorJobNotFound": "Travail d'accordage introuvable."}
+{"vocalTune.errorNetwork": "Erreur réseau — veuillez réessayer."}
+{"vocalTune.errorStartFailed": "Impossible de démarrer l'accordage. Veuillez réessayer."}
+{"vocalTune.errorTuneFailed": "L'accordage a échoué — vos Visual Bucs ont été remboursés."}
+{"vocalTune.fileSizeChange": "{size} Mo — touchez pour changer"}
+{"vocalTune.hardtuneFallbackNote": "Le suivi note à note n'a pas pu s'accrocher à cet audio, nous avons donc appliqué un accordage global doux à la place — aucune différence de prix, et vos Bucs n'ont été dépensés qu'une fois."}
+{"vocalTune.honestIntro": "Un vrai DSP de hauteur, aucune devinette d'IA. Fonctionne mieux sur des voix isolées — sur un mix complet, il suit le son le plus aigu. Il ne peut pas réparer une mauvaise mélodie, seulement tirer les notes chantées vers la bonne hauteur."}
+{"vocalTune.keyShiftHint": "Déplacez toute la voix vers le haut ou le bas — formants préservés, aucun effet chipmunk."}
+{"vocalTune.keyShiftLabel": "Transposition"}
+{"vocalTune.labelOriginal": "Voix originale"}
+{"vocalTune.labelTuned": "Voix accordée"}
+{"vocalTune.newTuneButton": "Nouvel accordage"}
+{"vocalTune.notesSnapped": " · {n} notes accrochées"}
+{"vocalTune.play": "Lire"}
+{"vocalTune.progressNote": "Cela tourne sur nos serveurs — vous pouvez fermer cet onglet, votre voix accordée vous attendra."}
+{"vocalTune.songHandoff": "Utiliser cette voix dans une chanson →"}
+{"vocalTune.statusQueued": "Dans la file d'accordage…"}
+{"vocalTune.statusTuning": "Accordage — {style}…"}
+{"vocalTune.statusUploading": "Envoi…"}
+{"vocalTune.styleHardtuneBlurb": "Chaque note accrochée durement au demi-ton le plus proche. Intensité 100, retouche instantanée — l'effet vocal robotique moderne. Audacieux, évident, assumé."}
+{"vocalTune.styleLabel": "Style d'accordage"}
+{"vocalTune.styleTransparentBlurb": "Un léger coup de pouce vers la hauteur parfaite. Faible intensité, sensation lente et naturelle — la correction que personne n'entend. Pour les chanteurs qui veulent juste sonner comme leur meilleure prise."}
+{"vocalTune.tuneButton": "Accorder ma voix — {cost} Visual Bucs"}
+{"vocalTune.tuneComplete": "Accordage terminé — {style}"}
+{"vocalTune.waveformUnavailable": "Forme d'onde indisponible"}
+{"mastering.honestFraming": "Une vraie chaîne DSP — nettoyage subsonique, compression glue, EQ d'adoucissement, élargissement stéréo, puis normalisation de loudness en deux passes avec limiteur true-peak. Elle"}
+{"mastering.honestFramingBold": "polit un bon mix ; elle ne peut pas réparer un mauvais."}
+{"mastering.honestFramingEnd": "Fiez-vous à vos oreilles sur la comparaison A/B avant de le sortir."}
+{"samples.error.generationFailed": "La génération a échoué"}
+{"samples.error.zipFailed": "Le ZIP a échoué"}
+{"samples.error.zipDownloadFailed": "Le téléchargement du ZIP a échoué"}
+{"vocalTune.subtitle": "Correction de hauteur, deux saveurs — {cost} Visual Bucs"}
+{"producerTag.subtitle": "Votre drop de signature — le tag dont chaque beat se souvient."}
+{"stems.modeFull": "Séparation complète"}
+{"vocalPolish.polishButton": "Polir les voix · {{cost}} Visual Bucs"}
+{"vocalPolish.tuningDetail": "Dérive d'accordage détectée : {{cents}}¢ → corrigée {{applied}}¢"}
+{"vocalPolish.errorJobFailed": "Le polish vocal a échoué — vos {{cost}} Visual Bucs ont été remboursés."}
+{"producerTag.generateButton": "Préparer mon tag · {{cost}}"}
+{"sfx.categoryWhooshesBlurb": "Souffles, transitions"}
+{"songs.pitchForSync": "Proposer en synchro"}
+{"bgReplace.ai.styleStudio": "Studio"}
+{"vocalTune.pause": "Pause"}
+{"vocalTune.styleTransparentLabel": "Transparent"}
