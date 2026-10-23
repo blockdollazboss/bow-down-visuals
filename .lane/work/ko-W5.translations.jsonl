@@ -1,0 +1,592 @@
+{"linkInBio.tab": "바이오 링크"}
+{"linkInBio.hero.badge": "바이오 링크"}
+{"linkInBio.hero.title": "하나의 페이지."}
+{"linkInBio.hero.titleAccent": "당신의 모든 링크."}
+{"linkInBio.hero.subtitle": "팬을 위한 고급스러운 골드 링크인바이오 페이지를 만드세요. 작성은 무료 — 게시는 {{cost}} Visual Bucs입니다."}
+{"linkInBio.profile.title": "프로필 헤더"}
+{"linkInBio.profile.prefill": "Artist Vault에서 미리 채우기"}
+{"linkInBio.profile.prefillDone": "볼트에서 미리 채웠습니다"}
+{"linkInBio.profile.noVaults": "아직 아티스트 볼트가 없습니다 — Artist Vault에서 만들면 즉시 미리 채울 수 있습니다."}
+{"linkInBio.profile.displayName": "표시 이름"}
+{"linkInBio.profile.displayNamePlaceholder": "아티스트 이름"}
+{"linkInBio.profile.headline": "헤드라인"}
+{"linkInBio.profile.headlinePlaceholder": "가수 · 송라이터 · 스토리텔러"}
+{"linkInBio.profile.bio": "소개"}
+{"linkInBio.profile.bioPlaceholder": "팬이 팔로우하고 싶어지는 두 줄."}
+{"linkInBio.profile.avatarUrl": "아바타 이미지 URL"}
+{"linkInBio.profile.slug": "페이지 핸들"}
+{"linkInBio.profile.slugHint": "공개 URL: bowdownvisuals.com/bio/{{slug}}"}
+{"linkInBio.profile.slugInvalid": "핸들은 소문자, 숫자, 대시만 가능합니다."}
+{"linkInBio.theme.title": "테마"}
+{"linkInBio.theme.goldRoyal": "골드 로열"}
+{"linkInBio.theme.goldRoyalBlurb": "블랙 + 빛나는 골드 — Bow Down의 시그니처 룩"}
+{"linkInBio.theme.midnightGold": "미드나잇 골드"}
+{"linkInBio.theme.midnightGoldBlurb": "딥 블루블랙에 따뜻한 골드 포인트"}
+{"linkInBio.theme.onyxMinimal": "Onyx Minimal"}
+{"linkInBio.theme.onyxMinimalBlurb": "순수한 블랙, 얇은 골드 라인 — 매우 깔끔"}
+{"linkInBio.links.title": "링크"}
+{"linkInBio.links.add": "링크 추가"}
+{"linkInBio.links.titlePlaceholder": "링크 제목 (예: 새 싱글)"}
+{"linkInBio.links.icon": "아이콘"}
+{"linkInBio.links.moveUp": "위로 이동"}
+{"linkInBio.links.moveDown": "아래로 이동"}
+{"linkInBio.links.remove": "링크 제거"}
+{"linkInBio.links.empty": "아직 링크가 없습니다 — 위에서 첫 번째를 추가하세요."}
+{"linkInBio.links.needOne": "게시하기 전에 링크를 최소 하나 추가하세요."}
+{"linkInBio.socials.title": "소셜 아이콘"}
+{"linkInBio.socials.hint": "프로필 URL을 붙여넣으면 페이지에 아이콘이 표시됩니다."}
+{"linkInBio.featured.title": "주요 작업"}
+{"linkInBio.featured.hint": "허브 프로젝트에서 눈에 띄는 작업을 가져오세요 — 팬이 쇼케이스와 클립에 바로 도달합니다."}
+{"linkInBio.featured.fromHub": "허브 프로젝트에서"}
+{"linkInBio.featured.noAssets": "허브 프로젝트에 아직 에셋이 없습니다 — 먼저 무언가 만드세요."}
+{"linkInBio.featured.added": "추가됨"}
+{"linkInBio.featured.add": "추가"}
+{"linkInBio.featured.empty": "아직 주요 작업이 없습니다. 노래, 동영상 또는 썸네일을 강조하세요."}
+{"linkInBio.featured.remove": "제거"}
+{"linkInBio.tipJar.title": "팁 항아리"}
+{"linkInBio.tipJar.hint": "팬이 응원을 보낼 수 있도록 팁 페이지를 연결하세요 (예: /tips/your-handle)."}
+{"linkInBio.actions.saveDraft": "초안 저장"}
+{"linkInBio.actions.saving": "저장 중…"}
+{"linkInBio.actions.publish": "게시 · {{cost}} Visual Bucs"}
+{"linkInBio.actions.publishing": "게시 중…"}
+{"linkInBio.actions.unpublish": "게시 취소"}
+{"linkInBio.actions.unpublishing": "게시 취소 중…"}
+{"linkInBio.actions.viewPage": "라이브 페이지 보기"}
+{"linkInBio.actions.share": "공유"}
+{"linkInBio.actions.copied": "복사됨!"}
+{"linkInBio.actions.copyLink": "링크 복사"}
+{"linkInBio.actions.draftSaved": "초안이 저장되었습니다."}
+{"linkInBio.actions.published": "페이지가 라이브입니다!"}
+{"linkInBio.actions.unpublished": "페이지 게시가 취소되었습니다."}
+{"linkInBio.actions.alreadyPublished": "이 페이지는 이미 게시되어 있습니다."}
+{"linkInBio.actions.statusLive": "라이브 — 링크가 있는 누구나 이 페이지를 볼 수 있습니다"}
+{"linkInBio.actions.statusDraft": "초안 — 이 페이지를 볼 수 있는 사람은 본인뿐입니다"}
+{"linkInBio.actions.outOfCredits": "게시할 Visual Bucs가 부족합니다 — 충전하고 라이브로 전환하세요."}
+{"linkInBio.analytics.title": "클릭 분석"}
+{"linkInBio.analytics.views": "페이지 조회수"}
+{"linkInBio.analytics.clicks": "총 링크 클릭"}
+{"linkInBio.analytics.last7d": "클릭 (7일)"}
+{"linkInBio.analytics.perLink": "링크별 클릭"}
+{"linkInBio.analytics.noData": "아직 클릭이 없습니다 — 페이지를 공유하고 빛나는 모습을 보세요."}
+{"linkInBio.errors.loadFailed": "바이오 페이지를 불러올 수 없습니다."}
+{"linkInBio.errors.saveFailed": "초안을 저장할 수 없습니다."}
+{"linkInBio.errors.publishFailed": "페이지를 게시할 수 없습니다."}
+{"linkInBio.errors.needName": "먼저 표시 이름을 추가하세요."}
+{"linkInBio.public.title": "바이오 링크"}
+{"linkInBio.public.description": "Bow Down Visuals로 만든 크리에이터용 링크인바이오 페이지."}
+{"linkInBio.public.notFound": "페이지를 찾을 수 없음"}
+{"linkInBio.public.notFoundDetail": "이 링크인바이오 페이지는 존재하지 않거나 오프라인되었습니다."}
+{"linkInBio.public.share": "이 페이지 공유"}
+{"linkInBio.preview": "미리보기"}
+{"nfcCards.orderFailed": "주문 실패"}
+{"nfcCards.orderFailedRetry": "주문이 실패했습니다 — 다시 시도하세요."}
+{"nfcCards.saveFailed": "저장 실패"}
+{"nfcCards.heroBadge": "NFC 스마트 명함"}
+{"nfcCards.heroTitle": "당신의 명함,"}
+{"nfcCards.heroTitleAccent": "하지만 탭이 됩니다."}
+{"nfcCards.heroDescription": "안에 NFC 칩이 들어 있는 프리미엄 실물 카드. 어떤 폰에든 탭하면 디지털 카드가 즉시 열립니다 — 링크, 예약, 소셜, 전부. 다시 인쇄할 필요 없이 언제든 업데이트하세요."}
+{"nfcCards.how1t": "1. 카드 디자인"}
+{"nfcCards.how1d": "스타일을 고르고 이름, 링크, 사진을 추가하세요."}
+{"nfcCards.how2t": "2. 저희가 인코딩"}
+{"nfcCards.how2d": "NFC 칩 + QR이 디지털 카드로 프로그래밍됩니다."}
+{"nfcCards.how3t": "3. 탭하고 연결"}
+{"nfcCards.how3d": "집으로 배송됩니다. 폰을 탭하고, QR을 스캔하고, 고객을 확보하세요."}
+{"nfcCards.reservedTitle": "카드가 예약되었습니다!"}
+{"nfcCards.reservedDescription": "디지털 카드는 이미 라이브입니다. 제작 확인과 결제를 위해 연락드리겠습니다 — 오늘은 청구되지 않습니다."}
+{"nfcCards.viewDigitalCard": "디지털 카드 보기"}
+{"nfcCards.alreadyReserved": "이 예약은 이미 완료되었습니다 — 중복이 생성되지 않았습니다."}
+{"nfcCards.orderAnother": "카드 한 장 더 주문"}
+{"nfcCards.buildYourCard": "카드 만들기"}
+{"nfcCards.quantity": "수량"}
+{"nfcCards.total": "합계"}
+{"nfcCards.detailsHint": "사람들이 카드를 탭하면 보게 되는 내용입니다. 언제든 변경할 수 있습니다."}
+{"nfcCards.displayNamePlaceholder": "표시 이름 *"}
+{"nfcCards.titlePlaceholder": "직함 — 예: 부동산 중개인, 이발사, 사진작가"}
+{"nfcCards.bio": "소개"}
+{"nfcCards.bioPlaceholder": "짧은 소개"}
+{"nfcCards.linksLabel": "링크 (Instagram, 예약, 웹사이트…)"}
+{"nfcCards.linkLabelPlaceholder": "라벨"}
+{"nfcCards.addLink": "링크 추가"}
+{"nfcCards.fullNamePlaceholder": "성명 *"}
+{"nfcCards.phonePlaceholder": "전화번호"}
+{"nfcCards.emailPlaceholder": "이메일 *"}
+{"nfcCards.streetPlaceholder": "도로명 주소 *"}
+{"nfcCards.cityPlaceholder": "도시 *"}
+{"nfcCards.statePlaceholder": "주/도 *"}
+{"nfcCards.zipPlaceholder": "우편번호 *"}
+{"nfcCards.shippingPrivacy": "정보는 카드 제작과 배송에만 사용됩니다."}
+{"nfcCards.reviewStyle": "스타일"}
+{"nfcCards.reviewQuantity": "수량"}
+{"nfcCards.reviewDigitalCardFor": "디지털 카드 대상"}
+{"nfcCards.reviewShipTo": "배송지"}
+{"nfcCards.reviewTotal": "확인 시 지불할 합계"}
+{"nfcCards.reserveFreeNote": "예약은 무료입니다 — 오늘은 청구되지 않습니다. 제작 파트너와 카드를 확인한 후 배송 전에 결제를 받습니다."}
+{"nfcCards.back": "뒤로"}
+{"nfcCards.continue": "계속"}
+{"nfcCards.reserving": "예약 중…"}
+{"nfcCards.reserveFree": "내 카드 예약 — 무료"}
+{"nfcCards.signInPromptPrefix": "요청받게 됩니다"}
+{"nfcCards.signIn": "로그인"}
+{"nfcCards.signInPromptSuffix": "카드를 예약하려면."}
+{"nfcCards.mySmartCards": "내 스마트 카드"}
+{"nfcCards.noCardsYet": "아직 카드가 없습니다 — 위에서 첫 번째를 만드세요."}
+{"nfcCards.taps": "탭 {{count}}회"}
+{"nfcCards.editCard": "카드 편집"}
+{"nfcCards.preview": "미리보기"}
+{"nfcCards.orderHistory": "주문 내역"}
+{"nfcCards.questions": "질문"}
+{"nfcCards.faq1q": "탭은 어떻게 작동하나요?"}
+{"nfcCards.faq1a": "모든 카드 안에는 NTAG213 NFC 칩이 들어 있습니다. 최신 폰에 탭하면 디지털 카드가 즉시 열립니다 — 앱이 필요 없습니다. 구형 폰은 뒷면에 인쇄된 QR을 스캔할 수 있습니다."}
+{"nfcCards.faq2q": "주문 후 링크를 변경할 수 있나요?"}
+{"nfcCards.faq2a": "네 — 그게 핵심입니다. 카드는 언제든 편집할 수 있는 디지털 프로필을 가리킵니다: 링크, 직함, 소개, 사진. 실물 카드는 절대 구식이 되지 않습니다."}
+{"nfcCards.faq3q": "결제는 언제 하나요?"}
+{"nfcCards.faq3a": "오늘은 무료로 예약합니다. 제작 파트너와 카드가 확인되면 결제를 받고 카드가 바로 배송됩니다."}
+{"nfcCards.faq4q": "카드를 받기까지 얼마나 걸리나요?"}
+{"nfcCards.faq4a": "카드는 주문 제작입니다. 결제 확인 후 제작과 배송에 2~3주를 예상하세요. 모든 단계를 알려드리겠습니다."}
+{"nfcCards.faq5q": "재주문하거나 팀용 카드를 받을 수 있나요?"}
+{"nfcCards.faq5a": "네 — 원하는 수량을 주문할 수 있고 각 카드마다 자체 디지털 프로필이 제공됩니다. 팀 팩은 부동산 중개인, 이발사, 살롱, 에이전시에 좋습니다."}
+{"nfcCards.editDigitalCard": "디지털 카드 편집"}
+{"nfcCards.displayName": "표시 이름"}
+{"nfcCards.title": "직함"}
+{"nfcCards.cancel": "취소"}
+{"nfcCards.save": "저장"}
+{"privacy.contactSupport": "문의 / 지원"}
+{"privacy.lastUpdated": "최종 업데이트: 2026년 9월"}
+{"privacy.pageDescription": "Bow Down Visuals가 데이터를 처리하는 방식."}
+{"privacy.pageTitle": "개인정보 처리방침"}
+{"privacy.section10ContactLink": "문의 페이지"}
+{"privacy.section10Intro": "개인정보 관련 질문은 이메일로"}
+{"privacy.section10Middle": "또는 다음을 방문하세요"}
+{"privacy.section10Title": "10. 문의"}
+{"privacy.section1Body": "Bow Down Visuals는 동영상, 음악, 이미지, 보이스오버, 립싱크 동영상, 가사, 캡션, 썸네일, 프로모 클립 및 관련 디지털 콘텐츠를 생성하기 위한 AI 기반 Visual Bucs를 제공하는 디지털 크리에이터 플랫폼을 운영합니다. 이 방침은 정보의 수집, 사용, 보호 방법을 설명합니다."}
+{"privacy.section1Title": "1. 회사 소개"}
+{"privacy.section2Item1Body": "가입 시 이메일 주소와 비밀번호(해시 처리), 또는 Google로 로그인할 경우 기본 프로필 정보"}
+{"privacy.section2Item1Label": "계정 정보:"}
+{"privacy.section2Item2Body": "Stripe가 전적으로 처리합니다 — 원본 카드 데이터는 저장하지 않습니다"}
+{"privacy.section2Item2Label": "결제 정보:"}
+{"privacy.section2Item3Body": "Visual Bucs 사용량, 도구 상호작용, 생성 콘텐츠 프롬프트"}
+{"privacy.section2Item3Label": "사용 데이터:"}
+{"privacy.section2Item4Body": "AI 출력을 맞춤화하기 위해 입력하는 정보(아티스트 이름, 장르, 스타일 선호도)"}
+{"privacy.section2Item4Label": "아티스트 프로필 데이터:"}
+{"privacy.section2Item5Body": "가입 시 사용된 추천 코드와 획득한 추천 보상"}
+{"privacy.section2Item5Label": "추천 데이터:"}
+{"privacy.section2Item6Body": "보안과 성능을 위한 브라우저 유형, IP 주소, 세션 데이터"}
+{"privacy.section2Item6Label": "기술 데이터:"}
+{"privacy.section2Title": "2. 수집하는 정보"}
+{"privacy.section3Item1": "플랫폼 운영 및 개선"}
+{"privacy.section3Item2": "결제 처리 및 구독 관리"}
+{"privacy.section3Item3": "AI 생성 출력을 아티스트 프로필에 맞게 맞춤화"}
+{"privacy.section3Item4": "계정 관련 이메일(영수증, 보안 알림) 발송"}
+{"privacy.section3Item5": "법적 의무 준수"}
+{"privacy.section3Title": "3. 정보 사용 방법"}
+{"privacy.section4Intro": "개인 데이터를 판매하지 않습니다. 데이터 공유는 다음 경우에만 이루어집니다:"}
+{"privacy.section4Item1Body": "결제 처리"}
+{"privacy.section4Item1Label": "Stripe"}
+{"privacy.section4Item2Body": "데이터베이스 및 인증"}
+{"privacy.section4Item2Label": "Supabase"}
+{"privacy.section4Item3Body": "Google로 로그인하는 경우(Google 개인정보 처리방침 적용)"}
+{"privacy.section4Item3Label": "Google"}
+{"privacy.section4Item4Body": "생성 요청 수행(프롬프트가 제3자 AI API에서 처리될 수 있음)"}
+{"privacy.section4Item4Label": "AI 제공업체"}
+{"privacy.section4Item5": "적용 법률에서 요구하는 경우 법 집행 기관"}
+{"privacy.section4Title": "4. 데이터 공유"}
+{"privacy.section5Body": "인증에 필요한 세션 쿠키를 사용합니다. 제3자 광고 추적기는 운영하지 않습니다. 분석을 사용하는 경우 집계된 사용 데이터로 제한됩니다."}
+{"privacy.section5Title": "5. 쿠키 및 추적"}
+{"privacy.section6Body": "계정이 활성화되어 있는 동안 계정 데이터를 보관합니다. 언제든 연락하여 삭제를 요청할 수 있습니다. 결제 기록은 법률에서 요구하는 기간 동안 보관됩니다."}
+{"privacy.section6Title": "6. 데이터 보관"}
+{"privacy.section7Intro": "거주 지역에 따라 개인 데이터에 접근, 수정, 삭제할 권리가 있을 수 있습니다. 이러한 권리를 행사하려면 다음으로 연락하세요"}
+{"privacy.section7Title": "7. 귀하의 권리"}
+{"privacy.section8Body": "암호화된 연결(HTTPS), 해시된 비밀번호, 데이터베이스 행 수준 보안을 포함하는 업계 표준 보안 조치를 사용합니다. 100% 안전한 시스템은 없습니다. 계정에는 강력하고 고유한 비밀번호를 사용하세요."}
+{"privacy.section8Title": "8. 보안"}
+{"privacy.section9Body": "이 방침은 수시로 업데이트될 수 있습니다. 중요한 변경 사항은 이메일이나 앱 내 알림으로 알려드립니다."}
+{"privacy.section9Title": "9. 방침 변경"}
+{"privacy.title": "개인정보 처리방침"}
+{"promote.copyLabel": "{{label}} 복사"}
+{"promote.copy": "복사"}
+{"promote.copied": "복사됨"}
+{"promote.hero.badge": "프로모 카피 생성기"}
+{"promote.hero.title": "프로모 카피"}
+{"promote.hero.subtitle": "기능을 고르고, 형식과 톤을 고르면 — 해시태그와 CTA가 포함된 게시 준비 완료 카피를 얻을 수 있습니다. 생성당 {{cost}} Visual Buc."}
+{"promote.hero.back": "모든 기능으로 돌아가기"}
+{"promote.form.feature": "홍보할 기능"}
+{"promote.form.contentType": "콘텐츠 유형"}
+{"promote.form.tone": "톤"}
+{"promote.form.angle": "강조할 각도"}
+{"promote.form.optional": "(선택사항)"}
+{"promote.form.focusPlaceholder": "예: 1 Visual Buc 가격, 속도, 새 아티스트에게 완벽…"}
+{"promote.contentTypes.twitter.label": "X 게시물"}
+{"promote.contentTypes.twitter.blurb": "리포스트를 위해 만든 강렬한 게시물"}
+{"promote.contentTypes.instagram.label": "IG 캡션"}
+{"promote.contentTypes.instagram.blurb": "매력적인 캡션 + 해시태그"}
+{"promote.contentTypes.tiktok.label": "TikTok 스크립트"}
+{"promote.contentTypes.tiktok.blurb": "훅 + 비트, 말하는 스타일"}
+{"promote.contentTypes.email.label": "이메일 블라스트"}
+{"promote.contentTypes.email.blurb": "제목 줄 + 짧은 본문"}
+{"promote.contentTypes.banner.label": "배너 헤드라인"}
+{"promote.contentTypes.banner.blurb": "스크롤을 멈추는 5개"}
+{"promote.contentTypes.ad.label": "광고 카피"}
+{"promote.contentTypes.ad.blurb": "헤드라인 + 주요 텍스트"}
+{"promote.tones.hype": "하이프"}
+{"promote.tones.professional": "프로페셔널"}
+{"promote.tones.funny": "퍼니"}
+{"promote.tones.luxury": "럭셔리"}
+{"promote.signIn.message": "프로모 콘텐츠를 생성하려면 로그인하세요."}
+{"promote.signIn.cta": "로그인"}
+{"promote.generate": "프로모 생성 · {{cost}} Visual Buc"}
+{"promote.generating": "프로모 작성 중…"}
+{"promote.errorGenerationFailed": "프로모 생성에 실패했습니다 — 다시 시도하세요."}
+{"promote.results.titlePrefix": "당신의 프로모:"}
+{"promote.results.regenerate": "재생성"}
+{"promote.results.headline": "헤드라인"}
+{"promote.results.copy": "카피"}
+{"promote.results.alternate": "대안 {{n}}"}
+{"promote.results.cta": "콜 투 액션"}
+{"promote.results.hashtags": "해시태그"}
+{"promote.tabs.promoCopy": "프로모 카피"}
+{"promote.tabs.linkInBio": "바이오 링크"}
+{"coach.copyPlan": "플랜 복사"}
+{"coach.tabMoneyTracker": "머니 트래커"}
+{"coach.tabGroupPlan": "플랜"}
+{"coach.tabGroupTrack": "추적"}
+{"coach.tabGroupEarn": "수익"}
+{"coach.tabGroupSell": "판매"}
+{"coach.tabGroupGrow": "성장"}
+{"coach.tabPlan": "머니 플랜"}
+{"coach.tabNiche": "니치 분석기"}
+{"coach.tabBrandDeals": "브랜드 딜"}
+{"coach.tabShoutouts": "샤우트아웃"}
+{"coach.tabTips": "팁"}
+{"coach.tabBeats": "비트 판매"}
+{"coach.tabMemberships": "멤버십"}
+{"coach.tabDistribute": "배포"}
+{"coach.tabStorefronts": "스토어프론트"}
+{"coach.tabMyShop": "내 상점"}
+{"coach.tabPressKit": "프레스 키트"}
+{"coach.tabEmailList": "이메일 리스트"}
+{"coach.tabCollabs": "콜라보"}
+{"coach.tabContests": "콘테스트"}
+{"coach.tabReferrals": "추천"}
+{"coach.tabTeam": "팀"}
+{"coach.titleHighlight": "머니 룸"}
+{"nfcCardProfile.shareTitle": "디지털 명함"}
+{"nfcCardProfile.notActive": "이 카드는 활성화되어 있지 않습니다"}
+{"nfcCardProfile.notActiveDetail": "링크가 잘못 입력되었거나 소유자가 이 디지털 카드를 비활성화했습니다."}
+{"nfcCardProfile.backToSite": "← Bow Down Visuals로 돌아가기"}
+{"nfcCardProfile.tapToConnect": "탭하여 연결"}
+{"nfcCardProfile.saveContact": "연락처 저장"}
+{"nfcCardProfile.share": "공유"}
+{"nfcCardProfile.copied": "복사됨!"}
+{"nfcCardProfile.poweredBy": "Powered by"}
+{"nfcCardProfile.nfcSmartCards": "NFC 스마트 카드"}
+{"qrLogin.title": "스캔하여 로그인"}
+{"qrLogin.generating": "QR 코드 생성 중..."}
+{"qrLogin.scanInstructions": "폰 카메라로 스캔하세요. 승인하려면 폰에서 로그인되어 있어야 합니다."}
+{"qrLogin.expiresIn": "코드는 5분 후 만료됩니다"}
+{"qrLogin.approved": "승인됨! 로그인 중..."}
+{"qrLogin.expired": "코드 만료됨"}
+{"qrLogin.generateNew": "새 코드 생성"}
+{"qrLogin.failed": "코드 생성에 실패했습니다. 다시 시도하세요."}
+{"qrLogin.retry": "재시도"}
+{"notFound.pageTitle": "페이지를 찾을 수 없음"}
+{"notFound.pageDescription": "이 페이지는 존재하지 않습니다 — 다시 창작하러 돌아가세요."}
+{"notFound.heading": "볼트에서 길을 잃었나요?"}
+{"notFound.description": "이 페이지는 지도에서 벗어났습니다. 하지만 왕관은 여전히 여기 있습니다 — 스튜디오로 돌아가세요."}
+{"notFound.backToHome": "홈으로 돌아가기"}
+{"notFound.myProjects": "Thy Vision"}
+{"copyright.download_draft": "초안 다운로드"}
+{"locations.useInCoverArt": "커버 아트에 사용"}
+{"goLive.webhookHelpBefore": "다음으로 이동: "}
+{"goLive.liveBadge": "라이브: {{title}}"}
+{"myClips.extractAudio": "오디오 추출"}
+{"myClips.extractAudioDone": "오디오가 추출되었습니다"}
+{"myClips.extractAudioFailed": "오디오 추출 실패"}
+{"myClips.extractAudioRefunded": "자동으로 환불되었습니다."}
+{"myClips.extracting": "추출 중…"}
+{"myClips.downloadMp3": "MP3 다운로드"}
+{"myClips.pageTitle": "내 클립"}
+{"myClips.pageDescription": "생성한 프로모 클립 라이브러리."}
+{"myClips.title": "생성한 클립"}
+{"myClips.generateNew": "새 클립 생성"}
+{"myClips.backToProjects": "내 프로젝트로 돌아가기"}
+{"myClips.noClips": "아직 클립이 없습니다"}
+{"myClips.noClipsHint": "생성된 장면 클립은 여기에 자동으로 저장됩니다. 씬 스튜디오에서 첫 클립을 생성하세요."}
+{"myClips.videoForSong": "내 노래의 동영상"}
+{"myClips.use": "사용"}
+{"myClips.clipReady": "클립 준비됨"}
+{"myClips.ready": "준비됨"}
+{"myClips.done": "완료"}
+{"myClips.attachToScene": "프로젝트 장면에 첨부"}
+{"myClips.noCharge": "Visual Bucs가 청구되지 않습니다"}
+{"myClips.noProjects": "장면이 있는 프로젝트를 찾을 수 없음"}
+{"myClips.project": "프로젝트"}
+{"myClips.noScenes": "아직 저장된 장면이 없습니다"}
+{"myClips.scene": "장면"}
+{"myClips.hasClip": "클립 있음"}
+{"myClips.cancel": "취소"}
+{"myClips.attaching": "첨부 중…"}
+{"myClips.attachClip": "클립 첨부"}
+{"myClips.deleteConfirm": "삭제할까요?"}
+{"myClips.yes": "예"}
+{"myClips.copied": "복사됨"}
+{"myClips.copyUrl": "URL 복사"}
+{"myClips.clipAttached": "클립이 첨부되었습니다 — 클립 준비됨!"}
+{"myClips.clipDeleted": "클립이 삭제되었습니다"}
+{"myClips.errorLoadProjects": "프로젝트를 불러올 수 없습니다"}
+{"myClips.errorAttach": "클립을 첨부할 수 없습니다"}
+{"myClips.errorAttachFailed": "첨부 실패"}
+{"myClips.errorDelete": "삭제 실패"}
+{"myClips.noProjectsHint": "Visual Vibes를 열고 먼저 장면을 다시 만드세요."}
+{"myClips.noScenesHint": "Visual Vibes를 열고 장면을 불러온 다음 돌아와서 이 클립을 첨부하세요."}
+{"myClips.openEditor": "Visual Vibes 열기"}
+{"myClips.attachedDesc": "장면 {{index}}{{section}}에 첨부되었습니다. Visual Vibes를 열어 확인하세요."}
+{"mediaDetector.filesSkipped_other": "파일 {{count}}개가 건너뛰어졌습니다 — 지원되지 않는 유형이거나 25MB 초과입니다."}
+{"mediaDetector.badge": "AI 미디어 탐지기"}
+{"mediaDetector.titleStart": "진짜인지"}
+{"mediaDetector.titleAi": "AI인지?"}
+{"mediaDetector.titleEnd": "확실히 아세요."}
+{"mediaDetector.subtitle": "이미지, 동영상 또는 오디오 파일을 업로드하거나 — 링크를 붙여넣으면 — AI 포렌식 평가를 받을 수 있습니다: 판정, 신뢰도 점수, 발견된 정확한 신호."}
+{"mediaDetector.costPerCheck": "검사당 {{cost}} Visual Bucs."}
+{"mediaDetector.dropHint": "파일을 여기에 놓거나 클릭하여 업로드"}
+{"mediaDetector.fileTypes": "이미지, 동영상, 오디오 — 각각 25MB까지. 배치 지원."}
+{"mediaDetector.urlPlaceholder": "…또는 이미지 URL 붙여넣기"}
+{"mediaDetector.add": "추가"}
+{"mediaDetector.queueStatus": "파일 {{count}}개 · {{done}}개 검사됨"}
+{"mediaDetector.clearAll": "모두 지우기"}
+{"mediaDetector.checkAll": "모두 검사 ({{cost}} Visual Bucs)"}
+{"mediaDetector.remove": "제거"}
+{"mediaDetector.analyze": "분석 · {{cost}} Visual Bucs"}
+{"mediaDetector.analyzing": "AI 신호 분석 중…"}
+{"mediaDetector.analyzingVideo": "프레임 추출 후 분석…"}
+{"mediaDetector.retry": "재시도"}
+{"mediaDetector.emptyTitle": "검사할 것이 없습니다"}
+{"mediaDetector.emptySubtitle": "파일을 업로드하거나 URL을 붙여넣어 첫 탐지를 실행하세요."}
+{"mediaDetector.verdictAi": "AI 생성 가능성이 높음"}
+{"mediaDetector.verdictHuman": "사람이 만든 가능성이 높음"}
+{"mediaDetector.verdictUncertain": "불확실"}
+{"mediaDetector.detectedSignals": "탐지된 신호"}
+{"mediaDetector.pointsToAi": "AI를 가리킴"}
+{"mediaDetector.pointsToHuman": "사람을 가리킴"}
+{"mediaDetector.errorOutOfCredits": "Visual Bucs가 부족합니다."}
+{"mediaDetector.errorDetectionFailed": "탐지에 실패했습니다. 다시 시도하세요."}
+{"mediaDetector.errorDetectionFailedShort": "탐지 실패."}
+{"repurpose.addCaptions": "캡션 추가"}
+{"repurpose.modePack": "콘텐츠 팩"}
+{"repurpose.badge": "콘텐츠 리퍼포저"}
+{"repurpose.titlePrefix": "동영상 하나를 넣으면,"}
+{"repurpose.titleSuffix": "콘텐츠 캘린더가 나옵니다"}
+{"repurpose.hero": "동영상을 업로드하세요 — AI가 시청하고 10개 구성 팩을 만듭니다: 자동 컷 세로 클립 3개, AI 썸네일 3개, 캡션 + 해시태그 세트 5개, TikTok, Reels, Shorts, X에 맞춘 플랫폼 최적화 설명."}
+{"repurpose.signInRequired": "동영상을 리퍼포즈하려면 로그인하세요."}
+{"repurpose.step1.title": "동영상 넣기"}
+{"repurpose.step1.blurb": "MP4, MOV, WebM · 최대 80MB"}
+{"repurpose.step1.chooseFile": "동영상 파일 선택"}
+{"repurpose.step1.fromCameraRoll": "카메라 롤이나 내보내기에서"}
+{"repurpose.step1.orPasteUrl": "또는 동영상 URL 붙여넣기"}
+{"repurpose.step1.urlPlaceholder": "https://… (프로젝트 스토리지에서)"}
+{"repurpose.step1.urlNote": "URL은 프로젝트 스토리지에서 온 것이어야 합니다."}
+{"repurpose.building": "팩을 만드는 중…"}
+{"repurpose.repurposeButton": "내 동영상 리퍼포즈 · {{credits}} Visual Bucs"}
+{"repurpose.costNote": "{{pack}} Visual Bucs로 전사, AI 분석, 자동 컷 클립 3개, AI 썸네일 3개가 모두 포함됩니다. 리롤은 각각 {{reroll}} Visual Bucs. 복사와 다운로드는 무료입니다."}
+{"repurpose.packReady": "팩 구성 요소 준비됨"}
+{"repurpose.renderingNote": "클립과 썸네일은 백그라운드에서 렌더링됩니다 — 탭을 닫아도 기다리고 있을 겁니다."}
+{"repurpose.clips.title": "세로 클립 3개"}
+{"repurpose.clips.blurb": "자동 컷 9:16 · TikTok, Reels, Shorts 준비 완료"}
+{"repurpose.clips.newMoments": "새 순간 · {{cost}}VB"}
+{"repurpose.clips.cutFailed": "컷 실패"}
+{"repurpose.clips.cutting": "자르는 중…"}
+{"repurpose.thumbs.title": "AI 썸네일 3개"}
+{"repurpose.thumbs.blurb": "클립용 9:16 커버"}
+{"repurpose.thumbs.newConcepts": "새 컨셉 · {{cost}}VB"}
+{"repurpose.thumbs.genFailed": "생성 실패"}
+{"repurpose.thumbs.painting": "그리는 중…"}
+{"repurpose.thumbs.alt": "썸네일 컨셉 {{n}}"}
+{"repurpose.captions.title": "캡션 + 해시태그 세트 5개"}
+{"repurpose.captions.blurb": "게시 준비 완료 — 어떤 세트든 무료로 복사"}
+{"repurpose.platforms.title": "플랫폼별 설명"}
+{"repurpose.platforms.blurb": "각 알고리즘에 맞춤"}
+{"repurpose.platforms.noDesc": "이 플랫폼에 대해 생성된 설명이 없습니다."}
+{"repurpose.download": "다운로드"}
+{"repurpose.copyAll": "모두 복사"}
+{"repurpose.copy": "복사"}
+{"repurpose.copied": "복사됨"}
+{"repurpose.reroll": "리롤 · {{cost}}VB"}
+{"repurpose.error.copyFailed": "클립보드에 복사할 수 없습니다."}
+{"repurpose.error.noSource": "먼저 동영상 파일을 업로드하거나 동영상 URL을 붙여넣으세요."}
+{"repurpose.error.repurposeFailed": "리퍼포즈에 실패했습니다 — 다시 시도하세요."}
+{"repurpose.error.clipJobFailed": "클립 작업 조회 실패."}
+{"repurpose.error.thumbJobFailed": "썸네일 작업 조회 실패."}
+{"repurpose.error.clipCuttingFailed": "클립 자르기에 실패했습니다. 팩 Visual Bucs는 텍스트 출력을 커버합니다 — 클립은 동영상 편집기에서 다시 자를 수 있습니다."}
+{"repurpose.error.thumbFailed": "썸네일 이미지를 생성할 수 없습니다 — 아래 썸네일 프롬프트는 어떤 이미지 도구에서도 작동합니다."}
+{"repurpose.error.lostJobs": "백그라운드 작업을 놓쳤습니다 — 새로고침하여 확인하세요."}
+{"repurpose.error.rerollFailed": "리롤 실패 — 다시 시도하세요."}
+{"repurpose.error.thumbRerollFailed": "썸네일 리롤 실패 — 다시 시도하세요."}
+{"artistVault.worldVoiceSection": "월드 보이스"}
+{"artistVault.worldVoiceHint": "월드에서 이 캐릭터로 말할 때 어떤 소리가 나는지. Natural = 본인의 목소리."}
+{"artistVault.voicePresetDeep": "딥"}
+{"artistVault.voicePresetBright": "브라이트"}
+{"artistVault.voicePitch": "피치"}
+{"artistVault.voiceFormant": "몸 크기"}
+{"artistVault.voiceBody": "공명"}
+{"artistVault.emptyProfilesTitle": "볼트가 비어 있습니다"}
+{"artistVault.profilesTitle": "크리에이티브 볼트"}
+{"catalogVault.title": "카탈로그 볼트"}
+{"catalogVault.copy": "유산을 남기세요. 200 Visual Bucs 일회성 결제로 이 릴리스의 사전 저장 페이지, 스토어프론트 항목, 에셋이 Bow Down Visuals에 영원히 유지됩니다. 갱신 없음, 삭제 없음."}
+{"catalogVault.guarantee1": "사전 저장 페이지가 영원히 유지됩니다"}
+{"catalogVault.guarantee2": "스토어프론트 항목이 만료되지 않습니다"}
+{"catalogVault.guarantee3": "아트워크 + 오디오 에셋이 보존됩니다"}
+{"catalogVault.vaultButton": "영원히 볼트에 보관 · 200 Visual Bucs"}
+{"catalogVault.vaulting": "볼트 처리 중…"}
+{"catalogVault.vaultFailed": "이 릴리스를 볼트에 보관할 수 없습니다 — 다시 시도하세요."}
+{"catalogVault.vaulted": "볼트 완료"}
+{"catalogVault.vaultedCopy": "\"{{title}}\"이(가) 볼트에 보관되었습니다 — 사전 저장 페이지, 스토어프론트 항목, 에셋이 Bow Down Visuals에 영원히 유지됩니다."}
+{"generations.download": "다운로드"}
+{"hooks.tab.cta.label": "CTA 생성기"}
+{"hooks.tab.titles.label": "제목"}
+{"hooks.tab.dice.label": "주사위"}
+{"hooks.ctaSub": "모든 동영상에는 강력한 콜 투 액션이 필요합니다. 목표를 고르면 전환에 최적화된 CTA 10개를 작성합니다, 가장 강한 것부터."}
+{"hooks.ctaTopicLabel": "동영상은 무엇에 관한 것인가요?"}
+{"hooks.ctaTopicPlaceholder": "예: 새 싱글 'Golden Tide'가 금요일에 나옵니다"}
+{"hooks.ctaGoalLabel": "시청자가 무엇을 해야 하나요?"}
+{"hooks.ctaGoal.subscribe.label": "구독"}
+{"hooks.ctaGoal.comment.label": "댓글"}
+{"hooks.ctaGoal.share.label": "공유"}
+{"hooks.ctaGoal.follow.label": "팔로우"}
+{"hooks.ctaGoal.buy.label": "구매"}
+{"hooks.ctaGoal.stream.label": "스트리밍"}
+{"hooks.creditNoteCta": "생성당 50 Visual Bucs · Thy Cheat Code 제공"}
+{"hooks.generateCtas": "CTA 생성"}
+{"hooks.cookingCtas": "CTA 작성 중…"}
+{"hooks.yourCtas": "당신의 CTA — 강도 순"}
+{"hooks.ctaPlacement.opener.label": "오프너"}
+{"hooks.ctaPlacement.mid-roll.label": "미드롤"}
+{"hooks.ctaPlacement.closer.label": "클로저"}
+{"hooks.ctaPlacement.pinned-comment.label": "고정 댓글"}
+{"hooks.ctaStrengthLabel": "강도"}
+{"hooks.addToScript": "스크립트에 추가"}
+{"hooks.addedToScript": "스크립트에 있음"}
+{"hooks.ctaHandoffTip": "\"스크립트에 추가\"를 탭하여 CTA를 허브 프로젝트에 넣으세요 — Script Writer와 보이스오버가 거기서 가져갑니다."}
+{"hooks.errNeedVideoTopic": "먼저 동영상이 무엇에 관한 것인지 알려주세요."}
+{"hooks.errCtasFailed": "CTA를 생성할 수 없습니다 — 다시 시도하세요."}
+{"hooks.fullIntelligenceCheck": "전체 인텔리전스 검사"}
+{"hooks.sendToScriptWriter": "Script Writer로 보내기"}
+{"hooks.captions.needBurnedIn": "동영상에 구운 캡션이 필요하신가요?"}
+{"importPage.viewLibrary": "내 클립"}
+{"streamPack.goLive": "팩 준비 완료 — Go Live에서 스트림을 설정하세요"}
+{"streamPack.libraryTitle": "스트림 팩 라이브러리"}
+{"streamPack.libraryNote": "생성한 모든 그래픽이 여기에 저장됩니다. 원하는 것을 Go Live 스튜디오에 추가하세요 — 스튜디오의 팩 트레이에서 장면에 들어갈 준비를 하고 기다립니다."}
+{"streamPack.libraryEmpty": "아직 저장된 것이 없습니다 — 위에서 팩을 생성하면 여기에 도착합니다."}
+{"streamPack.libraryLoading": "라이브러리 불러오는 중…"}
+{"streamPack.libraryError": "라이브러리를 불러올 수 없습니다."}
+{"streamPack.libraryActionFailed": "변경 사항이 저장되지 않았습니다 — 다시 시도하세요."}
+{"streamPack.addToStudio": "내 스튜디오에 추가"}
+{"streamPack.inStudio": "내 스튜디오에 있음"}
+{"streamPack.removeFromStudio": "제거"}
+{"scriptWriter.teleprompterLaunch": "▶ 텔레프롬프터 실행"}
+{"scriptWriter.teleprompterClose": "텔레프롬프터 닫기"}
+{"scriptWriter.teleprompterPlay": "재생"}
+{"scriptWriter.teleprompterPause": "일시정지"}
+{"scriptWriter.teleprompterRestart": "처음부터 다시 시작"}
+{"scriptWriter.teleprompterWpm": "속도"}
+{"scriptWriter.teleprompterWpmValue": "{{wpm}} WPM"}
+{"scriptWriter.teleprompterFontSmaller": "작은 텍스트"}
+{"scriptWriter.teleprompterFontLarger": "큰 텍스트"}
+{"scriptWriter.teleprompterMirror": "텔레프롬프터 하드웨어용 미러"}
+{"scriptWriter.teleprompterFullscreen": "전체 화면"}
+{"scriptWriter.teleprompterWords": "단어 {{count}}개"}
+{"scriptWriter.teleprompterReadTime": "읽기 시간 약 {{min}}분"}
+{"scriptWriter.teleprompterHint": "스페이스 = 재생/일시정지 · ↑↓ = 속도 · +/− = 텍스트 크기 · Esc = 닫기 · 스크립트 클릭 = 일시정지"}
+{"scriptWriter.hookHintLabel": "콘텐츠 플랜의 승리 훅"}
+{"scriptWriter.hookHintBlurb": "이 줄로 시작하세요 — 바이럴 루프를 위해 만들어졌습니다."}
+{"scriptWriter.dismiss": "닫기"}
+{"scriptWriter.sendToScheduler": "스케줄러"}
+{"scriptWriter.sendToVoiceover": "보이스오버"}
+{"titles.sendToScheduler": "스케줄러로 보내기"}
+{"library.pageDescription": "크리에이터를 위한 템플릿, 프리셋, 폰트."}
+{"library.kicker": "당신의 크리에이티브 무기고"}
+{"library.headingB": "라이브러리"}
+{"library.sub": "도구에 바로 연결되는 템플릿, 프리셋, 폰트. 하나를 고르고 사용을 누르고 계속 만드세요."}
+{"library.searchPlaceholder": "템플릿, 프리셋, 폰트 검색…"}
+{"library.tabTemplates": "템플릿"}
+{"library.tabPresets": "프리셋"}
+{"library.tabFonts": "폰트"}
+{"library.recentlyUsed": "최근 사용"}
+{"library.use": "사용"}
+{"library.useFont": "폰트 복사"}
+{"library.copied": "복사됨!"}
+{"library.browse": "라이브러리 탐색"}
+{"library.noResults": "아무것도 찾을 수 없습니다 — 다른 검색을 시도하세요."}
+{"weekly_contest.aria": "주간 크리에이터 콘테스트"}
+{"weekly_contest.label": "주간 크리에이터 콘테스트"}
+{"weekly_contest.drops_in": "시작까지"}
+{"weekly_contest.ends_in": "종료까지"}
+{"weekly_contest.enter_now": "지금 참가"}
+{"weekly_contest.view_entries": "참가작 보기"}
+{"weekly_contest.enter_hint": "동영상을 게시하면 자동으로 참가됩니다 — 우승자는 이번 주 {{cap}} 풀에서 Visual Bucs로 지급받습니다."}
+{"weekly_contest.judging_title": "심사가 시작되었습니다 — 모든 투표가 왕관을 움직입니다"}
+{"weekly_contest.judging_sub": "\"{{title}}\"의 참가가 마감되었습니다. 좋아하는 작품에 투표를 모아주세요 — 커뮤니티의 왕관이 결정합니다."}
+{"weekly_contest.winners_in": "우승자 발표까지"}
+{"weekly_contest.vote_now": "왕관에 투표"}
+{"weekly_contest.winners_dropped": "우승자가 방금 발표되었습니다"}
+{"weekly_contest.winners_sub": "\"{{title}}\"이(가) 왕관을 차지했습니다 — 상금은 Visual Bucs로 지급되었습니다."}
+{"weekly_contest.a_creator": "크리에이터"}
+{"weekly_contest.see_winners": "우승자 서클 보기"}
+{"weekly_contest.hall_of_fame": "명예의 전당"}
+{"weekly_contest.next_drop": "다음 콘테스트는 월요일에 시작"}
+{"weekly_contest.next_drop_sub": "하나의 테마. 일주일. {{cap}}가 걸려 있습니다. 다음: \"{{theme}}\" (#{{hashtag}})."}
+{"weekly_contest.admin_nudge": "관리자: 이번 주 콘테스트가 아직 라이브가 아닙니다. 한 번의 탭으로 {{cap}} 풀과 함께 \"{{theme}}\"을(를) 시작하세요."}
+{"weekly_contest.launching": "시작 중…"}
+{"weekly_contest.launch_week": "이번 주 콘테스트 시작"}
+{"weekly_contest.while_you_wait": "기다리는 동안: 명예의 전당 탐색"}
+{"weekly_contest.last_week": "지난주 왕관"}
+{"weekly_contest.see_all": "모두 보기"}
+{"chooseArtist.dragHint": "아티스트를 주요 슬롯으로 드래그하여 누가 어디서 빛날지 선택하세요."}
+{"chooseArtist.startCreatingWith": "{{name}}와(과) 만들기 시작"}
+{"collabs.brandDealsLink": "브랜드 딜"}
+{"collabs.collabExplainer": "크리에이터 간 파트너십 — 스폰서가 아닌 협력자를 찾으세요. 대신 브랜드 돈을 쫓고 싶다면 다음을 보세요 "}
+{"community.replies.scheduleLink": "스케줄러에서 게시물 예약"}
+{"community.messagesLink": "다이렉트 메시지 열기 →"}
+{"contests.winnersCircle": "우승자 서클"}
+{"contests.share": "공유"}
+{"shows.setlistLink": "세트리스트 만들기 →"}
+{"tour.setlistLink": "세트리스트 만들기 →"}
+{"shoutouts.paidTitle": "결제 완료 — 샤우트아웃이 예약되었습니다!"}
+{"shoutouts.paidDesc": "샤우트아웃이 결제되고 수락되었습니다. 크리에이터가 녹음하여 배송 기간 내에 보내드립니다."}
+{"randomizer.badge": "Thy Cheat Code의 주사위"}
+{"randomizer.titlePrefix": "콘텐츠"}
+{"randomizer.titleSuffix": "랜덤라이저"}
+{"randomizer.hero": "빈 페이지를 보며 막막하신가요? 무료 불꽃을 위해 주사위를 굴리세요 — 또는 Thy Cheat Code AI가 100 Visual Bucs로 당신만을 위한 신선한 아이디어 5개를 만들게 하세요."}
+{"randomizer.categoriesLabel": "랜덤라이저 카테고리"}
+{"randomizer.categories.video-ideas.label": "동영상 아이디어"}
+{"randomizer.categories.video-ideas.blurb": "다음 뮤직비디오나 콘텐츠 드롭을 위한 신선한 컨셉."}
+{"randomizer.categories.hooks.label": "훅"}
+{"randomizer.categories.hooks.blurb": "스크롤을 멈추는 처음 3초 오프너."}
+{"randomizer.categories.thumbnails.label": "썸네일"}
+{"randomizer.categories.thumbnails.blurb": "YouTube 등을 위한 높은 클릭률 컨셉."}
+{"randomizer.categories.song-concepts.label": "노래 컨셉"}
+{"randomizer.categories.song-concepts.blurb": "다음 트랙을 쓸 가치가 있는 테마와 각도."}
+{"randomizer.categories.niche-picker.label": "니치 피커"}
+{"randomizer.categories.niche-picker.blurb": "크리에이터로서 소유할 수 있는 포지셔닝 각도."}
+{"randomizer.categories.challenges.label": "챌린지"}
+{"randomizer.categories.challenges.blurb": "산출물과 성장을 위한 강제 기능."}
+{"randomizer.rollDice": "주사위 굴리기"}
+{"randomizer.freeForever": "영원히 무료 — 원하는 만큼 굴리세요"}
+{"randomizer.yourRoll": "당신의 굴림"}
+{"randomizer.orDeeper": "또는 더 깊이"}
+{"randomizer.cooking": "아이디어 요리 중…"}
+{"randomizer.signInToGenerate": "AI로 생성하려면 로그인"}
+{"randomizer.freshFromAi": "AI에서 방금 나온"}
+{"randomizer.crossLink.p1": "아이디어가 마음에 드시나요? 물어보세요"}
+{"randomizer.crossLink.p2": "에게 채팅 버블에서 전체 플랜으로 바꿔달라고."}
+{"artistVault.voicePresetNatural": "내추럴"}
+{"artistVault.voiceAdvanced": "고급"}
+{"weekly_contest.entries": "참가작 {{count}}개"}
+{"mediaDetector.filesSkipped_one": "파일 1개가 건너뛰어졌습니다 — 지원되지 않는 유형이거나 25MB 초과입니다."}
+{"promote.hero.titleAccent": "프로모 카피"}
+{"websiteBuilder.descriptionPlaceholder": "저는 애틀랜타 출신 힙합 아티스트입니다. 최신 싱글을 전면에 내세운 홈페이지, 제 이야기가 담긴 소개 페이지, 다가오는 공연 일정, 갤러리, 팬이 메일링 리스트에 가입할 수 있는 방법이 필요합니다. 어둡고 고급스러운 분위기로."}
+{"repurpose.modeLabel": "Mode"}
+{"repurpose.modeStreamVod": "Stream VOD"}
+{"nfcCards.qrSvg": "QR SVG"}
+{"myClips.extractAudioCost": "50 Visual Bucs"}
+{"linkInBio.profile.avatarUrlPlaceholder": "https://…"}
+{"linkInBio.links.urlPlaceholder": "https://…"}
+{"linkInBio.tipJar.placeholder": "https://bowdownvisuals.com/tips/your-handle"}
+{"library.headingA": "Thy"}

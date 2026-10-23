@@ -1,6 +1,6 @@
 /**
  * locale-waves-ko.test.ts — Stack-28 Korean wave pins (board items
- * 77 / 86 / 95 / 99 = ko-W1..W4, per .lane/audit/a7-locale.md §5.8).
+ * 77 / 86 / 95 / 99 = ko-W1..W5, per .lane/audit/a7-locale.md §5.8).
  *
  * For each completed wave this suite pins, over the wave's EXACT §5
  * namespace list:
@@ -74,6 +74,9 @@ export const KO_WAVES: Record<string, string[]> = {
     "audioStudio", "singingVoice", "stems", "bgReplace", "aiAudio", "songs",
     "beatMaker", "beats", "sounds", "makeSong", "translate", "sfx", "lyricVideo",
     "voiceover", "scheduler", "myProjects", "mashup",
+  ],
+  W5: [
+    "repurpose", "myClips", "hooks", "mediaDetector", "randomizer", "scriptWriter", "library", "artistVault", "catalogVault", "streamPack", "viralityCheck", "retention", "titles", "email-list", "importPage", "audit", "interviewPrep", "trends", "chooseArtist", "generations", "analytics", "setlist", "linkInBio", "weekly_contest", "discord-bot", "shoutouts", "community", "team", "extension", "collabs", "contests", "goLive", "shows", "tour", "commentReplies", "nfcCards", "privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "websiteBuilder",
   ],
 };
 
@@ -193,6 +196,9 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // brand fragment / house mode names / punctuation
     "scheduler.titlePrefix", "mashup.modeSimple", "mashup.modeCustom", "mashup.bpmUnknown",
   ],
+  W5: [
+    "analytics.creditsPerRun", "artistVault.creditsCount", "audit.handlePlaceholder", "audit.platformInstagram", "audit.platformTikTok", "audit.platformYouTube", "coach.cadencePlaceholder", "coach.crossLinkBrand", "coach.platformInstagram", "coach.platformTikTok", "coach.platformYouTube", "coach.titleStart", "commentReplies.batchSubline", "community.removed", "discord-bot.discord", "discord-bot.discord_bot_shared_secret", "discord-bot.discord_bot_token", "discord-bot.discord_client_id", "discord-bot.live_companion_bot", "email-list.100_visual_bucs", "email-list.join_2", "email-list.thy_cheat_code", "email-list.your_handle", "extension.bdv", "extension.chrome_extensions", "extension.thy_cheat_code", "hooks.heroTitleA", "hooks.heroTitleB", "hooks.pfHashtagsPlaceholder", "hooks.scoreOutOf", "importPage.kbSize", "importPage.mbSize", "importPage.urlPlaceholder", "interviewPrep.artistNamePh", "interviewPrep.audienceSizePh", "interviewPrep.of100", "library.headingA", "linkInBio.links.urlPlaceholder", "linkInBio.profile.avatarUrlPlaceholder", "linkInBio.theme.onyxMinimal", "linkInBio.tipJar.placeholder", "myClips.extractAudioCost", "nfcCardProfile.poweredBy", "nfcCards.qrSvg", "notFound.myProjects", "privacy.section4Item1Label", "privacy.section4Item2Label", "privacy.section4Item3Label", "promote.hero.titleAccent", "randomizer.crossLink.name", "repurpose.modeLabel", "repurpose.modeStreamVod", "retention.awayDigest.bowRace", "retention.awayDigest.jackpot", "retention.dailyDrop.title", "retention.prefs.dailyDropEnabled.title", "retention.quests_progress", "scriptWriter.platformTiktok", "scriptWriter.platformYoutube", "scriptWriter.teleprompterWpmValue", "setlist.durationPlaceholder", "shoutouts.displayNamePlaceholder", "shoutouts.emailPlaceholder", "team.fundPlaceholder", "team.inviteEmailPlaceholder", "team.spendingAmount", "titles.crossLinkHook", "titles.platformInstagram", "titles.platformTikTok", "titles.platformYouTube", "trends.platformInstagram", "trends.platformTiktok", "trends.platformYoutube", "viralityCheck.crossLinkHookStudio", "viralityCheck.hashtagsPlaceholder", "viralityCheck.platformInstagram", "viralityCheck.platformTiktok", "viralityCheck.platformX", "viralityCheck.platformYoutube",
+  ],
 };
 
 const placeholders = (v: Leaf): string[] => {
@@ -210,6 +216,7 @@ describe("Stack-28 ko locale waves", () => {
       it("wave namespaces are complete and non-empty in ko", () => {
         const missing: string[] = [];
         for (const k of keys) {
+          if (typeof EN[k] === "string" && !EN[k].trim()) continue; // en itself is empty (split-title accent) — nothing to carry
           const v = KO[k];
           if (v === undefined) { missing.push(`${k} (absent)`); continue; }
           if (typeof v !== "string" || !v.trim()) missing.push(`${k} (empty)`);
