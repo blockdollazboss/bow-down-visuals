@@ -140,6 +140,7 @@ import {
   LISTENING_GARDENS_ID,
   CREATION_ROW_ID,
   ATELIERS_ID,
+  BOARDWALK_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   palaceRoomLayout,
@@ -178,6 +179,13 @@ import {
   ATELIER_TOOL_BENCHES, ATELIERS_PLANTERS, ATELIERS_PLANTER_CROWNS, ATELIERS_LAMPS,
   ATELIERS_BANNER_POLES, ATELIERS_BANNER_POLE,
 } from "./ateliers";
+import {
+  BOARDWALK_FLOOR_RECTS, BOARDWALK_WALL_RUNS, BOARDWALK_PIERS, BOARDWALK_DECK_PLANKS,
+  boardwalkDeckStyle, BOARDWALK_STALLS, BOARDWALK_STALL_POSTS, BOARDWALK_STALL_BENCHES,
+  BANDSTAND, BANDSTAND_POSTS, BANDSTAND_STEPS, BOARDWALK_BASIN, BOARDWALK_RAILING,
+  BOARDWALK_RAILING_POSTS, BOARDWALK_BENCHES, BOARDWALK_PLANTERS, BOARDWALK_PLANTER_CROWNS,
+  BOARDWALK_LAMPS, BOARDWALK_BANNER_POLES, BOARDWALK_BANNER_POLE,
+} from "./boardwalk";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
@@ -2639,36 +2647,38 @@ export class KingsHallScene {
     const look = hallLookFor(this.theme);
     const cam = sun.shadow.camera;
     /* The Stage Grounds (item 31), the Listening Gardens
-     * (item 32), Creation Row (item 33) and the Ateliers
-     * (item 34) stand outdoors under the same sky: standing in a
-     * district, the sun/moon keeps the plaza's aim and the
-     * shadow camera widens to cover the district too — one
-     * light, still one shadow pass. The Gardens' aim centres
-     * south, on the parterre; the Row's centres east, on the
-     * makers' street; the Ateliers' centres south-east, on the
-     * fine-work lane. */
-    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID;
+     * (item 32), Creation Row (item 33), the Ateliers
+     * (item 34) and the Boardwalk (item 35) stand outdoors
+     * under the same sky: standing in a district, the sun/moon
+     * keeps the plaza's aim and the shadow camera widens to
+     * cover the district too — one light, still one shadow
+     * pass. The Gardens' aim centres south, on the parterre;
+     * the Row's centres east, on the makers' street; the
+     * Ateliers' centres south-east, on the fine-work lane; the
+     * Boardwalk's centres south, on the bandstand. */
+    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID;
     const inDistrict = this.currentRoom === STAGE_GROUNDS_ID;
     const inGardens = this.currentRoom === LISTENING_GARDENS_ID;
     const inRow = this.currentRoom === CREATION_ROW_ID;
     const inAteliers = this.currentRoom === ATELIERS_ID;
+    const inBoardwalk = this.currentRoom === BOARDWALK_ID;
     if (outdoors && look.sun.present) {
       // Day on the plaza: sun high in the southern sky, so the
       // palace facade and the monument throw real shadows.
       sun.position.set(16, 25, 47);
-      tgt.position.set(inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
+      tgt.position.set(inBoardwalk ? 7.6 : inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inBoardwalk ? 49 : inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(look.sun.color);
       sun.intensity = look.sun.intensity;
-      const fit = inDistrict || inGardens || inRow || inAteliers ? 44 : 36;
+      const fit = inDistrict || inGardens || inRow || inAteliers || inBoardwalk ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else if (outdoors) {
       // Night on the plaza: moonlight — cool, dim, shadow-casting.
       sun.position.set(-14, 27, 42);
-      tgt.position.set(inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
+      tgt.position.set(inBoardwalk ? 7.6 : inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inBoardwalk ? 49 : inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(0x93a7d4);
       sun.intensity = 0.6;
-      const fit = inDistrict || inGardens || inRow || inAteliers ? 44 : 36;
+      const fit = inDistrict || inGardens || inRow || inAteliers || inBoardwalk ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else {
@@ -2694,7 +2704,7 @@ export class KingsHallScene {
     const fog = this.scene.fog;
     if (!(fog instanceof THREE.Fog)) return;
     const look = hallLookFor(this.theme);
-    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID) {
+    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID || this.currentRoom === CREATION_ROW_ID || this.currentRoom === ATELIERS_ID || this.currentRoom === BOARDWALK_ID) {
       fog.near = look.theme === "light" ? 48 : 34;
       fog.far = look.theme === "light" ? 140 : 115;
     } else {
@@ -2917,6 +2927,7 @@ export class KingsHallScene {
     this.buildListeningGardensShell(group, look, mats, anim);
     this.buildCreationRowShell(group, look, mats, anim);
     this.buildAteliersShell(group, look, mats, anim);
+    this.buildBoardwalkShell(group, look, mats, anim);
     this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
@@ -5537,6 +5548,376 @@ export class KingsHallScene {
     this.shellGroups.set(ATELIERS_ID, g);
   }
 
+  /** The Boardwalk shell (Stage C item 35): the waterfront
+   *  quarter south of the plaza, between the Listening Gardens
+   *  and the Ateliers, built entirely from boardwalk.ts
+   *  placement data — the same data palace-layout registers as
+   *  the room's blocked rects, so every body built here is solid
+   *  there. A timber-deck promenade: stalls in the Row kit, a
+   *  bandstand at its heart, benches facing a long water basin
+   *  behind a gold-capped railing, planted strips by the gate,
+   *  lamps and banners. The ground is the deck — instanced
+   *  timber planks in the look's deck palette over a paving
+   *  underlay, never interior marble. Draw discipline: repeated
+   *  pieces instance (planks, stall posts, bench parts, lamp
+   *  parts, railing posts, planting crowns). Light discipline:
+   *  ZERO new real lights — the lantern standards glow by
+   *  emissive glass + item-27 lantern-glow sprites after dark,
+   *  and the basin's water is animated by the tick's texture
+   *  scroll like the pool's and the rill's. */
+  private buildBoardwalkShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* The ground: a paving underlay over every floor rect (the
+     * main deck and both north strips), with the timber deck
+     * laid over it — whole board-length planks, ONE instanced
+     * draw of unit boards scaled to boardwalk.ts' plank plan,
+     * in the look's deck palette (dark warm wood at dusk, pale
+     * sun-bleached by day). */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    for (const rect of BOARDWALK_FLOOR_RECTS) {
+      this.shellFloor(g, look, mats, rect, "paving", pavingSurface);
+    }
+    {
+      const deckStyle = boardwalkDeckStyle(look.theme);
+      const plankInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ color: deckStyle.color, roughness: deckStyle.roughness, metalness: 0 }),
+        BOARDWALK_DECK_PLANKS.length,
+      );
+      BOARDWALK_DECK_PLANKS.forEach((p, i) => {
+        dummy.position.set(p.cx, p.cy, p.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(p.w, p.h, p.d);
+        dummy.updateMatrix();
+        plankInst.setMatrixAt(i, dummy.matrix);
+      });
+      plankInst.instanceMatrix.needsUpdate = true;
+      plankInst.receiveShadow = shadows;
+      g.add(plankInst);
+      /* Gold trim lines edging the deck's long runs — the
+       * promenade's brass inlay, at the stall line and the
+       * water-bench line. Flat accent, no collision. */
+      for (const tz of [43.6, 53.6]) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(39.2, 0.012, 0.07), mats.goldDark);
+        trim.position.set(7.6, 0.045, tz);
+        g.add(trim);
+      }
+    }
+
+    /* The quarter's own enclosure: low marble walls with gold
+     * caps (the plaza's language) — the deck's west, south and
+     * east-south runs and the two flanks against the Creator
+     * Rooms building. The shared perimeter (the Gardens' east
+     * wall, the Ateliers' west wall, the plaza's south wall and
+     * its open gate) already stands in those shells. */
+    for (const run of BOARDWALK_WALL_RUNS) {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w, 1.05, run.d), mats.marbleFor(Math.max(run.w, run.d), 1.05),
+      );
+      wall.position.set(run.x, 0.525, run.z);
+      wall.castShadow = shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w === 0.35 ? 0.47 : run.w, 0.07, run.d === 0.35 ? 0.47 : run.d), mats.gold,
+      );
+      cap.position.set(run.x, 1.09, run.z);
+      g.add(cap);
+    }
+    /* Grounded piers on the south wall's line (item 43's build). */
+    for (const p of BOARDWALK_PIERS) {
+      const pier = new THREE.Group();
+      pier.position.set(p.x, 0, p.z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
+      pier.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), mats.marble);
+      shaft.position.y = 0.3 + 3.54 / 2;
+      shaft.castShadow = shadows;
+      pier.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      pier.add(cap);
+      g.add(pier);
+    }
+
+    /* The promenade stalls: the Creation Row kit — four posts
+     * per stall (instanced), a fabric canopy with a gold-dark
+     * edge, and the workbench against each stall's back
+     * (instanced bodies with a gold trim line on the open face).
+     * The stall's mouth stays open floor. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
+        BOARDWALK_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
+      );
+      for (const s of BOARDWALK_STALLS) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
+        trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
+        g.add(trim);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
+        canopy.castShadow = shadows;
+        g.add(canopy);
+      }
+      instanced(
+        new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
+        BOARDWALK_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
+      );
+      const trims: Array<{ x: number; y: number; z: number }> = [];
+      BOARDWALK_STALLS.forEach((s, i) => {
+        const b = BOARDWALK_STALL_BENCHES[i]!;
+        trims.push({ x: b.cx, y: STALL_KIT.benchH - 0.06, z: b.cz + s.side * (STALL_KIT.benchD / 2 + 0.02) });
+      });
+      instanced(new THREE.BoxGeometry(STALL_KIT.benchW, 0.05, 0.05), mats.gold, trims);
+    }
+
+    /* The bandstand: a stone-rimmed round platform in the
+     * deck's timber, ceremonial steps on its north face (inside
+     * its blocked footprint), six slender posts (instanced), a
+     * gold ring beam, a shallow cloth cone roof with gold trim
+     * and a gold finial — the gardens pavilion's build, raised
+     * on the platform the stage grounds' precedent blocks
+     * whole. */
+    {
+      const rim = new THREE.Mesh(
+        new THREE.CylinderGeometry(BANDSTAND.platformR + 0.18, BANDSTAND.platformR + 0.18, BANDSTAND.platformH, 28),
+        mats.stoneFor(3, 0.4),
+      );
+      rim.position.set(BANDSTAND.cx, BANDSTAND.platformH / 2, BANDSTAND.cz);
+      rim.castShadow = shadows;
+      rim.receiveShadow = shadows;
+      g.add(rim);
+      const deckStyle = boardwalkDeckStyle(look.theme);
+      const top = new THREE.Mesh(
+        new THREE.CylinderGeometry(BANDSTAND.platformR, BANDSTAND.platformR, 0.06, 28),
+        new THREE.MeshStandardMaterial({ color: deckStyle.color, roughness: deckStyle.roughness, metalness: 0 }),
+      );
+      top.position.set(BANDSTAND.cx, BANDSTAND.platformH + 0.03, BANDSTAND.cz);
+      top.receiveShadow = shadows;
+      g.add(top);
+      for (const s of BANDSTAND_STEPS) {
+        const step = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), mats.stoneFor(s.w, s.h));
+        step.position.set(s.cx, s.cy, s.cz);
+        step.castShadow = shadows;
+        g.add(step);
+      }
+      instanced(
+        new THREE.CylinderGeometry(0.09, 0.12, BANDSTAND.postH, 10), mats.marble,
+        BANDSTAND_POSTS.map((p) => ({ x: p.x, y: BANDSTAND.platformH + BANDSTAND.postH / 2, z: p.z })),
+      );
+      const beam = new THREE.Mesh(new THREE.TorusGeometry(BANDSTAND.postR, 0.06, 8, 32), mats.gold);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.set(BANDSTAND.cx, BANDSTAND.platformH + BANDSTAND.postH, BANDSTAND.cz);
+      g.add(beam);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(BANDSTAND.roofR, BANDSTAND.roofH, 28), mats.fabric);
+      roof.position.set(BANDSTAND.cx, BANDSTAND.roofY + BANDSTAND.roofH / 2, BANDSTAND.cz);
+      roof.castShadow = shadows;
+      g.add(roof);
+      const roofTrim = new THREE.Mesh(new THREE.TorusGeometry(BANDSTAND.roofR * 0.99, 0.035, 8, 36), mats.gold);
+      roofTrim.rotation.x = Math.PI / 2;
+      roofTrim.position.set(BANDSTAND.cx, BANDSTAND.roofY + 0.02, BANDSTAND.cz);
+      g.add(roofTrim);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), mats.gold);
+      finial.position.set(BANDSTAND.cx, BANDSTAND.roofY + BANDSTAND.roofH + 0.1, BANDSTAND.cz);
+      g.add(finial);
+    }
+
+    /* The water basin: a stone rim slab along the south edge
+     * holding real animated water (a cloned texture the tick
+     * scrolls, the pool/rill law), and the railing on its deck
+     * edge — instanced posts, a gold top rail at hand height
+     * and a mid rail. Beyond the south wall behind it, the
+     * backdrop moat glints. */
+    {
+      const rimSlab = new THREE.Mesh(
+        new THREE.BoxGeometry(BOARDWALK_BASIN.w, BOARDWALK_BASIN.rimH, BOARDWALK_BASIN.d),
+        mats.stoneFor(BOARDWALK_BASIN.w, BOARDWALK_BASIN.rimH),
+      );
+      rimSlab.position.set(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.rimH / 2, BOARDWALK_BASIN.cz);
+      rimSlab.castShadow = shadows;
+      rimSlab.receiveShadow = shadows;
+      g.add(rimSlab);
+      const tint = poolWaterTint(look.theme);
+      const waterTex = hallTexture(look.waterTextureUrl, 6, 0.6).clone();
+      waterTex.needsUpdate = true;
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2),
+        new THREE.MeshStandardMaterial({
+          map: waterTex, color: tint.color, roughness: tint.roughness,
+          metalness: 0.05, envMapIntensity: 1.2, transparent: true, opacity: 0.94,
+        }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.waterY, BOARDWALK_BASIN.cz);
+      g.add(water);
+      anim.waters.push({ tex: waterTex, jet: null });
+      instanced(
+        new THREE.CylinderGeometry(0.035, 0.045, BOARDWALK_RAILING.postH, 8), mats.darkMetal,
+        BOARDWALK_RAILING_POSTS.map((p) => ({ x: p.x, y: BOARDWALK_RAILING.postH / 2, z: p.z })),
+      );
+      const railLen = BOARDWALK_RAILING.toX - BOARDWALK_RAILING.fromX;
+      const railCx = (BOARDWALK_RAILING.fromX + BOARDWALK_RAILING.toX) / 2;
+      const topRail = new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.06, 0.09), mats.gold);
+      topRail.position.set(railCx, BOARDWALK_RAILING.railY, BOARDWALK_RAILING.z);
+      g.add(topRail);
+      const midRail = new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.04, 0.05), mats.goldDark);
+      midRail.position.set(railCx, 0.55, BOARDWALK_RAILING.z);
+      g.add(midRail);
+    }
+
+    /* Benches: the water benches facing south over the basin
+     * and the strip benches facing the gate — instanced seats,
+     * backs (on the side away from what they face) and legs,
+     * the plaza benches' construction. */
+    {
+      const seatPlaces: Array<{ x: number; y: number; z: number }> = [];
+      const backPlaces: Array<{ x: number; y: number; z: number }> = [];
+      const legPlaces: Array<{ x: number; y: number; z: number }> = [];
+      for (const b of BOARDWALK_BENCHES) {
+        seatPlaces.push({ x: b.x, y: BENCH.seatY, z: b.z });
+        backPlaces.push({ x: b.x, y: BENCH.seatY + 0.28, z: b.z - b.facing * 0.24 });
+        for (const endOff of [-0.8, 0.8]) {
+          legPlaces.push({ x: b.x + endOff, y: BENCH.seatY / 2, z: b.z });
+        }
+      }
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.09, BENCH.depth), mats.stoneFor(2, 0.4), seatPlaces);
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.5, 0.08), mats.stoneFor(2, 0.5), backPlaces);
+      instanced(new THREE.BoxGeometry(0.09, BENCH.seatY, BENCH.depth - 0.1), mats.darkMetal, legPlaces);
+    }
+
+    /* The planted strips: stone-edged beds against the south
+     * wall in each north strip, green-topped, with planting
+     * crowns along each bed (instanced, item-18 variation). */
+    {
+      for (const p of BOARDWALK_PLANTERS) {
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.d), mats.stoneFor(p.w, p.h));
+        bed.position.set(p.cx, p.cy, p.cz);
+        bed.castShadow = shadows;
+        bed.receiveShadow = shadows;
+        g.add(bed);
+        const green = new THREE.Mesh(
+          new THREE.BoxGeometry(p.w - 0.2, 0.07, p.d - 0.2),
+          new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0 }),
+        );
+        green.position.set(p.cx, p.h + 0.035, p.cz);
+        g.add(green);
+      }
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.4, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        BOARDWALK_PLANTER_CROWNS.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      BOARDWALK_PLANTER_CROWNS.forEach((c, i) => {
+        const cv = propVariation("crown", 1300 + i);
+        dummy.position.set(c.x, 0.55 + 0.28 * cv.scaleY, c.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+    }
+
+    /* Banner poles flanking the bandstand approach: a dark
+     * pole, a gold crossarm, and a hanging banner in the look's
+     * cloth, hung across the approach so it reads from the
+     * gate. */
+    for (const p of BOARDWALK_BANNER_POLES) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, BOARDWALK_BANNER_POLE.h, 8), mats.darkMetal);
+      pole.position.set(p.x, BOARDWALK_BANNER_POLE.h / 2, p.z);
+      pole.castShadow = shadows;
+      g.add(pole);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8), mats.gold);
+      arm.rotation.z = Math.PI / 2;
+      arm.position.set(p.x, BOARDWALK_BANNER_POLE.h - 0.15, p.z);
+      g.add(arm);
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
+      banner.position.set(p.x, BOARDWALK_BANNER_POLE.h - 1.05, p.z);
+      banner.castShadow = shadows;
+      g.add(banner);
+    }
+
+    /* The quarter's lantern standards — plaza-life's LAMP
+     * build, instanced: stone plinths, dark posts, gold cages,
+     * emissive glass, glow sprites after dark. Zero real
+     * lights. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        BOARDWALK_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        BOARDWALK_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        BOARDWALK_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        BOARDWALK_LAMPS.length,
+      );
+      BOARDWALK_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        BOARDWALK_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        BOARDWALK_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+        });
+      }
+    }
+
+    // The way back, labeled from the district side of the gate.
+    this.doorPlate(g, "THE KING'S PLAZA", 0, PALACE_DOOR_HEIGHT + 0.66, 34.45, 0, 2.6);
+
+    // The district's door-station: the Boardwalk Slate at the deck's head.
+    this.buildStationMarkers(g, mats, BOARDWALK_ID);
+
+    group.add(g);
+    this.shellGroups.set(BOARDWALK_ID, g);
+  }
+
   /** Plaza life (Stage C batch C3), built entirely from
    *  plaza-life.ts placement data — the same data palace-layout
    *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
@@ -6451,7 +6832,22 @@ export class KingsHallScene {
          * over it from the other — standing in either, the other
          * stays built. */
         (id === ATELIERS_ID && this.currentRoom === CREATION_ROW_ID) ||
-        (id === CREATION_ROW_ID && this.currentRoom === ATELIERS_ID);
+        (id === CREATION_ROW_ID && this.currentRoom === ATELIERS_ID) ||
+        /* The Boardwalk and the plaza see each other through the
+         * open south gate (item 35): standing in either, the
+         * other stays built — the gate is a real sightline. The
+         * Boardwalk also shares its west wall with the Listening
+         * Gardens and its east wall with the Ateliers (their own
+         * runs, already standing): the walls are low, so each
+         * neighbour is genuinely visible over them from the
+         * other — standing in any of the three, the others stay
+         * built. */
+        (id === BOARDWALK_ID && this.currentRoom === COURTYARD_ID) ||
+        (id === COURTYARD_ID && this.currentRoom === BOARDWALK_ID) ||
+        (id === BOARDWALK_ID && this.currentRoom === LISTENING_GARDENS_ID) ||
+        (id === LISTENING_GARDENS_ID && this.currentRoom === BOARDWALK_ID) ||
+        (id === BOARDWALK_ID && this.currentRoom === ATELIERS_ID) ||
+        (id === ATELIERS_ID && this.currentRoom === BOARDWALK_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible || gateVisible;
     }
     const plaza = this.shellGroups.get(COURTYARD_ID);
