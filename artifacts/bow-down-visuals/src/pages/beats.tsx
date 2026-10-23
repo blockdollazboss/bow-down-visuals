@@ -378,7 +378,7 @@ export default function Beats() {
             {t("beats.heroSubtitle")}
           </p>
           <Link
-            href="/ai-audio?tab=beats"
+            href="/audio-studio?tab=aiaudio&sub=beats"
             className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl bg-primary text-black text-sm font-bold hover:bg-primary/90 transition-colors"
           >
             <Wand2 className="w-4 h-4" /> {t("beats.makeOwnBeat")}

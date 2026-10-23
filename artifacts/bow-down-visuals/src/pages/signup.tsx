@@ -271,7 +271,7 @@ export default function Signup() {
               aria-label={t("signup.displayNameField")}
               placeholder={t("signup.displayNameField")}
               autoComplete="nickname"
-              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
+              className={`h-11 w-full sm:w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("displayName")}
             />
             <Input
@@ -280,7 +280,7 @@ export default function Signup() {
               aria-label={t("signup.emailField")}
               placeholder={t("signup.emailField")}
               autoComplete="email"
-              className={`h-9 w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
+              className={`h-11 w-full sm:w-28 md:w-36 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("email")}
             />
             <Input
@@ -289,7 +289,7 @@ export default function Signup() {
               aria-label={t("signup.passwordField")}
               placeholder={t("signup.passwordField")}
               autoComplete="new-password"
-              className={`h-9 w-28 md:w-32 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
+              className={`h-11 w-full sm:w-28 md:w-32 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("password")}
             />
             <Input
@@ -298,28 +298,30 @@ export default function Signup() {
               aria-label={t("signup.confirmPasswordField")}
               placeholder={t("signup.confirmPasswordField")}
               autoComplete="new-password"
-              className={`h-9 w-28 md:w-44 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
+              className={`h-11 w-full sm:w-28 md:w-44 text-sm ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118]" : "bg-white/5 border-white/10 text-white"} focus:border-[#c9a84c]/60 ${isLight ? "placeholder:text-[#8a6d2f]/50" : "placeholder:text-white/25"} shrink-0`}
               {...form.register("confirmPassword")}
             />
-            <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
+            <Button data-testid="btn-signup" type="submit" className="h-11 w-full sm:w-auto px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("signup.creatingLabel")}</> : t("signup.createAccountButton")}
             </Button>
           </form>
           <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                data-testid="input-terms"
-                checked={form.watch("agreeToTerms")}
-                onCheckedChange={(v) => form.setValue("agreeToTerms", v === true, { shouldValidate: true })}
-                className="border-white/20"
-              />
+            <label className="flex items-center gap-2 cursor-pointer py-2 -my-1">
+              <span className="inline-flex shrink-0 items-center justify-center p-3 -m-3">
+                <Checkbox
+                  data-testid="input-terms"
+                  checked={form.watch("agreeToTerms")}
+                  onCheckedChange={(v) => form.setValue("agreeToTerms", v === true, { shouldValidate: true })}
+                  className="border-white/20"
+                />
+              </span>
               <span>
                 {t("signup.agreePrefix")}{" "}
-                <Link href="/terms" className="text-[#c9a84c] hover:underline font-medium">
+                <Link href="/terms" className="text-[#c9a84c] hover:underline font-medium inline-flex items-center py-2 -my-2">
                   {t("signup.termsLink")}
                 </Link>{" "}
                 {t("signup.agreeAnd")}{" "}
-                <Link href="/privacy" className="text-[#c9a84c] hover:underline font-medium">
+                <Link href="/privacy" className="text-[#c9a84c] hover:underline font-medium inline-flex items-center py-2 -my-2">
                   {t("signup.privacyLink")}
                 </Link>
               </span>
@@ -327,7 +329,7 @@ export default function Signup() {
             <span aria-hidden className="text-white/20">·</span>
             <span>
               {t("signup.alreadyHaveAccount")}{" "}
-              <Link href={signInHref} className="text-[#c9a84c] hover:underline font-medium">
+              <Link href={signInHref} className="text-[#c9a84c] hover:underline font-medium inline-flex items-center py-2 -my-2">
                 {t("signup.signInLink")}
               </Link>
             </span>

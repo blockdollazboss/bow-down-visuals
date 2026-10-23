@@ -240,9 +240,6 @@ function AdminTools({
       {/* Extension promo preview reset */}
       <PromoReset labelCls={labelCls} btnCls={btnCls} />
 
-      {/* Database repairs */}
-      <DbRepairs getAccessToken={getAccessToken} labelCls={labelCls} btnCls={btnCls} />
-
       {/* Copy artists from staging */}
       <CopyArtists getAccessToken={getAccessToken} labelCls={labelCls} btnCls={btnCls} />
 
@@ -335,67 +332,6 @@ function CopyArtists({
   );
 }
 
-function DbRepairs({
-  getAccessToken,
-  labelCls,
-  btnCls,
-}: {
-  getAccessToken: () => Promise<string | null>;
-  labelCls: string;
-  btnCls: string;
-}) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  async function run(path: string, label: string) {
-    setBusy(label);
-    setMsg(null);
-    try {
-      const token = await getAccessToken();
-      const res = await fetch(path, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token ?? ""}`,
-        },
-        credentials: "include",
-      });
-      const data = (await res.json()) as { ok?: boolean; results?: unknown; error?: string };
-      if (!data.ok) throw new Error(data.error || "Repair failed");
-      setMsg(`✓ ${label} done.`);
-    } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <div>
-      <p className={labelCls}>Database repairs</p>
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => void run("/api/admin/schema-repair", "Schema repair")}
-          disabled={busy !== null}
-          className={btnCls}
-        >
-          {busy === "Schema repair" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run schema repair"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void run("/api/admin/schema-repair-0054", "0054 repair")}
-          disabled={busy !== null}
-          className={btnCls}
-        >
-          {busy === "0054 repair" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run 0054 DB repair"}
-        </button>
-      </div>
-      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
-    </div>
-  );
-}
-
 function PromoReset({
   labelCls,
   btnCls,
@@ -449,36 +385,6 @@ function BowRaceControls({
   const [testPopup, setTestPopup] = useState(false);
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [liveTarget, setLiveTarget] = useState<number | null>(null);
-  /* TEMPORARY (remove with /api/admin/schema-repair): one-click fix for
-     missing bow-race schema — the container-startup drizzle push wasn't
-     applying it. Shown only when the race config fails to load. */
-  const [repairing, setRepairing] = useState(false);
-
-  async function repair() {
-    setRepairing(true);
-    setMsg(null);
-    try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/admin/schema-repair", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token ?? ""}`,
-        },
-        credentials: "include",
-        body: "{}",
-      });
-      const data = (await res.json()) as { ok?: boolean; results?: unknown; error?: string };
-      if (!data.ok) throw new Error(data.error || "Repair failed");
-      setMsg(`✓ Repair done: ${JSON.stringify(data.results)} — reloading…`);
-      await load();
-    } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Repair failed."}`);
-    } finally {
-      setRepairing(false);
-    }
-  }
-
   async function load() {
     if (loaded || busy) return;
     setBusy(true);
@@ -580,18 +486,6 @@ function BowRaceControls({
           <Loader2 className="h-3 w-3 animate-spin" /> Loading race...
         </p>
         {msg && <p className="text-[10px] mt-1 text-red-400/80 break-words">{msg}</p>}
-        {/* TEMPORARY: one-click schema repair — remove with the endpoint. */}
-        {msg && (
-          <button
-            type="button"
-            onClick={() => void repair()}
-            disabled={repairing || busy}
-            className="mt-2 rounded-lg border border-[#C9A84C]/40 px-3 py-1.5 text-[11px] font-bold text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-          >
-            {repairing ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-            Run schema repair
-          </button>
-        )}
       </div>
     );
   }

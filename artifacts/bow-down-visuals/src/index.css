@@ -503,6 +503,38 @@ html, body {
 .light .text-\[\#e8c86a\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
 .light .text-\[\#e8c86a\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
 .light .text-\[\#e8c86a\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
+/* Stack-27 (A5 audit): the arbitrary pale-gold hexes escaped the tables
+   above — they are distinct class names from their named equivalents
+   (text-amber-400 = #fbbf24) and from the covered arbitrary hexes
+   (#C9A84C / #E8C86A / #e8c86a), so credit-history, the BroadcastStudio
+   headings, the live side panels, beats, shoutouts, the jewelry totals,
+   the editor section cards, the settings header, the label-pitch badge
+   and the create mode icon all rendered ~1.5–1.7:1 straw on ivory.
+   They now deepen to the same antique gold as their named equivalents;
+   casing matches the authored classes exactly (Tailwind arbitrary
+   values are case-sensitive class names — lowercase #e8c96a is NOT the
+   already-covered uppercase #E8C96A). Dark untouched. */
+.light .text-\[\#fbbf24\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#E3C566\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#E8CE7A\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#F5D576\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#f7dd7f\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#f5e08c\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .text-\[\#e8c96a\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+/* Opacity variants of those hexes generate different class names, so
+   the base rule never matches them — same stepped treatment as the
+   #e8c86a family above (spinner in credit-history, GuestPanel empty
+   state, StreamDeck scene label, TimelineTemplates /70). */
+.light .text-\[\#fbbf24\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#fbbf24\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#fbbf24\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-\[\#e8c96a\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#e8c96a\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+/* Hover / group-hover forms of the same hexes: the §19 hover tables
+   cover the named golds only, so a hovered chip would flash back to
+   pale straw. They deepen a step past the base, like §19's hovers. */
+.light .hover\:text-\[\#fbbf24\]:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #7A5A12; }
+.light .group:hover .group-hover\:text-\[\#e8c96a\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
 /* Branding Kit hero title: the pale #f7e9b8 middle stop washes out on ivory —
    deepen to an antique-bronze gradient in light mode (dark theme untouched) */
 .light .branding-kit-title:not([data-dark-lock]) {
@@ -965,8 +997,14 @@ html, body {
 .light .text-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #A39A89; }
 .light .text-white\/\[0\.13\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #9D9383; }
 
-/* Bracket-opacity ghost cards: join the §17 ghost-card values (marble fill + champagne border) */
+/* Bracket-opacity ghost cards: join the §17 ghost-card values (marble fill + champagne border).
+   Stack-27 (A5 audit): [0.06]/[0.07]/[0.08] were absent — white 6–8% over
+   remapped white/ivory cards, so streak/quest/invite progress tracks,
+   account icon discs and storyboard meta chips lost their structure. */
 .light .bg-white\/\[0\.04\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-white\/\[0\.15\]:not([data-dark-lock]):not([data-dark-lock] *) {
   background-color: rgb(255 255 255 / 0.85);

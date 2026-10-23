@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { estimateKeyColor, chromaKeyAlpha, MATTING_TIERS, tierLabel } from "./photo-matting";
-import { ortScriptUrls, rvmModelUrls, ORT_LOCAL_BASE, RVM_LOCAL_BASE } from "./stream-kit/rvm-engine";
+import {
+  ortScriptUrls,
+  rvmModelUrls,
+  ORT_LOCAL_BASE,
+  ORT_ORIGIN_BASE,
+  ORT_CDN_BASE,
+  RVM_LOCAL_BASE,
+  RVM_ORIGIN_BASE,
+  RVM_CDN_BASE,
+  RVM_MODEL_FILE,
+} from "./stream-kit/rvm-engine";
 
 /** 4x4 image: green corners/background, red subject block in the middle. */
 function fixture(): Uint8ClampedArray {
@@ -44,7 +54,23 @@ describe("rvm asset urls (the still-photo path's Pro engine)", () => {
   it("are vendored-first for both the runtime and the model", () => {
     expect(ortScriptUrls()[0]).toBe(`${ORT_LOCAL_BASE}/ort.all.min.js`);
     expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp32.onnx`);
-    expect(ortScriptUrls()).toHaveLength(2);
-    expect(rvmModelUrls()).toHaveLength(2);
+  });
+
+  it("fallback order is R2 bucket → shipped same-origin copy → third-party CDN (S27-18)", () => {
+    expect(ortScriptUrls()).toEqual([
+      `${ORT_LOCAL_BASE}/ort.all.min.js`,
+      `${ORT_ORIGIN_BASE}/ort.all.min.js`,
+      `${ORT_CDN_BASE}/ort.all.min.js`,
+    ]);
+    expect(rvmModelUrls()).toEqual([
+      `${RVM_LOCAL_BASE}/${RVM_MODEL_FILE}`,
+      `${RVM_ORIGIN_BASE}/${RVM_MODEL_FILE}`,
+      `${RVM_CDN_BASE}/${RVM_MODEL_FILE}`,
+    ]);
+    /* The middle step is the TRUE origin base: a same-origin path
+       hanging off BASE_URL, not another remote host. */
+    expect(ORT_ORIGIN_BASE).toBe(`${import.meta.env.BASE_URL}engines/onnxruntime`);
+    expect(RVM_ORIGIN_BASE).toBe(`${import.meta.env.BASE_URL}engines/rvm`);
+    expect(ORT_ORIGIN_BASE.startsWith("http")).toBe(false);
   });
 });

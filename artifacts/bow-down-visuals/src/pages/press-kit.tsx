@@ -127,20 +127,21 @@ export default function PressKitBuilder() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      try {
-        const [vRes, kRes] = await Promise.all([
-          fetch("/api/artist-vaults", { credentials: "include" }),
-          fetch("/api/press-kit/mine", { credentials: "include" }),
-        ]);
-        if (vRes.ok) {
-          const v = await vRes.json();
-          setVaults(v.vaults ?? v ?? []);
-        }
-        if (kRes.ok) {
-          const k = await kRes.json();
-          setKits(k.kits ?? []);
-        }
-      } catch { /* non-fatal */ }
+      /* Per-source settle (S27-44): vaults and kits are independent —
+         a rejected fetch for one must not discard the other. Each is
+         non-fatal on its own, as before. */
+      const [vSettled, kSettled] = await Promise.allSettled([
+        fetch("/api/artist-vaults", { credentials: "include" }),
+        fetch("/api/press-kit/mine", { credentials: "include" }),
+      ]);
+      if (vSettled.status === "fulfilled" && vSettled.value.ok) {
+        const v = await vSettled.value.json().catch(() => null);
+        if (v) setVaults(v.vaults ?? v ?? []);
+      }
+      if (kSettled.status === "fulfilled" && kSettled.value.ok) {
+        const k = await kSettled.value.json().catch(() => null);
+        if (k) setKits(k.kits ?? []);
+      }
     })();
   }, [user]);
 

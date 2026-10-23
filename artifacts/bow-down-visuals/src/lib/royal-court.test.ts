@@ -25,6 +25,7 @@ import {
   courtSaveSummary,
   saveMyCourt,
   fetchPublicCourt,
+  fetchCourtPickerSources,
   MAX_COURT_MEMBERS,
   type CourtMember,
 } from "./royal-court";
@@ -151,5 +152,44 @@ describe("save flow — driven the way the picker drives it", () => {
 
   it("an empty saved Court confirms honestly as empty", () => {
     expect(courtSaveSummary([])).toBe("Your Front Row is empty — no one has a seat right now.");
+  });
+});
+
+describe("fetchCourtPickerSources — per-source settle (S27-35)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a candidates failure keeps the loaded Court", async () => {
+    const court = [member(1, "First Crowned")];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("court-candidates")) throw new Error("network down");
+        return { ok: true, status: 200, json: async () => ({ court }) };
+      }),
+    );
+    const r = await fetchCourtPickerSources();
+    expect(r.court).toEqual(court);
+    expect(r.courtError).toBeNull();
+    expect(r.candidates).toBeNull();
+    expect(r.candidatesError).toBeInstanceOf(Error);
+  });
+
+  it("a Court failure is reported on its own channel while candidates load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("court-candidates")) {
+          return { ok: true, status: 200, json: async () => ({ candidates: [] }) };
+        }
+        return { ok: false, status: 500, json: async () => ({ error: "boom" }) };
+      }),
+    );
+    const r = await fetchCourtPickerSources();
+    expect(r.court).toBeNull();
+    expect((r.courtError as { status?: number }).status).toBe(500);
+    expect(r.candidates).toEqual([]);
+    expect(r.candidatesError).toBeNull();
   });
 });

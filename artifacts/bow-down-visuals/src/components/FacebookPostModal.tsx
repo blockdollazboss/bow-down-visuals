@@ -7,10 +7,12 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SocialAccountInfo } from "./ConnectedAccounts";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* Description composer + publisher for Facebook Pages auto-post.
-   Opens from FinalVideoExport after a successful export. Publishing costs
-   2 credits (charged by the backend, refunded if Facebook fails). Since
+   Opens from FinalVideoExport after a successful export. Publishing is
+   charged by the backend (refunded if Facebook fails) at the price the
+   credit-costs registry records for /api/social/facebook/publish. Since
    June 2025 every Facebook video surfaces as a Reel — the copy says so.
 
    Idempotency: one key is generated per composer session (when the modal
@@ -39,6 +41,7 @@ const PROGRESS_STAGES = [
 ];
 
 export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) {
+  const facebookPostCost = getCreditCost("/api/social/facebook/publish")?.cost ?? 100;
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -201,7 +204,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">Post to Facebook</h3>
-            <p className="text-xs text-white/40 mt-1">200 Visual Bucs · publishes to your Page as a Reel</p>
+            <p className="text-xs text-white/40 mt-1">{facebookPostCost} Visual Bucs · publishes to your Page as a Reel</p>
           </div>
           {!publishing && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -306,7 +309,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> Publish · 200 Visual Bucs
+                  <Send className="h-4 w-4" /> Publish · {facebookPostCost} Visual Bucs
                 </>
               )}
             </Button>

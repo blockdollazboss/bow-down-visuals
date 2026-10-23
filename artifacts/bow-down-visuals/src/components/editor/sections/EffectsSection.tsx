@@ -100,7 +100,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
     setBgRemovalError("");
     setBgRemoving(true);
     try {
-      const res = await confirmedFetch("/api/video-background-removal", {
+      const res = await confirmedFetch("/api/remove-video-background", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoUrl }),

@@ -217,7 +217,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
-                  className="text-[#c9a84c] hover:underline font-medium"
+                  className="text-[#c9a84c] hover:underline font-medium py-2"
                 >
                   {t("auth.backToSignIn")}
                 </button>
@@ -229,15 +229,15 @@ export default function Login() {
                   type="email"
                   aria-label={t("auth.email")}
                   placeholder={t("auth.emailPlaceholder")}
-                  className={`h-9 w-56 text-sm focus:border-[#c9a84c]/60 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
+                  className={`h-11 w-full sm:w-56 text-sm focus:border-[#c9a84c]/60 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   value={resetEmail}
                   onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
                 />
                 {resetError && <span className="text-xs text-destructive">{resetError}</span>}
-                <Button data-testid="btn-reset-password" type="submit" className="h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
+                <Button data-testid="btn-reset-password" type="submit" className="h-11 w-full sm:w-auto text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
                   {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.sending")}</> : t("auth.sendResetLink")}
                 </Button>
-                <button type="button" onClick={() => setResetMode(false)} className="text-xs text-white/50 hover:text-white hover:underline font-medium">
+                <button type="button" onClick={() => setResetMode(false)} className="text-xs text-white/50 hover:text-white hover:underline font-medium py-2">
                   {t("auth.backToSignIn")}
                 </button>
               </form>
@@ -265,7 +265,7 @@ export default function Login() {
                   aria-label={t("auth.email")}
                   placeholder={t("auth.email")}
                   autoComplete="email"
-                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
+                  className={`h-11 w-full sm:w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("email")}
                 />
                 <Input
@@ -274,10 +274,10 @@ export default function Login() {
                   aria-label={t("auth.password")}
                   placeholder={t("auth.password")}
                   autoComplete="current-password"
-                  className={`h-9 w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
+                  className={`h-11 w-full sm:w-32 md:w-40 text-sm focus:border-[#c9a84c]/60 shrink-0 ${isLight ? "bg-[#FDFBF5] border-[#c9a84c]/40 text-[#2A2118] placeholder:text-[#8a6d2f]/50" : "bg-white/5 border-white/10 text-white placeholder:text-white/25"}`}
                   {...form.register("password")}
                 />
-                <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
+                <Button data-testid="btn-login" type="submit" className="h-11 w-full sm:w-auto px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("auth.signingIn")}</> : t("auth.signInButton")}
                 </Button>
               </form>
@@ -285,14 +285,14 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
-                  className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
+                  className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium py-2 -my-1"
                 >
                   {t("auth.forgotPassword")}
                 </button>
                 <span aria-hidden className="text-white/20">·</span>
                 <span>
                   {t("auth.noAccount")}{" "}
-                  <Link href={signupHref} className="text-[#c9a84c] hover:underline font-medium">
+                  <Link href={signupHref} className="text-[#c9a84c] hover:underline font-medium inline-flex items-center py-2 -my-1">
                     {t("auth.signUpFree")}
                   </Link>
                 </span>

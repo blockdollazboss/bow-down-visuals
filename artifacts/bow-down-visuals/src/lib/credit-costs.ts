@@ -53,7 +53,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
 
   // ── Video ──────────────────────────────────────────────────────
-  "/api/generate-video": { cost: 400, feature: "Generate Video Clip" },
+
   "/api/generate-runway-clip": { cost: 400, feature: "Generate Video Clip" },
   "/api/generate-promo-clips": { cost: 100, feature: "Generate Promo Clips" },
   "/api/canvas/generate": { cost: 150, feature: "Spotify Canvas Generator" },

@@ -11,7 +11,17 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const SNAP_M    = 20;   // px margin from screen edge
 const HIDE_MS   = 3500; // ms idle before auto-hide
-const PEEK_PX   = 6;    // px left visible as hover target
+const PEEK_PX   = 6;    // px left visible as hover target (fine pointers)
+/* S27-01: on coarse (touch) pointers a 6px peek is untappable — the
+   auto-hidden widget kept a ≥44px gold tab on screen instead, rendered
+   as a real button the finger can actually hit. Desktop hover behaviour
+   (6px peek + mouseenter reveal) is unchanged. */
+export const TOUCH_PEEK_PX = 44;
+
+/** Visible peek width for the current pointer type. */
+export function guidePeekPx(coarsePointer: boolean): number {
+  return coarsePointer ? TOUCH_PEEK_PX : PEEK_PX;
+}
 
 type SnapPt = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
 const ALL_SNAPS: SnapPt[] = ["TL", "TC", "TR", "RC", "BR", "BC", "BL", "LC"];
@@ -45,17 +55,17 @@ function nearestSnap(x: number, y: number, w: number, h: number): SnapPt {
   return best;
 }
 
-/** CSS transform that slides the widget off its nearest edge, leaving PEEK_PX visible. */
-function slideXform(pt: SnapPt): string {
-  const off = `${SNAP_M - PEEK_PX}px`;
+/** CSS transform that slides the widget off its nearest edge, leaving peekPx visible. */
+export function slideXform(pt: SnapPt, peekPx: number = PEEK_PX): string {
+  const off = `${SNAP_M - peekPx}px`;
   if (pt === "TR" || pt === "RC" || pt === "BR") return `translateX(calc(100% + ${off}))`;
   if (pt === "TL" || pt === "LC" || pt === "BL") return `translateX(calc(-100% - ${off}))`;
   if (pt === "TC")                                return `translateY(calc(-100% - ${off}))`;
   /* BC */                                        return `translateY(calc(100%  + ${off}))`;
 }
 
-/** Thin gold peek tab that stays visible at the inside edge after slide. */
-function peekStyle(pt: SnapPt): React.CSSProperties {
+/** Gold peek tab that stays visible at the inside edge after slide. */
+function peekStyle(pt: SnapPt, peekPx: number = PEEK_PX): React.CSSProperties {
   const base: React.CSSProperties = {
     position:      "absolute",
     borderRadius:  2,
@@ -64,13 +74,13 @@ function peekStyle(pt: SnapPt): React.CSSProperties {
     pointerEvents: "none",
   };
   if (pt === "TR" || pt === "RC" || pt === "BR")
-    return { ...base, left: 0,   top: "15%", bottom: "15%", width: PEEK_PX };
+    return { ...base, left: 0,   top: "15%", bottom: "15%", width: peekPx };
   if (pt === "TL" || pt === "LC" || pt === "BL")
-    return { ...base, right: 0,  top: "15%", bottom: "15%", width: PEEK_PX };
+    return { ...base, right: 0,  top: "15%", bottom: "15%", width: peekPx };
   if (pt === "TC")
-    return { ...base, bottom: 0, left: "25%", right: "25%", height: PEEK_PX };
+    return { ...base, bottom: 0, left: "25%", right: "25%", height: peekPx };
   /* BC */
-  return   { ...base, top: 0,    left: "25%", right: "25%", height: PEEK_PX };
+  return   { ...base, top: 0,    left: "25%", right: "25%", height: peekPx };
 }
 
 /* Snap labels for the indicator dots */
@@ -598,8 +608,24 @@ export function BowDownAIGuide() {
   const [isDragging,   setIsDragging]  = useState(false);
   const [isHidden,     setIsHidden]    = useState(false);  // auto-hidden (peeking)
   const [open,         setOpen]        = useState<boolean>(readOpen);
+  /* S27-01: coarse (touch) pointers get the wide tappable peek tab. */
+  const [coarsePointer, setCoarsePointer] = useState(false);
 
   const { playing } = useThemePlayer();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(pointer: coarse)");
+    const apply = () => setCoarsePointer(mq.matches);
+    apply();
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    }
+    return undefined;
+  }, []);
+
+  const peekPx = guidePeekPx(coarsePointer);
 
   /* ── helpers ── */
   function updatePos(p: { x: number; y: number }) {
@@ -626,6 +652,14 @@ export function BowDownAIGuide() {
   const cancelHideTimer = useCallback(() => {
     if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
   }, []);
+
+  /* Reveal the auto-hidden widget (touch tab tap), then re-arm the
+     idle timer so it peeks again after HIDE_MS like on desktop. */
+  const revealFromPeek = useCallback(() => {
+    cancelHideTimer();
+    setIsHidden(false);
+    startHideTimer();
+  }, [cancelHideTimer, startHideTimer]);
 
   /* ── boot: place at saved snap, start idle timer ── */
   useEffect(() => {
@@ -763,7 +797,7 @@ export function BowDownAIGuide() {
           maxHeight:        open ? "min(72vh, 580px)" : "auto",
           display:          "flex",
           flexDirection:    "column",
-          transform:        isHidden ? slideXform(currentSnap) : "none",
+          transform:        isHidden ? slideXform(currentSnap, peekPx) : "none",
           transition,
           touchAction:      "none",
           userSelect:       "none",
@@ -773,15 +807,36 @@ export function BowDownAIGuide() {
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        {/* Gold peek tab — visible only when auto-hidden */}
-        <div
-          style={{
-            ...peekStyle(currentSnap),
-            opacity:    isHidden ? 1 : 0,
-            transition: "opacity 0.20s ease",
-          }}
-          aria-hidden="true"
-        />
+        {/* Gold peek tab — visible only when auto-hidden. On touch it is a
+            real ≥44px button (S27-01): there is no hover to reveal the
+            widget, so the tab itself is the way back in. */}
+        {isHidden && coarsePointer ? (
+          <button
+            type="button"
+            data-testid="guide-touch-tab"
+            aria-label="Show Bow Down Playlist"
+            onClick={revealFromPeek}
+            style={{
+              ...peekStyle(currentSnap, peekPx),
+              pointerEvents: "auto",
+              border:        "none",
+              padding:       0,
+              cursor:        "pointer",
+              minWidth:      TOUCH_PEEK_PX,
+              minHeight:     TOUCH_PEEK_PX,
+              zIndex:        2,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              ...peekStyle(currentSnap, peekPx),
+              opacity:    isHidden ? 1 : 0,
+              transition: "opacity 0.20s ease",
+            }}
+            aria-hidden="true"
+          />
+        )}
 
         {/* Drag grip */}
         <div
@@ -836,9 +891,11 @@ export function BowDownAIGuide() {
                   </p>
                 </div>
               </div>
+              {/* S27-02: visual chip stays 24px; the hit area grows to
+                  40×40 via an invisible ::after extension. */}
               <button
                 onClick={toggleOpen}
-                className="flex items-center justify-center h-6 w-6 rounded-lg border border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:border-white/20 transition-colors"
+                className="relative flex items-center justify-center h-6 w-6 rounded-lg border border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:border-white/20 transition-colors after:absolute after:-inset-2 after:content-['']"
                 aria-label="Minimize playlist"
               >
                 <Minimize2 className="h-3 w-3" />

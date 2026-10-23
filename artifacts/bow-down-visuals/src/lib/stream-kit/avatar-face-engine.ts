@@ -28,24 +28,33 @@
 import { mediaUrl } from "../media-cdn";
 
 export const VISION_LOCAL_BASE = mediaUrl("engines/face-landmarker");
+/* The shipped same-origin copy (public/engines/face-landmarker) — the
+   fallback immediately after the R2 media bucket and before the CDN,
+   so a bucket outage never makes the load depend on a third party. */
+export const VISION_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/face-landmarker`;
 export const VISION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1";
 export const FACE_MODEL_LOCAL_URL = mediaUrl("engines/face-landmarker/face_landmarker.task");
+export const FACE_MODEL_ORIGIN_URL = `${import.meta.env.BASE_URL}engines/face-landmarker/face_landmarker.task`;
 export const FACE_MODEL_REMOTE_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 /** Vendored-first URLs for the tasks-vision ES module bundle. */
 export function visionBundleUrls(): string[] {
-  return [`${VISION_LOCAL_BASE}/vision_bundle.mjs`, `${VISION_CDN_BASE}/vision_bundle.mjs`];
+  return [
+    `${VISION_LOCAL_BASE}/vision_bundle.mjs`,
+    `${VISION_ORIGIN_BASE}/vision_bundle.mjs`,
+    `${VISION_CDN_BASE}/vision_bundle.mjs`,
+  ];
 }
 
 /** Vendored-first WASM fileset bases (bundle and wasm travel together). */
 export function visionWasmBases(): string[] {
-  return [`${VISION_LOCAL_BASE}/wasm`, `${VISION_CDN_BASE}/wasm`];
+  return [`${VISION_LOCAL_BASE}/wasm`, `${VISION_ORIGIN_BASE}/wasm`, `${VISION_CDN_BASE}/wasm`];
 }
 
 /** Vendored-first URLs for the face landmarker model file. */
 export function faceModelUrls(): string[] {
-  return [FACE_MODEL_LOCAL_URL, FACE_MODEL_REMOTE_URL];
+  return [FACE_MODEL_LOCAL_URL, FACE_MODEL_ORIGIN_URL, FACE_MODEL_REMOTE_URL];
 }
 
 export type FaceEngineErrorCode = "LOAD_FAILED" | "UNSUPPORTED";
@@ -169,7 +178,8 @@ export class FaceDriveEngine {
             outputFacialTransformationMatrixes: true,
           });
           this.delegate = delegate;
-          this.loadedFrom = baseIndex === 0 && modelAssetPath === FACE_MODEL_LOCAL_URL ? "local" : "cdn";
+          this.loadedFrom =
+            baseIndex !== 2 && modelAssetPath !== FACE_MODEL_REMOTE_URL ? "local" : "cdn";
           return;
         } catch (err) {
           lastErr = err;

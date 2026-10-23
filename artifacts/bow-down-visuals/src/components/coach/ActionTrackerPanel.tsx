@@ -39,6 +39,11 @@ export default function ActionTrackerPanel() {
   const [items, setItems] = useState<CoachActionItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* Per-section load errors (S27-34): plan numbers and action items
+     settle independently — one source failing shows its own error in
+     its own section instead of discarding the section that loaded. */
+  const [numbersError, setNumbersError] = useState<string | null>(null);
+  const [itemsError, setItemsError] = useState<string | null>(null);
 
   const [goalInput, setGoalInput] = useState("");
   const [goalSaving, setGoalSaving] = useState(false);
@@ -56,20 +61,28 @@ export default function ActionTrackerPanel() {
     }
     setLoading(true);
     setError(null);
+    setNumbersError(null);
+    setItemsError(null);
+    const loadNumbers = async (): Promise<PlanNumbersDto> => {
+      const res = await confirmedFetch("/api/coach/plan-numbers", { skipConfirm: true });
+      if (!res) throw new Error(t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      const data = (await res.json().catch(() => ({}))) as PlanNumbersDto & { error?: string };
+      if (!res.ok) throw new Error(data.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      return data;
+    };
+    const loadItems = async (): Promise<CoachActionItemDto[]> => {
+      const res = await confirmedFetch("/api/coach/action-items", { skipConfirm: true });
+      if (!res) throw new Error(t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      const data = (await res.json().catch(() => ({}))) as { items?: CoachActionItemDto[]; error?: string };
+      if (!res.ok) throw new Error(data.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      return Array.isArray(data.items) ? data.items : [];
+    };
     try {
-      const [numRes, itemRes] = await Promise.all([
-        confirmedFetch("/api/coach/plan-numbers", { skipConfirm: true }),
-        confirmedFetch("/api/coach/action-items", { skipConfirm: true }),
-      ]);
-      if (!numRes || !itemRes) return;
-      const numData = (await numRes.json().catch(() => ({}))) as PlanNumbersDto & { error?: string };
-      if (!numRes.ok) throw new Error(numData.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
-      const itemData = (await itemRes.json().catch(() => ({}))) as { items?: CoachActionItemDto[]; error?: string };
-      if (!itemRes.ok) throw new Error(itemData.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
-      setNumbers(numData);
-      setItems(Array.isArray(itemData.items) ? itemData.items : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      const [numSettled, itemSettled] = await Promise.allSettled([loadNumbers(), loadItems()]);
+      if (numSettled.status === "fulfilled") setNumbers(numSettled.value);
+      else setNumbersError(numSettled.reason instanceof Error ? numSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      if (itemSettled.status === "fulfilled") setItems(itemSettled.value);
+      else setItemsError(itemSettled.reason instanceof Error ? itemSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
     } finally {
       setLoading(false);
     }
@@ -210,7 +223,18 @@ export default function ActionTrackerPanel() {
         <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
         {t("coachTracker.numbersTitle", { defaultValue: "Your numbers — straight from your books" })}
       </p>
-      {numbers && !numbers.hasData ? (
+      {numbersError ? (
+        <div className={`${cardCls(isLight)} text-center`}>
+          <AlertTriangle className="mx-auto h-7 w-7 text-red-400" aria-hidden="true" />
+          <p className="mt-2 text-sm text-white/70">{numbersError}</p>
+          <button
+            onClick={load}
+            className="mt-3 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
+          >
+            {t("coachTracker.retry", { defaultValue: "Retry" })}
+          </button>
+        </div>
+      ) : numbers && !numbers.hasData ? (
         <div className={`${cardCls(isLight)} text-center`}>
           <Wallet className="mx-auto h-9 w-9 text-white/20" aria-hidden="true" />
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/60">
@@ -398,7 +422,18 @@ export default function ActionTrackerPanel() {
         </div>
       )}
       <div className={cardCls(isLight)}>
-        {items.length === 0 ? (
+        {itemsError ? (
+          <div className="py-4 text-center">
+            <AlertTriangle className="mx-auto h-7 w-7 text-red-400" aria-hidden="true" />
+            <p className="mt-2 text-sm text-white/70">{itemsError}</p>
+            <button
+              onClick={load}
+              className="mt-3 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-2 text-sm font-bold text-primary transition hover:bg-primary/20"
+            >
+              {t("coachTracker.retry", { defaultValue: "Retry" })}
+            </button>
+          </div>
+        ) : items.length === 0 ? (
           <p className="py-4 text-center text-sm text-white/50">
             {t("coachTracker.itemsEmpty", {
               defaultValue: "Nothing tracked yet. Build a money plan and save its moves here — or add your own below. They'll still be here when you come back.",

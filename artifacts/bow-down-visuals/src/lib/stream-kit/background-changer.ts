@@ -76,8 +76,12 @@ import { mediaUrl } from "../media-cdn";
    the fallback). The CDN copy of the same build remains only as a
    last-resort fallback. */
 export const SEGMENTATION_LOCAL_BASE = mediaUrl("engines/selfie-segmentation");
+/* The shipped same-origin copy (public/engines/selfie-segmentation) —
+   the fallback immediately after the R2 media bucket and before the
+   CDN, so a bucket outage never makes the load depend on a third party. */
+export const SEGMENTATION_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/selfie-segmentation`;
 export const SEGMENTATION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747";
-const SEGMENTATION_BASES = [SEGMENTATION_LOCAL_BASE, SEGMENTATION_CDN_BASE] as const;
+const SEGMENTATION_BASES = [SEGMENTATION_LOCAL_BASE, SEGMENTATION_ORIGIN_BASE, SEGMENTATION_CDN_BASE] as const;
 const GREEN = "#00FF00";
 
 /**

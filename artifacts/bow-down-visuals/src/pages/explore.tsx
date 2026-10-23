@@ -8,9 +8,12 @@ import {
 import { usePageTitle } from "@/hooks/use-page-title";
 import LiveNowRail from "@/components/live/LiveNowRail";
 import {
+  exploreFailedSections,
   exploreSectionOrEmpty,
+  isExploreTotalFailure,
   normalizeExploreData,
   type ExploreData as ExploreDataShape,
+  type ExploreSectionName,
 } from "@/lib/explore-data";
 
 /* ─── /explore — the best of everything ───────────────────────────────────
@@ -46,6 +49,7 @@ function Section({ icon: Icon, title, blurb, children, link, linkLabel }: {
 export default function Explore() {
   const api = useCommunityApi();
   const [data, setData] = useState<ExploreData | null>(null);
+  const [failedSections, setFailedSections] = useState<ExploreSectionName[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   usePageTitle("Explore", "The hottest shorts, rising creators, loudest posts, next events, and liveliest groups — all in one place.");
@@ -53,10 +57,20 @@ export default function Explore() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const d = normalizeExploreData<Short, Creator, HotPost, Evt, Grp>(
-        await api.get("/api/explore"),
-      );
-      setData(d);
+      const raw = await api.get("/api/explore");
+      /* Per-section degradation (S27-29): the API settles each section
+         on its own, so a partial payload renders the surviving sections
+         and marks the failed ones in place. The full-page error card is
+         reserved for total failure — the request itself failing, or
+         every section's source failing (no data at all). */
+      if (isExploreTotalFailure(raw)) {
+        setData(null);
+        setFailedSections([]);
+        setError("Couldn't load Explore — try again.");
+        return;
+      }
+      setFailedSections(exploreFailedSections(raw));
+      setData(normalizeExploreData<Short, Creator, HotPost, Evt, Grp>(raw));
     } catch (e) {
       setError(friendlyLoadError(e, "Explore"));
     } finally { setLoading(false); }
@@ -106,7 +120,7 @@ export default function Explore() {
                 <div className="mt-3"><ShareButton path={profileLink(s.creator.slug)} label="Share" /></div>
               </div>
             ))}
-            {shorts.length === 0 && <p className="text-white/40">No shorts trending yet.</p>}
+            {shorts.length === 0 && <p className="text-white/40">{failedSections.includes("shorts") ? "Couldn't load shorts right now — try again." : "No shorts trending yet."}</p>}
           </div>
         </Section>
 
@@ -125,7 +139,7 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {creators.length === 0 && <p className="text-white/40">No creators yet.</p>}
+            {creators.length === 0 && <p className="text-white/40">{failedSections.includes("creators") ? "Couldn't load creators right now — try again." : "No creators yet."}</p>}
           </div>
         </Section>
 
@@ -141,7 +155,7 @@ export default function Explore() {
                 <div className="mt-3"><ShareButton path={`/groups/${p.group.slug}`} label="Share" /></div>
               </div>
             ))}
-            {posts.length === 0 && <p className="text-white/40">No posts heating up yet.</p>}
+            {posts.length === 0 && <p className="text-white/40">{failedSections.includes("posts") ? "Couldn't load posts right now — try again." : "No posts heating up yet."}</p>}
           </div>
         </Section>
 
@@ -162,7 +176,7 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {events.length === 0 && <p className="text-white/40">Nothing scheduled yet.</p>}
+            {events.length === 0 && <p className="text-white/40">{failedSections.includes("events") ? "Couldn't load events right now — try again." : "Nothing scheduled yet."}</p>}
           </div>
         </Section>
 
@@ -180,7 +194,7 @@ export default function Explore() {
                 </div>
               </div>
             ))}
-            {groups.length === 0 && <p className="text-white/40">No groups yet.</p>}
+            {groups.length === 0 && <p className="text-white/40">{failedSections.includes("groups") ? "Couldn't load groups right now — try again." : "No groups yet."}</p>}
           </div>
         </Section>
 

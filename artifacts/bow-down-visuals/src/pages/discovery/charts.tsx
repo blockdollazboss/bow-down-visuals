@@ -65,7 +65,7 @@ function VerticalSwitcher({
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => onChange("all")}
-        className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all ${
+        className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all inline-flex items-center justify-center min-h-[40px] ${
           value === "all"
             ? "bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black"
             : "border border-white/15 bg-white/5 text-white/60 hover:border-[#e8c86a]/40 hover:text-white"
@@ -77,7 +77,7 @@ function VerticalSwitcher({
         <button
           key={v}
           onClick={() => onChange(v)}
-          className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all ${
+          className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all inline-flex items-center justify-center min-h-[40px] ${
             value === v
               ? "bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black"
               : "border border-white/15 bg-white/5 text-white/60 hover:border-[#e8c86a]/40 hover:text-white"
@@ -97,7 +97,7 @@ function WindowTabs({ value, onChange }: { value: WindowKey; onChange: (w: Windo
         <button
           key={w.key}
           onClick={() => onChange(w.key)}
-          className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all ${
+          className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all inline-flex items-center justify-center min-h-[40px] ${
             value === w.key ? "bg-[#e8c86a] text-black" : "text-white/50 hover:text-white"
           }`}
         >
@@ -148,7 +148,7 @@ function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: nu
           <button
             key={String(d)}
             onClick={() => setDays(d)}
-            className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+            className={`rounded-full px-3 py-1 text-xs font-bold transition-all inline-flex items-center justify-center min-h-[40px] ${
               days === d
                 ? "bg-[#e8c86a] text-black"
                 : "border border-white/15 text-white/50 hover:border-[#e8c86a]/40 hover:text-white"
@@ -159,7 +159,7 @@ function AdvancedPanel({ days, setDays }: { days: number | null; setDays: (d: nu
         ))}
         <button
           onClick={loadCrossTab}
-          className="ml-auto flex items-center gap-1.5 rounded-full border border-[#c9a84c]/40 px-3 py-1 text-xs font-bold text-[#e8c86a] hover:bg-[#e8c86a]/10"
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-[#c9a84c]/40 px-3 py-1 text-xs font-bold text-[#e8c86a] hover:bg-[#e8c86a]/10 min-h-[40px]"
         >
           {crossOpen ? <X className="h-3.5 w-3.5" /> : null}
           {crossOpen ? "Hide cross-tab" : "Compare verticals"}
@@ -339,7 +339,7 @@ export default function Charts() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black transition-all sm:px-5 ${
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black transition-all sm:px-5 min-h-[40px] ${
               tab === t.key
                 ? "bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black shadow-[0_0_24px_rgba(232,200,106,0.35)]"
                 : "border border-white/15 bg-white/5 text-white/60 hover:border-[#e8c86a]/40 hover:text-white"
@@ -363,7 +363,7 @@ export default function Charts() {
           {advanced && (
             <button
               onClick={() => setShowAdvanced((x) => !x)}
-              className="flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-[#e8c86a]"
+              className="flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-[#e8c86a] min-h-[40px] px-2"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               {showAdvanced ? "Hide advanced filters" : "Advanced filters (4★+)"}

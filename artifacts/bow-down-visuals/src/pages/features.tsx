@@ -86,6 +86,7 @@ export default function Features() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label={t("features.search_features_try_thumbnail_vo")}
               placeholder={t("features.search_features_try_thumbnail_vo")}
               className="w-full rounded-xl border border-white/10 bg-black/60 pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
             />

@@ -52,12 +52,17 @@ interface TrackProgress {
 
 const PLATFORMS = ["spotify", "apple music", "youtube", "soundcloud", "tiktok", "other"];
 
-const AWARD_STYLES: Record<string, { ring: string; text: string; glow: string; label: string }> = {
+const AWARD_STYLES: Record<string, { ring: string; text: string; textLight?: string; glow: string; label: string }> = {
   bronze: { ring: "border-[#cd7f32]/60", text: "text-[#cd7f32]", glow: "bg-[#cd7f32]/10", label: "Bronze" },
-  silver: { ring: "border-[#c0c0c0]/60", text: "text-[#c0c0c0]", glow: "bg-[#c0c0c0]/10", label: "Silver" },
+  // Stack-27: silver/platinum/diamond authored hexes are generic pale
+  // metals (~1.2–1.7:1 on the ivory cards below) and must NOT join the
+  // global remap tables — the same hexes are used elsewhere. They
+  // branch here instead: deeper metallic tones that still read as
+  // silver / platinum / diamond in light. Dark text is unchanged.
+  silver: { ring: "border-[#c0c0c0]/60", text: "text-[#c0c0c0]", textLight: "text-[#6B6257]", glow: "bg-[#c0c0c0]/10", label: "Silver" },
   gold: { ring: "border-primary/70", text: "text-primary", glow: "bg-primary/10", label: "Gold" },
-  platinum: { ring: "border-[#e5e4e2]/70", text: "text-[#e5e4e2]", glow: "bg-[#e5e4e2]/10", label: "Platinum" },
-  diamond: { ring: "border-[#b9f2ff]/70", text: "text-[#b9f2ff]", glow: "bg-[#b9f2ff]/10", label: "Diamond" },
+  platinum: { ring: "border-[#e5e4e2]/70", text: "text-[#e5e4e2]", textLight: "text-[#575046]", glow: "bg-[#e5e4e2]/10", label: "Platinum" },
+  diamond: { ring: "border-[#b9f2ff]/70", text: "text-[#b9f2ff]", textLight: "text-[#0E7490]", glow: "bg-[#b9f2ff]/10", label: "Diamond" },
 };
 
 function formatCount(n: number): string {
@@ -67,13 +72,14 @@ function formatCount(n: number): string {
 }
 
 function AwardBadge({ tier, size = "sm" }: { tier: string; size?: "sm" | "lg" }) {
+  const isLight = useIsLightTheme();
   const s = AWARD_STYLES[tier];
   if (!s) return null;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border ${s.ring} ${s.glow} px-3 py-1 ${
         size === "lg" ? "text-sm" : "text-[11px]"
-      } font-bold uppercase tracking-widest ${s.text}`}
+      } font-bold uppercase tracking-widest ${isLight && s.textLight ? s.textLight : s.text}`}
     >
       <Medal className={size === "lg" ? "h-4 w-4" : "h-3 w-3"} aria-hidden="true" />
       {s.label}

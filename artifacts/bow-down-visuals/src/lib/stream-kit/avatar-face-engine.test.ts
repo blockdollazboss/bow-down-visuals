@@ -14,7 +14,11 @@ import {
   visionWasmBases,
   faceModelUrls,
   FACE_MODEL_LOCAL_URL,
+  FACE_MODEL_ORIGIN_URL,
+  FACE_MODEL_REMOTE_URL,
   VISION_LOCAL_BASE,
+  VISION_ORIGIN_BASE,
+  VISION_CDN_BASE,
   type FaceResultLike,
   type VisionModuleLike,
 } from "./avatar-face-engine";
@@ -101,10 +105,33 @@ const fakeVideo = { videoWidth: 1280, videoHeight: 720, readyState: 4 };
 describe("vendored-first URLs", () => {
   it("bundle, wasm and model all try the same-origin copy first", () => {
     expect(visionBundleUrls()[0]).toBe(`${VISION_LOCAL_BASE}/vision_bundle.mjs`);
-    expect(visionBundleUrls()).toHaveLength(2);
     expect(visionWasmBases()[0]).toBe(`${VISION_LOCAL_BASE}/wasm`);
     expect(faceModelUrls()[0]).toBe(FACE_MODEL_LOCAL_URL);
-    expect(faceModelUrls()).toHaveLength(2);
+  });
+
+  it("fallback order is R2 bucket → shipped same-origin copy → third-party CDN (S27-18)", () => {
+    expect(visionBundleUrls()).toEqual([
+      `${VISION_LOCAL_BASE}/vision_bundle.mjs`,
+      `${VISION_ORIGIN_BASE}/vision_bundle.mjs`,
+      `${VISION_CDN_BASE}/vision_bundle.mjs`,
+    ]);
+    expect(visionWasmBases()).toEqual([
+      `${VISION_LOCAL_BASE}/wasm`,
+      `${VISION_ORIGIN_BASE}/wasm`,
+      `${VISION_CDN_BASE}/wasm`,
+    ]);
+    expect(faceModelUrls()).toEqual([
+      FACE_MODEL_LOCAL_URL,
+      FACE_MODEL_ORIGIN_URL,
+      FACE_MODEL_REMOTE_URL,
+    ]);
+    /* The middle step is the TRUE origin base: a same-origin path
+       hanging off BASE_URL, not another remote host. */
+    expect(VISION_ORIGIN_BASE).toBe(`${import.meta.env.BASE_URL}engines/face-landmarker`);
+    expect(VISION_ORIGIN_BASE.startsWith("http")).toBe(false);
+    expect(FACE_MODEL_ORIGIN_URL).toBe(
+      `${import.meta.env.BASE_URL}engines/face-landmarker/face_landmarker.task`,
+    );
   });
 });
 
@@ -153,16 +180,19 @@ describe("init fallbacks", () => {
   it("falls GPU → CPU and local model → remote model in order", async () => {
     resetShared();
     const { state, importModule } = shared;
-    // GPU+local fails, GPU+remote fails, CPU+local succeeds.
-    state.createPlan = ["fail", "fail", "ok"];
+    // GPU+local fails, GPU+origin fails, GPU+remote fails, CPU+local succeeds.
+    state.createPlan = ["fail", "fail", "fail", "ok"];
     const engine = new FaceDriveEngine({ importModule });
     await engine.init();
     expect(engine.delegate).toBe("CPU");
     expect(state.createCalls.map((c) => [c.delegate, String(c.model).includes("storage.googleapis")])).toEqual([
       ["GPU", false],
+      ["GPU", false],
       ["GPU", true],
       ["CPU", false],
     ]);
+    /* The middle GPU attempt is the shipped same-origin model copy. */
+    expect(state.createCalls[1]!.model).toBe(FACE_MODEL_ORIGIN_URL);
     await engine.dispose();
   });
 });

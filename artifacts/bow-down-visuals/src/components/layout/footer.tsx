@@ -131,13 +131,13 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-10 gap-8 mb-10">
 
           {/* Create */}
-          <nav className="flex flex-col gap-2.5" aria-label="Create">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Create">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Create</p>
             {CREATE_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -145,13 +145,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Branding */}
-          <nav className="flex flex-col gap-2.5" aria-label="Branding">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Branding">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Branding</p>
             {BRANDING_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -159,13 +159,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Promote */}
-          <nav className="flex flex-col gap-2.5" aria-label="Promote">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Promote">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Promote</p>
             {PROMOTE_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -173,13 +173,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Social */}
-          <nav className="flex flex-col gap-2.5" aria-label="Social">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Social">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Social</p>
             {SOCIAL_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -187,13 +187,13 @@ export function SiteFooter() {
           </nav>
 
           {/* For Creators — SEO audience hubs */}
-          <nav className="flex flex-col gap-2.5" aria-label="For Creators">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="For Creators">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>For Creators</p>
             {CREATOR_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -201,13 +201,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Business / Get Paid */}
-          <nav className="flex flex-col gap-2.5" aria-label="Business / Get Paid">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Business / Get Paid">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Business / Get Paid</p>
             {BUSINESS_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -215,13 +215,13 @@ export function SiteFooter() {
           </nav>
 
           {/* My Studio */}
-          <nav className="flex flex-col gap-2.5" aria-label="My Studio">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="My Studio">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>My Studio</p>
             {STUDIO_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -229,13 +229,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Legal */}
-          <nav className="flex flex-col gap-2.5" aria-label="Legal">
+          <nav className="flex flex-col gap-1 md:gap-2.5" aria-label="Legal">
             <p className={`${T.label} text-[10px] font-bold uppercase tracking-widest mb-1`}>Legal</p>
             {LEGAL.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-sm ${T.link} transition-colors w-fit`}
+                className={`text-sm ${T.link} transition-colors w-fit flex items-center min-h-[40px] py-2 md:min-h-0 md:py-0`}
               >
                 {l.label}
               </Link>
@@ -260,7 +260,7 @@ export function SiteFooter() {
             </p>
             <a
               href="/contact"
-              className={`inline-flex items-center gap-1.5 mt-4 text-xs ${T.muted} transition-colors`}
+              className={`inline-flex items-center gap-1.5 mt-4 py-2 -my-1 text-xs ${T.muted} transition-colors`}
             >
               <Mail className="h-3 w-3 shrink-0" />
               Contact Us
@@ -295,9 +295,9 @@ export function SiteFooter() {
             psst&hellip; this site has a cheat code
           </p>
           <div className="flex items-center gap-4">
-            <Link href="/terms"         className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Terms</Link>
-            <Link href="/privacy"       className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Privacy</Link>
-            <Link href="/refund-policy" className={`${T.copy} text-xs hover:opacity-70 transition-colors`}>Refunds</Link>
+            <Link href="/terms"         className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Terms</Link>
+            <Link href="/privacy"       className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Privacy</Link>
+            <Link href="/refund-policy" className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Refunds</Link>
           </div>
         </div>
       </div>

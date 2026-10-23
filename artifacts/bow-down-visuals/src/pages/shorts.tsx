@@ -422,8 +422,16 @@ function ShortCard({
 
   return (
     <div ref={refCb} data-idx={idx} className="relative h-full w-full snap-start snap-always overflow-hidden bg-black">
-      {/* video */}
-      <div className="absolute inset-0" onClick={handleTap}>
+      {/* video — S27-10: the tap surface is a real <button> (keyboard +
+          screen-reader reachable), not a div onClick. Tap behaviour
+          (single-tap play/pause, double-tap like) is identical. */}
+      <button
+        type="button"
+        data-testid="shorts-play-toggle"
+        aria-label={playing ? "Pause" : "Play"}
+        onClick={handleTap}
+        className="absolute inset-0 block h-full w-full cursor-pointer appearance-none border-0 bg-transparent p-0"
+      >
         <video
           ref={(el) => { videoEl.current = el; videoRefCb(el); }}
           src={item.video_url}
@@ -432,7 +440,7 @@ function ShortCard({
           loop playsInline muted={muted}
           preload="metadata"
         />
-      </div>
+      </button>
       {!playing && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="rounded-full bg-black/60 p-5"><Play className="h-10 w-10 text-white" /></div>
@@ -741,6 +749,7 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
         </div>
         <div className="flex gap-2">
           <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => e.key === "Enter" && post()}
+            aria-label={isAuthed ? "Add a comment" : "Sign in to join the conversation"}
             placeholder={isAuthed ? "Add a comment…" : "Sign in to join the conversation"}
             className="flex-1 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/30" />
           <button onClick={post} disabled={posting || !body.trim()}

@@ -7,6 +7,12 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
+import {
+  loadRoyaltySources,
+  type SummaryData,
+  type PlatformStatus,
+  type Payout,
+} from "@/lib/royalties-load";
 
 /* ─── Royalty Tracker (tab panel inside MoneyTrackerPanel, /coach) ─────────
    One dashboard for streaming earnings across platforms.
@@ -19,35 +25,8 @@ import { useTranslation } from "react-i18next";
 
 const INSIGHTS_CREDIT_COST = 100;
 
-interface SummaryData {
-  total: string;
-  totalStreams: number;
-  entryCount: number;
-  perSong: { song: string; amount: string; cents: number; streams: number }[];
-  perPlatform: { platform: string; label: string; amount: string; cents: number; streams: number }[];
-  monthly: { month: string; amount: string; cents: number }[];
-}
 
-interface PlatformStatus {
-  key: string;
-  label: string;
-  connected: boolean;
-  connectionType: string | null;
-  accountLabel: string | null;
-  connectable: boolean;
-}
 
-interface Payout {
-  id: string;
-  distributor: string;
-  period_start: string;
-  period_end: string;
-  expected_amount: string;
-  received_amount: string | null;
-  currency: string;
-  status: string;
-  notes: string | null;
-}
 
 interface Insight {
   title: string;
@@ -84,6 +63,11 @@ export default function RoyaltyTrackerPanel() {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [platforms, setPlatforms] = useState<PlatformStatus[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [sectionErrors, setSectionErrors] = useState<{
+    summary: string | null;
+    platforms: string | null;
+    payouts: string | null;
+  }>({ summary: null, platforms: null, payouts: null });
 
   /* CSV import */
   const [csv, setCsv] = useState("");
@@ -124,16 +108,15 @@ export default function RoyaltyTrackerPanel() {
   async function loadAll() {
     setSummaryLoading(true);
     try {
-      const [{ data: s }, { data: p }, { data: pay }] = await Promise.all([
-        authed("/api/royalties/summary", "GET"),
-        authed("/api/royalties/platforms", "GET"),
-        authed("/api/royalties/payouts", "GET"),
-      ]);
-      setSummary(s as unknown as SummaryData);
-      setPlatforms(((p as { platforms?: PlatformStatus[] }).platforms ?? []) as PlatformStatus[]);
-      setPayouts(((pay as { payouts?: Payout[] }).payouts ?? []) as Payout[]);
-    } catch {
-      /* dashboard stays in its empty state */
+      const loaded = await loadRoyaltySources((path) => authed(path, "GET"));
+      if (loaded.summary) setSummary(loaded.summary);
+      setPlatforms(loaded.platforms);
+      setPayouts(loaded.payouts);
+      setSectionErrors({
+        summary: loaded.summaryError,
+        platforms: loaded.platformsError,
+        payouts: loaded.payoutsError,
+      });
     } finally {
       setSummaryLoading(false);
     }
@@ -255,7 +238,19 @@ export default function RoyaltyTrackerPanel() {
           </div>
         ) : (
           <>
-            {/* Totals */}
+            {/* Totals — a failed summary is an error state, never $0.00 */}
+            {sectionErrors.summary ? (
+              <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-5 text-center">
+                <AlertTriangle className="mx-auto h-7 w-7 text-red-400" aria-hidden="true" />
+                <p className="mt-2 text-sm text-red-300">{sectionErrors.summary}</p>
+                <button
+                  onClick={() => void loadAll()}
+                  className="mt-3 rounded-xl border border-red-400/40 px-4 py-2 text-sm font-bold text-red-200 transition hover:bg-red-500/10"
+                >
+                  {t("royalties.error.retry", { defaultValue: "Try again" })}
+                </button>
+              </div>
+            ) : (
             <div className="mb-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-500/15 to-transparent p-5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-300/80">
@@ -279,6 +274,7 @@ export default function RoyaltyTrackerPanel() {
                 <div className="mt-1 text-xs text-white/45">{t("royalties.totals.platforms", { num: summary?.perPlatform.length ?? 0 })}</div>
               </div>
             </div>
+            )}
 
             {/* AI insights */}
             <div className="mb-8 rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-transparent p-5">
@@ -366,7 +362,7 @@ export default function RoyaltyTrackerPanel() {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : sectionErrors.summary ? null : (
               <div className={`mb-8 rounded-2xl border border-dashed p-8 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/15 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <Upload className="mx-auto mb-3 h-8 w-8 text-white/30" />
                 <p className="font-bold">{t("royalties.empty.title")}</p>
@@ -409,6 +405,14 @@ export default function RoyaltyTrackerPanel() {
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.platforms.desc1")} <span className="font-bold text-white/70">{t("royalties.platforms.comingSoon")}</span>{t("royalties.platforms.desc2")}
               </p>
+              {sectionErrors.platforms ? (
+                <p className="mt-4 text-sm text-red-400">
+                  {sectionErrors.platforms}{" "}
+                  <button onClick={() => void loadAll()} className="font-bold underline underline-offset-2 hover:text-red-300">
+                    {t("royalties.error.retry", { defaultValue: "Try again" })}
+                  </button>
+                </p>
+              ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {platforms.map((p) => (
                   <div key={p.key} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-4 py-3">
@@ -430,6 +434,7 @@ export default function RoyaltyTrackerPanel() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
             {/* Payouts */}
@@ -467,7 +472,14 @@ export default function RoyaltyTrackerPanel() {
                 </div>
               )}
               <div className="mt-4 space-y-2">
-                {payouts.length === 0 && <p className="text-sm text-white/45">{t("royalties.payouts.empty")}</p>}
+                {sectionErrors.payouts ? (
+                  <p className="text-sm text-red-400">
+                    {sectionErrors.payouts}{" "}
+                    <button onClick={() => void loadAll()} className="font-bold underline underline-offset-2 hover:text-red-300">
+                      {t("royalties.error.retry", { defaultValue: "Try again" })}
+                    </button>
+                  </p>
+                ) : payouts.length === 0 && <p className="text-sm text-white/45">{t("royalties.payouts.empty")}</p>}
                 {payouts.map((p) => (
                   <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-3">
                     <div>
