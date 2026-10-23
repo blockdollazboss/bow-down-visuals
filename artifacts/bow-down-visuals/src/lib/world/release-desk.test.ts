@@ -143,6 +143,8 @@ describe("wizard draft — payload + validation mirror the 2D wizard", () => {
     d.explicitConfirmed = true;
     expect(validateReleaseDraft(d)).toContain("master audio");
     d.audioUrl = "https://x/a.wav";
+    expect(validateReleaseDraft(d)).toContain("Every track needs a title");
+    d.tracks = [{ title: "T", isrc: "" }];
     expect(validateReleaseDraft(d)).toContain("release date");
     d.releaseDate = "2027-01-01";
     expect(validateReleaseDraft(d)).toBeNull();
@@ -157,7 +159,7 @@ describe("wizard draft — payload + validation mirror the 2D wizard", () => {
       explicit: true,
       explicitConfirmed: true,
       releaseDate: "2027-01-01",
-      territoriesText: "us, ca xx",
+      territoriesText: "us, ca x1",
     });
     d.tracks = [{ title: " Song ", isrc: " usabc2412345 " }];
     const body = buildReleasePayload(d);
@@ -326,7 +328,10 @@ describe("Release Desk component (source pins)", () => {
     ]) {
       expect(desk, rail).toContain(rail);
     }
-    expect(desk).not.toContain("/distribute");
+    // No exit door: the desk never links or transfers to the 2D page.
+    expect(desk).not.toContain('href="/distribute');
+    expect(desk).not.toContain('websitePath="/distribute"');
+    expect(desk).not.toContain('target="_blank"');
   });
 
   it("the paid submit follows the 2D confirmation law (window.confirm naming the live price)", () => {
