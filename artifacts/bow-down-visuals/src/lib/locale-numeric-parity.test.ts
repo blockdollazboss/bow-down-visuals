@@ -279,7 +279,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ),
   ko: grouped(
     [T_NUM, [
-      "randomizer.hero", "privacy.lastUpdated", "privacy.section4Item4Body", "privacy.section5Body",
+      "stabilize.subtitle", "stabilize.stabilizingNote", "lufs.progressNote", "randomizer.hero", "privacy.lastUpdated", "privacy.section4Item4Body", "privacy.section5Body",
       "analyticsHub.acrossPlatforms", "brandCalculator.contentTypes.sponsoredPost.blurb", "brandingShop.designingHint",
       "brandingShop.errorProducts", "clipMaker.errorNoSelection", "coach.earnsMost",
       "discord-bot.3_one_time_setup_checklist", "distribute.validation.2", "guides.whySkillBody",
