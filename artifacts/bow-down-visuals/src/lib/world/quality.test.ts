@@ -18,6 +18,7 @@ import {
   qualityPreferenceLabel,
   resolveTier,
   rungFor,
+  steppedTextureSize,
   stepDownTier,
   stepUpTier,
   storeQualityPreference,
@@ -378,5 +379,34 @@ describe("reflector honesty (item 92: rung-sized target, both directions)", () =
   it("the scene builds exactly one reflector (the clip treatment has no second surface to drift from)", () => {
     const builds = hallSceneSrc.match(/new Reflector\(/g) ?? [];
     expect(builds.length).toBe(1);
+  });
+});
+
+describe("texture step-down (item 93: lower rungs decode a smaller set)", () => {
+  it("the ladder carries a decode scale: full, half, quarter", () => {
+    expect(rungFor("high").textureScale).toBe(1);
+    expect(rungFor("medium").textureScale).toBe(0.5);
+    expect(rungFor("low").textureScale).toBe(0.25);
+  });
+
+  it("steppedTextureSize scales both axes — memory falls with the square", () => {
+    expect(steppedTextureSize(1600, 1600, 1)).toEqual({ width: 1600, height: 1600 });
+    expect(steppedTextureSize(1600, 1600, 0.5)).toEqual({ width: 800, height: 800 });
+    expect(steppedTextureSize(1600, 1200, 0.25)).toEqual({ width: 400, height: 300 });
+  });
+
+  it("steppedTextureSize clamps tiny axes to the 2px floor and shrugs off junk", () => {
+    expect(steppedTextureSize(3, 3, 0.25)).toEqual({ width: 2, height: 2 });
+    expect(steppedTextureSize(0, 0, 0.5)).toEqual({ width: 0, height: 0 });
+    expect(steppedTextureSize(1024, 1024, Number.NaN)).toEqual({ width: 1024, height: 1024 });
+    expect(steppedTextureSize(1024, 1024, 2)).toEqual({ width: 1024, height: 1024 });
+  });
+
+  it("hallTexture's load path applies the active rung's scale (wiring pin)", () => {
+    expect(hallSceneSrc).toContain("if (activeTextureScale < 1) downscaleTextureImage(loaded, activeTextureScale);");
+    expect(hallSceneSrc).toContain("activeTextureScale = q.textureScale;");
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("activeTextureScale = rung.textureScale;");
   });
 });

@@ -74,6 +74,7 @@ import {
   detectInitialTier,
   loadQualityPreference,
   resolveTier,
+  steppedTextureSize,
   storeQualityPreference,
   type QualityPreference,
   type QualityTier,
@@ -402,6 +403,38 @@ let maxTextureAnisotropy = 8;
 let activeRungAnisotropy = 16;
 const rungSurfaceTextures = new Set<THREE.Texture>();
 
+/* Item 93: the active rung's texture decode scale, consulted by
+ * hallTexture's load callback (see steppedTextureSize in
+ * quality.ts). Seeded from the boot rung, moved by ladder steps;
+ * textures already decoded keep their size until they reload. */
+let activeTextureScale = 1;
+
+/** Canvas-downscale a freshly landed texture image to the active
+ *  rung's decode size (item 93 — the figure-canvas precedent: draw
+ *  the source onto a smaller canvas and hand THAT to the GPU). The
+ *  shared tileable canvas enhanceLoadedTexture installed is only
+ *  READ here; each texture gets its own stepped canvas. */
+function downscaleTextureImage(tex: THREE.Texture, scale: number): void {
+  const img = tex.image as { width?: number; height?: number } | undefined;
+  if (!img) return;
+  const size = steppedTextureSize(img.width ?? 0, img.height ?? 0, scale);
+  if (size.width === 0 || size.height === 0) return;
+  if (size.width === img.width && size.height === img.height) return;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = size.width;
+    canvas.height = size.height;
+    const g = canvas.getContext("2d");
+    if (!g) return;
+    g.drawImage(img as CanvasImageSource, 0, 0, size.width, size.height);
+    tex.image = canvas;
+    tex.needsUpdate = true;
+  } catch {
+    /* A source that refuses the canvas keeps its full size — the
+     * surface still renders, just unstepped. */
+  }
+}
+
 function surfaceAnisotropy(): number {
   return Math.min(activeRungAnisotropy, maxTextureAnisotropy);
 }
@@ -426,6 +459,10 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
     /* The source landed: swap in its tileable variant and fill the
      * derived PBR maps registered for this URL (pbr-materials). */
     enhanceLoadedTexture(url, loaded);
+    /* Item 93: on a stepped-down rung the decoded set shrinks with
+     * it — same source file, smaller canvas, a fraction of the
+     * memory (the scale squares: medium ≈ 1/4 the pixels). */
+    if (activeTextureScale < 1) downscaleTextureImage(loaded, activeTextureScale);
   }, undefined, () => {
     /* Overhaul audit T14: a slow/blocked/CORS-failed CDN copy used
      * to leave the surface untextured black with no recovery. Fall
@@ -1469,6 +1506,7 @@ export class KingsHallScene {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: "high-performance" });
     maxTextureAnisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 8);
     activeRungAnisotropy = q.anisotropy;
+    activeTextureScale = q.textureScale;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -7410,6 +7448,7 @@ export class KingsHallScene {
       this.floorOverlayMat.opacity = rung.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97;
     }
     activeRungAnisotropy = rung.anisotropy;
+    activeTextureScale = rung.textureScale;
     textureCache.forEach((tex) => {
       tex.anisotropy = surfaceAnisotropy();
       tex.needsUpdate = true;
