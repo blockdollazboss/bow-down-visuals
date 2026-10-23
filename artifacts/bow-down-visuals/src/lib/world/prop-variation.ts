@@ -41,7 +41,7 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-export type PropKind = "crown" | "trough" | "column" | "gate" | "finial";
+export type PropKind = "crown" | "trough" | "column" | "gate" | "finial" | "stall";
 
 export interface PropVariation {
   /** Yaw jitter in radians (0 for structural props whose faces
@@ -71,6 +71,12 @@ const ENVELOPES: Record<PropKind, { rot: number; scale: number; scaleY: number }
   column: { rot: 0, scale: 0.05, scaleY: 0.03 },
   gate: { rot: 0, scale: 0.03, scaleY: 0.04 },
   finial: { rot: Math.PI, scale: 0.2, scaleY: 0.1 },
+  /* Stalls (Stack-100 #2 item 35): a stall is architecture like a
+   * gate — it stays square to its street (rot 0) and breathes
+   * only in cloth tint and a whisper of canopy scale, which the
+   * scene applies to the canopy alone (the posts and the blocked
+   * rect are never varied — variation is skin, never floor plan). */
+  stall: { rot: 0, scale: 0.03, scaleY: 0.05 },
 };
 
 /**

@@ -5164,15 +5164,23 @@ export class KingsHallScene {
         new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
         ROW_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
       );
-      for (const s of ROW_STALLS) {
+      ROW_STALLS.forEach((s, si) => {
         const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
         trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
         g.add(trim);
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        /* Stack-100 #2 item 35: stall variety within the item-18
+         * system — each canopy takes its own cloth tint and a
+         * whisper of scale from propVariation("stall"); the posts
+         * and the blocked rect are never varied. */
+        const sv = propVariation("stall", si + (0));
+        const canopyMat = mats.fabric.clone();
+        canopyMat.color.offsetHSL(sv.hueShift, 0, sv.lightnessShift);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), canopyMat);
         canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
+        canopy.scale.set(sv.scale, sv.scaleY, sv.scale);
         canopy.castShadow = shadows;
         g.add(canopy);
-      }
+      });
       instanced(
         new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
         ROW_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
@@ -5919,15 +5927,23 @@ export class KingsHallScene {
         new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
         BOARDWALK_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
       );
-      for (const s of BOARDWALK_STALLS) {
+      BOARDWALK_STALLS.forEach((s, si) => {
         const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
         trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
         g.add(trim);
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        /* Stack-100 #2 item 35: stall variety within the item-18
+         * system — each canopy takes its own cloth tint and a
+         * whisper of scale from propVariation("stall"); the posts
+         * and the blocked rect are never varied. */
+        const sv = propVariation("stall", si + (100));
+        const canopyMat = mats.fabric.clone();
+        canopyMat.color.offsetHSL(sv.hueShift, 0, sv.lightnessShift);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), canopyMat);
         canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
+        canopy.scale.set(sv.scale, sv.scaleY, sv.scale);
         canopy.castShadow = shadows;
         g.add(canopy);
-      }
+      });
       instanced(
         new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
         BOARDWALK_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
