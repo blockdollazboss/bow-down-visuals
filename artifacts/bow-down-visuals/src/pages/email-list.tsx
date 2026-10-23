@@ -268,6 +268,11 @@ export default function EmailListBuilder() {
  /* automations (migration 0198) — drafts keyed by automation row id
     so switching lists never leaks one list's edits into another's */
  const [automations, setAutomations] = useState<AutomationRow[]>([]);
+/* Stack-28 #31 / A3-F10: each engagement panel loads and fails on its
+   own — a failed panel shows an error note instead of a silent empty
+   state, and never discards a healthy sibling panel's data. */
+const [panelFailed, setPanelFailed] = useState<{ tags: boolean; segments: boolean; campaigns: boolean; automations: boolean }>({ tags: false, segments: false, campaigns: false, automations: false });
+const [engagementNonce, setEngagementNonce] = useState(0);
  const [autoDrafts, setAutoDrafts] = useState<Record<string, { subject: string; body: string; delayHours: number }>>({});
  const [autoSaving, setAutoSaving] = useState<string | null>(null);
  const [autoSavedKind, setAutoSavedKind] = useState<string | null>(null);
@@ -353,18 +358,40 @@ export default function EmailListBuilder() {
     the subscriber dashboard above them. */
  const loadEngagement = useCallback(async (listId: string) => {
  if (!listId) return;
+ /* Four independent loaders (Stack-28 #31): each panel fetches,
+    settles and flags its own failure. The old single Promise.all of
+    raw fetches discarded ALL FOUR panels' data when any one fetch
+    rejected at transport level, and every panel then rendered its
+    silent empty state. */
+ const loadTags = async () => {
  try {
- const [tagsRes, segRes, campRes, autoRes] = await Promise.all([
- authedFetch(`/api/email-list/lists/${listId}/tags`),
- authedFetch(`/api/email-list/lists/${listId}/segments`),
- authedFetch(`/api/email-list/lists/${listId}/campaigns`),
- authedFetch(`/api/email-list/lists/${listId}/automations?locale=${encodeURIComponent(i18n.language)}`),
- ]);
- if (tagsRes.ok) setEmailTags((await tagsRes.json()).tags ?? []);
- if (segRes.ok) setSegments((await segRes.json()).segments ?? []);
- if (campRes.ok) setCampaigns((await campRes.json()).campaigns ?? []);
- if (autoRes.ok) {
- const rows = ((await autoRes.json()).automations ?? []) as AutomationRow[];
+ const res = await authedFetch(`/api/email-list/lists/${listId}/tags`);
+ if (!res.ok) throw new Error("tags failed");
+ setEmailTags((await res.json()).tags ?? []);
+ setPanelFailed((f) => ({ ...f, tags: false }));
+ } catch { setPanelFailed((f) => ({ ...f, tags: true })); }
+ };
+ const loadSegments = async () => {
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${listId}/segments`);
+ if (!res.ok) throw new Error("segments failed");
+ setSegments((await res.json()).segments ?? []);
+ setPanelFailed((f) => ({ ...f, segments: false }));
+ } catch { setPanelFailed((f) => ({ ...f, segments: true })); }
+ };
+ const loadCampaigns = async () => {
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${listId}/campaigns`);
+ if (!res.ok) throw new Error("campaigns failed");
+ setCampaigns((await res.json()).campaigns ?? []);
+ setPanelFailed((f) => ({ ...f, campaigns: false }));
+ } catch { setPanelFailed((f) => ({ ...f, campaigns: true })); }
+ };
+ const loadAutomations = async () => {
+ try {
+ const res = await authedFetch(`/api/email-list/lists/${listId}/automations?locale=${encodeURIComponent(i18n.language)}`);
+ if (!res.ok) throw new Error("automations failed");
+ const rows = ((await res.json()).automations ?? []) as AutomationRow[];
  setAutomations(rows);
  setAutoDrafts((prev) => {
  const next = { ...prev };
@@ -373,14 +400,16 @@ export default function EmailListBuilder() {
  }
  return next;
  });
- }
- } catch { /* panels stay empty; dashboard is unaffected */ }
+ setPanelFailed((f) => ({ ...f, automations: false }));
+ } catch { setPanelFailed((f) => ({ ...f, automations: true })); }
+ };
+ await Promise.allSettled([loadTags(), loadSegments(), loadCampaigns(), loadAutomations()]);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
  useEffect(() => {
  if (activeListId) loadEngagement(activeListId);
- }, [activeListId, loadEngagement, i18n.language]);
+ }, [activeListId, loadEngagement, i18n.language, engagementNonce]);
 
  /* Automations: one PATCH door for the switch and the copy. The
     server stamps enabled_at on switch-on, so nothing that happened
@@ -884,6 +913,12 @@ export default function EmailListBuilder() {
  {/* ── tags + segments ── */}
  <div className={`${cardClass} mt-4`}>
  <h3 className="font-semibold">{t("email-list.tags")} & {t("email-list.segments")}</h3>
+ {(panelFailed.tags || panelFailed.segments) && (
+ <p className="mt-2 text-sm text-red-300" data-testid="email-tags-segments-error">
+ {panelFailed.tags ? "Tags" : "Segments"} couldn&apos;t load — the rest of this page is unaffected.{" "}
+ <button type="button" className="font-bold underline" onClick={() => setEngagementNonce((n) => n + 1)}>Try again</button>
+ </p>
+ )}
  <div className="mt-3 flex flex-wrap items-center gap-2">
  {emailTags.map((tg) => (
  <span key={tg.id} className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
@@ -1275,7 +1310,12 @@ export default function EmailListBuilder() {
 
  <div className={`${cardClass} mt-4`}>
  <h3 className="font-semibold">{t("email-list.campaign_history")}</h3>
- {campaigns.length === 0 ? (
+ {panelFailed.campaigns ? (
+ <p className="mt-2 text-sm text-red-300" data-testid="email-campaigns-error">
+ Campaign history couldn&apos;t load.{" "}
+ <button type="button" className="font-bold underline" onClick={() => setEngagementNonce((n) => n + 1)}>Try again</button>
+ </p>
+ ) : campaigns.length === 0 ? (
  <p className="mt-2 text-sm text-white/45">{t("email-list.no_campaigns_yet")}</p>
  ) : (
  <div className="mt-3 divide-y divide-white/5">
@@ -1301,7 +1341,12 @@ export default function EmailListBuilder() {
  <div className={`${cardClass} mt-4`}>
  <h3 className="flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-primary" />{t("email-list.automations")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.automations_intro")}</p>
- {automations.length === 0 ? (
+ {panelFailed.automations ? (
+ <p className="mt-2 text-sm text-red-300" data-testid="email-automations-error">
+ Automations couldn&apos;t load.{" "}
+ <button type="button" className="font-bold underline" onClick={() => setEngagementNonce((n) => n + 1)}>Try again</button>
+ </p>
+ ) : automations.length === 0 ? (
  <p className="mt-2 text-sm text-white/45">{t("email-list.automations_loading")}</p>
  ) : (
  <div className="mt-3 space-y-4">

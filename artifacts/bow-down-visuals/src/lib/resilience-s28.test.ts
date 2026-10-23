@@ -251,3 +251,26 @@ describe("#30 group-detail: slow feed no longer blocks the whole page (A3-F9)", 
     expect(page).toContain('if (loading) return');
   });
 });
+
+describe("#31 email-list: four engagement panels load and fail independently (A3-F10)", () => {
+  const page = src("../pages/email-list.tsx");
+  it("loadEngagement is four independent loaders settled via allSettled — no coupled Promise.all of raw fetches", () => {
+    expect(page).toContain("Promise.allSettled([loadTags(), loadSegments(), loadCampaigns(), loadAutomations()])");
+    expect(page).not.toContain("const [tagsRes, segRes, campRes, autoRes] = await Promise.all([");
+    expect(page).not.toContain("panels stay empty; dashboard is unaffected");
+  });
+  it("each panel carries its own failed flag", () => {
+    for (const key of ["tags", "segments", "campaigns", "automations"]) {
+      expect(page).toContain(`setPanelFailed((f) => ({ ...f, ${key}: true }))`);
+      expect(page).toContain(`setPanelFailed((f) => ({ ...f, ${key}: false }))`);
+    }
+  });
+  it("a failed panel renders an error note + retry in place of its empty state; healthy panels keep their data", () => {
+    expect(page).toContain('data-testid="email-tags-segments-error"');
+    expect(page).toContain('data-testid="email-campaigns-error"');
+    expect(page).toContain('data-testid="email-automations-error"');
+    const campErrAt = page.indexOf('data-testid="email-campaigns-error"');
+    const campEmptyAt = page.indexOf('t("email-list.no_campaigns_yet")');
+    expect(campEmptyAt).toBeGreaterThan(campErrAt);
+  });
+});
