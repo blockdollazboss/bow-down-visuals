@@ -212,7 +212,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ja: grouped(
     [T_NUM, [
       "weekly_contest.next_drop_sub", "mashup.subtitle", "mashup.styleBeatMatchBlurb", "mashup.submitCustom", "mashup.needsTwoSongs", "repurpose.titlePrefix", "randomizer.hero", "privacy.lastUpdated", "nfcCards.orderAnother", "linkInBio.hero.title", "linkInBio.profile.bioPlaceholder", "linkInBio.links.needOne",
-      "academy.coachHeader", "academy.errorPickPlatform", "academy.heroSubtitle", "academy.lessonsHeader",
+      "create.subtitle", "create.modes.songVideoBlurb", "create.modes.hubBlurb", "release.types.single.blurb", "release.types.album.blurb", "release.costNote", "presave.notifyNote", "stabilize.subtitle", "stabilize.priceBadge", "stabilize.stabilizingNote", "lufs.subtitle", "lufs.progressNote", "lufs.abHint", "academy.coachHeader", "academy.errorPickPlatform", "academy.heroSubtitle", "academy.lessonsHeader",
       "academy.pathCostNote", "admin.bowRaceDescription", "admin.bowRaceFooterNote", "admin.jackpot.footerNote",
       "analytics.errorNoPlatforms", "analyticsHub.acrossPlatforms", "analyticsHub.heroSubtitle",
       "analyticsHub.pageDescription", "artistVault.identityFull", "artistVault.wardrobeFull",

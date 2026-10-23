@@ -799,7 +799,7 @@ const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "tabDashboard",
     "milestones.loggedFrom",
   ],
-  ja: ["heroTitle", "hookStudio", "milestones.loggedFrom"],
+  ja: ["hookStudio", "milestones.loggedFrom"],
   ko: ["hookStudio", "milestones.loggedFrom"],
   pt: ["milestones.loggedFrom"],
 };
