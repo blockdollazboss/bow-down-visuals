@@ -364,6 +364,7 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
   const [record, setRecord] = useState<MyRecord | null>(null);
   const [board, setBoard] = useState<{ rows: PartyBoardRow[]; viewerRank: number | null } | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
+  const [roomsFailed, setRoomsFailed] = useState(false);
 
   const authHeaders = useCallback(async (): Promise<HeadersInit> => {
     const token = await getAccessToken();
@@ -371,43 +372,54 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
   }, [getAccessToken]);
 
   const loadLobby = useCallback(async () => {
+    /* Stack-28 #33 / A3-F12: the three lists settle independently
+       (allSettled). One transport failure used to reject the whole
+       Promise.all before any branch ran, discarding healthy lists;
+       now each result folds through its own handling and rooms carry
+       their own failed flag, mirroring boardFailed. */
+    let headers: HeadersInit;
     try {
-      const headers = await authHeaders();
-      const [roomsRes, meRes, boardRes] = await Promise.all([
-        fetch("/api/party/rooms", { headers }),
-        fetch("/api/party/me", { headers }),
-        fetch("/api/party/leaderboard", { headers }),
-      ]);
-      if (roomsRes.ok) {
-        const data = (await roomsRes.json()) as {
-          rooms: {
-            code: string;
-            game: PartyGame;
-            players: { displayName: string; isHost: boolean }[];
-            streamId: string | null;
-            profileSlug: string | null;
-          }[];
-        };
-        setOpenRooms(
-          data.rooms.map((r) => ({
-            code: r.code,
-            game: r.game,
-            hostName: r.players.find((p) => p.isHost)?.displayName ?? "Creator",
-            players: r.players.length,
-            streamId: r.streamId,
-            profileSlug: r.profileSlug,
-          })),
-        );
-      }
-      if (meRes.ok) setRecord((await meRes.json()) as MyRecord);
-      if (boardRes.ok) {
-        const data = (await boardRes.json()) as { rows: PartyBoardRow[]; viewerRank: number | null };
-        setBoard({ rows: data.rows ?? [], viewerRank: data.viewerRank ?? null });
-      } else {
-        setBoardFailed(true);
-      }
+      headers = await authHeaders();
     } catch {
-      /* The lobby still works without the lists — creation/join are local. */
+      setRoomsFailed(true);
+      setBoardFailed(true);
+      return;
+    }
+    const [roomsRes, meRes, boardRes] = await Promise.allSettled([
+      fetch("/api/party/rooms", { headers }),
+      fetch("/api/party/me", { headers }),
+      fetch("/api/party/leaderboard", { headers }),
+    ]);
+    if (roomsRes.status === "fulfilled" && roomsRes.value.ok) {
+      const data = (await roomsRes.value.json()) as {
+        rooms: {
+          code: string;
+          game: PartyGame;
+          players: { displayName: string; isHost: boolean }[];
+          streamId: string | null;
+          profileSlug: string | null;
+        }[];
+      };
+      setOpenRooms(
+        data.rooms.map((r) => ({
+          code: r.code,
+          game: r.game,
+          hostName: r.players.find((pl) => pl.isHost)?.displayName ?? "Creator",
+          players: r.players.length,
+          streamId: r.streamId,
+          profileSlug: r.profileSlug,
+        })),
+      );
+      setRoomsFailed(false);
+    } else {
+      setRoomsFailed(true);
+    }
+    if (meRes.status === "fulfilled" && meRes.value.ok) setRecord((await meRes.value.json()) as MyRecord);
+    if (boardRes.status === "fulfilled" && boardRes.value.ok) {
+      const data = (await boardRes.value.json()) as { rows: PartyBoardRow[]; viewerRank: number | null };
+      setBoard({ rows: data.rows ?? [], viewerRank: data.viewerRank ?? null });
+      setBoardFailed(false);
+    } else {
       setBoardFailed(true);
     }
   }, [authHeaders]);
@@ -560,7 +572,12 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
           {joinError && <p className="mt-3 text-sm font-semibold text-[#e0654f]">{joinError}</p>}
 
           <h3 className={`mt-6 text-sm font-black uppercase tracking-wide ${muted}`}>Open lobbies</h3>
-          {openRooms === null ? (
+          {openRooms === null && roomsFailed ? (
+            <p className={`mt-2 text-sm ${muted}`} data-testid="party-rooms-error">
+              Open rooms couldn&apos;t load just now.{" "}
+              <button type="button" onClick={() => void loadLobby()} className="font-bold underline">Try again</button>
+            </p>
+          ) : openRooms === null ? (
             <p className={`mt-2 inline-flex items-center gap-2 text-sm ${muted}`}>
               <Loader2 className="h-4 w-4 animate-spin" /> Looking for open rooms…
             </p>

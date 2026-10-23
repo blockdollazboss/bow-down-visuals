@@ -303,3 +303,31 @@ describe("#32 LoyaltySettingsPanel: defaults never pose as saved rules (A3-F11)"
     expect(page).toContain("setQueue(pendingRedemptionsFromPayload(q));");
   });
 });
+
+describe("#33 silent-empty batch A — hashtag + party lobby (A3-F8/F12)", () => {
+  it("hashtag: failure renders an error+retry, and the count header only prints from loaded data", () => {
+    const page = src("../pages/hashtag.tsx");
+    expect(page).toContain('data-testid="hashtag-load-error"');
+    expect(page).toContain("setLoadError(true)");
+    expect(page).toContain('data ? `${fmt(total)} pieces of content tagged`');
+    expect(page).not.toContain("if (!cancelled) setData(null);\n      } finally");
+    const errAt = page.indexOf('data-testid="hashtag-load-error"');
+    const emptyAt = page.indexOf("Nothing tagged #");
+    expect(emptyAt).toBeGreaterThan(errAt);
+  });
+  it("party lobby: the three lists settle independently via allSettled", () => {
+    const page = src("../pages/party.tsx");
+    expect(page).toContain("await Promise.allSettled([");
+    expect(page).not.toContain("const [roomsRes, meRes, boardRes] = await Promise.all([");
+    expect(page).toContain('roomsRes.status === "fulfilled" && roomsRes.value.ok');
+    expect(page).toContain('boardRes.status === "fulfilled" && boardRes.value.ok');
+  });
+  it("party lobby: rooms carry their own failed flag + error state, mirroring boardFailed", () => {
+    const page = src("../pages/party.tsx");
+    expect(page).toContain("const [roomsFailed, setRoomsFailed] = useState(false);");
+    expect(page).toContain('data-testid="party-rooms-error"');
+    /* a healthy board still renders when rooms fail, and vice versa */
+    expect(page).toContain("setBoardFailed(false);");
+    expect(page).toContain("setRoomsFailed(false);");
+  });
+});
