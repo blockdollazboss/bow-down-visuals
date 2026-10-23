@@ -428,6 +428,65 @@ describe("the Boardwalk district (Stage C item 35)", () => {
   });
 });
 
+describe("the Creator Heights district (Stage C item 36)", () => {
+  const HEIGHTS = "world:creator-heights";
+
+  it("the def mirrors the client floor plan (lib/world/creator-heights.ts): name, clamp box, gate spawn", () => {
+    const def = PALACE_ROOM_DEFS.find((d) => d.roomId === HEIGHTS);
+    expect(def?.name).toBe("Creator Heights");
+    /* The client's walk rect is x 13.85..27.85, z 16.25..25.35;
+     * the clamp is a touch generous at the gate apron, like
+     * every room's, and the spawn is just inside the gate on
+     * the gate walkway. The quarter is an enclave ON the plaza
+     * floor — the last district, on the only ground floor-plan
+     * law left (see creator-heights.ts' geography note). */
+    expect(def?.bounds).toEqual({ minX: 13.0, maxX: 28.6, minZ: 15.5, maxZ: 26.1 });
+    expect(def?.spawn).toEqual({ x: 14.6, z: 24.6 });
+    /* No stage, no jukebox: the palace's one stage stays in the
+     * hall and its one jukebox in the Music Hall. */
+    expect(def?.stageEnabled).toBeUndefined();
+    expect(def?.jukeboxEnabled).toBeUndefined();
+  });
+
+  it("transfers through the gate: welcome names the district, the crossing point is carried, no screen or jukebox rides it", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    b.sent = [];
+    frame(palace, b, { type: "room.enter", roomId: HEIGHTS, x: 13.9, z: 24.6, rotY: 0 });
+    const welcome = b.sent.find((m) => m.type === "welcome");
+    expect(welcome.room).toEqual({ id: HEIGHTS, name: "Creator Heights" });
+    expect(welcome.you.x).toBe(13.9);
+    expect(welcome.you.z).toBe(24.6);
+    expect(welcome.screen).toBeUndefined();
+    expect(welcome.jukebox).toBeUndefined();
+    expect(palace.plazaRoom.peerFor(b)).toBeNull();
+    expect(palace.roomOf(b)?.roomId).toBe(HEIGHTS);
+    const directory = b.sent.filter((m) => m.type === "palace.directory").pop();
+    expect(directory.rooms.find((r: any) => r.id === HEIGHTS)).toMatchObject({
+      count: 1,
+      members: ["Beta"],
+      live: false,
+    });
+  });
+
+  it("moves roam the whole quarter and clamp at its east wall", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    frame(palace, b, { type: "room.enter", roomId: HEIGHTS, x: 13.9, z: 24.6 });
+    const room = palace.room(HEIGHTS)!;
+    // The residents' court, by the Heights Slate.
+    frame(palace, b, { type: "move", x: 20.85, z: 20.8, rotY: 0 }, 1_000);
+    expect(room.peerFor(b)?.x).toBe(20.85);
+    expect(room.peerFor(b)?.z).toBe(20.8);
+    // Beyond the district the clamp holds the edge.
+    frame(palace, b, { type: "move", x: 99, z: 99, rotY: 0 }, 2_000);
+    expect(room.peerFor(b)?.x).toBe(28.6);
+    expect(room.peerFor(b)?.z).toBe(26.1);
+  });
+});
+
 describe("doorway transfers", () => {
   it("moves the peer: despawn there, join here, same peerId, character + flags carried", () => {
     const palace = new WorldPalace(new RoomHub());
@@ -636,7 +695,7 @@ const ROYAL_COURT = "world:royal-court";
 const BRANDING = "world:branding-atelier";
 
 describe("the second ring (palace follow-on)", () => {
-  it("the registry serves thirteen rooms, hall included (eight + the Stage Grounds, Listening Gardens, Creation Row, Ateliers and Boardwalk districts, items 31+32+33+34+35)", () => {
+  it("the registry serves fourteen rooms, hall included (eight + the Stage Grounds, Listening Gardens, Creation Row, Ateliers, Boardwalk and Creator Heights districts, items 31+32+33+34+35+36)", () => {
     const palace = new WorldPalace(new RoomHub());
     const ids = palace.directory().map((r) => r.id);
     expect(ids).toEqual([
@@ -653,6 +712,7 @@ describe("the second ring (palace follow-on)", () => {
       "world:creation-row",
       "world:ateliers",
       "world:boardwalk",
+      "world:creator-heights",
     ]);
     expect(palace.directory().find((r) => r.id === TREASURY)?.name).toBe("Treasury");
     expect(palace.directory().find((r) => r.id === ROYAL_COURT)?.name).toBe("Royal Court Chamber");

@@ -51,10 +51,10 @@ describe("WorldPalace.presenceSnapshot", () => {
     const music = snap.rooms.find((r) => r.id === "world:music-hall")!;
     expect(music.count).toBe(1);
     expect(music.members).toEqual(["Cy the Guest"]);
-    // the thirteen palace rooms always list, empty ones at zero
-    // (thirteen since item 35 added the Boardwalk district;
-    // twelve was item 34's Ateliers count)
-    expect(snap.rooms).toHaveLength(13);
+    // the fourteen palace rooms always list, empty ones at zero
+    // (fourteen since item 36 added the Creator Heights
+    // district; thirteen was item 35's Boardwalk count)
+    expect(snap.rooms).toHaveLength(14);
     expect(snap.rooms.find((r) => r.id === "world:treasury")!.count).toBe(0);
   });
 
