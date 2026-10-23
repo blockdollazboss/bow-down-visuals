@@ -180,7 +180,15 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/audio-cleanup": { cost: 300, feature: "Audio Cleanup" },
 
   // ── AI text / copilots (1 credit) ──────────────────────────────
-  "/api/chat": { cost: 100, feature: "Chat Message" },
+  // /api/chat (the direct chat rail): getChatCreditCost() in
+  // api-server/src/lib/ai-chat-assistant.ts defaults CHAT_CREDIT_COST
+  // to 1 — the registry records that actual default (Stack-28 item 9,
+  // A2-06). Env can override it (0 = free mode). The live chat widget
+  // does NOT use this rail: it posts to the free /api/free-chat.
+  // OWNER PRICE CALL PENDING: whether /api/chat should be free, 1, or
+  // 100 is the owner's decision — this stack aligned the DISPLAY to
+  // the rail's current behavior and changed no charge.
+  "/api/chat": { cost: 1, feature: "Chat Message" },
   "/api/hook-studio": { cost: 100, feature: "Hook Studio" },
   "/api/virality-check": { cost: 200, feature: "Virality Pre-Flight Check" },
   "/api/analytics-hub/insights": { cost: 200, feature: "Growth Plan" },

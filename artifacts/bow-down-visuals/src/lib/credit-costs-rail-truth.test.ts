@@ -159,6 +159,22 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(CREDIT_COSTS["/api/generate-thumbnail"]?.cost).toBe(text + image);
   });
 
+  // Stack-28 item 9 (A2-06): /api/chat three-way disagreement — registry
+  // said 100, the rail default charges 1 (CHAT_CREDIT_COST ?? "1"), and
+  // the route comment claimed "free by default". Display artifacts now
+  // align to the rail's actual default (1); the charge is untouched and
+  // the intended price (free / 1 / 100) remains an owner call.
+  it("/api/chat: registry == getChatCreditCost() default (1)", () => {
+    const src = readApi("lib/ai-chat-assistant.ts");
+    const m = src.match(/CHAT_CREDIT_COST"\]\s*\?\?\s*"(\d+)"/);
+    expect(m, "CHAT_CREDIT_COST default").toBeTruthy();
+    const railDefault = Number(m![1]);
+    expect(railDefault).toBe(1);
+    expect(CREDIT_COSTS["/api/chat"]?.cost).toBe(railDefault);
+    const route = readApi("routes/chat.ts");
+    expect(route).not.toContain("Free by default (CHAT_CREDIT_COST=0)");
+  });
+
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {
       const src = readApi(spec.file);
