@@ -418,7 +418,11 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
  *  SOUTH-CENTRE mound moved west in Stage C item 32 the same
  *  way: the ground it used to mound (x −28..−12, z 40..56) is
  *  the built Listening Gardens district now — it rings the
- *  gardens' west wall instead, at (−50, 50). */
+ *  gardens' west wall instead, at (−50, 50). The EAST mound
+ *  moved east in Stage C item 33 the same way: the ground it
+ *  used to mound (x 32..48, z 2..18) is the built Creation Row
+ *  district now — it rings the Row's east wall instead, at
+ *  (68, 14). */
 export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; h: number }> = [
   { x: -66, z: 4, r: 7, h: 3.2 },
   { x: -68, z: 24, r: 9, h: 4.0 },
@@ -426,7 +430,7 @@ export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; 
   { x: -50, z: 50, r: 8, h: 3.4 },
   { x: 20, z: 48, r: 8, h: 3.4 },
   { x: 38, z: 40, r: 6.5, h: 2.8 },
-  { x: 40, z: 10, r: 7.5, h: 3.6 },
+  { x: 68, z: 14, r: 7.5, h: 3.6 },
   { x: 14, z: -38, r: 9, h: 4.2 },
   { x: -16, z: -40, r: 8, h: 3.8 },
 ];
