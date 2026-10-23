@@ -135,34 +135,47 @@ async function projectById(userId: string, id: string): Promise<HubProjectRow | 
    saved). Pre-0142 this was THE project; the row set can now hold many
    (see GET /hub/projects), and this stays the "current" one. */
 router.get("/hub/project", requireAuth, async (req, res) => {
-  const row = await mostRecentProject(req.userId!);
-  if (!row) {
-    res.json({ project: null });
-    return;
+  /* S27-49: no error handling here meant a DB failure escaped as an
+     unhandled 500. Controlled { error } shape, matching this file's
+     other handlers ("Project not found", "Invalid project data"). */
+  try {
+    const row = await mostRecentProject(req.userId!);
+    if (!row) {
+      res.json({ project: null });
+      return;
+    }
+    res.json({ project: await projectPayload(row) });
+  } catch (err) {
+    console.error("[hub-projects] GET /hub/project failed", err);
+    res.status(500).json({ error: "Couldn't load your hub project — try again." });
   }
-  res.json({ project: await projectPayload(row) });
 });
 
 /* List the user's hub projects (0142): summaries, newest first. */
 router.get("/hub/projects", requireAuth, async (req, res) => {
-  const r = await db.execute(sql`
-    SELECT id, name, type, artist_vault_id, updated_at FROM hub_projects
-    WHERE user_id = ${req.userId!}
-    ORDER BY updated_at DESC
-    LIMIT 100
-  `);
-  res.json({
-    projects: (r.rows as unknown as Array<{
-      id: string; name: string; type: string;
-      artist_vault_id: string | null; updated_at: string | Date | null;
-    }>).map((row) => ({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      artistVaultId: row.artist_vault_id ?? null,
-      updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
-    })),
-  });
+  try {
+    const r = await db.execute(sql`
+      SELECT id, name, type, artist_vault_id, updated_at FROM hub_projects
+      WHERE user_id = ${req.userId!}
+      ORDER BY updated_at DESC
+      LIMIT 100
+    `);
+    res.json({
+      projects: (r.rows as unknown as Array<{
+        id: string; name: string; type: string;
+        artist_vault_id: string | null; updated_at: string | Date | null;
+      }>).map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        artistVaultId: row.artist_vault_id ?? null,
+        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
+      })),
+    });
+  } catch (err) {
+    console.error("[hub-projects] GET /hub/projects failed", err);
+    res.status(500).json({ error: "Couldn't load your hub projects — try again." });
+  }
 });
 
 /* Get ONE of the user's hub projects by id (wave-2 #3): the full
@@ -177,12 +190,19 @@ router.get("/hub/projects/:id", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
-  const row = await projectById(req.userId!, id);
-  if (!row) {
-    res.status(404).json({ error: "Project not found" });
-    return;
+  /* Same S27-49 guard as the two reads above: a DB failure is a
+     controlled 500, not an unhandled escape. */
+  try {
+    const row = await projectById(req.userId!, id);
+    if (!row) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    res.json({ project: await projectPayload(row) });
+  } catch (err) {
+    console.error("[hub-projects] GET /hub/projects/:id failed", err);
+    res.status(500).json({ error: "Couldn't load your hub project — try again." });
   }
-  res.json({ project: await projectPayload(row) });
 });
 
 /* Save a hub project (0142 upsert rules):
