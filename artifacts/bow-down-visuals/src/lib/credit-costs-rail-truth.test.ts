@@ -121,6 +121,32 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     }
   });
 
+  // Stack-28 item 3 (A2-04): the pre-x100 stale family. Eight actions
+  // displayed 1–2 VB and had NO registry entry; displays now read the
+  // rail truth and the registry records each charge, pinned here by
+  // re-deriving every rail constant from its server source file.
+  const STALE_FAMILY = [
+    { endpoint: "/api/meme-machine/captions", file: "routes/generate/meme-machine.ts", constant: "CAPTIONS_CREDITS", cost: 100 },
+    { endpoint: "/api/style-stealer/analyze", file: "routes/generate/style-stealer.ts", constant: "ANALYZE_CREDITS", cost: 200 },
+    { endpoint: "/api/three-second-lab/openings", file: "routes/generate/three-second-lab.ts", constant: "OPENINGS_CREDITS", cost: 200 },
+    { endpoint: "/api/stream-copilot/prep", file: "routes/generate/stream-copilot.ts", constant: "PREP_CREDITS", cost: 100 },
+    { endpoint: "/api/stream-copilot/clip-plan", file: "routes/generate/stream-copilot.ts", constant: "CLIP_PLAN_CREDITS", cost: 100 },
+    { endpoint: "/api/trend-jacker/draft", file: "routes/generate/trend-jacker.ts", constant: "DRAFT_CREDITS", cost: 200 },
+    { endpoint: "/api/lyric-stories/generate", file: "routes/generate/lyric-stories.ts", constant: "CREDITS_PER_CARD", cost: 200 },
+    { endpoint: "/api/community/moderate", file: "routes/generate/community.ts", constant: "COMMUNITY_MODERATE_CREDITS", cost: 100 },
+    { endpoint: "/api/community/sentiment", file: "routes/generate/community.ts", constant: "COMMUNITY_SENTIMENT_CREDITS", cost: 100 },
+    { endpoint: "/api/community/superfans", file: "routes/generate/community.ts", constant: "COMMUNITY_SUPERFAN_CREDITS", cost: 100 },
+    { endpoint: "/api/comment-replies", file: "routes/generate/community.ts", constant: "COMMUNITY_REPLY_CREDITS", cost: 100 },
+  ] as const;
+
+  for (const spec of STALE_FAMILY) {
+    it(`${spec.endpoint}: registry == ${spec.constant} (${spec.cost})`, () => {
+      const rail = deriveServerConstant(spec.file, spec.constant);
+      expect(rail).toBe(spec.cost);
+      expect(CREDIT_COSTS[spec.endpoint]?.cost).toBe(rail);
+    });
+  }
+
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {
       const src = readApi(spec.file);

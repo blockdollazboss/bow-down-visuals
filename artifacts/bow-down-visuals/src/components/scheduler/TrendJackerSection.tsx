@@ -142,7 +142,7 @@ export default function TrendJackerSection() {
             {t("trendJacker.title", { defaultValue: "Trend Jacker" })}
           </h3>
           <span className="ml-auto rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
-            {t("trendJacker.cost", { defaultValue: "2 VB / draft" })}
+            {t("trendJacker.cost", { defaultValue: "200 VB / draft" })}
           </span>
         </div>
         <p className="text-sm text-white/50 mb-6">

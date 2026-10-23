@@ -60,10 +60,10 @@ interface Superfan {
 }
 
 const TABS: { key: TabKey; label: string; icon: typeof ShieldAlert; cost: string }[] = [
-  { key: "moderate", label: "Moderation", icon: ShieldAlert, cost: "1 VB / 50 comments" },
-  { key: "replies", label: "Reply Drafts", icon: MessageSquareHeart, cost: "1 VB / batch" },
-  { key: "sentiment", label: "Sentiment", icon: BarChart3, cost: "1 VB / report" },
-  { key: "superfans", label: "Superfans", icon: Star, cost: "1 VB / scan" },
+  { key: "moderate", label: "Moderation", icon: ShieldAlert, cost: "100 VB / 50 comments" },
+  { key: "replies", label: "Reply Drafts", icon: MessageSquareHeart, cost: "100 VB / batch" },
+  { key: "sentiment", label: "Sentiment", icon: BarChart3, cost: "100 VB / report" },
+  { key: "superfans", label: "Superfans", icon: Star, cost: "100 VB / scan" },
 ];
 
 const SAMPLE_COMMENTS = `@sharkfan99: This song is a whole anthem, on repeat all day 🔥
@@ -638,7 +638,7 @@ export default function CommunityManager() {
               className="mb-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Moderate comments · 1 VB / 50
+              Moderate comments · 100 VB / 50
             </button>
             {moderatedCount > 0 && (
               <p className="mb-3 text-sm text-zinc-400">{t("community.reviewed")}<span className="font-bold text-white">{moderatedCount}</span> ·{" "}
@@ -703,7 +703,7 @@ export default function CommunityManager() {
               className="mb-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Run sentiment report · 1 VB
+              Run sentiment report · 100 VB
             </button>
             {sentiment && (
               <div className="space-y-4">
@@ -774,7 +774,7 @@ export default function CommunityManager() {
               className="mb-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Scan for superfans · 1 VB
+              Scan for superfans · 100 VB
             </button>
             <div className="grid gap-3 md:grid-cols-2">
               {superfans.map((s, i) => (

@@ -127,7 +127,7 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
         </h3>
         <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
           {t("videoEditor.labDesc", {
-            defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power. 2 VB.",
+            defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power. 200 VB.",
           })}
         </p>
       </div>

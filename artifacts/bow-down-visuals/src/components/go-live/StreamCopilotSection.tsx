@@ -152,7 +152,7 @@ export default function StreamCopilotSection() {
             <button type="button" onClick={generatePrep} disabled={loading || !streamTitle.trim() || !topic.trim()}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-40">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {t("streamCopilot.prepGo", { defaultValue: "Build My Prep (1 VB)" })}
+              {t("streamCopilot.prepGo", { defaultValue: "Build My Prep (100 VB)" })}
             </button>
 
             {prep && (
@@ -185,7 +185,7 @@ export default function StreamCopilotSection() {
             <button type="button" onClick={generateClipPlan} disabled={loading || !recap.trim()}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] px-6 py-3 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-40">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {t("streamCopilot.clipsGo", { defaultValue: "Spot the Clips (1 VB)" })}
+              {t("streamCopilot.clipsGo", { defaultValue: "Spot the Clips (100 VB)" })}
             </button>
 
             {moments.length > 0 && (

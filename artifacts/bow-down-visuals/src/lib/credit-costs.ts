@@ -200,6 +200,29 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/audiogram": { cost: 250, feature: "Audiogram Visualizer" },
   "/api/loop-video": { cost: 150, feature: "Loop Video" },
   "/api/meme": { cost: 100, feature: "Meme Generator" },
+  // Stack-28 item 3 (A2-04): the pre-x100 stale family — these eight
+  // actions displayed 1–2 VB in their section copy while their rails
+  // charge 100–200 VB, and none had a registry entry, so the stale copy
+  // was the only price shown. Every figure below is the rail constant's
+  // own default, re-derived in credit-costs-rail-truth.test.ts:
+  // meme-machine CAPTIONS_CREDITS 100, style-stealer ANALYZE_CREDITS
+  // 200, three-second-lab OPENINGS_CREDITS 200, stream-copilot
+  // PREP_CREDITS / CLIP_PLAN_CREDITS 100 each, trend-jacker
+  // DRAFT_CREDITS 200, lyric-stories CREDITS_PER_CARD 200 (per card —
+  // the rail multiplies by the card count), community
+  // MODERATE/SENTIMENT/SUPERFAN credits 100 each (moderation is per
+  // 50-comment batch; /api/comment-replies above is the fourth
+  // community tool at 100).
+  "/api/meme-machine/captions": { cost: 100, feature: "Meme Machine Captions" },
+  "/api/style-stealer/analyze": { cost: 200, feature: "Style Stealer Analysis" },
+  "/api/three-second-lab/openings": { cost: 200, feature: "3-Second Lab Openings" },
+  "/api/stream-copilot/prep": { cost: 100, feature: "Stream Copilot Prep" },
+  "/api/stream-copilot/clip-plan": { cost: 100, feature: "Stream Copilot Clip Plan" },
+  "/api/trend-jacker/draft": { cost: 200, feature: "Trend Jacker Draft" },
+  "/api/lyric-stories/generate": { cost: 200, feature: "Lyric Stories (per card)" },
+  "/api/community/moderate": { cost: 100, feature: "Community Moderation (per 50 comments)" },
+  "/api/community/sentiment": { cost: 100, feature: "Community Sentiment Report" },
+  "/api/community/superfans": { cost: 100, feature: "Community Superfan Scan" },
   "/api/social-kit": { cost: 400, feature: "Social Media Kit" },
   "/api/promo-cards": { cost: 100, feature: "Release Promo Cards" },
   "/api/clip-description": { cost: 50, feature: "Clip Description" },
