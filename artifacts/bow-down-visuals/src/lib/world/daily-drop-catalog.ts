@@ -124,6 +124,35 @@ export function dailyDropStationForKind(kind: DailyDropKind): string | null {
   }
 }
 
+import {
+  captionPackPayload,
+  hookTemplatePayload,
+  thumbnailTemplatePayload,
+  type PanelPayload,
+} from "./panel-payload";
+
+/** The panel payload a drop's "Use" carries into its desk
+ *  (Stack-100 #2 item 97): the drop's key IS a template slug in
+ *  the matching site library (the same slug its href's
+ *  ?template= names), so the desk opens PREFILLED with that
+ *  template instead of blank. Video drops return null — the
+ *  Visual Vibes Editor door's seed is the creator's newest
+ *  project, and a video-template slug is not a project; the
+ *  editor opens exactly as it does today rather than pretending
+ *  a prefill happened. */
+export function dailyDropPanelPayload(entry: DailyDropCatalogEntry): PanelPayload | null {
+  switch (entry.kind) {
+    case "hook":
+      return hookTemplatePayload(entry.key);
+    case "caption":
+      return captionPackPayload(entry.key);
+    case "thumbnail":
+      return thumbnailTemplatePayload(entry.key);
+    case "video":
+      return null;
+  }
+}
+
 /** Apply a confirmed archive/unarchive answer to the local slate.
  *  Called only AFTER the server confirms — a failed write never
  *  moves a row on screen. Unknown keys leave the slate untouched. */

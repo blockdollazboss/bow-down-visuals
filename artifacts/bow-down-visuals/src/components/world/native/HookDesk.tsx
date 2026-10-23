@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { DeskSelectField, DeskTextField } from "./CreateDeskShared";
 import type { CreateDeskProps } from "./CreateDesks";
+import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
 import { HOOK_TEMPLATES } from "@/data/hook-templates";
 import { CAPTION_PACKS } from "@/data/caption-templates";
 import {
   CAPTION_PLATFORMS,
   CTA_GOALS,
   CTA_PLATFORMS,
+  HOOK_DESK_STATION_ID,
   HOOK_VIDEO_TYPES,
   captionPackPrefill,
   buildCaptionPayload,
@@ -151,6 +153,29 @@ export function HookDesk(props: CreateDeskProps) {
     setCapTone(pre.tone);
     setNote(null);
   };
+
+  /* Panel payload (Stack-100 #2 item 97): a handoff that named a
+     template — a Daily Drop hook/caption "Use" — opens this desk
+     PREFILLED with it, in the matching mode. Parsed defensively
+     for THIS station only, applied once on open; anything else
+     (absent, another desk's payload, an unknown slug) leaves the
+     desk exactly as blank as a plain open. Prefilling is free —
+     only a generation run charges, as ever. */
+  const payloadAppliedRef = useRef(false);
+  useEffect(() => {
+    if (payloadAppliedRef.current) return;
+    payloadAppliedRef.current = true;
+    const payload = parsePanelPayloadFor(HOOK_DESK_STATION_ID, props.panelPayload);
+    if (!payload) return;
+    if (payload.kind === "hook-template") {
+      setMode("hooks");
+      applyHookTemplate(payload.templateSlug);
+    } else if (payload.kind === "caption-pack") {
+      setMode("captions");
+      applyCaptionPack(payload.templateSlug);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const run = async () => {
     if (busy || !ready) return;
